@@ -1,4 +1,6 @@
+
 using MyLocalGPT.Shared.Services;
+using MyLocalGPT.Web;
 using MyLocalGPT.Web.Components;
 using MyLocalGPT.Web.Services;
 
@@ -14,7 +16,10 @@ namespace MyLocalGPT
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents()
                 .AddInteractiveWebAssemblyComponents();
+            CommonServices.Configure(builder.Services, builder.Configuration);
+            builder.Services.AddMvc();
 
+            builder.Services.AddDevExpressServerSideBlazorPdfViewer();
             // Add device-specific services used by the MyLocalGPT.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
 
@@ -37,12 +42,15 @@ namespace MyLocalGPT
             app.UseStaticFiles();
             app.UseAntiforgery();
 
+            app.UseAntiforgery();
+
+            app.MapStaticAssets();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode()
                 .AddInteractiveWebAssemblyRenderMode()
                 .AddAdditionalAssemblies(
                     typeof(MyLocalGPT.Shared._Imports).Assembly,
-                    typeof(MyLocalGPT.Web.Client._Imports).Assembly);
+                    typeof(MyLocalGPT.Web.Client._Imports).Assembly).AllowAnonymous();
 
             app.Run();
         }

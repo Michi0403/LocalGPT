@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿
+using Microsoft.Extensions.Logging;
 using MyLocalGPT.Services;
 using MyLocalGPT.Shared.Services;
 
@@ -16,7 +17,7 @@ namespace MyLocalGPT
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
 
-            // Add device-specific services used by the MyLocalGPT.Shared project
+            // Add device-specific services used by the MauiApp3.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
 
             builder.Services.AddMauiBlazorWebView();

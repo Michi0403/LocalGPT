@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <SupportedPlatform Include="browser" />
+	  <PackageReference Include="DevExpress.Blazor" Version="25.1.*" />
+	  <PackageReference Include="DevExpress.Blazor.RichEdit" Version="25.1.*" />
+	  <PackageReference Include="DevExpress.Blazor.PivotTable" Version="25.1.*" />
+	  <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.1.*" />
   </ItemGroup>
 
   <ItemGroup>

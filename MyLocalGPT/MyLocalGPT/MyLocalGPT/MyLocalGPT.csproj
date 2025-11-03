@@ -16,15 +16,17 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>MyLocalGPT</RootNamespace>
     <UseMaui>true</UseMaui>
+
+	  <PublishTrimmed>true</PublishTrimmed>
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableDefaultCssItems>false</EnableDefaultCssItems>
     <Nullable>enable</Nullable>
-	  <PublishTrimmed>false</PublishTrimmed>
 	  <IncludeSymbols>True</IncludeSymbols>
 	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	  <AnalysisLevel>latest-all</AnalysisLevel>
-	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		  <IsPackable>false</IsPackable>
+		  <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 	  <CopySatelliteAssemblies>true</CopySatelliteAssemblies>
 	  <Copyright>2025 Michael Fleischer</Copyright>
     <!-- Display name -->
@@ -39,15 +41,24 @@
 
     <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
     <WindowsPackageType>None</WindowsPackageType>
+	  <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
 
-    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+	  <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
+    <DefaultLanguage>de</DefaultLanguage>
   </PropertyGroup>
+	<PropertyGroup Condition="$(TargetFramework.Contains('-windows'))">
+		<!-- WinUI/WinRT needs COM interop; enable it only on Windows -->
+		<BuiltInComInteropSupport>true</BuiltInComInteropSupport>
 
+		<!-- Keep whatever trimming policy you already use -->
+		<!-- If you trim globally, you can still keep it ON here: -->
+		<!-- <PublishTrimmed>true</PublishTrimmed> -->
+	</PropertyGroup>
   <ItemGroup>
     <!-- App Icon -->
     <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
@@ -74,6 +85,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MyLocalGPT.Shared\MyLocalGPT.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <MauiXaml Update="Platforms\Windows\App.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
   </ItemGroup>
 
 </Project>

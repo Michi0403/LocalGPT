@@ -1,4 +1,4 @@
-﻿################################################################################
+################################################################################
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
@@ -9,3 +9,13 @@
 /MyLocalGPT/MyLocalGPT/MyLocalGPT.Shared/obj
 /MyLocalGPT/MyLocalGPT/MyLocalGPT.Web/obj
 /MyLocalGPT/MyLocalGPT/MyLocalGPT.Web.Client/obj
+MyLocalGPT/MyLocalGPT/MyLocalGPT.Web.Client/bin/
+MyLocalGPT/MyLocalGPT/MyLocalGPT.Web/bin/
+MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/MyLocalGPT.1.0.0.nupkg
+MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.dll
+MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.pdb
+MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.runtimeconfig.json
+MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.dll
+MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.pdb
+MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.staticwebassets.endpoints.json
+MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/
