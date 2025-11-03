@@ -1,24 +1,36 @@
-@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+@import url('open.iconic/font/css/open-iconic-bootstrap.min.css');
 
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+
 html, body {
     height: 100%;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }
-
+.goodsvisiblemenu-button {
+    width: 140px;
+    height: 40px;
+    color: white; /* Or any color */
+    background-color: #007bff;
+    mask-image: url('images/menubutton.svg');
+    -webkit-mask-image: url('images/menubutton.svg');
+}
 .invalid {
     outline: 1px solid red;
 }
-
+.buttonfullwidth {
+    display: block; /* Make the button behave like a block element */
+    width: 100%; /* Make the button take 100% of its parent container's width */
+    box-sizing: border-box; /* Include padding and border in the width */
+    margin-bottom: 10px; /* Optional: space between buttons */
+    color: var(--bs-white);
+}
 .validation-message {
     color: red;
 }
@@ -45,60 +57,19 @@ html, body {
     right: 0.75rem;
     top: 0.5rem;
 }
-
-.title {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding-bottom: 0.625rem;
+:root {
+    --panel-width: 100%;
 }
 
-.title.title-secondary {
-    padding-top: 0.313rem;
-    padding-bottom: 0;
-    color: var(--bs-secondary-color, var(--DS-color-content-neutral-default-rest));
+@media (min-width: 768px) {
+    :root {
+        --panel-width: 400px;
+    }
 }
 
-.title-header-text {
-    font-size: 2.5rem;
-    line-height: 3rem;
-    font-weight: 600;
-    letter-spacing: 0rem;
-    padding: 0.3125rem 0;
-}
-
-.title-content-text {
-    font-size: 1.75rem;
-    font-weight: 400;
-    line-height: 2.5rem;
-    letter-spacing: 0rem;
-}
-
-.main-content {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    width: 100%;
-}
-
-.block-content {
-    width: 31.25rem;
-    height: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-    max-width: 100%;
-}
-
-.icon {
-    width: var(--icon-width);
-    height: var(--icon-height);
-    background-color: currentcolor;
-    mask-position: center center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-image: var(--icon-mask-image);
-    mask-image: var(--icon-mask-image);
+@media (min-width: 1200px) {
+    :root {
+        --panel-width: 600px;
+    }
 }
 
