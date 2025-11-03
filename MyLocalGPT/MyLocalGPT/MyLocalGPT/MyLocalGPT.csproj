@@ -50,6 +50,9 @@
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
     <DefaultLanguage>de</DefaultLanguage>
+    <PackageCertificateThumbprint>73554C378E8637BFC079AB6D0542BAD962548739</PackageCertificateThumbprint>
+    <PackageCertificateKeyFile>MyLocalGPT_TemporaryKey.pfx</PackageCertificateKeyFile>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
   </PropertyGroup>
 	<PropertyGroup Condition="$(TargetFramework.Contains('-windows'))">
 		<!-- WinUI/WinRT needs COM interop; enable it only on Windows -->
