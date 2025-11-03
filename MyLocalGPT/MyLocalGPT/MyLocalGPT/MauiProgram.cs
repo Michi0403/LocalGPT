@@ -19,9 +19,9 @@ namespace MyLocalGPT
 
             // Add device-specific services used by the MauiApp3.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
-
+            builder.Services.AddScoped<ThemeService>();
             builder.Services.AddMauiBlazorWebView();
-
+            builder.Services.AddDevExpressBlazor();
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();

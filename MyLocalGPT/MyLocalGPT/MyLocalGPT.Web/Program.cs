@@ -1,4 +1,5 @@
 
+using DevExpress.XtraCharts;
 using MyLocalGPT.Shared.Services;
 using MyLocalGPT.Web;
 using MyLocalGPT.Web.Components;
@@ -22,7 +23,7 @@ namespace MyLocalGPT
             builder.Services.AddDevExpressServerSideBlazorPdfViewer();
             // Add device-specific services used by the MyLocalGPT.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
-
+            builder.Services.AddScoped<ThemeService>();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

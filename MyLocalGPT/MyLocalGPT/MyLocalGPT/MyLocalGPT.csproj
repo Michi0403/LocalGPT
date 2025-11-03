@@ -17,7 +17,6 @@
     <RootNamespace>MyLocalGPT</RootNamespace>
     <UseMaui>true</UseMaui>
 
-	  <PublishTrimmed>true</PublishTrimmed>
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableDefaultCssItems>false</EnableDefaultCssItems>
@@ -49,7 +48,7 @@
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
-    <DefaultLanguage>de</DefaultLanguage>
+    <DefaultLanguage>de-de</DefaultLanguage>
     <PackageCertificateThumbprint>73554C378E8637BFC079AB6D0542BAD962548739</PackageCertificateThumbprint>
     <PackageCertificateKeyFile>MyLocalGPT_TemporaryKey.pfx</PackageCertificateKeyFile>
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
@@ -58,9 +57,6 @@
 		<!-- WinUI/WinRT needs COM interop; enable it only on Windows -->
 		<BuiltInComInteropSupport>true</BuiltInComInteropSupport>
 
-		<!-- Keep whatever trimming policy you already use -->
-		<!-- If you trim globally, you can still keep it ON here: -->
-		<!-- <PublishTrimmed>true</PublishTrimmed> -->
 	</PropertyGroup>
   <ItemGroup>
     <!-- App Icon -->
