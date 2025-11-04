@@ -1,6 +1,7 @@
 ﻿using DevExpress.CodeParser;
 using LocalGPT.Components;
 using LocalGPT.Services;
+using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using System.Net;
 using System.Net.Sockets;
 using static System.Net.Mime.MediaTypeNames;
@@ -21,10 +22,28 @@ namespace LocalGPT
         public static int Port { get; private set; } = 0;
         public static WebApplication BuildWebApp(string[]? args = null)
         {
+            // Put the content root/web root where the LocalGPT assembly lives.
+            // This is crucial when you start the server from the WinUI process.
+            var exeDir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
+
+            var options = new WebApplicationOptions
+            {
+                ContentRootPath = exeDir,
+                WebRootPath = Path.Combine(exeDir, "wwwroot"),
+                Args = args ?? Array.Empty<string>()
+            };
+
             var builder = WebApplication.CreateBuilder(args ?? Array.Empty<string>());
 
             Port = GetFreePort();
             builder.WebHost.UseKestrel().UseUrls($"https://localhost:{Port}");
+
+            builder.Host.UseContentRoot(options.ContentRootPath);
+            builder.WebHost.UseWebRoot(Path.Combine(options.WebRootPath, "wwwroot"));         // ensure /wwwroot is found
+
+            // 2) Load static web assets for THIS assembly (enables /_content/* and isolated CSS)
+            // Load static web assets (/_content/** and CSS isolation)
+            StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
             builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddHealthChecks();
@@ -49,7 +68,12 @@ namespace LocalGPT
             app.MapHealthChecks("/health");
             //app.MapBlazorHub();
             //app.MapFallbackToPage("/_Host");
-
+            app.MapGet("/__diag", (IWebHostEnvironment env) => new {
+                env.EnvironmentName,
+                env.ContentRootPath,
+                env.WebRootPath,
+                AppAssembly = typeof(Program).Assembly.Location
+            });
             app.MapRazorComponents<App>()
                .AddInteractiveServerRenderMode()
                .AllowAnonymous();
