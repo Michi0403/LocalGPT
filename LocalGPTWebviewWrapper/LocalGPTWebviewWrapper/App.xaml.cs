@@ -1,9 +1,12 @@
-﻿using Microsoft.UI.Xaml;
+﻿using LocalGPT;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.UI.Xaml;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Windows.Storage;
-
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
@@ -14,6 +17,11 @@ namespace WebView2_WinUI3_Sample
     /// </summary>
     public partial class App : Application
     {
+
+        private Window _window;
+        private WebApplication _webApp;
+        private string _baseUrl = "";
+
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -38,12 +46,49 @@ namespace WebView2_WinUI3_Sample
         /// will be used such as when the application is launched to open a specific file.
         /// </summary>
         /// <param name="args">Details about the launch request and process.</param>
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+        protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            m_window = new MainWindow();
-            m_window.Activate();
+            _webApp = LocalGPT.Program.BuildWebApp();
+            await _webApp.StartAsync();          // non-blocking
+            _baseUrl = $"https://localhost:{LocalGPT.Program.Port}";
+
+            // Optionally: wait for /health before showing UI (keeps initial nav smooth)
+            await WaitForHealthAsync(_baseUrl);
+
+            _window = new MainWindow(_baseUrl);
+            _window.Activate();
+
+            _window.Closed += async (_, __) =>
+            {
+                if (_webApp != null)
+                {
+                    await _webApp.StopAsync();
+                    await _webApp.DisposeAsync();
+                }
+            };
+            //_window = new MainWindow();
+            //_window.Activate();
         }
 
-        private Window m_window;
+        private static async Task WaitForHealthAsync(string baseUrl)
+        {
+            using var http = new HttpClient(new HttpClientHandler
+            {
+                // dev only: trust localhost dev cert
+                ServerCertificateCustomValidationCallback = (_, __, ___, ____) => true
+            });
+
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (DateTime.UtcNow < deadline)
+            {
+                try
+                {
+                    var resp = await http.GetAsync($"{baseUrl}/health");
+                    if (resp.IsSuccessStatusCode) return;
+                }
+                catch { /* retry */ }
+                await Task.Delay(200);
+            }
+        }
     }
 }
