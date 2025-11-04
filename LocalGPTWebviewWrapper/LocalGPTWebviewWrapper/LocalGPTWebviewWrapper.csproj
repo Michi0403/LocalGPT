@@ -16,4 +16,8 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.6901" />
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LocalGPT\LocalGPT.csproj" />
+  </ItemGroup>
 </Project>
