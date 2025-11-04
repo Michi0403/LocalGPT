@@ -47,8 +47,8 @@ namespace LocalGPT
             app.UseAntiforgery();                 // ✅ after routing, before endpoints
 
             app.MapHealthChecks("/health");
-            app.MapBlazorHub();
-            app.MapFallbackToPage("/_Host");
+            //app.MapBlazorHub();
+            //app.MapFallbackToPage("/_Host");
 
             app.MapRazorComponents<App>()
                .AddInteractiveServerRenderMode()
