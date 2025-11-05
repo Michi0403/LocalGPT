@@ -1,18 +1,18 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Label="Globals">
     <WebView2UseWinRT>False</WebView2UseWinRT>
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
-    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
     <RootNamespace>LocalGPTWebviewWrapper</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>10.0.22621.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,8 +20,82 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.6901" />
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
+	<ItemGroup>
+		<!-- Include the server's wwwroot files in the package/output -->
+		<!--<Content Include="..\LocalGPT\wwwroot\**\*">
+			<Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+		</Content>
 
-  <ItemGroup>
-    <ProjectReference Include="..\LocalGPT\LocalGPT.csproj" />
+		--><!-- Include the static web assets runtime manifest (maps /_content/** etc.) --><!--
+		<Content Include="..\LocalGPT\obj\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json">
+			<Link>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
+		</Content>
+
+		--><!-- Include CSS isolation bundles if present --><!--
+		<Content Include="..\LocalGPT\obj\$(Configuration)\net9.0\**\*.styles.css">
+			<Link>LocalGPTWebviewWrapper\%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
+		</Content>-->
+
+		<!-- Make sure it's a project reference, not a DLL/COM ref -->
+		<ProjectReference Include="..\LocalGPT\LocalGPT.csproj">
+			<EmbedInteropTypes>false</EmbedInteropTypes>
+		</ProjectReference>
+	</ItemGroup>
+<!--<ItemGroup>
+	
+  <Content Include="..\LocalGPT\wwwroot\**\*">
+    <Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <PackagePath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+  </Content>
+
+  --><!-- Bring over the static web assets runtime manifest --><!--
+  <Content Include="..\LocalGPT\obj\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
+  </Content>
+
+  --><!-- Bring over CSS-isolation bundle (name can vary; wildcard is fine) --><!--
+  <Content Include="..\LocalGPT\obj\$(Configuration)\net9.0\**\*.styles.css">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
+  </Content>
+</ItemGroup>
+
+
+
+	--><!--<ItemGroup>
+	<Content Include="..\LocalGPT\wwwroot\**\*">
+		<Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		<PackagePath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+	</Content>
+
+	--><!-- Bring over the static web assets runtime manifest --><!--
+	<Content Include="..\LocalGPT\obj\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		<PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
+	</Content>
+
+	--><!-- Bring over CSS-isolation bundle (name can vary; wildcard is fine) --><!--
+		--><!--
+	<Content Include="..\LocalGPT\obj\$(Configuration)\net9.0\**\*.styles.css">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		<PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
+	</Content>
+	</ItemGroup>-->
+		<!---->
+		<ItemGroup>
+    <ProjectReference Include="..\LocalGPT\LocalGPT.csproj">
+      <ReferenceOutputAssembly>True</ReferenceOutputAssembly>
+      <CopyLocalSatelliteAssemblies>True</CopyLocalSatelliteAssemblies>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
 </Project>

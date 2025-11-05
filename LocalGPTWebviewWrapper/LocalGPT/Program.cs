@@ -38,8 +38,8 @@ namespace LocalGPT
             Port = GetFreePort();
             builder.WebHost.UseKestrel().UseUrls($"https://localhost:{Port}");
 
-            builder.Host.UseContentRoot(options.ContentRootPath);
-            builder.WebHost.UseWebRoot(Path.Combine(options.WebRootPath, "wwwroot"));         // ensure /wwwroot is found
+            //builder.Host.UseContentRoot(options.ContentRootPath);
+            //builder.WebHost.UseWebRoot(Path.Combine(options.WebRootPath, "wwwroot"));         // ensure /wwwroot is found
 
             // 2) Load static web assets for THIS assembly (enables /_content/* and isolated CSS)
             // Load static web assets (/_content/** and CSS isolation)

@@ -1,15 +1,224 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+	  <IncludeSymbols>True</IncludeSymbols>
+	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	  <AnalysisLevel>latest-all</AnalysisLevel>
+	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	  <CopySatelliteAssemblies>true</CopySatelliteAssemblies>
+	  <Nullable>enable</Nullable>
   </PropertyGroup>
 
+	<!-- Ensure the runtime manifest is copied next to LocalGPT.dll -->
+	<!--<Target Name="CopyStaticWebAssetsToOutDir" AfterTargets="Build">
+		<PropertyGroup>
+			<StaticWebAssetsRuntimeJson>
+				$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json
+			</StaticWebAssetsRuntimeJson>
+		</PropertyGroup>
+		<Copy
+		  SourceFiles="$(StaticWebAssetsRuntimeJson)"
+		  DestinationFolder="$(OutDir)"
+		  SkipUnchangedFiles="true"
+		  Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
+	</Target>-->
+
+	<!-- Also copy wwwroot into the output next to LocalGPT.dll -->
+	<!--<ItemGroup>
+		<Content Include="wwwroot\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>-->
+	<!-- Ensure all app static files are copied to the output next to LocalGPT.dll --><!--
+	--><!--<ItemGroup>
+		<Content Include="wwwroot\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>-->
+
+	<!--<ItemGroup>
+		<WwwrootFiles Include="wwwroot\**\*.*" />
+	</ItemGroup>
+	<Target Name="CopyWwwrootToOutput" AfterTargets="Build">
+		<MakeDir Directories="$(OutDir)wwwroot" />
+		<Copy
+		  SourceFiles="@(WwwrootFiles)"
+		  DestinationFiles="@(WwwrootFiles->'$(OutDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
+		  SkipUnchangedFiles="true" />
+	</Target>
+
+	<Target Name="CopyStaticWebAssetsManifest" AfterTargets="Build">
+		<PropertyGroup>
+			<StaticWebAssetsRuntimeJson>$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json</StaticWebAssetsRuntimeJson>
+		</PropertyGroup>
+		<Copy
+		  SourceFiles="$(StaticWebAssetsRuntimeJson)"
+		  DestinationFolder="$(OutDir)"
+		  SkipUnchangedFiles="true"
+		  Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
+	</Target>-->
   <ItemGroup>
     <PackageReference Include="DevExpress.Blazor" Version="25.1.*" />
     <PackageReference Include="DevExpress.Blazor.RichEdit" Version="25.1.*" />
     <PackageReference Include="DevExpress.Blazor.PivotTable" Version="25.1.*" />
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.1.*" />
+  </ItemGroup>
+  <ItemGroup>
+	  <Content Update="appsettings.Development.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="appsettings.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\about.txt">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\android-chrome-192x192.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\android-chrome-512x512.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\apple-touch-icon.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\favicon-16x16.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\favicon-32x32.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\favicon.ico">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\fonts\opensans.ttf">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\fonts\opensansbd.ttf">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\log-in.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\log-out.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\manage-email.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\manage-password.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\manage-personal.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\manage-profile.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\manage-two-factor.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\settings.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\account\user.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\back.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\cards.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\close.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\counter.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\demos.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\doc.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\home.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\logo.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\menu.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\TacosLogos.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\weather.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <!--<Content Update="wwwroot\js\devextreme-license.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\loginToSetCookie.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\getCookie.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\logoutToDeleteCookies.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\page-helper.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\page-nav.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\page-section-helper.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\getScreenWidth.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\push-sw.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\push.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\scrollable.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\scrollChatToBottom.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\scrollWindowToBottom.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\js\webApiCallsInBrowser.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>-->
+	  <Content Update="wwwroot\manifest.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\site.webmanifest">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <!--<Content Update="wwwroot\switcher-resources\css\theme-switcher.css">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes.css">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\theme-controller.js">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\theme.svg">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>-->
   </ItemGroup>
 
 </Project>
