@@ -1,10 +1,13 @@
 ﻿using DevExpress.XtraRichEdit.Import.Html;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.Web.WebView2.Core;
 using System;
 using System.Diagnostics;
+using WinRT.Interop;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
@@ -54,6 +57,8 @@ namespace WebView2_WinUI3_Sample
             InitializeComponent();
             _baseUrl = baseUrl;
 
+            // Let system theme decide (don’t force dark)
+        
             Closed += (_, __) => WebView2?.Close();
 
             //AddressBar.Text = _baseUrl;          // prefill with local server
