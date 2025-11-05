@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Sockets;
@@ -62,6 +63,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             //var builder = WebApplication.CreateBuilder();
             StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
             builder.Services.AddOptions();
+            builder.Services.AddHttpContextAccessor();
             builder.Services.AddSignalR()
               .AddMessagePackProtocol(options =>
               {
@@ -86,13 +88,20 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
               });
             Port = GetFreePort();
             builder.WebHost.UseKestrel().UseUrls($"https://localhost:{Port}");
+            builder.Services.AddResponseCompression
+               (opts =>
+               {
+                   opts.EnableForHttps = true;
+                   opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] {
+        "application/octet-stream"
+   });
+               });
+                   //builder.Host.UseContentRoot(options.ContentRootPath);
+                   //builder.WebHost.UseWebRoot(Path.Combine(options.WebRootPath, "wwwroot"));         // ensure /wwwroot is found
 
-            //builder.Host.UseContentRoot(options.ContentRootPath);
-            //builder.WebHost.UseWebRoot(Path.Combine(options.WebRootPath, "wwwroot"));         // ensure /wwwroot is found
-
-            // 2) Load static web assets for THIS assembly (enables /_content/* and isolated CSS)
-            // Load static web assets (/_content/** and CSS isolation)
-            builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+                   // 2) Load static web assets for THIS assembly (enables /_content/* and isolated CSS)
+                   // Load static web assets (/_content/** and CSS isolation)
+                   builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddHealthChecks();
             builder.Services.AddDevExpressBlazor(o => o.SizeMode = DevExpress.Blazor.SizeMode.Small);
             builder.Services.AddMvc();

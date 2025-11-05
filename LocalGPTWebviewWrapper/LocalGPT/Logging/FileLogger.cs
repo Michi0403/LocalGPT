@@ -18,7 +18,7 @@ namespace LocalGPT.Logging
         {
             _options = optionsSnapshot.CurrentValue;
             _realPath = string.IsNullOrWhiteSpace(_options.FilePath)
-                ? Path.Combine(Directory.GetCurrentDirectory(), "tacosportal.log")
+                ? Path.Combine(Directory.GetCurrentDirectory(), "LocalGPT.log")
                 : _options.FilePath;
 
 

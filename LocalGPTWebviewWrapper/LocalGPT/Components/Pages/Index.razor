@@ -11,7 +11,7 @@
             <DxGridLayoutItem Area="header" CssClass="title">
                 <Template>
                     <div class="title-header-text">Hello World!</div>
-                    <div class="title-content-text">Welcome to your new DevExpress Blazor Application</div>
+                    <div class="title-content-text">Welcome to your LocalChatGPT</div>
                 </Template>
             </DxGridLayoutItem>
             <DxGridLayoutItem Area="cards" CssClass="welcome-cards">
@@ -28,6 +28,13 @@
                             <use href="images/cards.svg#weather"></use>
                         </svg>
                         <div class="welcome-card-text">Weather</div>
+                        <div class="welcome-card-back"></div>
+                    </NavLink>
+                    <NavLink class="welcome-card" href="@UrlGenerator.GetUrl("/chat", ToggledSidebar)">
+                        <svg class="welcome-card-img" alt="chat card">
+                            <use href="images/cards.svg#weather"></use>
+                        </svg>
+                        <div class="welcome-card-text">Local ChatGPT</div>
                         <div class="welcome-card-back"></div>
                     </NavLink>
                 </Template>

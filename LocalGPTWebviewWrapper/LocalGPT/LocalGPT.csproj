@@ -103,40 +103,34 @@
 	  <Content Update="wwwroot\css\bootstrap\bootstrap.css">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\FONT-LICENSE.txt">
+	  <Content Update="wwwroot\css\open.iconic\FONT-LICENSE.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\font\css\open-iconic-bootstrap.min.css">
+	  <Content Update="wwwroot\css\open.iconic\font\css\open-iconic-bootstrap.min.css">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\font\fonts\open-iconic.eot">
+	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.eot">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\font\fonts\open-iconic.otf">
+	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.otf">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\font\fonts\open-iconic.svg">
+	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.svg">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\font\fonts\open-iconic.ttf">
+	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.ttf">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\font\fonts\open-iconic.woff">
+	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.woff">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\ICON-LICENSE.txt">
+	  <Content Update="wwwroot\css\open.iconic\ICON-LICENSE.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open-iconic\README.md">
+	  <Content Update="wwwroot\css\open.iconic\README.md">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <Content Update="wwwroot\css\site.css">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\css\theme-bs.css">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\css\theme-fluent.css">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <Content Update="wwwroot\favicon-16x16.png">
@@ -1272,6 +1266,60 @@
 	  </Content>
 	  <Content Update="wwwroot\site.webmanifest">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\theme-switcher.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\cerulean\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\cyborg\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\default\bootstrap.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\flatly\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\journal\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\litera\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\lumen\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\lux\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\pulse\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\simplex\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\solar\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\superhero\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\united\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\css\themes\yeti\bootstrap.min.css">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\theme-controller.js">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\switcher-resources\theme.svg">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <!--<Content Update="wwwroot\switcher-resources\css\theme-switcher.css">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>

@@ -54,15 +54,15 @@
         Log?.LogError(exception, "Unhandled exception in MainLayout.");
     }
     private RenderFragment drawerHeader => @<div class="navigation-drawer-header">
-        <img class="logo" src="images/TacosLogos.svg" alt="TacosPortal logo" />
+        <img class="logo" src="images/TacosLogos.svg" alt="LocalGPT logo" />
         <NavLink href="@UrlGenerator.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
             <DxButton RenderStyle="@ButtonRenderStyle.Light" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="@(ToggledSidebar ? "icon icon-close" : "icon icon-menu")"></DxButton>
         </NavLink>
     </div>;
 
     private RenderFragment drawerFooter => @<div>
-        <NavLink href="https://t.me/+XNonMkXvo0E3NWQy" class="button-link">
-            <DxButton Text="Telegram Group" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="footer-button" RenderStyle="@ButtonRenderStyle.Light" IconCssClass="icon docs-icon"></DxButton>
+    <NavLink href="https://github.com/Michi0403/LocalGPT" class="button-link">
+            <DxButton Text="Github" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="footer-button" RenderStyle="@ButtonRenderStyle.Light" IconCssClass="icon docs-icon"></DxButton>
         </NavLink>
     </div>
     ;
