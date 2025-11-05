@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '15.0'">
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
     <VisualStudioVersion>15.0</VisualStudioVersion>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
@@ -40,14 +41,36 @@
     <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
     <AssetTargetFallback>net9.0-windows$(TargetPlatformVersion);$(AssetTargetFallback)</AssetTargetFallback>
     <DefaultLanguage>en-US</DefaultLanguage>
-    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <EntryPointProjectUniqueName>..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj</EntryPointProjectUniqueName>
+    <PackageCertificateThumbprint>5D490988D95615FDAA531D4B956D272B7479D407</PackageCertificateThumbprint>
+    <PackageCertificateKeyFile>LocalGPTWebviewWrapper %28Package%29_TemporaryKey.pfx</PackageCertificateKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
   </ItemGroup>
+	<ItemGroup>
+		<!-- Bring the manifest into the packaged AppX next to LocalGPT.dll -->
+		<Content Include="..\LocalGPT\bin\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
+		</Content>
+
+		<!-- Bring any CSS-isolation bundles -->
+		<Content Include="..\LocalGPT\bin\$(Configuration)\net9.0\*.styles.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
+		</Content>
+
+		<!-- (Optional) If you want to be explicit about wwwroot, keep this too -->
+		<Content Include="..\LocalGPT\wwwroot\**\*">
+			<Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<PackagePath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+		</Content>
+	</ItemGroup>
   <ItemGroup>
     <Content Include="FixedRuntime\95.0.1020.53\\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -59,6 +82,7 @@
     <Content Include="Images\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Images\StoreLogo.png" />
     <Content Include="Images\Wide310x150Logo.scale-200.png" />
+    <None Include="LocalGPTWebviewWrapper %28Package%29_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj">

@@ -2,6 +2,7 @@
 using LocalGPT.Components;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Sockets;
 using static System.Net.Mime.MediaTypeNames;
@@ -26,16 +27,16 @@ namespace LocalGPT
             // This is crucial when you start the server from the WinUI process.
             var exeDir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
 
-            var options = new WebApplicationOptions
-            {
-                ContentRootPath = exeDir,
-                WebRootPath = Path.Combine(exeDir, "wwwroot"),
-                Args = args ?? Array.Empty<string>()
-            };
+            //var options = new WebApplicationOptions
+            //{
+            //    ContentRootPath = exeDir,
+            //    WebRootPath = Path.Combine(exeDir, "wwwroot"),
+            //    Args = args ?? Array.Empty<string>()
+            //};
 
-            var builder = WebApplication.CreateBuilder(options);
-
-            StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
+            //var builder = WebApplication.CreateBuilder(options);
+            var builder = WebApplication.CreateBuilder();
+            //StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
             Port = GetFreePort();
             builder.WebHost.UseKestrel().UseUrls($"https://localhost:{Port}");

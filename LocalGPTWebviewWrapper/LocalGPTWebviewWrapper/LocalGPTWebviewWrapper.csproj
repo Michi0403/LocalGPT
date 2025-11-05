@@ -20,6 +20,24 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.6901" />
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
+	<!-- Copy the runtime static-web-assets manifest to bin so the loader can find it -->
+	<Target Name="CopyStaticWebAssetsManifest" AfterTargets="Build">
+		<ItemGroup>
+			<_Swa Include="$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json" />
+		</ItemGroup>
+		<Copy
+		  SourceFiles="@(_Swa)"
+		  DestinationFolder="$(OutputPath)"
+		  SkipUnchangedFiles="true"
+		  Condition="Exists('%(FullPath)')" />
+	</Target>
+
+	<!-- Copy any generated CSS isolation bundles (e.g., LocalGPT.styles.css) to bin -->
+	<ItemGroup>
+		<Content Include="$(IntermediateOutputPath)**\*.styles.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 	<ItemGroup>
 		<!-- Include the server's wwwroot files in the package/output -->
 		<!--<Content Include="..\LocalGPT\wwwroot\**\*">
@@ -92,26 +110,26 @@
 	</ItemGroup>-->
 		<!---->
 		<ItemGroup>
-			<!-- Copy LocalGPT/wwwroot into the packaged folder where LocalGPT.dll lives -->
+			<!-- Copy LocalGPT/wwwroot into the packaged folder where LocalGPT.dll lives --><!--
 			<Content Include="..\LocalGPT\wwwroot\**\*">
 				<Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
 				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 				<PackagePath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
 			</Content>
 
-			<!-- Copy the runtime manifest produced by LocalGPT build -->
+			--><!-- Copy the runtime manifest produced by LocalGPT build --><!--
 			<Content Include="..\LocalGPT\bin\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json">
 				<Link>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</Link>
 				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 				<PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
 			</Content>
 
-			<!-- Copy CSS isolation bundles if any (optional, but harmless) -->
+			--><!-- Copy CSS isolation bundles if any (optional, but harmless) --><!--
 			<Content Include="..\LocalGPT\bin\$(Configuration)\net9.0\**\*.styles.css">
 				<Link>LocalGPTWebviewWrapper\%(Filename)%(Extension)</Link>
 				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 				<PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
-			</Content>
+			</Content>-->
     <ProjectReference Include="..\LocalGPT\LocalGPT.csproj">
       <ReferenceOutputAssembly>True</ReferenceOutputAssembly>
       <CopyLocalSatelliteAssemblies>True</CopyLocalSatelliteAssemblies>
