@@ -10,7 +10,19 @@
 	  <CopySatelliteAssemblies>true</CopySatelliteAssemblies>
 	  <Nullable>enable</Nullable>
   </PropertyGroup>
+	<Target Name="CopyStaticWebAssetsManifest" AfterTargets="Build">
+		<ItemGroup>
+			<_SWA Include="$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json" />
+		</ItemGroup>
+		<Copy SourceFiles="@(_SWA)" DestinationFolder="$(OutputPath)"
+			  SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
+	</Target>
 
+	<ItemGroup>
+		<Content Include="$(IntermediateOutputPath)**\*.styles.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 	<!-- Ensure the runtime manifest is copied next to LocalGPT.dll -->
 	<!--<Target Name="CopyStaticWebAssetsToOutDir" AfterTargets="Build">
 		<PropertyGroup>

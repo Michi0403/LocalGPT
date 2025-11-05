@@ -62,7 +62,6 @@
 
 		<!-- Make sure it's a project reference, not a DLL/COM ref -->
 		<ProjectReference Include="..\LocalGPT\LocalGPT.csproj">
-			<EmbedInteropTypes>false</EmbedInteropTypes>
 		</ProjectReference>
 	</ItemGroup>
 <!--<ItemGroup>

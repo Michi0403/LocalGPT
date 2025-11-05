@@ -33,10 +33,17 @@ namespace LocalGPT
             //    WebRootPath = Path.Combine(exeDir, "wwwroot"),
             //    Args = args ?? Array.Empty<string>()
             //};
+            var options = new WebApplicationOptions
+            {
+                ApplicationName = typeof(Program).Assembly.GetName().Name, // "LocalGPT"
+                ContentRootPath = exeDir,
+                WebRootPath = Path.Combine(exeDir, "wwwroot"),
+                Args = args ?? Array.Empty<string>()
+            };
 
-            //var builder = WebApplication.CreateBuilder(options);
-            var builder = WebApplication.CreateBuilder();
-            //StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
+            var builder = WebApplication.CreateBuilder(options);
+            //var builder = WebApplication.CreateBuilder();
+            StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
             Port = GetFreePort();
             builder.WebHost.UseKestrel().UseUrls($"https://localhost:{Port}");

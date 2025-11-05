@@ -52,19 +52,17 @@
     </AppxManifest>
   </ItemGroup>
 	<ItemGroup>
-		<!-- Bring the manifest into the packaged AppX next to LocalGPT.dll -->
 		<Content Include="..\LocalGPT\bin\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
 		</Content>
 
-		<!-- Bring any CSS-isolation bundles -->
 		<Content Include="..\LocalGPT\bin\$(Configuration)\net9.0\*.styles.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
 		</Content>
 
-		<!-- (Optional) If you want to be explicit about wwwroot, keep this too -->
+		<!-- optional: include wwwroot files explicitly -->
 		<Content Include="..\LocalGPT\wwwroot\**\*">
 			<Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
