@@ -1,0 +1,98 @@
+﻿@implements IDisposable
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
+@inject PersistentComponentState AppState
+@inject ThemeService Themes
+@inject ILogger<ThemeSwitcher> Logger
+
+         
+    <ThemeJsChangeDispatcher InitialThemeName="@ThemeName" />
+
+    <div class="@HeaderCss">
+        <div class="btn-container d-flex">
+            <DxButton Click="@Toggle" CssClass="@ButtonCss"
+                      SizeMode="SizeMode.Large"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      IconCssClass="theme-icon"
+                      aria-label="Themes"
+                      aria-haspopup="true"
+                      aria-expanded="@_open" />
+        </div>
+
+        <ThemeSwitcherContainer @bind-Shown="_open" @bind-ThemeName="ThemeName" />
+    </div>
+
+@code
+{
+    string ThemeName { get; set; } = string.Empty;
+    bool _open;
+    PersistingComponentStateSubscription? _subSrv;
+
+
+
+    protected override void OnInitialized()
+    {
+        // load
+        try
+        {
+
+            if (AppState.TryTakeFromJson("ThemeName", out string? stored) && !string.IsNullOrWhiteSpace(stored))
+                ThemeName = stored;
+            else
+                ThemeName = Themes.ActiveTheme?.Name ?? "office-white";
+
+            Themes.SetActiveThemeByName(ThemeName);
+
+            // register light callbacks (no I/O!)
+            if (stored != null && !string.IsNullOrWhiteSpace(stored))
+                _subSrv = AppState.RegisterOnPersisting(Persist, RenderMode.InteractiveServer);
+        }
+        catch(Exception ex)
+        {
+            Logger.LogWarning(ex, $"Error in OnInitalized {ex.ToString()}");
+        }
+    }
+
+    Task Persist()
+    {
+        // never throws – just serialises a string
+        try
+        {
+            AppState.PersistAsJson("ThemeName", ThemeName);
+        }
+        catch (OperationCanceledException)
+        { /* ignored – user navigated */
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, $"Failed to persist theme name: {ThemeName} ", ThemeName);
+        }
+        return Task.CompletedTask;
+    }
+
+    void Toggle() => _open = !_open;
+
+    string ButtonCss => "themeswitcher-button theme-settings " + _open;
+    string HeaderCss => $"theme-{ThemeName.Replace(" ", "-")}" +
+                         (Themes.ActiveTheme.IsBootstrapNative ? " theme-external" : "");
+    private bool _disposed = false;
+    public void Dispose()
+    {
+        try
+        {
+            if(_disposed==false)
+            {
+                _disposed = true;
+                _subSrv?.Dispose();
+                GC.SuppressFinalize(this);
+            }
+        }
+        catch (OperationCanceledException)
+        { /* ignored – user navigated */
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in Dipose{ex.ToString()}");
+        }
+    }
+}

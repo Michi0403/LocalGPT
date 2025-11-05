@@ -1,6 +1,6 @@
-﻿using System.Web;
+using System.Web;
 
-namespace LocalGPT
+namespace LocalGPT.Services
 {
     public static class UrlGenerator
     {

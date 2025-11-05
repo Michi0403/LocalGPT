@@ -1,36 +1,68 @@
 ﻿@using Microsoft.AspNetCore.Mvc.ViewFeatures
-@using LocalGPT.Services
 @inject IFileVersionProvider FileVersionProvider
-@inject DxThemesService ThemesService
+@inject ThemeService Themes
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@namespace LocalGPT.Components
+@{
+    string? InitialThemeName = HttpContextAccessor.HttpContext?.Request.Cookies["ActiveTheme"];
+    Themes.SetActiveThemeByName(InitialThemeName);
+    var bsTheme = Themes.GetBootstrapThemeCssUrl(Themes.ActiveTheme);
+    var dxTheme = Themes.GetThemeCssUrl(Themes.ActiveTheme);
+    var hlTheme = Themes.GetHighlightJSThemeCssUrl(Themes.ActiveTheme);
 
+    string AppendVersion(string path) => FileVersionProvider.AddFileVersionToPath("/", path);
+}
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="@(ThemesService.IsBootstrapDarkActive ? "dark" : null)" data-fluent-darkmode="@(ThemesService.IsFluentDarkModeActive ? "" : null)">
-
+<html lang="en" data-bs-theme="@Themes.ActiveTheme.BootstrapThemeMode">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
-    @DxResourceManager.RegisterTheme(ThemesService.ActiveTheme)
+    <title>TacosPortal</title>
+    @if (!string.IsNullOrEmpty(bsTheme))
+    {
+        <link rel="stylesheet" href="@AppendVersion(bsTheme.ToString())" bs-theme-link />
+    }
+    @if (!string.IsNullOrEmpty(dxTheme))
+    {
+        <link rel="stylesheet" href="@AppendVersion(dxTheme.ToString())" dx-theme-link />
+    }
+    @if (!string.IsNullOrEmpty(hlTheme))
+    {
+        <link rel="stylesheet" href="@hlTheme" hl-theme-link />
+    }
+
     @DxResourceManager.RegisterScripts()
     <link href=@AppendVersion("css/site.css") rel="stylesheet" />
-    <link href=@AppendVersion("LocalGPT.styles.css") rel="stylesheet" />
-    <link href=@AppendVersion("_content/DevExpress.Blazor.RichEdit/dx-blazor-richedit.css") rel="stylesheet" />
-    @if(ThemesService.IsFluentActive) {
-    <link href=@AppendVersion("_content/DevExpress.Blazor.Viewer/css/dx-blazor-viewer-components.fluent.css") rel="stylesheet" />
-    }
-    else {
-    <link href=@AppendVersion("_content/DevExpress.Blazor.Viewer/css/dx-blazor-viewer-components.bs5.css") rel="stylesheet" />
-    }
+    <link href=@AppendVersion("switcher-resources/css/theme-switcher.css") rel="stylesheet" />
+    <link href=@AppendVersion("switcher-resources/css/themes.css") rel="stylesheet" />
+    <link href=@AppendVersion("TacosPortal.styles.css") rel="stylesheet" />
+    <link href="manifest.json" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="android-chrome-512x512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" href="favicon-32x32" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <HeadOutlet />
 </head>
 <body>
-    <Routes />
+    <div id="switcher-container" data-permanent></div>
+    <Routes></Routes>
+    @*     <script src="js/devextreme-license.js" type="module"></script> *@
+    <script type="module" src="js/push.js"></script>
+    <script type="module" src="js/loginToSetCookie.js"></script>
+    <script type="module" src="js/logoutToDeleteCookies.js"></script>
+    <script type="module" src="js/page-helper.js"></script>
+    <script type="module" src="js/page-nav.js"></script>
+    <script type="module" src="js/page-section-helper.js"></script>
+    <script type="module" src="js/scrollable.js"></script>
+    <script type="module" src="js/getCookie.js"></script>
+    <script type="module" src="js/getScreenWidth.js"></script>
+    <script type="module" src="js/scrollChatToBottom.js"></script>
+    <script type="module" src="js/scrollWindowToBottom.js"></script>
+    <script type="module" src="js/webApiCallsInBrowser.js"></script>
+    <script type="module" src="switcher-resources/theme-controller.js"></script>
+
     <script src="_framework/blazor.web.js"></script>
 </body>
 
 </html>
-
-@code{
-    private string AppendVersion(string path) => FileVersionProvider.AddFileVersionToPath("/", path);
-
-}

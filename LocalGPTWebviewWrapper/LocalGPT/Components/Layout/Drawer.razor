@@ -1,41 +1,44 @@
 ﻿@inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
 
-<div class="drawer-container">
-    <DxDrawer PanelWidth="@Width"
+@namespace LocalGPT.Components.Layout
+@inject IJSRuntime JS
+@implements IDisposable
+@inject ILogger<Drawer> Logger
+<div id="main-window-drawer">
+@*       <DxDrawer SizeMode="SizeMode.Large"
+                PanelWidth="@Width"
               CssClass="@(CssClass + " mobile")"
               Mode="@DrawerMode.Overlap"
-              IsOpen="@ToggledSidebar"
+              IsOpen="@drawerOpen"
               HeaderTemplate="@DrawerHeader"
               FooterTemplate="@DrawerFooter"
               ApplyBackgroundShading="false"
-              ClosedCssClass="panel-closed">
+              ClosedCssClass="panel-closed"> *@
+    <DxDrawer SizeMode="SizeMode.Large"
+                PanelWidth="@Width"
+              CssClass="@(CssClass)"
+              Mode="@DrawerMode.Overlap"
+              IsOpen="@drawerOpen"
+              HeaderTemplate="@DrawerHeader"
+              FooterTemplate="@DrawerFooter"
+              ApplyBackgroundShading="@false"
+              ClosedCssClass="panel-closed"
+              OpenCssClass="panel-open">
         <BodyTemplate>
             @DrawerBody
         </BodyTemplate>
-        <TargetContent>
-            <DxDrawer PanelWidth="@Width"
-                      CssClass="@CssClass"
-                      Mode="@DrawerMode.Shrink"
-                      IsOpen="@(!ToggledSidebar)"
-                      HeaderTemplate="@DrawerHeader"
-                      FooterTemplate="@DrawerFooter"
-                      OpenCssClass="panel-open" >
-                <BodyTemplate>
-                    @DrawerBody
-                </BodyTemplate>
-                <TargetContent>
-                    <div class="navigation-drawer-shading" />
-                    @DrawerTarget
-                </TargetContent>
-            </DxDrawer>
+        <TargetContent >
+            @DrawerTarget
         </TargetContent>
     </DxDrawer>
 </div>
 
 @code {
-    string Width => "240px";
-    string CssClass => "navigation-drawer";
+    [Parameter]
+    public string Width { get; set; } = "max-content";
+    [Parameter]
+    public string CssClass { get; set; } = "navigation-drawer";
 
     [SupplyParameterFromQuery(Name = UrlGenerator.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
@@ -43,4 +46,94 @@
     [Parameter] public RenderFragment? DrawerBody { get; set; }
     [Parameter] public RenderFragment? DrawerHeader { get; set; }
     [Parameter] public RenderFragment? DrawerFooter { get; set; }
+    private bool drawerOpen;
+
+    protected override void OnParametersSet()
+    {
+        drawerOpen = ToggledSidebar;
+    }
+    private bool _disposed;
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        try
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                // _ctsTimerTask?.Cancel();
+                // _ctsTimerTask?.Dispose();
+                _disposed = true;
+            }
+
+            _disposed = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in Dispose {ex.ToString()}");
+        }
+
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+            return;
+
+        try
+        {
+      
+
+            // Optional: any other async cleanup logic
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in DisposeAsync {ex.ToString()}");
+        }
+
+        // Optionally call Dispose for sync resources
+        Dispose(disposing: false);
+        GC.SuppressFinalize(this);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in OnInitializedAsync: {ex.ToString()}");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender)
+            {
+                var width = await JS.InvokeAsync<int>("getScreenWidth").ConfigureAwait(false);
+
+                if (width < 768)
+                    Width = "50%";
+                else if (width < 1024)
+                    Width = "30%";
+                else
+                    Width = "20%";
+
+                
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in OnAfterRenderAsync in Drawer {ex.ToString()}");
+        }
+    }
 }

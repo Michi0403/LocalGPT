@@ -1,0 +1,154 @@
+﻿@inject ThemeService Themes
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
+@implements IDisposable
+@implements IThemeLoadNotifier
+@inject ILogger<ThemeSwitcherContainer> Logger
+<div class="themeswitcher-container shadow @StateCssClass">
+    @if(IsLoaded) {
+        <div class="blazor-themes blazor-scroll-view">
+            <div class="list-group list-group-flush">
+                @foreach(var themeSet in Themes.ThemeSets) {
+                    <span class="themeswitcher-group card-header list-group-item">@themeSet.Title</span>
+                    @foreach(var theme in themeSet.Themes) {
+                        <ThemeSwitcherItem Theme="@theme" Click="ThemeSwitcherItem_Click"/>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
+
+
+    [Parameter]
+    public bool Shown { get; set; }
+    [Parameter]
+    public EventCallback<bool> ShownChanged { get; set; }
+    [Parameter]
+    public string? ThemeName { get; set; }
+    [Parameter]
+    public EventCallback<string> ThemeNameChanged { get; set; }
+
+    string StateCssClass { get { return IsLoaded ? ((Shown? "themeswitcher-container-shown" : "themeswitcher-container-hidden")) : ""; } }
+    bool IsLoaded { get; set; }
+
+    protected override async Task OnInitializedAsync() 
+    {
+        try
+        {
+            base.OnInitialized();
+            Themes.ThemeLoadNotifier = this;
+        }
+        catch (OperationCanceledException)
+        { /* ignored – user navigated */
+        }
+        catch (Exception ex)
+        {
+
+            Logger.LogError($"Error in OnInitialized {ex.ToString()}");
+        }
+    }
+
+    async Task ThemeSwitcherItem_Click(Theme theme) {
+        try
+        {
+            Themes.ThemeChangeRequestDispatcher?.RequestThemeChange(theme);
+            await ToggleThemeSwitcherPanel(false).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        { /* ignored – user navigated */
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ThemeSwitcherItem_Click {ex.ToString()}");
+        }
+
+    }
+
+    public async Task NotifyThemeLoadedAsync(Theme theme) {
+        try
+        {
+            ThemeName = theme.Name;
+            await ThemeNameChanged.InvokeAsync(ThemeName).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        { /* ignored – user navigated */
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in NotifyThemeLoadedAsync {ex.ToString()}");
+        }
+
+    }
+
+    async Task ToggleThemeSwitcherPanel(bool shown) {
+        try
+        {
+            if (shown == Shown)
+                return;
+            Shown = shown;
+            await ShownChanged.InvokeAsync(shown).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        { /* ignored – user navigated */
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ToggleThemeSwitcherPanel {ex.ToString()}");
+        }
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            if (disposing)
+            {
+            }
+
+            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+            // TODO: set large fields to null
+            disposedValue = true;
+        }
+    }
+    private bool disposedValue;
+    // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+    // ~WebAPIClient()
+    // {
+    //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+    //     Dispose(disposing: false);
+    // }
+
+    void IDisposable.Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+
+    protected override void OnAfterRender(bool firstRender) {
+        try
+        {
+            if (firstRender)
+            {
+                IsLoaded = true;
+
+                if (Shown)
+
+                    StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException)
+        { /* ignored – user navigated */
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in OnAfterRender {ex.ToString()}");
+        }
+       
+    }
+
+}

@@ -1,0 +1,29 @@
+﻿@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<DxToastProvider Name="@Name"
+AnimationType="@AnimationType"
+HorizontalAlignment="@HorizontalAlignment"
+VerticalAlignment="@VerticalAlignment"
+ThemeMode="@ThemeMode"
+                 DisplayTime="@DisplayTime" ShowCloseButton="@ShowCloseButton" SizeMode="@SizeMode" ShowIcon="@ShowIcon" Width="100%" />
+                 
+@code {
+    [Parameter]
+    public string Name { get; set; } = "GlobalToasts";
+    [Parameter]
+    public ToastAnimationType AnimationType { get; set; } = ToastAnimationType.Fade;
+    [Parameter]
+    public HorizontalAlignment HorizontalAlignment { get; set; } = HorizontalAlignment.Center;
+    [Parameter]
+    public VerticalEdge VerticalAlignment { get; set; } = VerticalEdge.Bottom;
+    [Parameter]
+    public ToastThemeMode ThemeMode { get; set; } = ToastThemeMode.Saturated;
+    [Parameter]
+    public TimeSpan DisplayTime { get; set; } = TimeSpan.FromSeconds(7);
+    [Parameter]
+    public bool ShowCloseButton { get; set; } = true;
+    [Parameter]
+    public bool ShowIcon { get; set; } = true;
+    [Parameter]
+    public SizeMode? SizeMode { get; set; } = null;
+}

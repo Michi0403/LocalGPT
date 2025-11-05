@@ -3,11 +3,6 @@
 }
 
 ::deep .menu {
-    --dxbl-menu-bottom-left-border-radius: 0;
-    --dxbl-menu-bottom-right-border-radius: 0;
-    --dxbl-menu-top-left-border-radius: 0;
-    --dxbl-menu-top-right-border-radius: 0;
-
     background-color: inherit;
 }
 
@@ -16,34 +11,130 @@
 }
 
 ::deep .menu-item {
-    color: var(--bs-white, #fff);
+    color: var(--bs-white);
 }
 
 ::deep .icon {
+    width: 1rem;
+    height: 1rem;
+    background-position: center;
+    background-repeat: no-repeat;
     margin-left: 0.5rem;
 }
 
 ::deep .home-icon {
-    --icon-mask-image: var(--icon-home-mask-image);
+    background-image: url("images/home.svg");
 }
 
 ::deep .weather-icon {
-    --icon-mask-image: var(--icon-weather-mask-image);
+    background-image: url("images/weather.svg");
 }
 
 ::deep .counter-icon {
-    --icon-mask-image: var(--icon-counter-mask-image);
+    background-image: url("images/counter.svg");
 }
 
+sidebar {
+    min-width: 20rem;
+    max-width: 30rem;
+    box-shadow: 0px 2px 8px 0px rgba(0, 0, 0, 0.16);
+    transition: transform 0.1s ease-out;
+    height: 100%;
+    max-height: 100%;
+    background-image: linear-gradient(180deg, var(--bs-primary) 0%, var(--bs-black) 150%);
+}
 
-@media (max-width: 768px) {
-    #sidebar {
-        min-width: inherit;
-        max-width: inherit;
-        display: block;
+::deep .sidebar-header {
+    padding: 2rem 1rem;
+}
+
+.logo {
+    text-align: center;
+}
+
+::deep .menu-button-container {
+    display: none;
+    align-self: center;
+}
+
+.menu-button {
+    padding: 0.375rem;
+    width: 1.875rem;
+    height: 1.875rem;
+    background-image: url("images/menubutton.svg");
+    background-position: center;
+    background-repeat: no-repeat;
+    cursor: pointer;
+    color: var(--bs-primary); /* for text color */
+    background-color: var(--bs-primary); /* for backgrounds */
+}
+
+::deep .menu {
+    background-color: inherit;
+}
+
+    ::deep .menu .dxbl-menu-item-list {
+        gap: 0.5rem;
     }
 
-    .logo {
-        text-align: inherit;
-    }
+::deep .menu-item a {
+    color: var(--bs-white);
+}
+
+::deep .icon {
+    width: 1rem;
+    height: 1rem;
+    background-position: center;
+    background-repeat: no-repeat;
+    margin-left: 0.5rem;
+}
+
+::deep .home-icon {
+    background-image: url("images/home.svg");
+}
+
+::deep .weather-icon {
+    background-image: url("images/weather.svg");
+}
+
+::deep .counter-icon {
+    background-image: url("images/counter.svg");
+}
+
+::deep .docs-icon {
+    mask-image: url("images/doc.svg");
+    -webkit-mask-image: url("images/doc.svg");
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    background-color: var(--dxbl-btn-color);
+}
+
+::deep .demos-icon {
+    mask-image: url("images/demos.svg");
+    -webkit-mask-image: url("images/demos.svg");
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    background-color: var(--dxbl-btn-color);
+}
+
+::deep .footer-button:hover .demos-icon {
+    background-color: var(--dxbl-btn-hover-color);
+}
+
+::deep .footer-button:hover .docs-icon {
+    background-color: var(--dxbl-btn-hover-color);
+}
+
+::deep .footer {
+    text-align: center;
+    gap: 0.5rem;
+    padding-bottom: 1.5rem;
+}
+
+#sidebar.expanded ::deep .layout-item {
+    display: block;
+}
+
+#sidebar.expanded ::deep .footer {
+    display: block;
 }

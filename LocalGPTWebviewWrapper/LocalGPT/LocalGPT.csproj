@@ -14,8 +14,7 @@
 		<ItemGroup>
 			<_SWA Include="$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json" />
 		</ItemGroup>
-		<Copy SourceFiles="@(_SWA)" DestinationFolder="$(OutputPath)"
-			  SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
+		<Copy SourceFiles="@(_SWA)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
 	</Target>
 
 	<ItemGroup>
@@ -76,6 +75,11 @@
     <PackageReference Include="DevExpress.Blazor.RichEdit" Version="25.1.*" />
     <PackageReference Include="DevExpress.Blazor.PivotTable" Version="25.1.*" />
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.1.*" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.10" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="9.0.10" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.0" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.Json" Version="9.0.10" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="9.0.10" />
   </ItemGroup>
   <ItemGroup>
 	  <Content Update="appsettings.Development.json">

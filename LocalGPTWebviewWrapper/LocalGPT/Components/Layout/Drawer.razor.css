@@ -1,5 +1,6 @@
-﻿.drawer-container {
-    height: 100%;
+﻿﻿::deep .navigation-drawer {
+    height: 100vh;
+    max-height: 100%;
 }
 
 ::deep .panel-open:not(.mobile) .menu-button {
@@ -7,17 +8,17 @@
 }
 
 ::deep .navigation-drawer > .dxbl-drawer-panel {
-    background-image: linear-gradient(180deg, var(--bs-primary, var(--DS-primary-90)) 0%, var(--bs-black, #000) 150%);
+    background-image: linear-gradient(180deg, var(--bs-primary) 0%, var(--bs-black) 150%);
 }
 
 ::deep .navigation-drawer > .dxbl-drawer-content {
+    height: 100vh;
     overflow: auto;
 }
 
 ::deep .navigation-drawer > .dxbl-drawer-panel > .dxbl-drawer-header {
     border-bottom: none;
     padding: 2rem 1rem;
-    background: none;
 }
 
 ::deep .navigation-drawer > .dxbl-drawer-panel > .dxbl-drawer-header > .navigation-drawer-header {
@@ -36,49 +37,16 @@
     border-top: none;
     padding-bottom: 1.5rem;
     width: 240px;
-    background: none;
 }
 
 ::deep .navigation-drawer > .dxbl-drawer-panel {
     display: flex;
 }
-
+/*
 ::deep .navigation-drawer.mobile > .dxbl-drawer-panel {
     display: none;
-}
+}*/
 
 ::deep .navigation-drawer > .dxbl-drawer-content > .navigation-drawer-shading {
     display: none;
-}
-
-@media (max-width: 768px) {
-    ::deep .panel-open:not(.mobile) .menu-button {
-        display: inline-flex;
-    }
-
-    ::deep .navigation-drawer > .dxbl-drawer-panel {
-        display: none;
-    }
-
-    ::deep .navigation-drawer.mobile > .dxbl-drawer-panel {
-        display: flex;
-    }
-
-    ::deep .navigation-drawer > .dxbl-drawer-content > .navigation-drawer-shading {
-        background-color: var(--dxbl-drawer-content-shading-bg);
-        display: block;
-        height: 100%;
-        position: absolute;
-        transition: ease var(--dxbl-drawer-animation-duration);
-        transition-property: opacity, visibility;
-        visibility: visible;
-        width: 100%;
-        z-index: 99;
-        opacity: var(--dxbl-drawer-content-shading-opacity);
-    }
-
-    ::deep .navigation-drawer.mobile.panel-closed .navigation-drawer-shading {
-        opacity: 0;
-        visibility: hidden;
-    }
 }
