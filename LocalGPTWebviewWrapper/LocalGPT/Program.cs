@@ -33,7 +33,9 @@ namespace LocalGPT
                 Args = args ?? Array.Empty<string>()
             };
 
-            var builder = WebApplication.CreateBuilder(args ?? Array.Empty<string>());
+            var builder = WebApplication.CreateBuilder(options);
+
+            StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
             Port = GetFreePort();
             builder.WebHost.UseKestrel().UseUrls($"https://localhost:{Port}");
@@ -43,8 +45,6 @@ namespace LocalGPT
 
             // 2) Load static web assets for THIS assembly (enables /_content/* and isolated CSS)
             // Load static web assets (/_content/** and CSS isolation)
-            StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
-
             builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddHealthChecks();
             builder.Services.AddDevExpressBlazor(o => o.SizeMode = DevExpress.Blazor.SizeMode.Small);

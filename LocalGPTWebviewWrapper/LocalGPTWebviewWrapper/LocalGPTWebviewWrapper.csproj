@@ -92,6 +92,26 @@
 	</ItemGroup>-->
 		<!---->
 		<ItemGroup>
+			<!-- Copy LocalGPT/wwwroot into the packaged folder where LocalGPT.dll lives -->
+			<Content Include="..\LocalGPT\wwwroot\**\*">
+				<Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
+				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+				<PackagePath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+			</Content>
+
+			<!-- Copy the runtime manifest produced by LocalGPT build -->
+			<Content Include="..\LocalGPT\bin\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json">
+				<Link>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</Link>
+				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+				<PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
+			</Content>
+
+			<!-- Copy CSS isolation bundles if any (optional, but harmless) -->
+			<Content Include="..\LocalGPT\bin\$(Configuration)\net9.0\**\*.styles.css">
+				<Link>LocalGPTWebviewWrapper\%(Filename)%(Extension)</Link>
+				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+				<PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
+			</Content>
     <ProjectReference Include="..\LocalGPT\LocalGPT.csproj">
       <ReferenceOutputAssembly>True</ReferenceOutputAssembly>
       <CopyLocalSatelliteAssemblies>True</CopyLocalSatelliteAssemblies>
