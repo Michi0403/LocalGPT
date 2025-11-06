@@ -1,9 +1,10 @@
 using DevExpress.Blazor.Internal;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
-namespace LocalGPT.Services.JS
+namespace LocalGPT.Components.Layout
 {
     public class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequestDispatcher, IAsyncDisposable, IDisposable
     {
