@@ -80,6 +80,13 @@
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.0" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.Json" Version="9.0.10" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="9.0.10" />
+	  <PackageReference Include="Microsoft.Extensions.AI" Version="9.10.2" />
+	  <PackageReference Include="Microsoft.Extensions.AI.Ollama" Version="9.7.0-preview.1.25356.2" />
+	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="9.10.2-preview.1.25552.1" />
+	  <PackageReference Include="Azure.AI.OpenAI" Version="2.5.0-beta.1" />
+	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Chat" Version="25.1.*" />
+	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Common" Version="25.1.*" />
+	  <PackageReference Include="DevExpress.AIIntegration.OpenAI" Version="25.1.*" />
   </ItemGroup>
   <ItemGroup>
 	  <Content Update="appsettings.Development.json">

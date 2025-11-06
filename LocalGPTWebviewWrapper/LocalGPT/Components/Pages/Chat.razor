@@ -1,0 +1,84 @@
+﻿@page "/Chat"
+@using DevExpress.AIIntegration.Blazor.Chat
+@using LocalGPT.Interfaces
+@using Microsoft.Extensions.AI
+@inject ILogger<Chat> Logger
+@inject INotificationService Notifier
+<PageTitle>AI Chat</PageTitle>
+
+<div class="main-container">
+    <ToastWrapper Name="@toastName" />
+
+    <div class="top-container">
+        <DxButton RenderStyle="ButtonRenderStyle.Primary"
+                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                  IconCssClass="refresh"
+                  IconPosition="ButtonIconPosition.BeforeText"
+                  CssClass="refresh-button"
+                  Text="Start New Chat"
+                  Click="ClearHistory" />
+        <DxComboBox Data="@ModelsList"
+                    Value="ChatClientProvider.SelectedSession"
+                    CssClass="selector-container-combo-editor"
+                    TextFieldName="@nameof(ChatClientSession.Name)"
+                    ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
+    </div>
+    <DxAIChat @ref="DxAiChat" CssClass="my-chat"></DxAIChat>
+</div>
+
+@code {
+    [Inject]
+    IChatClient? ChatClient { get; set; }
+    CompositeChatClient ChatClientProvider => ChatClient as CompositeChatClient;
+    DxAIChat? DxAiChat { get; set; }
+    List<ChatClientSession> ModelsList => ChatClientProvider?.AvailableChatClients;
+    string toastName = "ChatToasts";
+    private void ClearHistory()
+    {
+        try
+        {
+            ChatClientProvider.SelectedSession.Messages.Clear();
+            DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in ClearHistory: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ClearHistory!");
+        }
+
+    }
+
+    private void OnModelChanged(ChatClientSession value)
+    {
+        try
+        {
+            SaveLastAssistantMessage(DxAiChat.SaveMessages());
+            ChatClientProvider.SelectedSession = value;
+            DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in OnModelChanged: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in OnModelChanged!");
+        }
+   
+    }
+
+    private void SaveLastAssistantMessage(IEnumerable<BlazorChatMessage> saveMessages)
+    {
+        try
+        {
+            if (ChatClientProvider.SelectedSession != null)
+            {
+                ChatClientProvider.SelectedSession.Messages.Clear();
+                ChatClientProvider.SelectedSession.Messages.AddRange(saveMessages);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SaveLastAssistantMessage: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveLastAssistantMessage!");
+        }
+
+    }
+}

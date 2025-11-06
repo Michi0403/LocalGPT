@@ -1,18 +1,24 @@
-﻿using DevExpress.CodeParser;
+﻿using Azure;
+using Azure.AI.OpenAI;
+using DevExpress.CodeParser;
 using DevExpress.XtraCharts;
+using LocalGPT.BusinessObjects;
 using LocalGPT.Components;
 using LocalGPT.Helper;
 using LocalGPT.Hubs;
+using LocalGPT.Interfaces;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json.Serialization;
+using TacosPortal.Services;
 using static System.Net.Mime.MediaTypeNames;
 namespace LocalGPT
 {
@@ -57,6 +63,40 @@ namespace LocalGPT
                    logging,
                    builder.Services,
                    configuration));
+            // Replace with your endpoint, API key, and deployed AI model name
+            if(configRoot.AIOptionsCore !=null)
+            {
+                List<ChatClientSession> chatClientSessionList = new();
+
+                if(configRoot.AIOptionsCore.OpenAIServiceCore!=null)
+                {
+                    var openAiServiceSettings = configRoot.AIOptionsCore.OpenAIServiceCore;
+                    var azureChatClient = new AzureOpenAIClient(
+           new Uri(openAiServiceSettings.Endpoint),
+           new AzureKeyCredential(openAiServiceSettings.Key)).GetChatClient(openAiServiceSettings.DeploymentName).AsIChatClient();
+                    chatClientSessionList.Add(new ChatClientSession(azureChatClient, "Azure Open AI — GPT4o"));
+                }
+                if(configRoot.AIOptionsCore.OllamaCore!=null)
+                {
+                    var ollamaSettings = configRoot.AIOptionsCore.OllamaCore;
+
+                    var ollamaChatClient = new OllamaChatClient(
+                        new Uri(ollamaSettings.Uri),
+                        ollamaSettings.ModelName);
+                    chatClientSessionList.Add(new ChatClientSession(ollamaChatClient, "Ollama — Phi 4"));
+                }
+                if(chatClientSessionList.Count>0)
+                {
+
+                    var compositeChatClient = new CompositeChatClient(chatClientSessionList.ToArray());
+                    builder.Services.AddScoped<IChatClient>((provider) => compositeChatClient);
+                    builder.Services.AddDevExpressAI();
+                }
+            }
+
+      
+   
+            builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.Configure<CircuitOptions>(
             o =>
 o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
@@ -106,8 +146,8 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             builder.Services.AddDevExpressBlazor(o => o.SizeMode = DevExpress.Blazor.SizeMode.Small);
             builder.Services.AddMvc();
             builder.Services.AddScoped<ThemeService>();
-            builder.Services.Configure<ConfigurationRoot>(configuration);
-            builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<ConfigurationRoot>>().Value);
+            builder.Services.Configure<BusinessObjects.ConfigurationRoot>(configuration);
+            builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<BusinessObjects.ConfigurationRoot>>().Value);
             builder.Services.Configure<JsonOptions>(options =>
             {
                 options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
