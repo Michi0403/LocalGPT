@@ -64,38 +64,59 @@ namespace LocalGPT
                    builder.Services,
                    configuration));
             // Replace with your endpoint, API key, and deployed AI model name
-            if(configRoot.AIOptionsCore !=null)
+            // if(configRoot.AIOptionsCore !=null)
+            // {
+            //     List<ChatClientSession> chatClientSessionList = new();
+
+            //     if(configRoot.AIOptionsCore.OpenAIServiceCore!=null)
+            //     {
+            //         var openAiServiceSettings = configRoot.AIOptionsCore.OpenAIServiceCore;
+            //         var azureChatClient = new AzureOpenAIClient(
+            //new Uri(openAiServiceSettings.Endpoint),
+            //new AzureKeyCredential(openAiServiceSettings.Key)).GetChatClient(openAiServiceSettings.DeploymentName).AsIChatClient();
+            //         chatClientSessionList.Add(new ChatClientSession(azureChatClient, "Azure Open AI — GPT4o"));
+            //     }
+            //     if(configRoot.AIOptionsCore.OllamaCore!=null)
+            //     {
+            //         var ollamaSettings = configRoot.AIOptionsCore.OllamaCore;
+
+            //         var ollamaChatClient = new OllamaChatClient(
+            //             new Uri(ollamaSettings.Uri),
+            //             ollamaSettings.ModelName);
+            //         chatClientSessionList.Add(new ChatClientSession(ollamaChatClient, "Ollama — Phi 4"));
+            //     }
+            //     if(chatClientSessionList.Count>0)
+            //     {
+
+            //         using (var compositeChatClient = new CompositeChatClient(chatClientSessionList.ToArray()))
+            //         {
+            //             builder.Services.AddScoped<IChatClient>((provider) => compositeChatClient);
+
+            //             builder.Services.AddDevExpressAI();
+            //         }
+
+            //     }
+
+
+            // }
+
+            // Program.cs (only the AI registration part shown)
+            builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
+            builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<LocalGPT.BusinessObjects.ConfigurationRoot>>().Value);
+
+            builder.Services.AddSingleton<IChatClientFactory, ChatClientFactory>();
+            builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
+            builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
+
+            // Provide IChatClient per-scope using IOptionsSnapshot (so saving appsettings refreshes next circuit)
+            builder.Services.AddScoped<IChatClient>(sp =>
             {
-                List<ChatClientSession> chatClientSessionList = new();
+                var snapshot = sp.GetRequiredService<IOptionsSnapshot<LocalGPT.BusinessObjects.ConfigurationRoot>>().Value;
+                var opts = snapshot.AIOptionsCore ?? new LocalGPT.BusinessObjects.AICoreOptions();
+                var factory = sp.GetRequiredService<IChatClientFactory>();
+                return factory.BuildFrom(opts);
+            });
 
-                if(configRoot.AIOptionsCore.OpenAIServiceCore!=null)
-                {
-                    var openAiServiceSettings = configRoot.AIOptionsCore.OpenAIServiceCore;
-                    var azureChatClient = new AzureOpenAIClient(
-           new Uri(openAiServiceSettings.Endpoint),
-           new AzureKeyCredential(openAiServiceSettings.Key)).GetChatClient(openAiServiceSettings.DeploymentName).AsIChatClient();
-                    chatClientSessionList.Add(new ChatClientSession(azureChatClient, "Azure Open AI — GPT4o"));
-                }
-                if(configRoot.AIOptionsCore.OllamaCore!=null)
-                {
-                    var ollamaSettings = configRoot.AIOptionsCore.OllamaCore;
-
-                    var ollamaChatClient = new OllamaChatClient(
-                        new Uri(ollamaSettings.Uri),
-                        ollamaSettings.ModelName);
-                    chatClientSessionList.Add(new ChatClientSession(ollamaChatClient, "Ollama — Phi 4"));
-                }
-                if(chatClientSessionList.Count>0)
-                {
-
-                    var compositeChatClient = new CompositeChatClient(chatClientSessionList.ToArray());
-                    builder.Services.AddScoped<IChatClient>((provider) => compositeChatClient);
-                    builder.Services.AddDevExpressAI();
-                }
-            }
-
-      
-   
             builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.Configure<CircuitOptions>(
             o =>

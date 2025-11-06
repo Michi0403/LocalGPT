@@ -25,6 +25,13 @@
 ::deep .home-icon {
     background-image: url("images/home.svg");
 }
+::deep .installation-icon {
+    background-image: url("images/installation.svg");
+}
+
+::deep .aichat-icon {
+    background-image: url("images/aichat.svg");
+}
 
 ::deep .weather-icon {
     background-image: url("images/weather.svg");

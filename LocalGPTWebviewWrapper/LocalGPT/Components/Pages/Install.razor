@@ -1,0 +1,279 @@
+﻿@page "/install"
+
+@inject ILogger<Install> Logger
+@inject INotificationService Notifier
+@inject IOptionsSnapshot<ConfigurationRoot> Opts
+@inject IConfigurationWriter Writer
+@inject IAiConnectivityProbe Probe
+@inject NavigationManager Nav
+
+<PageTitle>AI Setup</PageTitle>
+
+<div class="main-container">
+    <ToastWrapper Name="@toastName" />
+
+    <DxCard CssClass="p-4 space-y-6">
+        <div class="top-container">
+            <DxButton Text="Save"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      IconCssClass="save"
+                      Click="Save" />
+            <DxButton Text="Back to Chat"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      IconCssClass="chevron-left"
+                      Click="GoChat" />
+        </div>
+
+        <h2 class="text-xl font-semibold">AI Providers Setup</h2>
+
+        <DxFormLayout>
+            <DxFormLayoutTabPages>
+
+                <DxFormLayoutTabPage Caption="Local (OpenAI-compatible)">
+                    <DxFormLayoutItem Caption="Endpoint (host, no /v1)">
+                        <DxTextBox @bind-Text="Model.ChatGPTLocalCore.Endpoint" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="API Key">
+                        <DxTextBox @bind-Text="Model.ChatGPTLocalCore.ApiKey" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Model Name">
+                        <DxTextBox @bind-Text="Model.ChatGPTLocalCore.ModelName" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem>
+                        <DxCheckBox @bind-Checked="Model.ChatGPTLocalCore.AutoStartServer"
+                                    Text="Auto start server if not running" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Working Directory">
+                        <DxTextBox @bind-Text="Model.ChatGPTLocalCore.WorkingDir" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Start Command (bat/exe)">
+                        <DxTextBox @bind-Text="Model.ChatGPTLocalCore.StartCommand" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Health Timeout (s)">
+                        <DxSpinEdit @bind-Value="Model.ChatGPTLocalCore.HealthTimeoutSeconds" Min="5" Max="300" />
+                    </DxFormLayoutItem>
+
+                    <div class="top-container">
+                        <DxButton Text="Test Connection" Click="TestLocal" />
+                        <DxButton Text="Start Local Server"
+                                  RenderStyle="ButtonRenderStyle.Secondary"
+                                  Click="StartLocal" />
+                    </div>
+                </DxFormLayoutTabPage>
+
+                <DxFormLayoutTabPage Caption="Ollama">
+                    <DxFormLayoutItem Caption="URI">
+                        <DxTextBox @bind-Text="Model.OllamaCore.Uri" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Model">
+                        <DxTextBox @bind-Text="Model.OllamaCore.ModelName" />
+                    </DxFormLayoutItem>
+                    <DxButton Text="Test Connection" Click="TestOllama" />
+                </DxFormLayoutTabPage>
+
+                <DxFormLayoutTabPage Caption="OpenAI (Cloud)">
+                    <DxFormLayoutItem Caption="API Key">
+                        <DxTextBox @bind-Text="Model.OpenAICore.ApiKey" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Model">
+                        <DxTextBox @bind-Text="Model.OpenAICore.ModelName" />
+                    </DxFormLayoutItem>
+                    <DxButton Text="Test Connection" Click="TestOpenAI" />
+                </DxFormLayoutTabPage>
+
+                <DxFormLayoutTabPage Caption="Azure OpenAI">
+                    <DxFormLayoutItem Caption="Endpoint">
+                        <DxTextBox @bind-Text="Model.OpenAIServiceCore.Endpoint" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Key">
+                        <DxTextBox @bind-Text="Model.OpenAIServiceCore.Key" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Deployment Name">
+                        <DxTextBox @bind-Text="Model.OpenAIServiceCore.DeploymentName" />
+                    </DxFormLayoutItem>
+                    <DxButton Text="Test Connection" Click="TestAzure" />
+                </DxFormLayoutTabPage>
+
+            </DxFormLayoutTabPages>
+        </DxFormLayout>
+
+        <DxMemo Rows="8" ReadOnly="true" @bind-Text="_log" CssClass="w-full" />
+    </DxCard>
+</div>
+
+@code {
+    private AICoreOptions Model = new();
+    private string _log = "";
+    private string toastName = "InstallToasts";
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var current = Opts.Value.AIOptionsCore ?? new AICoreOptions();
+            // ensure non-null sub-sections
+            Model.ChatGPTLocalCore = current.ChatGPTLocalCore ?? new ChatGPTLocalCoreOptions();
+            Model.OllamaCore      = current.OllamaCore      ?? new OllamaCoreOptions();
+            Model.OpenAICore      = current.OpenAICore      ?? new OpenAICompatOptions();
+            Model.OpenAIServiceCore = current.OpenAIServiceCore ?? new OpenAIServiceCoreOptions();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Install.OnInitialized failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Initialization Error");
+            Append("(Init) " + ex.Message);
+        }
+    }
+
+    private void NormalizeLocalEndpoint()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore?.Endpoint)) return;
+
+            var ep = Model.ChatGPTLocalCore.Endpoint.Trim().TrimEnd('/');
+            if (ep.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+                ep = ep[..^3]; // remove "/v1"
+            Model.ChatGPTLocalCore.Endpoint = ep;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to normalize local endpoint: {Message}", ex.Message);
+            Append("Normalization warning: " + ex.Message);
+        }
+    }
+
+    private async Task Append(string text)
+    {
+        _log = $"[{DateTime.Now:T}] {text}\n" + _log;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task TestLocal()
+    {
+        try
+        {
+            NormalizeLocalEndpoint();
+            var (ok, msg) = await Probe.TestLocalOpenAICompatAsync(Model.ChatGPTLocalCore!, default);
+            await Append((ok ? "OK" : "FAIL") + " Local: " + msg);
+            if (ok) Notifier.ShowSuccess(toastName, "Local endpoint is reachable.", "Local Test OK");
+            else    Notifier.ShowWarning(toastName, msg, "Local Test Failed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "TestLocal failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Local Test Error");
+            await Append("(Local Test) " + ex.Message);
+        }
+    }
+
+    private async Task StartLocal()
+    {
+        try
+        {
+            NormalizeLocalEndpoint();
+            var (ok, msg) = await Probe.TryStartLocalAsync(Model.ChatGPTLocalCore!, default);
+            await Append((ok ? "Started" : "Failed") + ": " + msg);
+            if (ok) Notifier.ShowSuccess(toastName, "Local server started.", "Start OK");
+            else    Notifier.ShowWarning(toastName, msg, "Start Failed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "StartLocal failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Start Error");
+            await Append("(Start Local) " + ex.Message);
+        }
+    }
+
+    private async Task TestOllama()
+    {
+        try
+        {
+            var (ok, msg) = await Probe.TestOllamaAsync(Model.OllamaCore!, default);
+            await Append((ok ? "OK" : "FAIL") + " Ollama: " + msg);
+            if (ok) Notifier.ShowSuccess(toastName, "Ollama reachable.", "Ollama Test OK");
+            else    Notifier.ShowWarning(toastName, msg, "Ollama Test Failed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "TestOllama failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Ollama Test Error");
+            await Append("(Ollama Test) " + ex.Message);
+        }
+    }
+
+    private async Task TestOpenAI()
+    {
+        try
+        {
+            var (ok, msg) = await Probe.TestOpenAIAsync(Model.OpenAICore!, default);
+            await Append((ok ? "OK" : "FAIL") + " OpenAI: " + msg);
+            if (ok) Notifier.ShowSuccess(toastName, "OpenAI reachable.", "OpenAI Test OK");
+            else    Notifier.ShowWarning(toastName, msg, "OpenAI Test Failed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "TestOpenAI failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "OpenAI Test Error");
+            await Append("(OpenAI Test) " + ex.Message);
+        }
+    }
+
+    private async Task TestAzure()
+    {
+        try
+        {
+            var (ok, msg) = await Probe.TestAzureAsync(Model.OpenAIServiceCore!, default);
+            await Append((ok ? "OK" : "FAIL") + " Azure: " + msg);
+            if (ok) Notifier.ShowSuccess(toastName, "Azure endpoint reachable.", "Azure Test OK");
+            else    Notifier.ShowWarning(toastName, msg, "Azure Test Failed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "TestAzure failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Azure Test Error");
+            await Append("(Azure Test) " + ex.Message);
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            NormalizeLocalEndpoint();
+
+            var root = Opts.Value;
+            root.AIOptionsCore ??= new AICoreOptions();
+            root.AIOptionsCore.ChatGPTLocalCore  = Model.ChatGPTLocalCore;
+            root.AIOptionsCore.OllamaCore        = Model.OllamaCore;
+            root.AIOptionsCore.OpenAICore        = Model.OpenAICore;
+            root.AIOptionsCore.OpenAIServiceCore = Model.OpenAIServiceCore;
+
+            await Writer.SaveAsync(root);
+            await Append("Saved appsettings.json. New chats will use updated providers.");
+            Notifier.ShowSuccess(toastName, "Settings saved.", "Saved");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Save failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Save Error");
+            await Append("(Save) " + ex.Message);
+        }
+    }
+
+    private void GoChat()
+    {
+        try
+        {
+            Nav.NavigateTo("/Chat");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Navigation to /Chat failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Navigation Error");
+            _ = Append("(Nav) " + ex.Message);
+        }
+    }
+}

@@ -12,6 +12,9 @@
                 <Template>
                     <div class="title-header-text">Hello World!</div>
                     <div class="title-content-text">Welcome to your LocalChatGPT</div>
+                    <div class="title-content-text">You can connect different Cloud and Local AI Models, before you can't open the "Chat" Module from the navigation'</div>
+                    <div class="title-content-text">Go to Install first, then you can choose the AI Model in the AI Components.</div>
+
                 </Template>
             </DxGridLayoutItem>
             <DxGridLayoutItem Area="cards" CssClass="welcome-cards">
@@ -32,9 +35,16 @@
                     </NavLink>
                     <NavLink class="welcome-card" href="@UrlGenerator.GetUrl("/chat", ToggledSidebar)">
                         <svg class="welcome-card-img" alt="chat card">
-                            <use href="images/cards.svg#weather"></use>
+                            <use href="images/aichat-card.svg"></use>
                         </svg>
                         <div class="welcome-card-text">Local ChatGPT</div>
+                        <div class="welcome-card-back"></div>
+                    </NavLink>
+                    <NavLink class="welcome-card" href="@UrlGenerator.GetUrl("/install", ToggledSidebar)">
+                        <svg class="welcome-card-img" alt="install card">
+                            <use href="images/installation-card.svg"></use>
+                        </svg>
+                        <div class="welcome-card-text">Install - Configure AI Connectivity</div>
                         <div class="welcome-card-back"></div>
                     </NavLink>
                 </Template>

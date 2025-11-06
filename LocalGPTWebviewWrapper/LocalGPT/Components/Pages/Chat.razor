@@ -7,23 +7,31 @@
 <PageTitle>AI Chat</PageTitle>
 
 <div class="main-container">
-    <ToastWrapper Name="@toastName" />
+    @if (ChatClient!=null)
+    {
+        <ToastWrapper Name="@toastName" />
 
-    <div class="top-container">
-        <DxButton RenderStyle="ButtonRenderStyle.Primary"
-                  RenderStyleMode="ButtonRenderStyleMode.Contained"
-                  IconCssClass="refresh"
-                  IconPosition="ButtonIconPosition.BeforeText"
-                  CssClass="refresh-button"
-                  Text="Start New Chat"
-                  Click="ClearHistory" />
-        <DxComboBox Data="@ModelsList"
-                    Value="ChatClientProvider.SelectedSession"
-                    CssClass="selector-container-combo-editor"
-                    TextFieldName="@nameof(ChatClientSession.Name)"
-                    ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
-    </div>
-    <DxAIChat @ref="DxAiChat" CssClass="my-chat"></DxAIChat>
+        <div class="top-container">
+            <DxButton RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      IconCssClass="refresh"
+                      IconPosition="ButtonIconPosition.BeforeText"
+                      CssClass="refresh-button"
+                      Text="Start New Chat"
+                      Click="ClearHistory" />
+            <DxComboBox Data="@ModelsList"
+                        Value="ChatClientProvider.SelectedSession"
+                        CssClass="selector-container-combo-editor"
+                        TextFieldName="@nameof(ChatClientSession.Name)"
+                        ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
+        </div>
+        <DxAIChat @ref="DxAiChat" CssClass="my-chat"></DxAIChat>
+    }
+    else
+    {
+        <div class="title-header-text">No ChatClient Initialized</div>
+        <div class="title-content-text">Welcome to your LocalChatGPT, go to the Setup Page to Setup the AI Chat Clients</div>
+    }
 </div>
 
 @code {
