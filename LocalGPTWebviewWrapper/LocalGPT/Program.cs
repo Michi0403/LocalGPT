@@ -63,6 +63,8 @@ namespace LocalGPT
             var builder = WebApplication.CreateBuilder(options);
             var configuration = builder.Configuration;
             configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                 .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+
     .AddEnvironmentVariables();
             var configRoot = configuration.Get<LocalGPT.BusinessObjects.ConfigurationRoot>();
             builder.Services.AddLogging(
