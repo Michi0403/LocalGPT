@@ -64,7 +64,8 @@ namespace WebView2_WinUI3_Sample
             //AddressBar.Text = _baseUrl;          // prefill with local server
             WebView2.NavigationCompleted += WebView2_NavigationCompleted;
             WebView2.CoreWebView2Initialized += WebView2_CoreWebView2Initialized;
-
+            WebView2.RequestedTheme = ElementTheme.Default;
+            
             WebView2.Source = new Uri(_baseUrl); // initial navigation
             StatusUpdate("Ready");
             SetTitle();

@@ -36,8 +36,10 @@
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png" />
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"  ShortName="Taco" Square71x71Logo="Images\SmallTile.png" Square310x310Logo="Images\LargeTile.png">
+        </uap:DefaultTile >
         <uap:SplashScreen Image="Images\SplashScreen.png" />
+        <uap:LockScreen BadgeLogo="Images\StoreLogo.png" Notification="badge"/>
       </uap:VisualElements>
     </Application>
   </Applications>
@@ -47,6 +49,9 @@
     <uap:Capability Name="voipCall"/>
     <Capability Name="internetClientServer"/>
     <Capability Name="internetClient"/>
+    <uap:Capability Name="appointments"/>
+    <uap:Capability Name="chat"/>
+    <Capability Name="privateNetworkClientServer"/>
     <DeviceCapability Name="webcam"/>
     <DeviceCapability Name="microphone"/>
   </Capabilities>

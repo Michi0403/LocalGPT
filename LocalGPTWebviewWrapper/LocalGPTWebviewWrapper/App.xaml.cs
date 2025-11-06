@@ -1,5 +1,6 @@
 ﻿using LocalGPT;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using System;
 using System.Diagnostics;
@@ -7,6 +8,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Windows.Storage;
+using WinRT.Interop;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
@@ -56,6 +58,16 @@ namespace WebView2_WinUI3_Sample
             await WaitForHealthAsync(_baseUrl);
 
             _window = new MainWindow(_baseUrl);
+            _window.Title = "WebView2 Hosts Blazor Backend";
+            // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
+            var appWindow = _window.AppWindow;
+
+            // Set your icon file (must be an .ico, not .png)
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "favicon.ico");
+            if (File.Exists(iconPath))
+            {
+                appWindow.SetIcon(iconPath);
+            }
             _window.Activate();
 
             _window.Closed += async (_, __) =>

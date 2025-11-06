@@ -6,4 +6,14 @@
     <AlwaysReinstall>True</AlwaysReinstall>
     <DeployOptionalPackages>True</DeployOptionalPackages>
   </PropertyGroup>
+  <PropertyGroup>
+    <Source>C:\Users\micha\source\repos\LocalGPT\LocalGPTWebviewWrapper\LocalGPT\wwwroot\android-chrome-512x512.png</Source>
+    <SmallTileSource>C:\Users\micha\source\repos\LocalGPT\LocalGPTWebviewWrapper\LocalGPT\wwwroot\android-chrome-512x512.png</SmallTileSource>
+    <MediumTileSource>C:\Users\micha\source\repos\LocalGPT\LocalGPTWebviewWrapper\LocalGPT\wwwroot\android-chrome-512x512.png</MediumTileSource>
+    <WideTileSource>C:\Users\micha\source\repos\LocalGPT\LocalGPTWebviewWrapper\LocalGPT\wwwroot\android-chrome-512x512.png</WideTileSource>
+    <LargeTileSource>C:\Users\micha\source\repos\LocalGPT\LocalGPTWebviewWrapper\LocalGPT\wwwroot\android-chrome-512x512.png</LargeTileSource>
+    <AppIconSource>C:\Users\micha\source\repos\LocalGPT\LocalGPTWebviewWrapper\LocalGPT\wwwroot\android-chrome-512x512.png</AppIconSource>
+    <SplashScreenSource>C:\Users\micha\source\repos\LocalGPT\LocalGPTWebviewWrapper\LocalGPT\wwwroot\android-chrome-512x512.png</SplashScreenSource>
+    <PackageLogoSource>C:\Users\micha\source\repos\LocalGPT\LocalGPTWebviewWrapper\LocalGPT\wwwroot\android-chrome-512x512.png</PackageLogoSource>
+  </PropertyGroup>
 </Project>
