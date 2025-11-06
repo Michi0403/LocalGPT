@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Sockets;
@@ -54,9 +55,15 @@ namespace LocalGPT
                 WebRootPath = Path.Combine(exeDir, "wwwroot"),
                 Args = args ?? Array.Empty<string>()
             };
-
+            var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddConsole();
+            });
+            var logger = loggerFactory.CreateLogger("Startup");
             var builder = WebApplication.CreateBuilder(options);
             var configuration = builder.Configuration;
+            configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddEnvironmentVariables();
             var configRoot = configuration.Get<LocalGPT.BusinessObjects.ConfigurationRoot>();
             builder.Services.AddLogging(
                logging => LoggingHelper.ConfigureCustomLoggersWithConsoleAndDebug(
@@ -101,21 +108,33 @@ namespace LocalGPT
             // }
 
             // Program.cs (only the AI registration part shown)
+         
+            builder.Services
+                .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
+                .Bind(configuration);
             builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
-            builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<LocalGPT.BusinessObjects.ConfigurationRoot>>().Value);
-
-            builder.Services.AddSingleton<IChatClientFactory, ChatClientFactory>();
             builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
             builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
 
-            // Provide IChatClient per-scope using IOptionsSnapshot (so saving appsettings refreshes next circuit)
+            builder.Services.AddSingleton<IChatClientFactory, ChatClientFactory>();
+            // Build a fresh chat client per request/scope from the latest options
             builder.Services.AddScoped<IChatClient>(sp =>
             {
-                var snapshot = sp.GetRequiredService<IOptionsSnapshot<LocalGPT.BusinessObjects.ConfigurationRoot>>().Value;
-                var opts = snapshot.AIOptionsCore ?? new LocalGPT.BusinessObjects.AICoreOptions();
+
+                var cfg = sp.GetRequiredService<IOptionsMonitor<BusinessObjects.ConfigurationRoot>>().CurrentValue;
+                var options = cfg.AICore ?? new AICoreOptions();
+
+                logger.LogInformation("Building IChatClient from options: " +
+                                      "AzureOpenAI={HasAzure}, OpenAI={HasOai}, Ollama={HasOllama}, Local={HasLocal}",
+                    options.OpenAIServiceCore is { Endpoint.Length: > 0, Key.Length: > 0, DeploymentName.Length: > 0 },
+                    options.OpenAICore is { ApiKey.Length: > 0, ModelName.Length: > 0 },
+                    options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 },
+                    options.ChatGPTLocalCore is { Endpoint.Length: > 0, ApiKey.Length: > 0, ModelName.Length: > 0 });
+
                 var factory = sp.GetRequiredService<IChatClientFactory>();
-                return factory.BuildFrom(opts);
+                return factory.BuildFrom(options); // returns CompositeChatClient
             });
+
 
             builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.Configure<CircuitOptions>(
@@ -167,8 +186,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             builder.Services.AddDevExpressBlazor(o => o.SizeMode = DevExpress.Blazor.SizeMode.Small);
             builder.Services.AddMvc();
             builder.Services.AddScoped<ThemeService>();
-            builder.Services.Configure<BusinessObjects.ConfigurationRoot>(configuration);
-            builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<BusinessObjects.ConfigurationRoot>>().Value);
+
             builder.Services.Configure<JsonOptions>(options =>
             {
                 options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;

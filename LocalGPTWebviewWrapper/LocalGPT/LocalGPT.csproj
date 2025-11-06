@@ -22,6 +22,13 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Remove="obj\**" />
+	  <Content Remove="obj\**" />
+	  <EmbeddedResource Remove="obj\**" />
+	  <None Remove="obj\**" />
+	</ItemGroup>
 	<!-- Ensure the runtime manifest is copied next to LocalGPT.dll -->
 	<!--<Target Name="CopyStaticWebAssetsToOutDir" AfterTargets="Build">
 		<PropertyGroup>

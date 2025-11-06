@@ -2,7 +2,7 @@
 
 @inject ILogger<Install> Logger
 @inject INotificationService Notifier
-@inject IOptionsSnapshot<ConfigurationRoot> Opts
+@inject IOptionsMonitor<ConfigurationRoot> Opts
 @inject IConfigurationWriter Writer
 @inject IAiConnectivityProbe Probe
 @inject NavigationManager Nav
@@ -112,7 +112,7 @@
     {
         try
         {
-            var current = Opts.Value.AIOptionsCore ?? new AICoreOptions();
+            var current = Opts.CurrentValue.AICore ?? new AICoreOptions();
             // ensure non-null sub-sections
             Model.ChatGPTLocalCore = current.ChatGPTLocalCore ?? new ChatGPTLocalCoreOptions();
             Model.OllamaCore      = current.OllamaCore      ?? new OllamaCoreOptions();
@@ -244,12 +244,12 @@
         {
             NormalizeLocalEndpoint();
 
-            var root = Opts.Value;
-            root.AIOptionsCore ??= new AICoreOptions();
-            root.AIOptionsCore.ChatGPTLocalCore  = Model.ChatGPTLocalCore;
-            root.AIOptionsCore.OllamaCore        = Model.OllamaCore;
-            root.AIOptionsCore.OpenAICore        = Model.OpenAICore;
-            root.AIOptionsCore.OpenAIServiceCore = Model.OpenAIServiceCore;
+            var root = Opts.CurrentValue;
+            root.AICore ??= new AICoreOptions();
+            root.AICore.ChatGPTLocalCore = Model.ChatGPTLocalCore;
+            root.AICore.OllamaCore = Model.OllamaCore;
+            root.AICore.OpenAICore = Model.OpenAICore;
+            root.AICore.OpenAIServiceCore = Model.OpenAIServiceCore;
 
             await Writer.SaveAsync(root);
             await Append("Saved appsettings.json. New chats will use updated providers.");
