@@ -72,42 +72,6 @@ namespace LocalGPT
                    logging,
                    builder.Services,
                    configuration));
-            // Replace with your endpoint, API key, and deployed AI model name
-            // if(configRoot.AIOptionsCore !=null)
-            // {
-            //     List<ChatClientSession> chatClientSessionList = new();
-
-            //     if(configRoot.AIOptionsCore.OpenAIServiceCore!=null)
-            //     {
-            //         var openAiServiceSettings = configRoot.AIOptionsCore.OpenAIServiceCore;
-            //         var azureChatClient = new AzureOpenAIClient(
-            //new Uri(openAiServiceSettings.Endpoint),
-            //new AzureKeyCredential(openAiServiceSettings.Key)).GetChatClient(openAiServiceSettings.DeploymentName).AsIChatClient();
-            //         chatClientSessionList.Add(new ChatClientSession(azureChatClient, "Azure Open AI — GPT4o"));
-            //     }
-            //     if(configRoot.AIOptionsCore.OllamaCore!=null)
-            //     {
-            //         var ollamaSettings = configRoot.AIOptionsCore.OllamaCore;
-
-            //         var ollamaChatClient = new OllamaChatClient(
-            //             new Uri(ollamaSettings.Uri),
-            //             ollamaSettings.ModelName);
-            //         chatClientSessionList.Add(new ChatClientSession(ollamaChatClient, "Ollama — Phi 4"));
-            //     }
-            //     if(chatClientSessionList.Count>0)
-            //     {
-
-            //         using (var compositeChatClient = new CompositeChatClient(chatClientSessionList.ToArray()))
-            //         {
-            //             builder.Services.AddScoped<IChatClient>((provider) => compositeChatClient);
-
-            //             builder.Services.AddDevExpressAI();
-            //         }
-
-            //     }
-
-
-            // }
 
             // Program.cs (only the AI registration part shown)
          
@@ -233,8 +197,6 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             app.MapControllers();
             _ = app.MapHub<ChatHub>("/chathub");
             app.MapHealthChecks("/health");
-            //app.MapBlazorHub();
-            //app.MapFallbackToPage("/_Host");
             app.MapGet("/__diag", (IWebHostEnvironment env) => new {
                 env.EnvironmentName,
                 env.ContentRootPath,
