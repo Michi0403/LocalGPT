@@ -86,21 +86,10 @@ namespace LocalGPT
             // Build a fresh chat client per request/scope from the latest options
             builder.Services.AddScoped<IChatClient>(sp =>
             {
-
-                var cfg = sp.GetRequiredService<IOptionsMonitor<BusinessObjects.ConfigurationRoot>>().CurrentValue;
-                var options = cfg.AICore ?? new AICoreOptions();
-
-                logger.LogInformation("Building IChatClient from options: " +
-                                      "AzureOpenAI={HasAzure}, OpenAI={HasOai}, Ollama={HasOllama}, Local={HasLocal}",
-                    options.OpenAIServiceCore is { Endpoint.Length: > 0, Key.Length: > 0, DeploymentName.Length: > 0 },
-                    options.OpenAICore is { ApiKey.Length: > 0, ModelName.Length: > 0 },
-                    options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 },
-                    options.ChatGPTLocalCore is { Endpoint.Length: > 0, ApiKey.Length: > 0, ModelName.Length: > 0 });
-
                 var factory = sp.GetRequiredService<IChatClientFactory>();
-                return factory.BuildFrom(options); // returns CompositeChatClient
+                return factory.Build(); // returns CompositeChatClient
             });
-
+            builder.Services.AddDevExpressAI();
 
             builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.Configure<CircuitOptions>(
