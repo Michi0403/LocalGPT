@@ -33,6 +33,7 @@ namespace LocalGPT.BusinessObjects
     public class OpenAICompatOptions // OpenAI cloud (or any OpenAI-compatible)
     {
         public const string OpenAICore = "OpenAICore";
+        public string Endpoint { get; set; } = string.Empty;
         public string ApiKey { get; set; } = string.Empty;
         public string ModelName { get; set; } = "gpt-4o-mini";
     }
