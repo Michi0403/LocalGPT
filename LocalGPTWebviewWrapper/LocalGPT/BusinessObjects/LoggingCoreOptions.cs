@@ -1,3 +1,5 @@
+using LocalGPT.BusinessObjects.Enums;
+
 namespace LocalGPT.BusinessObjects
 {
     public class LoggingCoreOptions

@@ -1,3 +1,4 @@
+using LocalGPT.Interfaces;
 using static LocalGPT.BusinessObjects.CustomVersion;
 
 namespace LocalGPT.BusinessObjects
@@ -11,9 +12,6 @@ namespace LocalGPT.BusinessObjects
             Version = version;
         }
 
-        public interface ICustomVersion
-        {
-            string Version  { get; set; }
-        }
+ 
     }
 }

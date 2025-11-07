@@ -1,5 +1,6 @@
 
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.Enums;
 using LocalGPT.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

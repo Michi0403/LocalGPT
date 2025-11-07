@@ -1,6 +1,6 @@
 using Microsoft.Extensions.AI;
 
-namespace LocalGPT.BusinessObjects;
+namespace LocalGPT.Services;
 
 public class CompositeChatClient : IChatClient
 {

@@ -1,8 +1,5 @@
-namespace LocalGPT.BusinessObjects
+namespace LocalGPT.BusinessObjects.Enums
 {
-
-
-
     public enum CoreLogLevel
     {
 

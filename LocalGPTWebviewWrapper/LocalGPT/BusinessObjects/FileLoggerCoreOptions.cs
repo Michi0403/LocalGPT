@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects.Enums;
 using System.Text.Json.Serialization;
 
 namespace LocalGPT.BusinessObjects

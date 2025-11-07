@@ -1,20 +1,10 @@
 
 
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 
 namespace  LocalGPT.Services
 {
-
-    public interface IThemeChangeRequestDispatcher
-    {
-        void RequestThemeChange(Theme theme);
-    }
-
-    public interface IThemeLoadNotifier
-    {
-        Task NotifyThemeLoadedAsync(Theme theme);
-    }
-
     public class ThemeService
     {
         public static readonly string DEFAULT_THEME_NAME = "office-white";

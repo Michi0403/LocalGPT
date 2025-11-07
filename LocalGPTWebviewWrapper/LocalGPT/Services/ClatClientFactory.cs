@@ -2,16 +2,13 @@
 using Azure.AI.OpenAI;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions;
+using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using System.ClientModel;
 namespace LocalGPT.Services
 {
-    public interface IChatClientFactory
-    {
-        CompositeChatClient Build();
-    }
 
     public class ChatClientFactory(ILogger<ChatClientFactory> logger, IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot) : IChatClientFactory
     {

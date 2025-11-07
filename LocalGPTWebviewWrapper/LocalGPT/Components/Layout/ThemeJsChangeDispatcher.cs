@@ -1,5 +1,6 @@
 using DevExpress.Blazor.Internal;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
@@ -14,6 +15,8 @@ namespace LocalGPT.Components.Layout
         private ISafeJSRuntime? JsRuntime { get; set; }
         [Inject]
         private ThemeService Themes { get; set; } = new ThemeService();
+        [Inject]
+        private ILogger<ThemeJsChangeDispatcher> Logger     { get; set; }
 
         private Theme? _pendingTheme;
         private IJSObjectReference? _module;
@@ -27,13 +30,20 @@ namespace LocalGPT.Components.Layout
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
+            try
+            {
+                if (firstRender && JsRuntime != null)
+                    _module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./switcher-resources/theme-controller.js").ConfigureAwait(false);
+                Themes.ThemeChangeRequestDispatcher = this;
+                if (Themes.ActiveTheme == null)
+                    Themes.SetActiveThemeByName(InitialThemeName);
+                await base.OnAfterRenderAsync(firstRender).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, $"Error in OnAfterRenderAsync {ex.ToString()}");
+            }
 
-            if (firstRender && JsRuntime != null)
-                _module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./switcher-resources/theme-controller.js").ConfigureAwait(false);
-            Themes.ThemeChangeRequestDispatcher = this;
-            if (Themes.ActiveTheme == null)
-                Themes.SetActiveThemeByName(InitialThemeName);
-            await base.OnAfterRenderAsync(firstRender).ConfigureAwait(false);
         }
 
         public async void RequestThemeChange(Theme theme)
@@ -55,8 +65,7 @@ namespace LocalGPT.Components.Layout
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error requesting theme:{theme.Name} change: {ex.ToString()}");
-
+                Logger.LogError(ex, $"Error in RequestThemeChange {ex.ToString()}");
             }
 
         }
@@ -75,8 +84,7 @@ namespace LocalGPT.Components.Layout
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error notifying theme loaded for:{_pendingTheme?.Name} change: {ex.ToString()}");
-
+                Logger.LogError(ex, $"Error in ThemeLoadedAsync {ex.ToString()}");
             }
 
         }
@@ -88,6 +96,7 @@ namespace LocalGPT.Components.Layout
                 GC.SuppressFinalize(this);
                 if (_module != null)
                     await _module.DisposeAsync().ConfigureAwait(false);
+                Dispose(true);
             }
             catch (JSDisconnectedException)
             {

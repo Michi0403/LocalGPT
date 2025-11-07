@@ -1,7 +1,7 @@
 using DevExpress.AIIntegration.Blazor.Chat;
 using Microsoft.Extensions.AI;
 
-namespace LocalGPT.BusinessObjects;
+namespace LocalGPT.Services;
 
 public class ChatClientSession
 {
