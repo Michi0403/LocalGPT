@@ -21,13 +21,6 @@ namespace LocalGPT.Components.Layout
         private Theme? _pendingTheme;
         private IJSObjectReference? _module;
         private bool disposedValue;
-
-
-
-
-
-
-
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             try
