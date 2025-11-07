@@ -1,7 +1,5 @@
 ﻿@page "/Chat"
-@using DevExpress.AIIntegration.Blazor.Chat
-@using LocalGPT.Interfaces
-@using Microsoft.Extensions.AI
+
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
 @rendermode InteractiveServer
@@ -26,7 +24,28 @@
                         TextFieldName="@nameof(ChatClientSession.Name)"
                         ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
         </div>
-        <DxAIChat @ref="DxAiChat" CssClass="my-chat"></DxAIChat>
+        <DxAIChat Initialized="ChatInitialized" ResponseContentFormat="ResponseContentFormat.PlainText" UseStreaming="true" FileUploadEnabled="true" @ref="DxAiChat" CssClass="demo-chat">
+            <PromptSuggestions>
+                @foreach (var suggestion in PromptSuggestions)
+                {
+                    <DxAIChatPromptSuggestion Title="@suggestion.Title"
+                                              Text="@suggestion.Text"
+                                              PromptMessage="@suggestion.PromptMessage" />
+                }
+            </PromptSuggestions>
+            <MessageContentTemplate>
+                <div class="demo-chat-content">
+                    @(new MarkupString(Markdig.Markdown.ToHtml(context.Content).Trim()))
+                </div>
+            </MessageContentTemplate>
+            <AIChatSettings>
+                <DxAIChatFileUploadSettings MaxFileCount="2"
+                                            MaxFileSize="20000"
+                                            AllowedFileExtensions="@(new List<string> { ".jpg", ".pdf" })"
+                                            FileTypeFilter="@(new List<string> { "image/*", "application/pdf"})" />
+            </AIChatSettings>
+
+        </DxAIChat>
     }
     else
     {
@@ -42,6 +61,21 @@
     DxAIChat? DxAiChat { get; set; }
     List<ChatClientSession> ModelsList => ChatClientProvider?.AvailableChatClients;
     string toastName = "ChatToasts";
+    List<PromptSuggestion> PromptSuggestions { get; set; }
+    void ChatInitialized()
+    {
+        PromptSuggestions = GetSuggestion();
+    }
+    public List<PromptSuggestion> GetSuggestion()
+    {
+        return new List<PromptSuggestion>() {
+        new PromptSuggestion("Criticize", "Criticize my life choices like smoking Weed and Cigarettes", "Criticize my life choices like smoking and add some NWO views on my life choices"),
+        new PromptSuggestion("Write a letter to David", "Write a letter to my friend david...", "Write a letter to my friend david about his bad taste in programming languages, AI Models and clothing."),
+        new PromptSuggestion("Write an email", "Make your text look and sound professional", "Format text as a formal email to a client:"),
+        new PromptSuggestion("Brainstorm ideas", "Get creative input for your tasks", "Help me brainstorm ideas for:"),
+        new PromptSuggestion("Fix my writing", "Avoid spelling, grammar, and style errors", "Proofread the following text:"),
+    };
+    }
     private void ClearHistory()
     {
         try
@@ -56,7 +90,6 @@
         }
 
     }
-
     private void OnModelChanged(ChatClientSession value)
     {
         try

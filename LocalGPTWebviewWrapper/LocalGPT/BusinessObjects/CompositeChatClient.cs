@@ -6,21 +6,42 @@ public class CompositeChatClient : IChatClient
 {
     public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
-    public CompositeChatClient(params ChatClientSession[] chatClients)
+    readonly    ILogger _logger;
+    public CompositeChatClient(ILogger logger,params ChatClientSession[] chatClients)
     {
+
         AvailableChatClients = chatClients.ToList();
         SelectedSession = AvailableChatClients[0];
+        _logger = logger;
     }
 
     public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken())
     {
-        return SelectedSession?.Client.GetResponseAsync(messages, options, cancellationToken);
+        try
+        {
+
+            return SelectedSession?.Client.GetResponseAsync(messages, options, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error in GetResponseAsync {ex.ToString()}");
+            throw;
+        }
     }
 
     public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken()) {
-        return SelectedSession?.Client.GetStreamingResponseAsync(messages, options, cancellationToken);
+        try
+        {
+
+            return SelectedSession?.Client.GetStreamingResponseAsync(messages, options, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error in GetStreamingResponseAsync {ex.ToString()}");
+            throw;
+        }
     }
 
     public void Dispose() {
@@ -31,6 +52,15 @@ public class CompositeChatClient : IChatClient
         }
     }
     public object? GetService(Type serviceType, object? serviceKey = null) {
-        throw new NotImplementedException();
+        try
+        {
+
+            throw new NotImplementedException();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error in GetService {ex.ToString()}");
+            return null;
+        }
     }
 }

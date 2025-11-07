@@ -64,3 +64,11 @@
     border-radius: 1rem;
     z-index: -2;
 }
+.demo-chat {
+    width: 100%;
+    height: 400px;
+}
+
+    .demo-chat .demo-chat-content > p:last-child {
+        margin-bottom: 0;
+    }

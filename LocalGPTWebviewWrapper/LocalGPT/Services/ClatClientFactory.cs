@@ -73,7 +73,7 @@ namespace LocalGPT.Services
                 if (sessions.Count == 0)
                     throw new InvalidOperationException("No AI providers configured.");
 
-                return new CompositeChatClient(sessions.ToArray());
+                return new CompositeChatClient(logger,sessions.ToArray());
             }
             catch (Exception ex)
             {

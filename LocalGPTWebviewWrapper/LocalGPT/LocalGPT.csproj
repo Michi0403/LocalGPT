@@ -82,6 +82,7 @@
     <PackageReference Include="DevExpress.Blazor.RichEdit" Version="25.1.*" />
     <PackageReference Include="DevExpress.Blazor.PivotTable" Version="25.1.*" />
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.1.*" />
+    <PackageReference Include="Markdig" Version="0.43.0" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.10" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="9.0.10" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.0" />
