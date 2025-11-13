@@ -13,11 +13,13 @@ namespace LocalGPT.BusinessObjects
     public class ChatGPTLocalCoreOptions
     {
         public const string ChatGPTLocalCore = "ChatGPTLocalCore";
-        public string Endpoint { get; set; } = "http://localhost:8080/v1";
+        public string Endpoint { get; set; } = "http://localhost:8080/";
         public string ApiKey { get; set; } = "local-key";
         public string ModelName { get; set; } = "gpt-oss-20b";
         public bool AutoStartServer { get; set; } = false;
-        public string? WorkingDir { get; set; }
+        public string? PythonEnvironment { get; set; }
+        public string? StartScript { get; set; }  // e.g. path to run_gpt_oss_server.py
+        public string? WorkingDir { get; set; }   // directory where model + script live
         public string? StartCommand { get; set; }
         public int HealthTimeoutSeconds { get; set; } = 45;
     }
