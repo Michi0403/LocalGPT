@@ -124,10 +124,14 @@ Build the WinUI/MSIX package with Visual Studio MSBuild:
 Create zip packages for multiple architectures:
 
 ```powershell
-.\LocalGPTWebviewWrapper\build\Publish-LocalGptRelease.ps1 -Configuration Release -Platforms x64,x86,arm64
+.\LocalGPTWebviewWrapper\build\Publish-LocalGptRelease.ps1 `
+  -Version "0.1.0-ai-council.20260602" `
+  -Configuration Release `
+  -Platforms x64,x86,arm64 `
+  -BackendRuntimeIdentifiers win-x64,linux-x64,osx-x64,osx-arm64
 ```
 
-The script writes zips and a SHA256 manifest under `artifacts\releases\`. Add `-CreateGitHubRelease` when `gh` is installed and authenticated.
+The script writes zips and a SHA256 manifest under `artifacts\releases\`. Windows wrapper packages are WebView2/MSIX-only, while Linux and macOS use the backend-only ASP.NET Core/Blazor zips. Use `-SkipWrapper` or `-SkipBackend` when rebuilding only one side. Add `-CreateGitHubRelease` when `gh` is installed and authenticated.
 
 ## Developer Notes
 

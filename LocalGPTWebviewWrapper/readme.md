@@ -217,10 +217,14 @@ That helper finds JDK 21, uses LocalGPT's local Gradle folder under `%LOCALAPPDA
 For release packaging, use:
 
 ```powershell
-.\LocalGPTWebviewWrapper\build\Publish-LocalGptRelease.ps1 -Configuration Release -Platforms x64,x86,arm64
+.\LocalGPTWebviewWrapper\build\Publish-LocalGptRelease.ps1 `
+  -Version "0.1.0-ai-council.20260602" `
+  -Configuration Release `
+  -Platforms x64,x86,arm64 `
+  -BackendRuntimeIdentifiers win-x64,linux-x64,osx-x64,osx-arm64
 ```
 
-Release zips and SHA256 manifests are written under `artifacts\releases\` and are ignored by git.
+Release zips and SHA256 manifests are written under `artifacts\releases\` and are ignored by git. The WebView2/MSIX wrapper is Windows-only; the backend-only zips are the portable ASP.NET Core/Blazor distribution for Windows, Linux, and macOS. Use `-SkipWrapper` or `-SkipBackend` for incremental release builds.
 
 The AI Council should help with both mod code and user setup. If JDK, Gradle, Minecraft, Ollama, or a selected model is missing, the council should ask a short technical recovery poll and save the missing feature/setup note to memory instead of pretending the workflow completed.
 

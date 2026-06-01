@@ -32,4 +32,28 @@ if (-not $KeepRunningApp) {
     Get-Process LocalGPTWebviewWrapper -ErrorAction SilentlyContinue | Stop-Process -Force
 }
 
-& $msbuild $solutionPath "/p:Platform=$Platform" "/p:Configuration=$Configuration" /m /v:minimal
+$runtimeIdentifier = switch ($Platform) {
+    "x86" { "win-x86" }
+    "x64" { "win-x64" }
+    "arm64" { "win-arm64" }
+}
+
+& $msbuild $solutionPath `
+    /t:Restore `
+    "/p:Platform=$Platform" `
+    "/p:Configuration=$Configuration" `
+    "/p:RuntimeIdentifier=$runtimeIdentifier" `
+    /p:UseSharedCompilation=false `
+    /p:BuildInParallel=false `
+    /v:minimal `
+    /nr:false
+
+& $msbuild $solutionPath `
+    "/p:Platform=$Platform" `
+    "/p:Configuration=$Configuration" `
+    "/p:RuntimeIdentifier=$runtimeIdentifier" `
+    /p:UseSharedCompilation=false `
+    /p:BuildInParallel=false `
+    /m:1 `
+    /v:minimal `
+    /nr:false
