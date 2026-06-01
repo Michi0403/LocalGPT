@@ -51,6 +51,9 @@
 	  <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
     <AssetTargetFallback>net9.0-windows$(TargetPlatformVersion);$(AssetTargetFallback)</AssetTargetFallback>
     <DefaultLanguage>en-US</DefaultLanguage>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <TargetedSDKConfiguration>Retail</TargetedSDKConfiguration>
+    <AppxPackageAllowDebugFrameworkReferencesInManifest>false</AppxPackageAllowDebugFrameworkReferencesInManifest>
     <AppxBundle>Never</AppxBundle>
     <AppxPackageDir>$(Temp)\LocalGPTWebviewWrapper\AppPackages\</AppxPackageDir>
     <AppxPackageSigningEnabled Condition="'$(AppxPackageSigningEnabled)' == ''">False</AppxPackageSigningEnabled>
@@ -72,6 +75,20 @@
 		</ItemGroup>
 		<MakeDir Directories="@(_WindowsAppSdkRuntimeDir)" />
 	</Target>
+  <Target Name="OverlaySelfContainedWrapperPublishOutput"
+          BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage"
+          Condition="Exists('..\LocalGPTWebviewWrapper\bin\win-$(Platform)\publish\LocalGPTWebviewWrapper.exe')">
+    <ItemGroup>
+      <_PublishedWrapperFile Include="..\LocalGPTWebviewWrapper\bin\win-$(Platform)\publish\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PublishedWrapperFile)"
+          DestinationFiles="@(_PublishedWrapperFile->'$(OutputPath)LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_PublishedWrapperFile)"
+          DestinationFiles="@(_PublishedWrapperFile->'$(LayoutDir)\LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'$(LayoutDir)' != ''" />
+  </Target>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>

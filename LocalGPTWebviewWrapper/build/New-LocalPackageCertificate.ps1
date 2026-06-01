@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 $packageProjectDir = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\LocalGPTWebviewWrapper (Package)")
 $localPropsPath = Join-Path $packageProjectDir "LocalGPTWebviewWrapper (Package).local.props"
 $pfxPath = Join-Path $packageProjectDir $PfxFileName
+$cerPath = Join-Path $env:TEMP "LocalGPTWebviewWrapper.LocalDevSigning.cer"
 $oldPushedThumbprint = "5D490988D95615FDAA531D4B956D272B7479D407"
 
 if ($RemoveOldPushedCertificate) {
@@ -39,6 +40,11 @@ if ($ExportPfx) {
     Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $password | Out-Null
 }
 
+Export-Certificate -Cert $cert -FilePath $cerPath -Force | Out-Null
+Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\CurrentUser\TrustedPeople" | Out-Null
+Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\CurrentUser\Root" | Out-Null
+Remove-Item -LiteralPath $cerPath -Force
+
 $props = @"
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -55,6 +61,7 @@ Write-Host ""
 Write-Host "Created local package certificate:"
 Write-Host "  Thumbprint: $($cert.Thumbprint)"
 Write-Host "  MSBuild:    $localPropsPath"
+Write-Host "  Trusted:    CurrentUser\TrustedPeople and CurrentUser\Root"
 if ($ExportPfx) {
     Write-Host "  PFX:        $pfxPath"
 }
