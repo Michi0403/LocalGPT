@@ -34,6 +34,10 @@
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       Enabled="@(!IsDiscovering)"
                       Click="DiscoverLocalAiHosts" />
+            <DxButton Text="Use Ollama gpt-oss:20b"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Click="UseOllamaGptOss20b" />
         </div>
 
         @if (DiscoveredHosts.Count > 0)
@@ -276,6 +280,8 @@
             await Append("Scanning localhost for Ollama and LM Studio...");
 
             DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default);
+            AutoSelectBestDiscoveredModel();
+
             var reachable = DiscoveredHosts.Count(h => h.IsReachable);
             var models = DiscoveredHosts.Sum(h => h.Models.Count);
 
@@ -326,6 +332,47 @@
             Notifier.ShowError(toastName, ex.ToString(), "Selection Error");
             await Append("(Selection) " + ex.Message);
         }
+    }
+
+    private void AutoSelectBestDiscoveredModel()
+    {
+        var best = DiscoveredHosts
+            .Where(h => h.IsReachable)
+            .SelectMany(h => h.Models.Select(m => new { Host = h, Model = m }))
+            .OrderByDescending(x => string.Equals(x.Host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(x => x.Model.Name.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(x => x.Model.IsLoaded)
+            .FirstOrDefault();
+
+        if (best is null)
+        {
+            var ollama = DiscoveredHosts.FirstOrDefault(h => h.IsReachable && string.Equals(h.Provider, "Ollama", StringComparison.OrdinalIgnoreCase));
+            if (ollama is not null && string.IsNullOrWhiteSpace(Model.OllamaCore.Uri))
+                Model.OllamaCore.Uri = ollama.Endpoint;
+            return;
+        }
+
+        if (string.Equals(best.Host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+        {
+            Model.OllamaCore.Uri = best.Host.Endpoint;
+            Model.OllamaCore.ModelName = best.Model.Name;
+        }
+        else
+        {
+            Model.ChatGPTLocalCore.Endpoint = best.Host.Endpoint;
+            Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
+                ? "local-key"
+                : Model.ChatGPTLocalCore.ApiKey;
+            Model.ChatGPTLocalCore.ModelName = best.Model.Name;
+        }
+    }
+
+    private async Task UseOllamaGptOss20b()
+    {
+        Model.OllamaCore.Uri = "http://localhost:11434";
+        Model.OllamaCore.ModelName = "gpt-oss:20b";
+        await Append("Selected Ollama gpt-oss:20b at http://localhost:11434.");
+        Notifier.ShowSuccess(toastName, "Ollama gpt-oss:20b selected.", "Model Selected");
     }
 
     private static string GetDiscoveredModelButtonText(LocalAiModelInfo model)

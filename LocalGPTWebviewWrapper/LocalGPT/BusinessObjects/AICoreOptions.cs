@@ -45,7 +45,7 @@ namespace LocalGPT.BusinessObjects
     {
         public const string OllamaCore = "OllamaCore";
         public string Uri { get; set; } = "http://localhost:11434";
-        public string ModelName { get; set; } = "llama3.1";
+        public string ModelName { get; set; } = "gpt-oss:20b";
     }
 
     public sealed class LocalAiHostDiscoveryResult
