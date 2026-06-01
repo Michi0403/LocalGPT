@@ -72,10 +72,19 @@
                     <input type="number" min="1" max="3" @bind="Request.MaxRounds" />
                 </label>
                 <label>
+                    Parallel models
+                    <input type="number" min="1" max="4" @bind="Request.MaxParallelModels" />
+                </label>
+                <label>
                     Max output tokens
                     <input type="number" min="512" max="8192" step="256" @bind="Request.MaxOutputTokens" />
                 </label>
+                <label>
+                    Ollama keep-alive
+                    <input @bind="KeepAliveText" placeholder="auto" />
+                </label>
             </div>
+            <p class="hint">Default scheduling runs one large model at a time and can unload between models, which is safer for 24 GB VRAM. Raise parallel models only when the selected models fit together.</p>
 
             <div class="check-row">
                 <label title="Shares saved LocalGPT memory and AI project guidance with every council participant.">
@@ -145,6 +154,25 @@
             </section>
         }
 
+        @if (LastResult.UserPoll is not null)
+        {
+            <section class="poll-panel">
+                <h2>User Decision Poll</h2>
+                <p>@LastResult.UserPoll.Reason</p>
+                <strong>@LastResult.UserPoll.Question</strong>
+                <div class="poll-options">
+                    @foreach (var option in LastResult.UserPoll.Options)
+                    {
+                        <button type="button"
+                                title="@option.FollowUpPrompt"
+                                @onclick="@(() => ApplyPollOption(option))">
+                            @option.Label
+                        </button>
+                    }
+                </div>
+            </section>
+        }
+
         <section class="final-panel">
             <h2>Consensus Answer</h2>
             <div class="markdown-output">@((MarkupString)Markdown.ToHtml(LastResult.FinalAnswer).Trim())</div>
@@ -195,11 +223,17 @@
             "Separate what LocalGPT already does from proposed future improvements. Mark anything uncertain under Needs verification.",
         MaxRounds = 1,
         MaxOutputTokens = 4096,
+        MaxParallelModels = 1,
         IncludeMemory = true,
         SaveToMemory = true
     };
 
     bool CanRun => !isBusy && SelectedModels.Count > 0 && !string.IsNullOrWhiteSpace(Request.Prompt);
+    string KeepAliveText
+    {
+        get => Request.OllamaKeepAlive ?? string.Empty;
+        set => Request.OllamaKeepAlive = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -266,6 +300,12 @@
             SelectedModels.Add(modelName);
         else
             SelectedModels.Remove(modelName);
+    }
+
+    void ApplyPollOption(CouncilUserPollOption option)
+    {
+        Request.Prompt = $"{Request.Prompt}\n\nUser decision for the next council round:\n{option.FollowUpPrompt}";
+        statusText = $"Poll choice added: {option.Label}. Run Council again to continue.";
     }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)

@@ -108,6 +108,10 @@ Current behavior:
 - the full transcript, visible model reasoning notes, errors, and timings are written to a Markdown log under `%LOCALAPPDATA%\LocalGPT\CouncilLogs`
 - the transcript is also saved into the existing SQLite chat memory as an `AI Council - model + model` conversation
 
+Performance rule: default council scheduling runs one model inference at a time (`MaxParallelModels = 1`) and uses a short Ollama keep-alive when several large local models are selected. This avoids trying to keep multiple 20B/30B models resident in VRAM at once on machines like a 7900 XTX with 24 GB VRAM. Users can raise the parallelism in the UI when they know the loaded models fit together.
+
+Decision rule: if a participant is unavailable, the council cannot converge, or the final answer still needs human verification, the result should include a user decision poll. The poll is saved into memory and shown in the UI so the next council round can treat the user's choice as binding shared context.
+
 Design rule: the council can display provider-supplied visible thinking and model-written reasoning notes, but user-facing controls should make it clear which model produced each note. Treat council output as reviewed assistance, not as automatically true.
 
 ## Minecraft mod generation model

@@ -18,10 +18,12 @@ namespace LocalGPT.Services
 
         private readonly HttpClient http;
         private readonly string model;
+        private readonly string keepAlive;
 
-        public OllamaThinkingChatClient(OllamaCoreOptions options)
+        public OllamaThinkingChatClient(OllamaCoreOptions options, string? keepAlive = null)
         {
             model = options.ModelName;
+            this.keepAlive = string.IsNullOrWhiteSpace(keepAlive) ? "10m" : keepAlive.Trim();
             http = new HttpClient
             {
                 BaseAddress = new Uri(options.Uri.TrimEnd('/')),
@@ -64,7 +66,7 @@ namespace LocalGPT.Services
             {
                 Model = model,
                 Stream = stream,
-                KeepAlive = "10m",
+                KeepAlive = keepAlive,
                 Messages = messages.Select(ToOllamaMessage).Where(m => !string.IsNullOrWhiteSpace(m.Content)).ToList(),
                 Options = new OllamaRequestOptions
                 {

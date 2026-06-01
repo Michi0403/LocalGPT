@@ -12,6 +12,10 @@ namespace LocalGPT.BusinessObjects
 
         public int MaxOutputTokens { get; set; } = 4096;
 
+        public int MaxParallelModels { get; set; } = 1;
+
+        public string? OllamaKeepAlive { get; set; }
+
         public bool IncludeMemory { get; set; } = true;
 
         public bool SaveToMemory { get; set; } = true;
@@ -47,11 +51,29 @@ namespace LocalGPT.BusinessObjects
 
         public string FinalAnswer { get; set; } = string.Empty;
 
+        public CouncilUserPoll? UserPoll { get; set; }
+
         public Guid? MemoryConversationId { get; set; }
 
         public string? LogPath { get; set; }
 
         public List<string> Warnings { get; set; } = [];
+    }
+
+    public sealed class CouncilUserPoll
+    {
+        public string Question { get; set; } = string.Empty;
+
+        public List<CouncilUserPollOption> Options { get; set; } = [];
+
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public sealed class CouncilUserPollOption
+    {
+        public string Label { get; set; } = string.Empty;
+
+        public string FollowUpPrompt { get; set; } = string.Empty;
     }
 
     public sealed class MultiModelCouncilStep

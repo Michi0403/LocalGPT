@@ -36,6 +36,7 @@
 .final-panel,
 .transcript-panel,
 .warning-panel,
+.poll-panel,
 .result-meta,
 .council-step {
     border: 1px solid rgba(127, 127, 127, 0.24);
@@ -47,7 +48,8 @@
 .prompt-panel,
 .final-panel,
 .transcript-panel,
-.warning-panel {
+.warning-panel,
+.poll-panel {
     padding: 1rem;
 }
 
@@ -164,6 +166,38 @@
 
 .warning-panel p {
     margin: 0;
+}
+
+.poll-panel {
+    border-color: rgba(13, 110, 253, 0.35);
+    background: rgba(13, 110, 253, 0.06);
+}
+
+.poll-panel h2 {
+    margin: 0 0 0.5rem;
+}
+
+.poll-panel p {
+    margin: 0 0 0.75rem;
+}
+
+.poll-options {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+}
+
+.poll-options button {
+    border: 1px solid rgba(13, 110, 253, 0.45);
+    border-radius: 6px;
+    padding: 0.45rem 0.7rem;
+    color: var(--bs-primary);
+    background: var(--bs-body-bg);
+}
+
+.poll-options button:hover {
+    background: rgba(13, 110, 253, 0.1);
 }
 
 .transcript-panel {

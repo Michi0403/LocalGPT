@@ -19,6 +19,7 @@ namespace LocalGPT.Services
     {
         private const string DefaultOllamaUri = "http://localhost:11434";
         private const int MaxParticipants = 4;
+        private const int DefaultMaxParallelModels = 1;
 
         public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
         {
@@ -71,6 +72,8 @@ namespace LocalGPT.Services
 
             var baseUri = NormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri);
             var participants = SelectParticipants(request);
+            var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
+            var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels);
             var result = new MultiModelCouncilResult
             {
                 Prompt = request.Prompt.Trim(),
@@ -80,6 +83,10 @@ namespace LocalGPT.Services
 
             if (participants.Count < 2)
                 result.Warnings.Add("Only one council model is selected. Add another installed Ollama model on Install or type its model name manually for real cross-model negotiation.");
+            if (participants.Count > maxParallelModels)
+                result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
+            if (request.MaxOutputTokens > 4096)
+                result.Warnings.Add("Large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
 
             var bootstrap = request.IncludeMemory
                 ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
@@ -95,6 +102,8 @@ namespace LocalGPT.Services
                 promptFactory: modelName => CreateProposalPrompt(modelName, request.Prompt),
                 bootstrap,
                 request.MaxOutputTokens,
+                maxParallelModels,
+                keepAlive,
                 cancellationToken);
 
             var critiqueRounds = Math.Clamp(request.MaxRounds, 1, 3);
@@ -111,6 +120,8 @@ namespace LocalGPT.Services
                     promptFactory: modelName => CreateCritiquePrompt(modelName, request.Prompt, transcript, participants.Count == 1),
                     bootstrap,
                     request.MaxOutputTokens,
+                    maxParallelModels,
+                    keepAlive,
                     cancellationToken);
             }
 
@@ -124,6 +135,7 @@ namespace LocalGPT.Services
                 prompt: CreateConsensusPrompt(request.Prompt, finalTranscript),
                 bootstrap,
                 request.MaxOutputTokens,
+                keepAlive,
                 cancellationToken);
             AddOrderedStep(result, consensusStep);
 
@@ -138,6 +150,7 @@ namespace LocalGPT.Services
                     prompt: CreateVerificationPrompt(request.Prompt, BuildTranscript(result.Steps), consensusStep.VisibleContent),
                     bootstrap,
                     request.MaxOutputTokens,
+                    keepAlive,
                     cancellationToken);
                 AddOrderedStep(result, verificationStep);
                 result.FinalAnswer = $"{consensusStep.VisibleContent.Trim()}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
@@ -153,6 +166,8 @@ namespace LocalGPT.Services
                 if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
                     result.Warnings.Add(warning);
             }
+
+            result.UserPoll = BuildUserPoll(result);
 
             result.CompletedAtUtc = DateTime.UtcNow;
             result.LogPath = await WriteLogAsync(result, cancellationToken);
@@ -181,10 +196,24 @@ namespace LocalGPT.Services
             Func<string, string> promptFactory,
             string bootstrap,
             int maxOutputTokens,
+            int maxParallelModels,
+            string keepAlive,
             CancellationToken cancellationToken)
         {
+            using var gate = new SemaphoreSlim(maxParallelModels, maxParallelModels);
             var tasks = participants
-                .Select(modelName => RunParticipantAsync(baseUri, modelName, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, cancellationToken))
+                .Select(async modelName =>
+                {
+                    await gate.WaitAsync(cancellationToken);
+                    try
+                    {
+                        return await RunParticipantAsync(baseUri, modelName, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, cancellationToken);
+                    }
+                    finally
+                    {
+                        gate.Release();
+                    }
+                })
                 .ToList();
 
             var steps = await Task.WhenAll(tasks);
@@ -207,6 +236,7 @@ namespace LocalGPT.Services
             string prompt,
             string bootstrap,
             int maxOutputTokens,
+            string keepAlive,
             CancellationToken cancellationToken)
         {
             var started = DateTime.UtcNow;
@@ -218,7 +248,7 @@ namespace LocalGPT.Services
                 {
                     Uri = baseUri,
                     ModelName = modelName
-                });
+                }, keepAlive);
 
                 var messages = new List<ChatMessage>();
                 if (!string.IsNullOrWhiteSpace(bootstrap))
@@ -303,6 +333,16 @@ namespace LocalGPT.Services
             return selected.Count == 0 ? ["gpt-oss:20b"] : selected;
         }
 
+        private static string GetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels)
+        {
+            if (!string.IsNullOrWhiteSpace(request.OllamaKeepAlive))
+                return request.OllamaKeepAlive.Trim();
+
+            return participantCount > 1 && maxParallelModels == 1
+                ? "0s"
+                : "2m";
+        }
+
         private IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders()
         {
             var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
@@ -381,6 +421,14 @@ namespace LocalGPT.Services
                 messages.Add(new BlazorChatMessage(
                     ChatRole.Assistant,
                     BuildMemoryMessage(step),
+                    new List<AIChatUploadFileInfo>()));
+            }
+
+            if (result.UserPoll is not null)
+            {
+                messages.Add(new BlazorChatMessage(
+                    ChatRole.Assistant,
+                    BuildPollMarkdown(result.UserPoll),
                     new List<AIChatUploadFileInfo>()));
             }
 
@@ -478,8 +526,78 @@ namespace LocalGPT.Services
                 builder.AppendLine(step.VisibleContent).AppendLine();
             }
 
+            if (result.UserPoll is not null)
+            {
+                builder.AppendLine("## User Decision Poll").AppendLine().AppendLine(BuildPollMarkdown(result.UserPoll)).AppendLine();
+            }
+
             builder.AppendLine("## Final Answer").AppendLine().AppendLine(result.FinalAnswer);
             return builder.ToString();
+        }
+
+        private static CouncilUserPoll? BuildUserPoll(MultiModelCouncilResult result)
+        {
+            var failedModels = result.Steps
+                .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+                .Select(step => step.ModelName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var needsVerification = result.FinalAnswer.Contains("Needs verification", StringComparison.OrdinalIgnoreCase) ||
+                result.FinalAnswer.Contains("human review", StringComparison.OrdinalIgnoreCase);
+
+            if (failedModels.Count == 0 && !needsVerification)
+                return null;
+
+            var reason = failedModels.Count > 0
+                ? $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}."
+                : "The council marked parts of the answer as needing verification or human review.";
+
+            return new CouncilUserPoll
+            {
+                Question = "How should the AI Council continue so every model stays aligned with your decision?",
+                Reason = reason,
+                Options =
+                [
+                    new CouncilUserPollOption
+                    {
+                        Label = "Wait and retry missing models",
+                        FollowUpPrompt = "Wait until all requested Ollama models are installed and visible, then rerun the same council prompt. Every participant must read the prior transcript, acknowledge the user selected retry, and produce updated proposals."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Proceed with available models",
+                        FollowUpPrompt = "Continue with only the currently available models. Every participant must acknowledge which models were unavailable and avoid claiming absent models agreed."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Ask a shorter tie-break question",
+                        FollowUpPrompt = "Ask the user one focused follow-up question that resolves the blocked decision, then rerun the council using the user's answer as binding context."
+                    }
+                ]
+            };
+        }
+
+        private static string BuildPollMarkdown(CouncilUserPoll poll)
+        {
+            var builder = new StringBuilder()
+                .AppendLine("## User decision poll")
+                .AppendLine()
+                .AppendLine(poll.Reason)
+                .AppendLine()
+                .AppendLine($"**{poll.Question}**")
+                .AppendLine();
+
+            foreach (var option in poll.Options)
+            {
+                builder
+                    .Append("- **")
+                    .Append(option.Label)
+                    .Append("**: ")
+                    .AppendLine(option.FollowUpPrompt);
+            }
+
+            return builder.ToString().Trim();
         }
 
         private static string BuildTranscript(IEnumerable<MultiModelCouncilStep> steps)
@@ -509,6 +627,8 @@ namespace LocalGPT.Services
             Prefer buildable, testable answers over impressive wording.
             Separate current implementation facts from proposed future ideas.
             Do not describe a proposed class, table, test, or package step as already implemented unless the prompt, memory, or transcript explicitly says it exists.
+            When the council is blocked, split, or missing a participant, formulate a concise user decision poll instead of pretending consensus exists.
+            Be a humane performance-aware scheduler: prefer batching, short keep-alive, and smaller output budgets for 20B/30B local models on consumer hardware.
             If a claim is uncertain, label it under "Needs verification".
             For Minecraft Java/Fabric work, include concrete file paths, classes, Gradle/build commands, and performance risks when relevant.
             Include brief visible reasoning notes in your answer. LocalGPT may also display provider-supplied thinking separately when the model host returns it.
