@@ -1,5 +1,5 @@
 param(
-    [string]$Subject = "CN=LocalGPT Local Dev",
+    [string]$Subject = "CN=micha",
     [string]$FriendlyName = "LocalGPT Local Dev Package Signing",
     [string]$PfxFileName = "LocalGPTWebviewWrapper.LocalDevKey.pfx",
     [switch]$ExportPfx,

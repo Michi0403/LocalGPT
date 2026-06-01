@@ -40,6 +40,8 @@
     <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(ProgramFiles)\Microsoft Visual Studio\17\Professional\MSBuild\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(ProgramFiles)\Microsoft Visual Studio\17\Professional\MSBuild\Microsoft\DesktopBridge\</WapProjPath>
     <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(ProgramFiles)\Microsoft Visual Studio\17\Enterprise\MSBuild\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(ProgramFiles)\Microsoft Visual Studio\17\Enterprise\MSBuild\Microsoft\DesktopBridge\</WapProjPath>
     <PathToXAMLWinRTImplementations>LocalGPTWebviewWrapper\</PathToXAMLWinRTImplementations>
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
+    <RestoreNoWarn>$(RestoreNoWarn);NU1701</RestoreNoWarn>
   </PropertyGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.props" />
   <Import Project="LocalGPTWebviewWrapper (Package).local.props" Condition="Exists('LocalGPTWebviewWrapper (Package).local.props')" />
@@ -57,10 +59,18 @@
     <PackageCertificateKeyFile Condition="'$(PackageCertificateKeyFile)' == '' and '$(LocalGPTPackageCertificateKeyFile)' != ''">$(LocalGPTPackageCertificateKeyFile)</PackageCertificateKeyFile>
   </PropertyGroup>
 	<Target Name="EnsureWindowsAppSdkPackageRuntimeFolders"
-        BeforeTargets="_GenerateAppxPackage;_CreateAppxPackage;CopyFilesToOutputDirectory">
-		<MakeDir Directories="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x64\native" />
-		<MakeDir Directories="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
-		<MakeDir Directories="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
+        BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage;CopyFilesToOutputDirectory">
+		<ItemGroup>
+			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x64\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x86\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
+		</ItemGroup>
+		<MakeDir Directories="@(_WindowsAppSdkRuntimeDir)" />
 	</Target>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
