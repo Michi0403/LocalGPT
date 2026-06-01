@@ -81,6 +81,20 @@ If the script shows that `/api/chat` or `/api/generate` returns empty output, fi
 
 For `gpt-oss:20b`, empty `content` with non-empty `thinking` and `done_reason: length` usually means the test budget was too small. Increase `-NumPredict` before assuming the model is broken.
 
+## Grounded model feedback
+
+It is useful to ask `gpt-oss:20b` for process feedback during larger changes, but it must be treated as a grounded reviewer rather than an authority.
+
+Use:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Test-GptOssProcessReview.ps1 -Facts "dotnet build LocalGPTWebviewWrapper\LocalGPT\LocalGPT.csproj -c Debug passed with 0 warnings and 0 errors" -Facts "Commit ac9743b added chat memory UI and help surfaces"
+```
+
+The review prompt requires the model to use only supplied evidence, place unsupported ideas under "Needs verification", and avoid inventing file paths, test results, commits, or user decisions.
+
+When the Blazor app is running, `/__diag/process-review` provides the same grounded review behavior through the configured `IChatClient` and includes recent saved chat memory as evidence.
+
 ## Minecraft mod generation model
 
 The intended direction is to let LocalGPT create complex Java Minecraft mods on command.
