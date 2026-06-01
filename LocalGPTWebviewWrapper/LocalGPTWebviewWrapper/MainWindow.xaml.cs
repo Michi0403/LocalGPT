@@ -500,6 +500,9 @@ namespace WebView2_WinUI3_Sample
                                             return contents.length >= smoke.initialMessageCount + (window.__localGptDiagRunDxAiChatGptOss ? 2 : 1)
                                                 && (window.__localGptDiagRunDxAiChatGptOss
                                                     ? newest.includes('READY')
+                                                    : window.__localGptDiagRunDxAiChatFeatureArtifacts
+                                                        ? newest.includes('Downloadable Artifacts')
+                                                            || (newest.length > 180 && newest.includes('AI Council Result'))
                                                     : newest.length > 400
                                                         && (newest.includes('AI Council Result')
                                                             || newest.includes('Code review')
