@@ -5,7 +5,7 @@ namespace LocalGPT.BusinessObjects
         public string ProjectName { get; set; } = "LivingCities";
         public string ModId { get; set; } = "living_cities";
         public string PackageName { get; set; } = "com.localgpt.livingcities";
-        public string MinecraftVersion { get; set; } = "1.21.1";
+        public string MinecraftVersion { get; set; } = "1.21.4";
         public string Loader { get; set; } = "Fabric";
         public string JavaVersion { get; set; } = "21";
         public string GradleVersion { get; set; } = "8.14.2";

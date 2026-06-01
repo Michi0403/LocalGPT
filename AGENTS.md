@@ -123,8 +123,10 @@ Agent guidance:
 - keep Bedrock support separate as a future behavior/resource pack exporter
 - use `LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1` when the user needs JDK 21, local Gradle, Eclipse, or setup diagnostics
 - prefer LocalGPT diagnostics over raw Ollama when testing AI behavior: `POST /__diag/dxaichat-smoke`, `POST /__diag/council`, and `GET /__diag/minecraft/workspace-smoke`
+- for Living Cities datapack work, prefer `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4`; it validates and zips the datapack, then writes a compact council knowledge entry so models do not need the full prompt pasted again
 - inspect `GET /__diag/logs?minimumLevel=Warning&take=30` when setup behavior is strange; recent SQLite application logs are included in AI bootstrap so DXAiChat and the AI Council can notice missing Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, package registration, or model setup
 - use the WinUI WebView2 smoke mode with `LOCALGPT_WEBVIEW2_SMOKE=1` as the preferred frontend fallback when browser automation is unavailable or misleading. Do not rely on an agent's built-in browser as proof that the packaged desktop shell works; the WebView2 smoke path validates the real wrapper and currently covers `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`.
+- after a black screen, driver reset, or high VRAM pressure, run council tests database-first and low-resource: one model, `MaxRounds = 0`, `MaxOutputTokens <= 256`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`; check `ollama ps` before and after
 - keep filesystem and OS command execution in backend services
 - use `INativeCommandRunner` or a similar service boundary for native commands
 - keep frontend JavaScript for client-only helpers, not privileged execution

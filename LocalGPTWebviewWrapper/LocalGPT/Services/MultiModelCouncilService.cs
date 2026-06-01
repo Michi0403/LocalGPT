@@ -78,6 +78,7 @@ namespace LocalGPT.Services
             var maxContextTokens = Math.Clamp(request.MaxContextTokens <= 0 ? 8192 : request.MaxContextTokens, 2048, 32768);
             var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 180 : request.ModelTimeoutSeconds, 30, 900);
             var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels);
+            var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
             var result = new MultiModelCouncilResult
             {
                 Prompt = request.Prompt.Trim(),
@@ -101,6 +102,10 @@ namespace LocalGPT.Services
                 result.Warnings.Add("Large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
             if (maxContextTokens < 32768)
                 result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens to keep local 20B/30B model loads manageable.");
+            if (participants.Count > 1 && maxParallelModels == 1 && keepAlive == "0s")
+                result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
+            if (ollamaNumGpu == 0)
+                result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
 
             var bootstrap = request.IncludeMemory
                 ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
@@ -121,11 +126,14 @@ namespace LocalGPT.Services
                 request.MaxOutputTokens,
                 maxParallelModels,
                 keepAlive,
+                ollamaNumGpu,
                 maxContextTokens,
                 modelTimeoutSeconds,
                 cancellationToken);
 
-            var critiqueRounds = Math.Clamp(request.MaxRounds, 1, 3);
+            var critiqueRounds = Math.Clamp(request.MaxRounds, 0, 3);
+            if (critiqueRounds == 0)
+                result.Warnings.Add("Low-resource council mode: critique/refinement rounds are skipped for this run.");
             for (var round = 1; round <= critiqueRounds; round++)
             {
                 var transcript = BuildTranscript(result.Steps);
@@ -141,51 +149,66 @@ namespace LocalGPT.Services
                     request.MaxOutputTokens,
                     maxParallelModels,
                     keepAlive,
+                    ollamaNumGpu,
                     maxContextTokens,
                     modelTimeoutSeconds,
                     cancellationToken);
             }
 
-            var finalTranscript = BuildTranscript(result.Steps);
-            var consensusStep = await RunParticipantAsync(
-                baseUri,
-                participants[0],
-                participants,
-                round: critiqueRounds + 2,
-                phase: "Consensus",
-                role: "Consensus writer",
-                prompt: CreateConsensusPrompt(request.Prompt, finalTranscript),
-                bootstrap,
-                request.MaxOutputTokens,
-                keepAlive,
-                maxContextTokens,
-                modelTimeoutSeconds,
-                cancellationToken);
-            AddOrderedStep(result, consensusStep);
-            var consensusContent = SelectConsensusContent(result, consensusStep);
-
-            if (participants.Count > 1)
+            if (critiqueRounds == 0 && participants.Count == 1)
             {
-                var verificationStep = await RunParticipantAsync(
-                    baseUri,
-                    participants[1],
-                    participants,
-                    round: critiqueRounds + 3,
-                    phase: "Verification",
-                    role: "Peer verifier",
-                    prompt: CreateVerificationPrompt(request.Prompt, BuildTranscript(result.Steps), consensusStep.VisibleContent),
-                    bootstrap,
-                    request.MaxOutputTokens,
-                    keepAlive,
-                    maxContextTokens,
-                    modelTimeoutSeconds,
-                    cancellationToken);
-                AddOrderedStep(result, verificationStep);
-                result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
+                result.FinalAnswer = result.Steps
+                    .Where(step => string.IsNullOrWhiteSpace(step.Error))
+                    .OrderByDescending(step => step.SortOrder)
+                    .Select(step => step.VisibleContent.Trim())
+                    .FirstOrDefault(content => !string.IsNullOrWhiteSpace(content))
+                    ?? "The solo low-resource council run did not return a visible answer.";
             }
             else
             {
-                result.FinalAnswer = consensusContent;
+                var finalTranscript = BuildTranscript(result.Steps);
+                var consensusStep = await RunParticipantAsync(
+                    baseUri,
+                    participants[0],
+                    participants,
+                    round: critiqueRounds + 2,
+                    phase: "Consensus",
+                    role: "Consensus writer",
+                    prompt: CreateConsensusPrompt(request.Prompt, finalTranscript),
+                    bootstrap,
+                    request.MaxOutputTokens,
+                    keepAlive,
+                    ollamaNumGpu,
+                    maxContextTokens,
+                    modelTimeoutSeconds,
+                    cancellationToken);
+                AddOrderedStep(result, consensusStep);
+                var consensusContent = SelectConsensusContent(result, consensusStep);
+
+                if (participants.Count > 1 && critiqueRounds > 0)
+                {
+                    var verificationStep = await RunParticipantAsync(
+                        baseUri,
+                        participants[1],
+                        participants,
+                        round: critiqueRounds + 3,
+                        phase: "Verification",
+                        role: "Peer verifier",
+                        prompt: CreateVerificationPrompt(request.Prompt, BuildTranscript(result.Steps), consensusStep.VisibleContent),
+                        bootstrap,
+                        request.MaxOutputTokens,
+                        keepAlive,
+                        ollamaNumGpu,
+                        maxContextTokens,
+                        modelTimeoutSeconds,
+                        cancellationToken);
+                    AddOrderedStep(result, verificationStep);
+                    result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
+                }
+                else
+                {
+                    result.FinalAnswer = consensusContent;
+                }
             }
 
             foreach (var failedStep in result.Steps.Where(step => !string.IsNullOrWhiteSpace(step.Error)))
@@ -229,6 +252,7 @@ namespace LocalGPT.Services
             int maxOutputTokens,
             int maxParallelModels,
             string keepAlive,
+            int? ollamaNumGpu,
             int maxContextTokens,
             int modelTimeoutSeconds,
             CancellationToken cancellationToken)
@@ -240,7 +264,7 @@ namespace LocalGPT.Services
                     await gate.WaitAsync(cancellationToken);
                     try
                     {
-                        return await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds, cancellationToken);
+                        return await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, cancellationToken);
                     }
                     finally
                     {
@@ -271,6 +295,7 @@ namespace LocalGPT.Services
             string bootstrap,
             int maxOutputTokens,
             string keepAlive,
+            int? ollamaNumGpu,
             int maxContextTokens,
             int modelTimeoutSeconds,
             CancellationToken cancellationToken)
@@ -284,7 +309,7 @@ namespace LocalGPT.Services
                 {
                     Uri = baseUri,
                     ModelName = modelName
-                }, keepAlive, maxContextTokens, TimeSpan.FromSeconds(modelTimeoutSeconds + 15));
+                }, keepAlive, maxContextTokens, TimeSpan.FromSeconds(modelTimeoutSeconds + 15), ollamaNumGpu);
 
                 using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
@@ -299,7 +324,7 @@ namespace LocalGPT.Services
                     messages,
                     new ChatOptions
                     {
-                        MaxOutputTokens = Math.Clamp(maxOutputTokens, 512, 8192),
+                        MaxOutputTokens = Math.Clamp(maxOutputTokens, 64, 8192),
                         Temperature = 0.2f
                     },
                     participantCts.Token);
@@ -364,6 +389,11 @@ namespace LocalGPT.Services
                     DurationSeconds = stopwatch.Elapsed.TotalSeconds,
                     Error = ex.Message
                 };
+            }
+            finally
+            {
+                if (ShouldUnloadAfterParticipant(keepAlive))
+                    await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken);
             }
         }
 
@@ -444,6 +474,42 @@ namespace LocalGPT.Services
             return participantCount > 1 && maxParallelModels == 1
                 ? "0s"
                 : "2m";
+        }
+
+        private static bool ShouldUnloadAfterParticipant(string keepAlive)
+        {
+            var normalized = keepAlive.Trim();
+            return normalized.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("0s", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("0m", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("0h", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task RequestOllamaUnloadAsync(string baseUri, string modelName, CancellationToken cancellationToken)
+        {
+            try
+            {
+                using var unloadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                unloadCts.CancelAfter(TimeSpan.FromSeconds(15));
+
+                using var http = new HttpClient
+                {
+                    BaseAddress = new Uri(baseUri),
+                    Timeout = TimeSpan.FromSeconds(15)
+                };
+
+                using var response = await http.PostAsJsonAsync(
+                    "/api/generate",
+                    new OllamaUnloadRequest { Model = modelName },
+                    unloadCts.Token);
+
+                if (!response.IsSuccessStatusCode)
+                    logger.LogDebug("Ollama unload request for {ModelName} returned HTTP {StatusCode}.", modelName, response.StatusCode);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                logger.LogDebug(ex, "Could not request Ollama unload for {ModelName}.", modelName);
+            }
         }
 
         private IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders()
@@ -963,6 +1029,7 @@ namespace LocalGPT.Services
             Prefer buildable, testable answers over impressive wording.
             Separate current implementation facts from proposed future ideas.
             Do not describe a proposed class, table, test, or package step as already implemented unless the prompt, memory, or transcript explicitly says it exists.
+            Prefer concise SQLite council knowledge entries, pinned benchmark notes, and selected prior conversations over large pasted documents. Ask for a smaller database entry or a targeted source excerpt when context would become too large.
             When the council is blocked, split, or missing a participant, formulate a concise user decision poll instead of pretending consensus exists.
             Be a humane performance-aware scheduler: prefer batching, short keep-alive, and smaller output budgets for 20B/30B local models on consumer hardware.
             If a claim is uncertain, label it under "Needs verification".
@@ -1098,6 +1165,16 @@ namespace LocalGPT.Services
 
             [JsonPropertyName("quantization_level")]
             public string? QuantizationLevel { get; set; }
+        }
+
+        private sealed class OllamaUnloadRequest
+        {
+            public string Model { get; set; } = string.Empty;
+            public string Prompt { get; set; } = string.Empty;
+            public bool Stream { get; set; }
+
+            [JsonPropertyName("keep_alive")]
+            public string KeepAlive { get; set; } = "0s";
         }
     }
 }

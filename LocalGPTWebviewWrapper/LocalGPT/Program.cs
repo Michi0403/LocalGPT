@@ -531,6 +531,67 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     workspace.EclipseImportHint
                 });
             });
+            app.MapGet("/__diag/minecraft/datapack-benchmark", async (IMinecraftModWorkspaceService workspaceService, INativeCommandRunner commandRunner, ICouncilKnowledgeService knowledgeService, string? minecraftVersion, CancellationToken ct) =>
+            {
+                var request = new MinecraftModBuildRequest
+                {
+                    ProjectName = $"LivingCitiesDatapackCouncil{DateTime.UtcNow:HHmmss}",
+                    ModId = "living_cities",
+                    PackageName = "com.localgpt.livingcities",
+                    Loader = "Datapack",
+                    MinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion) ? "1.21.4" : minecraftVersion,
+                    JavaVersion = "21",
+                    GradleVersion = "8.14.2",
+                    Ide = "Eclipse",
+                    IncludeLivingCitiesStarter = true,
+                    Description = "Generate and validate the Living Cities 0.1 vanilla datapack benchmark from the provided design plan and early reference zip."
+                };
+
+                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct);
+                var build = await commandRunner.RunAsync(
+                    "powershell.exe",
+                    "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
+                    workspace.RootPath,
+                    ct);
+                var files = Directory.GetFiles(workspace.RootPath, "*", SearchOption.AllDirectories)
+                    .Select(path => Path.GetRelativePath(workspace.RootPath, path).Replace('\\', '/'))
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var knowledgeEntry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
+                {
+                    Topic = "Living Cities datapack benchmark",
+                    Scope = "Minecraft Builder",
+                    Source = "/__diag/minecraft/datapack-benchmark",
+                    Content = string.Join(Environment.NewLine, new[]
+                    {
+                        "Use this compact entry instead of sending the full Living Cities design document to every model.",
+                        "Goal: vanilla Minecraft Java datapack for Living Cities 0.1 with city aggregate simulation, no full-world scans, town hall/admin UI, population, food, security, personalities, chronicle, and quests.",
+                        "Reference zip traits: pack_format 61, namespace living_cities, singular data/<namespace>/function folders, core/load and core/tick tags, early placeholders that should become real .mcfunction files.",
+                        $"Latest generated workspace: {workspace.RootPath}",
+                        $"Build succeeded: {build.Succeeded}; exit code {build.ExitCode}.",
+                        $"Function files: {files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase))}.",
+                        $"Build output: {TrimForKnowledge(build.StandardOutput, 700)}",
+                        "Validation checks: required files, JSON parse, no .mcfunction.txt placeholders, load/tick tag targets exist, function namespace:path references resolve.",
+                        "Before friend testing: verify exact Minecraft Java version/pack_format and run /reload, /datapack list, /function living_cities:ui/townhall in a test world."
+                    }),
+                    HelpfulSources = "Official Minecraft Java datapack/version documentation; exact installed Minecraft version manifest; friend in-game test result.",
+                    Tags = "minecraft; datapack; living-cities; benchmark; low-context",
+                    Confidence = build.Succeeded ? 78 : 45,
+                    IsPinned = true
+                }, ct);
+
+                return Results.Ok(new
+                {
+                    workspace.ProjectName,
+                    workspace.RootPath,
+                    workspace.ReadmePath,
+                    workspace.BuildCommand,
+                    KnowledgeEntryId = knowledgeEntry.Id,
+                    Build = build,
+                    FunctionFileCount = files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase)),
+                    Files = files
+                });
+            });
             app.MapPost("/__diag/council", async ([FromBody] MultiModelCouncilRequest request, IMultiModelCouncilService council, CancellationToken ct) =>
             {
                 return Results.Ok(await council.RunAsync(request, ct));
@@ -541,6 +602,14 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
 
             WriteRuntimeEndpointFile();
             return app;                           // ⬅️ no Run() here
+        }
+
+        private static string TrimForKnowledge(string text, int maxLength)
+        {
+            var normalized = Regex.Replace(text ?? string.Empty, "\\s+", " ").Trim();
+            return normalized.Length <= maxLength
+                ? normalized
+                : $"{normalized[..maxLength].TrimEnd()}...";
         }
 
         private static void WriteRuntimeEndpointFile()

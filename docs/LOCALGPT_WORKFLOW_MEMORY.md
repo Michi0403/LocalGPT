@@ -35,6 +35,11 @@ Verified before this memory note:
   - Paper: Gradle build succeeded
   - Fabric: Gradle build succeeded
   - NeoForge: Gradle build succeeded
+- LocalGPT generated and validated the focused Living Cities datapack benchmark through `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4`:
+  - latest checked workspace: `%LOCALAPPDATA%\LocalGPT\MinecraftModWorkspaces\LivingCitiesDatapackCouncil142323`
+  - function files: 32
+  - zip created under the workspace `build` folder
+  - council knowledge entry saved as `ddc62518-95ef-432c-a141-4c6de4e1dbf2`
 
 Expected warning: Gradle 8.14.2 may report deprecated Gradle features for some generated Java builds. The starter builds still completed successfully.
 
@@ -56,10 +61,15 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - `GenerateImplementationArtifact` creates a CodeDOM C# starter file under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\` and returns a safe `/__artifacts/council/{fileName}` download link.
   - Generated implementation ideas must stay as sandbox artifacts or temporary workspaces until the user explicitly permits integration. The council must never overrule a user decision that denies or limits self-expansion.
   - Use `MaxParallelModels = 1` for 20B/30B local models on 24 GB VRAM unless the user asks for heavier runs.
+  - After a driver reset, black screen, or high VRAM pressure, use low-resource council mode: `MaxRounds = 0`, `MaxOutputTokens = 256`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`. This is slower, but it keeps the GPU out of the test run and explicitly unloads the model after each participant.
 - `GET /__diag/council/models`
   - Lists configured and installed Ollama models visible to LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`
   - Generates buildable smoke workspaces through the app service.
+- `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4`
+  - Generates the Living Cities vanilla datapack benchmark without loading Ollama.
+  - Runs the generated `build-local.ps1`, validates JSON/function references, packages the zip, and saves a compact pinned `CouncilKnowledgeEntries` note.
+  - Prefer this route plus the knowledge entry over sending the full Living Cities design document to every model.
 - `GET /__diag/logs?minimumLevel=Warning&take=30`
   - Reads recent warnings/errors from the SQLite application log.
   - Returns the same short AI briefing that bootstrap context gives to DXAiChat and the AI Council.
@@ -115,11 +125,13 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - The `/database` page is the live database editor. It has a friendly Council Knowledge panel plus a generic SQLite table preview/editor. Primary-key columns are displayed but protected in the generic form; edits are still applied to the live local database.
 - Do not treat raw model output as verified facts. The council should mark uncertain claims as `Needs verification`.
 - Some models, especially reasoning models, may return thinking-only output when the token budget is too small. LocalGPT now separates thinking from visible text and should surface a clear placeholder if no final answer appears.
+- Keep the council database-first: use pinned `CouncilKnowledgeEntries`, selected saved conversations, and route outputs as concise grounding. Avoid huge prompt blobs unless a model explicitly needs one targeted excerpt.
+- Thinking-only/non-substantive council runs still remain in logs/chat memory, but they are archived or skipped for active council knowledge briefings. Duplicate benchmark knowledge entries are deduplicated by topic/scope/source before entering the bootstrap prompt.
 
 ## Next Useful Checks
 
 - Rerun `POST /__diag/dxaichat-smoke` after restarting LocalGPT from a fresh build.
-- Rerun a short AI Council feedback prompt with `gpt-oss:20b` plus one other model after the formatter fix is loaded.
+- Rerun a short AI Council feedback prompt only after checking `ollama ps`. If the machine recently showed a black screen or GPU pressure, use one model with `OllamaNumGpu = 0`, `OllamaKeepAlive = "0s"`, `MaxRounds = 0`, and `MaxOutputTokens <= 256`.
 - Check `/__diag/logs?minimumLevel=Warning&take=30` before asking the council for setup advice; recent Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, or package errors should be treated as actionable health signals.
 - Run the WebView2 smoke mode from a registered/package identity or Visual Studio debug launch and inspect `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`. Use this as the preferred frontend fallback for LocalGPT usability checks instead of relying on an assistant built-in browser; it exercises the real wrapper routes, including `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`.
 - Commit and push diagnostic changes in small slices.

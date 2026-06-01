@@ -28,7 +28,9 @@ Important assumptions:
 - Minecraft Builder should let the user/council choose Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, or future Bedrock add-on
 - use LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1 for JDK, Gradle, Eclipse, and Minecraft builder setup checks
 - use /__diag/dxaichat-smoke for configured DXAiChat backend tests and /__diag/council for council tests before falling back to direct Ollama
+- use /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4 for the Living Cities datapack benchmark; it creates a validated zip and a compact CouncilKnowledgeEntries record for later model review
 - use /__diag/logs to inspect SQLite application warnings/errors; AI bootstrap includes recent log health signals for DXAiChat and council runs
+- after black screens or high GPU pressure, use database-first low-resource council settings: one model, MaxRounds 0, MaxOutputTokens 256 or less, MaxContextTokens 2048, OllamaKeepAlive "0s", OllamaNumGpu 0, then check ollama ps before/after
 - AI Council conversations saved in SQLite can be continued through ContinueConversationId or the frontend memory selector; every step should show the full council roster
 - faulty council members may be excluded by the user, but models should request that through a poll instead of silently excluding peers
 - implementation-request council chats can ask LocalGPT to generate a downloadable CodeDOM C# starter artifact for .NET/Blazor/ASP.NET Core ideas

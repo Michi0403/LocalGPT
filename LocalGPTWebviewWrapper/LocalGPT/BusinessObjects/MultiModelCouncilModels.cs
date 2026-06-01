@@ -8,17 +8,19 @@ namespace LocalGPT.BusinessObjects
 
         public string? BaseUri { get; set; }
 
-        public int MaxRounds { get; set; } = 2;
+        public int MaxRounds { get; set; } = 1;
 
-        public int MaxOutputTokens { get; set; } = 4096;
+        public int MaxOutputTokens { get; set; } = 1024;
 
         public int MaxParallelModels { get; set; } = 1;
 
-        public int MaxContextTokens { get; set; } = 8192;
+        public int MaxContextTokens { get; set; } = 4096;
 
         public int ModelTimeoutSeconds { get; set; } = 180;
 
         public string? OllamaKeepAlive { get; set; }
+
+        public int? OllamaNumGpu { get; set; }
 
         public bool IncludeMemory { get; set; } = true;
 

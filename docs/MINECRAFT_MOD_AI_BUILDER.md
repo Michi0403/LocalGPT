@@ -95,9 +95,12 @@ The selected choice should be saved into SQLite chat memory so later model calls
 
 For the Living Cities 0.1 sample, the first generated output should stay small and buildable:
 
-- register one `city_charter` item
-- add `/livingcities report` for Java mod/plugin targets
-- add `load`, `tick`, `found_city`, and `report` functions for datapack targets
+- for datapack targets, generate a vanilla Java Edition datapack first, not a Java mod
+- include `pack.mcmeta`, `data/minecraft/tags/function/load.json`, `data/minecraft/tags/function/tick.json`, namespace functions, and a local validator/zip script
+- include city founding, citizen registration, population, food, security, personalities, chronicle, town hall/admin UI, quests, debug reset, and docs as small scaffolded functions
+- do not leave `.mcfunction.txt` placeholders in the generated datapack
+- register one `city_charter` item only for Java mod/plugin targets
+- add `/livingcities report` only for Java mod/plugin targets
 - write the full technical plan to `docs/living-cities-0.1-plan.md`
 - avoid global world scans
 - design city-level aggregate simulation before per-citizen entities
@@ -140,6 +143,26 @@ Use LocalGPT's own diagnostic routes instead of direct Ollama calls when validat
 - `POST /__diag/council`: runs the multi-model council with logging and memory.
 - `GET /__diag/council/models`: lists configured and installed Ollama models visible to LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generates a smoke workspace through `IMinecraftModWorkspaceService`.
+- `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4`: generates and validates the Living Cities datapack benchmark, packages a zip, and writes a compact pinned council knowledge entry. Use this route before asking large local models to review Living Cities, then reference the database entry instead of pasting the full design.
+
+For low-resource model review after GPU pressure or a black screen, run the council with one model at a time:
+
+```json
+{
+  "modelNames": [ "deepseek-r1:8b" ],
+  "maxRounds": 0,
+  "maxOutputTokens": 256,
+  "maxParallelModels": 1,
+  "maxContextTokens": 2048,
+  "modelTimeoutSeconds": 300,
+  "ollamaKeepAlive": "0s",
+  "ollamaNumGpu": 0,
+  "includeMemory": true,
+  "saveToMemory": true
+}
+```
+
+Check `ollama ps` before and after the run. If a model remains loaded, unload it with `ollama stop <model>`.
 
 For full desktop validation, run the WinUI wrapper from a registered/package identity or Visual Studio debug launch with:
 

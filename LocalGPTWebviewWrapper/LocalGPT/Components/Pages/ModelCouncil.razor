@@ -70,7 +70,7 @@
             <div class="control-grid">
                 <label>
                     Review rounds
-                    <input type="number" min="1" max="3" @bind="Request.MaxRounds" />
+                    <input type="number" min="0" max="3" @bind="Request.MaxRounds" />
                 </label>
                 <label>
                     Parallel models
@@ -78,7 +78,7 @@
                 </label>
                 <label>
                     Max output tokens
-                    <input type="number" min="512" max="8192" step="256" @bind="Request.MaxOutputTokens" />
+                    <input type="number" min="64" max="8192" step="64" @bind="Request.MaxOutputTokens" />
                 </label>
                 <label>
                     Context tokens
@@ -93,9 +93,25 @@
                     <input @bind="KeepAliveText" placeholder="auto" />
                 </label>
             </div>
-            <p class="hint">Default scheduling runs one large model at a time and can unload between models, which is safer for 24 GB VRAM. Raise parallel models only when the selected models fit together.</p>
+            <div class="run-row">
+                <DxButton Text="Low GPU Preset"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isBusy)"
+                          Click="ApplyLowResourcePreset" />
+                <DxButton Text="Balanced Preset"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Enabled="@(!isBusy)"
+                          Click="ApplyBalancedPreset" />
+            </div>
+            <p class="hint">Default scheduling runs one large model at a time and can unload between models. Use Low GPU Preset after driver resets, black screens, or 20B/30B model pressure; it keeps prompts database-first and intentionally small.</p>
 
             <div class="check-row">
+                <label title="Passes Ollama num_gpu=0 for this council run. This is slower, but reduces GPU pressure while debugging.">
+                    <input type="checkbox" @bind="ForceCpuOnlyOllama" />
+                    CPU-only Ollama
+                </label>
                 <label title="Shares saved LocalGPT memory and AI project guidance with every council participant.">
                     <input type="checkbox" @bind="Request.IncludeMemory" />
                     Shared memory
@@ -325,9 +341,9 @@
             "- what privacy, safety, and user-control limits should exist.\n\n" +
             "Separate what LocalGPT already does from proposed future improvements. Mark anything uncertain under Needs verification.",
         MaxRounds = 1,
-        MaxOutputTokens = 4096,
+        MaxOutputTokens = 1024,
         MaxParallelModels = 1,
-        MaxContextTokens = 8192,
+        MaxContextTokens = 4096,
         ModelTimeoutSeconds = 180,
         IncludeMemory = true,
         SaveToMemory = true,
@@ -339,6 +355,12 @@
     {
         get => Request.OllamaKeepAlive ?? string.Empty;
         set => Request.OllamaKeepAlive = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    bool ForceCpuOnlyOllama
+    {
+        get => Request.OllamaNumGpu == 0;
+        set => Request.OllamaNumGpu = value ? 0 : null;
     }
 
     protected override async Task OnInitializedAsync()
@@ -450,6 +472,34 @@
         Request.ContinueConversationId = null;
         Request.GenerateImplementationArtifact = false;
         statusText = "Next council run will start a new memory conversation.";
+    }
+
+    void ApplyLowResourcePreset()
+    {
+        Request.MaxRounds = 0;
+        Request.MaxOutputTokens = 256;
+        Request.MaxParallelModels = 1;
+        Request.MaxContextTokens = 2048;
+        Request.ModelTimeoutSeconds = 300;
+        Request.OllamaKeepAlive = "0s";
+        Request.OllamaNumGpu = 0;
+        Request.IncludeMemory = true;
+        Request.SaveToMemory = true;
+        statusText = "Low GPU preset active: one proposal pass, small context, CPU-only Ollama, unload after each model.";
+    }
+
+    void ApplyBalancedPreset()
+    {
+        Request.MaxRounds = 1;
+        Request.MaxOutputTokens = 2048;
+        Request.MaxParallelModels = 1;
+        Request.MaxContextTokens = 8192;
+        Request.ModelTimeoutSeconds = 240;
+        Request.OllamaKeepAlive = null;
+        Request.OllamaNumGpu = null;
+        Request.IncludeMemory = true;
+        Request.SaveToMemory = true;
+        statusText = "Balanced preset active: sequential models, one review round, normal Ollama GPU scheduling.";
     }
 
     void StartFeatureRequestChat()

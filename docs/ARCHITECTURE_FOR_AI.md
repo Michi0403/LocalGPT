@@ -117,7 +117,11 @@ Current behavior:
 - users can exclude a faulty, unavailable, too slow, or hallucination-prone member from the next round from the frontend; models may recommend exclusion only through a user decision poll
 - users can start a dedicated implementation-request council chat. This enables a CodeDOM-generated C# starter artifact for .NET/Blazor/ASP.NET Core style feature ideas and exposes it through a safe `/__artifacts/council/{fileName}` download link. Requested features should be prototyped in a harmless sandbox artifact or temporary workspace and smoke-tested before integration into the real project structure. LocalGPT must never self-expand or integrate generated features without explicit user permission, and a user decision that denies or limits expansion must not be overruled.
 
-Performance rule: default council scheduling runs one model inference at a time (`MaxParallelModels = 1`), caps Ollama context (`MaxContextTokens = 8192` by default), applies a per-model timeout, and uses a short Ollama keep-alive when several large local models are selected. This avoids trying to keep multiple 20B/30B models resident in VRAM at once on machines like a 7900 XTX with 24 GB VRAM. Users can raise the parallelism or context in the UI when they know the loaded models fit together.
+Performance rule: default council scheduling runs one model inference at a time (`MaxParallelModels = 1`), keeps default prompts smaller (`MaxContextTokens = 4096` and `MaxOutputTokens = 1024` on new requests), applies a per-model timeout, and uses a short Ollama keep-alive when several large local models are selected. This avoids trying to keep multiple 20B/30B models resident in VRAM at once on machines like a 7900 XTX with 24 GB VRAM. Users can raise the parallelism or context in the UI when they know the loaded models fit together.
+
+Low-resource rule: after a black screen, driver reset, high VRAM pressure, or long 20B/30B stalls, run with `MaxRounds = 0`, `MaxOutputTokens = 256`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`. LocalGPT forwards `num_gpu=0` to Ollama and sends an unload request after zero-keepalive participant calls. This path is slower, but it keeps council tests alive without forcing another large GPU residency cycle.
+
+Database-first rule: council bootstrap should prefer pinned `CouncilKnowledgeEntries`, selected saved council conversations, recent log health summaries, and deterministic diagnostic route output over huge pasted source/design contexts. If more detail is needed, ask for a targeted excerpt or create a smaller knowledge entry first.
 
 Decision rule: if a participant is unavailable, the council cannot converge, or the final answer still needs human verification, the result should include a user decision poll. The poll is saved into memory and shown in the UI so the next council round can treat the user's choice as binding shared context.
 
@@ -187,6 +191,8 @@ Use `POST /__diag/dxaichat-smoke` to exercise the configured `IChatClient` used 
 Use `POST /__diag/council` to exercise the AI Council through LocalGPT. Keep `MaxParallelModels = 1` for 20B/30B local models on consumer GPUs unless the user explicitly wants a heavier run.
 
 Use `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge` to generate a buildable workspace through the app service, then run the generated `build-local.ps1`.
+
+Use `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4` for the Living Cities datapack benchmark. It does not load Ollama; it creates the datapack workspace, runs the local validator/zip script, and saves a compact council knowledge entry for later model review.
 
 Use `GET /__diag/logs?minimumLevel=Warning&take=30` to inspect persisted app health before asking the AI Council for setup advice.
 

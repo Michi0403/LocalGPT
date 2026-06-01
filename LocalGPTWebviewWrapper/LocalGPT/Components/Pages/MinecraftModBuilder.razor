@@ -189,7 +189,8 @@
         ProjectName = "LivingCities",
         ModId = "living_cities",
         PackageName = "com.localgpt.livingcities",
-        Loader = "Fabric Mod",
+        Loader = "Datapack",
+        IncludeLivingCitiesStarter = true,
         Description = LivingCitiesPrompt
     };
 
@@ -207,9 +208,10 @@
         "Living Cities 0.1 should turn Minecraft villages into persistent cities with population, food, security, personalities, chronicle, quests, and town hall administration.",
         "",
         "First build target:",
-        "- keep the first generated mod small and buildable",
-        "- add a city charter item",
-        "- add a /livingcities report command",
+        "- generate a vanilla Java Edition datapack first",
+        "- keep the first generated datapack small, buildable, and installable",
+        "- include pack.mcmeta, minecraft load/tick function tags, namespace functions, and build-local.ps1 validation",
+        "- include a town hall/admin book UI through trigger commands",
         "- keep the critical path documented: datapack/data structure, scoreboards or saved data, city founding, citizen registration, population management, minimal town hall",
         "- avoid world-wide scans",
         "- plan for 1000+ citizens by simulating city aggregates before individuals"
@@ -255,11 +257,13 @@
             {
                 ModelNames = ParseCouncilModels().ToList(),
                 Prompt = CreatePlanningPrompt(),
-                MaxRounds = 1,
-                MaxOutputTokens = 2048,
+                MaxRounds = 0,
+                MaxOutputTokens = 512,
                 MaxParallelModels = 1,
-                MaxContextTokens = 8192,
-                ModelTimeoutSeconds = 240,
+                MaxContextTokens = 2048,
+                ModelTimeoutSeconds = 300,
+                OllamaKeepAlive = "0s",
+                OllamaNumGpu = 0,
                 IncludeMemory = true,
                 SaveToMemory = true
             });
@@ -307,7 +311,7 @@
         "Return:",
         "1. Architecture and classes.",
         "2. Files to create or edit.",
-        "3. Java code strategy.",
+        "3. Java code strategy, or explain why this target is command/datapack-only.",
         "4. Assets/data files needed.",
         "5. Build and test commands.",
         "6. User setup steps for JDK, Gradle, Eclipse/Minecraft launcher, Ollama, and LocalGPT AI Council.",
@@ -343,6 +347,9 @@
         request.ProjectName = "LivingCities";
         request.ModId = "living_cities";
         request.PackageName = "com.localgpt.livingcities";
+        request.MinecraftVersion = "1.21.4";
+        request.Loader = "Datapack";
+        request.IncludeLivingCitiesStarter = true;
         request.Description = LivingCitiesPrompt;
     }
 

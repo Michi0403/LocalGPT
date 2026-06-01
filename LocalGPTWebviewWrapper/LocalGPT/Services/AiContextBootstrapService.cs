@@ -30,7 +30,7 @@ namespace LocalGPT.Services
                 .AppendLine("Use saved memory as recall context. Treat it as helpful background, not as absolute truth.")
                 .AppendLine();
 
-            var memoryBriefing = await chatMemory.BuildMemoryBriefingAsync(cancellationToken: cancellationToken);
+            var memoryBriefing = await chatMemory.BuildMemoryBriefingAsync(conversationTake: 3, thoughtTake: 2, cancellationToken: cancellationToken);
             if (!string.IsNullOrWhiteSpace(memoryBriefing))
             {
                 builder.AppendLine("Saved LocalGPT memory:")
@@ -51,7 +51,7 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(logBriefing))
             {
                 builder.AppendLine("Recent LocalGPT diagnostic log awareness:")
-                    .AppendLine(logBriefing)
+                    .AppendLine(TrimForPrompt(logBriefing, 900))
                     .AppendLine();
             }
 
@@ -59,7 +59,7 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(devExpressBriefing))
             {
                 builder.AppendLine("Local DevExpress library inventory:")
-                    .AppendLine(TrimForPrompt(devExpressBriefing, 2200))
+                    .AppendLine(TrimForPrompt(devExpressBriefing, 900))
                     .AppendLine();
             }
 
@@ -67,27 +67,30 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(buildDebugBriefing))
             {
                 builder.AppendLine("Local build debug symbol inventory:")
-                    .AppendLine(TrimForPrompt(buildDebugBriefing, 1600))
+                    .AppendLine(TrimForPrompt(buildDebugBriefing, 700))
                     .AppendLine();
             }
 
-            var projectKnowledge = await ReadProjectKnowledgeAsync(cancellationToken);
+            var projectKnowledge = await ReadProjectKnowledgeIndexAsync(cancellationToken);
             if (!string.IsNullOrWhiteSpace(projectKnowledge))
             {
-                builder.AppendLine("Project AI guidance excerpts:")
+                builder.AppendLine("Project AI guidance index:")
                     .AppendLine(projectKnowledge);
             }
 
             return builder.ToString().Trim();
         }
 
-        private async Task<string> ReadProjectKnowledgeAsync(CancellationToken cancellationToken)
+        private async Task<string> ReadProjectKnowledgeIndexAsync(CancellationToken cancellationToken)
         {
             var root = FindRepositoryRoot();
             if (root is null)
                 return string.Empty;
 
-            var builder = new StringBuilder();
+            var builder = new StringBuilder()
+                .AppendLine("Database-first rule: prefer concise SQLite council knowledge entries and diagnostic summaries over loading full repository documents into every prompt.")
+                .AppendLine("Ask for a specific file or source only when the compact briefing is insufficient.")
+                .AppendLine("Available guidance files:");
             foreach (var relativePath in KnowledgeFiles)
             {
                 var path = Path.Combine(root, relativePath);
@@ -96,10 +99,11 @@ namespace LocalGPT.Services
 
                 try
                 {
-                    var text = await File.ReadAllTextAsync(path, cancellationToken);
-                    builder.AppendLine($"[{relativePath}]")
-                        .AppendLine(TrimForPrompt(text, 1800))
-                        .AppendLine();
+                    var info = new FileInfo(path);
+                    await using var stream = File.OpenRead(path);
+                    using var reader = new StreamReader(stream);
+                    var firstLine = (await reader.ReadLineAsync(cancellationToken))?.Trim() ?? string.Empty;
+                    builder.AppendLine($"- {relativePath} ({info.Length:n0} bytes){(string.IsNullOrWhiteSpace(firstLine) ? string.Empty : $": {TrimForPrompt(firstLine, 140)}")}");
                 }
                 catch (Exception ex)
                 {

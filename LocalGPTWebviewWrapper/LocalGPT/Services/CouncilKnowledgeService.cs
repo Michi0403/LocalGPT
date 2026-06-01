@@ -83,6 +83,7 @@ namespace LocalGPT.Services
 
         public async Task<Guid> SaveFromCouncilRunAsync(MultiModelCouncilResult result, CancellationToken cancellationToken = default)
         {
+            var nonSubstantive = IsNonSubstantiveCouncilKnowledge(result);
             var entry = new CouncilKnowledgeEntry
             {
                 Topic = BuildTopic(result.Prompt),
@@ -90,9 +91,10 @@ namespace LocalGPT.Services
                 Source = $"AI Council {result.RunId}",
                 Content = BuildCouncilKnowledgeContent(result),
                 HelpfulSources = ExtractHelpfulSources(result.FinalAnswer),
-                Tags = BuildTags(result),
-                Confidence = result.Warnings.Count == 0 ? 75 : 55,
-                IsPinned = result.UserPoll is not null
+                Tags = BuildTags(result, nonSubstantive),
+                Confidence = nonSubstantive ? 20 : result.Warnings.Count == 0 ? 75 : 55,
+                IsPinned = result.UserPoll is not null && !nonSubstantive,
+                IsArchived = nonSubstantive
             };
 
             await SaveEntryAsync(entry, cancellationToken);
@@ -109,7 +111,12 @@ namespace LocalGPT.Services
             var builder = new StringBuilder()
                 .AppendLine("AI Council maintained knowledge database:");
 
-            foreach (var entry in entries)
+            var briefingEntries = entries
+                .Where(entry => !LooksLikeNonSubstantiveContent(entry.Content))
+                .GroupBy(entry => $"{entry.Scope}|{entry.Topic}|{entry.Source}", StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First());
+
+            foreach (var entry in briefingEntries)
             {
                 builder
                     .Append("- ")
@@ -173,7 +180,7 @@ namespace LocalGPT.Services
             return normalized.Length <= 120 ? normalized : $"{normalized[..117].TrimEnd()}...";
         }
 
-        private static string BuildTags(MultiModelCouncilResult result)
+        private static string BuildTags(MultiModelCouncilResult result, bool nonSubstantive)
         {
             var tags = new SortedSet<string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -187,8 +194,31 @@ namespace LocalGPT.Services
                 tags.Add("artifact");
             if (result.UserPoll is not null)
                 tags.Add("poll");
+            if (nonSubstantive)
+            {
+                tags.Add("non-substantive");
+                tags.Add("thinking-only");
+            }
 
             return string.Join("; ", tags);
+        }
+
+        private static bool IsNonSubstantiveCouncilKnowledge(MultiModelCouncilResult result)
+        {
+            if (result.UserPoll is not null)
+                return false;
+
+            return LooksLikeNonSubstantiveContent(result.FinalAnswer);
+        }
+
+        private static bool LooksLikeNonSubstantiveContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return true;
+
+            return content.Contains("returned thinking but no final visible answer", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("did not return a visible answer", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("did not return a substantive consensus answer", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string ExtractHelpfulSources(string text)

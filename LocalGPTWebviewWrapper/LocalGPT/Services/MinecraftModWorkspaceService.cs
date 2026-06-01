@@ -72,21 +72,48 @@ namespace LocalGPT.Services
         {
             var workspace = CreateDatapackLayout(request);
             var context = workspace.Context;
-            var functionRoot = Path.Combine(context.ProjectRoot, "data", context.ModId, "function");
             var minecraftTagsRoot = Path.Combine(context.ProjectRoot, "data", "minecraft", "tags", "function");
 
-            Directory.CreateDirectory(functionRoot);
             Directory.CreateDirectory(minecraftTagsRoot);
             Directory.CreateDirectory(Path.Combine(context.ProjectRoot, "docs"));
 
             await File.WriteAllTextAsync(context.MetadataPath, CreateDatapackMcmeta(request, context), Utf8NoBom, cancellationToken);
-            await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "load.json"), CreateFunctionTag(context.ModId, "load"), Utf8NoBom, cancellationToken);
-            await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "tick.json"), CreateFunctionTag(context.ModId, "tick"), Utf8NoBom, cancellationToken);
-            await File.WriteAllTextAsync(Path.Combine(functionRoot, "load.mcfunction"), CreateDatapackLoadFunction(context), Utf8NoBom, cancellationToken);
-            await File.WriteAllTextAsync(Path.Combine(functionRoot, "tick.mcfunction"), CreateDatapackTickFunction(context), Utf8NoBom, cancellationToken);
-            await File.WriteAllTextAsync(Path.Combine(functionRoot, "found_city.mcfunction"), CreateDatapackFoundCityFunction(context), Utf8NoBom, cancellationToken);
-            await File.WriteAllTextAsync(Path.Combine(functionRoot, "report.mcfunction"), CreateDatapackReportFunction(context), Utf8NoBom, cancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "load.json"), CreateFunctionTag(context.ModId, "core/load"), Utf8NoBom, cancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "tick.json"), CreateFunctionTag(context.ModId, "core/tick"), Utf8NoBom, cancellationToken);
+            await WriteDatapackFunctionAsync(context, "core/load", CreateDatapackLoadFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "core/tick", CreateDatapackTickFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "core/schedule", CreateDatapackScheduleFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "city/create", CreateDatapackCityCreateFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "city/check_villagers", CreateDatapackCityCheckVillagersFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "city/create_new", CreateDatapackCityCreateNewFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "city/already_exists", CreateDatapackCityAlreadyExistsFunction(), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "city/register_banner", CreateDatapackRegisterBannerFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "city/update_population", CreateDatapackUpdatePopulationFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "citizens/register", CreateDatapackCitizenRegisterFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "citizens/detect_new", CreateDatapackCitizenDetectNewFunction(), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "citizens/aging", CreateDatapackCitizenAgingFunction(), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "citizens/personalities", CreateDatapackCitizenPersonalitiesFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "citizens/status", CreateDatapackCitizenStatusFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "food/update", CreateDatapackFoodUpdateFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "food/production", CreateDatapackFoodProductionFunction(), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "food/consumption", CreateDatapackFoodConsumptionFunction(), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "security/update", CreateDatapackSecurityUpdateFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "security/golems", CreateDatapackSecurityGolemsFunction(), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "security/nightwatch", CreateDatapackSecurityNightwatchFunction(), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "chronicle/add_event", CreateDatapackChronicleAddEventFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "chronicle/update", CreateDatapackChronicleUpdateFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "ui/give_admin_book", CreateDatapackAdminBookFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "ui/townhall", CreateDatapackTownHallFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "ui/status", CreateDatapackReportFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "ui/chronicle", CreateDatapackChronicleUiFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "quests/update", CreateDatapackQuestUpdateFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "quests/generate", CreateDatapackQuestGenerateFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "buildings/init", CreateDatapackBuildingsInitFunction(), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "buildings/register_house", CreateDatapackRegisterHouseFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "buildings/debug_list", CreateDatapackBuildingDebugListFunction(context), cancellationToken);
+            await WriteDatapackFunctionAsync(context, "debug/reset_city", CreateDatapackResetCityFunction(context), cancellationToken);
             await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "living-cities-0.1-plan.md"), CreateLivingCitiesPlan(request), Utf8NoBom, cancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "reference-benchmark.md"), CreateDatapackBenchmarkNotes(context), Utf8NoBom, cancellationToken);
             await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "build-local.ps1"), CreateDatapackBuildScript(context), Utf8NoBom, cancellationToken);
             await File.WriteAllTextAsync(context.ReadmePath, CreateDatapackReadme(request, context), Utf8NoBom, cancellationToken);
 
@@ -874,7 +901,9 @@ namespace LocalGPT.Services
             """;
 
         private static int GetPackFormat(string minecraftVersion) =>
-            minecraftVersion.StartsWith("1.21", StringComparison.OrdinalIgnoreCase) ? 48 : 48;
+            minecraftVersion.StartsWith("1.21.4", StringComparison.OrdinalIgnoreCase) ? 61 :
+            minecraftVersion.StartsWith("1.21.1", StringComparison.OrdinalIgnoreCase) ? 48 :
+            61;
 
         private static string CreateFunctionTag(string modId, string functionName) =>
             $$"""
@@ -885,42 +914,305 @@ namespace LocalGPT.Services
             }
             """;
 
+        private static async Task WriteDatapackFunctionAsync(
+            WorkspaceContext context,
+            string functionPath,
+            string content,
+            CancellationToken cancellationToken)
+        {
+            var normalizedPath = functionPath.Replace('/', Path.DirectorySeparatorChar);
+            var path = Path.Combine(context.ProjectRoot, "data", context.ModId, "function", $"{normalizedPath}.mcfunction");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, content, Utf8NoBom, cancellationToken);
+        }
+
         private static string CreateDatapackLoadFunction(WorkspaceContext context) =>
             $$$"""
-            # LocalGPT Living Cities load function
+            # Living Cities 0.1 - core load
+            # Re-running /reload may print "already exists" warnings for objectives; that is harmless.
             scoreboard objectives add lc_year dummy "LC Year"
             scoreboard objectives add lc_population dummy "LC Population"
             scoreboard objectives add lc_food dummy "LC Food"
             scoreboard objectives add lc_security dummy "LC Security"
             scoreboard objectives add lc_prestige dummy "LC Prestige"
-            scoreboard players add #global lc_year 0
-            tellraw @a [{"text":"[Living Cities] ","color":"green"},{"text":"Datapack loaded. Use /function {{{context.ModId}}}:report."}]
+            scoreboard objectives add lc_birth_year dummy "LC Birth Year"
+            scoreboard objectives add lc_scan_timer dummy "LC Scan Timer"
+            scoreboard objectives add lc_menu trigger "Living Cities"
+            scoreboard objectives add lc_buildings dummy "LC Buildings"
+            scoreboard objectives add lc_tmp dummy "LC Temp"
+
+            scoreboard players set #year lc_year 1
+            scoreboard players set #population lc_population 0
+            scoreboard players set #food lc_food 100
+            scoreboard players set #security lc_security 100
+            scoreboard players set #prestige lc_prestige 0
+            scoreboard players set #tick lc_scan_timer 0
+            scoreboard players set #houses lc_buildings 0
+            scoreboard players set #workplaces lc_buildings 0
+            scoreboard players set #registered_this_scan lc_population 0
+
+            data merge storage {{{context.ModId}}}:city {founded:0b,year:1,population:0,food:100,security:100,prestige:0,houses:0,workplaces:0}
+            data merge storage {{{context.ModId}}}:chronicle {events:[]}
+            data merge storage {{{context.ModId}}}:personalities {notables:[]}
+
+            function {{{context.ModId}}}:buildings/init
+            tellraw @a [{"text":"[Living Cities] ","color":"green"},{"text":"Datapack loaded. Use /function {{{context.ModId}}}:ui/townhall or the admin book."}]
             """;
 
         private static string CreateDatapackTickFunction(WorkspaceContext context) =>
-            $$"""
-            # Keep this tiny. Future simulation should be scheduled and city-scoped, not world-scanned every tick.
-            execute if score #global lc_year matches 0 run scoreboard players set #global lc_year 1
+            $$$"""
+            # Living Cities tick stays small: menu handling every tick, simulation every 5 seconds.
+            execute as @a[tag=!lc_received_book] run function {{{context.ModId}}}:ui/give_admin_book
+            scoreboard players enable @a lc_menu
+
+            execute as @a[scores={lc_menu=1}] at @s run function {{{context.ModId}}}:city/create
+            execute as @a[scores={lc_menu=2}] at @s run function {{{context.ModId}}}:ui/status
+            execute as @a[scores={lc_menu=3}] at @s run function {{{context.ModId}}}:city/register_banner
+            execute as @a[scores={lc_menu=4}] at @s run function {{{context.ModId}}}:buildings/register_house
+            execute as @a[scores={lc_menu=5}] at @s run function {{{context.ModId}}}:ui/chronicle
+            execute as @a[scores={lc_menu=6}] at @s run function {{{context.ModId}}}:debug/reset_city
+            scoreboard players set @a[scores={lc_menu=1..}] lc_menu 0
+
+            scoreboard players add #tick lc_scan_timer 1
+            execute if score #tick lc_scan_timer matches 100.. as @a[limit=1,sort=nearest] at @s run function {{{context.ModId}}}:core/schedule
+            execute if score #tick lc_scan_timer matches 100.. run scoreboard players set #tick lc_scan_timer 0
             """;
 
-        private static string CreateDatapackFoundCityFunction(WorkspaceContext context) =>
+        private static string CreateDatapackScheduleFunction(WorkspaceContext context) =>
             $$$"""
-            # Minimal starter city founding hook.
-            # Next milestone: validate banner + torch + at least two nearby villagers before registering a city.
-            scoreboard players add #city_count lc_population 1
-            scoreboard players set #last_city_population lc_population 2
-            scoreboard players set #last_city_food lc_food 0
-            scoreboard players set #last_city_security lc_security 0
-            tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Starter city registered. This is a generated placeholder for the real banner + torch flow."}]
+            # Scheduled aggregate simulation. Keep this local to the selected city area.
+            execute unless data storage {{{context.ModId}}}:city {founded:1b} run return 0
+            function {{{context.ModId}}}:citizens/register
+            function {{{context.ModId}}}:city/update_population
+            function {{{context.ModId}}}:food/update
+            function {{{context.ModId}}}:security/update
+            function {{{context.ModId}}}:quests/update
+            function {{{context.ModId}}}:chronicle/update
+            """;
+
+        private static string CreateDatapackCityCreateFunction(WorkspaceContext context) =>
+            $$$"""
+            execute if data storage {{{context.ModId}}}:city {founded:1b} run function {{{context.ModId}}}:city/already_exists
+            execute unless data storage {{{context.ModId}}}:city {founded:1b} run function {{{context.ModId}}}:city/check_villagers
+            """;
+
+        private static string CreateDatapackCityCheckVillagersFunction(WorkspaceContext context) =>
+            $$$"""
+            scoreboard players set #nearby_villagers lc_tmp 0
+            execute store result score #nearby_villagers lc_tmp if entity @e[type=minecraft:villager,distance=..96]
+            execute if score #nearby_villagers lc_tmp matches 2.. run function {{{context.ModId}}}:city/create_new
+            execute unless score #nearby_villagers lc_tmp matches 2.. run tellraw @s [{"text":"[Living Cities] ","color":"red"},{"text":"At least 2 villagers must be within 96 blocks before founding a city."}]
+            """;
+
+        private static string CreateDatapackCityCreateNewFunction(WorkspaceContext context) =>
+            $$$"""
+            data merge storage {{{context.ModId}}}:city {founded:1b,population:0,food:100,security:100,prestige:0,houses:0,workplaces:0}
+            execute store result storage {{{context.ModId}}}:city.year int 1 run scoreboard players get #year lc_year
+            execute store result storage {{{context.ModId}}}:city.founder_x int 1 run data get entity @s Pos[0] 1
+            execute store result storage {{{context.ModId}}}:city.founder_y int 1 run data get entity @s Pos[1] 1
+            execute store result storage {{{context.ModId}}}:city.founder_z int 1 run data get entity @s Pos[2] 1
+            scoreboard players set #food lc_food 100
+            scoreboard players set #security lc_security 100
+            scoreboard players set #prestige lc_prestige 0
+            function {{{context.ModId}}}:citizens/register
+            function {{{context.ModId}}}:city/update_population
+            function {{{context.ModId}}}:chronicle/add_event
+            tellraw @a [{"text":"[Living Cities] ","color":"gold"},{"text":"A city was founded. Register the banner from the town hall menu next."}]
+            """;
+
+        private static string CreateDatapackCityAlreadyExistsFunction() =>
+            """
+            tellraw @s [{"text":"[Living Cities] ","color":"yellow"},{"text":"A city already exists in this starter datapack. Use reset only in a test world."}]
+            """;
+
+        private static string CreateDatapackRegisterBannerFunction(WorkspaceContext context) =>
+            $$$"""
+            execute store result storage {{{context.ModId}}}:city.banner.x int 1 run data get entity @s Pos[0] 1
+            execute store result storage {{{context.ModId}}}:city.banner.y int 1 run data get entity @s Pos[1] 1
+            execute store result storage {{{context.ModId}}}:city.banner.z int 1 run data get entity @s Pos[2] 1
+            tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Town banner position registered at your current location."}]
+            """;
+
+        private static string CreateDatapackUpdatePopulationFunction(WorkspaceContext context) =>
+            $$$"""
+            scoreboard players set #population lc_population 0
+            execute store result score #population lc_population if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96]
+            execute store result storage {{{context.ModId}}}:city.population int 1 run scoreboard players get #population lc_population
+            """;
+
+        private static string CreateDatapackCitizenRegisterFunction(WorkspaceContext context) =>
+            $$$"""
+            execute unless data storage {{{context.ModId}}}:city {founded:1b} run return 0
+            scoreboard players set #registered_this_scan lc_population 0
+            execute as @e[type=minecraft:villager,distance=..96,tag=!lc_citizen] at @s run function {{{context.ModId}}}:citizens/detect_new
+            function {{{context.ModId}}}:citizens/aging
+            function {{{context.ModId}}}:citizens/personalities
+            """;
+
+        private static string CreateDatapackCitizenDetectNewFunction() =>
+            """
+            tag @s add lc_citizen
+            scoreboard players operation @s lc_birth_year = #year lc_year
+            scoreboard players add #registered_this_scan lc_population 1
+            """;
+
+        private static string CreateDatapackCitizenAgingFunction() =>
+            """
+            execute as @e[type=minecraft:villager,tag=lc_citizen] run scoreboard players operation @s lc_tmp = #year lc_year
+            execute as @e[type=minecraft:villager,tag=lc_citizen] run scoreboard players operation @s lc_tmp -= @s lc_birth_year
+            """;
+
+        private static string CreateDatapackCitizenPersonalitiesFunction(WorkspaceContext context) =>
+            $$$"""
+            execute if score #population lc_population matches 5.. as @e[type=minecraft:villager,tag=lc_citizen,tag=!lc_personality,limit=1,sort=random] run tag @s add lc_personality
+            execute store result storage {{{context.ModId}}}:personalities.count int 1 if entity @e[type=minecraft:villager,tag=lc_personality]
+            """;
+
+        private static string CreateDatapackCitizenStatusFunction(WorkspaceContext context) =>
+            $$$"""
+            tellraw @s [{"text":"Registered citizens: ","color":"gold"},{"score":{"name":"#population","objective":"lc_population"}}]
+            tellraw @s [{"text":"Personalities: ","color":"light_purple"},{"storage":"{{{context.ModId}}}:personalities","nbt":"count"}]
+            """;
+
+        private static string CreateDatapackFoodUpdateFunction(WorkspaceContext context) =>
+            $$$"""
+            function {{{context.ModId}}}:food/production
+            function {{{context.ModId}}}:food/consumption
+            scoreboard players operation #food lc_food += #food_production lc_tmp
+            scoreboard players operation #food lc_food -= #food_consumption lc_tmp
+            execute if score #food lc_food matches ..0 run tellraw @a [{"text":"[Living Cities] ","color":"red"},{"text":"Food stores are empty. Growth and migration should pause in the next milestone."}]
+            execute store result storage {{{context.ModId}}}:city.food int 1 run scoreboard players get #food lc_food
+            """;
+
+        private static string CreateDatapackFoodProductionFunction() =>
+            """
+            scoreboard players set #food_production lc_tmp 0
+            scoreboard players set #food_counter lc_tmp 0
+            execute store result score #food_counter lc_tmp if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96,nbt={VillagerData:{profession:"minecraft:farmer"}}]
+            scoreboard players operation #food_production lc_tmp += #food_counter lc_tmp
+            execute store result score #food_counter lc_tmp if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96,nbt={VillagerData:{profession:"minecraft:fisherman"}}]
+            scoreboard players operation #food_production lc_tmp += #food_counter lc_tmp
+            execute store result score #food_counter lc_tmp if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96,nbt={VillagerData:{profession:"minecraft:butcher"}}]
+            scoreboard players operation #food_production lc_tmp += #food_counter lc_tmp
+            execute store result score #food_counter lc_tmp if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96,nbt={VillagerData:{profession:"minecraft:shepherd"}}]
+            scoreboard players operation #food_production lc_tmp += #food_counter lc_tmp
+            """;
+
+        private static string CreateDatapackFoodConsumptionFunction() =>
+            """
+            scoreboard players operation #food_consumption lc_tmp = #population lc_population
+            """;
+
+        private static string CreateDatapackSecurityUpdateFunction(WorkspaceContext context) =>
+            $$$"""
+            function {{{context.ModId}}}:security/golems
+            function {{{context.ModId}}}:security/nightwatch
+            execute store result storage {{{context.ModId}}}:city.security int 1 run scoreboard players get #security lc_security
+            """;
+
+        private static string CreateDatapackSecurityGolemsFunction() =>
+            """
+            scoreboard players set #golems lc_tmp 0
+            scoreboard players set #security_factor lc_tmp 20
+            execute store result score #golems lc_tmp if entity @e[type=minecraft:iron_golem,distance=..96]
+            scoreboard players operation #security lc_security = #golems lc_tmp
+            scoreboard players operation #security lc_security *= #security_factor lc_tmp
+            """;
+
+        private static string CreateDatapackSecurityNightwatchFunction() =>
+            """
+            execute if score #security lc_security matches ..19 run tellraw @a [{"text":"[Living Cities] ","color":"red"},{"text":"Security is low. Build defenses or protect villagers at night."}]
+            """;
+
+        private static string CreateDatapackChronicleAddEventFunction(WorkspaceContext context) =>
+            $$$"""
+            data modify storage {{{context.ModId}}}:chronicle events append value {type:"city_founded",text:"A city was founded.",year:1}
+            """;
+
+        private static string CreateDatapackChronicleUpdateFunction(WorkspaceContext context) =>
+            $$$"""
+            execute if score #registered_this_scan lc_population matches 1.. run data modify storage {{{context.ModId}}}:chronicle events append value {type:"citizens_registered",text:"New citizens were registered.",year:1}
+            """;
+
+        private static string CreateDatapackAdminBookFunction(WorkspaceContext context) =>
+            """
+            tag @s add lc_received_book
+            scoreboard players enable @s lc_menu
+            give @s written_book[written_book_content={title:"Living Cities",author:"LocalGPT",pages:[[{text:"=== Living Cities ===\n\n",bold:true,color:"gold"},{text:"[Found city]\n",color:"green",click_event:{action:"run_command",command:"/trigger lc_menu set 1"}},{text:"\n[Status]\n",color:"aqua",click_event:{action:"run_command",command:"/trigger lc_menu set 2"}},{text:"\n[Register banner]\n",color:"yellow",click_event:{action:"run_command",command:"/trigger lc_menu set 3"}},{text:"\n[Register house]\n",color:"light_purple",click_event:{action:"run_command",command:"/trigger lc_menu set 4"}},{text:"\n[Chronicle]\n",color:"gold",click_event:{action:"run_command",command:"/trigger lc_menu set 5"}},{text:"\n[Reset test city]",color:"red",click_event:{action:"run_command",command:"/trigger lc_menu set 6"}}]]}] 1
+            tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Admin book created. You can also run /function {{MOD_ID}}:ui/townhall."}]
+            """.Replace("{{MOD_ID}}", context.ModId, StringComparison.Ordinal);
+
+        private static string CreateDatapackTownHallFunction(WorkspaceContext context) =>
+            $$$"""
+            tellraw @s [{"text":"=== Living Cities Town Hall ===","color":"gold","bold":true}]
+            tellraw @s [{"text":"Found city","color":"green","click_event":{"action":"run_command","command":"/trigger lc_menu set 1"}},{"text":" | "},{"text":"Status","color":"aqua","click_event":{"action":"run_command","command":"/trigger lc_menu set 2"}},{"text":" | "},{"text":"Chronicle","color":"yellow","click_event":{"action":"run_command","command":"/trigger lc_menu set 5"}}]
+            tellraw @s [{"text":"Direct report: /function {{{context.ModId}}}:ui/status","color":"gray"}]
             """;
 
         private static string CreateDatapackReportFunction(WorkspaceContext context) =>
             $$$"""
-            tellraw @s [{"text":"Living Cities 0.1 starter report","color":"gold"}]
-            tellraw @s [{"text":"Population: ","color":"gray"},{"score":{"name":"#last_city_population","objective":"lc_population"}}]
-            tellraw @s [{"text":"Food: ","color":"gray"},{"score":{"name":"#last_city_food","objective":"lc_food"}}]
-            tellraw @s [{"text":"Security: ","color":"gray"},{"score":{"name":"#last_city_security","objective":"lc_security"}}]
-            tellraw @s [{"text":"Next: /function {{{context.ModId}}}:found_city","color":"green"}]
+            tellraw @s [{"text":"=== Living Cities Status ===","color":"gold","bold":true}]
+            execute if data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"City founded: ","color":"gray"},{"text":"yes","color":"green"}]
+            execute unless data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"City founded: ","color":"gray"},{"text":"no","color":"red"}]
+            tellraw @s [{"text":"Population: ","color":"gray"},{"storage":"{{{context.ModId}}}:city","nbt":"population"}]
+            tellraw @s [{"text":"Food: ","color":"gray"},{"storage":"{{{context.ModId}}}:city","nbt":"food"}]
+            tellraw @s [{"text":"Security: ","color":"gray"},{"storage":"{{{context.ModId}}}:city","nbt":"security"}]
+            tellraw @s [{"text":"Houses: ","color":"gray"},{"storage":"{{{context.ModId}}}:city","nbt":"houses"}]
+            tellraw @s [{"text":"Next: use the admin book or /function {{{context.ModId}}}:ui/townhall","color":"green"}]
+            function {{{context.ModId}}}:citizens/status
+            """;
+
+        private static string CreateDatapackChronicleUiFunction(WorkspaceContext context) =>
+            $$$"""
+            tellraw @s [{"text":"=== Living Cities Chronicle ===","color":"gold","bold":true}]
+            tellraw @s [{"storage":"{{{context.ModId}}}:chronicle","nbt":"events"}]
+            """;
+
+        private static string CreateDatapackQuestUpdateFunction(WorkspaceContext context) =>
+            $$$"""
+            function {{{context.ModId}}}:quests/generate
+            """;
+
+        private static string CreateDatapackQuestGenerateFunction(WorkspaceContext context) =>
+            $$$"""
+            execute if score #houses lc_buildings matches ..0 run data merge storage {{{context.ModId}}}:city {quest:"Register at least one house."}
+            execute if score #food lc_food matches ..20 run data merge storage {{{context.ModId}}}:city {quest:"Increase food production."}
+            execute if score #security lc_security matches ..20 run data merge storage {{{context.ModId}}}:city {quest:"Improve security."}
+            """;
+
+        private static string CreateDatapackBuildingsInitFunction() =>
+            """
+            scoreboard players set #houses lc_buildings 0
+            scoreboard players set #workplaces lc_buildings 0
+            """;
+
+        private static string CreateDatapackRegisterHouseFunction(WorkspaceContext context) =>
+            $$$"""
+            execute unless data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"[Living Cities] ","color":"red"},{"text":"Found a city before registering houses."}]
+            execute if data storage {{{context.ModId}}}:city {founded:1b} run scoreboard players add #houses lc_buildings 1
+            execute if data storage {{{context.ModId}}}:city {founded:1b} store result storage {{{context.ModId}}}:city.houses int 1 run scoreboard players get #houses lc_buildings
+            execute if data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"House registered for the current city."}]
+            """;
+
+        private static string CreateDatapackBuildingDebugListFunction(WorkspaceContext context) =>
+            $$$"""
+            tellraw @s [{"text":"Registered houses: ","color":"gold"},{"storage":"{{{context.ModId}}}:city","nbt":"houses"}]
+            tellraw @s [{"text":"Workplaces: ","color":"gold"},{"storage":"{{{context.ModId}}}:city","nbt":"workplaces"}]
+            """;
+
+        private static string CreateDatapackResetCityFunction(WorkspaceContext context) =>
+            $$$"""
+            data remove storage {{{context.ModId}}}:city
+            data remove storage {{{context.ModId}}}:chronicle
+            data remove storage {{{context.ModId}}}:personalities
+            tag @e[type=minecraft:villager,tag=lc_citizen] remove lc_citizen
+            tag @e[type=minecraft:villager,tag=lc_personality] remove lc_personality
+            scoreboard players set #population lc_population 0
+            scoreboard players set #food lc_food 100
+            scoreboard players set #security lc_security 100
+            scoreboard players set #houses lc_buildings 0
+            function {{{context.ModId}}}:core/load
+            tellraw @s [{"text":"[Living Cities] ","color":"yellow"},{"text":"Test city state reset."}]
             """;
 
         private static string CreateDatapackBuildScript(WorkspaceContext context) =>
@@ -940,13 +1232,31 @@ namespace LocalGPT.Services
                 Remove-Item $zipPath -Force
             }
 
+            function Get-LocalRelativePath {
+                param(
+                    [Parameter(Mandatory = $true)][string]$BasePath,
+                    [Parameter(Mandatory = $true)][string]$Path
+                )
+
+                $baseFull = (Resolve-Path $BasePath).Path.TrimEnd("\", "/") + "\"
+                $pathFull = (Resolve-Path $Path).Path
+                $baseUri = [Uri]$baseFull
+                $pathUri = [Uri]$pathFull
+                return [Uri]::UnescapeDataString($baseUri.MakeRelativeUri($pathUri).ToString()).Replace("/", "\")
+            }
+
             $required = @(
                 "pack.mcmeta",
                 "data\minecraft\tags\function\load.json",
                 "data\minecraft\tags\function\tick.json",
-                "data\{{context.ModId}}\function\load.mcfunction",
-                "data\{{context.ModId}}\function\tick.mcfunction",
-                "data\{{context.ModId}}\function\report.mcfunction"
+                "data\{{context.ModId}}\function\core\load.mcfunction",
+                "data\{{context.ModId}}\function\core\tick.mcfunction",
+                "data\{{context.ModId}}\function\city\create.mcfunction",
+                "data\{{context.ModId}}\function\citizens\register.mcfunction",
+                "data\{{context.ModId}}\function\food\update.mcfunction",
+                "data\{{context.ModId}}\function\security\update.mcfunction",
+                "data\{{context.ModId}}\function\ui\townhall.mcfunction",
+                "data\{{context.ModId}}\function\ui\status.mcfunction"
             )
 
             foreach ($relative in $required) {
@@ -960,8 +1270,82 @@ namespace LocalGPT.Services
             Get-Content (Join-Path $root "data\minecraft\tags\function\load.json") -Raw | ConvertFrom-Json | Out-Null
             Get-Content (Join-Path $root "data\minecraft\tags\function\tick.json") -Raw | ConvertFrom-Json | Out-Null
 
+            $txtPlaceholders = Get-ChildItem (Join-Path $root "data") -Recurse -File -Filter "*.mcfunction.txt"
+            if ($txtPlaceholders.Count -gt 0) {
+                throw "Found .mcfunction.txt placeholders. Rename or implement them as .mcfunction files before packaging."
+            }
+
+            $functionIds = @{}
+            $functionFiles = Get-ChildItem (Join-Path $root "data") -Recurse -File -Filter "*.mcfunction"
+            foreach ($file in $functionFiles) {
+                $relativePath = Get-LocalRelativePath -BasePath $root -Path $file.FullName
+                $parts = $relativePath -split "[\\/]"
+                $functionIndex = [Array]::IndexOf($parts, "function")
+                if ($parts.Length -lt 4 -or $parts[0] -ne "data" -or $functionIndex -lt 2) {
+                    throw "Invalid function path: $relativePath"
+                }
+
+                $namespace = $parts[1]
+                $pathParts = $parts[($functionIndex + 1)..($parts.Length - 1)]
+                $functionPath = ($pathParts -join "/") -replace "\.mcfunction$", ""
+                $functionIds["${namespace}:$functionPath"] = $relativePath
+            }
+
+            $tagFiles = Get-ChildItem (Join-Path $root "data\minecraft\tags\function") -File -Filter "*.json"
+            foreach ($tag in $tagFiles) {
+                $json = Get-Content $tag.FullName -Raw | ConvertFrom-Json
+                foreach ($value in $json.values) {
+                    if (-not $functionIds.ContainsKey([string]$value)) {
+                        throw "Function tag $($tag.Name) references missing function: $value"
+                    }
+                }
+            }
+
+            $referencePattern = [regex]'(?<![#/])\bfunction\s+([a-z0-9_.-]+:[a-z0-9_./-]+)'
+            foreach ($file in $functionFiles) {
+                $content = Get-Content $file.FullName -Raw
+                foreach ($match in $referencePattern.Matches($content)) {
+                    $id = $match.Groups[1].Value
+                    if (-not $functionIds.ContainsKey($id)) {
+                        $relativePath = Get-LocalRelativePath -BasePath $root -Path $file.FullName
+                        throw "Function $relativePath references missing function: $id"
+                    }
+                }
+            }
+
             Compress-Archive -Path (Join-Path $root "pack.mcmeta"), (Join-Path $root "data") -DestinationPath $zipPath
+            Write-Host "Validated $($functionFiles.Count) mcfunction files."
             Write-Host "Created datapack: $zipPath"
+            """;
+
+        private static string CreateDatapackBenchmarkNotes(WorkspaceContext context) =>
+            $$"""
+            # Living Cities Reference Benchmark
+
+            This generated datapack was shaped against the provided early `living_cities.zip` reference.
+
+            Reference traits preserved:
+
+            - namespace: `living_cities`
+            - singular Minecraft 1.21 datapack folders: `data/<namespace>/function` and `data/minecraft/tags/function`
+            - `core/load` and `core/tick` entry points
+            - scoreboard objectives for year, population, food, security, prestige, birth year, menu triggers, scan timer, and buildings
+            - storage areas for city, chronicle, and personalities
+            - trigger/menu-driven administration book
+            - no full-world scans in the tick path; scheduled city-local checks only
+
+            Improvements over the early reference:
+
+            - no `.mcfunction.txt` placeholder files
+            - build helper validates function tags and `function namespace:path` references
+            - generated output includes food, security, chronicle, quests, and building functions as real `.mcfunction` files
+            - town hall UI is available through both the admin book and `/function {{context.ModId}}:ui/townhall`
+
+            Remaining needs before your friend tests in a real world:
+
+            - confirm the exact Minecraft Java version and pack format
+            - run `/reload`, `/datapack list`, and `/function {{context.ModId}}:ui/townhall`
+            - decide whether banner registration should stay menu-based or become a stricter raycast/block-position workflow
             """;
 
         private static string CreateDatapackReadme(MinecraftModBuildRequest request, WorkspaceContext context) =>
@@ -984,7 +1368,7 @@ namespace LocalGPT.Services
 
             ```mcfunction
             /reload
-            /function {{context.ModId}}:report
+            /function {{context.ModId}}:ui/townhall
             ```
 
             ## Structure
@@ -993,11 +1377,16 @@ namespace LocalGPT.Services
 
             - `data/minecraft/tags/function/load.json`
             - `data/minecraft/tags/function/tick.json`
-            - `data/{{context.ModId}}/function/*.mcfunction`
+            - `data/{{context.ModId}}/function/core/*.mcfunction`
+            - `data/{{context.ModId}}/function/city/*.mcfunction`
+            - `data/{{context.ModId}}/function/citizens/*.mcfunction`
+            - `data/{{context.ModId}}/function/food/*.mcfunction`
+            - `data/{{context.ModId}}/function/security/*.mcfunction`
+            - `data/{{context.ModId}}/function/ui/*.mcfunction`
 
             ## Living Cities Starter
 
-            This datapack starts the scoreboards and gives placeholder functions for report and city founding. Keep tick work tiny; scale the real system through scheduled, city-scoped functions and stored aggregate values.
+            This datapack implements the first Living Cities 0.1 vertical slice: scoreboards, storage, city founding, citizen registration, aggregate population, food, security, chronicle, basic quests, and a town hall/admin-book UI. Keep tick work tiny; scale the real system through scheduled, city-scoped functions and stored aggregate values.
             """;
 
         private static string CreateWorkspaceReadme(MinecraftModBuildRequest request, WorkspaceContext context, string loader) =>
@@ -1069,15 +1458,19 @@ namespace LocalGPT.Services
 
             ## Starter implementation included
 
-            - `city_charter` item
-            - `/livingcities report`
-            - `LivingCitiesReport` placeholder class
+            - vanilla datapack structure using `data/<namespace>/function`
+            - Minecraft `load` and `tick` function tags
+            - `lc_*` scoreboard objectives
+            - `living_cities:city`, `living_cities:chronicle`, and `living_cities:personalities` storage
+            - trigger-based town hall/admin-book UI
+            - city founding, citizen registration, population, food, security, chronicle, quest, and building functions
+            - `build-local.ps1` validator that checks JSON, missing functions, placeholder files, and function references before zipping
 
             ## Missing LocalGPT feature report
 
-            - Add generated integration tests or gametests for commands and registries.
-            - Add a real Minecraft client/server launch harness from the builder UI.
-            - Add version-aware dependency lookup for loader, mappings, Fabric API, NeoForge, and Minecraft.
+            - Add a Minecraft Java runtime harness that copies the generated zip into a selected test world's `datapacks` folder and runs `/reload`.
+            - Add optional command syntax validation against the exact installed Minecraft server version.
+            - Add version-aware datapack `pack_format` lookup from the installed Minecraft version manifest.
             - Add Bedrock behavior/resource pack exporter as a separate target, not mixed into Java mod generation.
             """;
 
