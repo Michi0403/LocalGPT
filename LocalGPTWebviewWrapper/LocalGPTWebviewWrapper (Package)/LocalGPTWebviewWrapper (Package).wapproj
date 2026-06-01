@@ -42,6 +42,22 @@
     <PathToXAMLWinRTImplementations>LocalGPTWebviewWrapper\</PathToXAMLWinRTImplementations>
     <NoWarn>$(NoWarn);NU1701</NoWarn>
     <RestoreNoWarn>$(RestoreNoWarn);NU1701</RestoreNoWarn>
+    <WapAlwaysBuildDependentProjects>true</WapAlwaysBuildDependentProjects>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)' == 'x64'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)' == 'x86'">
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
+    <AppxBundlePlatforms>x86</AppxBundlePlatforms>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)' == 'arm64'">
+    <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
+    <RuntimeIdentifiers>win-arm64</RuntimeIdentifiers>
+    <AppxBundlePlatforms>arm64</AppxBundlePlatforms>
   </PropertyGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.props" />
   <Import Project="LocalGPTWebviewWrapper (Package).local.props" Condition="Exists('LocalGPTWebviewWrapper (Package).local.props')" />
@@ -62,7 +78,7 @@
     <PackageCertificateKeyFile Condition="'$(PackageCertificateKeyFile)' == '' and '$(LocalGPTPackageCertificateKeyFile)' != ''">$(LocalGPTPackageCertificateKeyFile)</PackageCertificateKeyFile>
   </PropertyGroup>
 	<Target Name="EnsureWindowsAppSdkPackageRuntimeFolders"
-        BeforeTargets="Build;_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage;CopyFilesToOutputDirectory;_CopyFilesToAppxLayout;_CopyPackageFilesToLayout;_CopyPackageFilesToOutputDirectory">
+        BeforeTargets="Build;_CopyPackageFiles_Core;_CopyUploadPackageFiles_Core;_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage;CopyFilesToOutputDirectory;_CopyFilesToAppxLayout;_CopyPackageFilesToLayout;_CopyPackageFilesToOutputDirectory">
 		<ItemGroup>
 			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x64\native" />
 			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x86\native" />

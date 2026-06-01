@@ -39,3 +39,6 @@ LocalGPTWebviewWrapper/**/*.cer
 LocalGPTWebviewWrapper/**/*.pfx
 LocalGPTWebviewWrapper/**/*.assets.cache
 LocalGPTWebviewWrapper/**/*.local.props
+
+# Local release packages and smoke artifacts
+artifacts/
