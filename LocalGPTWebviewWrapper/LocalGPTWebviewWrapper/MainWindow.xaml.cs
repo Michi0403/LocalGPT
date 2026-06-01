@@ -29,6 +29,7 @@ namespace WebView2_WinUI3_Sample
         private readonly bool _runGpuCouncilDiagnostics;
         private readonly bool _runFeatureRequestDiagnostics;
         private readonly bool _runDxAiChatCouncilDiagnostics;
+        private readonly bool _runDxAiChatGptOssDiagnostics;
         private readonly Queue<string> _diagnosticRoutes = new();
         private readonly string _diagnosticRunId = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         //public MainWindow()
@@ -82,12 +83,20 @@ namespace WebView2_WinUI3_Sample
                 Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_DXAICHAT_COUNCIL"),
                 "1",
                 StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-dxaichat-council.flag");
+            _runDxAiChatGptOssDiagnostics = string.Equals(
+                Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_DXAICHAT_GPTOSS"),
+                "1",
+                StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-dxaichat-gptoss.flag");
             if (_runDiagnostics)
             {
-                _diagnosticRoutes.Enqueue(_runDxAiChatCouncilDiagnostics
-                    ? "/Chat?diagSession=council&diagCouncilMaxOutputTokens=2048&diagCouncilMaxContextTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false"
-                    : "/Chat");
-                if (!_runDxAiChatCouncilDiagnostics)
+                if (_runDxAiChatCouncilDiagnostics)
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilMaxOutputTokens=2048&diagCouncilMaxContextTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false");
+                else if (_runDxAiChatGptOssDiagnostics)
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=gpt-oss:20b&diagOllamaMode=auto-gpu");
+                else
+                    _diagnosticRoutes.Enqueue("/Chat");
+
+                if (!_runDxAiChatCouncilDiagnostics && !_runDxAiChatGptOssDiagnostics)
                 {
                     _diagnosticRoutes.Enqueue("/model-council");
                     _diagnosticRoutes.Enqueue("/database");
@@ -185,6 +194,7 @@ namespace WebView2_WinUI3_Sample
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunGpuCouncil = {(_runGpuCouncilDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunFeatureRequest = {(_runFeatureRequestDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatCouncil = {(_runDxAiChatCouncilDiagnostics ? "true" : "false")};");
+                    await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatGptOss = {(_runDxAiChatGptOssDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync("""
                         (async () => {
                             const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -301,6 +311,7 @@ namespace WebView2_WinUI3_Sample
                             window.__localGptDiagCouncilArtifactDownloads = [];
                             window.__localGptDiagMinecraftBuilderSmoke = null;
                             window.__localGptDiagDxAiChatCouncilSmoke = null;
+                            window.__localGptDiagDxAiChatGptOssSmoke = null;
                             if (location.pathname.toLowerCase().includes('/chat')) {
                                 const smoke = {
                                     selectedCouncilMember: null,
@@ -312,6 +323,7 @@ namespace WebView2_WinUI3_Sample
                                     error: null
                                 };
                                 window.__localGptDiagDxAiChatCouncilSmoke = smoke;
+                                window.__localGptDiagDxAiChatGptOssSmoke = smoke;
 
                                 const messageContents = () => Array.from(document.querySelectorAll('.demo-chat-content'))
                                     .map(item => item.innerText || item.textContent || '');
@@ -376,28 +388,33 @@ namespace WebView2_WinUI3_Sample
                                     return selected.map(label => (label.innerText || '').trim()).filter(Boolean);
                                 };
 
-                                if (window.__localGptDiagRunDxAiChatCouncil) {
+                                if (window.__localGptDiagRunDxAiChatCouncil || window.__localGptDiagRunDxAiChatGptOss) {
                                     try {
-                                        await waitFor(() => document.querySelector('textarea') && text().includes('AI Council'), 45000);
-                                        smoke.selectedCouncilMember = chooseCouncilMembers().join(', ');
+                                        await waitFor(() => document.querySelector('textarea'), 45000);
+                                        if (window.__localGptDiagRunDxAiChatCouncil) {
+                                            await waitFor(() => text().includes('AI Council'), 45000);
+                                            smoke.selectedCouncilMember = chooseCouncilMembers().join(', ');
+                                        }
                                         const textarea = document.querySelector('textarea');
                                         if (!textarea) {
                                             throw new Error('DXAiChat textarea not found.');
                                         }
 
-                                        const prompt = [
-                                            'DXAiChat two-member AI Council code review request from frontend smoke test.',
-                                            'Review these LocalGPT changes from the prompt only, then add UX/product guidance:',
-                                            '- OllamaThinkingChatClient streams /api/chat chunks into DXAiChat and renders model-supplied thinking/<think> content in a visible Model thinking block inside the assistant message.',
-                                            '- CompositeChatClient treats DXAiChat Stop/request cancellation as a quiet user stop instead of an unhandled exception.',
-                                            '- Chat CSS styles the model-thinking block in the message area.',
-                                            '- DXAiFunctions now list local datapack/council diagnostic routes, including datapack version lookup.',
-                                            '- DXAiChat AI Council now has a visible Council answer tokens setting and the smoke asks for at least two members CPU-only.',
-                                            'Also review how to make Index and every page friendlier for non-technical users with tooltips, guided presets/default sets, and self-explanatory copy without removing advanced features.',
-                                            'Discuss moving most user/default settings from appsettings into Entity Framework database profiles, leaving appsettings for logging/bootstrap only.',
-                                            'Discuss Ollama/LM Studio runtime detection, user notices when not running, and an Install-page model-download flow for Ollama.',
-                                            'Return Markdown sections: Code review, DXAiChat frontend verification, UX guidance, Settings/default profiles, Runtime/model install guidance, Risks, Needs verification.'
-                                        ].join('\n');
+                                        const prompt = window.__localGptDiagRunDxAiChatGptOss
+                                            ? 'Frontend GPU smoke for gpt-oss:20b through DXAiChat. Start the visible answer with READY. Then write one short sentence saying the DXAiChat gpt-oss path responded. Keep under 30 words.'
+                                            : [
+                                                'DXAiChat two-member AI Council code review request from frontend smoke test.',
+                                                'Review these LocalGPT changes from the prompt only, then add UX/product guidance:',
+                                                '- OllamaThinkingChatClient streams /api/chat chunks into DXAiChat and renders model-supplied thinking/<think> content in a visible Model thinking block inside the assistant message.',
+                                                '- CompositeChatClient treats DXAiChat Stop/request cancellation as a quiet user stop instead of an unhandled exception.',
+                                                '- Chat CSS styles the model-thinking block in the message area.',
+                                                '- DXAiFunctions now list local datapack/council diagnostic routes, including datapack version lookup.',
+                                                '- DXAiChat AI Council now has a visible Council answer tokens setting and the smoke asks for at least two members CPU-only.',
+                                                'Also review how to make Index and every page friendlier for non-technical users with tooltips, guided presets/default sets, and self-explanatory copy without removing advanced features.',
+                                                'Discuss moving most user/default settings from appsettings into Entity Framework database profiles, leaving appsettings for logging/bootstrap only.',
+                                                'Discuss Ollama/LM Studio runtime detection, user notices when not running, and an Install-page model-download flow for Ollama.',
+                                                'Return Markdown sections: Code review, DXAiChat frontend verification, UX guidance, Settings/default profiles, Runtime/model install guidance, Risks, Needs verification.'
+                                            ].join('\n');
 
                                         smoke.initialMessageCount = messageContents().length;
                                         textarea.focus();
@@ -416,10 +433,12 @@ namespace WebView2_WinUI3_Sample
                                             smoke.finalMessagePreview = newest.slice(0, 1200);
                                             smoke.hasThinkingBlock = !!document.querySelector('.model-thinking') || text().includes('Model thinking');
                                             return contents.length > smoke.initialMessageCount
-                                                && newest.length > 400
-                                                && (newest.includes('AI Council Result')
-                                                    || newest.includes('Code review')
-                                                    || newest.includes('Consensus'));
+                                                && (window.__localGptDiagRunDxAiChatGptOss
+                                                    ? newest.includes('READY') && newest.length > 10
+                                                    : newest.length > 400
+                                                        && (newest.includes('AI Council Result')
+                                                            || newest.includes('Code review')
+                                                            || newest.includes('Consensus')));
                                         }, 1500000);
                                     }
                                     catch (error) {
@@ -538,18 +557,18 @@ namespace WebView2_WinUI3_Sample
                         })()
                         """);
                     var path = sender.Source?.AbsolutePath.ToLowerInvariant() ?? string.Empty;
-                    if (path.Contains("/chat", StringComparison.Ordinal) && _runDxAiChatCouncilDiagnostics)
+                    if (path.Contains("/chat", StringComparison.Ordinal) && (_runDxAiChatCouncilDiagnostics || _runDxAiChatGptOssDiagnostics))
                     {
                         await WaitForJavaScriptConditionAsync(
                             sender.CoreWebView2,
                             """
                             (() => {
-                                const smoke = window.__localGptDiagDxAiChatCouncilSmoke;
+                                const smoke = window.__localGptDiagDxAiChatCouncilSmoke || window.__localGptDiagDxAiChatGptOssSmoke;
                                 if (!smoke) return false;
                                 return !!smoke.answerVisible || !!smoke.error;
                             })()
                             """,
-                            TimeSpan.FromMinutes(26));
+                            _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(8) : TimeSpan.FromMinutes(26));
                     }
                     else if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))
                     {
