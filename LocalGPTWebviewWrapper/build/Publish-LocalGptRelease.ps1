@@ -204,7 +204,15 @@ Write-Host "Release notes: $releaseNotesPath"
 
 if ($CreateGitHubRelease) {
     $gh = Get-Command gh -ErrorAction SilentlyContinue
-    if ($null -eq $gh) {
+    $ghCommand = if ($null -ne $gh) { $gh.Source } else { "" }
+    if ([string]::IsNullOrWhiteSpace($ghCommand)) {
+        $ghInstallPath = Join-Path $env:ProgramFiles "GitHub CLI\gh.exe"
+        if (Test-Path $ghInstallPath) {
+            $ghCommand = $ghInstallPath
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ghCommand)) {
         throw "GitHub CLI 'gh' was not found. Install it or upload the zip files from $releaseRoot manually."
     }
 
@@ -222,5 +230,5 @@ if ($CreateGitHubRelease) {
     $ghArgs += $manifestPath
     $ghArgs += $releaseNotesPath
 
-    & gh @ghArgs
+    & $ghCommand @ghArgs
 }
