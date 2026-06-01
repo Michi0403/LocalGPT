@@ -85,7 +85,7 @@ namespace WebView2_WinUI3_Sample
             if (_runDiagnostics)
             {
                 _diagnosticRoutes.Enqueue(_runDxAiChatCouncilDiagnostics
-                    ? "/Chat?diagSession=council&diagCouncilMaxOutputTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false"
+                    ? "/Chat?diagSession=council&diagCouncilMaxOutputTokens=2048&diagCouncilMaxContextTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false"
                     : "/Chat");
                 if (!_runDxAiChatCouncilDiagnostics)
                 {
