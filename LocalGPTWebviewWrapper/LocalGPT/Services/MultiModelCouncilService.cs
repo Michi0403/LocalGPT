@@ -22,6 +22,7 @@ namespace LocalGPT.Services
         private const string DefaultOllamaUri = "http://localhost:11434";
         private const int MaxParticipants = 4;
         private const int DefaultMaxParallelModels = 1;
+        private const int DefaultHeavyModelGpuLayers = 20;
 
         public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
         {
@@ -106,6 +107,8 @@ namespace LocalGPT.Services
                 result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
             if (ollamaNumGpu == 0)
                 result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
+            if (ollamaNumGpu is null && participants.Any(IsHeavyGpuRiskModel))
+                result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
 
             request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}.");
 
@@ -186,7 +189,7 @@ namespace LocalGPT.Services
                     bootstrap,
                     request.MaxOutputTokens,
                     keepAlive,
-                    ollamaNumGpu,
+                    ResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu),
                     maxContextTokens,
                     modelTimeoutSeconds,
                     request.StreamUpdate,
@@ -208,7 +211,7 @@ namespace LocalGPT.Services
                         bootstrap,
                         request.MaxOutputTokens,
                         keepAlive,
-                        ollamaNumGpu,
+                        ResolveParticipantOllamaNumGpu(participants[1], ollamaNumGpu),
                         maxContextTokens,
                         modelTimeoutSeconds,
                         request.StreamUpdate,
@@ -280,8 +283,9 @@ namespace LocalGPT.Services
                     await gate.WaitAsync(cancellationToken);
                     try
                     {
-                        progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}.");
-                        var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
+                        var participantGpuLayers = ResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu);
+                        progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}. Ollama num_gpu={(participantGpuLayers?.ToString() ?? "auto")}.");
+                        var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
                         stepCompleted?.Invoke(step);
                         return step;
                     }
@@ -519,6 +523,21 @@ namespace LocalGPT.Services
                 normalized.Equals("0s", StringComparison.OrdinalIgnoreCase) ||
                 normalized.Equals("0m", StringComparison.OrdinalIgnoreCase) ||
                 normalized.Equals("0h", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int? ResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu)
+        {
+            if (requestedNumGpu is not null)
+                return requestedNumGpu;
+
+            return IsHeavyGpuRiskModel(modelName) ? DefaultHeavyModelGpuLayers : null;
+        }
+
+        private static bool IsHeavyGpuRiskModel(string modelName)
+        {
+            return modelName.Contains("qwen", StringComparison.OrdinalIgnoreCase) ||
+                modelName.Contains("gwen", StringComparison.OrdinalIgnoreCase) ||
+                modelName.Contains("gemma", StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task RequestOllamaUnloadAsync(string baseUri, string modelName, CancellationToken cancellationToken)

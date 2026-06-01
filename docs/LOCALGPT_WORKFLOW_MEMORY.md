@@ -61,6 +61,7 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - `GenerateImplementationArtifact` creates a CodeDOM C# starter file under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\` and returns a safe `/__artifacts/council/{fileName}` download link.
   - Generated implementation ideas must stay as sandbox artifacts or temporary workspaces until the user explicitly permits integration. The council must never overrule a user decision that denies or limits self-expansion.
   - Use `MaxParallelModels = 1` for 20B/30B local models on 24 GB VRAM unless the user asks for heavier runs.
+  - AMD 7900 XTX stability note: avoid full-auto GPU offload for qwen/gwen/gemma-class 27B/30B models after the driver showed black-screen instability under long 96%-100% load. Prefer `OllamaNumGpu = 20`, `MaxParallelModels = 1`, `OllamaKeepAlive = "0s"`, short prompts, and short output budgets. Use full auto GPU only when Michi explicitly asks for the risk.
   - After a driver reset, black screen, or high VRAM pressure, use low-resource council mode: `MaxRounds = 0`, `MaxOutputTokens = 1024`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`. This is slower, but it keeps the GPU out of the test run and explicitly unloads the model after each participant. Smaller 256/512-token runs are useful for plumbing checks, but DeepSeek-style reasoning models may spend that whole budget on thinking.
 - `GET /__diag/council/models`
   - Lists configured and installed Ollama models visible to LocalGPT.
