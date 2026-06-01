@@ -81,6 +81,8 @@ namespace LocalGPT
             builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
             builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
             builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
+            builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
+            builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
 
             builder.Services.AddSingleton<IChatClientFactory, ChatClientFactory>();
             // Build a fresh chat client per request/scope from the latest options

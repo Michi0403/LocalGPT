@@ -3,10 +3,11 @@
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
 @rendermode InteractiveServer
+@implements IDisposable
 <PageTitle>AI Chat</PageTitle>
 
 <div class="main-container">
-    @if (ChatClient!=null)
+    @if (ChatClientProvider is not null)
     {
         <ToastWrapper Name="@toastName" />
 
@@ -23,6 +24,8 @@
                         CssClass="selector-container-combo-editor"
                         TextFieldName="@nameof(ChatClientSession.Name)"
                         ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
+            <DxCheckBox @bind-Checked="ReuseContextWhenSwitching"
+                        Text="Reuse context when switching AI" />
         </div>
         <DxAIChat Initialized="ChatInitialized" ResponseContentFormat="ResponseContentFormat.PlainText" UseStreaming="true" FileUploadEnabled="true" @ref="DxAiChat" CssClass="demo-chat">
             <PromptSuggestions>
@@ -57,14 +60,16 @@
 @code {
     [Inject]
     IChatClient? ChatClient { get; set; }
-    CompositeChatClient ChatClientProvider => ChatClient as CompositeChatClient;
+    CompositeChatClient? ChatClientProvider => ChatClient as CompositeChatClient;
     DxAIChat? DxAiChat { get; set; }
-    List<ChatClientSession> ModelsList => ChatClientProvider?.AvailableChatClients;
+    List<ChatClientSession> ModelsList => ChatClientProvider?.AvailableChatClients ?? new();
     string toastName = "ChatToasts";
-    List<PromptSuggestion> PromptSuggestions { get; set; }
+    bool ReuseContextWhenSwitching { get; set; } = true;
+    List<PromptSuggestion> PromptSuggestions { get; set; } = new();
     void ChatInitialized()
     {
         PromptSuggestions = GetSuggestion();
+        LoadSelectedSessionMessages();
     }
     public List<PromptSuggestion> GetSuggestion()
     {
@@ -80,6 +85,9 @@
     {
         try
         {
+            if (ChatClientProvider?.SelectedSession is null || DxAiChat is null)
+                return;
+
             ChatClientProvider.SelectedSession.Messages.Clear();
             DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
         }
@@ -94,9 +102,18 @@
     {
         try
         {
-            SaveLastAssistantMessage(DxAiChat.SaveMessages());
+            if (ChatClientProvider is null || DxAiChat is null || value is null)
+                return;
+
+            var currentMessages = DxAiChat.SaveMessages().ToList();
+            SaveMessagesForSelectedSession(currentMessages);
+
             ChatClientProvider.SelectedSession = value;
-            DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
+
+            if (ReuseContextWhenSwitching && value.Messages.Count == 0 && currentMessages.Count > 0)
+                value.Messages.AddRange(currentMessages);
+
+            DxAiChat.LoadMessages(value.Messages);
         }
         catch (Exception ex)
         {
@@ -106,11 +123,11 @@
    
     }
 
-    private void SaveLastAssistantMessage(IEnumerable<BlazorChatMessage> saveMessages)
+    private void SaveMessagesForSelectedSession(IEnumerable<BlazorChatMessage> saveMessages)
     {
         try
         {
-            if (ChatClientProvider.SelectedSession != null)
+            if (ChatClientProvider?.SelectedSession != null)
             {
                 ChatClientProvider.SelectedSession.Messages.Clear();
                 ChatClientProvider.SelectedSession.Messages.AddRange(saveMessages);
@@ -122,5 +139,32 @@
             Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveLastAssistantMessage!");
         }
 
+    }
+
+    private void LoadSelectedSessionMessages()
+    {
+        try
+        {
+            if (ChatClientProvider?.SelectedSession is not null && DxAiChat is not null)
+                DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in LoadSelectedSessionMessages: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadSelectedSessionMessages!");
+        }
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (DxAiChat is not null)
+                SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in Dispose: {ex.ToString()}");
+        }
     }
 }

@@ -72,6 +72,29 @@
                         <DxTextBox @bind-Text="Model.OllamaCore.ModelName" />
                     </DxFormLayoutItem>
                     <DxButton Text="Test Connection" Click="TestOllama" />
+
+                    <DxFormLayoutItem Caption="Additional Ollama Models">
+                        <DxButton Text="Add Ollama Model"
+                                  RenderStyle="ButtonRenderStyle.Secondary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Click="AddOllamaModel" />
+                    </DxFormLayoutItem>
+
+                    @foreach (var ollama in AdditionalOllamaModels)
+                    {
+                        <DxFormLayoutItem Caption="URI">
+                            <DxTextBox @bind-Text="ollama.Uri" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Model">
+                            <DxTextBox @bind-Text="ollama.ModelName" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem>
+                            <DxButton Text="Remove"
+                                      RenderStyle="ButtonRenderStyle.Danger"
+                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                      Click="@(() => RemoveOllamaModel(ollama))" />
+                        </DxFormLayoutItem>
+                    }
                 </DxFormLayoutTabPage>
 
                 <DxFormLayoutTabPage Caption="OpenAI (Cloud)">
@@ -108,6 +131,7 @@
     private AICoreOptions Model = new();
     private string _log = "";
     private string toastName = "InstallToasts";
+    private List<OllamaCoreOptions> AdditionalOllamaModels => Model.OllamaCores;
 
     protected override void OnInitialized()
     {
@@ -117,6 +141,7 @@
             // ensure non-null sub-sections
             Model.ChatGPTLocalCore = current.ChatGPTLocalCore ?? new ChatGPTLocalCoreOptions();
             Model.OllamaCore      = current.OllamaCore      ?? new OllamaCoreOptions();
+            Model.OllamaCores = current.OllamaCores ?? new List<OllamaCoreOptions>();
             Model.OpenAICore      = current.OpenAICore      ?? new OpenAICompatOptions();
             Model.OpenAIServiceCore = current.OpenAIServiceCore ?? new OpenAIServiceCoreOptions();
         }
@@ -205,6 +230,20 @@
         }
     }
 
+    private void AddOllamaModel()
+    {
+        Model.OllamaCores.Add(new OllamaCoreOptions
+        {
+            Uri = Model.OllamaCore?.Uri ?? "http://localhost:11434",
+            ModelName = string.Empty
+        });
+    }
+
+    private void RemoveOllamaModel(OllamaCoreOptions ollama)
+    {
+        Model.OllamaCores.Remove(ollama);
+    }
+
     private async Task TestOpenAI()
     {
         try
@@ -249,6 +288,9 @@
             root.AICore ??= new AICoreOptions();
             root.AICore.ChatGPTLocalCore = Model.ChatGPTLocalCore;
             root.AICore.OllamaCore = Model.OllamaCore;
+            root.AICore.OllamaCores = Model.OllamaCores
+                .Where(o => !string.IsNullOrWhiteSpace(o.Uri) || !string.IsNullOrWhiteSpace(o.ModelName))
+                .ToList();
             root.AICore.OpenAICore = Model.OpenAICore;
             root.AICore.OpenAIServiceCore = Model.OpenAIServiceCore;
 

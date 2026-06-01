@@ -84,7 +84,7 @@ namespace LocalGPT.Services
                 }
 
                 // --- Ollama (Microsoft.Extensions.AI.Ollama) ---
-                if (options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 } ollama)
+                foreach (var ollama in GetConfiguredOllamaProviders(options))
                 {
                     logger.LogInformation("⚙️ Found Ollama configuration: {Json}", ollama.ToJsonString());
 
@@ -136,6 +136,23 @@ namespace LocalGPT.Services
             {
                 logger.LogError(ex, "💥 ChatClientFactory.Build failed: {Message}", ex.Message);
                 throw;
+            }
+        }
+
+        private static IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders(AICoreOptions options)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 } primary)
+            {
+                seen.Add($"{primary.Uri.TrimEnd('/')}|{primary.ModelName}");
+                yield return primary;
+            }
+
+            foreach (var ollama in options.OllamaCores.Where(o => !string.IsNullOrWhiteSpace(o.Uri) && !string.IsNullOrWhiteSpace(o.ModelName)))
+            {
+                if (seen.Add($"{ollama.Uri.TrimEnd('/')}|{ollama.ModelName}"))
+                    yield return ollama;
             }
         }
     }

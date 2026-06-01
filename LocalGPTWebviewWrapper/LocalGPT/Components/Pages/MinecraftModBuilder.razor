@@ -1,0 +1,225 @@
+@page "/minecraft-mod-builder"
+
+@inject ILogger<MinecraftModBuilder> Logger
+@inject INotificationService Notifier
+@inject IMinecraftModWorkspaceService WorkspaceService
+@inject INativeCommandRunner CommandRunner
+@inject IChatClient? ChatClient
+@rendermode InteractiveServer
+
+<PageTitle>Minecraft Mod Builder</PageTitle>
+
+<div class="mod-builder">
+    <ToastWrapper Name="@toastName" />
+
+    <section class="builder-panel">
+        <div class="builder-header">
+            <div>
+                <h1>Minecraft Mod Builder</h1>
+                <p>Generate a Fabric Java mod workspace, ask Ollama for an implementation plan, then run scoped build commands.</p>
+            </div>
+            <DxButton Text="Create Workspace"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Click="CreateWorkspaceAsync"
+                      Enabled="@(!isBusy)" />
+        </div>
+
+        <div class="form-grid">
+            <label>
+                Project name
+                <input @bind="request.ProjectName" />
+            </label>
+            <label>
+                Mod id
+                <input @bind="request.ModId" />
+            </label>
+            <label>
+                Package
+                <input @bind="request.PackageName" />
+            </label>
+            <label>
+                Minecraft version
+                <input @bind="request.MinecraftVersion" />
+            </label>
+            <label>
+                Loader
+                <select @bind="request.Loader">
+                    <option>Fabric</option>
+                </select>
+            </label>
+        </div>
+
+        <label class="wide-field">
+            What should the mod do?
+            <textarea @bind="request.Description" rows="8" placeholder="Example: Create a magic ore, a wand item, custom crafting recipes, and server-side commands to grant spell XP."></textarea>
+        </label>
+
+        <div class="button-row">
+            <DxButton Text="Ask AI For Plan"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Click="GeneratePlanAsync"
+                      Enabled="@(!isBusy && ChatClient is not null)" />
+        </div>
+    </section>
+
+    @if (workspace is not null)
+    {
+        <section class="builder-panel">
+            <h2>Workspace</h2>
+            <dl class="workspace-details">
+                <dt>Root</dt>
+                <dd>@workspace.RootPath</dd>
+                <dt>Main class</dt>
+                <dd>@workspace.MainClassPath</dd>
+                <dt>Metadata</dt>
+                <dd>@workspace.MetadataPath</dd>
+            </dl>
+
+            <div class="command-grid">
+                <label>
+                    Command
+                    <input @bind="commandFileName" />
+                </label>
+                <label>
+                    Arguments
+                    <input @bind="commandArguments" />
+                </label>
+                <DxButton Text="Run Command"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="RunCommandAsync"
+                          Enabled="@(!isBusy)" />
+            </div>
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(aiPlan))
+    {
+        <section class="builder-panel">
+            <h2>AI Plan</h2>
+            <div class="markdown-output">@((MarkupString)Markdig.Markdown.ToHtml(aiPlan).Trim())</div>
+        </section>
+    }
+
+    @if (lastCommandResult is not null)
+    {
+        <section class="builder-panel">
+            <h2>Command Result</h2>
+            <div class="result-summary">
+                Exit code @lastCommandResult.ExitCode in @lastCommandResult.Duration.TotalSeconds.ToString("0.0")s
+            </div>
+            <pre>@lastCommandResult.StandardOutput</pre>
+            @if (!string.IsNullOrWhiteSpace(lastCommandResult.StandardError))
+            {
+                <pre class="error-output">@lastCommandResult.StandardError</pre>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    string toastName = "MinecraftModBuilderToasts";
+    MinecraftModBuildRequest request = new()
+    {
+        ProjectName = "LocalGptMagicMod",
+        ModId = "localgpt_magic",
+        PackageName = "com.localgpt.magic",
+        Description = "Create a Fabric mod with one custom item and one command. Keep the first version small and buildable."
+    };
+
+    MinecraftModWorkspace? workspace;
+    CommandExecutionResult? lastCommandResult;
+    string aiPlan = string.Empty;
+    string commandFileName = "gradle";
+    string commandArguments = "build";
+    bool isBusy;
+
+    async Task CreateWorkspaceAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            workspace = await WorkspaceService.CreateFabricWorkspaceAsync(request);
+            Notifier.ShowSuccess(toastName, workspace.RootPath, "Workspace created");
+        }, "CreateWorkspaceAsync");
+    }
+
+    async Task GeneratePlanAsync()
+    {
+        if (ChatClient is null)
+        {
+            Notifier.ShowError(toastName, "No AI chat client is configured.", "AI unavailable");
+            return;
+        }
+
+        await RunUiActionAsync(async () =>
+        {
+            var messages = new[]
+            {
+                new ChatMessage(ChatRole.System, "You are a senior Java Minecraft Fabric mod developer. Produce buildable, practical implementation plans. Mention exact files, classes, registry steps, assets, data generation, and Gradle commands when relevant."),
+                new ChatMessage(ChatRole.User, CreatePlanningPrompt())
+            };
+
+            var response = await ChatClient.GetResponseAsync(messages);
+            aiPlan = response.Text;
+        }, "GeneratePlanAsync");
+    }
+
+    async Task RunCommandAsync()
+    {
+        if (workspace is null)
+        {
+            Notifier.ShowError(toastName, "Create a workspace first.", "No workspace");
+            return;
+        }
+
+        await RunUiActionAsync(async () =>
+        {
+            lastCommandResult = await CommandRunner.RunAsync(commandFileName, commandArguments, workspace.RootPath);
+            if (lastCommandResult.Succeeded)
+                Notifier.ShowSuccess(toastName, "Command finished successfully.", "Command complete");
+            else
+                Notifier.ShowError(toastName, $"Exit code {lastCommandResult.ExitCode}", "Command failed");
+        }, "RunCommandAsync");
+    }
+
+    string CreatePlanningPrompt() => string.Join(Environment.NewLine, new[]
+    {
+        "Build target:",
+        $"- Loader: {request.Loader}",
+        $"- Minecraft: {request.MinecraftVersion}",
+        $"- Project: {request.ProjectName}",
+        $"- Mod id: {request.ModId}",
+        $"- Package: {request.PackageName}",
+        "",
+        "User request:",
+        request.Description,
+        "",
+        "Return:",
+        "1. Architecture and classes.",
+        "2. Files to create or edit.",
+        "3. Java code strategy.",
+        "4. Assets/data files needed.",
+        "5. Build and test commands.",
+        "6. Risks or missing details to ask the user."
+    });
+
+    async Task RunUiActionAsync(Func<Task> action, string operation)
+    {
+        try
+        {
+            isBusy = true;
+            await action();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
+            Notifier.ShowError(toastName, ex.Message, $"Error in {operation}");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}
