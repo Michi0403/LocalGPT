@@ -59,9 +59,13 @@ namespace WebView2_WinUI3_Sample
 
             var runWebView2Diagnostics =
                 (args.Arguments?.Contains("--webview2-smoke", StringComparison.OrdinalIgnoreCase) ?? false) ||
-                string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE"), "1", StringComparison.OrdinalIgnoreCase);
+                string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE"), "1", StringComparison.OrdinalIgnoreCase) ||
+                IsWebView2SmokeFlagPresent();
+            var exitAfterWebView2Diagnostics =
+                string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_EXIT"), "1", StringComparison.OrdinalIgnoreCase) ||
+                IsWebView2SmokeFlagExitRequested();
 
-            _window = new MainWindow(_baseUrl, runWebView2Diagnostics);
+            _window = new MainWindow(_baseUrl, runWebView2Diagnostics, exitAfterWebView2Diagnostics);
             _window.Title = "WebView2 Hosts Blazor Backend";
             // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
             var appWindow = _window.AppWindow;
@@ -104,6 +108,38 @@ namespace WebView2_WinUI3_Sample
                 catch { /* retry */ }
                 await Task.Delay(200);
             }
+        }
+
+        private static bool IsWebView2SmokeFlagPresent()
+        {
+            return File.Exists(GetWebView2SmokeFlagPath());
+        }
+
+        private static bool IsWebView2SmokeFlagExitRequested()
+        {
+            var path = GetWebView2SmokeFlagPath();
+            if (!File.Exists(path))
+                return false;
+
+            try
+            {
+                var content = File.ReadAllText(path);
+                File.Delete(path);
+                return content.Contains("exit", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string GetWebView2SmokeFlagPath()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LocalGPT",
+                "runtime",
+                "webview2-smoke.flag");
         }
     }
 }

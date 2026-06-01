@@ -164,6 +164,14 @@ LocalGPT intentionally chooses a free loopback port at startup to avoid binding 
 The WinUI wrapper supports a WebView2 smoke mode. Prefer a registered/package identity or Visual Studio debug launch for this final frontend check, because direct unpackaged exe launch can fail with WinUI activation error `REGDB_E_CLASSNOTREG`:
 
 ```powershell
+$runtime = "$env:LOCALAPPDATA\LocalGPT\runtime"
+New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+Set-Content -Path "$runtime\webview2-smoke.flag" -Value "exit" -Encoding utf8
+```
+
+The flag enables smoke mode once for registered/package launches.
+
+```powershell
 $env:LOCALGPT_WEBVIEW2_SMOKE = "1"
 $env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
 .\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net9.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe

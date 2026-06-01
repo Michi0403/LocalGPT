@@ -242,6 +242,14 @@ Invoke-RestMethod -Uri "$($server.BaseUrl)/__diag/minecraft/workspace-smoke?load
 
 The WinUI wrapper can also test the embedded WebView2 shell. Run this from a registered/package identity or Visual Studio debug launch; direct unpackaged exe launch can fail with WinUI activation error `REGDB_E_CLASSNOTREG`.
 
+For registered/package launches, create the one-shot smoke flag first:
+
+```powershell
+$runtime = "$env:LOCALAPPDATA\LocalGPT\runtime"
+New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+Set-Content -Path "$runtime\webview2-smoke.flag" -Value "exit" -Encoding utf8
+```
+
 ```powershell
 $env:LOCALGPT_WEBVIEW2_SMOKE = "1"
 $env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"

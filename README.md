@@ -75,7 +75,7 @@ Use LocalGPT diagnostics before direct Ollama calls:
 
 LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Discover the current URL from `%LOCALAPPDATA%\LocalGPT\runtime\server.json`.
 
-For desktop shell validation, run the WinUI wrapper from Visual Studio or a registered package with `LOCALGPT_WEBVIEW2_SMOKE=1`. It writes WebView2 snapshots to `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`.
+For desktop shell validation, run the WinUI wrapper from Visual Studio or a registered package with `LOCALGPT_WEBVIEW2_SMOKE=1`, or create `%LOCALAPPDATA%\LocalGPT\runtime\webview2-smoke.flag` containing `exit` before launching the registered app. It writes WebView2 snapshots to `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`.
 
 ## Build
 

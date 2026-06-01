@@ -24,6 +24,7 @@ namespace WebView2_WinUI3_Sample
     {
         private readonly string _baseUrl;
         private readonly bool _runDiagnostics;
+        private readonly bool _exitAfterDiagnostics;
         private readonly Queue<string> _diagnosticRoutes = new();
         private readonly string _diagnosticRunId = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         //public MainWindow()
@@ -59,11 +60,12 @@ namespace WebView2_WinUI3_Sample
         //    SetTitle();
         //}
 
-        public MainWindow(string baseUrl, bool runDiagnostics = false)
+        public MainWindow(string baseUrl, bool runDiagnostics = false, bool exitAfterDiagnostics = false)
         {
             InitializeComponent();
             _baseUrl = baseUrl;
             _runDiagnostics = runDiagnostics;
+            _exitAfterDiagnostics = exitAfterDiagnostics;
             if (_runDiagnostics)
             {
                 _diagnosticRoutes.Enqueue("/Chat");
@@ -153,7 +155,7 @@ namespace WebView2_WinUI3_Sample
                 return;
             }
 
-            if (string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_EXIT"), "1", StringComparison.OrdinalIgnoreCase))
+            if (_exitAfterDiagnostics)
                 Close();
         }
 

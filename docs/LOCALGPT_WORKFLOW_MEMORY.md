@@ -58,6 +58,16 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
 
 The wrapper has a smoke mode for desktop-shell testing. Prefer running it from a registered/package identity or Visual Studio debug launch, because direct unpackaged exe launch can fail with WinUI activation error `REGDB_E_CLASSNOTREG` when the local runtime identity is not available.
 
+For registered/package launches, create this flag before launching the app:
+
+```powershell
+$runtime = "$env:LOCALAPPDATA\LocalGPT\runtime"
+New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+Set-Content -Path "$runtime\webview2-smoke.flag" -Value "exit" -Encoding utf8
+```
+
+The flag enables smoke mode once and `exit` asks the wrapper to close after writing snapshots.
+
 ```powershell
 $env:LOCALGPT_WEBVIEW2_SMOKE = "1"
 $env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
