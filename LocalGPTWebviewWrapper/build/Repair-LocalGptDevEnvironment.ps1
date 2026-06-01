@@ -19,6 +19,7 @@ $solutionPath = Join-Path $repoRoot "LocalGPTWebviewWrapper.sln"
 $packageRoot = Join-Path $repoRoot "LocalGPTWebviewWrapper (Package)"
 $appxManifest = Join-Path $packageRoot "bin\$Platform\$Configuration\AppxManifest.xml"
 $certificateScript = Join-Path $PSScriptRoot "New-LocalPackageCertificate.ps1"
+$packageIdentityName = "a6e38587-f17a-4a2e-8022-248694f372b3"
 
 function Find-MsBuild {
     $candidates = @(
@@ -39,9 +40,9 @@ function Find-MsBuild {
     throw "Could not find Visual Studio MSBuild. Install Visual Studio with .NET desktop, ASP.NET, and Windows app workloads."
 }
 
-function Test-DotNetDesktopRuntime9 {
+function Test-DotNetDesktopRuntime10 {
     $runtimes = & dotnet --list-runtimes 2>$null
-    return ($runtimes | Select-String -Pattern "^Microsoft.WindowsDesktop.App 9\." -Quiet)
+    return ($runtimes | Select-String -Pattern "^Microsoft.WindowsDesktop.App 10\." -Quiet)
 }
 
 Write-Host "LocalGPT development repair"
@@ -49,17 +50,17 @@ Write-Host "Repository: $repoRoot"
 Write-Host "Configuration: $Configuration"
 Write-Host "Platform: $Platform"
 
-if (-not (Test-DotNetDesktopRuntime9)) {
+if (-not (Test-DotNetDesktopRuntime10)) {
     if ($InstallMissingRuntime) {
-        Write-Host "Installing .NET 9 Desktop Runtime with winget..."
-        & winget install --id Microsoft.DotNet.DesktopRuntime.9 --source winget --accept-package-agreements --accept-source-agreements
+        Write-Host "Installing .NET 10 Desktop Runtime with winget..."
+        & winget install --id Microsoft.DotNet.DesktopRuntime.10 --source winget --accept-package-agreements --accept-source-agreements
     }
     else {
-        Write-Warning ".NET 9 Desktop Runtime is missing. Re-run with -InstallMissingRuntime or install Microsoft.DotNet.DesktopRuntime.9."
+        Write-Warning ".NET 10 Desktop Runtime is missing. Re-run with -InstallMissingRuntime or install Microsoft.DotNet.DesktopRuntime.10."
     }
 }
 else {
-    Write-Host ".NET 9 Desktop Runtime found."
+    Write-Host ".NET 10 Desktop Runtime found."
 }
 
 if (Test-Path $certificateScript) {
@@ -84,12 +85,24 @@ if ($Register) {
     }
 
     Write-Host "Registering loose AppX layout..."
-    Add-AppxPackage -Register $appxManifest -ForceApplicationShutdown -ForceUpdateFromAnyVersion
+    try {
+        Add-AppxPackage -Register $appxManifest -ForceApplicationShutdown -ForceUpdateFromAnyVersion
+    }
+    catch {
+        $existingPackage = Get-AppxPackage $packageIdentityName -ErrorAction SilentlyContinue
+        if ($null -eq $existingPackage) {
+            throw
+        }
+
+        Write-Warning "Registration failed while a LocalGPT development package was already registered. Removing the stale package and retrying once."
+        $existingPackage | Remove-AppxPackage
+        Add-AppxPackage -Register $appxManifest -ForceApplicationShutdown -ForceUpdateFromAnyVersion
+    }
 }
 
 if ($Launch) {
     Write-Host "Launching LocalGPT..."
-    $app = Get-StartApps | Where-Object { $_.AppID -like "a6e38587-f17a-4a2e-8022-248694f372b3_*" } | Select-Object -First 1
+    $app = Get-StartApps | Where-Object { $_.AppID -like "${packageIdentityName}_*" } | Select-Object -First 1
     if ($null -eq $app) {
         throw "LocalGPT app registration was not found. Run with -Register first."
     }

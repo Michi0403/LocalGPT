@@ -37,6 +37,10 @@
     background-image: url("images/model-council.svg");
 }
 
+::deep .database-icon {
+    background-image: url("images/icons/ribbon/fluent/table.svg");
+}
+
 ::deep .minecraft-icon {
     background-image: url("images/minecraft-mod-builder.svg");
 }
@@ -130,6 +134,10 @@ sidebar {
 
 ::deep .council-icon {
     background-image: url("images/model-council.svg");
+}
+
+::deep .database-icon {
+    background-image: url("images/icons/ribbon/fluent/table.svg");
 }
 
 ::deep .docs-icon {

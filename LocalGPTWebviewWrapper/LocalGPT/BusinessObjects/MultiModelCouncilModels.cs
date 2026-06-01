@@ -67,6 +67,8 @@ namespace LocalGPT.BusinessObjects
 
         public Guid? MemoryConversationId { get; set; }
 
+        public Guid? KnowledgeEntryId { get; set; }
+
         public string? LogPath { get; set; }
 
         public List<CouncilArtifact> Artifacts { get; set; } = [];

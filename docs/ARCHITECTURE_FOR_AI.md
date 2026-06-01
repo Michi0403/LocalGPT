@@ -30,10 +30,13 @@ The packaged app should not ask Edge to download a .NET desktop runtime during d
 
 Current expectations:
 
-- `LocalGPTWebviewWrapper` publishes self-contained for RID builds
-- the package project overlays the self-contained publish output into AppX
+- LocalGPT targets .NET 10 and the wrapper is framework-dependent on the installed .NET 10 Desktop Runtime
+- the repair script installs `Microsoft.DotNet.DesktopRuntime.10` with winget when `-InstallMissingRuntime` is used
+- the package project overlays the wrapper publish output into AppX
 - Windows App SDK debug framework references are avoided in the manifest
 - `LocalGPT.staticwebassets.runtime.json` is copied beside the packaged executable
+- loose AppX image assets are copied into `bin\<platform>\<configuration>\AppX\Images`; missing images or stale package registrations can appear as `0x80070002`, `0x80073CF9`, or `DEP1000`
+- `Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register` retries once by removing only the stale LocalGPT development package identity
 
 ## DevExpress static assets
 
@@ -195,6 +198,8 @@ LocalGPT intentionally chooses a free loopback port at startup to avoid binding 
 
 The WinUI wrapper supports a WebView2 smoke mode. Prefer a registered/package identity or Visual Studio debug launch for this final frontend check, because direct unpackaged exe launch can fail with WinUI activation error `REGDB_E_CLASSNOTREG`:
 
+This WebView2 smoke path is the preferred fallback for human-usability checks of LocalGPT itself. Do not treat an external or assistant-provided browser as enough evidence for desktop-shell behavior; use WebView2 diagnostics when validating the real wrapped UI.
+
 ```powershell
 $runtime = "$env:LOCALAPPDATA\LocalGPT\runtime"
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
@@ -206,10 +211,10 @@ The flag enables smoke mode once for registered/package launches.
 ```powershell
 $env:LOCALGPT_WEBVIEW2_SMOKE = "1"
 $env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
-.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net9.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
+.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
 ```
 
-This drives the embedded WebView2 through `/`, `/Chat`, and `/minecraft-mod-builder` and writes JSON snapshots to:
+This drives the embedded WebView2 through `/`, `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`, clicks the Council page's implementation-request chat starter, and writes JSON snapshots to:
 
 ```text
 %LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\

@@ -4,7 +4,7 @@
 
 This repository is not a generic Blazor sample.
 
-LocalGPT is a .NET 9 Blazor/ASP.NET Core app hosted inside a WinUI 3 WebView2 wrapper, with DevExpress components, Ollama AI configuration, native command services, and Windows MSIX/DesktopBridge packaging.
+LocalGPT is a .NET 10 Blazor/ASP.NET Core app hosted inside a WinUI 3 WebView2 wrapper, with DevExpress components, Ollama AI configuration, native command services, and Windows MSIX/DesktopBridge packaging.
 
 ## Core rules
 
@@ -15,6 +15,7 @@ LocalGPT is a .NET 9 Blazor/ASP.NET Core app hosted inside a WinUI 3 WebView2 wr
 - Use backend service boundaries for native OS commands.
 - Avoid broad framework or package churn unless the build/deploy pipeline is verified afterward.
 - Use Visual Studio MSBuild for full solution/package validation.
+- Use the wrapper's WebView2 smoke diagnostics as the frontend fallback for LocalGPT UI tests. An assistant's built-in browser is not proof that the WinUI/WebView2 packaged shell works.
 
 ## Important projects
 
@@ -41,6 +42,12 @@ Avoid:
 - replacing DevExpress UI with another component stack
 - assuming `dotnet build` alone validates the package project
 
+Loose AppX deploy notes:
+
+- image assets must be present under `bin/<platform>/<configuration>/AppX/Images`
+- `0x80070002`, `0x80073CF9`, or `DEP1000` can mean missing manifest images or a stale LocalGPT package registration
+- use `LocalGPTWebviewWrapper/build/Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`; it removes only the stale LocalGPT development package identity and retries once
+
 ## Static asset mental model
 
 Blazor and DevExpress assets depend on `LocalGPT.staticwebassets.runtime.json`.
@@ -66,3 +73,4 @@ If asked to improve documentation, prioritize:
 - AI profile and Ollama context model
 - package/static asset troubleshooting
 - Minecraft mod workspace and command execution boundaries
+- WebView2 smoke fallback checks for `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`

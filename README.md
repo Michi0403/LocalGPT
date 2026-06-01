@@ -73,14 +73,20 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `POST /__diag/council`: multi-model council run through LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generated workspace smoke test.
 - `GET /__diag/logs?minimumLevel=Warning&take=30`: recent SQLite application logs and the AI briefing built from them. Add `writeSmoke=true` to write a harmless warning and verify the async database logger.
+- `GET /__diag/knowledge`: editable council knowledge notes saved from council runs and manual user edits.
+- `GET /__diag/sqlite/tables`: live SQLite table inventory for chat memory, thoughts, logs, and council knowledge.
 
-The AI Council stores transcripts in SQLite chat memory. In the Council page, choose an older council memory to continue the thread, or start a new thread. Each run and step records the full council member list; faulty or unavailable members can be excluded from the next round by the user, while models must propose that through a poll instead of removing peers on their own. Use **Feature Request Chat** for implementation ideas; it enables a CodeDOM-generated C# example file and exposes it through a download link in the council result.
+The AI Council stores transcripts in SQLite chat memory and also writes a reusable entry into the editable council knowledge database. In the Council page, choose an older council memory to continue the thread, or start a new thread. Each run and step records the full council member list; faulty or unavailable members can be excluded from the next round by the user, while models must propose that through a poll instead of removing peers on their own. Use **Feature Request Chat** for implementation ideas; it enables a CodeDOM-generated C# example file and exposes it through a download link in the council result.
+
+Open **SQLite Database** in the navigation to edit council knowledge with DevExpress controls and inspect live SQLite tables. The generic editor protects primary-key columns in the form, but it still edits the live local database, so use it as an administrative tool.
 
 For DevExpress-related feature requests, use `GET /__diag/devexpress` to inspect referenced package versions, imported namespaces, registered services, and loaded assemblies. DevExpress Office/report/PDF generation should be implemented in backend services with safe download links, while the Blazor frontend handles controls, status, and navigation.
 
 LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Discover the current URL from `%LOCALAPPDATA%\LocalGPT\runtime\server.json`.
 
-For desktop shell validation, run the WinUI wrapper from Visual Studio or a registered package with `LOCALGPT_WEBVIEW2_SMOKE=1`, or create `%LOCALAPPDATA%\LocalGPT\runtime\webview2-smoke.flag` containing `exit` before launching the registered app. It writes WebView2 snapshots to `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`.
+For desktop shell validation, run the WinUI wrapper from Visual Studio or a registered package with `LOCALGPT_WEBVIEW2_SMOKE=1`, or create `%LOCALAPPDATA%\LocalGPT\runtime\webview2-smoke.flag` containing `exit` before launching the registered app. This is the preferred frontend fallback for LocalGPT usability tests because it exercises the real WebView2 wrapper. It writes route snapshots for Chat, AI Council, SQLite Database, and Minecraft Builder to `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`.
+
+If package registration/deploy reports `0x80070002` or `DEP1000` for a loose AppX layout, rebuild the package and re-run `Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`. The package project copies AppX image assets into the loose `AppX\Images` layout, and the repair script retries once after removing a stale LocalGPT development registration.
 
 ## Build
 

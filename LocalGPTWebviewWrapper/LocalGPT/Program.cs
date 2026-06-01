@@ -99,6 +99,8 @@ namespace LocalGPT
                 options.UseSqlite($"Data Source={memoryDbPath}"));
             builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
             builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
+            builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
+            builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
             builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
             builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
 
@@ -180,7 +182,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 options =>
                 {
                     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-                    options.KnownNetworks.Clear();
+                    options.KnownIPNetworks.Clear();
                     options.KnownProxies.Clear();
                 });
             builder.Services.AddDevExpressServerSideBlazorPdfViewer();
@@ -344,6 +346,40 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     AiBriefing = briefing,
                     CreatedAt = DateTimeOffset.UtcNow
                 });
+            });
+            app.MapGet("/__diag/knowledge", async (ICouncilKnowledgeService knowledge, bool? includeArchived, int? take, CancellationToken ct) =>
+            {
+                await knowledge.EnsureCreatedAsync(ct);
+                var entries = await knowledge.GetEntriesAsync(includeArchived == true, take ?? 50, ct);
+                return Results.Ok(new
+                {
+                    knowledge.DatabasePath,
+                    Count = entries.Count,
+                    Entries = entries,
+                    Briefing = await knowledge.BuildKnowledgeBriefingAsync(Math.Min(take ?? 8, 20), ct),
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+            app.MapGet("/__diag/sqlite/tables", async (IChatMemoryService memory, IApplicationLogReaderService logs, ICouncilKnowledgeService knowledge, ISqliteTableEditorService tableEditor, CancellationToken ct) =>
+            {
+                await memory.EnsureCreatedAsync(ct);
+                await logs.EnsureCreatedAsync(ct);
+                await knowledge.EnsureCreatedAsync(ct);
+                var tables = await tableEditor.GetTablesAsync(ct);
+                return Results.Ok(new
+                {
+                    tableEditor.DatabasePath,
+                    Count = tables.Count,
+                    Tables = tables,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+            app.MapGet("/__diag/sqlite/table/{tableName}", async (string tableName, int? take, IChatMemoryService memory, IApplicationLogReaderService logs, ICouncilKnowledgeService knowledge, ISqliteTableEditorService tableEditor, CancellationToken ct) =>
+            {
+                await memory.EnsureCreatedAsync(ct);
+                await logs.EnsureCreatedAsync(ct);
+                await knowledge.EnsureCreatedAsync(ct);
+                return Results.Ok(await tableEditor.GetTableAsync(tableName, take ?? 100, ct));
             });
             app.MapGet("/__diag/devexpress", async (IProjectLibraryInventoryService inventory, CancellationToken ct) =>
             {

@@ -8,6 +8,7 @@ namespace LocalGPT.Data
         public DbSet<ChatMemoryConversation> Conversations => Set<ChatMemoryConversation>();
         public DbSet<ChatMemoryMessage> Messages => Set<ChatMemoryMessage>();
         public DbSet<ApplicationLogEntry> ApplicationLogs => Set<ApplicationLogEntry>();
+        public DbSet<CouncilKnowledgeEntry> CouncilKnowledgeEntries => Set<CouncilKnowledgeEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -46,6 +47,21 @@ namespace LocalGPT.Data
                 entity.HasIndex(log => log.TimestampUtc);
                 entity.HasIndex(log => log.LogLevelValue);
                 entity.HasIndex(log => new { log.LogLevelValue, log.TimestampUtc });
+            });
+
+            modelBuilder.Entity<CouncilKnowledgeEntry>(entity =>
+            {
+                entity.ToTable("CouncilKnowledgeEntries");
+                entity.HasKey(entry => entry.Id);
+                entity.Property(entry => entry.Topic).HasMaxLength(240).IsRequired();
+                entity.Property(entry => entry.Scope).HasMaxLength(120).IsRequired();
+                entity.Property(entry => entry.Content).IsRequired();
+                entity.Property(entry => entry.Source).HasMaxLength(240).IsRequired();
+                entity.Property(entry => entry.HelpfulSources).IsRequired();
+                entity.Property(entry => entry.Tags).HasMaxLength(400).IsRequired();
+                entity.HasIndex(entry => entry.UpdatedAtUtc);
+                entity.HasIndex(entry => new { entry.IsPinned, entry.UpdatedAtUtc });
+                entity.HasIndex(entry => entry.Scope);
             });
         }
     }

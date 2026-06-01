@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-	  <TargetFramework>net9.0</TargetFramework>
+	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 	  <IncludeSymbols>True</IncludeSymbols>
@@ -106,12 +106,9 @@
     <PackageReference Include="DevExpress.Blazor.PivotTable" Version="25.1.*" />
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.1.*" />
     <PackageReference Include="Markdig" Version="0.43.0" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.10" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="9.0.10" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.0" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.Json" Version="9.0.10" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="9.0.10" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.10" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.8" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.8" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.8" />
 	  <PackageReference Include="Microsoft.Extensions.AI" Version="9.10.2" />
 	  <PackageReference Include="Microsoft.Extensions.AI.Ollama" Version="9.7.0-preview.1.25356.2" />
 	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="9.10.2-preview.1.25552.1" />

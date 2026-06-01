@@ -23,7 +23,7 @@ Use the current Visual Studio install with these workloads/components:
 - WebView2 runtime
 - DevExpress Blazor packages/feed access for the installed `25.1.x` packages
 
-The projects currently target .NET 9. A .NET 10 SDK may be installed, but the app should build and run with the .NET 9 target unless the whole solution is intentionally retargeted.
+The projects currently target .NET 10 and the repository pins SDK 10.0.300 through `global.json`.
 
 Check local runtimes:
 
@@ -31,7 +31,7 @@ Check local runtimes:
 dotnet --list-runtimes
 ```
 
-The desktop runtime prompt in Edge means the packaged app is running framework-dependent or the runtime is missing. The wrapper project is now self-contained when built with a runtime identifier, and the package overlays that self-contained publish output into the MSIX layout.
+The desktop runtime prompt in Edge means the .NET 10 Desktop Runtime is missing. The wrapper project is framework-dependent on .NET 10 so the package uses the installed runtime instead of carrying a malformed local CoreCLR layout. Run the repair script with `-InstallMissingRuntime` to install the runtime through winget before launching from Visual Studio or the registered package.
 
 ## One-command local repair
 
@@ -41,7 +41,7 @@ From the repository root:
 .\LocalGPTWebviewWrapper\build\Repair-LocalGptDevEnvironment.ps1 -Register -Launch
 ```
 
-To let the script install the .NET 9 Desktop Runtime with winget if it is missing:
+To let the script install the .NET 10 Desktop Runtime with winget if it is missing:
 
 ```powershell
 .\LocalGPTWebviewWrapper\build\Repair-LocalGptDevEnvironment.ps1 -InstallMissingRuntime -Register -Launch
@@ -49,7 +49,7 @@ To let the script install the .NET 9 Desktop Runtime with winget if it is missin
 
 The repair script:
 
-- checks for .NET 9 desktop runtime
+- checks for .NET 10 desktop runtime
 - creates/trusts a local package certificate in CurrentUser stores
 - builds the full solution with Visual Studio MSBuild
 - registers the loose AppX layout for debugging when `-Register` is passed
@@ -108,7 +108,7 @@ Blazor and DevExpress static assets are served through `LocalGPT.staticwebassets
 The package project now copies the manifest from the RID-specific build output, for example:
 
 ```text
-LocalGPT\bin\x64\Debug\net9.0\win-x64\LocalGPT.staticwebassets.runtime.json
+LocalGPT\bin\x64\Debug\net10.0\win-x64\LocalGPT.staticwebassets.runtime.json
 ```
 
 DevExpress 25 uses this module path:
@@ -180,8 +180,9 @@ If Visual Studio says deployment fails:
 1. Build the solution once with the repair script.
 2. Register the loose AppX layout with `-Register`.
 3. If certificate errors appear, run `build\New-LocalPackageCertificate.ps1`.
-4. If the Edge runtime/download prompt appears, rebuild the package so the self-contained wrapper publish output is overlaid into the AppX layout.
+4. If the Edge runtime/download prompt appears, run the repair script with `-InstallMissingRuntime`; then rebuild/register the package so the .NET 10 framework-dependent runtime configuration is current.
 5. If DevExpress components render blank or throw JavaScript module errors, verify `LocalGPT.staticwebassets.runtime.json` exists beside the packaged executable.
+6. If deployment reports `0x80070002`, `0x80073CF9`, or a `DEP1000` resolved-state/copy failure, rebuild the package and run `build\Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`. The package project must copy `Images\*.png` into the loose `bin\<platform>\<configuration>\AppX\Images` layout. The repair script removes only the stale LocalGPT dev package registration and retries once when Windows keeps the old layout pinned.
 
 If DevExpress packages do not restore:
 
@@ -253,7 +254,7 @@ Set-Content -Path "$runtime\webview2-smoke.flag" -Value "exit" -Encoding utf8
 ```powershell
 $env:LOCALGPT_WEBVIEW2_SMOKE = "1"
 $env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
-.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net9.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
+.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
 ```
 
 Snapshots are written under:

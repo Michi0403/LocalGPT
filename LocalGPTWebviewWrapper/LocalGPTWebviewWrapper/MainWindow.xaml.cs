@@ -69,6 +69,8 @@ namespace WebView2_WinUI3_Sample
             if (_runDiagnostics)
             {
                 _diagnosticRoutes.Enqueue("/Chat");
+                _diagnosticRoutes.Enqueue("/model-council");
+                _diagnosticRoutes.Enqueue("/database");
                 _diagnosticRoutes.Enqueue("/minecraft-mod-builder");
             }
 
@@ -128,16 +130,46 @@ namespace WebView2_WinUI3_Sample
             {
                 if (sender.CoreWebView2 != null && args.IsSuccess)
                 {
+                    await Task.Delay(TimeSpan.FromMilliseconds(1500));
+                    await sender.CoreWebView2.ExecuteScriptAsync("""
+                        (() => {
+                            window.__localGptDiagClickedCouncilFeatureChat = false;
+                            if (location.pathname.toLowerCase().includes('/model-council')) {
+                                const button = Array.from(document.querySelectorAll('button'))
+                                    .find(item => item.innerText && item.innerText.includes('Feature Request Chat'));
+                                if (button) {
+                                    button.click();
+                                    window.__localGptDiagClickedCouncilFeatureChat = true;
+                                }
+                            }
+                            return window.__localGptDiagClickedCouncilFeatureChat;
+                        })()
+                        """);
+                    await Task.Delay(TimeSpan.FromMilliseconds(800));
+
                     snapshot.PageJson = await sender.CoreWebView2.ExecuteScriptAsync("""
-                        (() => JSON.stringify({
-                            url: location.href,
-                            title: document.title,
-                            readyState: document.readyState,
-                            bodyText: (document.body && document.body.innerText ? document.body.innerText : '').slice(0, 4000),
-                            hasDxAiChatSurface: !!document.querySelector('.demo-chat, dxbl-ai-chat, .dxbl-aichat'),
-                            hasMinecraftBuilderText: (document.body && document.body.innerText ? document.body.innerText : '').includes('Minecraft Mod Builder'),
-                            hasSetupText: (document.body && document.body.innerText ? document.body.innerText : '').includes('Setup')
-                        }))()
+                        (() => {
+                            const bodyText = () => (document.body && document.body.innerText ? document.body.innerText : '');
+                            const text = bodyText();
+                            const prompt = document.querySelector('textarea')?.value ?? '';
+                            return {
+                                url: location.href,
+                                title: document.title,
+                                readyState: document.readyState,
+                                bodyText: text.slice(0, 4000),
+                                hasDxAiChatSurface: !!document.querySelector('.demo-chat, dxbl-ai-chat, .dxbl-aichat'),
+                                hasCouncilSurface: text.includes('AI Council') && text.includes('Run Council'),
+                                hasCouncilFeatureRequestChat: text.includes('Feature Request Chat'),
+                                clickedCouncilFeatureChat: !!window.__localGptDiagClickedCouncilFeatureChat,
+                                councilPromptPreview: prompt.slice(0, 1200),
+                                hasCouncilImplementationPrompt: prompt.includes('implementation-request council chat'),
+                                hasDatabaseEditor: text.includes('SQLite Database') && text.includes('Council Knowledge'),
+                                hasLiveSqliteTableEditor: text.includes('Live SQLite Tables'),
+                                hasDxGridSurface: !!document.querySelector('.dxbl-grid'),
+                                hasMinecraftBuilderText: text.includes('Minecraft Mod Builder'),
+                                hasSetupText: text.includes('Setup')
+                            };
+                        })()
                         """);
                 }
             }

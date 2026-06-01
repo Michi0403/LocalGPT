@@ -146,7 +146,7 @@ For full desktop validation, run the WinUI wrapper from a registered/package ide
 ```powershell
 $env:LOCALGPT_WEBVIEW2_SMOKE = "1"
 $env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
-.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net9.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
+.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
 ```
 
 The wrapper writes WebView2 page snapshots under `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`. Use these snapshots to verify that `/Chat` and `/minecraft-mod-builder` load inside the actual desktop shell.

@@ -50,6 +50,7 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Exercises the AI Council through LocalGPT.
   - Logs under `%LOCALAPPDATA%\LocalGPT\CouncilLogs\`.
   - Saves council runs to SQLite memory when requested.
+  - Saves every completed council run into the editable `CouncilKnowledgeEntries` table so later model calls can reuse grounded notes.
   - Can continue an older saved council conversation by sending `ContinueConversationId` or selecting the saved council memory in the frontend.
   - Every result step records the full council roster. Faulty members can be excluded from the next round by user action; models should propose exclusion only through a poll.
   - `GenerateImplementationArtifact` creates a CodeDOM C# starter file under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\` and returns a safe `/__artifacts/council/{fileName}` download link.
@@ -63,6 +64,10 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Reads recent warnings/errors from the SQLite application log.
   - Returns the same short AI briefing that bootstrap context gives to DXAiChat and the AI Council.
   - Add `writeSmoke=true` to write and flush a harmless warning entry after logger changes.
+- `GET /__diag/knowledge`
+  - Reads editable council knowledge notes. These notes are included in AI bootstrap context as working memory, not absolute truth.
+- `GET /__diag/sqlite/tables`
+  - Lists live SQLite tables and row counts. The `/database` page uses the same table-editor service to let the frontend user inspect and edit local SQLite data with DevExpress controls.
 - `GET /__diag/devexpress`
   - Reads DevExpress package references, Blazor imports, service registrations, and loaded assemblies when available.
   - Use this before asking the council for DevExpress Office/report/PDF/RichEdit/PdfViewer/Pivot features.
@@ -88,7 +93,7 @@ The flag enables smoke mode once and `exit` asks the wrapper to close after writ
 ```powershell
 $env:LOCALGPT_WEBVIEW2_SMOKE = "1"
 $env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
-.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net9.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
+.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
 ```
 
 It drives the embedded WebView2 through `/`, `/Chat`, and `/minecraft-mod-builder`, then writes JSON snapshots to:
@@ -103,9 +108,11 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 
 - Stop running `LocalGPT.exe` or wrapper instances before rebuilding; they can lock `bin` and `obj` outputs.
 - The package/deploy path must be tested with Visual Studio MSBuild because `.wapproj` is not a normal SDK-only project.
+- AppX registration can fail with `0x80070002`/`0x80073CF9` when Windows holds a stale LocalGPT development registration or when the loose `AppX` layout misses manifest assets. The package project now copies `Images\*.png` into `bin\<platform>\<configuration>\AppX\Images`, and the repair script retries once after removing only the stale LocalGPT package identity.
 - LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Discover the current app URL from `%LOCALAPPDATA%\LocalGPT\runtime\server.json` instead of assuming a fixed port.
 - Application warnings/errors are stored in SQLite table `ApplicationLogs` when `LoggingCore:DatabaseCore:CoreLogLevel` allows them. The database logger is queued/background-flushed and excludes EF categories to avoid recursive logging.
 - Missing-feature reports under `%LOCALAPPDATA%\LocalGPT\AIReports\` now include helpful source requests. AI participants should ask for official docs, examples, specs, package references, or sample repositories when needed, without pretending those sources were verified.
+- The `/database` page is the live database editor. It has a friendly Council Knowledge panel plus a generic SQLite table preview/editor. Primary-key columns are displayed but protected in the generic form; edits are still applied to the live local database.
 - Do not treat raw model output as verified facts. The council should mark uncertain claims as `Needs verification`.
 - Some models, especially reasoning models, may return thinking-only output when the token budget is too small. LocalGPT now separates thinking from visible text and should surface a clear placeholder if no final answer appears.
 
@@ -114,5 +121,5 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - Rerun `POST /__diag/dxaichat-smoke` after restarting LocalGPT from a fresh build.
 - Rerun a short AI Council feedback prompt with `gpt-oss:20b` plus one other model after the formatter fix is loaded.
 - Check `/__diag/logs?minimumLevel=Warning&take=30` before asking the council for setup advice; recent Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, or package errors should be treated as actionable health signals.
-- Run the WebView2 smoke mode from a registered/package identity or Visual Studio debug launch and inspect `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`.
+- Run the WebView2 smoke mode from a registered/package identity or Visual Studio debug launch and inspect `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`. Use this as the preferred frontend fallback for LocalGPT usability checks instead of relying on an assistant built-in browser; it exercises the real wrapper routes, including `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`.
 - Commit and push diagnostic changes in small slices.

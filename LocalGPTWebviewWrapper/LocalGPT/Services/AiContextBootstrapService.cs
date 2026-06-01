@@ -5,6 +5,7 @@ namespace LocalGPT.Services
 {
     public class AiContextBootstrapService(
         IChatMemoryService chatMemory,
+        ICouncilKnowledgeService councilKnowledge,
         IApplicationLogReaderService applicationLogs,
         IProjectLibraryInventoryService libraryInventory,
         IBuildDebugInventoryService buildDebugInventory,
@@ -34,6 +35,15 @@ namespace LocalGPT.Services
             {
                 builder.AppendLine("Saved LocalGPT memory:")
                     .AppendLine(memoryBriefing)
+                    .AppendLine();
+            }
+
+            var knowledgeBriefing = await councilKnowledge.BuildKnowledgeBriefingAsync(cancellationToken: cancellationToken);
+            if (!string.IsNullOrWhiteSpace(knowledgeBriefing))
+            {
+                builder.AppendLine("Editable AI Council knowledge database:")
+                    .AppendLine("Use these entries as shared working notes. Treat them as editable memory, not unquestionable truth.")
+                    .AppendLine(knowledgeBriefing)
                     .AppendLine();
             }
 

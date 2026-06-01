@@ -16,6 +16,7 @@ namespace LocalGPT.Services
         IAiContextBootstrapService bootstrapService,
         IChatMemoryService chatMemory,
         ICouncilArtifactService artifactService,
+        ICouncilKnowledgeService knowledgeService,
         ILogger<MultiModelCouncilService> logger) : IMultiModelCouncilService
     {
         private const string DefaultOllamaUri = "http://localhost:11434";
@@ -196,6 +197,7 @@ namespace LocalGPT.Services
 
             result.UserPoll = BuildUserPoll(result);
             result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
+            result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken);
 
             result.CompletedAtUtc = DateTime.UtcNow;
             result.LogPath = await WriteLogAsync(result, cancellationToken);
@@ -204,11 +206,12 @@ namespace LocalGPT.Services
                 result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken);
 
             logger.LogInformation(
-                "Multi-model council {RunId} completed with {ParticipantCount} participant(s), {StepCount} step(s), memory {MemoryConversationId}, log {LogPath}.",
+                "Multi-model council {RunId} completed with {ParticipantCount} participant(s), {StepCount} step(s), memory {MemoryConversationId}, knowledge {KnowledgeEntryId}, log {LogPath}.",
                 result.RunId,
                 result.ModelNames.Count,
                 result.Steps.Count,
                 result.MemoryConversationId,
+                result.KnowledgeEntryId,
                 result.LogPath);
 
             return result;
@@ -616,6 +619,14 @@ namespace LocalGPT.Services
                     new List<AIChatUploadFileInfo>()));
             }
 
+            if (result.KnowledgeEntryId is Guid knowledgeEntryId)
+            {
+                messages.Add(new BlazorChatMessage(
+                    ChatRole.Assistant,
+                    $"## Council knowledge entry{Environment.NewLine}{knowledgeEntryId}",
+                    new List<AIChatUploadFileInfo>()));
+            }
+
             messages.Add(new BlazorChatMessage(
                 ChatRole.Assistant,
                 $"## Final council answer{Environment.NewLine}{result.FinalAnswer}",
@@ -695,6 +706,7 @@ namespace LocalGPT.Services
                 .AppendLine($"Started: {result.StartedAtUtc:u}")
                 .AppendLine($"Completed: {result.CompletedAtUtc:u}")
                 .AppendLine($"Models: {string.Join(", ", result.ModelNames)}")
+                .AppendLine(result.KnowledgeEntryId is Guid knowledgeId ? $"Knowledge entry: {knowledgeId}" : "Knowledge entry: not saved")
                 .AppendLine()
                 .AppendLine("## Prompt")
                 .AppendLine()

@@ -34,7 +34,7 @@ WinUI 3 desktop wrapper. It launches the local ASP.NET Core server and hosts it 
 
 ### `LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package)`
 
-Windows package project for deploy/debug. This project must preserve the self-contained wrapper output and the Blazor static web assets manifest in the AppX layout.
+Windows package project for deploy/debug. This project must preserve the wrapper output, .NET 10 framework-dependent runtime configuration, and the Blazor static web assets manifest in the AppX layout.
 
 ### `LocalGPTWebviewWrapper/build`
 
@@ -79,9 +79,11 @@ The package project is not a normal SDK-style project. Use Visual Studio MSBuild
 
 Important package behavior:
 
-- `LocalGPTWebviewWrapper` publishes self-contained when a runtime identifier is present
+- `LocalGPTWebviewWrapper` publishes framework-dependent for .NET 10; use the repair script to install the .NET 10 Desktop Runtime instead of letting Windows open an Edge runtime prompt
 - the package project overlays that publish output into the AppX layout
 - `LocalGPT.staticwebassets.runtime.json` must exist beside the packaged executable
+- AppX image assets must exist in the loose `bin\<platform>\<configuration>\AppX\Images` layout; missing manifest images can surface as `0x80070002`, `0x80073CF9`, or `DEP1000`
+- when Windows keeps a stale LocalGPT development registration, use `build\Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`; it removes only the LocalGPT package identity and retries once
 - missing static web assets cause DevExpress module errors and blank/broken UI
 
 ## Configuration expectations
@@ -122,7 +124,7 @@ Agent guidance:
 - use `LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1` when the user needs JDK 21, local Gradle, Eclipse, or setup diagnostics
 - prefer LocalGPT diagnostics over raw Ollama when testing AI behavior: `POST /__diag/dxaichat-smoke`, `POST /__diag/council`, and `GET /__diag/minecraft/workspace-smoke`
 - inspect `GET /__diag/logs?minimumLevel=Warning&take=30` when setup behavior is strange; recent SQLite application logs are included in AI bootstrap so DXAiChat and the AI Council can notice missing Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, package registration, or model setup
-- use the WinUI WebView2 smoke mode with `LOCALGPT_WEBVIEW2_SMOKE=1` when validating that the desktop wrapper loads `/Chat` and `/minecraft-mod-builder`
+- use the WinUI WebView2 smoke mode with `LOCALGPT_WEBVIEW2_SMOKE=1` as the preferred frontend fallback when browser automation is unavailable or misleading. Do not rely on an agent's built-in browser as proof that the packaged desktop shell works; the WebView2 smoke path validates the real wrapper and currently covers `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`.
 - keep filesystem and OS command execution in backend services
 - use `INativeCommandRunner` or a similar service boundary for native commands
 - keep frontend JavaScript for client-only helpers, not privileged execution

@@ -185,6 +185,13 @@
                     <span>@memoryId</span>
                 </div>
             }
+            @if (LastResult.KnowledgeEntryId is Guid knowledgeId)
+            {
+                <div>
+                    <strong>Knowledge</strong>
+                    <span>@knowledgeId</span>
+                </div>
+            }
             @if (!string.IsNullOrWhiteSpace(LastResult.LogPath))
             {
                 <div>

@@ -1,0 +1,520 @@
+@page "/database"
+@using System.Dynamic
+
+@inject IChatMemoryService ChatMemory
+@inject IApplicationLogReaderService ApplicationLogs
+@inject ICouncilKnowledgeService CouncilKnowledge
+@inject ISqliteTableEditorService TableEditor
+@inject ILogger<Database> Logger
+@inject INotificationService Notifier
+@rendermode InteractiveServer
+
+<PageTitle>SQLite Database</PageTitle>
+
+<main class="database-page">
+    <ToastWrapper Name="@toastName" />
+
+    <section class="database-header">
+        <div>
+            <h1>SQLite Database</h1>
+            <p>Inspect and edit LocalGPT memory, council knowledge, application logs, and other local tables.</p>
+        </div>
+        <DxButton Text="Refresh"
+                  RenderStyle="ButtonRenderStyle.Secondary"
+                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                  Enabled="@(!isBusy)"
+                  Click="RefreshAllAsync" />
+    </section>
+
+    <section class="knowledge-panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Council Knowledge</h2>
+                <p>Shared notes the council can reuse in future prompts. Edit this like a grounded project notebook.</p>
+            </div>
+            <DxButton Text="New Knowledge"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Enabled="@(!isBusy)"
+                      Click="NewKnowledgeEntry" />
+        </div>
+
+        <div class="knowledge-layout">
+            <div>
+                <DxGrid Data="@KnowledgeEntries"
+                        PageSize="8"
+                        ShowSearchBox="true"
+                        CssClass="database-grid">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Topic)" Caption="Topic" />
+                        <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Scope)" Caption="Scope" />
+                        <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Tags)" Caption="Tags" />
+                        <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Confidence)" Caption="Confidence" />
+                        <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.UpdatedAtUtc)" Caption="Updated UTC" />
+                        <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.IsPinned)" Caption="Pinned" />
+                    </Columns>
+                </DxGrid>
+                <div class="selector-row">
+                    <span title="Choose a knowledge entry to edit in the form.">
+                        <DxComboBox Data="@KnowledgeEntries"
+                                    Value="@SelectedKnowledgeEntry"
+                                    TextFieldName="@nameof(CouncilKnowledgeEntry.Topic)"
+                                    CssClass="knowledge-selector"
+                                    ValueChanged="@((CouncilKnowledgeEntry entry) => SelectKnowledgeEntry(entry))" />
+                    </span>
+                </div>
+            </div>
+
+            <div class="editor-panel">
+                <label title="Short name used by the council briefing.">
+                    Topic
+                    <DxTextBox @bind-Text="KnowledgeEdit.Topic" />
+                </label>
+                <label title="Use a scope such as AI Council, Minecraft Builder, DevExpress, setup, or diagnostics.">
+                    Scope
+                    <DxTextBox @bind-Text="KnowledgeEdit.Scope" />
+                </label>
+                <label title="The actual reusable note. Keep facts grounded and correct stale notes later.">
+                    Content
+                    <DxMemo @bind-Text="KnowledgeEdit.Content" Rows="7" />
+                </label>
+                <label title="Docs, official references, sample repositories, or URLs the council wants next time.">
+                    Helpful Sources
+                    <DxMemo @bind-Text="KnowledgeEdit.HelpfulSources" Rows="3" />
+                </label>
+                <label title="Semicolon-separated tags help the council and humans filter notes.">
+                    Tags
+                    <DxTextBox @bind-Text="KnowledgeEdit.Tags" />
+                </label>
+                <div class="form-row">
+                    <label title="How reliable the note currently is.">
+                        Confidence
+                        <DxSpinEdit @bind-Value="KnowledgeEdit.Confidence" MinValue="0" MaxValue="100" />
+                    </label>
+                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsPinned" Text="Pinned" />
+                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsArchived" Text="Archived" />
+                </div>
+                <div class="run-row">
+                    <DxButton Text="Save Knowledge"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Enabled="@(!isBusy)"
+                              Click="SaveKnowledgeAsync" />
+                    <DxButton Text="Delete Knowledge"
+                              RenderStyle="ButtonRenderStyle.Danger"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!isBusy && SelectedKnowledgeEntry is not null)"
+                              Click="DeleteKnowledgeAsync" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="table-panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Live SQLite Tables</h2>
+                <p>@TableEditor.DatabasePath</p>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(statusText))
+            {
+                <span class="status-text">@statusText</span>
+            }
+        </div>
+
+        <div class="table-toolbar">
+            <span title="Select any LocalGPT SQLite table except internal sqlite_* tables.">
+                <DxComboBox Data="@Tables"
+                            Value="@SelectedTable"
+                            TextFieldName="@nameof(SqliteTableSummary.Name)"
+                            CssClass="table-selector"
+                            ValueChanged="@((SqliteTableSummary table) => SelectTableAsync(table))" />
+            </span>
+            <span title="Limit the preview size so large logs and chat history stay responsive.">
+                <DxSpinEdit @bind-Value="RowLimit" MinValue="10" MaxValue="500" Increment="10" />
+            </span>
+            <DxButton Text="Load Table"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Enabled="@(!isBusy && SelectedTable is not null)"
+                      Click="LoadSelectedTableAsync" />
+            <DxButton Text="New Row"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Enabled="@(!isBusy && CurrentTable is not null)"
+                      Click="NewSqliteRow" />
+        </div>
+
+        @if (Tables.Count > 0)
+        {
+            <DxGrid Data="@Tables"
+                    PageSize="8"
+                    CssClass="database-grid table-list">
+                <Columns>
+                    <DxGridDataColumn FieldName="@nameof(SqliteTableSummary.Name)" Caption="Table" />
+                    <DxGridDataColumn FieldName="@nameof(SqliteTableSummary.RowCount)" Caption="Rows" />
+                    <DxGridDataColumn FieldName="@nameof(SqliteTableSummary.ColumnCount)" Caption="Columns" />
+                    <DxGridDataColumn FieldName="@nameof(SqliteTableSummary.HasPrimaryKey)" Caption="Primary Key" />
+                </Columns>
+            </DxGrid>
+        }
+
+        @if (CurrentTable is not null)
+        {
+            <div class="table-workspace">
+                <div class="table-preview">
+                    <h3>@CurrentTable.TableName</h3>
+                    <DxGrid Data="@GridRows"
+                            PageSize="15"
+                            ShowSearchBox="true"
+                            CssClass="database-grid">
+                        <Columns>
+                            <DxGridDataColumn FieldName="__rowid" Caption="rowid" />
+                            @foreach (var column in CurrentTable.Columns)
+                            {
+                                <DxGridDataColumn FieldName="@column.Name" Caption="@column.Name" />
+                            }
+                        </Columns>
+                    </DxGrid>
+                </div>
+
+                <div class="editor-panel">
+                    <label title="Select a row to edit. Use New Row for insertion.">
+                        Row
+                        <DxComboBox Data="@CurrentTable.Rows"
+                                    Value="@SelectedRow"
+                                    TextFieldName="@nameof(SqliteRowSnapshot.DisplayName)"
+                                    ValueChanged="@((SqliteRowSnapshot row) => SelectSqliteRow(row))" />
+                    </label>
+                    <p class="hint">Primary-key columns are shown but protected here. Type <code>[null]</code> to save NULL in editable columns.</p>
+                    @foreach (var column in CurrentTable.Columns)
+                    {
+                        var value = GetEditValue(column.Name);
+                        <label title="@BuildColumnTitle(column)">
+                            @column.Name <small>@column.Type@if (column.IsPrimaryKey) { <text> primary key</text> }</small>
+                            @if (IsLongTextColumn(column.Name, value))
+                            {
+                                <DxMemo Text="@value"
+                                        TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))"
+                                        Rows="4"
+                                        ReadOnly="@column.IsPrimaryKey" />
+                            }
+                            else
+                            {
+                                <DxTextBox Text="@value"
+                                           TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))"
+                                           ReadOnly="@column.IsPrimaryKey" />
+                            }
+                        </label>
+                    }
+                    <div class="run-row">
+                        <DxButton Text="Save Row"
+                                  RenderStyle="ButtonRenderStyle.Primary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Enabled="@(!isBusy && CurrentTable is not null)"
+                                  Click="SaveSqliteRowAsync" />
+                        <DxButton Text="Delete Row"
+                                  RenderStyle="ButtonRenderStyle.Danger"
+                                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                  Enabled="@(!isBusy && SelectedRow is not null)"
+                                  Click="DeleteSqliteRowAsync" />
+                    </div>
+                </div>
+            </div>
+        }
+    </section>
+</main>
+
+@code {
+    readonly string toastName = "DatabaseToasts";
+    List<CouncilKnowledgeEntry> KnowledgeEntries { get; set; } = [];
+    CouncilKnowledgeEntry? SelectedKnowledgeEntry { get; set; }
+    CouncilKnowledgeEntry KnowledgeEdit { get; set; } = CreateEmptyKnowledgeEntry();
+
+    List<SqliteTableSummary> Tables { get; set; } = [];
+    SqliteTableSummary? SelectedTable { get; set; }
+    SqliteTableSnapshot? CurrentTable { get; set; }
+    SqliteRowSnapshot? SelectedRow { get; set; }
+    Dictionary<string, string?> RowEditValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    List<ExpandoObject> GridRows { get; set; } = [];
+    int RowLimit { get; set; } = 100;
+    bool isBusy;
+    string statusText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAllAsync();
+    }
+
+    async Task RefreshAllAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            await ChatMemory.EnsureCreatedAsync();
+            await ApplicationLogs.EnsureCreatedAsync();
+            await CouncilKnowledge.EnsureCreatedAsync();
+            KnowledgeEntries = (await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250)).ToList();
+            Tables = (await TableEditor.GetTablesAsync()).ToList();
+            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
+            if (SelectedKnowledgeEntry is not null)
+                SelectKnowledgeEntry(SelectedKnowledgeEntry);
+            else
+                NewKnowledgeEntry();
+
+            if (SelectedTable is not null)
+                SelectedTable = Tables.FirstOrDefault(table => table.Name.Equals(SelectedTable.Name, StringComparison.OrdinalIgnoreCase));
+            SelectedTable ??= Tables.FirstOrDefault(table => table.Name.Equals("CouncilKnowledgeEntries", StringComparison.OrdinalIgnoreCase)) ?? Tables.FirstOrDefault();
+            if (SelectedTable is not null)
+                await LoadTableAsync(SelectedTable);
+
+            statusText = $"Loaded {Tables.Count} table(s) and {KnowledgeEntries.Count} knowledge note(s).";
+        }, "RefreshAllAsync");
+    }
+
+    void SelectKnowledgeEntry(CouncilKnowledgeEntry entry)
+    {
+        SelectedKnowledgeEntry = entry;
+        KnowledgeEdit = CopyKnowledgeEntry(entry);
+    }
+
+    void NewKnowledgeEntry()
+    {
+        SelectedKnowledgeEntry = null;
+        KnowledgeEdit = CreateEmptyKnowledgeEntry();
+        statusText = "New council knowledge note ready.";
+    }
+
+    async Task SaveKnowledgeAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit);
+            KnowledgeEntries = (await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250)).ToList();
+            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
+            if (SelectedKnowledgeEntry is not null)
+                KnowledgeEdit = CopyKnowledgeEntry(SelectedKnowledgeEntry);
+            await RefreshTablesOnlyAsync(loadSelectedTable: true);
+            statusText = $"Saved knowledge note: {KnowledgeEdit.Topic}";
+            Notifier.ShowSuccess(toastName, "Council knowledge saved to SQLite.", "Knowledge saved");
+        }, "SaveKnowledgeAsync");
+    }
+
+    async Task DeleteKnowledgeAsync()
+    {
+        if (SelectedKnowledgeEntry is null)
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id);
+            SelectedKnowledgeEntry = null;
+            KnowledgeEdit = CreateEmptyKnowledgeEntry();
+            KnowledgeEntries = (await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250)).ToList();
+            await RefreshTablesOnlyAsync(loadSelectedTable: true);
+            statusText = "Deleted council knowledge note.";
+            Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");
+        }, "DeleteKnowledgeAsync");
+    }
+
+    async Task SelectTableAsync(SqliteTableSummary table)
+    {
+        await LoadTableAsync(table);
+    }
+
+    async Task LoadSelectedTableAsync()
+    {
+        if (SelectedTable is not null)
+            await LoadTableAsync(SelectedTable);
+    }
+
+    async Task LoadTableAsync(SqliteTableSummary table)
+    {
+        await RunUiActionAsync(async () =>
+        {
+            SelectedTable = table;
+            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
+            GridRows = CurrentTable.Rows.Select(ToGridRow).ToList();
+            SelectedRow = CurrentTable.Rows.FirstOrDefault();
+            if (SelectedRow is not null)
+                SelectSqliteRow(SelectedRow);
+            else
+                NewSqliteRow();
+            statusText = $"Loaded {CurrentTable.Rows.Count} row(s) from {CurrentTable.TableName}.";
+        }, "LoadTableAsync");
+    }
+
+    void SelectSqliteRow(SqliteRowSnapshot row)
+    {
+        SelectedRow = row;
+        RowEditValues = CurrentTable?.Columns.ToDictionary(
+            column => column.Name,
+            column => row.Values.TryGetValue(column.Name, out var value) ? value : null,
+            StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    void NewSqliteRow()
+    {
+        SelectedRow = null;
+        RowEditValues = CurrentTable?.Columns.ToDictionary(
+            column => column.Name,
+            _ => (string?)null,
+            StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        statusText = "New SQLite row ready.";
+    }
+
+    async Task SaveSqliteRowAsync()
+    {
+        if (CurrentTable is null)
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            var editableValues = CurrentTable.Columns
+                .Where(column => !column.IsPrimaryKey)
+                .ToDictionary(
+                    column => column.Name,
+                    column => NormalizeCellValue(GetEditValue(column.Name)),
+                    StringComparer.OrdinalIgnoreCase);
+
+            if (SelectedRow is null)
+            {
+                await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues);
+                statusText = $"Inserted row into {CurrentTable.TableName}.";
+            }
+            else
+            {
+                var updates = editableValues
+                    .Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value })
+                    .ToList();
+                await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates);
+                statusText = $"Updated row {SelectedRow.RowId} in {CurrentTable.TableName}.";
+            }
+
+            await RefreshTablesOnlyAsync(loadSelectedTable: true);
+            Notifier.ShowSuccess(toastName, "SQLite row saved.", "Database saved");
+        }, "SaveSqliteRowAsync");
+    }
+
+    async Task DeleteSqliteRowAsync()
+    {
+        if (CurrentTable is null || SelectedRow is null)
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId);
+            statusText = $"Deleted row {SelectedRow.RowId} from {CurrentTable.TableName}.";
+            await RefreshTablesOnlyAsync(loadSelectedTable: true);
+            Notifier.ShowSuccess(toastName, "SQLite row deleted.", "Database saved");
+        }, "DeleteSqliteRowAsync");
+    }
+
+    async Task RefreshTablesOnlyAsync(bool loadSelectedTable)
+    {
+        Tables = (await TableEditor.GetTablesAsync()).ToList();
+        if (!loadSelectedTable || CurrentTable is null)
+            return;
+
+        var table = Tables.FirstOrDefault(item => item.Name.Equals(CurrentTable.TableName, StringComparison.OrdinalIgnoreCase));
+        if (table is not null)
+        {
+            SelectedTable = table;
+            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
+            GridRows = CurrentTable.Rows.Select(ToGridRow).ToList();
+            SelectedRow = CurrentTable.Rows.FirstOrDefault(row => row.RowId == SelectedRow?.RowId) ?? CurrentTable.Rows.FirstOrDefault();
+            if (SelectedRow is not null)
+                SelectSqliteRow(SelectedRow);
+        }
+    }
+
+    string GetEditValue(string columnName)
+    {
+        return RowEditValues.TryGetValue(columnName, out var value) ? value ?? "[null]" : string.Empty;
+    }
+
+    void SetEditValue(string columnName, string value)
+    {
+        RowEditValues[columnName] = value;
+    }
+
+    static string? NormalizeCellValue(string value)
+    {
+        return value.Equals("[null]", StringComparison.OrdinalIgnoreCase) ? null : value;
+    }
+
+    static ExpandoObject ToGridRow(SqliteRowSnapshot row)
+    {
+        IDictionary<string, object?> expando = new ExpandoObject();
+        expando["__rowid"] = row.RowId;
+        foreach (var pair in row.Values)
+            expando[pair.Key] = pair.Value;
+        return (ExpandoObject)expando;
+    }
+
+    static bool IsLongTextColumn(string columnName, string value)
+    {
+        return value.Length > 120 ||
+            columnName.Contains("Content", StringComparison.OrdinalIgnoreCase) ||
+            columnName.Contains("Message", StringComparison.OrdinalIgnoreCase) ||
+            columnName.Contains("Exception", StringComparison.OrdinalIgnoreCase) ||
+            columnName.Contains("Sources", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static string BuildColumnTitle(SqliteColumnSummary column)
+    {
+        var required = column.IsNotNull ? "required" : "nullable";
+        var key = column.IsPrimaryKey ? " Primary keys are protected by the editor." : string.Empty;
+        return $"{column.Name} ({column.Type}, {required}).{key}";
+    }
+
+    static CouncilKnowledgeEntry CreateEmptyKnowledgeEntry()
+    {
+        return new CouncilKnowledgeEntry
+        {
+            Topic = "New LocalGPT knowledge",
+            Scope = "AI Council",
+            Source = "Manual database editor",
+            HelpfulSources = "None yet.",
+            Tags = "manual; council",
+            Confidence = 60
+        };
+    }
+
+    static CouncilKnowledgeEntry CopyKnowledgeEntry(CouncilKnowledgeEntry entry)
+    {
+        return new CouncilKnowledgeEntry
+        {
+            Id = entry.Id,
+            CreatedAtUtc = entry.CreatedAtUtc,
+            UpdatedAtUtc = entry.UpdatedAtUtc,
+            Topic = entry.Topic,
+            Scope = entry.Scope,
+            Content = entry.Content,
+            Source = entry.Source,
+            HelpfulSources = entry.HelpfulSources,
+            Tags = entry.Tags,
+            Confidence = entry.Confidence,
+            IsPinned = entry.IsPinned,
+            IsArchived = entry.IsArchived
+        };
+    }
+
+    async Task RunUiActionAsync(Func<Task> action, string operation)
+    {
+        try
+        {
+            isBusy = true;
+            await action();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in {operation}");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}
