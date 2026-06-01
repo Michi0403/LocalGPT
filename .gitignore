@@ -25,6 +25,7 @@ LocalGPTWebviewWrapper/**/bin/
 LocalGPTWebviewWrapper/**/obj/
 LocalGPTWebviewWrapper/.vs/
 LocalGPTWebviewWrapper/.cr/
+LocalGPTWebviewWrapper/**/*.user
 
 # MSIX packaging outputs
 LocalGPTWebviewWrapper/**/AppPackages/
@@ -37,3 +38,4 @@ LocalGPTWebviewWrapper/**/*.appxsym
 LocalGPTWebviewWrapper/**/*.cer
 LocalGPTWebviewWrapper/**/*.pfx
 LocalGPTWebviewWrapper/**/*.assets.cache
+LocalGPTWebviewWrapper/**/*.local.props
