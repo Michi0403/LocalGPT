@@ -1,6 +1,7 @@
 @page "/model-council"
 
 @inject IMultiModelCouncilService CouncilService
+@inject IChatMemoryService ChatMemory
 @inject ILogger<ModelCouncil> Logger
 @inject INotificationService Notifier
 @rendermode InteractiveServer
@@ -103,6 +104,47 @@
                     <input type="checkbox" @bind="Request.SaveToMemory" />
                     Memorize transcript
                 </label>
+                <label title="Creates a downloadable C# starter file for implementation-oriented council results.">
+                    <input type="checkbox" @bind="Request.GenerateImplementationArtifact" />
+                    Generate example file
+                </label>
+            </div>
+
+            <div class="control-group">
+                <div class="control-title">Continue Council Memory</div>
+                @if (SavedCouncilConversations.Count == 0)
+                {
+                    <p class="muted">No saved council conversations yet.</p>
+                }
+                else
+                {
+                    <DxComboBox Data="@SavedCouncilConversations"
+                                Value="@SelectedCouncilConversation"
+                                CssClass="memory-selector"
+                                TextFieldName="@nameof(ChatMemoryConversationSummary.DisplayName)"
+                                ValueChanged="@((ChatMemoryConversationSummary conversation) => SelectCouncilConversation(conversation))" />
+                }
+                <div class="run-row">
+                    <DxButton Text="New Thread"
+                              RenderStyle="ButtonRenderStyle.Secondary"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!isBusy)"
+                              Click="StartNewCouncilThread" />
+                    <DxButton Text="Feature Request Chat"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!isBusy)"
+                              Click="StartFeatureRequestChat" />
+                    <DxButton Text="Refresh Memory"
+                              RenderStyle="ButtonRenderStyle.Secondary"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!isBusy)"
+                              Click="LoadSavedCouncilConversationsAsync" />
+                </div>
+                @if (SelectedCouncilConversation is not null)
+                {
+                    <p class="hint">Continuing: @SelectedCouncilConversation.DisplayName</p>
+                }
             </div>
         </div>
 
@@ -150,6 +192,27 @@
                     <span>@LastResult.LogPath</span>
                 </div>
             }
+            @if (LastResult.ContinuedFromConversationId is Guid continuedFrom)
+            {
+                <div>
+                    <strong>Continued From</strong>
+                    <span>@continuedFrom</span>
+                </div>
+            }
+        </section>
+
+        <section class="result-meta">
+            @foreach (var model in LastResult.ModelNames)
+            {
+                <div>
+                    <strong>@model</strong>
+                    <DxButton Text="Exclude Next Round"
+                              RenderStyle="ButtonRenderStyle.Danger"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!isBusy && SelectedModels.Count > 1)"
+                              Click="@(() => ExcludeModel(model))" />
+                </div>
+            }
         </section>
 
         @if (LastResult.Warnings.Count > 0)
@@ -181,6 +244,20 @@
             </section>
         }
 
+        @if (LastResult.Artifacts.Count > 0)
+        {
+            <section class="final-panel">
+                <h2>Downloadable Examples</h2>
+                @foreach (var artifact in LastResult.Artifacts)
+                {
+                    <p>
+                        <a href="@artifact.DownloadUrl" download="@artifact.Name">@artifact.Name</a>
+                        <span class="muted"> - @artifact.Kind - @artifact.Summary</span>
+                    </p>
+                }
+            </section>
+        }
+
         <section class="final-panel">
             <h2>Consensus Answer</h2>
             <div class="markdown-output">@((MarkupString)Markdown.ToHtml(LastResult.FinalAnswer).Trim())</div>
@@ -195,7 +272,16 @@
                         <span>@step.Phase</span>
                         <strong>@step.ModelName</strong>
                         <small>@step.Role - @step.DurationSeconds.ToString("0.0")s</small>
+                        <small>Members: @string.Join(" + ", step.CouncilMembers.Count > 0 ? step.CouncilMembers : LastResult.ModelNames)</small>
                     </header>
+                    @if (!string.IsNullOrWhiteSpace(step.Error))
+                    {
+                        <DxButton Text="@($"Exclude {step.ModelName}")"
+                                  RenderStyle="ButtonRenderStyle.Danger"
+                                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                  Enabled="@(!isBusy && SelectedModels.Count > 1)"
+                                  Click="@(() => ExcludeModel(step.ModelName))" />
+                    }
                     @if (!string.IsNullOrWhiteSpace(step.Thinking))
                     {
                         <details class="thinking-box" open>
@@ -214,6 +300,8 @@
     readonly string toastName = "ModelCouncilToasts";
     readonly HashSet<string> SelectedModels = new(StringComparer.OrdinalIgnoreCase);
     List<MultiModelCouncilModelCandidate> Candidates { get; set; } = [];
+    List<ChatMemoryConversationSummary> SavedCouncilConversations { get; set; } = [];
+    ChatMemoryConversationSummary? SelectedCouncilConversation { get; set; }
     MultiModelCouncilResult? LastResult { get; set; }
     string ManualModelName { get; set; } = "qwen3-coder:30b";
     string statusText = string.Empty;
@@ -235,7 +323,8 @@
         MaxContextTokens = 8192,
         ModelTimeoutSeconds = 180,
         IncludeMemory = true,
-        SaveToMemory = true
+        SaveToMemory = true,
+        GenerateImplementationArtifact = false
     };
 
     bool CanRun => !isBusy && SelectedModels.Count > 0 && !string.IsNullOrWhiteSpace(Request.Prompt);
@@ -248,6 +337,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadCandidatesAsync();
+        await LoadSavedCouncilConversationsAsync();
     }
 
     async Task LoadCandidatesAsync()
@@ -274,9 +364,37 @@
         {
             Request.ModelNames = SelectedModels.ToList();
             LastResult = await CouncilService.RunAsync(Request);
+            if (LastResult.MemoryConversationId is Guid memoryId)
+            {
+                Request.ContinueConversationId = memoryId;
+                await LoadSavedCouncilConversationsAsync(showStatus: false);
+                SelectedCouncilConversation = SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == memoryId);
+            }
             statusText = $"Council completed with {LastResult.Steps.Count} transcript step(s).";
             Notifier.ShowSuccess(toastName, "Council transcript saved and visualized.", "Council complete");
         }, "RunCouncilAsync");
+    }
+
+    async Task LoadSavedCouncilConversationsAsync()
+    {
+        await LoadSavedCouncilConversationsAsync(showStatus: true);
+    }
+
+    async Task LoadSavedCouncilConversationsAsync(bool showStatus)
+    {
+        await RunUiActionAsync(async () =>
+        {
+            SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100))
+                .Where(conversation => conversation.ProviderName.StartsWith("AI Council", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            SelectedCouncilConversation = Request.ContinueConversationId is Guid selectedId
+                ? SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == selectedId)
+                : null;
+
+            if (showStatus)
+                statusText = $"Loaded {SavedCouncilConversations.Count} saved council conversation(s).";
+        }, "LoadSavedCouncilConversationsAsync");
     }
 
     void AddManualModel()
@@ -312,8 +430,81 @@
             SelectedModels.Remove(modelName);
     }
 
+    void SelectCouncilConversation(ChatMemoryConversationSummary conversation)
+    {
+        SelectedCouncilConversation = conversation;
+        Request.ContinueConversationId = conversation.Id;
+        statusText = $"Selected council memory: {conversation.DisplayName}";
+    }
+
+    void StartNewCouncilThread()
+    {
+        SelectedCouncilConversation = null;
+        Request.ContinueConversationId = null;
+        Request.GenerateImplementationArtifact = false;
+        statusText = "Next council run will start a new memory conversation.";
+    }
+
+    void StartFeatureRequestChat()
+    {
+        SelectedCouncilConversation = null;
+        Request.ContinueConversationId = null;
+        Request.SaveToMemory = true;
+        Request.IncludeMemory = true;
+        Request.GenerateImplementationArtifact = true;
+        Request.Prompt = string.Join(Environment.NewLine, new[]
+        {
+            "Start a new LocalGPT implementation-request council chat.",
+            "",
+            "Goal:",
+            "Ask the council to identify one useful feature request, decide which part of LocalGPT owns it, and produce a grounded implementation plan.",
+            "",
+            "Requirements:",
+            "- classify the target area: .NET/Blazor/ASP.NET Core, WinUI/WebView2, Minecraft builder, diagnostics/logging, or frontend UX",
+            "- check the DevExpress inventory before proposing DevExpress APIs, reports, Office files, PDFs, or document components",
+            "- keep DevExpress Office/report/PDF/file generation in ASP.NET Core backend services with safe download links",
+            "- prototype requested features in a harmless sandbox artifact or temporary workspace before integrating into the real project",
+            "- never self-expand LocalGPT or integrate generated features without explicit user permission",
+            "- never overrule a user decision that denies or limits expansion",
+            "- separate current implementation facts from proposed work",
+            "- list exact files or services likely to change",
+            "- include a small user decision poll if ownership or scope is uncertain",
+            "- request a downloadable example file when a .NET/Blazor/ASP.NET Core sketch would help",
+            "- mark unsupported claims under Needs verification"
+        });
+        statusText = "Started a new implementation-request council chat with example file generation enabled.";
+    }
+
+    void ExcludeModel(string modelName)
+    {
+        if (SelectedModels.Count <= 1)
+        {
+            statusText = "Keep at least one council model selected.";
+            return;
+        }
+
+        if (SelectedModels.Remove(modelName))
+        {
+            Request.Prompt = $"{Request.Prompt}\n\nUser decision for the next council round:\nExclude `{modelName}` from the council unless I re-add it. Remaining members must acknowledge the exclusion and continue from the prior transcript.";
+            statusText = $"Excluded {modelName} from the next round.";
+        }
+    }
+
     void ApplyPollOption(CouncilUserPollOption option)
     {
+        if (option.Label.Contains("Exclude", StringComparison.OrdinalIgnoreCase) && LastResult is not null)
+        {
+            foreach (var modelName in LastResult.Steps
+                .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+                .Select(step => step.ModelName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList())
+            {
+                if (SelectedModels.Count > 1)
+                    SelectedModels.Remove(modelName);
+            }
+        }
+
         Request.Prompt = $"{Request.Prompt}\n\nUser decision for the next council round:\n{option.FollowUpPrompt}";
         statusText = $"Poll choice added: {option.Label}. Run Council again to continue.";
     }

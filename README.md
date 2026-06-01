@@ -72,6 +72,11 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `POST /__diag/dxaichat-smoke`: configured DXAiChat backend smoke test with visible/thinking split and optional SQLite memory save.
 - `POST /__diag/council`: multi-model council run through LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generated workspace smoke test.
+- `GET /__diag/logs?minimumLevel=Warning&take=30`: recent SQLite application logs and the AI briefing built from them. Add `writeSmoke=true` to write a harmless warning and verify the async database logger.
+
+The AI Council stores transcripts in SQLite chat memory. In the Council page, choose an older council memory to continue the thread, or start a new thread. Each run and step records the full council member list; faulty or unavailable members can be excluded from the next round by the user, while models must propose that through a poll instead of removing peers on their own. Use **Feature Request Chat** for implementation ideas; it enables a CodeDOM-generated C# example file and exposes it through a download link in the council result.
+
+For DevExpress-related feature requests, use `GET /__diag/devexpress` to inspect referenced package versions, imported namespaces, registered services, and loaded assemblies. DevExpress Office/report/PDF generation should be implemented in backend services with safe download links, while the Blazor frontend handles controls, status, and navigation.
 
 LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Discover the current URL from `%LOCALAPPDATA%\LocalGPT\runtime\server.json`.
 

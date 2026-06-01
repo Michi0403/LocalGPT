@@ -69,6 +69,9 @@ Important rules:
 - preserve DevExpress package references and static asset loading
 - check generated static web asset manifests when DevExpress JavaScript or CSS files 404
 - DevExpress 25 module assets are under `/_content/DevExpress.Blazor/modules/`
+- use `/__diag/devexpress` or the AI bootstrap inventory before proposing DevExpress APIs; respect the referenced package/version family and mark unknown APIs as `Needs verification`
+- implement DevExpress Office document generation, report generation, PDF export, and downloadable generated files in the ASP.NET Core/Blazor server backend, then expose safe download links to the frontend
+- use `/__diag/build-debug-files?copy=true` when build symbol files are useful for council diagnostics. These `.pdb`, `.pdg`, and `.appxsym` files stay out of git and should not be mistaken for source-level feature usage.
 
 ## Packaging guidance
 
@@ -118,6 +121,7 @@ Agent guidance:
 - keep Bedrock support separate as a future behavior/resource pack exporter
 - use `LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1` when the user needs JDK 21, local Gradle, Eclipse, or setup diagnostics
 - prefer LocalGPT diagnostics over raw Ollama when testing AI behavior: `POST /__diag/dxaichat-smoke`, `POST /__diag/council`, and `GET /__diag/minecraft/workspace-smoke`
+- inspect `GET /__diag/logs?minimumLevel=Warning&take=30` when setup behavior is strange; recent SQLite application logs are included in AI bootstrap so DXAiChat and the AI Council can notice missing Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, package registration, or model setup
 - use the WinUI WebView2 smoke mode with `LOCALGPT_WEBVIEW2_SMOKE=1` when validating that the desktop wrapper loads `/Chat` and `/minecraft-mod-builder`
 - keep filesystem and OS command execution in backend services
 - use `INativeCommandRunner` or a similar service boundary for native commands
@@ -126,6 +130,12 @@ Agent guidance:
 - prefer explicit project templates and build logs over opaque generation
 - write missing-feature or blocked-workflow reports to `%LOCALAPPDATA%\LocalGPT\AIReports\`
 - have AI Council participants help users set up the system, and ask a technical recovery poll if Java, Gradle, Minecraft, Ollama, or a model is missing
+- keep council memory resumable: saved `AI Council - ...` conversations in SQLite can be selected for continuation, and each new run should respect prior user poll decisions unless the user changes them
+- always record and display the full council roster for each result step. A user may exclude faulty members in the frontend; models may recommend exclusion only as a user-confirmed poll option
+- implementation-request council chats may generate CodeDOM C# starter artifacts under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\`; expose them only through safe `/__artifacts/council/{fileName}` links
+- prototype requested features in harmless sandbox artifacts or temporary workspaces before embedding them into the real LocalGPT project structure, then add a smoke/diagnostic path for verification
+- LocalGPT and the AI Council must never self-expand or integrate generated features into the real project without explicit user permission, and must never overrule a user decision that denies or limits expansion
+- missing-feature reports must document helpful sources requested by AI participants, such as official docs, examples, versioned package references, specs, or sample repositories
 
 Detailed mod-builder instructions for AI agents are in `docs/MINECRAFT_MOD_AI_BUILDER.md`. Current workflow memory and known-good commands are in `docs/LOCALGPT_WORKFLOW_MEMORY.md`.
 

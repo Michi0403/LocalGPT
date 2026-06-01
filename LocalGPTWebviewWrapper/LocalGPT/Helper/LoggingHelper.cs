@@ -84,6 +84,38 @@ namespace LocalGPT.Helper
 
         }
 
+        public static void AddDatabaseLoggerIfConfigured(
+            ILoggingBuilder loggingBuilder,
+            IServiceCollection services,
+            IConfiguration configuration)
+        {
+            try
+            {
+                Console.WriteLine(
+                  $"Trying configure LoggingCore:DatabaseCore in {configuration}");
+                services.AddOptions<DatabaseLoggerCoreOptions>()
+                    .Bind(configuration.GetSection("LoggingCore:DatabaseCore"));
+                services.Configure<DatabaseLoggerCoreOptions>(
+                    options =>
+                    configuration.GetSection("LoggingCore:DatabaseCore").Bind(options));
+
+                var loggingOptions = configuration.GetSection("LoggingCore").Get<LoggingCoreOptions>();
+
+                if (loggingOptions?.DatabaseCore is not null && loggingOptions.DatabaseCore.CoreLogLevel != CoreLogLevel.None)
+                {
+                    Console.WriteLine($"Adding DatabaseLogger as singleton in {configuration}");
+                    loggingBuilder.AddFilter<DatabaseLoggerProvider>((_, _) => true);
+                    _ = services.AddSingleton<ILoggerProvider, DatabaseLoggerProvider>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in AddDatabaseLoggerIfConfigured: " + ex.Message);
+            }
+
+        }
+
+
         public static void ConfigureCustomLoggersWithConsoleAndDebug(
             ILoggingBuilder loggingBuilder,
             IServiceCollection services,
@@ -110,6 +142,7 @@ namespace LocalGPT.Helper
 
                     AddEmailLoggerIfConfigured(loggingBuilder, services, configuration);
                     AddFileLoggerIfConfigured(loggingBuilder, services, configuration);
+                    AddDatabaseLoggerIfConfigured(loggingBuilder, services, configuration);
                 }
 
             }

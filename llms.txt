@@ -27,6 +27,15 @@ Important assumptions:
 - Minecraft Builder should let the user/council choose Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, or future Bedrock add-on
 - use LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1 for JDK, Gradle, Eclipse, and Minecraft builder setup checks
 - use /__diag/dxaichat-smoke for configured DXAiChat backend tests and /__diag/council for council tests before falling back to direct Ollama
+- use /__diag/logs to inspect SQLite application warnings/errors; AI bootstrap includes recent log health signals for DXAiChat and council runs
+- AI Council conversations saved in SQLite can be continued through ContinueConversationId or the frontend memory selector; every step should show the full council roster
+- faulty council members may be excluded by the user, but models should request that through a poll instead of silently excluding peers
+- implementation-request council chats can ask LocalGPT to generate a downloadable CodeDOM C# starter artifact for .NET/Blazor/ASP.NET Core ideas
+- use /__diag/devexpress before proposing DevExpress APIs; Office/report/PDF/file generation belongs in ASP.NET Core backend services with safe download endpoints
+- use /__diag/build-debug-files for .pdb/.pdg/.appxsym symbol inventory, but do not confuse symbol/reference presence with source-level feature usage
+- requested features should be prototyped in harmless sandbox artifacts or temporary workspaces before integration into the real project
+- never self-expand LocalGPT or integrate generated features without explicit user permission; never overrule a user decision that denies or limits expansion
+- missing-feature reports should include helpful sources requested by AI participants, without claiming those sources were verified
 - use LOCALGPT_WEBVIEW2_SMOKE=1 in the WinUI wrapper to capture WebView2 page snapshots for desktop-shell validation
 
 Recommended docs:

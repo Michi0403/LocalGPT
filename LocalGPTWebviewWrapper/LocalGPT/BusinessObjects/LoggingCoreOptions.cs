@@ -9,6 +9,8 @@ namespace LocalGPT.BusinessObjects
 
         public FileLoggerCoreOptions? FileCore { get; set; }
 
+        public DatabaseLoggerCoreOptions? DatabaseCore { get; set; }
+
         public CoreLogLevel CoreLogLevel { get; set; }
     }
 }

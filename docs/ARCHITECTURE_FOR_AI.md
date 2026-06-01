@@ -53,6 +53,8 @@ For DevExpress 25, the main module path is:
 /_content/DevExpress.Blazor/modules/dx-blazor-all.js
 ```
 
+The AI bootstrap includes a DevExpress inventory built from `LocalGPT.csproj`, `_Imports.razor`, `Program.cs`, and loaded assemblies when available. Use `GET /__diag/devexpress` to inspect it. When a user asks for DevExpress Office document generation, report generation, PDF export, RichEdit/PdfViewer/Pivot integration, or generated downloadable files, place generation work in ASP.NET Core/Blazor server backend services and expose safe download endpoints. The frontend should call backend services and display status/download links. Do not invent DevExpress APIs beyond the referenced package/version family; mark uncertain APIs as `Needs verification`.
+
 ## AI configuration model
 
 The setup page is the user-facing control surface for AI configuration.
@@ -105,8 +107,12 @@ Current behavior:
 - selected models run proposal phases in parallel
 - later phases receive the transcript so far and correct/refine earlier work
 - a consensus response is produced and optionally peer-verified
+- each result and transcript step records the full council member list, not only the speaking model
 - the full transcript, visible model reasoning notes, errors, and timings are written to a Markdown log under `%LOCALAPPDATA%\LocalGPT\CouncilLogs`
 - the transcript is also saved into the existing SQLite chat memory as an `AI Council - model + model` conversation
+- users can select a saved council memory conversation in the Council page and continue it; LocalGPT gives the latest saved messages to the next run as selected continuation context and saves the new round back into the same EF/SQLite conversation
+- users can exclude a faulty, unavailable, too slow, or hallucination-prone member from the next round from the frontend; models may recommend exclusion only through a user decision poll
+- users can start a dedicated implementation-request council chat. This enables a CodeDOM-generated C# starter artifact for .NET/Blazor/ASP.NET Core style feature ideas and exposes it through a safe `/__artifacts/council/{fileName}` download link. Requested features should be prototyped in a harmless sandbox artifact or temporary workspace and smoke-tested before integration into the real project structure. LocalGPT must never self-expand or integrate generated features without explicit user permission, and a user decision that denies or limits expansion must not be overruled.
 
 Performance rule: default council scheduling runs one model inference at a time (`MaxParallelModels = 1`), caps Ollama context (`MaxContextTokens = 8192` by default), applies a per-model timeout, and uses a short Ollama keep-alive when several large local models are selected. This avoids trying to keep multiple 20B/30B models resident in VRAM at once on machines like a 7900 XTX with 24 GB VRAM. Users can raise the parallelism or context in the UI when they know the loaded models fit together.
 
@@ -115,6 +121,30 @@ Decision rule: if a participant is unavailable, the council cannot converge, or 
 Frustration rule: if the user's prompt sounds angry, blocked, or frustrated, the council must stay kind, avoid blame, and turn the emotion into a technical recovery poll. Poll options should cover stabilization, missing-feature implementation, and scope reduction. The selected path and any missing LocalGPT feature request should be saved into SQLite chat memory so later models can see it.
 
 Design rule: the council can display provider-supplied visible thinking and model-written reasoning notes, but user-facing controls should make it clear which model produced each note. Treat council output as reviewed assistance, not as automatically true.
+
+## SQLite application log awareness
+
+LocalGPT stores recent application warnings and errors in the same SQLite database used for chat memory.
+
+Current behavior:
+
+- `LoggingCore:DatabaseCore:CoreLogLevel` controls the minimum persisted level.
+- the database logger uses a bounded queue and background flushes so request/UI threads are not blocked by SQLite writes.
+- the queue drops oldest entries if it is full; diagnostics should stay useful without freezing the app.
+- Entity Framework categories are excluded from the database logger to avoid recursive logging while writing logs.
+- existing user databases are upgraded with `CREATE TABLE IF NOT EXISTS` for `ApplicationLogs`, because the app uses `EnsureCreated` instead of EF migrations.
+- `/__diag/logs?minimumLevel=Warning&take=30` returns recent persisted logs and the AI briefing text.
+- `/__diag/logs?writeSmoke=true` writes a harmless warning entry and waits for a flush, which is useful after changing logging code.
+
+AI bootstrap includes a short warning/error briefing. Treat it as a health signal: if it mentions missing Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, package registration, or model setup, explain likely local fixes and mark uncertain details as `Needs verification`.
+
+## Missing feature reports
+
+When AI output identifies a missing LocalGPT capability, LocalGPT writes a report under `%LOCALAPPDATA%\LocalGPT\AIReports\`. Reports should include a `Helpful sources requested` section when the model would benefit from official docs, examples, versioned package references, specs, tutorials, or sample repositories. Source requests are not verification; models must say `Needs verification` until those sources are actually supplied or inspected.
+
+## Build debug symbols
+
+LocalGPT exposes a build symbol inventory at `GET /__diag/build-debug-files`. It lists `.pdb`, `.pdg`, and `.appxsym` files from current output paths. Add `copy=true` to copy the current symbols under `%LOCALAPPDATA%\LocalGPT\BuildDebugFiles\` for council diagnostics. These files are not committed to git. Treat them as build/debug evidence only; symbol presence, generated references, or component imports are not proof that source code uses a feature.
 
 ## Minecraft mod generation model
 
@@ -154,6 +184,8 @@ Use `POST /__diag/dxaichat-smoke` to exercise the configured `IChatClient` used 
 Use `POST /__diag/council` to exercise the AI Council through LocalGPT. Keep `MaxParallelModels = 1` for 20B/30B local models on consumer GPUs unless the user explicitly wants a heavier run.
 
 Use `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge` to generate a buildable workspace through the app service, then run the generated `build-local.ps1`.
+
+Use `GET /__diag/logs?minimumLevel=Warning&take=30` to inspect persisted app health before asking the AI Council for setup advice.
 
 LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Diagnostics should discover the current URL from:
 

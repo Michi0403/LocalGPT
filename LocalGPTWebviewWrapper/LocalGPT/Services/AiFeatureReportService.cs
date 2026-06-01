@@ -25,6 +25,9 @@ namespace LocalGPT.Services
                 .AppendLine($"Created: {DateTimeOffset.Now:O}")
                 .AppendLine($"Source: {source}")
                 .AppendLine()
+                .AppendLine("Helpful sources requested by the AI:")
+                .AppendLine(ExtractHelpfulSources(responseText))
+                .AppendLine()
                 .AppendLine(responseText)
                 .ToString();
 
@@ -38,7 +41,32 @@ namespace LocalGPT.Services
             return MissingFeaturePattern().IsMatch(text);
         }
 
+        private static string ExtractHelpfulSources(string text)
+        {
+            var matches = HelpfulSourceLinePattern()
+                .Matches(text)
+                .Select(match => match.Groups["line"].Value.Trim())
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(12)
+                .ToList();
+
+            if (matches.Count == 0)
+            {
+                return "- None explicitly requested. If this missing feature depends on external APIs, ask the user for official docs, example projects, or versioned package references before implementation.";
+            }
+
+            var builder = new StringBuilder();
+            foreach (var match in matches)
+                builder.Append("- ").AppendLine(match);
+
+            return builder.ToString().TrimEnd();
+        }
+
         [GeneratedRegex("(missing feature|missing capability|not implemented|not yet implemented|blocked by|cannot build|requires implementation|feature gap)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex MissingFeaturePattern();
+
+        [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?<line>(?:helpful sources?|source request|needed sources?|references?|docs?|documentation|official docs?|examples?|sample projects?|spec(?:ification)?s?|tutorials?)\\s*[:\\-].+)$", RegexOptions.CultureInvariant)]
+        private static partial Regex HelpfulSourceLinePattern();
     }
 }

@@ -5,6 +5,9 @@ namespace LocalGPT.Services
 {
     public class AiContextBootstrapService(
         IChatMemoryService chatMemory,
+        IApplicationLogReaderService applicationLogs,
+        IProjectLibraryInventoryService libraryInventory,
+        IBuildDebugInventoryService buildDebugInventory,
         ILogger<AiContextBootstrapService> logger) : IAiContextBootstrapService
     {
         private static readonly string[] KnowledgeFiles =
@@ -31,6 +34,30 @@ namespace LocalGPT.Services
             {
                 builder.AppendLine("Saved LocalGPT memory:")
                     .AppendLine(memoryBriefing)
+                    .AppendLine();
+            }
+
+            var logBriefing = await applicationLogs.BuildAiLogBriefingAsync(cancellationToken: cancellationToken);
+            if (!string.IsNullOrWhiteSpace(logBriefing))
+            {
+                builder.AppendLine("Recent LocalGPT diagnostic log awareness:")
+                    .AppendLine(logBriefing)
+                    .AppendLine();
+            }
+
+            var devExpressBriefing = await libraryInventory.BuildDevExpressBriefingAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(devExpressBriefing))
+            {
+                builder.AppendLine("Local DevExpress library inventory:")
+                    .AppendLine(TrimForPrompt(devExpressBriefing, 2200))
+                    .AppendLine();
+            }
+
+            var buildDebugBriefing = await buildDebugInventory.BuildBriefingAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(buildDebugBriefing))
+            {
+                builder.AppendLine("Local build debug symbol inventory:")
+                    .AppendLine(TrimForPrompt(buildDebugBriefing, 1600))
                     .AppendLine();
             }
 

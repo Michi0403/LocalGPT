@@ -88,6 +88,9 @@ namespace LocalGPT
             builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
             builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
             builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
+            builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
+            builder.Services.AddSingleton<IProjectLibraryInventoryService, ProjectLibraryInventoryService>();
+            builder.Services.AddSingleton<IBuildDebugInventoryService, BuildDebugInventoryService>();
             builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
             builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
             var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
@@ -95,6 +98,7 @@ namespace LocalGPT
             builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
                 options.UseSqlite($"Data Source={memoryDbPath}"));
             builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
+            builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
             builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
             builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
 
@@ -299,6 +303,67 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     RecentThoughtCount = thoughts.Count,
                     Conversations = conversations,
                     RecentThoughts = thoughts
+                });
+            });
+            app.MapGet("/__artifacts/council/{fileName}", (string fileName, ICouncilArtifactService artifacts) =>
+            {
+                var safeFileName = Path.GetFileName(fileName);
+                if (!string.Equals(fileName, safeFileName, StringComparison.Ordinal) ||
+                    !safeFileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    return Results.BadRequest("Invalid artifact file name.");
+
+                var path = Path.Combine(artifacts.ArtifactRoot, safeFileName);
+                if (!File.Exists(path))
+                    return Results.NotFound();
+
+                return Results.File(path, "text/plain; charset=utf-8", safeFileName);
+            });
+            app.MapGet("/__diag/logs", async (IApplicationLogReaderService logs, ILoggerFactory loggerFactory, string? minimumLevel, int? take, bool? writeSmoke, CancellationToken ct) =>
+            {
+                await logs.EnsureCreatedAsync(ct);
+                var parsedLevel = Enum.TryParse<LogLevel>(minimumLevel, ignoreCase: true, out var level)
+                    ? level
+                    : LogLevel.Warning;
+
+                if (writeSmoke == true)
+                {
+                    loggerFactory
+                        .CreateLogger("LocalGPT.Diagnostics.DatabaseLoggerSmoke")
+                        .LogWarning("SQLite database logger smoke test warning. This entry verifies async application log persistence.");
+                    await Task.Delay(TimeSpan.FromSeconds(4), ct);
+                }
+
+                var recent = await logs.GetRecentAsync(parsedLevel, take ?? 30, ct);
+                var briefing = await logs.BuildAiLogBriefingAsync(parsedLevel, Math.Min(take ?? 8, 20), ct);
+                return Results.Ok(new
+                {
+                    logs.DatabasePath,
+                    MinimumLevel = parsedLevel.ToString(),
+                    Count = recent.Count,
+                    Recent = recent,
+                    AiBriefing = briefing,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+            app.MapGet("/__diag/devexpress", async (IProjectLibraryInventoryService inventory, CancellationToken ct) =>
+            {
+                return Results.Ok(new
+                {
+                    Briefing = await inventory.BuildDevExpressBriefingAsync(ct),
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+            app.MapGet("/__diag/build-debug-files", async (IBuildDebugInventoryService inventory, bool? copy, CancellationToken ct) =>
+            {
+                var result = await inventory.CaptureAsync(copy == true, ct);
+                return Results.Ok(new
+                {
+                    result.ArtifactRoot,
+                    result.CopiedFiles,
+                    result.CapturedAtUtc,
+                    Count = result.Files.Count,
+                    Files = result.Files,
+                    Briefing = await inventory.BuildBriefingAsync(ct)
                 });
             });
             app.MapGet("/__diag/memory-smoke", async (IChatMemoryService memory, IChatClient chatClient, CancellationToken ct) =>

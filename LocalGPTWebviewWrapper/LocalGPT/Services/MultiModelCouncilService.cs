@@ -15,6 +15,7 @@ namespace LocalGPT.Services
         IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
         IAiContextBootstrapService bootstrapService,
         IChatMemoryService chatMemory,
+        ICouncilArtifactService artifactService,
         ILogger<MultiModelCouncilService> logger) : IMultiModelCouncilService
     {
         private const string DefaultOllamaUri = "http://localhost:11434";
@@ -82,6 +83,14 @@ namespace LocalGPT.Services
                 ModelNames = participants,
                 StartedAtUtc = DateTime.UtcNow
             };
+            var continuedConversation = await LoadContinuationConversationAsync(request.ContinueConversationId, cancellationToken);
+            if (request.ContinueConversationId is Guid continuationId)
+            {
+                result.ContinuedFromConversationId = continuationId;
+                result.ContinuedFromTitle = continuedConversation?.Title;
+                if (continuedConversation is null)
+                    result.Warnings.Add($"The selected council memory conversation {continuationId} could not be loaded. This run will start from general memory instead.");
+            }
 
             if (participants.Count < 2)
                 result.Warnings.Add("Only one council model is selected. Add another installed Ollama model on Install or type its model name manually for real cross-model negotiation.");
@@ -95,6 +104,9 @@ namespace LocalGPT.Services
             var bootstrap = request.IncludeMemory
                 ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
                 : string.Empty;
+            var continuationContext = BuildContinuationContext(continuedConversation);
+            if (!string.IsNullOrWhiteSpace(continuationContext))
+                bootstrap = AppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext);
 
             await RunPhaseAsync(
                 result,
@@ -137,6 +149,7 @@ namespace LocalGPT.Services
             var consensusStep = await RunParticipantAsync(
                 baseUri,
                 participants[0],
+                participants,
                 round: critiqueRounds + 2,
                 phase: "Consensus",
                 role: "Consensus writer",
@@ -155,6 +168,7 @@ namespace LocalGPT.Services
                 var verificationStep = await RunParticipantAsync(
                     baseUri,
                     participants[1],
+                    participants,
                     round: critiqueRounds + 3,
                     phase: "Verification",
                     role: "Peer verifier",
@@ -181,12 +195,13 @@ namespace LocalGPT.Services
             }
 
             result.UserPoll = BuildUserPoll(result);
+            result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
 
             result.CompletedAtUtc = DateTime.UtcNow;
             result.LogPath = await WriteLogAsync(result, cancellationToken);
 
             if (request.SaveToMemory)
-                result.MemoryConversationId = await SaveToMemoryAsync(request, result, cancellationToken);
+                result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken);
 
             logger.LogInformation(
                 "Multi-model council {RunId} completed with {ParticipantCount} participant(s), {StepCount} step(s), memory {MemoryConversationId}, log {LogPath}.",
@@ -222,7 +237,7 @@ namespace LocalGPT.Services
                     await gate.WaitAsync(cancellationToken);
                     try
                     {
-                        return await RunParticipantAsync(baseUri, modelName, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds, cancellationToken);
+                        return await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds, cancellationToken);
                     }
                     finally
                     {
@@ -245,6 +260,7 @@ namespace LocalGPT.Services
         private async Task<MultiModelCouncilStep> RunParticipantAsync(
             string baseUri,
             string modelName,
+            IReadOnlyList<string> councilMembers,
             int round,
             string phase,
             string role,
@@ -273,7 +289,7 @@ namespace LocalGPT.Services
                 var messages = new List<ChatMessage>();
                 if (!string.IsNullOrWhiteSpace(bootstrap))
                     messages.Add(new ChatMessage(ChatRole.System, bootstrap));
-                messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName)));
+                messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName, councilMembers)));
                 messages.Add(new ChatMessage(ChatRole.User, prompt));
 
                 var response = await client.GetResponseAsync(
@@ -297,6 +313,7 @@ namespace LocalGPT.Services
                     Round = round,
                     Phase = phase,
                     ModelName = modelName,
+                    CouncilMembers = councilMembers.ToList(),
                     Role = role,
                     Content = content,
                     VisibleContent = visibleContent,
@@ -316,6 +333,7 @@ namespace LocalGPT.Services
                     Round = round,
                     Phase = phase,
                     ModelName = modelName,
+                    CouncilMembers = councilMembers.ToList(),
                     Role = role,
                     Content = $"**{message}**",
                     VisibleContent = $"**{message}**",
@@ -334,6 +352,7 @@ namespace LocalGPT.Services
                     Round = round,
                     Phase = phase,
                     ModelName = modelName,
+                    CouncilMembers = councilMembers.ToList(),
                     Role = role,
                     Content = $"**{modelName} failed during {phase}.**{Environment.NewLine}{ex.Message}",
                     VisibleContent = $"**{modelName} failed during {phase}.**{Environment.NewLine}{ex.Message}",
@@ -348,6 +367,8 @@ namespace LocalGPT.Services
         private void AddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step)
         {
             step.SortOrder = result.Steps.Count;
+            if (step.CouncilMembers.Count == 0)
+                step.CouncilMembers = result.ModelNames.ToList();
             result.Steps.Add(step);
         }
 
@@ -488,12 +509,88 @@ namespace LocalGPT.Services
             }
         }
 
-        private async Task<Guid?> SaveToMemoryAsync(MultiModelCouncilRequest request, MultiModelCouncilResult result, CancellationToken cancellationToken)
+        private async Task<ChatMemoryConversationSnapshot?> LoadContinuationConversationAsync(Guid? conversationId, CancellationToken cancellationToken)
         {
-            var messages = new List<BlazorChatMessage>
+            if (conversationId is not Guid id)
+                return null;
+
+            try
             {
-                new(ChatRole.User, $"AI Council request:{Environment.NewLine}{request.Prompt}", new List<AIChatUploadFileInfo>())
-            };
+                await chatMemory.EnsureCreatedAsync(cancellationToken);
+                return await chatMemory.LoadConversationAsync(id, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not load council continuation conversation {ConversationId}.", id);
+                return null;
+            }
+        }
+
+        private static string BuildContinuationContext(ChatMemoryConversationSnapshot? conversation)
+        {
+            if (conversation is null)
+                return string.Empty;
+
+            var builder = new StringBuilder()
+                .AppendLine($"Conversation id: {conversation.Id}")
+                .AppendLine($"Title: {conversation.Title}")
+                .AppendLine($"Provider: {conversation.ProviderName}")
+                .AppendLine($"Updated: {conversation.UpdatedAtUtc:u}")
+                .AppendLine()
+                .AppendLine("Latest saved messages from this council thread:");
+
+            foreach (var message in conversation.Messages
+                .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
+                .TakeLast(12))
+            {
+                builder
+                    .Append("- ")
+                    .Append(message.Role)
+                    .Append(": ")
+                    .AppendLine(TrimCouncilText(StripThinking(message.Content), 700));
+            }
+
+            builder.AppendLine("Every council member must treat this as selected continuation context. Preserve user decisions from prior polls unless the user explicitly changes them.");
+            return builder.ToString().Trim();
+        }
+
+        private static string AppendPromptSection(string existing, string title, string content)
+        {
+            var section = $"{title}:{Environment.NewLine}{content}".Trim();
+            return string.IsNullOrWhiteSpace(existing)
+                ? section
+                : $"{existing.Trim()}{Environment.NewLine}{Environment.NewLine}{section}";
+        }
+
+        private async Task<Guid?> SaveToMemoryAsync(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            ChatMemoryConversationSnapshot? continuedConversation,
+            CancellationToken cancellationToken)
+        {
+            var messages = continuedConversation is null
+                ? new List<BlazorChatMessage>()
+                : continuedConversation.Messages
+                    .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
+                    .ToList();
+
+            messages.Add(new BlazorChatMessage(
+                ChatRole.User,
+                BuildCouncilRequestMemoryMessage(request, result, continuedConversation is not null),
+                new List<AIChatUploadFileInfo>()));
+
+            messages.Add(new BlazorChatMessage(
+                ChatRole.Assistant,
+                $"## Council members for this round{Environment.NewLine}{string.Join(", ", result.ModelNames)}",
+                new List<AIChatUploadFileInfo>()));
+
+            if (result.ContinuedFromConversationId is Guid continuedFrom)
+            {
+                messages.Add(new BlazorChatMessage(
+                    ChatRole.Assistant,
+                    $"Continuing prior council conversation `{continuedFrom}`{(string.IsNullOrWhiteSpace(result.ContinuedFromTitle) ? string.Empty : $" - {result.ContinuedFromTitle}")}.",
+                    new List<AIChatUploadFileInfo>()));
+            }
 
             foreach (var step in result.Steps)
             {
@@ -511,6 +608,14 @@ namespace LocalGPT.Services
                     new List<AIChatUploadFileInfo>()));
             }
 
+            if (result.Artifacts.Count > 0)
+            {
+                messages.Add(new BlazorChatMessage(
+                    ChatRole.Assistant,
+                    BuildArtifactsMarkdown(result.Artifacts),
+                    new List<AIChatUploadFileInfo>()));
+            }
+
             messages.Add(new BlazorChatMessage(
                 ChatRole.Assistant,
                 $"## Final council answer{Environment.NewLine}{result.FinalAnswer}",
@@ -519,7 +624,22 @@ namespace LocalGPT.Services
             return await chatMemory.SaveConversationAsync(
                 $"AI Council - {string.Join(" + ", result.ModelNames)}",
                 messages,
+                continuedConversation?.Id,
                 cancellationToken: cancellationToken);
+        }
+
+        private static string BuildCouncilRequestMemoryMessage(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            bool isContinuation)
+        {
+            var label = isContinuation ? "AI Council continuation request" : "AI Council request";
+            return $"""
+                {label}:
+                Council members: {string.Join(", ", result.ModelNames)}
+
+                {request.Prompt}
+                """.Trim();
         }
 
         private static string BuildMemoryMessage(MultiModelCouncilStep step)
@@ -531,6 +651,7 @@ namespace LocalGPT.Services
                 .AppendLine(step.ModelName)
                 .AppendLine()
                 .AppendLine($"Role: {step.Role}")
+                .AppendLine($"Council members: {string.Join(", ", step.CouncilMembers)}")
                 .AppendLine($"Duration: {step.DurationSeconds:0.0}s")
                 .AppendLine();
 
@@ -580,6 +701,16 @@ namespace LocalGPT.Services
                 .AppendLine(result.Prompt)
                 .AppendLine();
 
+            if (result.ContinuedFromConversationId is Guid continuedFrom)
+            {
+                builder
+                    .AppendLine("## Continued Conversation")
+                    .AppendLine()
+                    .AppendLine($"Conversation: {continuedFrom}")
+                    .AppendLine($"Title: {result.ContinuedFromTitle ?? "Unknown"}")
+                    .AppendLine();
+            }
+
             if (result.Warnings.Count > 0)
             {
                 builder.AppendLine("## Warnings").AppendLine();
@@ -595,6 +726,7 @@ namespace LocalGPT.Services
                     .AppendLine($"### {step.Phase}: {step.ModelName}")
                     .AppendLine()
                     .AppendLine($"Role: {step.Role}")
+                    .AppendLine($"Council members: {string.Join(", ", step.CouncilMembers)}")
                     .AppendLine($"Round: {step.Round}")
                     .AppendLine($"Duration: {step.DurationSeconds:0.0}s")
                     .AppendLine();
@@ -608,6 +740,11 @@ namespace LocalGPT.Services
             if (result.UserPoll is not null)
             {
                 builder.AppendLine("## User Decision Poll").AppendLine().AppendLine(BuildPollMarkdown(result.UserPoll)).AppendLine();
+            }
+
+            if (result.Artifacts.Count > 0)
+            {
+                builder.AppendLine("## Artifacts").AppendLine().AppendLine(BuildArtifactsMarkdown(result.Artifacts)).AppendLine();
             }
 
             builder.AppendLine("## Final Answer").AppendLine().AppendLine(result.FinalAnswer);
@@ -636,28 +773,40 @@ namespace LocalGPT.Services
                 ? $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}."
                 : "The council marked parts of the answer as needing verification or human review.";
 
+            var options = new List<CouncilUserPollOption>();
+            if (failedModels.Count > 0)
+            {
+                options.Add(new CouncilUserPollOption
+                {
+                    Label = "Exclude faulty members",
+                    FollowUpPrompt = $"Exclude these council member(s) from the next round unless the user re-adds them: {string.Join(", ", failedModels)}. Continue with the remaining selected models, preserve the prior transcript, and clearly note that the exclusion was user-confirmed."
+                });
+            }
+
+            options.AddRange(
+            [
+                new CouncilUserPollOption
+                {
+                    Label = "Wait and retry missing models",
+                    FollowUpPrompt = "Wait until all requested Ollama models are installed and visible, then rerun the same council prompt. Every participant must read the prior transcript, acknowledge the user selected retry, and produce updated proposals."
+                },
+                new CouncilUserPollOption
+                {
+                    Label = "Proceed with available models",
+                    FollowUpPrompt = "Continue with only the currently available models. Every participant must acknowledge which models were unavailable and avoid claiming absent models agreed."
+                },
+                new CouncilUserPollOption
+                {
+                    Label = "Ask a shorter tie-break question",
+                    FollowUpPrompt = "Ask the user one focused follow-up question that resolves the blocked decision, then rerun the council using the user's answer as binding context."
+                }
+            ]);
+
             return new CouncilUserPoll
             {
                 Question = "How should the AI Council continue so every model stays aligned with your decision?",
                 Reason = reason,
-                Options =
-                [
-                    new CouncilUserPollOption
-                    {
-                        Label = "Wait and retry missing models",
-                        FollowUpPrompt = "Wait until all requested Ollama models are installed and visible, then rerun the same council prompt. Every participant must read the prior transcript, acknowledge the user selected retry, and produce updated proposals."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Proceed with available models",
-                        FollowUpPrompt = "Continue with only the currently available models. Every participant must acknowledge which models were unavailable and avoid claiming absent models agreed."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Ask a shorter tie-break question",
-                        FollowUpPrompt = "Ask the user one focused follow-up question that resolves the blocked decision, then rerun the council using the user's answer as binding context."
-                    }
-                ]
+                Options = options
             };
         }
 
@@ -748,6 +897,28 @@ namespace LocalGPT.Services
             return builder.ToString().Trim();
         }
 
+        private static string BuildArtifactsMarkdown(IEnumerable<CouncilArtifact> artifacts)
+        {
+            var builder = new StringBuilder()
+                .AppendLine("## Downloadable council artifacts")
+                .AppendLine();
+
+            foreach (var artifact in artifacts)
+            {
+                builder
+                    .Append("- [")
+                    .Append(artifact.Name)
+                    .Append("](")
+                    .Append(artifact.DownloadUrl)
+                    .Append(") - ")
+                    .Append(artifact.Kind)
+                    .Append(": ")
+                    .AppendLine(artifact.Summary);
+            }
+
+            return builder.ToString().Trim();
+        }
+
         private static string BuildTranscript(IEnumerable<MultiModelCouncilStep> steps)
         {
             var builder = new StringBuilder();
@@ -768,13 +939,15 @@ namespace LocalGPT.Services
             return builder.ToString().Trim();
         }
 
-        private static string CreateCouncilSystemPrompt(string modelName) => $"""
+        private static string CreateCouncilSystemPrompt(string modelName, IReadOnlyList<string> councilMembers) => $"""
             You are {modelName}, one participant in a peaceful LocalGPT multi-model council.
+            Current council members for this run: {string.Join(", ", councilMembers)}.
             Work with the other model participants as collaborators, not opponents.
             Correct mistakes kindly and directly.
             Name at least one useful contribution from another participant when critiquing, unless no other participant answered.
             If the user sounds angry, blocked, or frustrated, de-escalate technically: acknowledge the blocked workflow, avoid blame, and propose a user decision poll with concrete recovery choices.
             Do not ignore another model's concern; either integrate it, explain why it is out of scope, or ask the user to decide.
+            If a council member looks faulty, unavailable, hallucination-prone, stuck, or too slow, propose excluding or retrying that member only through a user-confirmed poll. Do not remove a member on your own authority.
             Prefer buildable, testable answers over impressive wording.
             Separate current implementation facts from proposed future ideas.
             Do not describe a proposed class, table, test, or package step as already implemented unless the prompt, memory, or transcript explicitly says it exists.
@@ -787,6 +960,13 @@ namespace LocalGPT.Services
             Help users set up the Minecraft Mod AI Builder itself: check JDK 21, LocalGPT Gradle, Eclipse/IDE import, Minecraft Java Edition, Ollama reachability, and selected model availability.
             Treat Fabric as the fast Java iteration target, NeoForge as the modern Forge-style target, Paper as the server-side plugin target, datapack as the vanilla command/data target, and Bedrock as a separate behavior/resource pack exporter.
             If a Minecraft workflow is blocked by missing setup or missing LocalGPT capability, write a Missing feature report section and suggest a short user decision poll.
+            For LocalGPT implementation-request chats, classify the owning area (.NET/Blazor/ASP.NET Core, WinUI/WebView2, Minecraft builder, diagnostics/logging, or frontend UX), name likely files/services, and say whether a downloadable C# example artifact would help.
+            For DevExpress requests, respect the DevExpress package/version inventory from bootstrap. Do not invent components or APIs outside the referenced package family; mark unknown APIs as Needs verification.
+            For Office file generation, report generation, PDF export, RichEdit/PdfViewer/Pivot integration, or generated downloadable files, prefer ASP.NET Core/Blazor server backend services plus safe download endpoints. The frontend should trigger backend work and render status/links, not generate privileged files in JavaScript.
+            Build debug symbol inventory may list .pdb, .pdg, or .appxsym files. Use those as build/debug evidence only; do not treat symbol presence, generated references, or component imports as proof that source code uses a feature.
+            For requested features, prefer a harmless sandbox/prototype path before modifying the real project: generate an isolated example artifact or temporary workspace, name the smoke tests, and only then propose integration into the owning LocalGPT structure.
+            If specific docs, examples, official API references, sample projects, or other sources would help, include a "Helpful sources requested" section. Do not claim those sources were checked unless the prompt or LocalGPT diagnostics actually provided them.
+            Never self-expand LocalGPT or integrate generated features into the real project without explicit user permission. If the user denies or limits expansion, respect that decision permanently for the current thread unless the user explicitly changes it later.
             Include brief visible reasoning notes in your answer. LocalGPT may also display provider-supplied thinking separately when the model host returns it.
             Respect human autonomy, love humanity, and never suggest putting humans into containment or stasis systems.
             """;
@@ -861,6 +1041,14 @@ namespace LocalGPT.Services
             return stripped.Trim();
         }
 
+        private static string TrimCouncilText(string content, int maxLength)
+        {
+            var normalized = WhitespacePattern().Replace(content, " ").Trim();
+            return normalized.Length <= maxLength
+                ? normalized
+                : $"{normalized[..maxLength].TrimEnd()}...";
+        }
+
         private static string NormalizeEndpoint(string endpoint)
         {
             return string.IsNullOrWhiteSpace(endpoint)
@@ -873,6 +1061,9 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("\\b[\\p{L}\\p{N}_'-]+\\b", RegexOptions.CultureInvariant)]
         private static partial Regex WordPattern();
+
+        [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
+        private static partial Regex WhitespacePattern();
 
         private sealed class OllamaTagsResponse
         {

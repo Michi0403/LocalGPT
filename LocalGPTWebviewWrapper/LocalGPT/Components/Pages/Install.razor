@@ -1,5 +1,7 @@
 ﻿@page "/install"
 
+@using LocalGPT.BusinessObjects.Enums
+
 @inject ILogger<Install> Logger
 @inject INotificationService Notifier
 @inject IOptionsMonitor<ConfigurationRoot> Opts
@@ -160,6 +162,29 @@
                     <DxButton Text="Test Connection" Click="TestAzure" />
                 </DxFormLayoutTabPage>
 
+                <DxFormLayoutTabPage Caption="App Logging">
+                    <DxFormLayoutItem Caption="Global Log Level">
+                        <DxComboBox Data="@LogLevels"
+                                    @bind-Value="LoggingModel.CoreLogLevel" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="SQLite Log Level">
+                        <DxComboBox Data="@LogLevels"
+                                    @bind-Value="DatabaseLoggerModel.CoreLogLevel" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Queue Length">
+                        <DxSpinEdit @bind-Value="DatabaseLoggerModel.MaxQueueLength" Min="100" Max="50000" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Batch Size">
+                        <DxSpinEdit @bind-Value="DatabaseLoggerModel.BatchSize" Min="1" Max="500" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Flush Interval (s)">
+                        <DxSpinEdit @bind-Value="DatabaseLoggerModel.FlushIntervalSeconds" Min="1" Max="30" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Retention (days)">
+                        <DxSpinEdit @bind-Value="DatabaseLoggerModel.RetentionDays" Min="1" Max="3660" />
+                    </DxFormLayoutItem>
+                </DxFormLayoutTabPage>
+
             </DxFormLayoutTabPages>
         </DxFormLayout>
 
@@ -169,6 +194,9 @@
 
 @code {
     private AICoreOptions Model = new();
+    private LoggingCoreOptions LoggingModel = new();
+    private DatabaseLoggerCoreOptions DatabaseLoggerModel = new();
+    private IReadOnlyList<CoreLogLevel> LogLevels { get; } = Enum.GetValues<CoreLogLevel>();
     private string _log = "";
     private string toastName = "InstallToasts";
     private bool IsDiscovering;
@@ -186,6 +214,18 @@
             Model.OllamaCores = current.OllamaCores ?? new List<OllamaCoreOptions>();
             Model.OpenAICore      = current.OpenAICore      ?? new OpenAICompatOptions();
             Model.OpenAIServiceCore = current.OpenAIServiceCore ?? new OpenAIServiceCoreOptions();
+
+            LoggingModel = Opts.CurrentValue.LoggingCore ?? new LoggingCoreOptions
+            {
+                CoreLogLevel = CoreLogLevel.Information,
+                FileCore = new FileLoggerCoreOptions { CoreLogLevel = CoreLogLevel.Error, FilePath = string.Empty },
+                EmailCore = new EmailLoggerCoreOptions { CoreLogLevel = CoreLogLevel.None },
+                DatabaseCore = new DatabaseLoggerCoreOptions { CoreLogLevel = CoreLogLevel.Warning }
+            };
+            LoggingModel.FileCore ??= new FileLoggerCoreOptions { CoreLogLevel = CoreLogLevel.Error, FilePath = string.Empty };
+            LoggingModel.EmailCore ??= new EmailLoggerCoreOptions { CoreLogLevel = CoreLogLevel.None };
+            DatabaseLoggerModel = LoggingModel.DatabaseCore ?? new DatabaseLoggerCoreOptions { CoreLogLevel = CoreLogLevel.Warning };
+            LoggingModel.DatabaseCore = DatabaseLoggerModel;
         }
         catch (Exception ex)
         {
@@ -446,6 +486,8 @@
                 .ToList();
             root.AICore.OpenAICore = Model.OpenAICore;
             root.AICore.OpenAIServiceCore = Model.OpenAIServiceCore;
+            root.LoggingCore = LoggingModel;
+            root.LoggingCore.DatabaseCore = DatabaseLoggerModel;
 
             await Writer.SaveAsync(root);
             await Append("Saved appsettings.json. New chats will use updated providers.");

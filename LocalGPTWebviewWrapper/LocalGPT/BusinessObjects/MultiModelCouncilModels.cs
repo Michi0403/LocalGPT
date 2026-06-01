@@ -25,6 +25,10 @@ namespace LocalGPT.BusinessObjects
         public bool SaveToMemory { get; set; } = true;
 
         public string? Title { get; set; }
+
+        public Guid? ContinueConversationId { get; set; }
+
+        public bool GenerateImplementationArtifact { get; set; }
     }
 
     public sealed record MultiModelCouncilModelCandidate(
@@ -51,6 +55,10 @@ namespace LocalGPT.BusinessObjects
 
         public List<string> ModelNames { get; set; } = [];
 
+        public Guid? ContinuedFromConversationId { get; set; }
+
+        public string? ContinuedFromTitle { get; set; }
+
         public List<MultiModelCouncilStep> Steps { get; set; } = [];
 
         public string FinalAnswer { get; set; } = string.Empty;
@@ -61,7 +69,22 @@ namespace LocalGPT.BusinessObjects
 
         public string? LogPath { get; set; }
 
+        public List<CouncilArtifact> Artifacts { get; set; } = [];
+
         public List<string> Warnings { get; set; } = [];
+    }
+
+    public sealed class CouncilArtifact
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public string Kind { get; set; } = string.Empty;
+
+        public string FilePath { get; set; } = string.Empty;
+
+        public string DownloadUrl { get; set; } = string.Empty;
+
+        public string Summary { get; set; } = string.Empty;
     }
 
     public sealed class CouncilUserPoll
@@ -89,6 +112,8 @@ namespace LocalGPT.BusinessObjects
         public string Phase { get; set; } = string.Empty;
 
         public string ModelName { get; set; } = string.Empty;
+
+        public List<string> CouncilMembers { get; set; } = [];
 
         public string Role { get; set; } = string.Empty;
 
