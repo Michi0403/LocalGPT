@@ -62,16 +62,28 @@
     <PackageCertificateKeyFile Condition="'$(PackageCertificateKeyFile)' == '' and '$(LocalGPTPackageCertificateKeyFile)' != ''">$(LocalGPTPackageCertificateKeyFile)</PackageCertificateKeyFile>
   </PropertyGroup>
 	<Target Name="EnsureWindowsAppSdkPackageRuntimeFolders"
-        BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage;CopyFilesToOutputDirectory">
+        BeforeTargets="Build;_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage;CopyFilesToOutputDirectory;_CopyFilesToAppxLayout;_CopyPackageFilesToLayout;_CopyPackageFilesToOutputDirectory">
 		<ItemGroup>
 			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x64\native" />
 			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x86\native" />
 			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
 			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
 			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
 			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
 			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
 			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
+			<_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
+			<_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
+			<_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
+			<_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
+			<_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" Condition="'$(AppxLayoutDir)' != ''" />
+			<_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" Condition="'$(AppxLayoutDir)' != ''" />
+			<_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" Condition="'$(AppxLayoutDir)' != ''" />
+			<_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" Condition="'$(AppxLayoutDir)' != ''" />
 		</ItemGroup>
 		<MakeDir Directories="@(_WindowsAppSdkRuntimeDir)" />
 	</Target>
