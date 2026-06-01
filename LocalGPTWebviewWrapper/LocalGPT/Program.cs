@@ -4,6 +4,7 @@ using DevExpress.CodeParser;
 using DevExpress.XtraCharts;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Components;
+using LocalGPT.Data;
 using LocalGPT.Helper;
 using LocalGPT.Hubs;
 using LocalGPT.Interfaces;
@@ -13,6 +14,7 @@ using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -84,8 +86,14 @@ namespace LocalGPT
             builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
             builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
             builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
+            var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
+            Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
+            builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
+                options.UseSqlite($"Data Source={memoryDbPath}"));
+            builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
+            builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
 
-            builder.Services.AddSingleton<IChatClientFactory, ChatClientFactory>();
+            builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
             // Build a fresh chat client per request/scope from the latest options
             builder.Services.AddScoped<IChatClient>(sp =>
             {
@@ -213,6 +221,21 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 {
                     Text = response.Text,
                     CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+            app.MapGet("/__diag/memory", async (IChatMemoryService memory, CancellationToken ct) =>
+            {
+                await memory.EnsureCreatedAsync(ct);
+                var conversations = await memory.GetConversationsAsync(20, ct);
+                var thoughts = await memory.GetRecentThoughtsAsync(5, ct);
+
+                return Results.Ok(new
+                {
+                    memory.DatabasePath,
+                    ConversationCount = conversations.Count,
+                    RecentThoughtCount = thoughts.Count,
+                    Conversations = conversations,
+                    RecentThoughts = thoughts
                 });
             });
             app.MapRazorComponents<App>()

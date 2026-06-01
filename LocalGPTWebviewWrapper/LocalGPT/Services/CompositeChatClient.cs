@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 using LocalGPT.Interfaces;
 
@@ -10,22 +11,33 @@ public class CompositeChatClient : IChatClient
     public ChatClientSession? SelectedSession { get; set; }
     private readonly ILogger _logger;
     private readonly IAiFeatureReportService? _featureReportService;
+    private readonly IAiContextBootstrapService? _bootstrapService;
 
     public CompositeChatClient(ILogger logger, params ChatClientSession[] chatClients)
-        : this(logger, null, chatClients)
+        : this(logger, null, null, chatClients)
     {
     }
 
     public CompositeChatClient(ILogger logger, IAiFeatureReportService? featureReportService, params ChatClientSession[] chatClients)
+        : this(logger, featureReportService, null, chatClients)
+    {
+    }
+
+    public CompositeChatClient(
+        ILogger logger,
+        IAiFeatureReportService? featureReportService,
+        IAiContextBootstrapService? bootstrapService,
+        params ChatClientSession[] chatClients)
     {
 
         AvailableChatClients = chatClients.ToList();
         SelectedSession = AvailableChatClients[0];
         _logger = logger;
         _featureReportService = featureReportService;
+        _bootstrapService = bootstrapService;
     }
 
-    public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+    public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken())
     {
         try
@@ -34,7 +46,8 @@ public class CompositeChatClient : IChatClient
             if (SelectedSession is null)
                 throw new InvalidOperationException("No chat client session is selected.");
 
-            return GetResponseAndReportAsync(SelectedSession, messages, ApplyDefaultOptions(options), cancellationToken);
+            var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
+            return await GetResponseAndReportAsync(SelectedSession, enrichedMessages, ApplyDefaultOptions(options), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -48,8 +61,10 @@ public class CompositeChatClient : IChatClient
         try
         {
 
-            return SelectedSession?.Client.GetStreamingResponseAsync(messages, ApplyDefaultOptions(options), cancellationToken)
-                ?? throw new InvalidOperationException("No chat client session is selected.");
+            if (SelectedSession is null)
+                throw new InvalidOperationException("No chat client session is selected.");
+
+            return GetStreamingResponseAndReportAsync(SelectedSession, messages, ApplyDefaultOptions(options), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -78,6 +93,7 @@ public class CompositeChatClient : IChatClient
         }
     }
 
+
     private static ChatOptions ApplyDefaultOptions(ChatOptions? options)
     {
         options ??= new ChatOptions();
@@ -96,6 +112,19 @@ public class CompositeChatClient : IChatClient
         return response;
     }
 
+    private async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAndReportAsync(
+        ChatClientSession session,
+        IEnumerable<ChatMessage> messages,
+        ChatOptions options,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
+        await foreach (var update in session.Client.GetStreamingResponseAsync(enrichedMessages, options, cancellationToken).WithCancellation(cancellationToken))
+        {
+            yield return update;
+        }
+    }
+
     private async Task WriteMissingFeatureReportIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)
     {
         if (_featureReportService is null)
@@ -104,5 +133,18 @@ public class CompositeChatClient : IChatClient
         var path = await _featureReportService.WriteIfMissingFeatureReportAsync(source, responseText, cancellationToken);
         if (!string.IsNullOrWhiteSpace(path))
             _logger.LogInformation("AI missing feature report written: {Path}", path);
+    }
+
+    private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
+    {
+        var messageList = messages.ToList();
+        if (_bootstrapService is null)
+            return messageList;
+
+        var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(bootstrapPrompt))
+            return messageList;
+
+        return [new ChatMessage(ChatRole.System, bootstrapPrompt), .. messageList];
     }
 }
