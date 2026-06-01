@@ -168,8 +168,39 @@ Get-ChildItem $releaseRoot -Filter "*.zip" | ForEach-Object {
     "{0}  {1}" -f $hash.Hash, $_.Name
 } | Set-Content -LiteralPath $manifestPath -Encoding utf8
 
+$assetList = (Get-ChildItem $releaseRoot -Filter "*.zip" | Sort-Object Name | ForEach-Object { '- `{0}`' -f $_.Name }) -join [Environment]::NewLine
+$releaseNotesPath = Join-Path $releaseRoot "release-notes.md"
+$releaseNotes = @(
+    "# LocalGPT $Version",
+    "",
+    "LocalGPT is packaged here as Windows desktop WebView2/MSIX builds plus portable backend-only ASP.NET Core/Blazor builds for machines that should connect to Ollama or LM Studio without the WinUI wrapper.",
+    "",
+    "## Release Assets",
+    "",
+    $assetList,
+    "",
+    "## Recommended Install Path",
+    "",
+    ('For Windows desktop use, start with the `LocalGPT-WebView2-{0}-windows-x64.zip` asset on normal Intel/AMD Windows PCs. Use `windows-arm64` only on ARM Windows devices and `windows-x86` only for legacy 32-bit testing.' -f $Version),
+    "",
+    ('For Linux, macOS, or server-style debugging, use the matching `LocalGPT-Backend-{0}-<rid>.zip`, install the .NET 10 ASP.NET Core runtime, start Ollama or LM Studio, then run the backend from the extracted folder.' -f $Version),
+    "",
+    "## Highlights",
+    "",
+    "- DXAiChat and AI Council support Ollama model discovery, memory-backed conversations, visible model-thinking/status output, and safer cancellation.",
+    '- Council-generated implementation artifacts can be downloaded through `/__artifacts/council/`, including real `.razor` files and compiled `.dll` examples when compilation succeeds.',
+    "- Minecraft builder diagnostics can generate and validate datapack workspaces without loading a large model.",
+    "- SQLite knowledge and log tables help the council reuse compact project knowledge instead of bloated prompts.",
+    "",
+    "## Integrity",
+    "",
+    'SHA256 hashes are listed in `release-manifest.txt`.'
+) -join [Environment]::NewLine
+Set-Content -LiteralPath $releaseNotesPath -Value $releaseNotes -Encoding utf8
+
 Write-Host ""
 Write-Host "Release manifest: $manifestPath"
+Write-Host "Release notes: $releaseNotesPath"
 
 if ($CreateGitHubRelease) {
     $gh = Get-Command gh -ErrorAction SilentlyContinue
@@ -185,10 +216,11 @@ if ($CreateGitHubRelease) {
 
     $ghArgs += "--title"
     $ghArgs += "LocalGPT $Version"
-    $ghArgs += "--notes"
-    $ghArgs += "LocalGPT release zips. Windows WebView2 wrapper packages: $($Platforms -join ', '). Backend-only ASP.NET Core/Blazor packages: $($BackendRuntimeIdentifiers -join ', '). See release-manifest.txt for SHA256 hashes."
+    $ghArgs += "--notes-file"
+    $ghArgs += $releaseNotesPath
     $ghArgs += (Get-ChildItem $releaseRoot -Filter "*.zip").FullName
     $ghArgs += $manifestPath
+    $ghArgs += $releaseNotesPath
 
     & gh @ghArgs
 }
