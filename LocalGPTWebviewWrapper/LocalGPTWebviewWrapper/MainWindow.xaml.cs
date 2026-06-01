@@ -30,6 +30,7 @@ namespace WebView2_WinUI3_Sample
         private readonly bool _runFeatureRequestDiagnostics;
         private readonly bool _runDxAiChatCouncilDiagnostics;
         private readonly bool _runDxAiChatGptOssDiagnostics;
+        private readonly bool _runDxAiChatFeatureArtifactsDiagnostics;
         private readonly Queue<string> _diagnosticRoutes = new();
         private readonly string _diagnosticRunId = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         //public MainWindow()
@@ -87,16 +88,22 @@ namespace WebView2_WinUI3_Sample
                 Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_DXAICHAT_GPTOSS"),
                 "1",
                 StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-dxaichat-gptoss.flag");
+            _runDxAiChatFeatureArtifactsDiagnostics = string.Equals(
+                Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_DXAICHAT_FEATURE_ARTIFACTS"),
+                "1",
+                StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-dxaichat-feature-artifacts.flag");
             if (_runDiagnostics)
             {
-                if (_runDxAiChatCouncilDiagnostics)
+                if (_runDxAiChatFeatureArtifactsDiagnostics)
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=deepseek-r1:8b&diagCouncilMaxOutputTokens=128&diagCouncilMaxContextTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false&diagFreshChat=true&diagGenerateCouncilArtifacts=true");
+                else if (_runDxAiChatCouncilDiagnostics)
                     _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilMaxOutputTokens=2048&diagCouncilMaxContextTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false");
                 else if (_runDxAiChatGptOssDiagnostics)
-                    _diagnosticRoutes.Enqueue("/Chat?diagSession=gpt-oss:20b&diagOllamaMode=auto-gpu&diagFreshChat=true");
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=gpt-oss:20b&diagCpuOnly=true&diagFreshChat=true");
                 else
                     _diagnosticRoutes.Enqueue("/Chat");
 
-                if (!_runDxAiChatCouncilDiagnostics && !_runDxAiChatGptOssDiagnostics)
+                if (!_runDxAiChatCouncilDiagnostics && !_runDxAiChatGptOssDiagnostics && !_runDxAiChatFeatureArtifactsDiagnostics)
                 {
                     _diagnosticRoutes.Enqueue("/model-council");
                     _diagnosticRoutes.Enqueue("/database");
@@ -116,6 +123,9 @@ namespace WebView2_WinUI3_Sample
             var initialUrl = _baseUrl;
             if (_runDiagnostics && _diagnosticRoutes.Count > 0)
                 initialUrl = $"{_baseUrl}{_diagnosticRoutes.Dequeue()}";
+
+            if (_runDiagnostics)
+                WriteDiagnosticLaunchManifest(initialUrl);
 
             WebView2.Source = new Uri(initialUrl); // initial navigation
             StatusUpdate("Ready");
@@ -195,6 +205,7 @@ namespace WebView2_WinUI3_Sample
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunFeatureRequest = {(_runFeatureRequestDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatCouncil = {(_runDxAiChatCouncilDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatGptOss = {(_runDxAiChatGptOssDiagnostics ? "true" : "false")};");
+                    await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatFeatureArtifacts = {(_runDxAiChatFeatureArtifactsDiagnostics ? "true" : "false")};");
                     await ExecuteScriptWithTimeoutAsync(sender.CoreWebView2, """
                         (async () => {
                             const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -312,18 +323,24 @@ namespace WebView2_WinUI3_Sample
                             window.__localGptDiagMinecraftBuilderSmoke = null;
                             window.__localGptDiagDxAiChatCouncilSmoke = null;
                             window.__localGptDiagDxAiChatGptOssSmoke = null;
+                            window.__localGptDiagDxAiChatFeatureArtifactSmoke = null;
                             if (location.pathname.toLowerCase().includes('/chat')) {
                                 const smoke = {
                                     selectedCouncilMember: null,
+                                    expectedCouncilMembers: null,
                                     initialMessageCount: 0,
                                     clickedSend: false,
                                     answerVisible: false,
                                     hasThinkingBlock: false,
+                                    artifactSectionVisible: false,
+                                    artifactDownloadOk: false,
+                                    artifactDownloads: [],
                                     finalMessagePreview: '',
                                     error: null
                                 };
                                 window.__localGptDiagDxAiChatCouncilSmoke = smoke;
                                 window.__localGptDiagDxAiChatGptOssSmoke = smoke;
+                                window.__localGptDiagDxAiChatFeatureArtifactSmoke = smoke;
 
                                 const messageContents = () => Array.from(document.querySelectorAll('.demo-chat-content'))
                                     .map(item => item.innerText || item.textContent || '');
@@ -343,7 +360,11 @@ namespace WebView2_WinUI3_Sample
                                     textarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
                                     textarea.dispatchEvent(new Event('change', { bubbles: true }));
                                 };
-                                const chooseCouncilMembers = () => {
+                                const checkedCouncilMembers = () => Array.from(document.querySelectorAll('.council-member-list label'))
+                                    .filter(label => label.querySelector('input[type="checkbox"]')?.checked)
+                                    .map(label => (label.innerText || '').trim())
+                                    .filter(Boolean);
+                                const chooseCouncilMembers = (preferredNeedles = ['deepseek-r1:8b', 'gpt-oss:20b', 'qwen', 'gemma'], limit = 2) => {
                                     const labels = Array.from(document.querySelectorAll('.council-member-list label'));
                                     if (labels.length === 0) {
                                         return [];
@@ -351,19 +372,20 @@ namespace WebView2_WinUI3_Sample
 
                                     const preferred = [];
                                     const pushMatch = (needle) => {
-                                        const found = labels.find(label => (label.innerText || '').toLowerCase().includes(needle)
+                                        const normalizedNeedle = (needle || '').toLowerCase();
+                                        const found = labels.find(label => (label.innerText || '').toLowerCase().includes(normalizedNeedle)
                                             && !preferred.includes(label));
                                         if (found) {
                                             preferred.push(found);
                                         }
                                     };
 
-                                    pushMatch('deepseek-r1:8b');
-                                    pushMatch('gpt-oss:20b');
-                                    pushMatch('qwen');
-                                    pushMatch('gemma');
+                                    for (const needle of preferredNeedles) {
+                                        pushMatch(needle);
+                                    }
+
                                     for (const label of labels) {
-                                        if (preferred.length >= 2) {
+                                        if (preferred.length >= limit) {
                                             break;
                                         }
 
@@ -372,7 +394,7 @@ namespace WebView2_WinUI3_Sample
                                         }
                                     }
 
-                                    const selected = preferred.slice(0, Math.min(2, preferred.length));
+                                    const selected = preferred.slice(0, Math.min(limit, preferred.length));
                                     for (const label of labels) {
                                         const input = label.querySelector('input[type="checkbox"]');
                                         if (!input) {
@@ -387,13 +409,49 @@ namespace WebView2_WinUI3_Sample
 
                                     return selected.map(label => (label.innerText || '').trim()).filter(Boolean);
                                 };
+                                const assertFeatureArtifactSafety = () => {
+                                    const url = new URL(location.href);
+                                    if (url.searchParams.get('diagGenerateCouncilArtifacts') !== 'true') {
+                                        throw new Error(`Feature artifact smoke opened without diagGenerateCouncilArtifacts=true: ${location.href}`);
+                                    }
 
-                                if (window.__localGptDiagRunDxAiChatCouncil || window.__localGptDiagRunDxAiChatGptOss) {
+                                    if (url.searchParams.get('diagCpuOnly') !== 'true') {
+                                        throw new Error(`Feature artifact smoke opened without diagCpuOnly=true: ${location.href}`);
+                                    }
+
+                                    if (!url.searchParams.get('diagCouncilModels')?.toLowerCase().includes('deepseek-r1:8b')) {
+                                        throw new Error(`Feature artifact smoke opened without the expected deepseek-r1:8b diagnostic council model: ${location.href}`);
+                                    }
+
+                                    const accelerationMode = labelInput('Ollama acceleration')?.value;
+                                    if (accelerationMode && accelerationMode !== 'safe-cpu') {
+                                        throw new Error(`Feature artifact smoke expected Safe CPU but page selected ${accelerationMode}.`);
+                                    }
+
+                                    const selected = chooseCouncilMembers(['deepseek-r1:8b'], 1);
+                                    smoke.expectedCouncilMembers = 'deepseek-r1:8b';
+                                    smoke.selectedCouncilMember = selected.join(', ');
+                                    if (!selected.some(item => item.toLowerCase().includes('deepseek-r1:8b'))) {
+                                        throw new Error(`Feature artifact smoke could not select deepseek-r1:8b. Checked: ${checkedCouncilMembers().join(', ') || 'none'}.`);
+                                    }
+
+                                    const unsafe = checkedCouncilMembers()
+                                        .filter(item => /gpt-oss|qwen|gwen|gemma/i.test(item));
+                                    if (unsafe.length > 0) {
+                                        throw new Error(`Feature artifact smoke refused to send because unsafe/high-load model(s) are still selected: ${unsafe.join(', ')}.`);
+                                    }
+                                };
+
+                                if (window.__localGptDiagRunDxAiChatCouncil || window.__localGptDiagRunDxAiChatGptOss || window.__localGptDiagRunDxAiChatFeatureArtifacts) {
                                     try {
                                         await waitFor(() => document.querySelector('textarea'), 45000);
                                         if (window.__localGptDiagRunDxAiChatCouncil) {
                                             await waitFor(() => text().includes('AI Council'), 45000);
                                             smoke.selectedCouncilMember = chooseCouncilMembers().join(', ');
+                                        }
+                                        if (window.__localGptDiagRunDxAiChatFeatureArtifacts) {
+                                            await waitFor(() => text().includes('DXAiChat Council Members'), 45000);
+                                            assertFeatureArtifactSafety();
                                         }
                                         const textarea = document.querySelector('textarea');
                                         if (!textarea) {
@@ -402,7 +460,14 @@ namespace WebView2_WinUI3_Sample
 
                                         const prompt = window.__localGptDiagRunDxAiChatGptOss
                                             ? 'Reply with exactly one word: READY'
-                                            : [
+                                            : window.__localGptDiagRunDxAiChatFeatureArtifacts
+                                                ? [
+                                                    'implementation-request council chat smoke test.',
+                                                    'Create a tiny LocalGPT Blazor feature idea: a backend health summary card with one service method and one Razor display note.',
+                                                    'Keep the final visible answer short. Include a section named Implementation artifact request.',
+                                                    'The frontend must show downloadable .cs and, if compilation succeeds, .dll artifacts via /__artifacts/council/.'
+                                                ].join('\n')
+                                                : [
                                                 'DXAiChat two-member AI Council code review request from frontend smoke test.',
                                                 'Review these LocalGPT changes from the prompt only, then add UX/product guidance:',
                                                 '- OllamaThinkingChatClient streams /api/chat chunks into DXAiChat and renders model-supplied thinking/<think> content in a visible Model thinking block inside the assistant message.',
@@ -444,6 +509,22 @@ namespace WebView2_WinUI3_Sample
                                             smoke.error = window.__localGptDiagRunDxAiChatGptOss
                                                 ? `Timed out waiting for gpt-oss DXAiChat answer. Preview: ${smoke.finalMessagePreview}`
                                                 : `Timed out waiting for DXAiChat AI Council answer. Preview: ${smoke.finalMessagePreview}`;
+                                        }
+                                        if (window.__localGptDiagRunDxAiChatFeatureArtifacts && smoke.answerVisible) {
+                                            smoke.artifactSectionVisible = await waitFor(
+                                                () => text().includes('Downloadable Artifacts') && !!document.querySelector('a[href*="/__artifacts/council/"]'),
+                                                120000);
+                                            if (!smoke.artifactSectionVisible) {
+                                                smoke.error = `Timed out waiting for DXAiChat council artifact links. Preview: ${smoke.finalMessagePreview}`;
+                                            }
+                                            else {
+                                                smoke.artifactDownloads = await fetchCouncilArtifacts();
+                                                smoke.artifactDownloadOk = smoke.artifactDownloads.some(item => item.ok && item.name.endsWith('.cs'))
+                                                    && smoke.artifactDownloads.some(item => item.ok && item.name.endsWith('.dll'));
+                                                if (!smoke.artifactDownloadOk) {
+                                                    smoke.error = `DXAiChat council artifact downloads did not include both a .cs and .dll file. ${JSON.stringify(smoke.artifactDownloads)}`;
+                                                }
+                                            }
                                         }
                                     }
                                     catch (error) {
@@ -560,20 +641,27 @@ namespace WebView2_WinUI3_Sample
                             }
                             return window.__localGptDiagClickedCouncilFeatureChat;
                         })()
-                        """, _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(2) : TimeSpan.FromMinutes(26));
+                        """, _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(2)
+                            : _runDxAiChatFeatureArtifactsDiagnostics ? TimeSpan.FromMinutes(12)
+                            : TimeSpan.FromMinutes(26));
                     var path = sender.Source?.AbsolutePath.ToLowerInvariant() ?? string.Empty;
-                    if (path.Contains("/chat", StringComparison.Ordinal) && (_runDxAiChatCouncilDiagnostics || _runDxAiChatGptOssDiagnostics))
+                    if (path.Contains("/chat", StringComparison.Ordinal) && (_runDxAiChatCouncilDiagnostics || _runDxAiChatGptOssDiagnostics || _runDxAiChatFeatureArtifactsDiagnostics))
                     {
                         await WaitForJavaScriptConditionAsync(
                             sender.CoreWebView2,
                             """
                             (() => {
-                                const smoke = window.__localGptDiagDxAiChatCouncilSmoke || window.__localGptDiagDxAiChatGptOssSmoke;
+                                const smoke = window.__localGptDiagDxAiChatFeatureArtifactSmoke || window.__localGptDiagDxAiChatCouncilSmoke || window.__localGptDiagDxAiChatGptOssSmoke;
                                 if (!smoke) return false;
+                                if (window.__localGptDiagRunDxAiChatFeatureArtifacts) {
+                                    return !!smoke.artifactDownloadOk || !!smoke.error;
+                                }
                                 return !!smoke.answerVisible || !!smoke.error;
                             })()
                             """,
-                            _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(3) : TimeSpan.FromMinutes(26));
+                            _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(3)
+                                : _runDxAiChatFeatureArtifactsDiagnostics ? TimeSpan.FromMinutes(13)
+                                : TimeSpan.FromMinutes(26));
                     }
                     else if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))
                     {
@@ -673,8 +761,10 @@ namespace WebView2_WinUI3_Sample
                                 runFeatureRequestDiagnostics: !!window.__localGptDiagRunFeatureRequest,
                                 runDxAiChatCouncilDiagnostics: !!window.__localGptDiagRunDxAiChatCouncil,
                                 runDxAiChatGptOssDiagnostics: !!window.__localGptDiagRunDxAiChatGptOss,
+                                runDxAiChatFeatureArtifactsDiagnostics: !!window.__localGptDiagRunDxAiChatFeatureArtifacts,
                                 dxAiChatCouncilSmoke: window.__localGptDiagDxAiChatCouncilSmoke,
                                 dxAiChatGptOssSmoke: window.__localGptDiagDxAiChatGptOssSmoke,
+                                dxAiChatFeatureArtifactSmoke: window.__localGptDiagDxAiChatFeatureArtifactSmoke,
                                 hasModelThinkingBlock: !!document.querySelector('.model-thinking') || text.includes('Model thinking'),
                                 councilLowGpuSettings: {
                                     reviewRounds: readLabeledInput('Review rounds'),
@@ -687,7 +777,7 @@ namespace WebView2_WinUI3_Sample
                                 },
                                 councilPromptPreview: prompt.slice(0, 1200),
                                 hasCouncilImplementationPrompt: prompt.includes('implementation-request council chat'),
-                                hasCouncilArtifactSection: text.includes('Downloadable Examples'),
+                                hasCouncilArtifactSection: text.includes('Downloadable Examples') || text.includes('Downloadable Artifacts'),
                                 councilArtifactDownloads: councilArtifacts,
                                 councilFeatureRequestSmoke: window.__localGptDiagCouncilFeatureRequestSmoke,
                                 hasDatabaseEditor: text.includes('SQLite Database') && text.includes('Council Knowledge'),
@@ -762,6 +852,40 @@ namespace WebView2_WinUI3_Sample
                 .Replace("\\", "_");
             var path = Path.Combine(directory, $"webview2-{snapshot.RunId}-{routeName}.json");
             await File.WriteAllTextAsync(path, JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        private void WriteDiagnosticLaunchManifest(string initialUrl)
+        {
+            try
+            {
+                var directory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "WebView2Diagnostics");
+                Directory.CreateDirectory(directory);
+
+                var manifest = new
+                {
+                    RunId = _diagnosticRunId,
+                    CreatedAtUtc = DateTimeOffset.UtcNow,
+                    InitialUrl = initialUrl,
+                    RunDiagnostics = _runDiagnostics,
+                    ExitAfterDiagnostics = _exitAfterDiagnostics,
+                    RunGpuCouncilDiagnostics = _runGpuCouncilDiagnostics,
+                    RunFeatureRequestDiagnostics = _runFeatureRequestDiagnostics,
+                    RunDxAiChatCouncilDiagnostics = _runDxAiChatCouncilDiagnostics,
+                    RunDxAiChatGptOssDiagnostics = _runDxAiChatGptOssDiagnostics,
+                    RunDxAiChatFeatureArtifactsDiagnostics = _runDxAiChatFeatureArtifactsDiagnostics,
+                    RemainingRoutes = _diagnosticRoutes.ToArray()
+                };
+
+                var path = Path.Combine(directory, $"webview2-launch-{_diagnosticRunId}.json");
+                File.WriteAllText(path, JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception ex)
+            {
+                StatusUpdate($"Could not write WebView2 diagnostic launch manifest: {ex.Message}");
+            }
         }
 
         private static bool ConsumeRuntimeFlag(string fileName)

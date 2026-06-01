@@ -209,6 +209,7 @@
     List<ChatMemoryThought> RecentThoughts { get; set; } = new();
     List<MultiModelCouncilModelCandidate> OllamaCandidates { get; set; } = new();
     List<string> SelectedCouncilModelNames { get; set; } = new();
+    List<string> DiagnosticCouncilModelNames { get; set; } = new();
     ChatMemoryConversationSummary? SelectedConversation { get; set; }
     Guid? ActiveConversationId { get; set; }
     string memoryStatus = string.Empty;
@@ -334,7 +335,7 @@
                 .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (SelectedCouncilModelNames.Count == 0)
+            if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
             {
                 var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
                     ?? OllamaCandidates.FirstOrDefault();
@@ -346,6 +347,10 @@
             modelStatus = OllamaCandidates.Count == 0
                 ? "No installed Ollama models detected."
                 : $"Detected {OllamaCandidates.Count} Ollama model(s). Added missing models and AI Council to DXAiChat.";
+            if (DiagnosticCouncilModelNames.Count > 0)
+            {
+                modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
+            }
 
             if (showToast)
                 Notifier.ShowSuccess(toastName, modelStatus, "Ollama models refreshed");
@@ -414,13 +419,16 @@
 
     private MultiModelCouncilRequest CreateCouncilRequest()
     {
+        var selectedModels = DiagnosticCouncilModelNames.Count > 0
+            ? DiagnosticCouncilModelNames
+            : SelectedCouncilModelNames;
         var selectedEndpoint = OllamaCandidates
-            .FirstOrDefault(candidate => SelectedCouncilModelNames.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase))
+            .FirstOrDefault(candidate => selectedModels.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase))
             ?.Endpoint;
 
         return new MultiModelCouncilRequest
         {
-            ModelNames = OrderCouncilModelsForLoad(SelectedCouncilModelNames).ToList(),
+            ModelNames = OrderCouncilModelsForLoad(selectedModels).ToList(),
             BaseUri = selectedEndpoint,
             MaxRounds = 0,
             MaxOutputTokens = Math.Clamp(CouncilMaxOutputTokens, 256, 4096),
@@ -479,6 +487,23 @@
             IncludeCouncilMemory = parsedIncludeMemory;
         }
 
+        if (query.TryGetValue("diagGenerateCouncilArtifacts", out var generateArtifacts) &&
+            bool.TryParse(generateArtifacts.ToString(), out var parsedGenerateArtifacts))
+        {
+            GenerateCouncilArtifacts = parsedGenerateArtifacts;
+        }
+
+        if (query.TryGetValue("diagCouncilModels", out var councilModels))
+        {
+            DiagnosticCouncilModelNames = councilModels
+                .ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(modelName => !string.IsNullOrWhiteSpace(modelName))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            SelectedCouncilModelNames = DiagnosticCouncilModelNames.ToList();
+        }
+
         if (query.TryGetValue("diagFreshChat", out var freshChat) &&
             bool.TryParse(freshChat.ToString(), out var parsedFreshChat))
         {
@@ -498,6 +523,9 @@
 
         if (selectedSession is not null)
             ChatClientProvider.SelectedSession = selectedSession;
+
+        if (DiagnosticCouncilModelNames.Count > 0)
+            modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
     }
 
     private void ClearSelectedSessionForFreshStart()
