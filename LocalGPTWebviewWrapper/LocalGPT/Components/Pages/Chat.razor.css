@@ -73,6 +73,42 @@
         margin-bottom: 0;
     }
 
+.demo-chat ::deep .model-thinking {
+    border: 1px solid rgba(255, 111, 0, 0.28);
+    border-left: 4px solid #ff6f00;
+    border-radius: 6px;
+    margin: 0 0 0.85rem;
+    padding: 0.65rem 0.75rem;
+    background: rgba(255, 111, 0, 0.06);
+}
+
+.demo-chat ::deep .model-thinking summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.demo-chat ::deep .model-thinking pre {
+    margin: 0.5rem 0 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.demo-chat ::deep .council-step {
+    border: 1px solid rgba(80, 120, 220, 0.24);
+    border-radius: 6px;
+    margin: 0 0 0.75rem;
+    padding: 0.6rem 0.75rem;
+    background: rgba(80, 120, 220, 0.05);
+}
+
+.demo-chat ::deep .council-step summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
 .memory-toolbar {
     display: flex;
     align-items: center;
@@ -87,6 +123,24 @@
     flex-wrap: wrap;
     gap: 0.75rem;
     margin: 0.75rem 0;
+}
+
+.council-token-setting {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+}
+
+.council-token-setting input {
+    width: 6.25rem;
+    min-height: 2rem;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid rgba(127, 127, 127, 0.32);
+    border-radius: 6px;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
 }
 
 .council-picker {

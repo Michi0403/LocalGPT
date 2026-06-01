@@ -1,3 +1,4 @@
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using LocalGPT.BusinessObjects;
@@ -24,8 +25,26 @@ public sealed class CouncilChatClient(
         ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var text = await RunCouncilAsync(messages, cancellationToken);
-        yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(text)]);
+        var request = CreateRequest(messages);
+        if (request.ModelNames.Count == 0)
+        {
+            yield return CreateUpdate("No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.");
+            yield break;
+        }
+
+        yield return CreateUpdate($"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Local models may take a while; partial progress is shown here so DXAiChat does not look frozen._\n\n");
+
+        MultiModelCouncilResult result;
+        try
+        {
+            result = await councilService.RunAsync(request, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            yield break;
+        }
+
+        yield return CreateUpdate(FormatResult(result));
     }
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
@@ -36,14 +55,20 @@ public sealed class CouncilChatClient(
 
     private async Task<string> RunCouncilAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
     {
-        var request = requestFactory();
-        request.Prompt = BuildPrompt(messages);
+        var request = CreateRequest(messages);
 
         if (request.ModelNames.Count == 0)
             return "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.";
 
         var result = await councilService.RunAsync(request, cancellationToken);
         return FormatResult(result);
+    }
+
+    private MultiModelCouncilRequest CreateRequest(IEnumerable<ChatMessage> messages)
+    {
+        var request = requestFactory();
+        request.Prompt = BuildPrompt(messages);
+        return request;
     }
 
     private static string BuildPrompt(IEnumerable<ChatMessage> messages)
@@ -105,10 +130,65 @@ public sealed class CouncilChatClient(
             builder.AppendLine();
         }
 
+        if (result.Steps.Count > 0)
+        {
+            builder.AppendLine("## Council process");
+            foreach (var step in result.Steps.OrderBy(step => step.SortOrder))
+            {
+                builder
+                    .AppendLine($"<details class=\"council-step\">")
+                    .Append("<summary>")
+                    .Append(WebUtility.HtmlEncode($"{step.ModelName} — {step.Phase} / {step.Role} ({step.DurationSeconds:n1}s)"))
+                    .AppendLine("</summary>")
+                    .AppendLine();
+
+                if (!string.IsNullOrWhiteSpace(step.Error))
+                {
+                    builder.AppendLine("**Error:**")
+                        .AppendLine()
+                        .AppendLine(step.Error.Trim())
+                        .AppendLine();
+                }
+
+                if (!string.IsNullOrWhiteSpace(step.VisibleContent))
+                {
+                    builder.AppendLine("**Visible answer excerpt:**")
+                        .AppendLine()
+                        .AppendLine(TrimForMessage(step.VisibleContent, 1800))
+                        .AppendLine();
+                }
+
+                if (!string.IsNullOrWhiteSpace(step.Thinking))
+                {
+                    builder
+                        .AppendLine("<details class=\"model-thinking\" open>")
+                        .AppendLine("<summary>Model thinking</summary>")
+                        .AppendLine("<pre>")
+                        .AppendLine(WebUtility.HtmlEncode(TrimForMessage(step.Thinking, 1800)))
+                        .AppendLine("</pre>")
+                        .AppendLine("</details>")
+                        .AppendLine();
+                }
+
+                builder.AppendLine("</details>").AppendLine();
+            }
+        }
+
         builder
             .AppendLine("## Consensus")
             .AppendLine(result.FinalAnswer);
 
         return builder.ToString();
+    }
+
+    private static ChatResponseUpdate CreateUpdate(string text) =>
+        new(ChatRole.Assistant, [new TextContent(text)]);
+
+    private static string TrimForMessage(string text, int maxLength)
+    {
+        var normalized = text.Trim();
+        return normalized.Length <= maxLength
+            ? normalized
+            : $"{normalized[..maxLength].TrimEnd()}\n\n_Trimmed in DXAiChat; see the council log/memory for full text._";
     }
 }

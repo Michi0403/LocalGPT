@@ -528,6 +528,14 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             {
                 return Results.Ok(await council.GetCandidatesAsync(ct));
             });
+            app.MapGet("/__diag/dxaichat-functions", () =>
+            {
+                return Results.Ok(DxaichatFunctionCatalog.GetFunctions());
+            });
+            app.MapGet("/__diag/minecraft/datapack-version", (string? minecraftVersion) =>
+            {
+                return Results.Ok(MinecraftDatapackVersionCatalog.Resolve(minecraftVersion));
+            });
             app.MapGet("/__diag/minecraft/workspace-smoke", async (IMinecraftModWorkspaceService workspaceService, string? loader, CancellationToken ct) =>
             {
                 var request = new MinecraftModBuildRequest

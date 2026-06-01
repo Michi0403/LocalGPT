@@ -1,9 +1,11 @@
 @page "/Chat"
+@using Microsoft.AspNetCore.WebUtilities
 
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
 @inject IChatMemoryService ChatMemory
 @inject IMultiModelCouncilService CouncilService
+@inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 @implements IDisposable
 <PageTitle>AI Chat</PageTitle>
@@ -51,6 +53,18 @@
                 <DxCheckBox @bind-Checked="GenerateCouncilArtifacts"
                             Text="Council code/DLL artifacts" />
             </span>
+            <span title="Adds saved chat memory, logs, and local project guidance to AI Council prompts. Turn off for small frontend smoke tests or narrow reviews.">
+                <DxCheckBox @bind-Checked="IncludeCouncilMemory"
+                            Text="Council uses memory" />
+            </span>
+            <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Raise this for reviews; lower it for quick checks.">
+                <span>Council answer tokens</span>
+                <input type="number"
+                       min="256"
+                       max="4096"
+                       step="128"
+                       @bind="CouncilMaxOutputTokens" />
+            </label>
             @if (!string.IsNullOrWhiteSpace(modelStatus))
             {
                 <span class="memory-status">@modelStatus</span>
@@ -162,6 +176,8 @@
     bool ReuseContextWhenSwitching { get; set; } = true;
     bool UseCpuOnlyOllamaChat { get; set; } = true;
     bool GenerateCouncilArtifacts { get; set; }
+    bool IncludeCouncilMemory { get; set; } = true;
+    int CouncilMaxOutputTokens { get; set; } = 2048;
     List<PromptSuggestion> PromptSuggestions { get; set; } = new();
     List<ChatMemoryConversationSummary> SavedConversations { get; set; } = new();
     List<ChatMemoryThought> RecentThoughts { get; set; } = new();
@@ -181,6 +197,7 @@
         PromptSuggestions = GetSuggestion();
         await RefreshMemoryAsync();
         await RefreshOllamaModelsAsync(showToast: false);
+        ApplyDiagnosticQuerySelection();
         await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
     }
 
@@ -367,17 +384,53 @@
             ModelNames = SelectedCouncilModelNames.ToList(),
             BaseUri = selectedEndpoint,
             MaxRounds = 0,
-            MaxOutputTokens = 768,
+            MaxOutputTokens = Math.Clamp(CouncilMaxOutputTokens, 256, 4096),
             MaxParallelModels = 1,
-            MaxContextTokens = 2048,
+            MaxContextTokens = 4096,
             ModelTimeoutSeconds = 360,
             OllamaKeepAlive = "0s",
             OllamaNumGpu = UseCpuOnlyOllamaChat ? 0 : null,
-            IncludeMemory = true,
+            IncludeMemory = IncludeCouncilMemory,
             SaveToMemory = true,
             GenerateImplementationArtifact = GenerateCouncilArtifacts,
             Title = "DXAiChat AI Council"
         };
+    }
+
+    private void ApplyDiagnosticQuerySelection()
+    {
+        if (ChatClientProvider is null)
+            return;
+
+        var query = QueryHelpers.ParseQuery(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query);
+        if (query.TryGetValue("diagCouncilMaxOutputTokens", out var maxTokens) &&
+            int.TryParse(maxTokens.ToString(), out var parsedMaxTokens))
+        {
+            CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, 256, 4096);
+        }
+
+        if (query.TryGetValue("diagCpuOnly", out var cpuOnly) &&
+            bool.TryParse(cpuOnly.ToString(), out var parsedCpuOnly))
+        {
+            UseCpuOnlyOllamaChat = parsedCpuOnly;
+        }
+
+        if (query.TryGetValue("diagCouncilIncludeMemory", out var includeMemory) &&
+            bool.TryParse(includeMemory.ToString(), out var parsedIncludeMemory))
+        {
+            IncludeCouncilMemory = parsedIncludeMemory;
+        }
+
+        if (!query.TryGetValue("diagSession", out var sessionValue))
+            return;
+
+        var requestedSession = sessionValue.ToString();
+        var selectedSession = requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
+            ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedSession is not null)
+            ChatClientProvider.SelectedSession = selectedSession;
     }
 
     private bool HasConfiguredSessionForModel(string modelName) =>

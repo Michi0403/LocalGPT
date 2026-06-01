@@ -28,6 +28,7 @@ namespace WebView2_WinUI3_Sample
         private readonly bool _exitAfterDiagnostics;
         private readonly bool _runGpuCouncilDiagnostics;
         private readonly bool _runFeatureRequestDiagnostics;
+        private readonly bool _runDxAiChatCouncilDiagnostics;
         private readonly Queue<string> _diagnosticRoutes = new();
         private readonly string _diagnosticRunId = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         //public MainWindow()
@@ -77,12 +78,21 @@ namespace WebView2_WinUI3_Sample
                 Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_FEATURE_REQUEST"),
                 "1",
                 StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-feature-request.flag");
+            _runDxAiChatCouncilDiagnostics = string.Equals(
+                Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_DXAICHAT_COUNCIL"),
+                "1",
+                StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-dxaichat-council.flag");
             if (_runDiagnostics)
             {
-                _diagnosticRoutes.Enqueue("/Chat");
-                _diagnosticRoutes.Enqueue("/model-council");
-                _diagnosticRoutes.Enqueue("/database");
-                _diagnosticRoutes.Enqueue("/minecraft-mod-builder");
+                _diagnosticRoutes.Enqueue(_runDxAiChatCouncilDiagnostics
+                    ? "/Chat?diagSession=council&diagCouncilMaxOutputTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false"
+                    : "/Chat");
+                if (!_runDxAiChatCouncilDiagnostics)
+                {
+                    _diagnosticRoutes.Enqueue("/model-council");
+                    _diagnosticRoutes.Enqueue("/database");
+                    _diagnosticRoutes.Enqueue("/minecraft-mod-builder");
+                }
             }
 
             // Let system theme decide (don’t force dark)
@@ -94,7 +104,11 @@ namespace WebView2_WinUI3_Sample
             WebView2.CoreWebView2Initialized += WebView2_CoreWebView2Initialized;
             WebView2.RequestedTheme = ElementTheme.Default;
             
-            WebView2.Source = new Uri(_baseUrl); // initial navigation
+            var initialUrl = _baseUrl;
+            if (_runDiagnostics && _diagnosticRoutes.Count > 0)
+                initialUrl = $"{_baseUrl}{_diagnosticRoutes.Dequeue()}";
+
+            WebView2.Source = new Uri(initialUrl); // initial navigation
             StatusUpdate("Ready");
             SetTitle();
         }
@@ -170,6 +184,7 @@ namespace WebView2_WinUI3_Sample
                     await Task.Delay(TimeSpan.FromMilliseconds(1500));
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunGpuCouncil = {(_runGpuCouncilDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunFeatureRequest = {(_runFeatureRequestDiagnostics ? "true" : "false")};");
+                    await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatCouncil = {(_runDxAiChatCouncilDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync("""
                         (async () => {
                             const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -285,6 +300,133 @@ namespace WebView2_WinUI3_Sample
                             window.__localGptDiagCouncilFeatureRequestSmoke = null;
                             window.__localGptDiagCouncilArtifactDownloads = [];
                             window.__localGptDiagMinecraftBuilderSmoke = null;
+                            window.__localGptDiagDxAiChatCouncilSmoke = null;
+                            if (location.pathname.toLowerCase().includes('/chat')) {
+                                const smoke = {
+                                    selectedCouncilMember: null,
+                                    initialMessageCount: 0,
+                                    clickedSend: false,
+                                    answerVisible: false,
+                                    hasThinkingBlock: false,
+                                    finalMessagePreview: '',
+                                    error: null
+                                };
+                                window.__localGptDiagDxAiChatCouncilSmoke = smoke;
+
+                                const messageContents = () => Array.from(document.querySelectorAll('.demo-chat-content'))
+                                    .map(item => item.innerText || item.textContent || '');
+                                const findSendButton = () => buttons()
+                                    .find(item => ((item.getAttribute('aria-label') || '').includes('Send'))
+                                        || ((item.getAttribute('title') || '').includes('Send'))
+                                        || ((item.innerText || '').includes('Send')));
+                                const setTextareaValue = (textarea, value) => {
+                                    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+                                    if (setter) {
+                                        setter.call(textarea, value);
+                                    }
+                                    else {
+                                        textarea.value = value;
+                                    }
+
+                                    textarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+                                    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                                };
+                                const chooseCouncilMembers = () => {
+                                    const labels = Array.from(document.querySelectorAll('.council-member-list label'));
+                                    if (labels.length === 0) {
+                                        return [];
+                                    }
+
+                                    const preferred = [];
+                                    const pushMatch = (needle) => {
+                                        const found = labels.find(label => (label.innerText || '').toLowerCase().includes(needle)
+                                            && !preferred.includes(label));
+                                        if (found) {
+                                            preferred.push(found);
+                                        }
+                                    };
+
+                                    pushMatch('deepseek-r1:8b');
+                                    pushMatch('gpt-oss:20b');
+                                    pushMatch('qwen');
+                                    pushMatch('gemma');
+                                    for (const label of labels) {
+                                        if (preferred.length >= 2) {
+                                            break;
+                                        }
+
+                                        if (!preferred.includes(label)) {
+                                            preferred.push(label);
+                                        }
+                                    }
+
+                                    const selected = preferred.slice(0, Math.min(2, preferred.length));
+                                    for (const label of labels) {
+                                        const input = label.querySelector('input[type="checkbox"]');
+                                        if (!input) {
+                                            continue;
+                                        }
+
+                                        const shouldSelect = selected.includes(label);
+                                        if (input.checked !== shouldSelect) {
+                                            input.click();
+                                        }
+                                    }
+
+                                    return selected.map(label => (label.innerText || '').trim()).filter(Boolean);
+                                };
+
+                                if (window.__localGptDiagRunDxAiChatCouncil) {
+                                    try {
+                                        await waitFor(() => document.querySelector('textarea') && text().includes('AI Council'), 45000);
+                                        smoke.selectedCouncilMember = chooseCouncilMembers().join(', ');
+                                        const textarea = document.querySelector('textarea');
+                                        if (!textarea) {
+                                            throw new Error('DXAiChat textarea not found.');
+                                        }
+
+                                        const prompt = [
+                                            'DXAiChat two-member AI Council code review request from frontend smoke test.',
+                                            'Review these LocalGPT changes from the prompt only, then add UX/product guidance:',
+                                            '- OllamaThinkingChatClient streams /api/chat chunks into DXAiChat and renders model-supplied thinking/<think> content in a visible Model thinking block inside the assistant message.',
+                                            '- CompositeChatClient treats DXAiChat Stop/request cancellation as a quiet user stop instead of an unhandled exception.',
+                                            '- Chat CSS styles the model-thinking block in the message area.',
+                                            '- DXAiFunctions now list local datapack/council diagnostic routes, including datapack version lookup.',
+                                            '- DXAiChat AI Council now has a visible Council answer tokens setting and the smoke asks for at least two members CPU-only.',
+                                            'Also review how to make Index and every page friendlier for non-technical users with tooltips, guided presets/default sets, and self-explanatory copy without removing advanced features.',
+                                            'Discuss moving most user/default settings from appsettings into Entity Framework database profiles, leaving appsettings for logging/bootstrap only.',
+                                            'Discuss Ollama/LM Studio runtime detection, user notices when not running, and an Install-page model-download flow for Ollama.',
+                                            'Return Markdown sections: Code review, DXAiChat frontend verification, UX guidance, Settings/default profiles, Runtime/model install guidance, Risks, Needs verification.'
+                                        ].join('\n');
+
+                                        smoke.initialMessageCount = messageContents().length;
+                                        textarea.focus();
+                                        setTextareaValue(textarea, prompt);
+                                        await sleep(250);
+                                        const send = findSendButton();
+                                        if (!isButtonReady(send)) {
+                                            throw new Error('DXAiChat Send button not ready.');
+                                        }
+
+                                        send.click();
+                                        smoke.clickedSend = true;
+                                        smoke.answerVisible = await waitFor(() => {
+                                            const contents = messageContents();
+                                            const newest = contents[contents.length - 1] || '';
+                                            smoke.finalMessagePreview = newest.slice(0, 1200);
+                                            smoke.hasThinkingBlock = !!document.querySelector('.model-thinking') || text().includes('Model thinking');
+                                            return contents.length > smoke.initialMessageCount
+                                                && newest.length > 400
+                                                && (newest.includes('AI Council Result')
+                                                    || newest.includes('Code review')
+                                                    || newest.includes('Consensus'));
+                                        }, 480000);
+                                    }
+                                    catch (error) {
+                                        smoke.error = error && error.message ? error.message : String(error);
+                                    }
+                                }
+                            }
                             if (location.pathname.toLowerCase().includes('/model-council')) {
                                 const featureSmoke = {
                                     clickedLowGpuPreset: false,
@@ -396,7 +538,20 @@ namespace WebView2_WinUI3_Sample
                         })()
                         """);
                     var path = sender.Source?.AbsolutePath.ToLowerInvariant() ?? string.Empty;
-                    if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))
+                    if (path.Contains("/chat", StringComparison.Ordinal) && _runDxAiChatCouncilDiagnostics)
+                    {
+                        await WaitForJavaScriptConditionAsync(
+                            sender.CoreWebView2,
+                            """
+                            (() => {
+                                const smoke = window.__localGptDiagDxAiChatCouncilSmoke;
+                                if (!smoke) return false;
+                                return !!smoke.answerVisible || !!smoke.error;
+                            })()
+                            """,
+                            TimeSpan.FromMinutes(9));
+                    }
+                    else if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))
                     {
                         await WaitForJavaScriptConditionAsync(
                             sender.CoreWebView2,
@@ -492,6 +647,9 @@ namespace WebView2_WinUI3_Sample
                                 clickedCouncilLowGpuPreset: !!window.__localGptDiagClickedCouncilLowGpuPreset,
                                 runGpuCouncilDiagnostics: !!window.__localGptDiagRunGpuCouncil,
                                 runFeatureRequestDiagnostics: !!window.__localGptDiagRunFeatureRequest,
+                                runDxAiChatCouncilDiagnostics: !!window.__localGptDiagRunDxAiChatCouncil,
+                                dxAiChatCouncilSmoke: window.__localGptDiagDxAiChatCouncilSmoke,
+                                hasModelThinkingBlock: !!document.querySelector('.model-thinking') || text.includes('Model thinking'),
                                 councilLowGpuSettings: {
                                     reviewRounds: readLabeledInput('Review rounds'),
                                     parallelModels: readLabeledInput('Parallel models'),

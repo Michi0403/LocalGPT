@@ -901,9 +901,7 @@ namespace LocalGPT.Services
             """;
 
         private static int GetPackFormat(string minecraftVersion) =>
-            minecraftVersion.StartsWith("1.21.4", StringComparison.OrdinalIgnoreCase) ? 61 :
-            minecraftVersion.StartsWith("1.21.1", StringComparison.OrdinalIgnoreCase) ? 48 :
-            61;
+            MinecraftDatapackVersionCatalog.Resolve(minecraftVersion).PackFormat;
 
         private static string CreateFunctionTag(string modId, string functionName) =>
             $$"""

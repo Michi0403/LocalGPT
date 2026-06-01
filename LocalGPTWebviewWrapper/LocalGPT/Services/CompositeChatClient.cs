@@ -125,17 +125,56 @@ public class CompositeChatClient : IChatClient
         ChatOptions options,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
-        var responseText = new StringBuilder();
-        await foreach (var update in session.Client.GetStreamingResponseAsync(enrichedMessages, options, cancellationToken).WithCancellation(cancellationToken))
+        IReadOnlyList<ChatMessage> enrichedMessages;
+        try
         {
-            responseText.Append(update.Text);
-            yield return update;
+            enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            yield break;
         }
 
+        var responseText = new StringBuilder();
+        var updates = session.Client.GetStreamingResponseAsync(enrichedMessages, options, cancellationToken).GetAsyncEnumerator(cancellationToken);
+        try
+        {
+            while (true)
+            {
+                ChatResponseUpdate update;
+                try
+                {
+                    if (!await updates.MoveNextAsync())
+                        break;
+
+                    update = updates.Current;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    yield break;
+                }
+
+                responseText.Append(update.Text);
+                yield return update;
+            }
+        }
+        finally
+        {
+            await updates.DisposeAsync();
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+            yield break;
+
         var text = responseText.ToString();
-        await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken);
-        await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken);
+        try
+        {
+            await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken);
+            await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
     }
 
     private async Task WriteMissingFeatureReportIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)
