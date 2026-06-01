@@ -1,9 +1,146 @@
-# WinUI 3 (Windows App SDK) sample app
+# LocalGPT WebView Wrapper
 
-This sample (**WebView2_WinUI3_Sample**) demonstrates using a WebView2 control in a WinUI 3 (Windows App SDK) Packaged application.
+LocalGPT is a Windows desktop-hosted Blazor/ASP.NET Core application. The UI and AI services live in the `LocalGPT` ASP.NET Core server project, and the `LocalGPTWebviewWrapper` WinUI 3 app starts that server and displays it through WebView2.
 
-![Sample app](./images/sample-app.png)
+The wrapper exists to make the app feel like a native Windows application while keeping the main UI in Blazor, where DevExpress components and browser debugging are easier to work with.
 
-This sample also allows you to ship the app with a fixed-version WebView2 Runtime, instead of using whichever version of the WebView2 Runtime is installed and running on the user's computer.
+## Projects
 
-To use this sample, see [WinUI 3 (Windows App SDK) sample app](https://learn.microsoft.com/microsoft-edge/webview2/samples/webview2-winui3-sample).
+- `LocalGPT`: Blazor/ASP.NET Core server, DevExpress UI, AI/Ollama configuration, native command runner services, Minecraft mod workspace services.
+- `LocalGPTWebviewWrapper`: WinUI 3/WebView2 executable that launches and hosts the local server.
+- `LocalGPTWebviewWrapper (Package)`: MSIX/DesktopBridge package project used for deploy/debug from Visual Studio and loose-layout registration.
+- `build`: local build and repair scripts.
+
+## Required tools
+
+Use the current Visual Studio install with these workloads/components:
+
+- .NET desktop development
+- ASP.NET and web development
+- Windows application development / WinUI tooling
+- Windows SDK `10.0.22621.0` or newer
+- Windows App SDK runtime
+- WebView2 runtime
+- DevExpress Blazor packages/feed access for the installed `25.1.x` packages
+
+The projects currently target .NET 9. A .NET 10 SDK may be installed, but the app should build and run with the .NET 9 target unless the whole solution is intentionally retargeted.
+
+Check local runtimes:
+
+```powershell
+dotnet --list-runtimes
+```
+
+The desktop runtime prompt in Edge means the packaged app is running framework-dependent or the runtime is missing. The wrapper project is now self-contained when built with a runtime identifier, and the package overlays that self-contained publish output into the MSIX layout.
+
+## One-command local repair
+
+From the repository root:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Repair-LocalGptDevEnvironment.ps1 -Register -Launch
+```
+
+To let the script install the .NET 9 Desktop Runtime with winget if it is missing:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Repair-LocalGptDevEnvironment.ps1 -InstallMissingRuntime -Register -Launch
+```
+
+The repair script:
+
+- checks for .NET 9 desktop runtime
+- creates/trusts a local package certificate in CurrentUser stores
+- builds the full solution with Visual Studio MSBuild
+- registers the loose AppX layout for debugging when `-Register` is passed
+- launches the installed app when `-Launch` is passed
+
+## Manual build
+
+Use Visual Studio MSBuild for the full solution because the package project is a DesktopBridge `.wapproj`.
+
+```powershell
+& "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" `
+  ".\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.sln" `
+  /p:Platform=x64 `
+  /p:Configuration=Debug `
+  /m `
+  /v:minimal
+```
+
+The package is emitted under:
+
+```text
+%TEMP%\LocalGPTWebviewWrapper\AppPackages\
+```
+
+The loose debug layout is emitted under:
+
+```text
+LocalGPTWebviewWrapper\LocalGPTWebviewWrapper (Package)\bin\x64\Debug\AppX\
+```
+
+## Manual deploy/debug
+
+Register the loose layout:
+
+```powershell
+Add-AppxPackage -Register ".\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper (Package)\bin\x64\Debug\AppxManifest.xml" `
+  -ForceApplicationShutdown `
+  -ForceUpdateFromAnyVersion
+```
+
+Launch from Start Menu, Visual Studio, or PowerShell:
+
+```powershell
+$app = Get-StartApps | Where-Object { $_.AppID -like 'a6e38587-f17a-4a2e-8022-248694f372b3_*' } | Select-Object -First 1
+Start-Process "shell:AppsFolder\$($app.AppID)"
+```
+
+## Static web assets and DevExpress
+
+Blazor and DevExpress static assets are served through `LocalGPT.staticwebassets.runtime.json`. In this repository the WinUI package must copy that manifest beside `LocalGPTWebviewWrapper.exe`, otherwise these paths fail:
+
+- `/LocalGPT.styles.css`
+- `/_content/DevExpress.Blazor.Resources/js/import-scripts.js`
+- `/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css`
+
+The package project now copies the manifest from the RID-specific build output, for example:
+
+```text
+LocalGPT\bin\x64\Debug\net9.0\win-x64\LocalGPT.staticwebassets.runtime.json
+```
+
+DevExpress 25 uses this module path:
+
+```text
+/_content/DevExpress.Blazor/modules/dx-blazor-all.js
+```
+
+The older path below is expected to return 404 with the installed package version:
+
+```text
+/_content/DevExpress.Blazor/dx-blazor-all.js
+```
+
+## Common fixes
+
+If Visual Studio says deployment fails:
+
+1. Build the solution once with the repair script.
+2. Register the loose AppX layout with `-Register`.
+3. If certificate errors appear, run `build\New-LocalPackageCertificate.ps1`.
+4. If the Edge runtime/download prompt appears, rebuild the package so the self-contained wrapper publish output is overlaid into the AppX layout.
+5. If DevExpress components render blank or throw JavaScript module errors, verify `LocalGPT.staticwebassets.runtime.json` exists beside the packaged executable.
+
+If DevExpress packages do not restore:
+
+1. Confirm the DevExpress NuGet feed is configured in Visual Studio or `NuGet.config`.
+2. Confirm the package versions resolve to the installed `25.1.x` feed.
+3. Run `dotnet restore .\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.sln`.
+
+## AI and Ollama direction
+
+The app is intended to support several selectable Ollama-hosted AI models and reuse context smartly. Keep configuration save/load behavior durable because the setup page is the control surface for those AI profiles.
+
+The longer-term Minecraft mod building feature should keep risky OS command execution behind backend services such as `INativeCommandRunner`, and should keep browser/client-only helpers in the frontend layer. Treat command execution as a deliberate capability, not as random UI code.

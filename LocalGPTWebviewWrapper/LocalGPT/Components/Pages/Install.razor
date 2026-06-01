@@ -28,6 +28,42 @@
 
         <h2 class="text-xl font-semibold">AI Providers Setup</h2>
 
+        <div class="top-container">
+            <DxButton Text="Find Local AI Hosts"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Enabled="@(!IsDiscovering)"
+                      Click="DiscoverLocalAiHosts" />
+        </div>
+
+        @if (DiscoveredHosts.Count > 0)
+        {
+            <DxFormLayout>
+                <DxFormLayoutGroup Caption="Discovered Local AI Hosts" ColSpanMd="12">
+                    @foreach (var host in DiscoveredHosts)
+                    {
+                        <DxFormLayoutItem Caption="@($"{host.Provider} - {host.Endpoint}")" ColSpanMd="12">
+                            <div class="discovered-ai-host">
+                                <div>@(host.IsReachable ? "Reachable" : "Unavailable"): @host.Status</div>
+                                @if (host.Models.Count > 0)
+                                {
+                                    <div class="top-container">
+                                        @foreach (var model in host.Models)
+                                        {
+                                            <DxButton Text="@GetDiscoveredModelButtonText(model)"
+                                                      RenderStyle="ButtonRenderStyle.Primary"
+                                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                                      Click="@(() => ApplyDiscoveredModel(host, model))" />
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </DxFormLayoutItem>
+                    }
+                </DxFormLayoutGroup>
+            </DxFormLayout>
+        }
+
         <DxFormLayout>
             <DxFormLayoutTabPages>
 
@@ -131,6 +167,8 @@
     private AICoreOptions Model = new();
     private string _log = "";
     private string toastName = "InstallToasts";
+    private bool IsDiscovering;
+    private IReadOnlyList<LocalAiHostDiscoveryResult> DiscoveredHosts = Array.Empty<LocalAiHostDiscoveryResult>();
     private List<OllamaCoreOptions> AdditionalOllamaModels => Model.OllamaCores;
 
     protected override void OnInitialized()
@@ -228,6 +266,74 @@
             Notifier.ShowError(toastName, ex.ToString(), "Ollama Test Error");
             await Append("(Ollama Test) " + ex.Message);
         }
+    }
+
+    private async Task DiscoverLocalAiHosts()
+    {
+        try
+        {
+            IsDiscovering = true;
+            await Append("Scanning localhost for Ollama and LM Studio...");
+
+            DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default);
+            var reachable = DiscoveredHosts.Count(h => h.IsReachable);
+            var models = DiscoveredHosts.Sum(h => h.Models.Count);
+
+            await Append($"Discovery found {reachable} reachable host(s) and {models} model(s).");
+
+            if (reachable > 0)
+                Notifier.ShowSuccess(toastName, $"Found {reachable} local AI host(s).", "Discovery Complete");
+            else
+                Notifier.ShowWarning(toastName, "No local AI hosts responded.", "Discovery Complete");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "DiscoverLocalAiHosts failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Discovery Error");
+            await Append("(Discovery) " + ex.Message);
+        }
+        finally
+        {
+            IsDiscovering = false;
+        }
+    }
+
+    private async Task ApplyDiscoveredModel(LocalAiHostDiscoveryResult host, LocalAiModelInfo model)
+    {
+        try
+        {
+            if (string.Equals(host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                Model.OllamaCore.Uri = host.Endpoint;
+                Model.OllamaCore.ModelName = model.Name;
+                await Append($"Selected Ollama model {model.Name} at {host.Endpoint}.");
+            }
+            else
+            {
+                Model.ChatGPTLocalCore.Endpoint = host.Endpoint;
+                Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
+                    ? "local-key"
+                    : Model.ChatGPTLocalCore.ApiKey;
+                Model.ChatGPTLocalCore.ModelName = model.Name;
+                await Append($"Selected {host.Provider} model {model.Name} at {host.Endpoint}.");
+            }
+
+            Notifier.ShowSuccess(toastName, $"{host.Provider}: {model.Name}", "Model Selected");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "ApplyDiscoveredModel failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Selection Error");
+            await Append("(Selection) " + ex.Message);
+        }
+    }
+
+    private static string GetDiscoveredModelButtonText(LocalAiModelInfo model)
+    {
+        var state = model.IsLoaded ? "loaded" : "installed";
+        return string.IsNullOrWhiteSpace(model.Details)
+            ? $"{model.Name} ({state})"
+            : $"{model.Name} ({state}, {model.Details})";
     }
 
     private void AddOllamaModel()

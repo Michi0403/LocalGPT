@@ -9,5 +9,6 @@ namespace LocalGPT.Interfaces
         Task<(bool ok, string message)> TestOllamaAsync(OllamaCoreOptions o, CancellationToken ct);
         Task<(bool ok, string message)> TestLocalOpenAICompatAsync(ChatGPTLocalCoreOptions o, CancellationToken ct);
         Task<(bool ok, string message)> TryStartLocalAsync(ChatGPTLocalCoreOptions o, CancellationToken ct);
+        Task<IReadOnlyList<LocalAiHostDiscoveryResult>> DiscoverLocalHostsAsync(CancellationToken ct);
     }
 }

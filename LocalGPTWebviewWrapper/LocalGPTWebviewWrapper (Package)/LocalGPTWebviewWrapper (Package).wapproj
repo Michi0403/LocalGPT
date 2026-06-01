@@ -89,6 +89,27 @@
           SkipUnchangedFiles="true"
           Condition="'$(LayoutDir)' != ''" />
   </Target>
+  <Target Name="CopyLocalGptStaticWebAssetsManifest"
+          BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage">
+    <ItemGroup>
+      <_LocalGptStaticWebAssetsManifest Include="..\LocalGPT\bin\$(Platform)\$(Configuration)\net9.0\win-$(Platform)\LocalGPT.staticwebassets.runtime.json"
+                                        Condition="Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net9.0\win-$(Platform)\LocalGPT.staticwebassets.runtime.json')" />
+      <_LocalGptStaticWebAssetsManifest Include="..\LocalGPT\bin\$(Configuration)\net9.0\win-$(Platform)\LocalGPT.staticwebassets.runtime.json"
+                                        Condition="Exists('..\LocalGPT\bin\$(Configuration)\net9.0\win-$(Platform)\LocalGPT.staticwebassets.runtime.json')" />
+      <_LocalGptStaticWebAssetsManifest Include="..\LocalGPT\bin\$(Platform)\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json"
+                                        Condition="Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json')" />
+      <_LocalGptStaticWebAssetsManifest Include="..\LocalGPT\bin\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json"
+                                        Condition="Exists('..\LocalGPT\bin\$(Configuration)\net9.0\LocalGPT.staticwebassets.runtime.json')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_LocalGptStaticWebAssetsManifest)"
+          DestinationFiles="@(_LocalGptStaticWebAssetsManifest->'$(OutputPath)LocalGPTWebviewWrapper\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(_LocalGptStaticWebAssetsManifest)' != ''" />
+    <Copy SourceFiles="@(_LocalGptStaticWebAssetsManifest)"
+          DestinationFiles="@(_LocalGptStaticWebAssetsManifest->'$(LayoutDir)\LocalGPTWebviewWrapper\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(_LocalGptStaticWebAssetsManifest)' != '' and '$(LayoutDir)' != ''" />
+  </Target>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>

@@ -1,0 +1,31 @@
+# LocalGPT for LLMs
+
+LocalGPT is a .NET 9 Blazor/ASP.NET Core application hosted inside a WinUI 3 WebView2 Windows wrapper. It uses DevExpress Blazor components, Ollama-hosted AI models, configuration-driven AI profile selection, and backend services for native command execution and Minecraft mod workspace automation.
+
+Main projects:
+
+- LocalGPTWebviewWrapper/LocalGPT: ASP.NET Core host, Blazor UI, DevExpress components, AI services, setup/configuration pages.
+- LocalGPTWebviewWrapper/LocalGPTWebviewWrapper: WinUI 3 and WebView2 desktop shell.
+- LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package): MSIX/DesktopBridge package project for deploy/debug.
+- LocalGPTWebviewWrapper/build: repair/build scripts for local Windows development.
+
+Key architecture:
+
+- the WinUI wrapper should stay thin
+- Blazor/server code owns AI, configuration, and command orchestration
+- DevExpress static assets require LocalGPT.staticwebassets.runtime.json in the packaged executable folder
+- native commands should flow through backend services such as INativeCommandRunner
+
+Important assumptions:
+
+- Visual Studio MSBuild is required for full package validation
+- .NET 9 is the current target
+- DevExpress 25.1 packages are expected
+- Ollama runs outside the app and is selected/configured through setup data
+
+Recommended docs:
+
+- AGENTS.md
+- CLAUDE.md
+- docs/ARCHITECTURE_FOR_AI.md
+- LocalGPTWebviewWrapper/readme.md

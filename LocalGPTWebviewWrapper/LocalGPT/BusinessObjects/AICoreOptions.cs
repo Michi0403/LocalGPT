@@ -47,4 +47,20 @@ namespace LocalGPT.BusinessObjects
         public string Uri { get; set; } = "http://localhost:11434";
         public string ModelName { get; set; } = "llama3.1";
     }
+
+    public sealed class LocalAiHostDiscoveryResult
+    {
+        public string Provider { get; set; } = string.Empty;
+        public string Endpoint { get; set; } = string.Empty;
+        public bool IsReachable { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public List<LocalAiModelInfo> Models { get; set; } = new();
+    }
+
+    public sealed class LocalAiModelInfo
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool IsLoaded { get; set; }
+        public string? Details { get; set; }
+    }
 }
