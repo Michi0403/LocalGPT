@@ -145,6 +145,38 @@ Treat these as product direction, not as already-implemented behavior.
 
 The detailed Minecraft builder rules live in `docs/MINECRAFT_MOD_AI_BUILDER.md`. The bootstrap prompt includes that file so chat and council participants can explain setup and report missing builder features consistently.
 
+## Diagnostic test paths
+
+Prefer testing through LocalGPT services before calling Ollama directly.
+
+Use `POST /__diag/dxaichat-smoke` to exercise the configured `IChatClient` used by the DXAiChat page. It returns raw text, visible text, extracted model thinking, and optionally saves the exchange to SQLite memory.
+
+Use `POST /__diag/council` to exercise the AI Council through LocalGPT. Keep `MaxParallelModels = 1` for 20B/30B local models on consumer GPUs unless the user explicitly wants a heavier run.
+
+Use `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge` to generate a buildable workspace through the app service, then run the generated `build-local.ps1`.
+
+LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Diagnostics should discover the current URL from:
+
+```text
+%LOCALAPPDATA%\LocalGPT\runtime\server.json
+```
+
+The WinUI wrapper supports a WebView2 smoke mode. Prefer a registered/package identity or Visual Studio debug launch for this final frontend check, because direct unpackaged exe launch can fail with WinUI activation error `REGDB_E_CLASSNOTREG`:
+
+```powershell
+$env:LOCALGPT_WEBVIEW2_SMOKE = "1"
+$env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
+.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net9.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
+```
+
+This drives the embedded WebView2 through `/`, `/Chat`, and `/minecraft-mod-builder` and writes JSON snapshots to:
+
+```text
+%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\
+```
+
+Use this when validating that the native shell can load the real Blazor app, not just the ASP.NET server endpoint.
+
 ## If you are changing code
 
 Ask yourself:

@@ -65,6 +65,18 @@ Generated Java workspaces include `build-local.ps1` for Gradle builds. Generated
 
 AI guidance for this feature lives in [docs/MINECRAFT_MOD_AI_BUILDER.md](docs/MINECRAFT_MOD_AI_BUILDER.md).
 
+## Diagnostics
+
+Use LocalGPT diagnostics before direct Ollama calls:
+
+- `POST /__diag/dxaichat-smoke`: configured DXAiChat backend smoke test with visible/thinking split and optional SQLite memory save.
+- `POST /__diag/council`: multi-model council run through LocalGPT.
+- `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generated workspace smoke test.
+
+LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Discover the current URL from `%LOCALAPPDATA%\LocalGPT\runtime\server.json`.
+
+For desktop shell validation, run the WinUI wrapper from Visual Studio or a registered package with `LOCALGPT_WEBVIEW2_SMOKE=1`. It writes WebView2 snapshots to `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`.
+
 ## Build
 
 Build the Blazor project:

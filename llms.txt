@@ -26,6 +26,8 @@ Important assumptions:
 - run LocalGPTWebviewWrapper/build/Test-OllamaGptOss.ps1 before debugging DxAIChat
 - Minecraft Builder should let the user/council choose Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, or future Bedrock add-on
 - use LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1 for JDK, Gradle, Eclipse, and Minecraft builder setup checks
+- use /__diag/dxaichat-smoke for configured DXAiChat backend tests and /__diag/council for council tests before falling back to direct Ollama
+- use LOCALGPT_WEBVIEW2_SMOKE=1 in the WinUI wrapper to capture WebView2 page snapshots for desktop-shell validation
 
 Recommended docs:
 
@@ -34,4 +36,5 @@ Recommended docs:
 - CLAUDE.md
 - docs/ARCHITECTURE_FOR_AI.md
 - docs/MINECRAFT_MOD_AI_BUILDER.md
+- docs/LOCALGPT_WORKFLOW_MEMORY.md
 - LocalGPTWebviewWrapper/readme.md

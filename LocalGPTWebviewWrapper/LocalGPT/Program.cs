@@ -22,6 +22,8 @@ using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
 using TacosPortal.Services;
 using static System.Net.Mime.MediaTypeNames;
@@ -226,6 +228,64 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     CreatedAt = DateTimeOffset.UtcNow
                 });
             });
+            app.MapPost("/__diag/dxaichat-smoke", async ([FromBody] DxaichatSmokeRequest request, IChatClient chatClient, IChatMemoryService memory, CancellationToken ct) =>
+            {
+                var prompt = string.IsNullOrWhiteSpace(request.Prompt)
+                    ? "Reply with exactly: LocalGPT DXAiChat configured-client smoke test passed."
+                    : request.Prompt.Trim();
+
+                var messages = new List<ChatMessage>();
+                if (request.IncludeDiagnosticSystemPrompt)
+                {
+                    messages.Add(new ChatMessage(ChatRole.System, """
+                        You are being called through LocalGPT's configured IChatClient, the same backend service used by the DXAiChat page.
+                        This is a diagnostic smoke test, not direct Ollama access.
+                        Keep the visible answer concise, mark uncertain claims as "Needs verification", and do not claim UI behavior was tested unless the prompt says it was.
+                        """));
+                }
+
+                messages.Add(new ChatMessage(ChatRole.User, prompt));
+
+                var response = await chatClient.GetResponseAsync(
+                    messages,
+                    new ChatOptions
+                    {
+                        MaxOutputTokens = Math.Clamp(request.MaxOutputTokens, 256, 4096),
+                        Temperature = 0.2f
+                    },
+                    ct);
+
+                await memory.EnsureCreatedAsync(ct);
+
+                Guid? savedConversationId = null;
+                if (request.SaveToMemory)
+                {
+                    savedConversationId = await memory.SaveConversationAsync(
+                        string.IsNullOrWhiteSpace(request.Title) ? "Diagnostic - DXAiChat configured client" : request.Title.Trim(),
+                        [
+                            new BlazorChatMessage(ChatRole.User, prompt, new List<AIChatUploadFileInfo>()),
+                            new BlazorChatMessage(ChatRole.Assistant, response.Text, new List<AIChatUploadFileInfo>())
+                        ],
+                        cancellationToken: ct);
+                }
+
+                var thinking = ExtractModelThinking(response.Text);
+                var visibleText = StripModelThinking(response.Text);
+                if (string.IsNullOrWhiteSpace(visibleText) && !string.IsNullOrWhiteSpace(thinking))
+                    visibleText = "The model returned thinking but no final visible answer. Increase MaxOutputTokens or ask for a shorter final answer.";
+
+                return Results.Ok(new
+                {
+                    Source = "LocalGPT configured IChatClient used by DXAiChat",
+                    Prompt = prompt,
+                    RawText = response.Text,
+                    VisibleText = visibleText,
+                    Thinking = thinking,
+                    HasThinking = !string.IsNullOrWhiteSpace(thinking),
+                    SavedConversationId = savedConversationId,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
             app.MapGet("/__diag/memory", async (IChatMemoryService memory, CancellationToken ct) =>
             {
                 await memory.EnsureCreatedAsync(ct);
@@ -378,7 +438,36 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                .AddInteractiveServerRenderMode()
                .AllowAnonymous();
 
+            WriteRuntimeEndpointFile();
             return app;                           // ⬅️ no Run() here
+        }
+
+        private static void WriteRuntimeEndpointFile()
+        {
+            try
+            {
+                var directory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "runtime");
+                Directory.CreateDirectory(directory);
+
+                var payload = new
+                {
+                    ProcessId = Environment.ProcessId,
+                    BaseUrl = $"http://127.0.0.1:{Port}",
+                    Port,
+                    StartedAtUtc = DateTimeOffset.UtcNow
+                };
+
+                File.WriteAllText(
+                    Path.Combine(directory, "server.json"),
+                    JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch
+            {
+                // Diagnostics must never block app startup.
+            }
         }
 
         private static int GetFreePort()
@@ -388,6 +477,34 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             var port = ((IPEndPoint)listener.LocalEndpoint).Port;
             listener.Stop();
             return port;
+        }
+
+        private static string ExtractModelThinking(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return string.Empty;
+
+            var match = Regex.Match(
+                content,
+                "<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+
+            return match.Success
+                ? WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim()
+                : string.Empty;
+        }
+
+        private static string StripModelThinking(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return string.Empty;
+
+            return Regex.Replace(
+                    content,
+                    "<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
+                    string.Empty,
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)
+                .Trim();
         }
     } 
 }

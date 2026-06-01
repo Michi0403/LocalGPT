@@ -110,15 +110,17 @@ namespace LocalGPT.Services
             if (string.IsNullOrWhiteSpace(content))
                 return null;
 
-            if (!IsHarmonyModel())
-                return content.Trim();
-
             var text = content.Trim();
-            var finalMatches = HarmonyFinalPattern().Matches(text);
-            if (finalMatches.Count > 0)
-                text = finalMatches[^1].Groups["content"].Value;
+            if (IsHarmonyModel())
+            {
+                var finalMatches = HarmonyFinalPattern().Matches(text);
+                if (finalMatches.Count > 0)
+                    text = finalMatches[^1].Groups["content"].Value;
 
-            text = HarmonyMarkerPattern().Replace(text, string.Empty);
+                text = HarmonyMarkerPattern().Replace(text, string.Empty);
+            }
+
+            text = ThinkTagPattern().Replace(text, string.Empty);
             return text.Trim();
         }
 
@@ -140,6 +142,24 @@ namespace LocalGPT.Services
             return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
         }
 
+        private static string? ExtractTaggedThinking(string? content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return null;
+
+            var matches = ThinkTagPattern().Matches(content);
+            if (matches.Count == 0)
+                return null;
+
+            var thinking = string.Join(
+                Environment.NewLine,
+                matches
+                    .Select(match => match.Groups["thinking"].Value.Trim())
+                    .Where(text => !string.IsNullOrWhiteSpace(text)));
+
+            return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+        }
+
         private bool IsHarmonyModel()
         {
             return model.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
@@ -150,9 +170,13 @@ namespace LocalGPT.Services
         {
             var builder = new StringBuilder();
             var normalizedContent = NormalizeVisibleContent(content);
-            var normalizedThinking = string.IsNullOrWhiteSpace(thinking)
-                ? ExtractHarmonyThinking(content)
-                : thinking.Trim();
+            var thinkingParts = new[]
+            {
+                string.IsNullOrWhiteSpace(thinking) ? null : thinking.Trim(),
+                ExtractHarmonyThinking(content),
+                ExtractTaggedThinking(content)
+            }.Where(text => !string.IsNullOrWhiteSpace(text));
+            var normalizedThinking = string.Join(Environment.NewLine, thinkingParts);
 
             if (!string.IsNullOrWhiteSpace(normalizedThinking))
             {
@@ -168,6 +192,8 @@ namespace LocalGPT.Services
 
             if (!string.IsNullOrWhiteSpace(normalizedContent))
                 builder.AppendLine(normalizedContent.Trim());
+            else if (!string.IsNullOrWhiteSpace(normalizedThinking))
+                builder.AppendLine("_The model returned thinking but no final visible answer. Increase the output token budget or ask for a shorter final answer._");
 
             return builder.ToString().Trim();
         }
@@ -180,6 +206,9 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("<\\|[^>]+\\|>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex HarmonyMarkerPattern();
+
+        [GeneratedRegex("<think>(?<thinking>.*?)</think>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        private static partial Regex ThinkTagPattern();
 
         private sealed class OllamaChatRequest
         {

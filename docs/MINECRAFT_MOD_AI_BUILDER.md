@@ -132,6 +132,25 @@ Examples:
 - generated GameTest/JUnit test templates
 - Bedrock behavior/resource pack exporter
 
+## LocalGPT Test Helpers
+
+Use LocalGPT's own diagnostic routes instead of direct Ollama calls when validating Minecraft/council behavior:
+
+- `POST /__diag/dxaichat-smoke`: exercises the configured DXAiChat backend client, separates visible answer from model thinking, and can save the exchange to SQLite memory.
+- `POST /__diag/council`: runs the multi-model council with logging and memory.
+- `GET /__diag/council/models`: lists configured and installed Ollama models visible to LocalGPT.
+- `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generates a smoke workspace through `IMinecraftModWorkspaceService`.
+
+For full desktop validation, run the WinUI wrapper from a registered/package identity or Visual Studio debug launch with:
+
+```powershell
+$env:LOCALGPT_WEBVIEW2_SMOKE = "1"
+$env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
+.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net9.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
+```
+
+The wrapper writes WebView2 page snapshots under `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`. Use these snapshots to verify that `/Chat` and `/minecraft-mod-builder` load inside the actual desktop shell.
+
 ## Truthfulness Rules
 
 Do not say a mod was compiled, launched, or tested unless command output is available.

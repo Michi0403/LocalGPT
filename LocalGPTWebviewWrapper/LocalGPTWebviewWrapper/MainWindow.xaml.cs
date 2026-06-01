@@ -6,7 +6,11 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Web.WebView2.Core;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
+using System.Threading.Tasks;
 using WinRT.Interop;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -19,6 +23,9 @@ namespace WebView2_WinUI3_Sample
     public sealed partial class MainWindow : Window
     {
         private readonly string _baseUrl;
+        private readonly bool _runDiagnostics;
+        private readonly Queue<string> _diagnosticRoutes = new();
+        private readonly string _diagnosticRunId = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         //public MainWindow()
         //{
         //    this.InitializeComponent();
@@ -52,10 +59,16 @@ namespace WebView2_WinUI3_Sample
         //    SetTitle();
         //}
 
-        public MainWindow(string baseUrl)
+        public MainWindow(string baseUrl, bool runDiagnostics = false)
         {
             InitializeComponent();
             _baseUrl = baseUrl;
+            _runDiagnostics = runDiagnostics;
+            if (_runDiagnostics)
+            {
+                _diagnosticRoutes.Enqueue("/Chat");
+                _diagnosticRoutes.Enqueue("/minecraft-mod-builder");
+            }
 
             // Let system theme decide (don’t force dark)
         
@@ -88,12 +101,78 @@ namespace WebView2_WinUI3_Sample
             }
         }
 
-        private void WebView2_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+        private async void WebView2_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
         {
             StatusUpdate("Navigation complete");
+            if (_runDiagnostics)
+                await CaptureWebView2DiagnosticsAsync(sender, args);
 
             // Update the address bar with the full URL that was navigated to.
             //AddressBar.Text = sender.Source.ToString();
+        }
+
+        private async Task CaptureWebView2DiagnosticsAsync(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+        {
+            var snapshot = new WebView2DiagnosticSnapshot
+            {
+                RunId = _diagnosticRunId,
+                CapturedAtUtc = DateTimeOffset.UtcNow,
+                RequestedUri = sender.Source?.ToString() ?? string.Empty,
+                IsSuccess = args.IsSuccess,
+                WebErrorStatus = args.WebErrorStatus.ToString()
+            };
+
+            try
+            {
+                if (sender.CoreWebView2 != null && args.IsSuccess)
+                {
+                    snapshot.PageJson = await sender.CoreWebView2.ExecuteScriptAsync("""
+                        (() => JSON.stringify({
+                            url: location.href,
+                            title: document.title,
+                            readyState: document.readyState,
+                            bodyText: (document.body && document.body.innerText ? document.body.innerText : '').slice(0, 4000),
+                            hasDxAiChatSurface: !!document.querySelector('.demo-chat, dxbl-ai-chat, .dxbl-aichat'),
+                            hasMinecraftBuilderText: (document.body && document.body.innerText ? document.body.innerText : '').includes('Minecraft Mod Builder'),
+                            hasSetupText: (document.body && document.body.innerText ? document.body.innerText : '').includes('Setup')
+                        }))()
+                        """);
+                }
+            }
+            catch (Exception ex)
+            {
+                snapshot.Error = ex.Message;
+            }
+
+            await WriteDiagnosticSnapshotAsync(snapshot);
+
+            if (_diagnosticRoutes.Count > 0)
+            {
+                var nextRoute = _diagnosticRoutes.Dequeue();
+                sender.Source = new Uri($"{_baseUrl}{nextRoute}");
+                return;
+            }
+
+            if (string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_EXIT"), "1", StringComparison.OrdinalIgnoreCase))
+                Close();
+        }
+
+        private static async Task WriteDiagnosticSnapshotAsync(WebView2DiagnosticSnapshot snapshot)
+        {
+            var directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LocalGPT",
+                "WebView2Diagnostics");
+            Directory.CreateDirectory(directory);
+
+            var routeName = snapshot.RequestedUri
+                .Replace("http://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace(":", "_")
+                .Replace("/", "_")
+                .Replace("\\", "_");
+            var path = Path.Combine(directory, $"webview2-{snapshot.RunId}-{routeName}.json");
+            await File.WriteAllTextAsync(path, JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true }));
         }
 
         private bool TryCreateUri(String potentialUri, out Uri result)
@@ -188,6 +267,17 @@ namespace WebView2_WinUI3_Sample
             var sdkVersion = versionList[2] + "." + versionList[3];
 
             return $"{runtimeVersion}; {sdkVersion}";
+        }
+
+        private sealed class WebView2DiagnosticSnapshot
+        {
+            public string RunId { get; set; } = string.Empty;
+            public DateTimeOffset CapturedAtUtc { get; set; }
+            public string RequestedUri { get; set; } = string.Empty;
+            public bool IsSuccess { get; set; }
+            public string WebErrorStatus { get; set; } = string.Empty;
+            public string PageJson { get; set; } = string.Empty;
+            public string Error { get; set; } = string.Empty;
         }
     }
 }

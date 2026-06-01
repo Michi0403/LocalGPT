@@ -228,3 +228,28 @@ If the AI reports missing LocalGPT features, blocked workflows, or not-yet-imple
 ```text
 %LOCALAPPDATA%\LocalGPT\AIReports\
 ```
+
+## Diagnostics
+
+Prefer LocalGPT diagnostic routes when testing the real configured services:
+
+```powershell
+$server = Get-Content "$env:LOCALAPPDATA\LocalGPT\runtime\server.json" -Raw | ConvertFrom-Json
+Invoke-RestMethod -Method Post -Uri "$($server.BaseUrl)/__diag/dxaichat-smoke" -ContentType application/json -Body '{"maxOutputTokens":1024}'
+Invoke-RestMethod -Method Post -Uri "$($server.BaseUrl)/__diag/council" -ContentType application/json -Body '{...}'
+Invoke-RestMethod -Uri "$($server.BaseUrl)/__diag/minecraft/workspace-smoke?loader=datapack"
+```
+
+The WinUI wrapper can also test the embedded WebView2 shell. Run this from a registered/package identity or Visual Studio debug launch; direct unpackaged exe launch can fail with WinUI activation error `REGDB_E_CLASSNOTREG`.
+
+```powershell
+$env:LOCALGPT_WEBVIEW2_SMOKE = "1"
+$env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
+.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net9.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
+```
+
+Snapshots are written under:
+
+```text
+%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\
+```

@@ -57,7 +57,11 @@ namespace WebView2_WinUI3_Sample
             // Optionally: wait for /health before showing UI (keeps initial nav smooth)
             await WaitForHealthAsync(_baseUrl);
 
-            _window = new MainWindow(_baseUrl);
+            var runWebView2Diagnostics =
+                (args.Arguments?.Contains("--webview2-smoke", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE"), "1", StringComparison.OrdinalIgnoreCase);
+
+            _window = new MainWindow(_baseUrl, runWebView2Diagnostics);
             _window.Title = "WebView2 Hosts Blazor Backend";
             // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
             var appWindow = _window.AppWindow;

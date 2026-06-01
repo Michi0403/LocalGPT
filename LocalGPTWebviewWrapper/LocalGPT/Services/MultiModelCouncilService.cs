@@ -148,6 +148,7 @@ namespace LocalGPT.Services
                 modelTimeoutSeconds,
                 cancellationToken);
             AddOrderedStep(result, consensusStep);
+            var consensusContent = SelectConsensusContent(result, consensusStep);
 
             if (participants.Count > 1)
             {
@@ -165,11 +166,11 @@ namespace LocalGPT.Services
                     modelTimeoutSeconds,
                     cancellationToken);
                 AddOrderedStep(result, verificationStep);
-                result.FinalAnswer = $"{consensusStep.VisibleContent.Trim()}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
+                result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
             }
             else
             {
-                result.FinalAnswer = consensusStep.VisibleContent.Trim();
+                result.FinalAnswer = consensusContent;
             }
 
             foreach (var failedStep in result.Steps.Where(step => !string.IsNullOrWhiteSpace(step.Error)))
@@ -284,6 +285,12 @@ namespace LocalGPT.Services
                     },
                     participantCts.Token);
 
+                var content = response.Text;
+                var thinking = ExtractThinking(content);
+                var visibleContent = StripThinking(content);
+                if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
+                    visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
+
                 stopwatch.Stop();
                 return new MultiModelCouncilStep
                 {
@@ -291,9 +298,9 @@ namespace LocalGPT.Services
                     Phase = phase,
                     ModelName = modelName,
                     Role = role,
-                    Content = response.Text,
-                    VisibleContent = StripThinking(response.Text),
-                    Thinking = ExtractThinking(response.Text),
+                    Content = content,
+                    VisibleContent = visibleContent,
+                    Thinking = thinking,
                     StartedAtUtc = started,
                     CompletedAtUtc = DateTime.UtcNow,
                     DurationSeconds = stopwatch.Elapsed.TotalSeconds
@@ -342,6 +349,40 @@ namespace LocalGPT.Services
         {
             step.SortOrder = result.Steps.Count;
             result.Steps.Add(step);
+        }
+
+        private static string SelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep)
+        {
+            var consensus = consensusStep.VisibleContent.Trim();
+            if (IsSubstantiveCouncilContent(consensus))
+                return consensus;
+
+            result.Warnings.Add($"{consensusStep.ModelName} returned a non-substantive consensus during {consensusStep.Phase}; LocalGPT used the latest substantive council step as the final-answer fallback.");
+
+            var fallback = result.Steps
+                .Where(step => !ReferenceEquals(step, consensusStep))
+                .OrderByDescending(step => step.SortOrder)
+                .Select(step => step.VisibleContent.Trim())
+                .FirstOrDefault(IsSubstantiveCouncilContent);
+
+            if (!string.IsNullOrWhiteSpace(fallback))
+                return fallback;
+
+            return $"_{consensusStep.ModelName} did not return a substantive consensus answer. Retry with a higher output token budget, a smaller model set, or a shorter prompt._";
+        }
+
+        private static bool IsSubstantiveCouncilContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return false;
+
+            var trimmed = content.Trim();
+            if (trimmed.Length < 80)
+                return false;
+
+            var letterCount = trimmed.Count(char.IsLetter);
+            var wordCount = WordPattern().Matches(trimmed).Count;
+            return letterCount >= 40 && wordCount >= 10;
         }
 
         private List<string> SelectParticipants(MultiModelCouncilRequest request)
@@ -817,7 +858,7 @@ namespace LocalGPT.Services
         private static string StripThinking(string content)
         {
             var stripped = ThinkingBlockPattern().Replace(content, string.Empty);
-            return string.IsNullOrWhiteSpace(stripped) ? content.Trim() : stripped.Trim();
+            return stripped.Trim();
         }
 
         private static string NormalizeEndpoint(string endpoint)
@@ -829,6 +870,9 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         private static partial Regex ThinkingBlockPattern();
+
+        [GeneratedRegex("\\b[\\p{L}\\p{N}_'-]+\\b", RegexOptions.CultureInvariant)]
+        private static partial Regex WordPattern();
 
         private sealed class OllamaTagsResponse
         {
