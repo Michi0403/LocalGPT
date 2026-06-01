@@ -195,7 +195,7 @@ namespace WebView2_WinUI3_Sample
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunFeatureRequest = {(_runFeatureRequestDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatCouncil = {(_runDxAiChatCouncilDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatGptOss = {(_runDxAiChatGptOssDiagnostics ? "true" : "false")};");
-                    await sender.CoreWebView2.ExecuteScriptAsync("""
+                    await ExecuteScriptWithTimeoutAsync(sender.CoreWebView2, """
                         (async () => {
                             const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
                             const text = () => document.body && document.body.innerText ? document.body.innerText : '';
@@ -439,7 +439,12 @@ namespace WebView2_WinUI3_Sample
                                                         && (newest.includes('AI Council Result')
                                                             || newest.includes('Code review')
                                                             || newest.includes('Consensus')));
-                                        }, window.__localGptDiagRunDxAiChatGptOss ? 240000 : 1500000);
+                                        }, window.__localGptDiagRunDxAiChatGptOss ? 90000 : 1500000);
+                                        if (!smoke.answerVisible) {
+                                            smoke.error = window.__localGptDiagRunDxAiChatGptOss
+                                                ? `Timed out waiting for gpt-oss DXAiChat answer. Preview: ${smoke.finalMessagePreview}`
+                                                : `Timed out waiting for DXAiChat AI Council answer. Preview: ${smoke.finalMessagePreview}`;
+                                        }
                                     }
                                     catch (error) {
                                         smoke.error = error && error.message ? error.message : String(error);
@@ -555,7 +560,7 @@ namespace WebView2_WinUI3_Sample
                             }
                             return window.__localGptDiagClickedCouncilFeatureChat;
                         })()
-                        """);
+                        """, _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(2) : TimeSpan.FromMinutes(26));
                     var path = sender.Source?.AbsolutePath.ToLowerInvariant() ?? string.Empty;
                     if (path.Contains("/chat", StringComparison.Ordinal) && (_runDxAiChatCouncilDiagnostics || _runDxAiChatGptOssDiagnostics))
                     {
@@ -568,7 +573,7 @@ namespace WebView2_WinUI3_Sample
                                 return !!smoke.answerVisible || !!smoke.error;
                             })()
                             """,
-                            _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(8) : TimeSpan.FromMinutes(26));
+                            _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(3) : TimeSpan.FromMinutes(26));
                     }
                     else if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))
                     {
@@ -606,7 +611,7 @@ namespace WebView2_WinUI3_Sample
                         await Task.Delay(TimeSpan.FromMilliseconds(800));
                     }
 
-                    snapshot.PageJson = await sender.CoreWebView2.ExecuteScriptAsync("""
+                    snapshot.PageJson = await ExecuteScriptWithTimeoutAsync(sender.CoreWebView2, """
                         (() => {
                             const bodyText = () => (document.body && document.body.innerText ? document.body.innerText : '');
                             const text = bodyText();
@@ -667,7 +672,9 @@ namespace WebView2_WinUI3_Sample
                                 runGpuCouncilDiagnostics: !!window.__localGptDiagRunGpuCouncil,
                                 runFeatureRequestDiagnostics: !!window.__localGptDiagRunFeatureRequest,
                                 runDxAiChatCouncilDiagnostics: !!window.__localGptDiagRunDxAiChatCouncil,
+                                runDxAiChatGptOssDiagnostics: !!window.__localGptDiagRunDxAiChatGptOss,
                                 dxAiChatCouncilSmoke: window.__localGptDiagDxAiChatCouncilSmoke,
+                                dxAiChatGptOssSmoke: window.__localGptDiagDxAiChatGptOssSmoke,
                                 hasModelThinkingBlock: !!document.querySelector('.model-thinking') || text.includes('Model thinking'),
                                 councilLowGpuSettings: {
                                     reviewRounds: readLabeledInput('Review rounds'),
@@ -695,7 +702,7 @@ namespace WebView2_WinUI3_Sample
                                 hasSetupText: text.includes('Setup')
                             };
                         })()
-                        """);
+                        """, TimeSpan.FromSeconds(15));
                 }
             }
             catch (Exception ex)
@@ -727,6 +734,16 @@ namespace WebView2_WinUI3_Sample
 
                 await Task.Delay(TimeSpan.FromSeconds(1));
             }
+        }
+
+        private static async Task<string> ExecuteScriptWithTimeoutAsync(CoreWebView2 webView, string script, TimeSpan timeout)
+        {
+            var scriptTask = webView.ExecuteScriptAsync(script).AsTask();
+            var completed = await Task.WhenAny(scriptTask, Task.Delay(timeout));
+            if (completed == scriptTask)
+                return await scriptTask;
+
+            throw new TimeoutException($"Timed out after {timeout:g} waiting for WebView2 script execution.");
         }
 
         private static async Task WriteDiagnosticSnapshotAsync(WebView2DiagnosticSnapshot snapshot)
