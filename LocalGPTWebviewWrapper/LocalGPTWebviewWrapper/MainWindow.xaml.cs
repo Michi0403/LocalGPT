@@ -161,7 +161,15 @@ namespace WebView2_WinUI3_Sample
 
         private void SetTitle(WebView2 webView2 = null)
         {
-            var packageDisplayName = Windows.ApplicationModel.Package.Current.DisplayName;
+            var packageDisplayName = "LocalGPT";
+            try
+            {
+                packageDisplayName = Windows.ApplicationModel.Package.Current.DisplayName;
+            }
+            catch
+            {
+                // Unpackaged/debug launches do not always have package identity.
+            }
             var webView2Version = (webView2 != null) ? " - " + GetWebView2Version(webView2) : string.Empty;
             Title = $"{packageDisplayName}{webView2Version}";
         }

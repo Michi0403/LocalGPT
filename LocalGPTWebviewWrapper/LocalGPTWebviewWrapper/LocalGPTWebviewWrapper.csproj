@@ -4,21 +4,22 @@
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
-    <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
+	  <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
+	  <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
+	  <SupportedOSPlatformVersion>10.0.22621.0</SupportedOSPlatformVersion>
     <RootNamespace>LocalGPTWebviewWrapper</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Platforms>x86;x64;ARM64</Platforms>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <Platforms>x86;x64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-x86;win-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <SupportedOSPlatformVersion>10.0.22621.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251003001" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.6901" />
-    <Manifest Include="$(ApplicationManifest)" />
+	  <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251003001" />
+	  <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+
+	  <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 	<!-- Copy the runtime static-web-assets manifest to bin so the loader can find it -->
 	<Target Name="CopyStaticWebAssetsManifest" AfterTargets="Build">
@@ -31,9 +32,15 @@
 		  SkipUnchangedFiles="true"
 		  Condition="Exists('%(FullPath)')" />
 	</Target>
-
+	<Target Name="EnsureWindowsAppSdkRuntimeFolders"
+			BeforeTargets="CopyFilesToOutputDirectory;_CopyFilesMarkedCopyLocal">
+		<MakeDir Directories="$(OutDir)runtimes\win-x64\native" />
+		<MakeDir Directories="$(OutDir)runtimes\win-arm64\native" />
+		<MakeDir Directories="$(OutDir)runtimes\win-arm64ec\native" />
+	</Target>
 	<!-- Copy any generated CSS isolation bundles (e.g., LocalGPT.styles.css) to bin -->
 	<ItemGroup>
+
 		<Content Include="$(IntermediateOutputPath)**\*.styles.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
@@ -60,9 +67,6 @@
 			<PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
 		</Content>-->
 
-		<!-- Make sure it's a project reference, not a DLL/COM ref -->
-		<ProjectReference Include="..\LocalGPT\LocalGPT.csproj">
-		</ProjectReference>
 	</ItemGroup>
 <!--<ItemGroup>
 	

@@ -124,7 +124,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
 
               });
             Port = GetFreePort();
-            builder.WebHost.UseKestrel().UseUrls($"https://localhost:{Port}");
+            builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{Port}");
             builder.Services.AddResponseCompression
                (opts =>
                {

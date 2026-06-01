@@ -19,3 +19,21 @@ MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.dll
 MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.pdb
 MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.staticwebassets.endpoints.json
 MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/
+
+# LocalGPT build outputs
+LocalGPTWebviewWrapper/**/bin/
+LocalGPTWebviewWrapper/**/obj/
+LocalGPTWebviewWrapper/.vs/
+LocalGPTWebviewWrapper/.cr/
+
+# MSIX packaging outputs
+LocalGPTWebviewWrapper/**/AppPackages/
+LocalGPTWebviewWrapper/**/BundleArtifacts/
+LocalGPTWebviewWrapper/**/*.msix
+LocalGPTWebviewWrapper/**/*.msixbundle
+LocalGPTWebviewWrapper/**/*.appx
+LocalGPTWebviewWrapper/**/*.appxbundle
+LocalGPTWebviewWrapper/**/*.appxsym
+LocalGPTWebviewWrapper/**/*.cer
+LocalGPTWebviewWrapper/**/*.pfx
+LocalGPTWebviewWrapper/**/*.assets.cache

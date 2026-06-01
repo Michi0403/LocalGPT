@@ -52,7 +52,7 @@ namespace WebView2_WinUI3_Sample
         {
             _webApp = LocalGPT.Program.BuildWebApp();
             await _webApp.StartAsync();          // non-blocking
-            _baseUrl = $"https://localhost:{LocalGPT.Program.Port}";
+            _baseUrl = $"http://127.0.0.1:{LocalGPT.Program.Port}";
 
             // Optionally: wait for /health before showing UI (keeps initial nav smooth)
             await WaitForHealthAsync(_baseUrl);
@@ -86,7 +86,6 @@ namespace WebView2_WinUI3_Sample
         {
             using var http = new HttpClient(new HttpClientHandler
             {
-                // dev only: trust localhost dev cert
                 ServerCertificateCustomValidationCallback = (_, __, ___, ____) => true
             });
 
