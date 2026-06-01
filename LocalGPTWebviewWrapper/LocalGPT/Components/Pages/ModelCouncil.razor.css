@@ -1,0 +1,229 @@
+.council-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 78rem;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.council-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.council-header h1,
+.final-panel h2,
+.transcript-panel h2 {
+    margin: 0;
+}
+
+.council-header p {
+    margin: 0.25rem 0 0;
+    color: var(--bs-secondary-color);
+}
+
+.council-layout {
+    display: grid;
+    grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+    gap: 1rem;
+}
+
+.council-controls,
+.prompt-panel,
+.final-panel,
+.transcript-panel,
+.warning-panel,
+.result-meta,
+.council-step {
+    border: 1px solid rgba(127, 127, 127, 0.24);
+    border-radius: 8px;
+    background: var(--bs-body-bg);
+}
+
+.council-controls,
+.prompt-panel,
+.final-panel,
+.transcript-panel,
+.warning-panel {
+    padding: 1rem;
+}
+
+.control-group,
+.control-grid,
+.check-row {
+    margin-bottom: 1rem;
+}
+
+.control-title {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.candidate-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.candidate-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem;
+    align-items: start;
+}
+
+.candidate-row small {
+    display: block;
+    color: var(--bs-secondary-color);
+}
+
+.manual-model span,
+.run-row,
+.check-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.manual-model,
+.prompt-panel label,
+.control-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-weight: 600;
+}
+
+.manual-model input,
+.prompt-panel textarea,
+.control-grid input {
+    width: 100%;
+    border: 1px solid rgba(127, 127, 127, 0.35);
+    border-radius: 6px;
+    padding: 0.5rem;
+    font: inherit;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+.manual-model input {
+    min-width: 12rem;
+}
+
+.control-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.prompt-panel textarea {
+    min-height: 18rem;
+    resize: vertical;
+}
+
+.muted,
+.hint,
+.status-text {
+    color: var(--bs-secondary-color);
+    font-size: 0.9rem;
+}
+
+.hint {
+    margin: 0.75rem 0 0;
+}
+
+.result-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+}
+
+.result-meta div {
+    min-width: 0;
+}
+
+.result-meta strong,
+.result-meta span {
+    display: block;
+}
+
+.result-meta span {
+    overflow-wrap: anywhere;
+    color: var(--bs-secondary-color);
+}
+
+.warning-panel {
+    border-color: rgba(191, 135, 0, 0.35);
+    background: rgba(191, 135, 0, 0.08);
+}
+
+.warning-panel p {
+    margin: 0;
+}
+
+.transcript-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.council-step {
+    padding: 0.85rem;
+}
+
+.council-step.has-error {
+    border-color: rgba(220, 53, 69, 0.45);
+}
+
+.council-step header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.council-step header span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    color: var(--bs-secondary-color);
+}
+
+.council-step header small {
+    color: var(--bs-secondary-color);
+}
+
+.thinking-box {
+    margin-bottom: 0.75rem;
+}
+
+.thinking-box summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.thinking-box pre {
+    margin: 0.5rem 0 0;
+    padding: 0.75rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, 0.1);
+}
+
+.markdown-output > :last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+    .council-layout,
+    .result-meta {
+        grid-template-columns: 1fr;
+    }
+}

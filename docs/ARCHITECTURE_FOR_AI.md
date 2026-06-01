@@ -95,6 +95,21 @@ The review prompt requires the model to use only supplied evidence, place unsupp
 
 When the Blazor app is running, `/__diag/process-review` provides the same grounded review behavior through the configured `IChatClient` and includes recent saved chat memory as evidence.
 
+## Multi-model council
+
+The AI Council feature lets multiple local Ollama models collaborate on one prompt.
+
+Current behavior:
+
+- model candidates are discovered from configured Ollama settings and `/api/tags`
+- selected models run proposal phases in parallel
+- later phases receive the transcript so far and correct/refine earlier work
+- a consensus response is produced and optionally peer-verified
+- the full transcript, visible model reasoning notes, errors, and timings are written to a Markdown log under `%LOCALAPPDATA%\LocalGPT\CouncilLogs`
+- the transcript is also saved into the existing SQLite chat memory as an `AI Council - model + model` conversation
+
+Design rule: the council can display provider-supplied visible thinking and model-written reasoning notes, but user-facing controls should make it clear which model produced each note. Treat council output as reviewed assistance, not as automatically true.
+
 ## Minecraft mod generation model
 
 The intended direction is to let LocalGPT create complex Java Minecraft mods on command.

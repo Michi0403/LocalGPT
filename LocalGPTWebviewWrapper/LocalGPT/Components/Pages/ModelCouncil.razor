@@ -1,0 +1,288 @@
+@page "/model-council"
+
+@inject IMultiModelCouncilService CouncilService
+@inject ILogger<ModelCouncil> Logger
+@inject INotificationService Notifier
+@rendermode InteractiveServer
+
+<PageTitle>AI Council</PageTitle>
+
+<main class="council-page">
+    <ToastWrapper Name="@toastName" />
+
+    <section class="council-header">
+        <div>
+            <h1>AI Council</h1>
+            <p>Let several local Ollama models propose, critique, verify, and memorize a shared answer.</p>
+        </div>
+        <DxButton Text="Refresh Models"
+                  RenderStyle="ButtonRenderStyle.Secondary"
+                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                  Enabled="@(!isBusy)"
+                  Click="LoadCandidatesAsync" />
+    </section>
+
+    <section class="council-layout">
+        <div class="council-controls">
+            <div class="control-group">
+                <div class="control-title">Council Models</div>
+                @if (Candidates.Count == 0)
+                {
+                    <p class="muted">No Ollama models detected yet. Start Ollama or add a model name manually.</p>
+                }
+                else
+                {
+                    <div class="candidate-list">
+                        @foreach (var candidate in Candidates)
+                        {
+                            <label class="candidate-row" title="@candidate.Details">
+                                <input type="checkbox"
+                                       checked="@SelectedModels.Contains(candidate.ModelName)"
+                                       @onchange="@((ChangeEventArgs e) => ToggleModel(candidate.ModelName, e))" />
+                                <span>
+                                    <strong>@candidate.ModelName</strong>
+                                    <small>@candidate.Provider@if (candidate.IsLoaded) { <text> - loaded</text> }</small>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                }
+                @if (SelectedModels.Count < 2)
+                {
+                    <p class="hint">Select at least two installed models for real negotiation. If your coder model is not listed, pull it in Ollama and refresh.</p>
+                }
+            </div>
+
+            <div class="control-group">
+                <label class="manual-model">
+                    Add model name
+                    <span>
+                        <input @bind="ManualModelName" placeholder="qwen3-coder:30b" />
+                        <DxButton Text="Add"
+                                  RenderStyle="ButtonRenderStyle.Secondary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Click="AddManualModel" />
+                    </span>
+                </label>
+            </div>
+
+            <div class="control-grid">
+                <label>
+                    Review rounds
+                    <input type="number" min="1" max="3" @bind="Request.MaxRounds" />
+                </label>
+                <label>
+                    Max output tokens
+                    <input type="number" min="512" max="8192" step="256" @bind="Request.MaxOutputTokens" />
+                </label>
+            </div>
+
+            <div class="check-row">
+                <label title="Shares saved LocalGPT memory and AI project guidance with every council participant.">
+                    <input type="checkbox" @bind="Request.IncludeMemory" />
+                    Shared memory
+                </label>
+                <label title="Stores the full council transcript in SQLite chat memory after the run.">
+                    <input type="checkbox" @bind="Request.SaveToMemory" />
+                    Memorize transcript
+                </label>
+            </div>
+        </div>
+
+        <div class="prompt-panel">
+            <label>
+                Council prompt
+                <textarea @bind="Request.Prompt" rows="14"></textarea>
+            </label>
+            <div class="run-row">
+                <DxButton Text="Run Council"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@CanRun"
+                          Click="RunCouncilAsync" />
+                @if (isBusy)
+                {
+                    <span class="muted">Models are negotiating. This can take a while on 20B/30B models.</span>
+                }
+                else if (!string.IsNullOrWhiteSpace(statusText))
+                {
+                    <span class="status-text">@statusText</span>
+                }
+            </div>
+        </div>
+    </section>
+
+    @if (LastResult is not null)
+    {
+        <section class="result-meta">
+            <div>
+                <strong>Participants</strong>
+                <span>@string.Join(" + ", LastResult.ModelNames)</span>
+            </div>
+            @if (LastResult.MemoryConversationId is Guid memoryId)
+            {
+                <div>
+                    <strong>Memory</strong>
+                    <span>@memoryId</span>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(LastResult.LogPath))
+            {
+                <div>
+                    <strong>Log</strong>
+                    <span>@LastResult.LogPath</span>
+                </div>
+            }
+        </section>
+
+        @if (LastResult.Warnings.Count > 0)
+        {
+            <section class="warning-panel">
+                @foreach (var warning in LastResult.Warnings)
+                {
+                    <p>@warning</p>
+                }
+            </section>
+        }
+
+        <section class="final-panel">
+            <h2>Consensus Answer</h2>
+            <div class="markdown-output">@((MarkupString)Markdown.ToHtml(LastResult.FinalAnswer).Trim())</div>
+        </section>
+
+        <section class="transcript-panel">
+            <h2>Conversation And Visible Thought Process</h2>
+            @foreach (var step in LastResult.Steps.OrderBy(step => step.SortOrder))
+            {
+                <article class="council-step @(string.IsNullOrWhiteSpace(step.Error) ? string.Empty : "has-error")">
+                    <header>
+                        <span>@step.Phase</span>
+                        <strong>@step.ModelName</strong>
+                        <small>@step.Role - @step.DurationSeconds.ToString("0.0")s</small>
+                    </header>
+                    @if (!string.IsNullOrWhiteSpace(step.Thinking))
+                    {
+                        <details class="thinking-box" open>
+                            <summary>Visible model thinking</summary>
+                            <pre>@step.Thinking</pre>
+                        </details>
+                    }
+                    <div class="markdown-output">@((MarkupString)Markdown.ToHtml(step.VisibleContent).Trim())</div>
+                </article>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    readonly string toastName = "ModelCouncilToasts";
+    readonly HashSet<string> SelectedModels = new(StringComparer.OrdinalIgnoreCase);
+    List<MultiModelCouncilModelCandidate> Candidates { get; set; } = [];
+    MultiModelCouncilResult? LastResult { get; set; }
+    string ManualModelName { get; set; } = "qwen3-coder:30b";
+    string statusText = string.Empty;
+    bool isBusy;
+
+    MultiModelCouncilRequest Request { get; set; } = new()
+    {
+        Prompt = "Ask gpt-oss:20b and the coder model to design the best and most ethical LocalGPT multi-model council feature." + "\n\n" +
+            "Cover:\n" +
+            "- how several models should peacefully negotiate and correct each other,\n" +
+            "- how the transcript and visible reasoning notes should be shown to users,\n" +
+            "- how SQLite memory should make prior council work available to later model calls,\n" +
+            "- how this should help generate complex Java Minecraft mods safely,\n" +
+            "- what privacy, safety, and user-control limits should exist.",
+        MaxRounds = 1,
+        MaxOutputTokens = 4096,
+        IncludeMemory = true,
+        SaveToMemory = true
+    };
+
+    bool CanRun => !isBusy && SelectedModels.Count > 0 && !string.IsNullOrWhiteSpace(Request.Prompt);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCandidatesAsync();
+    }
+
+    async Task LoadCandidatesAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            Candidates = (await CouncilService.GetCandidatesAsync()).ToList();
+
+            if (SelectedModels.Count == 0)
+            {
+                foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled || candidate.IsConfigured).Take(2))
+                    SelectedModels.Add(candidate.ModelName);
+            }
+
+            statusText = Candidates.Count == 0
+                ? "No Ollama models found."
+                : $"Found {Candidates.Count} Ollama model(s).";
+        }, "LoadCandidatesAsync");
+    }
+
+    async Task RunCouncilAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            Request.ModelNames = SelectedModels.ToList();
+            LastResult = await CouncilService.RunAsync(Request);
+            statusText = $"Council completed with {LastResult.Steps.Count} transcript step(s).";
+            Notifier.ShowSuccess(toastName, "Council transcript saved and visualized.", "Council complete");
+        }, "RunCouncilAsync");
+    }
+
+    void AddManualModel()
+    {
+        var model = ManualModelName.Trim();
+        if (string.IsNullOrWhiteSpace(model))
+            return;
+
+        SelectedModels.Add(model);
+        if (!Candidates.Any(candidate => candidate.ModelName.Equals(model, StringComparison.OrdinalIgnoreCase)))
+        {
+            Candidates.Add(new MultiModelCouncilModelCandidate(
+                model,
+                "Manual Ollama",
+                "http://localhost:11434",
+                IsInstalled: false,
+                IsConfigured: false,
+                IsLoaded: false,
+                Details: "Manual model name. Ollama will report an error if it is not installed."));
+        }
+        statusText = $"Added {model}.";
+    }
+
+    void ToggleModel(string modelName, ChangeEventArgs args)
+    {
+        var isChecked = args.Value is bool value
+            ? value
+            : bool.TryParse(Convert.ToString(args.Value), out var parsed) && parsed;
+
+        if (isChecked)
+            SelectedModels.Add(modelName);
+        else
+            SelectedModels.Remove(modelName);
+    }
+
+    async Task RunUiActionAsync(Func<Task> action, string operation)
+    {
+        try
+        {
+            isBusy = true;
+            await action();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in {operation}");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}
