@@ -6,8 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
 	  <IncludeSymbols>True</IncludeSymbols>
 	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-	  <AnalysisLevel>latest-all</AnalysisLevel>
-	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	  <AnalysisLevel>latest</AnalysisLevel>
+	  <AnalysisMode>None</AnalysisMode>
+	  <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+	  <IsPackable>false</IsPackable>
 	  <CopySatelliteAssemblies>true</CopySatelliteAssemblies>
 	  <Nullable>enable</Nullable>
   </PropertyGroup>

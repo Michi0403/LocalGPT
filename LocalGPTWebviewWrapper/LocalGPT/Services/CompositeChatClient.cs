@@ -6,7 +6,7 @@ public class CompositeChatClient : IChatClient
 {
     public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
-    readonly    ILogger _logger;
+    private readonly ILogger _logger;
     public CompositeChatClient(ILogger logger,params ChatClientSession[] chatClients)
     {
 
@@ -21,7 +21,8 @@ public class CompositeChatClient : IChatClient
         try
         {
 
-            return SelectedSession?.Client.GetResponseAsync(messages, options, cancellationToken);
+            return SelectedSession?.Client.GetResponseAsync(messages, options, cancellationToken)
+                ?? throw new InvalidOperationException("No chat client session is selected.");
         }
         catch (Exception ex)
         {
@@ -35,7 +36,8 @@ public class CompositeChatClient : IChatClient
         try
         {
 
-            return SelectedSession?.Client.GetStreamingResponseAsync(messages, options, cancellationToken);
+            return SelectedSession?.Client.GetStreamingResponseAsync(messages, options, cancellationToken)
+                ?? throw new InvalidOperationException("No chat client session is selected.");
         }
         catch (Exception ex)
         {

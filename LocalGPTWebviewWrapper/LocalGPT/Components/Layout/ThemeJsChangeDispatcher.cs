@@ -16,7 +16,7 @@ namespace LocalGPT.Components.Layout
         [Inject]
         private ThemeService Themes { get; set; } = new ThemeService();
         [Inject]
-        private ILogger<ThemeJsChangeDispatcher> Logger     { get; set; }
+        private ILogger<ThemeJsChangeDispatcher> Logger { get; set; } = default!;
 
         private Theme? _pendingTheme;
         private IJSObjectReference? _module;

@@ -4,11 +4,11 @@ namespace LocalGPT.BusinessObjects
     {
         public const string AICore = "AICore";
 
-        public OllamaCoreOptions? OllamaCore { get; set; }
+        public OllamaCoreOptions OllamaCore { get; set; } = new();
         public List<OllamaCoreOptions> OllamaCores { get; set; } = new();
-        public OpenAIServiceCoreOptions? OpenAIServiceCore { get; set; } // Azure OpenAI
-        public ChatGPTLocalCoreOptions? ChatGPTLocalCore { get; set; }   // Local OpenAI-compatible (vLLM/LM Studio/etc.)
-        public OpenAICompatOptions? OpenAICore { get; set; }             // OpenAI cloud (api.openai.com)
+        public OpenAIServiceCoreOptions OpenAIServiceCore { get; set; } = new(); // Azure OpenAI
+        public ChatGPTLocalCoreOptions ChatGPTLocalCore { get; set; } = new();   // Local OpenAI-compatible (vLLM/LM Studio/etc.)
+        public OpenAICompatOptions OpenAICore { get; set; } = new();             // OpenAI cloud (api.openai.com)
     }
 
     public class ChatGPTLocalCoreOptions

@@ -12,7 +12,7 @@
 <div class="main-container">
     <ToastWrapper Name="@toastName" />
 
-    <DxCard CssClass="p-4 space-y-6">
+    <div class="p-4 space-y-6">
         <div class="top-container">
             <DxButton Text="Save"
                       RenderStyle="ButtonRenderStyle.Primary"
@@ -124,7 +124,7 @@
         </DxFormLayout>
 
         <DxMemo Rows="8" ReadOnly="true" @bind-Text="_log" CssClass="w-full" />
-    </DxCard>
+    </div>
 </div>
 
 @code {
@@ -149,7 +149,7 @@
         {
             Logger.LogError(ex, "Install.OnInitialized failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, ex.ToString(), "Initialization Error");
-            Append("(Init) " + ex.Message);
+            _ = Append("(Init) " + ex.Message);
         }
     }
 
@@ -167,7 +167,7 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Failed to normalize local endpoint: {Message}", ex.Message);
-            Append("Normalization warning: " + ex.Message);
+            _ = Append("Normalization warning: " + ex.Message);
         }
     }
 
