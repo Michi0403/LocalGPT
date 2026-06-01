@@ -61,7 +61,7 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - `GenerateImplementationArtifact` creates a CodeDOM C# starter file under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\` and returns a safe `/__artifacts/council/{fileName}` download link.
   - Generated implementation ideas must stay as sandbox artifacts or temporary workspaces until the user explicitly permits integration. The council must never overrule a user decision that denies or limits self-expansion.
   - Use `MaxParallelModels = 1` for 20B/30B local models on 24 GB VRAM unless the user asks for heavier runs.
-  - After a driver reset, black screen, or high VRAM pressure, use low-resource council mode: `MaxRounds = 0`, `MaxOutputTokens = 256`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`. This is slower, but it keeps the GPU out of the test run and explicitly unloads the model after each participant.
+  - After a driver reset, black screen, or high VRAM pressure, use low-resource council mode: `MaxRounds = 0`, `MaxOutputTokens = 1024`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`. This is slower, but it keeps the GPU out of the test run and explicitly unloads the model after each participant. Smaller 256/512-token runs are useful for plumbing checks, but DeepSeek-style reasoning models may spend that whole budget on thinking.
 - `GET /__diag/council/models`
   - Lists configured and installed Ollama models visible to LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`
@@ -131,7 +131,7 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 ## Next Useful Checks
 
 - Rerun `POST /__diag/dxaichat-smoke` after restarting LocalGPT from a fresh build.
-- Rerun a short AI Council feedback prompt only after checking `ollama ps`. If the machine recently showed a black screen or GPU pressure, use one model with `OllamaNumGpu = 0`, `OllamaKeepAlive = "0s"`, `MaxRounds = 0`, and `MaxOutputTokens <= 256`.
+- Rerun a short AI Council feedback prompt only after checking `ollama ps`. If the machine recently showed a black screen or GPU pressure, use one model with `OllamaNumGpu = 0`, `OllamaKeepAlive = "0s"`, `MaxRounds = 0`, `MaxContextTokens = 2048`, and `MaxOutputTokens = 1024` for reasoning models.
 - Check `/__diag/logs?minimumLevel=Warning&take=30` before asking the council for setup advice; recent Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, or package errors should be treated as actionable health signals.
 - Run the WebView2 smoke mode from a registered/package identity or Visual Studio debug launch and inspect `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`. Use this as the preferred frontend fallback for LocalGPT usability checks instead of relying on an assistant built-in browser; it exercises the real wrapper routes, including `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`.
 - Commit and push diagnostic changes in small slices.

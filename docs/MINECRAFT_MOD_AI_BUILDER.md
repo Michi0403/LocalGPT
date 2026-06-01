@@ -151,7 +151,7 @@ For low-resource model review after GPU pressure or a black screen, run the coun
 {
   "modelNames": [ "deepseek-r1:8b" ],
   "maxRounds": 0,
-  "maxOutputTokens": 256,
+  "maxOutputTokens": 1024,
   "maxParallelModels": 1,
   "maxContextTokens": 2048,
   "modelTimeoutSeconds": 300,

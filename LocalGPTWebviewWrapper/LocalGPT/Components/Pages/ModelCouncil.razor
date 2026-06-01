@@ -477,7 +477,7 @@
     void ApplyLowResourcePreset()
     {
         Request.MaxRounds = 0;
-        Request.MaxOutputTokens = 256;
+        Request.MaxOutputTokens = 1024;
         Request.MaxParallelModels = 1;
         Request.MaxContextTokens = 2048;
         Request.ModelTimeoutSeconds = 300;
@@ -485,7 +485,7 @@
         Request.OllamaNumGpu = 0;
         Request.IncludeMemory = true;
         Request.SaveToMemory = true;
-        statusText = "Low GPU preset active: one proposal pass, small context, CPU-only Ollama, unload after each model.";
+        statusText = "Low GPU preset active: one proposal pass, small context, CPU-only Ollama, and unload after each model.";
     }
 
     void ApplyBalancedPreset()
