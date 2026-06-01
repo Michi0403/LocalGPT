@@ -71,6 +71,8 @@ else {
 }
 
 if (-not $SkipBuild) {
+    Get-Process LocalGPTWebviewWrapper -ErrorAction SilentlyContinue | Stop-Process -Force
+
     $msbuild = Find-MsBuild
     Write-Host "Building solution with $msbuild"
     & $msbuild $solutionPath "/p:Platform=$Platform" "/p:Configuration=$Configuration" /m /v:minimal

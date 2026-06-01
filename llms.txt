@@ -22,6 +22,8 @@ Important assumptions:
 - .NET 9 is the current target
 - DevExpress 25.1 packages are expected
 - Ollama runs outside the app and is selected/configured through setup data
+- preferred Ollama debug model is gpt-oss:20b
+- run LocalGPTWebviewWrapper/build/Test-OllamaGptOss.ps1 before debugging DxAIChat
 
 Recommended docs:
 

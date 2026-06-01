@@ -4,6 +4,7 @@ namespace LocalGPT.Services;
 
 public class CompositeChatClient : IChatClient
 {
+    private const int DefaultMaxOutputTokens = 2048;
     public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
     private readonly ILogger _logger;
@@ -21,7 +22,7 @@ public class CompositeChatClient : IChatClient
         try
         {
 
-            return SelectedSession?.Client.GetResponseAsync(messages, options, cancellationToken)
+            return SelectedSession?.Client.GetResponseAsync(messages, ApplyDefaultOptions(options), cancellationToken)
                 ?? throw new InvalidOperationException("No chat client session is selected.");
         }
         catch (Exception ex)
@@ -36,7 +37,7 @@ public class CompositeChatClient : IChatClient
         try
         {
 
-            return SelectedSession?.Client.GetStreamingResponseAsync(messages, options, cancellationToken)
+            return SelectedSession?.Client.GetStreamingResponseAsync(messages, ApplyDefaultOptions(options), cancellationToken)
                 ?? throw new InvalidOperationException("No chat client session is selected.");
         }
         catch (Exception ex)
@@ -64,5 +65,12 @@ public class CompositeChatClient : IChatClient
             _logger.LogError(ex, $"Error in GetService {ex.ToString()}");
             return null;
         }
+    }
+
+    private static ChatOptions ApplyDefaultOptions(ChatOptions? options)
+    {
+        options ??= new ChatOptions();
+        options.MaxOutputTokens ??= DefaultMaxOutputTokens;
+        return options;
     }
 }

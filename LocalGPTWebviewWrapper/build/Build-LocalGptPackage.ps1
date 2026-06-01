@@ -4,7 +4,9 @@ param(
     [string]$Configuration = "Debug",
 
     [ValidateSet("x64", "x86", "arm64")]
-    [string]$Platform = "x64"
+    [string]$Platform = "x64",
+
+    [switch]$KeepRunningApp
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +26,10 @@ $msbuildCandidates = @(
 $msbuild = $msbuildCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if ($null -eq $msbuild) {
     throw "Could not find Visual Studio MSBuild."
+}
+
+if (-not $KeepRunningApp) {
+    Get-Process LocalGPTWebviewWrapper -ErrorAction SilentlyContinue | Stop-Process -Force
 }
 
 & $msbuild $solutionPath "/p:Platform=$Platform" "/p:Configuration=$Configuration" /m /v:minimal

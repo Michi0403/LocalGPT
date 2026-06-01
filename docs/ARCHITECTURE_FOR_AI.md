@@ -65,6 +65,22 @@ Contributors should preserve:
 - clear error reporting when configuration cannot be persisted
 - separation between connectivity probing and chat execution
 
+## Ollama debugging model
+
+Use Ollama as the first local debugging target for AI features.
+
+The preferred model id is `gpt-oss:20b`. Do not use `gpt-oss-20b` in configuration; Ollama model ids use a colon tag.
+
+Before investigating `DxAIChat`, run:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1
+```
+
+If the script shows that `/api/chat` or `/api/generate` returns empty output, fix or restart Ollama first. `DxAIChat` can only display what the configured `IChatClient` receives from Ollama.
+
+For `gpt-oss:20b`, empty `content` with non-empty `thinking` and `done_reason: length` usually means the test budget was too small. Increase `-NumPredict` before assuming the model is broken.
+
 ## Minecraft mod generation model
 
 The intended direction is to let LocalGPT create complex Java Minecraft mods on command.

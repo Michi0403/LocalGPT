@@ -26,6 +26,19 @@ namespace LocalGPT.Services
 
                 logger.LogInformation("🔧 Building chat clients from configuration: {Json}", options.ToJsonString());
 
+                // --- Ollama (Microsoft.Extensions.AI.Ollama) ---
+                foreach (var ollama in GetConfiguredOllamaProviders(options))
+                {
+                    logger.LogInformation("⚙️ Found Ollama configuration: {Json}", ollama.ToJsonString());
+
+                    var ollamaChat = new OllamaChatClient(new Uri(ollama.Uri), ollama.ModelName);
+
+                    sessions.Add(new ChatClientSession(
+                        new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
+                        $"Ollama — {ollama.ModelName}"
+                    ));
+                }
+
                 // --- Azure OpenAI (Azure.AI.OpenAI) ---
                 if (options.OpenAIServiceCore is { Endpoint.Length: > 0, Key.Length: > 0, DeploymentName.Length: > 0 } az)
                 {
@@ -53,7 +66,7 @@ namespace LocalGPT.Services
                 }
 
                 // --- OpenAI cloud (OpenAI SDK) ---
-                if (options.OpenAICore is { ApiKey.Length: > 0, ModelName.Length: > 0 } openai)
+                if (options.OpenAICore is { ModelName.Length: > 0 } openai && HasRealApiKey(openai.ApiKey))
                 {
                     logger.LogInformation("⚙️ Found OpenAI configuration: {Json}", openai.ToJsonString());
 
@@ -80,19 +93,6 @@ namespace LocalGPT.Services
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(modelChat, loggerFactory.CreateLogger("AI.OpenAI")),
                         $"OpenAI — {openai.ModelName}"
-                    ));
-                }
-
-                // --- Ollama (Microsoft.Extensions.AI.Ollama) ---
-                foreach (var ollama in GetConfiguredOllamaProviders(options))
-                {
-                    logger.LogInformation("⚙️ Found Ollama configuration: {Json}", ollama.ToJsonString());
-
-                    var ollamaChat = new OllamaChatClient(new Uri(ollama.Uri), ollama.ModelName);
-
-                    sessions.Add(new ChatClientSession(
-                        new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
-                        $"Ollama — {ollama.ModelName}"
                     ));
                 }
 
@@ -154,6 +154,15 @@ namespace LocalGPT.Services
                 if (seen.Add($"{ollama.Uri.TrimEnd('/')}|{ollama.ModelName}"))
                     yield return ollama;
             }
+        }
+
+        private static bool HasRealApiKey(string? apiKey)
+        {
+            if (string.IsNullOrWhiteSpace(apiKey))
+                return false;
+
+            var trimmed = apiKey.Trim();
+            return trimmed != "---" && !trimmed.Equals("local-key", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

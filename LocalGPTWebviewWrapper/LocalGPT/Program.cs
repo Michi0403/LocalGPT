@@ -194,6 +194,26 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 env.WebRootPath,
                 AppAssembly = typeof(Program).Assembly.Location
             });
+            app.MapGet("/__diag/ai-smoke", async (IChatClient chatClient, string? prompt, CancellationToken ct) =>
+            {
+                var response = await chatClient.GetResponseAsync(
+                    [
+                        new ChatMessage(ChatRole.User, string.IsNullOrWhiteSpace(prompt)
+                            ? "Reply with exactly: LocalGPT DXAiChat backend test passed."
+                            : prompt)
+                    ],
+                    new ChatOptions
+                    {
+                        MaxOutputTokens = 2048
+                    },
+                    ct);
+
+                return Results.Ok(new
+                {
+                    Text = response.Text,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
             app.MapRazorComponents<App>()
                .AddInteractiveServerRenderMode()
                .AllowAnonymous();

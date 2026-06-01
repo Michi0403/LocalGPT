@@ -123,6 +123,54 @@ The older path below is expected to return 404 with the installed package versio
 /_content/DevExpress.Blazor/dx-blazor-all.js
 ```
 
+## Ollama and gpt-oss diagnostics
+
+LocalGPT uses Ollama as the preferred local debug host. The default local model is:
+
+```text
+gpt-oss:20b
+```
+
+Before testing `DxAIChat`, verify that Ollama itself can produce text:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1
+```
+
+Useful options:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1 -PullIfMissing
+.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1 -StartServerIfDown
+```
+
+The script checks:
+
+- `ollama --version`
+- `/api/version`
+- `/api/tags`
+- `/api/ps`
+- `/api/chat`
+- `/api/generate`
+
+If `/api/chat` returns an empty assistant message or `/api/generate` ends prematurely, the problem is in the Ollama/model host layer, not in `DxAIChat`. Restart or update Ollama, then rerun the script before debugging the Blazor frontend.
+
+`gpt-oss:20b` can spend early generated tokens in Ollama's `thinking` field before visible `content` appears. If the helper shows `done_reason: length` and empty content, rerun with a larger prediction budget:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1 -NumPredict 1024 -TimeoutSeconds 300
+```
+
+Known-good local expectation:
+
+```text
+Ollama version: 0.13.x or newer
+Model: gpt-oss:20b
+Family: gptoss
+Parameter size: 20.9B
+Quantization: MXFP4
+```
+
 ## Common fixes
 
 If Visual Studio says deployment fails:

@@ -97,6 +97,8 @@ Rules for changes:
 
 The app should be able to save and select multiple Ollama AI profiles and reuse context intelligently.
 
+The preferred local debug model is `gpt-oss:20b`. Use `LocalGPTWebviewWrapper/build/Test-OllamaGptOss.ps1` before blaming `DxAIChat`, because an empty or failing Ollama response will make the chat UI look broken even when Blazor and DevExpress are working.
+
 When changing AI behavior:
 
 - keep model/provider selection explicit
