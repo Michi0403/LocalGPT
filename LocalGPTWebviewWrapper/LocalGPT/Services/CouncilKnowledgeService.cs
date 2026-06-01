@@ -160,8 +160,10 @@ namespace LocalGPT.Services
         private static async Task SeedBuiltInKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
         {
             const string seedSource = "LocalGPT built-in seed";
-            if (await db.CouncilKnowledgeEntries.AnyAsync(entry => entry.Source == seedSource, cancellationToken))
-                return;
+            var existingSeedIds = await db.CouncilKnowledgeEntries
+                .Where(entry => entry.Source == seedSource)
+                .Select(entry => entry.Id)
+                .ToListAsync(cancellationToken);
 
             var now = DateTime.UtcNow;
             var entries = new[]
@@ -210,15 +212,67 @@ namespace LocalGPT.Services
                     Confidence = 95,
                     IsUserApproved = true,
                     IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("46d5a4c1-c873-4285-b5e7-d2c58eb5b6be"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Minecraft Java mod and plugin source map",
+                    Scope = "Minecraft Builder",
+                    Source = seedSource,
+                    Content = "Use this source map before generating Java Minecraft workspaces. Classic Forge uses the Forge MDK: download the MDK, extract it into an empty directory, import/open the Gradle project in Eclipse or IntelliJ, build with gradlew build, and test with generated run configs or gradlew runClient/runServer. Fabric builds with ./gradlew build or ./gradlew.bat build; use the shortest jar in build/libs for distribution and make sure the terminal/IDE Java version matches the project. Paper is the server-side plugin path for users who do not want a modded client; include plugin.yml and use Paper's plugin project setup guidance. Use Gradle Java toolchains or explicit IDE Gradle JVM settings to avoid inconsistent JDK behavior. Java syntax should be grounded in the Java Language Specification/JDK docs; Microsoft OpenJDK is a supported JDK distribution, not a separate Java syntax.",
+                    HelpfulSources = "- Forge getting started: https://docs.minecraftforge.net/en/latest/gettingstarted/\n- NeoForge getting started: https://docs.neoforged.net/docs/gettingstarted/\n- Fabric building a mod: https://docs.fabricmc.net/develop/getting-started/building-a-mod\n- Paper getting started: https://docs.papermc.io/paper/dev/getting-started/\n- Gradle JVM toolchains: https://docs.gradle.org/current/userguide/toolchains.html\n- Oracle JDK 21 documentation: https://docs.oracle.com/en/java/javase/21/",
+                    Tags = "seed; minecraft; forge; fabric; neoforge; paper; gradle; java; sources",
+                    Confidence = 92,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("75c6cc67-958d-4b66-bfb2-f8f98eccd0c4"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Minecraft datapack generation source rules",
+                    Scope = "Minecraft Builder",
+                    Source = seedSource,
+                    Content = "For vanilla Java datapacks, generate a zip/folder whose root contains pack.mcmeta and data/. The data folder contains namespaces; function entry points for modern 1.21-style generated packs should use singular folders such as data/<namespace>/function and data/minecraft/tags/function. Add data/minecraft/tags/function/load.json and tick.json to call namespace functions; minecraft:load runs after /reload or server load, and minecraft:tick runs each tick, so tick functions must stay tiny and delegate scheduled aggregate work. pack_format is required and version-sensitive; LocalGPT should use its datapack version catalog or source-check the target version before claiming compatibility. supported_formats and overlays exist for multi-format packs, but basic generated starters should keep one target version unless the user asks for overlays.",
+                    HelpfulSources = "- Minecraft Wiki data pack structure and pack.mcmeta: https://minecraft.wiki/w/Data_pack\n- Minecraft Wiki Java function tags: https://minecraft.wiki/w/Function_tag_(Java_Edition)\n- Minecraft Java snapshot 23w31a pack metadata supported_formats/overlays: https://feedback.minecraft.net/hc/en-us/articles/18619031671821-Minecraft-Java-Edition-Snapshot-23w31a\n- Minecraft Wiki pack_format table: https://minecraft.wiki/w/Pack_format",
+                    Tags = "seed; minecraft; datapack; pack.mcmeta; function-tags; pack-format; sources",
+                    Confidence = 88,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("1b84f98e-3c07-4f8b-ac3d-2a42bd9fb0c5"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Living Cities datapack benchmark acceptance",
+                    Scope = "Minecraft Builder",
+                    Source = seedSource,
+                    Content = "Use /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4 as the low-context Living Cities datapack benchmark. A useful result must generate real .mcfunction files, no .mcfunction.txt placeholders, pack.mcmeta, minecraft load/tick function tags, namespace functions, JSON validation, function-reference validation, and a zip under build/. Compare against the friend's early living_cities.zip for preserved traits: namespace living_cities, core/load and core/tick entry points, scoreboards for year/population/food/security/prestige/birth year, storage areas for city/chronicle/personalities, and a town hall/admin workflow. Do not tell the user it was game-tested until /reload and in-game commands were actually run in Minecraft.",
+                    HelpfulSources = "- Local route: GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4\n- User-provided benchmark: C:/Users/micha/Downloads/living_cities.zip\n- User-provided design prompt: C:/Users/micha/Downloads/message (1).txt",
+                    Tags = "seed; minecraft; datapack; living-cities; benchmark; validation",
+                    Confidence = 90,
+                    IsUserApproved = true,
+                    IsPinned = true
                 }
             };
 
             foreach (var entry in entries)
                 Normalize(entry);
 
+            var missingEntries = entries
+                .Where(entry => !existingSeedIds.Contains(entry.Id))
+                .ToArray();
+
+            if (missingEntries.Length == 0)
+                return;
+
             try
             {
-                db.CouncilKnowledgeEntries.AddRange(entries);
+                db.CouncilKnowledgeEntries.AddRange(missingEntries);
                 await db.SaveChangesAsync(cancellationToken);
             }
             catch (DbUpdateException)

@@ -17,9 +17,11 @@ Grounding sources checked while creating this guide:
 
 - Microsoft Learn: Microsoft Build of OpenJDK downloads and Java developer resources: https://learn.microsoft.com/en-us/java/openjdk/download
 - Oracle Java SE 21 Language Specification for Java syntax and language rules: https://docs.oracle.com/javase/specs/jls/se21/html/index.html
+- Forge official documentation for classic Forge MDK setup and `gradlew build`/`runClient` workflows: https://docs.minecraftforge.net/en/latest/gettingstarted/
 - Fabric official documentation for Fabric as a lightweight Minecraft Java Edition modding toolchain: https://docs.fabricmc.net/develop/
 - NeoForge official documentation for Java toolchain and modern Forge-style project setup: https://docs.neoforged.net/docs/gettingstarted/
 - PaperMC official documentation for Paper plugin project setup: https://docs.papermc.io/paper/dev/project-setup/
+- Minecraft Wiki datapack, function-tag, and pack-format references for Java datapack structure: https://minecraft.wiki/w/Data_pack, https://minecraft.wiki/w/Function_tag_(Java_Edition), https://minecraft.wiki/w/Pack_format
 - Minecraft Bedrock add-on documentation for the behavior-pack/resource-pack split: https://learn.microsoft.com/en-us/minecraft/creator/documents/gettingstarted
 
 There is no separate "Microsoft Java syntax". Microsoft provides supported OpenJDK builds; Java syntax and language rules should be grounded in the Java Language Specification.

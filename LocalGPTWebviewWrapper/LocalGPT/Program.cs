@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -656,6 +657,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     .Select(path => Path.GetRelativePath(workspace.RootPath, path).Replace('\\', '/'))
                     .Order(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
+                var referenceComparison = BuildDatapackReferenceComparison(workspace.RootPath);
                 var knowledgeEntry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
                 {
                     Topic = "Living Cities datapack benchmark",
@@ -670,6 +672,10 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                         $"Build succeeded: {build.Succeeded}; exit code {build.ExitCode}.",
                         $"Function files: {files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase))}.",
                         $"Build output: {TrimForKnowledge(build.StandardOutput, 700)}",
+                        $"Reference comparison: {referenceComparison.Summary}",
+                        $"Reference placeholders: {referenceComparison.ReferencePlaceholderCount}; generated placeholders: {referenceComparison.GeneratedPlaceholderCount}.",
+                        $"Root pack.mcmeta: generated={referenceComparison.GeneratedHasRootPackMcmeta}, reference={referenceComparison.ReferenceHasRootPackMcmeta}, reference nested={referenceComparison.ReferenceHasNestedPackMcmeta}.",
+                        $"Critical files preserved after reference normalization: {referenceComparison.PreservedCriticalFileCount}/{referenceComparison.CriticalFileCount}.",
                         "Validation checks: required files, JSON parse, no .mcfunction.txt placeholders, load/tick tag targets exist, function namespace:path references resolve.",
                         "Before friend testing: verify exact Minecraft Java version/pack_format and run /reload, /datapack list, /function living_cities:ui/townhall in a test world."
                     }),
@@ -687,6 +693,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     workspace.BuildCommand,
                     KnowledgeEntryId = knowledgeEntry.Id,
                     Build = build,
+                    ReferenceComparison = referenceComparison,
                     FunctionFileCount = files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase)),
                     Files = files
                 });
@@ -709,6 +716,163 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             return normalized.Length <= maxLength
                 ? normalized
                 : $"{normalized[..maxLength].TrimEnd()}...";
+        }
+
+        private static DatapackReferenceComparison BuildDatapackReferenceComparison(string workspaceRoot)
+        {
+            var generatedZip = Directory.Exists(Path.Combine(workspaceRoot, "build"))
+                ? Directory.GetFiles(Path.Combine(workspaceRoot, "build"), "*.zip").Order(StringComparer.OrdinalIgnoreCase).FirstOrDefault() ?? string.Empty
+                : string.Empty;
+            var referenceZip = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads",
+                "living_cities.zip");
+
+            if (string.IsNullOrWhiteSpace(generatedZip) || !File.Exists(generatedZip))
+            {
+                return DatapackReferenceComparison.Missing(
+                    generatedZip,
+                    referenceZip,
+                    "Generated benchmark zip was not found.");
+            }
+
+            if (!File.Exists(referenceZip))
+            {
+                return DatapackReferenceComparison.Missing(
+                    generatedZip,
+                    referenceZip,
+                    "Reference living_cities.zip was not found in Downloads.");
+            }
+
+            var generatedEntries = ReadZipFileEntries(generatedZip);
+            var referenceEntries = ReadZipFileEntries(referenceZip);
+            var normalizedReferenceEntries = referenceEntries
+                .Select(NormalizeReferenceDatapackEntry)
+                .Where(entry => !string.IsNullOrWhiteSpace(entry))
+                .ToArray();
+
+            var generatedSet = generatedEntries.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var normalizedReferenceSet = normalizedReferenceEntries.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var criticalFiles = new[]
+            {
+                "pack.mcmeta",
+                "data/minecraft/tags/function/load.json",
+                "data/minecraft/tags/function/tick.json",
+                "data/living_cities/function/core/load.mcfunction",
+                "data/living_cities/function/core/tick.mcfunction",
+                "data/living_cities/function/city/create.mcfunction",
+                "data/living_cities/function/citizens/register.mcfunction",
+                "data/living_cities/function/ui/status.mcfunction"
+            };
+            var preservedCriticalFiles = criticalFiles
+                .Where(file => generatedSet.Contains(file) && normalizedReferenceSet.Contains(file))
+                .ToArray();
+            var generatedPlaceholders = generatedEntries
+                .Where(entry => entry.EndsWith(".mcfunction.txt", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            var referencePlaceholders = referenceEntries
+                .Where(entry => entry.EndsWith(".mcfunction.txt", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            var summary = string.Join(" ", new[]
+            {
+                $"Generated zip has {generatedEntries.Length} files and {generatedEntries.Count(IsMcFunctionPath)} functions.",
+                $"Reference zip has {referenceEntries.Length} files and {referenceEntries.Count(IsMcFunctionPath)} real functions plus {referencePlaceholders.Length} placeholders.",
+                "Generated zip has root pack.mcmeta/load/tick tags; reference keeps those under a top-level folder, so it is useful as a design benchmark but less install-ready as a zip."
+            });
+
+            return new DatapackReferenceComparison(
+                GeneratedZipPath: generatedZip,
+                ReferenceZipPath: referenceZip,
+                ReferenceExists: true,
+                GeneratedFileCount: generatedEntries.Length,
+                GeneratedFunctionFileCount: generatedEntries.Count(IsMcFunctionPath),
+                GeneratedPlaceholderCount: generatedPlaceholders.Length,
+                ReferenceFileCount: referenceEntries.Length,
+                ReferenceFunctionFileCount: referenceEntries.Count(IsMcFunctionPath),
+                ReferencePlaceholderCount: referencePlaceholders.Length,
+                GeneratedHasRootPackMcmeta: generatedSet.Contains("pack.mcmeta"),
+                ReferenceHasRootPackMcmeta: referenceEntries.Contains("pack.mcmeta", StringComparer.OrdinalIgnoreCase),
+                ReferenceHasNestedPackMcmeta: normalizedReferenceSet.Contains("pack.mcmeta"),
+                GeneratedHasLoadTag: generatedSet.Contains("data/minecraft/tags/function/load.json"),
+                GeneratedHasTickTag: generatedSet.Contains("data/minecraft/tags/function/tick.json"),
+                ReferenceHasLoadTag: normalizedReferenceSet.Contains("data/minecraft/tags/function/load.json"),
+                ReferenceHasTickTag: normalizedReferenceSet.Contains("data/minecraft/tags/function/tick.json"),
+                CriticalFileCount: criticalFiles.Length,
+                PreservedCriticalFileCount: preservedCriticalFiles.Length,
+                PreservedCriticalFiles: preservedCriticalFiles,
+                ReferencePlaceholderSamples: referencePlaceholders.Take(12).ToArray(),
+                Summary: summary);
+        }
+
+        private static string[] ReadZipFileEntries(string zipPath)
+        {
+            using var archive = ZipFile.OpenRead(zipPath);
+            return archive.Entries
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
+                .Select(entry => entry.FullName.Replace('\\', '/'))
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static string NormalizeReferenceDatapackEntry(string entry)
+        {
+            var normalized = entry.Replace('\\', '/').TrimStart('/');
+            const string nestedPrefix = "living_cities/";
+            return normalized.StartsWith(nestedPrefix, StringComparison.OrdinalIgnoreCase)
+                ? normalized[nestedPrefix.Length..]
+                : normalized;
+        }
+
+        private static bool IsMcFunctionPath(string entry) =>
+            entry.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase);
+
+        private sealed record DatapackReferenceComparison(
+            string GeneratedZipPath,
+            string ReferenceZipPath,
+            bool ReferenceExists,
+            int GeneratedFileCount,
+            int GeneratedFunctionFileCount,
+            int GeneratedPlaceholderCount,
+            int ReferenceFileCount,
+            int ReferenceFunctionFileCount,
+            int ReferencePlaceholderCount,
+            bool GeneratedHasRootPackMcmeta,
+            bool ReferenceHasRootPackMcmeta,
+            bool ReferenceHasNestedPackMcmeta,
+            bool GeneratedHasLoadTag,
+            bool GeneratedHasTickTag,
+            bool ReferenceHasLoadTag,
+            bool ReferenceHasTickTag,
+            int CriticalFileCount,
+            int PreservedCriticalFileCount,
+            string[] PreservedCriticalFiles,
+            string[] ReferencePlaceholderSamples,
+            string Summary)
+        {
+            public static DatapackReferenceComparison Missing(string generatedZipPath, string referenceZipPath, string summary) =>
+                new(
+                    GeneratedZipPath: generatedZipPath,
+                    ReferenceZipPath: referenceZipPath,
+                    ReferenceExists: File.Exists(referenceZipPath),
+                    GeneratedFileCount: 0,
+                    GeneratedFunctionFileCount: 0,
+                    GeneratedPlaceholderCount: 0,
+                    ReferenceFileCount: 0,
+                    ReferenceFunctionFileCount: 0,
+                    ReferencePlaceholderCount: 0,
+                    GeneratedHasRootPackMcmeta: false,
+                    ReferenceHasRootPackMcmeta: false,
+                    ReferenceHasNestedPackMcmeta: false,
+                    GeneratedHasLoadTag: false,
+                    GeneratedHasTickTag: false,
+                    ReferenceHasLoadTag: false,
+                    ReferenceHasTickTag: false,
+                    CriticalFileCount: 0,
+                    PreservedCriticalFileCount: 0,
+                    PreservedCriticalFiles: [],
+                    ReferencePlaceholderSamples: [],
+                    Summary: summary);
         }
 
         private static void WriteRuntimeEndpointFile()
