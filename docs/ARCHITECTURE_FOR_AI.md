@@ -93,6 +93,18 @@ Recommended architecture:
 - make build steps repeatable through scripts or service methods
 - keep frontend JavaScript limited to client-side helper behavior
 
+Feature wishlist gathered from the local `gpt-oss:20b` debug model:
+
+- mod template library for Fabric, Forge, and Quilt
+- dependency resolver for Fabric API and related libraries
+- version sync between metadata, Gradle, generated code, and assets
+- generated README/changelog/API docs
+- JUnit test generation for common block/item/command behavior
+- static safety analysis for risky reflection, network, filesystem, or command patterns
+- sandboxed run/build workflow before deploying generated mods
+
+Treat these as product direction, not as already-implemented behavior.
+
 ## If you are changing code
 
 Ask yourself:

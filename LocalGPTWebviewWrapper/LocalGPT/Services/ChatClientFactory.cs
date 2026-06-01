@@ -14,7 +14,8 @@ namespace LocalGPT.Services
     public class ChatClientFactory(
           ILogger<ChatClientFactory> logger,
           ILoggerFactory loggerFactory,
-          IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot
+          IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
+          IAiFeatureReportService featureReportService
       ) : IChatClientFactory
     {
         public CompositeChatClient Build()
@@ -31,7 +32,7 @@ namespace LocalGPT.Services
                 {
                     logger.LogInformation("⚙️ Found Ollama configuration: {Json}", ollama.ToJsonString());
 
-                    var ollamaChat = new OllamaChatClient(new Uri(ollama.Uri), ollama.ModelName);
+                    var ollamaChat = new OllamaThinkingChatClient(ollama);
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
@@ -130,7 +131,7 @@ namespace LocalGPT.Services
                 if (sessions.Count == 0)
                     throw new InvalidOperationException("❌ No AI providers configured. Check appsettings.json or Installation page.");
 
-                return new CompositeChatClient(logger, sessions.ToArray());
+                return new CompositeChatClient(logger, featureReportService, sessions.ToArray());
             }
             catch (Exception ex)
             {

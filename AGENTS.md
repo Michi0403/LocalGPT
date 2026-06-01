@@ -118,6 +118,7 @@ Agent guidance:
 - keep frontend JavaScript for client-only helpers, not privileged execution
 - design generated mod workspaces so they can be inspected and rebuilt
 - prefer explicit project templates and build logs over opaque generation
+- write missing-feature or blocked-workflow reports to `%LOCALAPPDATA%\LocalGPT\AIReports\`
 
 ## How AI should modify code here
 

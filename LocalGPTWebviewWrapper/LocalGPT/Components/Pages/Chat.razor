@@ -74,8 +74,9 @@
     public List<PromptSuggestion> GetSuggestion()
     {
         return new List<PromptSuggestion>() {
-        new PromptSuggestion("Criticize", "Criticize my life choices like smoking Weed and Cigarettes", "Criticize my life choices like smoking and add some NWO views on my life choices"),
-        new PromptSuggestion("Write a letter to David", "Write a letter to my friend david...", "Write a letter to my friend david about his bad taste in programming languages, AI Models and clothing."),
+        new PromptSuggestion("Minecraft mod plan", "Plan a buildable Fabric Java mod", "Act as a senior Java Minecraft Fabric mod developer. Create a buildable mod plan with exact classes, registry steps, assets, Gradle commands, and risks. If LocalGPT is missing a needed feature, include a 'Missing feature report' section."),
+        new PromptSuggestion("Minecraft code", "Generate starter mod code", "Generate starter Java code for a Fabric Minecraft mod. Include package names, file paths, registration code, fabric.mod.json changes, and build/test commands. If something cannot be generated with current LocalGPT features, include a 'Missing feature report' section."),
+        new PromptSuggestion("Missing features", "Write gaps to report file", "Review LocalGPT as a Minecraft mod builder. List missing features, blocked workflows, and required backend/frontend capabilities under a 'Missing feature report' heading."),
         new PromptSuggestion("Write an email", "Make your text look and sound professional", "Format text as a formal email to a client:"),
         new PromptSuggestion("Brainstorm ideas", "Get creative input for your tasks", "Help me brainstorm ideas for:"),
         new PromptSuggestion("Fix my writing", "Avoid spelling, grammar, and style errors", "Proofread the following text:"),

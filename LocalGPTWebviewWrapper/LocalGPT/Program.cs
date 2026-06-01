@@ -81,6 +81,7 @@ namespace LocalGPT
             builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
             builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
             builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
+            builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
             builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
             builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
 

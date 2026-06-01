@@ -161,6 +161,8 @@ If `/api/chat` returns an empty assistant message or `/api/generate` ends premat
 .\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1 -NumPredict 1024 -TimeoutSeconds 300
 ```
 
+`DxAIChat` uses LocalGPT's configured `IChatClient`. For Ollama/gpt-oss, LocalGPT uses an Ollama-native client so the response can include a visible `Model thinking` markdown details block followed by the final answer.
+
 Known-good local expectation:
 
 ```text
@@ -192,3 +194,9 @@ If DevExpress packages do not restore:
 The app is intended to support several selectable Ollama-hosted AI models and reuse context smartly. Keep configuration save/load behavior durable because the setup page is the control surface for those AI profiles.
 
 The longer-term Minecraft mod building feature should keep risky OS command execution behind backend services such as `INativeCommandRunner`, and should keep browser/client-only helpers in the frontend layer. Treat command execution as a deliberate capability, not as random UI code.
+
+If the AI reports missing LocalGPT features, blocked workflows, or not-yet-implemented capabilities, LocalGPT writes a text report under:
+
+```text
+%LOCALAPPDATA%\LocalGPT\AIReports\
+```
