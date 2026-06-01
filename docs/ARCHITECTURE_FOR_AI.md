@@ -120,6 +120,8 @@ Design rule: the council can display provider-supplied visible thinking and mode
 
 The intended direction is to let LocalGPT create complex Java Minecraft mods on command.
 
+Java Edition is the first-class target. Fabric is the fast iteration mod target, NeoForge is the modern Forge-style mod target, Paper is the server-side Java plugin target, and vanilla datapacks are the no-Java command/data target. Bedrock should be handled later as a separate behavior/resource pack exporter.
+
 Recommended architecture:
 
 - keep generation state in a workspace service
@@ -127,11 +129,12 @@ Recommended architecture:
 - store logs and generated files where users can inspect them
 - make build steps repeatable through scripts or service methods
 - keep frontend JavaScript limited to client-side helper behavior
+- have the AI Council help with user setup as well as mod code: JDK 21, Gradle, Eclipse/IDE import, Minecraft launcher, Ollama models, and generated workspace build steps
 
 Feature wishlist gathered from the local `gpt-oss:20b` debug model:
 
-- mod template library for Fabric, Forge, and Quilt
-- dependency resolver for Fabric API and related libraries
+- mod/plugin/datapack template library for Fabric, NeoForge, Paper, vanilla datapacks, and future Bedrock exports
+- dependency resolver for Fabric API, Yarn, NeoForge, Paper API, Minecraft versions, and datapack pack formats
 - version sync between metadata, Gradle, generated code, and assets
 - generated README/changelog/API docs
 - JUnit test generation for common block/item/command behavior
@@ -139,6 +142,8 @@ Feature wishlist gathered from the local `gpt-oss:20b` debug model:
 - sandboxed run/build workflow before deploying generated mods
 
 Treat these as product direction, not as already-implemented behavior.
+
+The detailed Minecraft builder rules live in `docs/MINECRAFT_MOD_AI_BUILDER.md`. The bootstrap prompt includes that file so chat and council participants can explain setup and report missing builder features consistently.
 
 ## If you are changing code
 

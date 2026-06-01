@@ -4,7 +4,7 @@ LocalGPT is a .NET 9 Blazor/ASP.NET Core application hosted inside a WinUI 3 Web
 
 Main projects:
 
-- LocalGPTWebviewWrapper/LocalGPT: ASP.NET Core host, Blazor UI, DevExpress components, AI services, setup/configuration pages.
+- LocalGPTWebviewWrapper/LocalGPT: ASP.NET Core host, Blazor UI, DevExpress components, AI services, setup/configuration pages, SQLite chat memory, AI Council, and Minecraft workspace builder.
 - LocalGPTWebviewWrapper/LocalGPTWebviewWrapper: WinUI 3 and WebView2 desktop shell.
 - LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package): MSIX/DesktopBridge package project for deploy/debug.
 - LocalGPTWebviewWrapper/build: repair/build scripts for local Windows development.
@@ -24,10 +24,14 @@ Important assumptions:
 - Ollama runs outside the app and is selected/configured through setup data
 - preferred Ollama debug model is gpt-oss:20b
 - run LocalGPTWebviewWrapper/build/Test-OllamaGptOss.ps1 before debugging DxAIChat
+- Minecraft Builder should let the user/council choose Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, or future Bedrock add-on
+- use LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1 for JDK, Gradle, Eclipse, and Minecraft builder setup checks
 
 Recommended docs:
 
 - AGENTS.md
+- README.md
 - CLAUDE.md
 - docs/ARCHITECTURE_FOR_AI.md
+- docs/MINECRAFT_MOD_AI_BUILDER.md
 - LocalGPTWebviewWrapper/readme.md

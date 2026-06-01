@@ -195,6 +195,34 @@ The app is intended to support several selectable Ollama-hosted AI models and re
 
 The longer-term Minecraft mod building feature should keep risky OS command execution behind backend services such as `INativeCommandRunner`, and should keep browser/client-only helpers in the frontend layer. Treat command execution as a deliberate capability, not as random UI code.
 
+## Minecraft Java mod toolchain
+
+LocalGPT now treats Minecraft Java Edition as the first-class mod-builder target. Fabric is the lightweight mod path, NeoForge is the modern Forge-style path, Paper is the server-side plugin path, and vanilla datapacks cover command/data systems that should not require Java. Bedrock should be added later as a separate behavior/resource pack exporter.
+
+Install or verify the local modding tools with:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Setup-MinecraftModToolchain.ps1 -Install -InstallGradle -InstallEclipse
+```
+
+Generated mod workspaces include:
+
+```powershell
+.\build-local.ps1
+```
+
+That helper finds JDK 21, uses LocalGPT's local Gradle folder under `%LOCALAPPDATA%\LocalGPT\Tools`, and builds the generated Fabric, NeoForge, or Paper project. Datapack workspaces use their generated helper to validate JSON and create a zip without Java. Eclipse can import generated Java workspaces with `File > Import > Gradle > Existing Gradle Project`.
+
+For release packaging, use:
+
+```powershell
+.\LocalGPTWebviewWrapper\build\Publish-LocalGptRelease.ps1 -Configuration Release -Platforms x64,x86,arm64
+```
+
+Release zips and SHA256 manifests are written under `artifacts\releases\` and are ignored by git.
+
+The AI Council should help with both mod code and user setup. If JDK, Gradle, Minecraft, Ollama, or a selected model is missing, the council should ask a short technical recovery poll and save the missing feature/setup note to memory instead of pretending the workflow completed.
+
 If the AI reports missing LocalGPT features, blocked workflows, or not-yet-implemented capabilities, LocalGPT writes a text report under:
 
 ```text

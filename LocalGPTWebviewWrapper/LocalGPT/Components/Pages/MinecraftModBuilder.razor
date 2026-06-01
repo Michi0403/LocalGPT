@@ -5,6 +5,7 @@
 @inject IMinecraftModWorkspaceService WorkspaceService
 @inject INativeCommandRunner CommandRunner
 @inject IChatClient? ChatClient
+@inject IMultiModelCouncilService CouncilService
 @rendermode InteractiveServer
 
 <PageTitle>Minecraft Mod Builder</PageTitle>
@@ -16,7 +17,7 @@
         <div class="builder-header">
             <div>
                 <h1>Minecraft Mod Builder</h1>
-                <p>Generate a Fabric Java mod workspace, ask Ollama for an implementation plan, then run scoped build commands.</p>
+                <p>Generate a Java mod workspace, ask Ollama or the AI Council for a grounded plan, then run scoped build commands.</p>
             </div>
             <DxButton Text="Create Workspace"
                       RenderStyle="ButtonRenderStyle.Primary"
@@ -45,8 +46,32 @@
             <label>
                 Loader
                 <select @bind="request.Loader">
-                    <option>Fabric</option>
+                    <option>Fabric Mod</option>
+                    <option>NeoForge Mod</option>
+                    <option>Paper Plugin</option>
+                    <option>Datapack</option>
+                    <option>Bedrock Add-on</option>
                 </select>
+            </label>
+            <label>
+                Java
+                <input @bind="request.JavaVersion" />
+            </label>
+            <label>
+                Gradle
+                <input @bind="request.GradleVersion" />
+            </label>
+            <label>
+                IDE
+                <select @bind="request.Ide">
+                    <option>Eclipse</option>
+                    <option>IntelliJ IDEA</option>
+                    <option>Visual Studio Code</option>
+                </select>
+            </label>
+            <label class="checkbox-label" title="Adds a small item, command, and design brief for the Living Cities 0.1 sample.">
+                <input type="checkbox" @bind="request.IncludeLivingCitiesStarter" />
+                Living Cities starter
             </label>
         </div>
 
@@ -55,12 +80,27 @@
             <textarea @bind="request.Description" rows="8" placeholder="Example: Create a magic ore, a wand item, custom crafting recipes, and server-side commands to grant spell XP."></textarea>
         </label>
 
+        <label class="wide-field">
+            Council models
+            <input @bind="councilModels" placeholder="gpt-oss:20b, qwen3-coder:30b" />
+        </label>
+
         <div class="button-row">
             <DxButton Text="Ask AI For Plan"
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       Click="GeneratePlanAsync"
                       Enabled="@(!isBusy && ChatClient is not null)" />
+            <DxButton Text="Ask AI Council"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Click="GenerateCouncilPlanAsync"
+                      Enabled="@(!isBusy)" />
+            <DxButton Text="Living Cities Prompt"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Click="LoadLivingCitiesPrompt"
+                      Enabled="@(!isBusy)" />
         </div>
     </section>
 
@@ -75,6 +115,14 @@
                 <dd>@workspace.MainClassPath</dd>
                 <dt>Metadata</dt>
                 <dd>@workspace.MetadataPath</dd>
+                <dt>Build file</dt>
+                <dd>@workspace.BuildFilePath</dd>
+                <dt>Brief</dt>
+                <dd>@workspace.ReadmePath</dd>
+                <dt>Build command</dt>
+                <dd>@workspace.BuildCommand</dd>
+                <dt>IDE import</dt>
+                <dd>@workspace.EclipseImportHint</dd>
             </dl>
 
             <div class="command-grid">
@@ -103,6 +151,21 @@
         </section>
     }
 
+    @if (lastCouncilResult is not null)
+    {
+        <section class="builder-panel">
+            <h2>AI Council Log</h2>
+            <dl class="workspace-details">
+                <dt>Models</dt>
+                <dd>@string.Join(" + ", lastCouncilResult.ModelNames)</dd>
+                <dt>Log</dt>
+                <dd>@lastCouncilResult.LogPath</dd>
+                <dt>Memory</dt>
+                <dd>@lastCouncilResult.MemoryConversationId</dd>
+            </dl>
+        </section>
+    }
+
     @if (lastCommandResult is not null)
     {
         <section class="builder-panel">
@@ -123,24 +186,42 @@
     string toastName = "MinecraftModBuilderToasts";
     MinecraftModBuildRequest request = new()
     {
-        ProjectName = "LocalGptMagicMod",
-        ModId = "localgpt_magic",
-        PackageName = "com.localgpt.magic",
-        Description = "Create a Fabric mod with one custom item and one command. Keep the first version small and buildable."
+        ProjectName = "LivingCities",
+        ModId = "living_cities",
+        PackageName = "com.localgpt.livingcities",
+        Loader = "Fabric Mod",
+        Description = LivingCitiesPrompt
     };
 
     MinecraftModWorkspace? workspace;
     CommandExecutionResult? lastCommandResult;
+    MultiModelCouncilResult? lastCouncilResult;
     string aiPlan = string.Empty;
-    string commandFileName = "gradle";
-    string commandArguments = "build";
+    string commandFileName = "powershell.exe";
+    string commandArguments = "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1";
+    string councilModels = "gpt-oss:20b, qwen3-coder:30b";
     bool isBusy;
+
+    static readonly string LivingCitiesPrompt = string.Join(Environment.NewLine, new[]
+    {
+        "Living Cities 0.1 should turn Minecraft villages into persistent cities with population, food, security, personalities, chronicle, quests, and town hall administration.",
+        "",
+        "First build target:",
+        "- keep the first generated mod small and buildable",
+        "- add a city charter item",
+        "- add a /livingcities report command",
+        "- keep the critical path documented: datapack/data structure, scoreboards or saved data, city founding, citizen registration, population management, minimal town hall",
+        "- avoid world-wide scans",
+        "- plan for 1000+ citizens by simulating city aggregates before individuals"
+    });
 
     async Task CreateWorkspaceAsync()
     {
         await RunUiActionAsync(async () =>
         {
-            workspace = await WorkspaceService.CreateFabricWorkspaceAsync(request);
+            workspace = await WorkspaceService.CreateWorkspaceAsync(request);
+            commandFileName = "powershell.exe";
+            commandArguments = "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1";
             Notifier.ShowSuccess(toastName, workspace.RootPath, "Workspace created");
         }, "CreateWorkspaceAsync");
     }
@@ -157,13 +238,36 @@
         {
             var messages = new[]
             {
-                new ChatMessage(ChatRole.System, "You are a senior Java Minecraft Fabric mod developer. Produce buildable, practical implementation plans. Mention exact files, classes, registry steps, assets, data generation, and Gradle commands when relevant."),
+                new ChatMessage(ChatRole.System, CreateMinecraftSystemPrompt("single model")),
                 new ChatMessage(ChatRole.User, CreatePlanningPrompt())
             };
 
             var response = await ChatClient.GetResponseAsync(messages);
             aiPlan = response.Text;
         }, "GeneratePlanAsync");
+    }
+
+    async Task GenerateCouncilPlanAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            var result = await CouncilService.RunAsync(new MultiModelCouncilRequest
+            {
+                ModelNames = ParseCouncilModels().ToList(),
+                Prompt = CreatePlanningPrompt(),
+                MaxRounds = 1,
+                MaxOutputTokens = 2048,
+                MaxParallelModels = 1,
+                MaxContextTokens = 8192,
+                ModelTimeoutSeconds = 240,
+                IncludeMemory = true,
+                SaveToMemory = true
+            });
+
+            lastCouncilResult = result;
+            aiPlan = result.FinalAnswer;
+            Notifier.ShowSuccess(toastName, "Council plan saved to log and memory.", "AI Council complete");
+        }, "GenerateCouncilPlanAsync");
     }
 
     async Task RunCommandAsync()
@@ -189,9 +293,13 @@
         "Build target:",
         $"- Loader: {request.Loader}",
         $"- Minecraft: {request.MinecraftVersion}",
+        $"- Java: {request.JavaVersion}",
+        $"- Gradle: {request.GradleVersion}",
+        $"- IDE: {request.Ide}",
         $"- Project: {request.ProjectName}",
         $"- Mod id: {request.ModId}",
         $"- Package: {request.PackageName}",
+        $"- Workspace root: {workspace?.RootPath ?? "not created yet"}",
         "",
         "User request:",
         request.Description,
@@ -202,8 +310,41 @@
         "3. Java code strategy.",
         "4. Assets/data files needed.",
         "5. Build and test commands.",
-        "6. Risks or missing details to ask the user."
+        "6. User setup steps for JDK, Gradle, Eclipse/Minecraft launcher, Ollama, and LocalGPT AI Council.",
+        "7. Risks or missing details to ask the user.",
+        "8. Missing feature report for LocalGPT if the builder lacks a needed capability.",
+        "",
+        "Council rules:",
+        "- Work kindly with the other models and correct each other directly.",
+        "- Do not claim the mod was compiled or run unless the transcript contains command output.",
+        "- If setup is incomplete, make a short user decision poll instead of guessing.",
+        "- Mark version-sensitive dependency claims as Needs verification unless proven by a build."
     });
+
+    static string CreateMinecraftSystemPrompt(string mode) => string.Join(Environment.NewLine, new[]
+    {
+        $"You are a senior Minecraft Java mod engineer helping through LocalGPT in {mode}.",
+        "Prefer Java Edition first. Treat Bedrock as a separate behavior/resource pack exporter.",
+        "For Java code work, choose Fabric mod, NeoForge mod, or Paper plugin. For command-only vanilla systems, choose datapack.",
+        "For modern Java mods/plugins, expect JDK 21, Gradle, an IDE such as Eclipse, and either Fabric, NeoForge, or Paper.",
+        "Produce buildable, practical implementation plans with exact files, classes, registry steps, assets, data generation, and Gradle commands.",
+        "For datapacks, produce pack.mcmeta, minecraft load/tick function tags, namespace functions, validation steps, and install instructions.",
+        "Help the user set up their system when tooling is missing.",
+        "If LocalGPT needs a missing feature, include a 'Missing feature report' section that can be saved to memory.",
+        "Label uncertain dependency versions under 'Needs verification'."
+    });
+
+    IEnumerable<string> ParseCouncilModels() =>
+        councilModels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(model => !string.IsNullOrWhiteSpace(model));
+
+    void LoadLivingCitiesPrompt()
+    {
+        request.ProjectName = "LivingCities";
+        request.ModId = "living_cities";
+        request.PackageName = "com.localgpt.livingcities";
+        request.Description = LivingCitiesPrompt;
+    }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {

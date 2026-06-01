@@ -341,6 +341,35 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             {
                 return Results.Ok(await council.GetCandidatesAsync(ct));
             });
+            app.MapGet("/__diag/minecraft/workspace-smoke", async (IMinecraftModWorkspaceService workspaceService, string? loader, CancellationToken ct) =>
+            {
+                var request = new MinecraftModBuildRequest
+                {
+                    ProjectName = $"LivingCitiesSmoke{DateTime.UtcNow:HHmmss}",
+                    ModId = "living_cities_smoke",
+                    PackageName = "com.localgpt.livingcitiessmoke",
+                    Loader = string.IsNullOrWhiteSpace(loader) ? "Fabric" : loader,
+                    MinecraftVersion = "1.21.1",
+                    JavaVersion = "21",
+                    GradleVersion = "8.14.2",
+                    Ide = "Eclipse",
+                    IncludeLivingCitiesStarter = true,
+                    Description = "Smoke-test the LocalGPT Minecraft Mod Builder with a small Living Cities starter item and report command."
+                };
+
+                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct);
+                return Results.Ok(new
+                {
+                    workspace.ProjectName,
+                    workspace.RootPath,
+                    workspace.MainClassPath,
+                    workspace.MetadataPath,
+                    workspace.BuildFilePath,
+                    workspace.ReadmePath,
+                    workspace.BuildCommand,
+                    workspace.EclipseImportHint
+                });
+            });
             app.MapPost("/__diag/council", async ([FromBody] MultiModelCouncilRequest request, IMultiModelCouncilService council, CancellationToken ct) =>
             {
                 return Results.Ok(await council.RunAsync(request, ct));

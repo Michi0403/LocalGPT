@@ -12,7 +12,8 @@ namespace LocalGPT.Services
             "AGENTS.md",
             "CLAUDE.md",
             "llms.txt",
-            Path.Combine("docs", "ARCHITECTURE_FOR_AI.md")
+            Path.Combine("docs", "ARCHITECTURE_FOR_AI.md"),
+            Path.Combine("docs", "MINECRAFT_MOD_AI_BUILDER.md")
         ];
 
         public async Task<string> BuildBootstrapPromptAsync(CancellationToken cancellationToken = default)

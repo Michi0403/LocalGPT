@@ -113,12 +113,19 @@ The target workflow is complex Java Minecraft mod creation on command.
 
 Agent guidance:
 
+- treat Minecraft Java Edition as the first-class target
+- use Fabric for lightweight client/server mod iteration, NeoForge for modern Forge-style modding, Paper for server-side Java plugins, and datapacks for vanilla command/data behavior without Java
+- keep Bedrock support separate as a future behavior/resource pack exporter
+- use `LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1` when the user needs JDK 21, local Gradle, Eclipse, or setup diagnostics
 - keep filesystem and OS command execution in backend services
 - use `INativeCommandRunner` or a similar service boundary for native commands
 - keep frontend JavaScript for client-only helpers, not privileged execution
 - design generated mod workspaces so they can be inspected and rebuilt
 - prefer explicit project templates and build logs over opaque generation
 - write missing-feature or blocked-workflow reports to `%LOCALAPPDATA%\LocalGPT\AIReports\`
+- have AI Council participants help users set up the system, and ask a technical recovery poll if Java, Gradle, Minecraft, Ollama, or a model is missing
+
+Detailed mod-builder instructions for AI agents are in `docs/MINECRAFT_MOD_AI_BUILDER.md`.
 
 ## How AI should modify code here
 
