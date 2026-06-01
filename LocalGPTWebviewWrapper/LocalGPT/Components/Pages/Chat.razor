@@ -45,10 +45,25 @@
                           Enabled="@(!isModelRefreshBusy)"
                           Click="RefreshOllamaModelsAsync" />
             </span>
-            <span title="Dynamic Ollama sessions pass num_gpu=0 and keep_alive=0s. This is slower, but avoids GPU pressure while testing.">
-                <DxCheckBox @bind-Checked="UseCpuOnlyOllamaChat"
-                            Text="CPU-only dynamic Ollama" />
-            </span>
+            <label class="ollama-mode-setting" title="Controls Ollama's num_gpu option for DXAiChat and AI Council. Auto GPU lets Ollama use your GPU; Safe CPU forces num_gpu=0; Limited GPU uses a partial GPU-layer cap.">
+                <span>Ollama acceleration</span>
+                <select value="@OllamaAccelerationMode" @onchange="OnOllamaAccelerationModeChanged">
+                    <option value="@OllamaModeAutoGpu">Auto GPU</option>
+                    <option value="@OllamaModeSafeCpu">Safe CPU</option>
+                    <option value="@OllamaModeLimitedGpu">Limited GPU</option>
+                </select>
+            </label>
+            @if (OllamaAccelerationMode == OllamaModeLimitedGpu)
+            {
+                <label class="council-token-setting" title="Ollama num_gpu layer cap used by Limited GPU mode. Lower this if the driver becomes unstable; raise it if generation is too slow and VRAM is available.">
+                    <span>GPU layers</span>
+                    <input type="number"
+                           min="1"
+                           max="99"
+                           step="1"
+                           @bind="LimitedGpuLayers" />
+                </label>
+            }
             <span title="When the AI Council session is selected, it can generate downloadable code/DLL examples for implementation requests.">
                 <DxCheckBox @bind-Checked="GenerateCouncilArtifacts"
                             Text="Council code/DLL artifacts" />
@@ -174,7 +189,11 @@
     const string DetectedOllamaSessionPrefix = "Ollama detected — ";
     const string CouncilSessionName = "AI Council — selected Ollama models";
     bool ReuseContextWhenSwitching { get; set; } = true;
-    bool UseCpuOnlyOllamaChat { get; set; } = true;
+    const string OllamaModeAutoGpu = "auto-gpu";
+    const string OllamaModeSafeCpu = "safe-cpu";
+    const string OllamaModeLimitedGpu = "limited-gpu";
+    string OllamaAccelerationMode { get; set; } = OllamaModeAutoGpu;
+    int LimitedGpuLayers { get; set; } = 20;
     bool GenerateCouncilArtifacts { get; set; }
     bool IncludeCouncilMemory { get; set; } = true;
     int CouncilMaxOutputTokens { get; set; } = 2048;
@@ -352,7 +371,7 @@
                     keepAlive: "0s",
                     contextLength: 2048,
                     timeout: TimeSpan.FromMinutes(10),
-                    numGpu: UseCpuOnlyOllamaChat ? 0 : null),
+                    numGpu: ResolveOllamaNumGpu()),
                 $"{DetectedOllamaSessionPrefix}{candidate.ModelName}");
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
@@ -390,7 +409,7 @@
             MaxContextTokens = Math.Clamp(CouncilMaxContextTokens, 2048, 8192),
             ModelTimeoutSeconds = 360,
             OllamaKeepAlive = "0s",
-            OllamaNumGpu = UseCpuOnlyOllamaChat ? 0 : null,
+            OllamaNumGpu = ResolveOllamaNumGpu(),
             IncludeMemory = IncludeCouncilMemory,
             SaveToMemory = true,
             GenerateImplementationArtifact = GenerateCouncilArtifacts,
@@ -416,10 +435,23 @@
             CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, 2048, 8192);
         }
 
+        if (query.TryGetValue("diagOllamaMode", out var ollamaMode))
+        {
+            var mode = ollamaMode.ToString();
+            if (IsSupportedOllamaMode(mode))
+                OllamaAccelerationMode = mode;
+        }
+
+        if (query.TryGetValue("diagGpuLayers", out var gpuLayers) &&
+            int.TryParse(gpuLayers.ToString(), out var parsedGpuLayers))
+        {
+            LimitedGpuLayers = Math.Clamp(parsedGpuLayers, 1, 99);
+        }
+
         if (query.TryGetValue("diagCpuOnly", out var cpuOnly) &&
             bool.TryParse(cpuOnly.ToString(), out var parsedCpuOnly))
         {
-            UseCpuOnlyOllamaChat = parsedCpuOnly;
+            OllamaAccelerationMode = parsedCpuOnly ? OllamaModeSafeCpu : OllamaModeAutoGpu;
         }
 
         if (query.TryGetValue("diagCouncilIncludeMemory", out var includeMemory) &&
@@ -448,6 +480,40 @@
     private static bool IsDynamicSession(ChatClientSession session) =>
         session.Name.StartsWith(DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase) ||
         session.Name.Equals(CouncilSessionName, StringComparison.OrdinalIgnoreCase);
+
+    private int? ResolveOllamaNumGpu()
+    {
+        return OllamaAccelerationMode switch
+        {
+            OllamaModeSafeCpu => 0,
+            OllamaModeLimitedGpu => Math.Clamp(LimitedGpuLayers, 1, 99),
+            _ => null
+        };
+    }
+
+    private static bool IsSupportedOllamaMode(string mode) =>
+        mode.Equals(OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase) ||
+        mode.Equals(OllamaModeSafeCpu, StringComparison.OrdinalIgnoreCase) ||
+        mode.Equals(OllamaModeLimitedGpu, StringComparison.OrdinalIgnoreCase);
+
+    private void OnOllamaAccelerationModeChanged(ChangeEventArgs e)
+    {
+        var requestedMode = Convert.ToString(e.Value) ?? OllamaModeAutoGpu;
+        if (!IsSupportedOllamaMode(requestedMode))
+            requestedMode = OllamaModeAutoGpu;
+
+        OllamaAccelerationMode = requestedMode;
+        if (DxAiChat is not null)
+            SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
+
+        RebuildDynamicSessions();
+        modelStatus = OllamaAccelerationMode switch
+        {
+            OllamaModeSafeCpu => "Ollama acceleration: Safe CPU. LocalGPT sends num_gpu=0.",
+            OllamaModeLimitedGpu => $"Ollama acceleration: Limited GPU. LocalGPT sends num_gpu={Math.Clamp(LimitedGpuLayers, 1, 99)}.",
+            _ => "Ollama acceleration: Auto GPU. LocalGPT lets Ollama choose GPU offload."
+        };
+    }
 
     private static IEnumerable<string> OrderCouncilModelsForLoad(IEnumerable<string> modelNames)
     {

@@ -133,6 +133,15 @@
     color: var(--bs-secondary-color);
 }
 
+.ollama-mode-setting {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+}
+
+.ollama-mode-setting select,
 .council-token-setting input {
     width: 6.25rem;
     min-height: 2rem;
@@ -141,6 +150,10 @@
     border-radius: 6px;
     background: var(--bs-body-bg);
     color: var(--bs-body-color);
+}
+
+.ollama-mode-setting select {
+    width: 8.5rem;
 }
 
 .council-picker {
