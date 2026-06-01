@@ -34,7 +34,12 @@ namespace LocalGPT.Services
                 {
                     logger.LogInformation("⚙️ Found Ollama configuration: {Json}", ollama.ToJsonString());
 
-                    var ollamaChat = new OllamaThinkingChatClient(ollama);
+                    var ollamaChat = new OllamaThinkingChatClient(
+                        ollama,
+                        keepAlive: "2m",
+                        contextLength: 4096,
+                        timeout: TimeSpan.FromMinutes(10),
+                        numGpu: null);
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),

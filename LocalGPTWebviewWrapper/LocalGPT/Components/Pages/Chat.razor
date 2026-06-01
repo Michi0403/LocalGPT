@@ -467,7 +467,8 @@
         var requestedSession = sessionValue.ToString();
         var selectedSession = requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
             ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(CouncilSessionName, StringComparison.OrdinalIgnoreCase))
-            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
+            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => IsDynamicSession(session) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
+                ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
 
         if (selectedSession is not null)
             ChatClientProvider.SelectedSession = selectedSession;
