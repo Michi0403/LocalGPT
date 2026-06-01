@@ -73,6 +73,8 @@ namespace LocalGPT.Services
             var baseUri = NormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri);
             var participants = SelectParticipants(request);
             var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
+            var maxContextTokens = Math.Clamp(request.MaxContextTokens <= 0 ? 8192 : request.MaxContextTokens, 2048, 32768);
+            var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 180 : request.ModelTimeoutSeconds, 30, 900);
             var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels);
             var result = new MultiModelCouncilResult
             {
@@ -87,6 +89,8 @@ namespace LocalGPT.Services
                 result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
             if (request.MaxOutputTokens > 4096)
                 result.Warnings.Add("Large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
+            if (maxContextTokens < 32768)
+                result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens to keep local 20B/30B model loads manageable.");
 
             var bootstrap = request.IncludeMemory
                 ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
@@ -104,6 +108,8 @@ namespace LocalGPT.Services
                 request.MaxOutputTokens,
                 maxParallelModels,
                 keepAlive,
+                maxContextTokens,
+                modelTimeoutSeconds,
                 cancellationToken);
 
             var critiqueRounds = Math.Clamp(request.MaxRounds, 1, 3);
@@ -122,6 +128,8 @@ namespace LocalGPT.Services
                     request.MaxOutputTokens,
                     maxParallelModels,
                     keepAlive,
+                    maxContextTokens,
+                    modelTimeoutSeconds,
                     cancellationToken);
             }
 
@@ -136,6 +144,8 @@ namespace LocalGPT.Services
                 bootstrap,
                 request.MaxOutputTokens,
                 keepAlive,
+                maxContextTokens,
+                modelTimeoutSeconds,
                 cancellationToken);
             AddOrderedStep(result, consensusStep);
 
@@ -151,6 +161,8 @@ namespace LocalGPT.Services
                     bootstrap,
                     request.MaxOutputTokens,
                     keepAlive,
+                    maxContextTokens,
+                    modelTimeoutSeconds,
                     cancellationToken);
                 AddOrderedStep(result, verificationStep);
                 result.FinalAnswer = $"{consensusStep.VisibleContent.Trim()}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
@@ -198,6 +210,8 @@ namespace LocalGPT.Services
             int maxOutputTokens,
             int maxParallelModels,
             string keepAlive,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
             CancellationToken cancellationToken)
         {
             using var gate = new SemaphoreSlim(maxParallelModels, maxParallelModels);
@@ -207,7 +221,7 @@ namespace LocalGPT.Services
                     await gate.WaitAsync(cancellationToken);
                     try
                     {
-                        return await RunParticipantAsync(baseUri, modelName, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, cancellationToken);
+                        return await RunParticipantAsync(baseUri, modelName, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds, cancellationToken);
                     }
                     finally
                     {
@@ -237,6 +251,8 @@ namespace LocalGPT.Services
             string bootstrap,
             int maxOutputTokens,
             string keepAlive,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
             CancellationToken cancellationToken)
         {
             var started = DateTime.UtcNow;
@@ -248,7 +264,10 @@ namespace LocalGPT.Services
                 {
                     Uri = baseUri,
                     ModelName = modelName
-                }, keepAlive);
+                }, keepAlive, maxContextTokens, TimeSpan.FromSeconds(modelTimeoutSeconds + 15));
+
+                using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
 
                 var messages = new List<ChatMessage>();
                 if (!string.IsNullOrWhiteSpace(bootstrap))
@@ -263,7 +282,7 @@ namespace LocalGPT.Services
                         MaxOutputTokens = Math.Clamp(maxOutputTokens, 512, 8192),
                         Temperature = 0.2f
                     },
-                    cancellationToken);
+                    participantCts.Token);
 
                 stopwatch.Stop();
                 return new MultiModelCouncilStep
@@ -278,6 +297,25 @@ namespace LocalGPT.Services
                     StartedAtUtc = started,
                     CompletedAtUtc = DateTime.UtcNow,
                     DurationSeconds = stopwatch.Elapsed.TotalSeconds
+                };
+            }
+            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                stopwatch.Stop();
+                var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
+                logger.LogWarning(ex, "{Message}", message);
+                return new MultiModelCouncilStep
+                {
+                    Round = round,
+                    Phase = phase,
+                    ModelName = modelName,
+                    Role = role,
+                    Content = $"**{message}**",
+                    VisibleContent = $"**{message}**",
+                    StartedAtUtc = started,
+                    CompletedAtUtc = DateTime.UtcNow,
+                    DurationSeconds = stopwatch.Elapsed.TotalSeconds,
+                    Error = message
                 };
             }
             catch (Exception ex)

@@ -14,6 +14,10 @@ namespace LocalGPT.BusinessObjects
 
         public int MaxParallelModels { get; set; } = 1;
 
+        public int MaxContextTokens { get; set; } = 8192;
+
+        public int ModelTimeoutSeconds { get; set; } = 180;
+
         public string? OllamaKeepAlive { get; set; }
 
         public bool IncludeMemory { get; set; } = true;

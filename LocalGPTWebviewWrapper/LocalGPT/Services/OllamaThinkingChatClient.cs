@@ -19,15 +19,17 @@ namespace LocalGPT.Services
         private readonly HttpClient http;
         private readonly string model;
         private readonly string keepAlive;
+        private readonly int? contextLength;
 
-        public OllamaThinkingChatClient(OllamaCoreOptions options, string? keepAlive = null)
+        public OllamaThinkingChatClient(OllamaCoreOptions options, string? keepAlive = null, int? contextLength = null, TimeSpan? timeout = null)
         {
             model = options.ModelName;
             this.keepAlive = string.IsNullOrWhiteSpace(keepAlive) ? "10m" : keepAlive.Trim();
+            this.contextLength = contextLength;
             http = new HttpClient
             {
                 BaseAddress = new Uri(options.Uri.TrimEnd('/')),
-                Timeout = TimeSpan.FromMinutes(10)
+                Timeout = timeout ?? TimeSpan.FromMinutes(10)
             };
         }
 
@@ -71,6 +73,7 @@ namespace LocalGPT.Services
                 Options = new OllamaRequestOptions
                 {
                     NumPredict = Math.Max(512, options?.MaxOutputTokens ?? 2048),
+                    NumCtx = contextLength,
                     Temperature = options?.Temperature
                 }
             };
@@ -189,7 +192,13 @@ namespace LocalGPT.Services
 
         private sealed class OllamaRequestOptions
         {
+            [JsonPropertyName("num_predict")]
             public int NumPredict { get; set; }
+
+            [JsonPropertyName("num_ctx")]
+            public int? NumCtx { get; set; }
+
+            [JsonPropertyName("temperature")]
             public double? Temperature { get; set; }
         }
 

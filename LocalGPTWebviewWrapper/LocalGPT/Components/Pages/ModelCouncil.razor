@@ -80,6 +80,14 @@
                     <input type="number" min="512" max="8192" step="256" @bind="Request.MaxOutputTokens" />
                 </label>
                 <label>
+                    Context tokens
+                    <input type="number" min="2048" max="32768" step="1024" @bind="Request.MaxContextTokens" />
+                </label>
+                <label>
+                    Timeout seconds
+                    <input type="number" min="30" max="900" step="30" @bind="Request.ModelTimeoutSeconds" />
+                </label>
+                <label>
                     Ollama keep-alive
                     <input @bind="KeepAliveText" placeholder="auto" />
                 </label>
@@ -224,6 +232,8 @@
         MaxRounds = 1,
         MaxOutputTokens = 4096,
         MaxParallelModels = 1,
+        MaxContextTokens = 8192,
+        ModelTimeoutSeconds = 180,
         IncludeMemory = true,
         SaveToMemory = true
     };
