@@ -2,12 +2,13 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
 using Microsoft.Extensions.AI;
 
 namespace LocalGPT.Services
 {
-    public sealed class OllamaThinkingChatClient : IChatClient
+    public sealed partial class OllamaThinkingChatClient : IChatClient
     {
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
         {
@@ -90,7 +91,7 @@ namespace LocalGPT.Services
             };
         }
 
-        private static List<AIContent> CreateContents(OllamaChatResponse response)
+        private List<AIContent> CreateContents(OllamaChatResponse response)
         {
             var visible = FormatVisibleResponse(response.Message?.Content, response.Message?.Thinking);
             return
@@ -99,27 +100,81 @@ namespace LocalGPT.Services
             ];
         }
 
-        private static string FormatVisibleResponse(string? content, string? thinking)
+        private string? NormalizeVisibleContent(string? content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return null;
+
+            if (!IsHarmonyModel())
+                return content.Trim();
+
+            var text = content.Trim();
+            var finalMatches = HarmonyFinalPattern().Matches(text);
+            if (finalMatches.Count > 0)
+                text = finalMatches[^1].Groups["content"].Value;
+
+            text = HarmonyMarkerPattern().Replace(text, string.Empty);
+            return text.Trim();
+        }
+
+        private string? ExtractHarmonyThinking(string? content)
+        {
+            if (!IsHarmonyModel() || string.IsNullOrWhiteSpace(content))
+                return null;
+
+            var matches = HarmonyThinkingPattern().Matches(content);
+            if (matches.Count == 0)
+                return null;
+
+            var thinking = string.Join(
+                Environment.NewLine,
+                matches
+                    .Select(match => HarmonyMarkerPattern().Replace(match.Groups["content"].Value, string.Empty).Trim())
+                    .Where(text => !string.IsNullOrWhiteSpace(text)));
+
+            return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+        }
+
+        private bool IsHarmonyModel()
+        {
+            return model.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
+                model.Contains("harmony", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string FormatVisibleResponse(string? content, string? thinking)
         {
             var builder = new StringBuilder();
+            var normalizedContent = NormalizeVisibleContent(content);
+            var normalizedThinking = string.IsNullOrWhiteSpace(thinking)
+                ? ExtractHarmonyThinking(content)
+                : thinking.Trim();
 
-            if (!string.IsNullOrWhiteSpace(thinking))
+            if (!string.IsNullOrWhiteSpace(normalizedThinking))
             {
                 builder
                     .AppendLine("<details class=\"model-thinking\" open>")
                     .AppendLine("<summary>Model thinking</summary>")
                     .AppendLine()
-                    .AppendLine(thinking.Trim())
+                    .AppendLine(normalizedThinking.Trim())
                     .AppendLine()
                     .AppendLine("</details>")
                     .AppendLine();
             }
 
-            if (!string.IsNullOrWhiteSpace(content))
-                builder.AppendLine(content.Trim());
+            if (!string.IsNullOrWhiteSpace(normalizedContent))
+                builder.AppendLine(normalizedContent.Trim());
 
             return builder.ToString().Trim();
         }
+
+        [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|$)|<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|<\\|start\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        private static partial Regex HarmonyFinalPattern();
+
+        [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)|<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        private static partial Regex HarmonyThinkingPattern();
+
+        [GeneratedRegex("<\\|[^>]+\\|>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex HarmonyMarkerPattern();
 
         private sealed class OllamaChatRequest
         {

@@ -33,12 +33,28 @@
     background-image: url("images/aichat.svg");
 }
 
+::deep .minecraft-icon {
+    background-image: url("images/minecraft-mod-builder.svg");
+}
+
+::deep .help-icon {
+    background-image: url("images/help.svg");
+}
+
 ::deep .weather-icon {
     background-image: url("images/weather.svg");
 }
 
 ::deep .counter-icon {
     background-image: url("images/counter.svg");
+}
+
+::deep .minecraft-icon {
+    background-image: url("images/minecraft-mod-builder.svg");
+}
+
+::deep .help-icon {
+    background-image: url("images/help.svg");
 }
 
 sidebar {

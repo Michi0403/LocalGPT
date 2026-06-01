@@ -1,7 +1,8 @@
-﻿@page "/Chat"
+@page "/Chat"
 
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
+@inject IChatMemoryService ChatMemory
 @rendermode InteractiveServer
 @implements IDisposable
 <PageTitle>AI Chat</PageTitle>
@@ -12,22 +13,68 @@
         <ToastWrapper Name="@toastName" />
 
         <div class="top-container">
-            <DxButton RenderStyle="ButtonRenderStyle.Primary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      IconCssClass="refresh"
-                      IconPosition="ButtonIconPosition.BeforeText"
-                      CssClass="refresh-button"
-                      Text="Start New Chat"
-                      Click="ClearHistory" />
-            <DxComboBox Data="@ModelsList"
-                        Value="ChatClientProvider.SelectedSession"
-                        CssClass="selector-container-combo-editor"
-                        TextFieldName="@nameof(ChatClientSession.Name)"
-                        ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
-            <DxCheckBox @bind-Checked="ReuseContextWhenSwitching"
-                        Text="Reuse context when switching AI" />
+            <span title="Clears the visible chat and starts a fresh memory thread.">
+                <DxButton RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          IconCssClass="refresh"
+                          IconPosition="ButtonIconPosition.BeforeText"
+                          CssClass="refresh-button"
+                          Text="Start New Chat"
+                          Click="ClearHistoryAsync" />
+            </span>
+            <span title="Choose the local or cloud model for the next response.">
+                <DxComboBox Data="@ModelsList"
+                            Value="ChatClientProvider.SelectedSession"
+                            CssClass="selector-container-combo-editor"
+                            TextFieldName="@nameof(ChatClientSession.Name)"
+                            ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
+            </span>
+            <span title="Keeps the current chat visible when switching to another configured AI.">
+                <DxCheckBox @bind-Checked="ReuseContextWhenSwitching"
+                            Text="Reuse context when switching AI" />
+            </span>
         </div>
-        <DxAIChat Initialized="ChatInitialized" ResponseContentFormat="ResponseContentFormat.PlainText" UseStreaming="true" FileUploadEnabled="true" @ref="DxAiChat" CssClass="demo-chat">
+        <div class="memory-toolbar" aria-label="Chat memory controls">
+            <span title="Writes the current DXAiChat messages into the local SQLite memory database.">
+                <DxButton Text="Save Memory"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isMemoryBusy)"
+                          Click="SaveCurrentConversationAsync" />
+            </span>
+            <span title="Loads the most recently saved conversation and its former model thoughts.">
+                <DxButton Text="Recall Latest"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Enabled="@(!isMemoryBusy && SavedConversations.Count > 0)"
+                          Click="LoadLatestConversationAsync" />
+            </span>
+            <span title="Pick an older saved chat from the SQLite memory database.">
+                <DxComboBox Data="@SavedConversations"
+                            Value="@SelectedConversation"
+                            CssClass="memory-selector"
+                            TextFieldName="@nameof(ChatMemoryConversationSummary.DisplayName)"
+                            ValueChanged="@((ChatMemoryConversationSummary conversation) => LoadSavedConversationAsync(conversation))" />
+            </span>
+            @if (!string.IsNullOrWhiteSpace(memoryStatus))
+            {
+                <span class="memory-status">@memoryStatus</span>
+            }
+        </div>
+        @if (RecentThoughts.Count > 0)
+        {
+            <div class="memory-thoughts">
+                <div class="memory-thoughts-title">Former model thoughts</div>
+                @foreach (var thought in RecentThoughts.Take(3))
+                {
+                    <details>
+                        <summary>@thought.ConversationTitle</summary>
+                        <p>@thought.Thinking</p>
+                    </details>
+                }
+            </div>
+        }
+        <DxAIChat Initialized="ChatInitialized" ResponseContentFormat="ResponseContentFormat.Markdown" UseStreaming="true" FileUploadEnabled="true" @ref="DxAiChat" CssClass="demo-chat">
             <PromptSuggestions>
                 @foreach (var suggestion in PromptSuggestions)
                 {
@@ -66,30 +113,55 @@
     string toastName = "ChatToasts";
     bool ReuseContextWhenSwitching { get; set; } = true;
     List<PromptSuggestion> PromptSuggestions { get; set; } = new();
-    void ChatInitialized()
+    List<ChatMemoryConversationSummary> SavedConversations { get; set; } = new();
+    List<ChatMemoryThought> RecentThoughts { get; set; } = new();
+    ChatMemoryConversationSummary? SelectedConversation { get; set; }
+    Guid? ActiveConversationId { get; set; }
+    string memoryStatus = string.Empty;
+    bool isMemoryBusy;
+    CancellationTokenSource? autoSaveCts;
+    string lastSavedSignature = string.Empty;
+
+    protected override async Task OnInitializedAsync()
     {
         PromptSuggestions = GetSuggestion();
-        LoadSelectedSessionMessages();
+        await RefreshMemoryAsync();
+        await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
     }
+
+    void ChatInitialized()
+    {
+        LoadSelectedSessionMessages();
+        StartAutoSaveLoop();
+    }
+
     public List<PromptSuggestion> GetSuggestion()
     {
         return new List<PromptSuggestion>() {
+        new PromptSuggestion("Recall memory", "Use saved chats and former thoughts", "Review your saved LocalGPT memory and former model thoughts, then summarize what you remember about this project and continue from that context."),
         new PromptSuggestion("Minecraft mod plan", "Plan a buildable Fabric Java mod", "Act as a senior Java Minecraft Fabric mod developer. Create a buildable mod plan with exact classes, registry steps, assets, Gradle commands, and risks. If LocalGPT is missing a needed feature, include a 'Missing feature report' section."),
         new PromptSuggestion("Minecraft code", "Generate starter mod code", "Generate starter Java code for a Fabric Minecraft mod. Include package names, file paths, registration code, fabric.mod.json changes, and build/test commands. If something cannot be generated with current LocalGPT features, include a 'Missing feature report' section."),
+        new PromptSuggestion("Living Cities datapack", "Generate a phased Minecraft datapack plan", "Use the Living Cities 0.1 technical plan as the target. Produce buildable Java/datapack implementation steps, file paths, commands, scoreboard/storage design, and performance notes for 1000+ citizens."),
         new PromptSuggestion("Missing features", "Write gaps to report file", "Review LocalGPT as a Minecraft mod builder. List missing features, blocked workflows, and required backend/frontend capabilities under a 'Missing feature report' heading."),
         new PromptSuggestion("Write an email", "Make your text look and sound professional", "Format text as a formal email to a client:"),
         new PromptSuggestion("Brainstorm ideas", "Get creative input for your tasks", "Help me brainstorm ideas for:"),
         new PromptSuggestion("Fix my writing", "Avoid spelling, grammar, and style errors", "Proofread the following text:"),
     };
     }
-    private void ClearHistory()
+
+    private async Task ClearHistoryAsync()
     {
         try
         {
             if (ChatClientProvider?.SelectedSession is null || DxAiChat is null)
                 return;
 
+            await PersistCurrentConversationAsync(force: true, showToast: false);
             ChatClientProvider.SelectedSession.Messages.Clear();
+            ActiveConversationId = null;
+            SelectedConversation = null;
+            lastSavedSignature = string.Empty;
+            memoryStatus = "New empty chat started.";
             DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
         }
         catch (Exception ex)
@@ -99,7 +171,8 @@
         }
 
     }
-    private void OnModelChanged(ChatClientSession value)
+
+    private async Task OnModelChanged(ChatClientSession value)
     {
         try
         {
@@ -108,6 +181,7 @@
 
             var currentMessages = DxAiChat.SaveMessages().ToList();
             SaveMessagesForSelectedSession(currentMessages);
+            await PersistMessagesAsync(currentMessages, force: true, showToast: false);
 
             ChatClientProvider.SelectedSession = value;
 
@@ -121,7 +195,7 @@
             Logger.LogError(ex, $"Exception in OnModelChanged: {ex.ToString()}");
             Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in OnModelChanged!");
         }
-   
+
     }
 
     private void SaveMessagesForSelectedSession(IEnumerable<BlazorChatMessage> saveMessages)
@@ -156,10 +230,164 @@
         }
     }
 
+    private async Task SaveCurrentConversationAsync()
+    {
+        await PersistCurrentConversationAsync(force: true, showToast: true);
+    }
+
+    private async Task LoadLatestConversationAsync()
+    {
+        await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: true);
+    }
+
+    private async Task LoadLatestConversationIntoSessionAsync(bool loadIntoDxChat)
+    {
+        if (SavedConversations.Count == 0)
+            return;
+
+        await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat);
+    }
+
+    private async Task LoadSavedConversationAsync(ChatMemoryConversationSummary? conversation)
+    {
+        await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true);
+    }
+
+    private async Task LoadSavedConversationAsync(ChatMemoryConversationSummary? conversation, bool saveCurrentFirst, bool loadIntoDxChat)
+    {
+        if (conversation is null || ChatClientProvider?.SelectedSession is null)
+            return;
+
+        try
+        {
+            if (saveCurrentFirst)
+                await PersistCurrentConversationAsync(force: true, showToast: false);
+
+            isMemoryBusy = true;
+            var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id);
+            if (snapshot is null)
+                return;
+
+            ActiveConversationId = snapshot.Id;
+            SelectedConversation = conversation;
+            ChatClientProvider.SelectedSession.Messages.Clear();
+            ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
+            lastSavedSignature = CreateMessageSignature(snapshot.Messages);
+            memoryStatus = $"Loaded memory: {snapshot.Title}";
+
+            if (loadIntoDxChat && DxAiChat is not null)
+                DxAiChat.LoadMessages(snapshot.Messages);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "LoadSavedConversationAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.Message, "Memory load failed");
+        }
+        finally
+        {
+            isMemoryBusy = false;
+        }
+    }
+
+    private async Task PersistCurrentConversationAsync(bool force, bool showToast)
+    {
+        if (DxAiChat is null)
+            return;
+
+        var messages = DxAiChat.SaveMessages().ToList();
+        SaveMessagesForSelectedSession(messages);
+        await PersistMessagesAsync(messages, force, showToast);
+    }
+
+    private async Task PersistMessagesAsync(IReadOnlyList<BlazorChatMessage> messages, bool force, bool showToast)
+    {
+        if (ChatClientProvider?.SelectedSession is null || messages.Count == 0)
+            return;
+
+        var signature = CreateMessageSignature(messages);
+        if (!force && signature == lastSavedSignature)
+            return;
+
+        try
+        {
+            isMemoryBusy = true;
+            ActiveConversationId = await ChatMemory.SaveConversationAsync(
+                ChatClientProvider.SelectedSession.Name,
+                messages,
+                ActiveConversationId);
+
+            lastSavedSignature = signature;
+            await RefreshMemoryAsync();
+            memoryStatus = $"Memory saved at {DateTime.Now:t}.";
+
+            if (showToast)
+                Notifier.ShowSuccess(toastName, "Chat saved to SQLite memory.", "Memory saved");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "PersistMessagesAsync failed: {Message}", ex.Message);
+            if (showToast)
+                Notifier.ShowError(toastName, ex.Message, "Memory save failed");
+        }
+        finally
+        {
+            isMemoryBusy = false;
+        }
+    }
+
+    private async Task RefreshMemoryAsync()
+    {
+        SavedConversations = (await ChatMemory.GetConversationsAsync()).ToList();
+        RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync()).ToList();
+
+        if (ActiveConversationId is Guid id)
+            SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
+        else
+            SelectedConversation = SavedConversations.FirstOrDefault();
+    }
+
+    private void StartAutoSaveLoop()
+    {
+        if (autoSaveCts is not null)
+            return;
+
+        autoSaveCts = new CancellationTokenSource();
+        _ = AutoSaveLoopAsync(autoSaveCts.Token);
+    }
+
+    private async Task AutoSaveLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken);
+                await InvokeAsync(async () => await PersistCurrentConversationAsync(force: false, showToast: false));
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Chat memory auto-save failed: {Message}", ex.Message);
+            }
+        }
+    }
+
+    private static string CreateMessageSignature(IEnumerable<BlazorChatMessage> messages)
+    {
+        return string.Join("|", messages
+            .Where(message => !message.Typing)
+            .Select(message => $"{message.Role}:{message.Content.GetHashCode(StringComparison.Ordinal)}:{message.Content.Length}"));
+    }
+
     public void Dispose()
     {
         try
         {
+            autoSaveCts?.Cancel();
+            autoSaveCts?.Dispose();
             if (DxAiChat is not null)
                 SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
         }

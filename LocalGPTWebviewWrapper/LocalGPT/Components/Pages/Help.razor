@@ -1,0 +1,34 @@
+@page "/help"
+
+<PageTitle>Help</PageTitle>
+
+<main class="help-page">
+    <section class="help-hero">
+        <h1>LocalGPT Help</h1>
+        <p>Use LocalGPT as a local AI workbench for Ollama, DXAiChat memory, and Minecraft Java mod building.</p>
+    </section>
+
+    <section class="help-grid">
+        <article class="help-panel">
+            <h2>Setup</h2>
+            <p>Open Install, discover Ollama or LM Studio, select the model, and save the configuration. For local debugging, prefer Ollama with gpt-oss:20b.</p>
+        </article>
+        <article class="help-panel">
+            <h2>Chat Memory</h2>
+            <p>DXAiChat auto-saves completed messages into SQLite. Use Save Memory before closing, Recall Latest to continue, or the memory selector to reopen older chats and former model thoughts.</p>
+        </article>
+        <article class="help-panel">
+            <h2>Minecraft Builder</h2>
+            <p>Use Minecraft Mod Builder for Fabric-style workspace planning, buildable file paths, Gradle commands, and scoped native command execution.</p>
+        </article>
+        <article class="help-panel">
+            <h2>Formatting</h2>
+            <p>gpt-oss responses are cleaned before display so Harmony channel markers do not leak into the chat. Thinking appears in a collapsible section above the final answer.</p>
+        </article>
+    </section>
+
+    <section class="help-panel help-wide">
+        <h2>Good Minecraft Prompt Shape</h2>
+        <p>Start with the project goal, list required systems in order, name the critical path, and ask for file paths, scoreboard/storage design, commands, and performance notes.</p>
+    </section>
+</main>

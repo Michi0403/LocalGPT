@@ -1,0 +1,44 @@
+.help-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.help-hero {
+    margin-bottom: 1rem;
+}
+
+.help-hero h1 {
+    margin-bottom: 0.35rem;
+}
+
+.help-hero p {
+    margin: 0;
+    color: var(--bs-secondary-color);
+}
+
+.help-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1rem;
+}
+
+.help-panel {
+    border: 1px solid rgba(127, 127, 127, 0.24);
+    border-radius: 8px;
+    padding: 1rem;
+    background: var(--bs-body-bg);
+}
+
+.help-panel h2 {
+    font-size: 1.1rem;
+    margin: 0 0 0.5rem;
+}
+
+.help-panel p {
+    margin: 0;
+}
+
+.help-wide {
+    margin-top: 1rem;
+}

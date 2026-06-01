@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
+using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.CodeParser;
 using DevExpress.XtraCharts;
 using LocalGPT.BusinessObjects;
@@ -236,6 +237,36 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     RecentThoughtCount = thoughts.Count,
                     Conversations = conversations,
                     RecentThoughts = thoughts
+                });
+            });
+            app.MapGet("/__diag/memory-smoke", async (IChatMemoryService memory, IChatClient chatClient, CancellationToken ct) =>
+            {
+                await memory.EnsureCreatedAsync(ct);
+
+                var seedMessages = new List<BlazorChatMessage>
+                {
+                    new(ChatRole.User, "Memory smoke test: Michi0403 wants LocalGPT to build Java Minecraft mods/plugins with Ollama gpt-oss:20b, persistent chat memory, AI helper files, and humane safety."),
+                    new(ChatRole.Assistant, "<details class=\"model-thinking\" open><summary>Model thinking</summary>Saved memory says LocalGPT should remember previous DXAiChat work, use AI guidance files, support Minecraft mod building, and protect humans including Michi0403.</details>\nMemory captured for debug testing.")
+                };
+
+                var conversationId = await memory.SaveConversationAsync("Diagnostic - gpt-oss:20b", seedMessages, cancellationToken: ct);
+                var response = await chatClient.GetResponseAsync(
+                    [
+                        new ChatMessage(ChatRole.User, "Using your LocalGPT bootstrap, saved memory, and AI guidance files, answer in exactly three bullets: project mission, one Minecraft Mod Builder feature you should support, and the humane safety rule for Michi0403. Mention gpt-oss:20b if you see it in memory.")
+                    ],
+                    new ChatOptions
+                    {
+                        MaxOutputTokens = 1024
+                    },
+                    ct);
+
+                return Results.Ok(new
+                {
+                    SavedConversationId = conversationId,
+                    Conversations = await memory.GetConversationsAsync(5, ct),
+                    RecentThoughts = await memory.GetRecentThoughtsAsync(5, ct),
+                    Response = response.Text,
+                    CreatedAt = DateTimeOffset.UtcNow
                 });
             });
             app.MapRazorComponents<App>()

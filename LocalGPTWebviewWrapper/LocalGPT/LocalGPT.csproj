@@ -24,6 +24,10 @@
 		<Content Include="$(IntermediateOutputPath)**\*.styles.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
+		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\CLAUDE.md" Link="CLAUDE.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\llms.txt" Link="llms.txt" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\ARCHITECTURE_FOR_AI.md" Link="docs\ARCHITECTURE_FOR_AI.md" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>

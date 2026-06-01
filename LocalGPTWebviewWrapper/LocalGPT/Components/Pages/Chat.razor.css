@@ -66,9 +66,53 @@
 }
 .demo-chat {
     width: 100%;
-    height: 400px;
+    height: 520px;
 }
 
     .demo-chat .demo-chat-content > p:last-child {
         margin-bottom: 0;
     }
+
+.memory-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+}
+
+.memory-selector {
+    min-width: min(32rem, 100%);
+}
+
+.memory-status {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+}
+
+.memory-thoughts {
+    border: 1px solid rgba(127, 127, 127, 0.24);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    background: var(--bs-body-bg);
+}
+
+.memory-thoughts-title {
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+
+.memory-thoughts details {
+    margin-top: 0.35rem;
+}
+
+.memory-thoughts summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.memory-thoughts p {
+    margin: 0.35rem 0 0;
+    white-space: pre-wrap;
+}
