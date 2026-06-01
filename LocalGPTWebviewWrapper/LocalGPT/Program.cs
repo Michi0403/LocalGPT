@@ -311,9 +311,10 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             {
                 var safeFileName = Path.GetFileName(fileName);
                 var isSource = safeFileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
+                var isRazor = safeFileName.EndsWith(".razor", StringComparison.OrdinalIgnoreCase);
                 var isDll = safeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
                 if (!string.Equals(fileName, safeFileName, StringComparison.Ordinal) ||
-                    (!isSource && !isDll))
+                    (!isSource && !isRazor && !isDll))
                     return Results.BadRequest("Invalid artifact file name.");
 
                 var path = Path.Combine(artifacts.ArtifactRoot, safeFileName);
@@ -531,6 +532,70 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             app.MapGet("/__diag/dxaichat-functions", () =>
             {
                 return Results.Ok(DxaichatFunctionCatalog.GetFunctions());
+            });
+            app.MapGet("/__diag/blazor-devexpress-guidance", async (IWebHostEnvironment env, CancellationToken ct) =>
+            {
+                var relativePath = Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md");
+                var candidatePaths = new[]
+                {
+                    Path.Combine(AppContext.BaseDirectory, relativePath),
+                    Path.Combine(env.ContentRootPath, relativePath),
+                    Path.Combine(Directory.GetCurrentDirectory(), relativePath)
+                }.Distinct(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var path in candidatePaths)
+                {
+                    if (!File.Exists(path))
+                        continue;
+
+                    return Results.Ok(new
+                    {
+                        SourcePath = path,
+                        Briefing = await File.ReadAllTextAsync(path, ct),
+                        CreatedAt = DateTimeOffset.UtcNow
+                    });
+                }
+
+                return Results.Ok(new
+                {
+                    SourcePath = "embedded fallback",
+                    Briefing = "Generate real .razor files for Blazor UI requests. Use @page, @rendermode InteractiveServer, @code, dependency injection, and known DevExpress Blazor controls. Check /__diag/devexpress for package inventory and mark unknown APIs as Needs verification.",
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+            app.MapGet("/__diag/council/artifact-smoke", async (string? target, ICouncilArtifactService artifacts, CancellationToken ct) =>
+            {
+                var isBlazor = string.IsNullOrWhiteSpace(target) || target.Equals("blazor", StringComparison.OrdinalIgnoreCase);
+                var request = new MultiModelCouncilRequest
+                {
+                    Prompt = isBlazor
+                        ? "implementation-request smoke: generate a real .NET 10 Blazor server-interactive DevExpress Razor page for a LocalGPT backend health summary card. Include a service method idea, DxGrid, DxFormLayout, DxButton, DxCheckBox, and safe download guidance."
+                        : "implementation-request smoke: generate a LocalGPT backend feature artifact.",
+                    ModelNames = ["artifact-smoke"],
+                    GenerateImplementationArtifact = true,
+                    IncludeMemory = false,
+                    SaveToMemory = false,
+                    Title = "Deterministic council artifact smoke"
+                };
+                var result = new MultiModelCouncilResult
+                {
+                    Prompt = request.Prompt,
+                    ModelNames = ["artifact-smoke"],
+                    FinalAnswer = isBlazor
+                        ? "Create a real Razor page artifact using @page, @rendermode InteractiveServer, DevExpress controls, and an @code block. Also include compileable support code. Keep it sandboxed until the user approves integration."
+                        : "Create a compileable backend support code artifact.",
+                    CompletedAtUtc = DateTime.UtcNow
+                };
+
+                var generated = await artifacts.CreateImplementationArtifactsAsync(request, result, ct);
+                return Results.Ok(new
+                {
+                    Target = isBlazor ? "blazor" : target,
+                    artifacts.ArtifactRoot,
+                    Count = generated.Count,
+                    Artifacts = generated,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
             });
             app.MapGet("/__diag/minecraft/datapack-version", (string? minecraftVersion) =>
             {

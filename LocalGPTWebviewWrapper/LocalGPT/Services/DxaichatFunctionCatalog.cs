@@ -41,6 +41,20 @@ public static class DxaichatFunctionCatalog
             "No parameters.",
             "Read-only model discovery."),
         new(
+            "localgpt.blazor_devexpress_guidance",
+            "GET",
+            "/__diag/blazor-devexpress-guidance",
+            "Return compact LocalGPT/TacosPortalOpen-derived guidance for generating real .NET 10 Blazor server-interactive pages with DevExpress components.",
+            "No parameters.",
+            "Read-only. Use this before generating Razor pages or blaming missing DevExpress/.NET context."),
+        new(
+            "council.artifact_smoke",
+            "GET",
+            "/__diag/council/artifact-smoke?target=blazor",
+            "Generate a deterministic sandbox artifact bundle without calling Ollama, useful for testing .razor/.cs/.dll downloads.",
+            "target: optional, defaults to blazor.",
+            "Writes files under LocalAppData/LocalGPT/CouncilArtifacts; does not integrate generated code into the project."),
+        new(
             "council.run",
             "POST",
             "/__diag/council",

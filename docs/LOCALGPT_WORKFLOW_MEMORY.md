@@ -58,7 +58,7 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Saves every completed council run into the editable `CouncilKnowledgeEntries` table so later model calls can reuse grounded notes.
   - Can continue an older saved council conversation by sending `ContinueConversationId` or selecting the saved council memory in the frontend.
   - Every result step records the full council roster. Faulty members can be excluded from the next round by user action; models should propose exclusion only through a poll.
-  - `GenerateImplementationArtifact` creates a CodeDOM C# starter file under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\` and returns a safe `/__artifacts/council/{fileName}` download link.
+  - `GenerateImplementationArtifact` creates sandbox artifacts under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\` and returns safe `/__artifacts/council/{fileName}` download links. For Blazor/DevExpress frontend requests, it should emit a real `.razor` page artifact plus compileable `.cs` support code and a `.dll` when the support code builds.
   - Generated implementation ideas must stay as sandbox artifacts or temporary workspaces until the user explicitly permits integration. The council must never overrule a user decision that denies or limits self-expansion.
   - Use `MaxParallelModels = 1` for 20B/30B local models on 24 GB VRAM unless the user asks for heavier runs.
   - AMD 7900 XTX stability note: avoid full-auto GPU offload for qwen/gwen/gemma-class 27B/30B models after the driver showed black-screen instability under long 96%-100% load. Prefer `OllamaNumGpu = 20`, `MaxParallelModels = 1`, `OllamaKeepAlive = "0s"`, short prompts, and short output budgets. Use full auto GPU only when Michi explicitly asks for the risk.
@@ -83,6 +83,10 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Reads DevExpress package references, Blazor imports, service registrations, and loaded assemblies when available.
   - Use this before asking the council for DevExpress Office/report/PDF/RichEdit/PdfViewer/Pivot features.
   - Office/report/file generation should be planned as ASP.NET Core backend services with safe download endpoints.
+- `GET /__diag/blazor-devexpress-guidance`
+  - Returns compact LocalGPT/TacosPortalOpen-derived guidance for generating real `.razor` pages with DevExpress Blazor components.
+  - Use this before implementation-request artifact generation so the council does not produce C# classes that only return markup strings.
+  - The same guidance is seeded into `CouncilKnowledgeEntries` as pinned, user-approved bootstrap knowledge.
 - `GET /__diag/build-debug-files?copy=true`
   - Lists and optionally copies `.pdb`, `.pdg`, and `.appxsym` build debug files into `%LOCALAPPDATA%\LocalGPT\BuildDebugFiles\`.
   - Use this for council diagnostics when source/reference usage is confusing, but do not treat symbol presence as proof of real feature usage.

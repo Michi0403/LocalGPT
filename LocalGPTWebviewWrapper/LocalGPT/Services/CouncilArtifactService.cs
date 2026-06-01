@@ -27,24 +27,47 @@ namespace LocalGPT.Services
             Directory.CreateDirectory(ArtifactRoot);
 
             var targetArea = DetectTargetArea(request.Prompt, result.FinalAnswer);
-            var fileName = $"council-feature-example-{DateTimeOffset.Now:yyyyMMdd-HHmmss}-{result.RunId:N}.cs";
+            var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
+            var artifacts = new List<CouncilArtifact>();
+
+            if (IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea))
+            {
+                var razorFileName = $"council-feature-page-{timestamp}-{result.RunId:N}.razor";
+                var razorPath = Path.Combine(ArtifactRoot, razorFileName);
+                var razorSource = GenerateBlazorDevExpressRazorExample(request, result);
+                await File.WriteAllTextAsync(razorPath, razorSource, cancellationToken);
+                logger.LogInformation("Wrote council Blazor Razor artifact to {Path}", razorPath);
+                artifacts.Add(new CouncilArtifact
+                {
+                    Name = razorFileName,
+                    Kind = "Blazor/DevExpress Razor component",
+                    FilePath = razorPath,
+                    DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(razorFileName)}",
+                    Summary = "Generated server-interactive Razor page using DevExpress controls and LocalGPT/TacosPortal-style patterns."
+                });
+
+                targetArea = "Blazor/DevExpress frontend";
+            }
+
+            var fileName = $"council-feature-example-{timestamp}-{result.RunId:N}.cs";
             var path = Path.Combine(ArtifactRoot, fileName);
-            var source = GenerateCodeDomExample(request, result, targetArea);
+            var source = IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea)
+                ? GenerateBlazorSupportCode(request, result, targetArea)
+                : GenerateCodeDomExample(request, result, targetArea);
 
             await File.WriteAllTextAsync(path, source, cancellationToken);
             logger.LogInformation("Wrote council implementation example artifact to {Path}", path);
 
-            var artifacts = new List<CouncilArtifact>
+            artifacts.Add(new CouncilArtifact
             {
-                new CouncilArtifact
-                {
-                    Name = fileName,
-                    Kind = "CodeDOM C# example",
-                    FilePath = path,
-                    DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(fileName)}",
-                    Summary = $"Generated starter example for {targetArea} implementation ideas."
-                }
-            };
+                Name = fileName,
+                Kind = IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea)
+                    ? "Compileable .NET support code for the Razor artifact"
+                    : "CodeDOM C# example",
+                FilePath = path,
+                DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(fileName)}",
+                Summary = $"Generated starter example for {targetArea} implementation ideas."
+            });
 
             var dllArtifact = await TryCreateDllArtifactAsync(fileName, source, targetArea, cancellationToken);
             if (dllArtifact is not null)
@@ -144,6 +167,134 @@ namespace LocalGPT.Services
                 logger.LogWarning(ex, "Could not build council DLL artifact.");
                 return null;
             }
+        }
+
+        private static string GenerateBlazorDevExpressRazorExample(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result)
+        {
+            var requestSummary = TrimForCodeComment(request.Prompt, 700);
+            var consensusSummary = TrimForCodeComment(result.FinalAnswer, 900);
+            return $$"""
+                @page "/generated/localgpt-health-summary"
+                @rendermode InteractiveServer
+                @using DevExpress.Blazor
+
+                <PageTitle>LocalGPT Health Summary</PageTitle>
+
+                <div class="main-container generated-feature-page">
+                    <h3>LocalGPT Health Summary</h3>
+
+                    <DxLoadingPanel CssClass="w-100"
+                                    @bind-Visible="PanelVisible"
+                                    CloseOnClick="true"
+                                    IndicatorVisible="true"
+                                    IsContentBlocked="false"
+                                    IndicatorAreaVisible="false"
+                                    Text="Refreshing diagnostics...">
+                        <div class="top-container">
+                            <DxButton Text="Refresh"
+                                      RenderStyle="ButtonRenderStyle.Primary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                      Click="RefreshAsync" />
+                            <DxCheckBox @bind-Checked="ShowTechnicalDetails"
+                                        Text="Show technical details" />
+                        </div>
+
+                        <DxGrid Data="@Cards"
+                                KeyFieldName="@nameof(HealthCard.Area)"
+                                ShowSearchBox="true"
+                                ShowFilterRow="true"
+                                AllowSort="true"
+                                HighlightRowOnHover="true"
+                                TextWrapEnabled="false"
+                                ColumnResizeMode="GridColumnResizeMode.NextColumn">
+                            <Columns>
+                                <DxGridDataColumn FieldName="@nameof(HealthCard.Area)" Caption="Area" />
+                                <DxGridDataColumn FieldName="@nameof(HealthCard.Status)" Caption="Status" />
+                                <DxGridDataColumn FieldName="@nameof(HealthCard.NextAction)" Caption="Next Action" />
+                                @if (ShowTechnicalDetails)
+                                {
+                                    <DxGridDataColumn FieldName="@nameof(HealthCard.Detail)" Caption="Detail" />
+                                }
+                            </Columns>
+                        </DxGrid>
+
+                        <DxFormLayout CssClass="mt-3" SizeMode="SizeMode.Medium">
+                            <DxFormLayoutGroup Caption="Implementation Note" ColSpanMd="12">
+                                <DxFormLayoutItem Caption="Request" ColSpanMd="12">
+                                    <DxMemo Text="@RequestSummary" Rows="4" ReadOnly="true" />
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem Caption="Council Consensus" ColSpanMd="12">
+                                    <DxMemo Text="@CouncilConsensus" Rows="5" ReadOnly="true" />
+                                </DxFormLayoutItem>
+                            </DxFormLayoutGroup>
+                        </DxFormLayout>
+                    </DxLoadingPanel>
+                </div>
+
+                @code {
+                    bool PanelVisible { get; set; }
+                    bool ShowTechnicalDetails { get; set; } = true;
+                    List<HealthCard> Cards { get; set; } = new();
+                    string RequestSummary { get; } = "{{EscapeCSharpString(requestSummary)}}";
+                    string CouncilConsensus { get; } = "{{EscapeCSharpString(consensusSummary)}}";
+
+                    protected override Task OnInitializedAsync() => RefreshAsync();
+
+                    Task RefreshAsync()
+                    {
+                        PanelVisible = true;
+                        Cards =
+                        [
+                            new("AI Host", "Needs verification", "Check /__diag/council/models before selecting a model.", "Use CPU-only mode after a GPU driver reset."),
+                            new("Blazor UI", "Prototype", "Add this page under Components/Pages, then add a NavMenu entry if the user approves integration.", "Uses @rendermode InteractiveServer and known DevExpress Blazor components."),
+                            new("Download Route", "Ready", "Serve generated files through /__artifacts/council/{fileName}.", "Keep generated code sandboxed until the user explicitly permits integration.")
+                        ];
+                        PanelVisible = false;
+                        return Task.CompletedTask;
+                    }
+
+                    sealed record HealthCard(string Area, string Status, string NextAction, string Detail);
+                }
+                """;
+        }
+
+        private static string GenerateBlazorSupportCode(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            string targetArea)
+        {
+            return $$"""
+                // <auto-generated>
+                // LocalGPT AI Council Blazor support example.
+                // </auto-generated>
+
+                namespace LocalGPT.GeneratedExamples;
+
+                public sealed record LocalGptGeneratedHealthCard(
+                    string Area,
+                    string Status,
+                    string NextAction,
+                    string Detail);
+
+                public sealed class LocalGptGeneratedHealthSummaryService
+                {
+                    public const string TargetArea = "{{EscapeCSharpString(targetArea)}}";
+                    public const string CouncilMembers = "{{EscapeCSharpString(string.Join(", ", result.ModelNames))}}";
+                    public const string OriginalRequest = "{{EscapeCSharpString(TrimForCodeComment(request.Prompt, 900))}}";
+
+                    public IReadOnlyList<LocalGptGeneratedHealthCard> GetCards()
+                    {
+                        return
+                        [
+                            new("AI Host", "Needs verification", "Call /__diag/council/models and keep unstable runs CPU-only.", "Do not assume Ollama or LM Studio is running until discovery confirms it."),
+                            new("Blazor UI", "Prototype", "Generate a .razor page with @page, @rendermode InteractiveServer, and DevExpress controls.", "Prefer DxGrid, DxFormLayout, DxButton, DxCheckBox, DxMemo, and existing LocalGPT CSS classes."),
+                            new("Sandbox", "Required", "Keep generated code downloadable until the user permits integration.", "Generated features must never self-expand into the real project without user approval.")
+                        ];
+                    }
+                }
+                """;
         }
 
         private static string GenerateCodeDomExample(
@@ -248,6 +399,8 @@ namespace LocalGPT.Services
             var text = $"{prompt} {finalAnswer}";
             if (DevExpressDocumentPattern().IsMatch(text))
                 return "DevExpress document/report backend";
+            if (BlazorFrontendPattern().IsMatch(text))
+                return "Blazor/DevExpress frontend";
             if (DotNetPattern().IsMatch(text))
                 return ".NET/Blazor/ASP.NET Core";
             if (MinecraftPattern().IsMatch(text))
@@ -260,6 +413,12 @@ namespace LocalGPT.Services
             return "LocalGPT feature";
         }
 
+        private static bool IsBlazorFrontendTarget(string prompt, string finalAnswer, string targetArea)
+        {
+            return targetArea.Contains("Blazor/DevExpress frontend", StringComparison.OrdinalIgnoreCase) ||
+                BlazorFrontendPattern().IsMatch($"{prompt} {finalAnswer}");
+        }
+
         private static string TrimForCodeComment(string text, int maxLength)
         {
             var normalized = WhitespacePattern().Replace(text, " ").Trim();
@@ -268,8 +427,20 @@ namespace LocalGPT.Services
                 : $"{normalized[..maxLength].TrimEnd()}...";
         }
 
+        private static string EscapeCSharpString(string text)
+        {
+            return text
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal)
+                .Replace("\r", "\\r", StringComparison.Ordinal)
+                .Replace("\n", "\\n", StringComparison.Ordinal);
+        }
+
         [GeneratedRegex("(devexpress|richedit|pdfviewer|pivot|report|xtrareport|office|docx|xlsx|pdf export|spreadsheet|document generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DevExpressDocumentPattern();
+
+        [GeneratedRegex("(blazor|razor|component|page|dxgrid|dxformlayout|dxbutton|dxmemo|dxtextbox|dxcombobox|dxaichat|devexpress blazor|interactive(server|webassembly|auto))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex BlazorFrontendPattern();
 
         [GeneratedRegex("(dotnet|\\.net|aspnet|asp\\.net|blazor|c#|codedom|entityframework|sqlite|winui|webview2)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DotNetPattern();

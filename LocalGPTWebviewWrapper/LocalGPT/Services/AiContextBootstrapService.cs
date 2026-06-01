@@ -18,7 +18,8 @@ namespace LocalGPT.Services
             "llms.txt",
             Path.Combine("docs", "ARCHITECTURE_FOR_AI.md"),
             Path.Combine("docs", "MINECRAFT_MOD_AI_BUILDER.md"),
-            Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md")
+            Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md"),
+            Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md")
         ];
 
         public async Task<string> BuildBootstrapPromptAsync(CancellationToken cancellationToken = default)

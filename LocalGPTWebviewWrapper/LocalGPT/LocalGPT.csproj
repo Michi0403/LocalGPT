@@ -44,6 +44,7 @@
 		<Content Include="..\..\docs\ARCHITECTURE_FOR_AI.md" Link="docs\ARCHITECTURE_FOR_AI.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\MINECRAFT_MOD_AI_BUILDER.md" Link="docs\MINECRAFT_MOD_AI_BUILDER.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\LOCALGPT_WORKFLOW_MEMORY.md" Link="docs\LOCALGPT_WORKFLOW_MEMORY.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" Link="docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>
