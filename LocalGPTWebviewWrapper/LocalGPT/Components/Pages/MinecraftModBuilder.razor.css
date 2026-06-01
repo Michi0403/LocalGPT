@@ -94,3 +94,34 @@ pre {
     margin-bottom: 0.5rem;
     font-weight: 600;
 }
+
+.download-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+}
+
+.download-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid rgba(13, 110, 253, 0.45);
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.artifact-details {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+    margin: 0.5rem 0;
+}
+
+.artifact-details dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}

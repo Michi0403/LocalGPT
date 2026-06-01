@@ -307,18 +307,44 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     RecentThoughts = thoughts
                 });
             });
-            app.MapGet("/__artifacts/council/{fileName}", (string fileName, ICouncilArtifactService artifacts) =>
+            app.MapGet("/__artifacts/council/{fileName}", (string fileName, ICouncilArtifactService artifacts, HttpContext httpContext) =>
             {
                 var safeFileName = Path.GetFileName(fileName);
+                var isSource = safeFileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
+                var isDll = safeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
                 if (!string.Equals(fileName, safeFileName, StringComparison.Ordinal) ||
-                    !safeFileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    (!isSource && !isDll))
                     return Results.BadRequest("Invalid artifact file name.");
 
                 var path = Path.Combine(artifacts.ArtifactRoot, safeFileName);
                 if (!File.Exists(path))
                     return Results.NotFound();
 
-                return Results.File(path, "text/plain; charset=utf-8", safeFileName);
+                httpContext.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{safeFileName}\"";
+                httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                return Results.File(path, isDll ? "application/octet-stream" : "text/plain; charset=utf-8", safeFileName);
+            });
+            app.MapGet("/__artifacts/minecraft/{projectName}/{fileName}", (string projectName, string fileName, IMinecraftModWorkspaceService workspaces, HttpContext httpContext) =>
+            {
+                var safeProjectName = Path.GetFileName(projectName);
+                var safeFileName = Path.GetFileName(fileName);
+                if (!string.Equals(projectName, safeProjectName, StringComparison.Ordinal) ||
+                    !string.Equals(fileName, safeFileName, StringComparison.Ordinal) ||
+                    !safeFileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    return Results.BadRequest("Invalid Minecraft artifact path.");
+
+                var path = Path.Combine(workspaces.WorkspaceRoot, safeProjectName, "build", safeFileName);
+                var fullPath = Path.GetFullPath(path);
+                var allowedRoot = Path.GetFullPath(workspaces.WorkspaceRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                if (!fullPath.StartsWith(allowedRoot, StringComparison.OrdinalIgnoreCase))
+                    return Results.BadRequest("Artifact is outside the Minecraft workspace root.");
+
+                if (!File.Exists(fullPath))
+                    return Results.NotFound();
+
+                httpContext.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{safeFileName}\"";
+                httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                return Results.File(fullPath, "application/octet-stream", safeFileName);
             });
             app.MapGet("/__diag/logs", async (IApplicationLogReaderService logs, ILoggerFactory loggerFactory, string? minimumLevel, int? take, bool? writeSmoke, CancellationToken ct) =>
             {

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using WinRT.Interop;
 // To learn more about WinUI, the WinUI project structure,
@@ -25,6 +26,8 @@ namespace WebView2_WinUI3_Sample
         private readonly string _baseUrl;
         private readonly bool _runDiagnostics;
         private readonly bool _exitAfterDiagnostics;
+        private readonly bool _runGpuCouncilDiagnostics;
+        private readonly bool _runFeatureRequestDiagnostics;
         private readonly Queue<string> _diagnosticRoutes = new();
         private readonly string _diagnosticRunId = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         //public MainWindow()
@@ -66,6 +69,14 @@ namespace WebView2_WinUI3_Sample
             _baseUrl = baseUrl;
             _runDiagnostics = runDiagnostics;
             _exitAfterDiagnostics = exitAfterDiagnostics;
+            _runGpuCouncilDiagnostics = string.Equals(
+                Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_GPU_COUNCIL"),
+                "1",
+                StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-gpu-council.flag");
+            _runFeatureRequestDiagnostics = string.Equals(
+                Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_FEATURE_REQUEST"),
+                "1",
+                StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-feature-request.flag");
             if (_runDiagnostics)
             {
                 _diagnosticRoutes.Enqueue("/Chat");
@@ -101,7 +112,33 @@ namespace WebView2_WinUI3_Sample
             }
             else
             {
+                if (sender.CoreWebView2 is not null)
+                    sender.CoreWebView2.DownloadStarting += CoreWebView2_DownloadStarting;
+
                 SetTitle(sender);
+            }
+        }
+
+        private void CoreWebView2_DownloadStarting(object sender, CoreWebView2DownloadStartingEventArgs args)
+        {
+            try
+            {
+                var downloadsDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "Downloads",
+                    "LocalGPT");
+                Directory.CreateDirectory(downloadsDirectory);
+
+                var fileName = Path.GetFileName(args.ResultFilePath);
+                if (string.IsNullOrWhiteSpace(fileName))
+                    fileName = "LocalGPT-artifact";
+
+                args.ResultFilePath = Path.Combine(downloadsDirectory, fileName);
+                StatusUpdate($"Downloading artifact to {args.ResultFilePath}");
+            }
+            catch (Exception ex)
+            {
+                StatusUpdate($"Could not configure WebView2 download path: {ex.Message}");
             }
         }
 
@@ -131,36 +168,304 @@ namespace WebView2_WinUI3_Sample
                 if (sender.CoreWebView2 != null && args.IsSuccess)
                 {
                     await Task.Delay(TimeSpan.FromMilliseconds(1500));
+                    await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunGpuCouncil = {(_runGpuCouncilDiagnostics ? "true" : "false")};");
+                    await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunFeatureRequest = {(_runFeatureRequestDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync("""
-                        (() => {
-                            window.__localGptDiagClickedCouncilFeatureChat = false;
-                            window.__localGptDiagClickedCouncilLowGpuPreset = false;
-                            if (location.pathname.toLowerCase().includes('/model-council')) {
-                                const buttons = Array.from(document.querySelectorAll('button'));
-                                const lowGpuPreset = buttons
-                                    .find(item => item.innerText && item.innerText.includes('Low GPU Preset'));
-                                if (lowGpuPreset) {
-                                    lowGpuPreset.click();
-                                    window.__localGptDiagClickedCouncilLowGpuPreset = true;
+                        (async () => {
+                            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                            const text = () => document.body && document.body.innerText ? document.body.innerText : '';
+                            const buttons = () => Array.from(document.querySelectorAll('button'));
+                            const findButton = (buttonText) => buttons()
+                                .find(item => item.innerText && item.innerText.includes(buttonText));
+                            const isButtonReady = (button) => !!button &&
+                                !button.disabled &&
+                                button.getAttribute('aria-disabled') !== 'true' &&
+                                !button.classList.contains('dxbl-disabled');
+                            const clickButton = (buttonText) => {
+                                const button = findButton(buttonText);
+                                if (!isButtonReady(button)) {
+                                    return false;
                                 }
 
-                                const button = buttons
-                                    .find(item => item.innerText && item.innerText.includes('Feature Request Chat'));
-                                if (button) {
-                                    button.click();
-                                    window.__localGptDiagClickedCouncilFeatureChat = true;
+                                button.click();
+                                return true;
+                            };
+                            const waitFor = async (predicate, timeoutMs) => {
+                                const deadline = Date.now() + timeoutMs;
+                                while (Date.now() < deadline) {
+                                    if (predicate()) {
+                                        return true;
+                                    }
+
+                                    await sleep(500);
+                                }
+
+                                return false;
+                            };
+                            const labelInput = (labelText) => {
+                                const label = Array.from(document.querySelectorAll('label'))
+                                    .find(item => item.innerText && item.innerText.includes(labelText));
+                                return label ? label.querySelector('input, select, textarea') : null;
+                            };
+                            const setInput = (labelText, value) => {
+                                const input = labelInput(labelText);
+                                if (!input) {
+                                    return false;
+                                }
+
+                                input.value = value;
+                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                input.dispatchEvent(new Event('change', { bubbles: true }));
+                                return true;
+                            };
+                            const setCheckbox = (labelText, checked) => {
+                                const input = labelInput(labelText);
+                                if (!input) {
+                                    return false;
+                                }
+
+                                if (input.checked !== checked) {
+                                    input.click();
+                                }
+
+                                return input.checked === checked;
+                            };
+                            const setCouncilModelSelection = (modelName) => {
+                                let found = false;
+                                for (const row of Array.from(document.querySelectorAll('.candidate-row'))) {
+                                    const input = row.querySelector('input[type="checkbox"]');
+                                    if (!input) {
+                                        continue;
+                                    }
+
+                                    const shouldSelect = (row.innerText || '').includes(modelName);
+                                    if (shouldSelect) {
+                                        found = true;
+                                    }
+
+                                    if (input.checked !== shouldSelect) {
+                                        input.click();
+                                    }
+                                }
+
+                                return found;
+                            };
+                            const fetchCouncilArtifacts = async () => {
+                                const artifacts = [];
+                                for (const link of Array.from(document.querySelectorAll('a[href*="/__artifacts/council/"]')).slice(0, 8)) {
+                                    const artifact = {
+                                        name: (link.innerText || link.getAttribute('download') || '').trim(),
+                                        href: link.href,
+                                        status: null,
+                                        bytes: null,
+                                        ok: false,
+                                        error: null
+                                    };
+
+                                    try {
+                                        const response = await fetch(link.href);
+                                        const buffer = await response.arrayBuffer();
+                                        artifact.status = response.status;
+                                        artifact.bytes = buffer.byteLength;
+                                        artifact.ok = response.ok;
+                                    }
+                                    catch (error) {
+                                        artifact.error = error && error.message ? error.message : String(error);
+                                    }
+
+                                    artifacts.push(artifact);
+                                }
+
+                                window.__localGptDiagCouncilArtifactDownloads = artifacts;
+                                return artifacts;
+                            };
+
+                            window.__localGptDiagClickedCouncilFeatureChat = false;
+                            window.__localGptDiagClickedCouncilLowGpuPreset = false;
+                            window.__localGptDiagCouncilFeatureRequestSmoke = null;
+                            window.__localGptDiagCouncilArtifactDownloads = [];
+                            window.__localGptDiagMinecraftBuilderSmoke = null;
+                            if (location.pathname.toLowerCase().includes('/model-council')) {
+                                const featureSmoke = {
+                                    clickedLowGpuPreset: false,
+                                    clickedFeatureRequestChat: false,
+                                    selectedGptOss: false,
+                                    setMaxOutputTokens: false,
+                                    setTimeoutSeconds: false,
+                                    setCpuOnly: false,
+                                    setGenerateArtifacts: false,
+                                    clickedRunCouncil: false,
+                                    artifactSectionVisible: false,
+                                    error: null
+                                };
+                                window.__localGptDiagCouncilFeatureRequestSmoke = featureSmoke;
+
+                                window.__localGptDiagClickedCouncilLowGpuPreset = clickButton('Low GPU Preset');
+                                featureSmoke.clickedLowGpuPreset = window.__localGptDiagClickedCouncilLowGpuPreset;
+
+                                window.__localGptDiagClickedCouncilFeatureChat = clickButton('Feature Request Chat');
+                                featureSmoke.clickedFeatureRequestChat = window.__localGptDiagClickedCouncilFeatureChat;
+
+                                if (window.__localGptDiagRunFeatureRequest) {
+                                    try {
+                                        await sleep(750);
+                                        featureSmoke.selectedGptOss = setCouncilModelSelection('gpt-oss:20b');
+                                        featureSmoke.setMaxOutputTokens = setInput('Max output tokens', '384');
+                                        featureSmoke.setTimeoutSeconds = setInput('Timeout seconds', '600');
+                                        featureSmoke.setCpuOnly = setCheckbox('CPU-only Ollama', true);
+                                        featureSmoke.setGenerateArtifacts = setCheckbox('Generate code + DLL', true);
+                                        featureSmoke.clickedRunCouncil = clickButton('Run Council');
+                                        featureSmoke.artifactSectionVisible = await waitFor(
+                                            () => text().includes('Downloadable Examples') && !!document.querySelector('a[href*="/__artifacts/council/"]'),
+                                            600000);
+                                        if (featureSmoke.artifactSectionVisible) {
+                                            await fetchCouncilArtifacts();
+                                        }
+                                    }
+                                    catch (error) {
+                                        featureSmoke.error = error && error.message ? error.message : String(error);
+                                    }
+                                }
+                            }
+
+                            if (location.pathname.toLowerCase().includes('/minecraft-mod-builder')) {
+                                const smoke = {
+                                    clickedCreateDatapackZip: false,
+                                    clickedCreateWorkspace: false,
+                                    clickedRunCommand: false,
+                                    clickedAskCouncil: false,
+                                    setCouncilModel: false,
+                                    setGpuCouncil: false,
+                                    workspaceVisible: false,
+                                    commandResultVisible: false,
+                                    downloadHref: null,
+                                    downloadStatus: null,
+                                    downloadBytes: null,
+                                    downloadOk: false,
+                                    councilResultVisible: false,
+                                    error: null
+                                };
+                                window.__localGptDiagMinecraftBuilderSmoke = smoke;
+
+                                const findDownloadLink = () => Array.from(document.querySelectorAll('a'))
+                                    .find(item => (item.innerText && item.innerText.includes('Download Datapack ZIP'))
+                                        || (item.href && item.href.includes('/__artifacts/minecraft/')));
+
+                                try {
+                                    smoke.clickedCreateDatapackZip = clickButton('Create Datapack ZIP');
+                                    if (smoke.clickedCreateDatapackZip) {
+                                        smoke.commandResultVisible = await waitFor(
+                                            () => text().includes('Command Result') || text().includes('Exit code') || !!findDownloadLink(),
+                                            180000);
+                                        smoke.workspaceVisible = text().includes('Workspace') && text().includes('Run Command');
+                                    }
+                                    else {
+                                        smoke.clickedCreateWorkspace = clickButton('Create Workspace');
+                                        smoke.workspaceVisible = await waitFor(() => text().includes('Workspace') && text().includes('Run Command'), 30000);
+
+                                        await waitFor(() => isButtonReady(findButton('Run Command')), 10000);
+                                        smoke.clickedRunCommand = clickButton('Run Command');
+                                        smoke.commandResultVisible = await waitFor(() => text().includes('Command Result') || text().includes('Exit code'), 90000);
+                                    }
+
+                                    if (!findDownloadLink())
+                                        await waitFor(() => !!findDownloadLink(), 30000);
+
+                                    const downloadLink = findDownloadLink();
+                                    if (downloadLink) {
+                                        smoke.downloadHref = downloadLink.href;
+                                        const response = await fetch(downloadLink.href);
+                                        const buffer = await response.arrayBuffer();
+                                        smoke.downloadStatus = response.status;
+                                        smoke.downloadOk = response.ok;
+                                        smoke.downloadBytes = buffer.byteLength;
+                                    }
+
+                                    if (window.__localGptDiagRunGpuCouncil) {
+                                        smoke.setCouncilModel = setInput('Council models', 'gpt-oss:20b');
+                                        smoke.setGpuCouncil = setCheckbox('CPU-only council', false);
+                                        smoke.clickedAskCouncil = clickButton('Ask AI Council');
+                                        smoke.councilResultVisible = await waitFor(() => text().includes('AI Council Log') || text().includes('Council plan saved'), 420000);
+                                    }
+                                }
+                                catch (error) {
+                                    smoke.error = error && error.message ? error.message : String(error);
                                 }
                             }
                             return window.__localGptDiagClickedCouncilFeatureChat;
                         })()
                         """);
-                    await Task.Delay(TimeSpan.FromMilliseconds(800));
+                    var path = sender.Source?.AbsolutePath.ToLowerInvariant() ?? string.Empty;
+                    if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))
+                    {
+                        await WaitForJavaScriptConditionAsync(
+                            sender.CoreWebView2,
+                            """
+                            (() => {
+                                const smoke = window.__localGptDiagMinecraftBuilderSmoke;
+                                if (!smoke) return false;
+                                if (smoke.error) return true;
+                                if (window.__localGptDiagRunGpuCouncil) {
+                                    return !!smoke.councilResultVisible;
+                                }
+                                return !!smoke.downloadOk || !!smoke.downloadStatus || !!smoke.error;
+                            })()
+                            """,
+                            _runGpuCouncilDiagnostics ? TimeSpan.FromMinutes(8) : TimeSpan.FromMinutes(3));
+                    }
+                    else if (path.Contains("/model-council", StringComparison.Ordinal) && _runFeatureRequestDiagnostics)
+                    {
+                        await WaitForJavaScriptConditionAsync(
+                            sender.CoreWebView2,
+                            """
+                            (() => {
+                                const smoke = window.__localGptDiagCouncilFeatureRequestSmoke;
+                                if (!smoke) return false;
+                                if (smoke.error) return true;
+                                return smoke.artifactSectionVisible && Array.isArray(window.__localGptDiagCouncilArtifactDownloads) && window.__localGptDiagCouncilArtifactDownloads.length > 0;
+                            })()
+                            """,
+                            TimeSpan.FromMinutes(11));
+                    }
+                    else
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(800));
+                    }
 
                     snapshot.PageJson = await sender.CoreWebView2.ExecuteScriptAsync("""
                         (() => {
                             const bodyText = () => (document.body && document.body.innerText ? document.body.innerText : '');
                             const text = bodyText();
                             const prompt = document.querySelector('textarea')?.value ?? '';
+                            const minecraftSmoke = window.__localGptDiagMinecraftBuilderSmoke;
+                            const minecraftArtifact = {
+                                href: minecraftSmoke ? minecraftSmoke.downloadHref : null,
+                                status: minecraftSmoke ? minecraftSmoke.downloadStatus : null,
+                                bytes: minecraftSmoke ? minecraftSmoke.downloadBytes : null,
+                                ok: minecraftSmoke ? !!minecraftSmoke.downloadOk : false,
+                                error: minecraftSmoke ? minecraftSmoke.error : null
+                            };
+                            const minecraftDownloadLink = Array.from(document.querySelectorAll('a'))
+                                .find(item => (item.innerText && item.innerText.includes('Download Datapack ZIP'))
+                                    || (item.href && item.href.includes('/__artifacts/minecraft/')));
+                            if (minecraftDownloadLink) {
+                                minecraftArtifact.href = minecraftArtifact.href || minecraftDownloadLink.href;
+                            }
+                            const councilArtifacts = Array.isArray(window.__localGptDiagCouncilArtifactDownloads)
+                                ? window.__localGptDiagCouncilArtifactDownloads
+                                : [];
+                            if (councilArtifacts.length === 0) {
+                                for (const link of Array.from(document.querySelectorAll('a[href*="/__artifacts/council/"]')).slice(0, 8)) {
+                                    councilArtifacts.push({
+                                        name: (link.innerText || link.getAttribute('download') || '').trim(),
+                                        href: link.href,
+                                        status: null,
+                                        bytes: null,
+                                        ok: false,
+                                        error: null
+                                    });
+                                }
+                            }
                             const readLabeledInput = (labelText) => {
                                 const label = Array.from(document.querySelectorAll('label'))
                                     .find(item => item.innerText && item.innerText.includes(labelText));
@@ -185,6 +490,8 @@ namespace WebView2_WinUI3_Sample
                                 hasCouncilFeatureRequestChat: text.includes('Feature Request Chat'),
                                 clickedCouncilFeatureChat: !!window.__localGptDiagClickedCouncilFeatureChat,
                                 clickedCouncilLowGpuPreset: !!window.__localGptDiagClickedCouncilLowGpuPreset,
+                                runGpuCouncilDiagnostics: !!window.__localGptDiagRunGpuCouncil,
+                                runFeatureRequestDiagnostics: !!window.__localGptDiagRunFeatureRequest,
                                 councilLowGpuSettings: {
                                     reviewRounds: readLabeledInput('Review rounds'),
                                     parallelModels: readLabeledInput('Parallel models'),
@@ -196,10 +503,18 @@ namespace WebView2_WinUI3_Sample
                                 },
                                 councilPromptPreview: prompt.slice(0, 1200),
                                 hasCouncilImplementationPrompt: prompt.includes('implementation-request council chat'),
+                                hasCouncilArtifactSection: text.includes('Downloadable Examples'),
+                                councilArtifactDownloads: councilArtifacts,
+                                councilFeatureRequestSmoke: window.__localGptDiagCouncilFeatureRequestSmoke,
                                 hasDatabaseEditor: text.includes('SQLite Database') && text.includes('Council Knowledge'),
                                 hasLiveSqliteTableEditor: text.includes('Live SQLite Tables'),
                                 hasDxGridSurface: !!document.querySelector('.dxbl-grid'),
                                 hasMinecraftBuilderText: text.includes('Minecraft Mod Builder'),
+                                minecraftBuilderCommandResultVisible: text.includes('Command Result') || text.includes('Exit code'),
+                                minecraftBuilderExitCodeZero: text.includes('Exit code 0'),
+                                minecraftBuilderDownloadVisible: text.includes('Download Datapack ZIP') || !!minecraftDownloadLink,
+                                minecraftBuilderArtifact: minecraftArtifact,
+                                minecraftBuilderSmoke: window.__localGptDiagMinecraftBuilderSmoke,
                                 hasSetupText: text.includes('Setup')
                             };
                         })()
@@ -224,6 +539,19 @@ namespace WebView2_WinUI3_Sample
                 Close();
         }
 
+        private static async Task WaitForJavaScriptConditionAsync(CoreWebView2 webView, string script, TimeSpan timeout)
+        {
+            var deadline = DateTimeOffset.UtcNow.Add(timeout);
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                var result = await webView.ExecuteScriptAsync(script);
+                if (string.Equals(result, "true", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                await Task.Delay(TimeSpan.FromSeconds(1));
+            }
+        }
+
         private static async Task WriteDiagnosticSnapshotAsync(WebView2DiagnosticSnapshot snapshot)
         {
             var directory = Path.Combine(
@@ -240,6 +568,29 @@ namespace WebView2_WinUI3_Sample
                 .Replace("\\", "_");
             var path = Path.Combine(directory, $"webview2-{snapshot.RunId}-{routeName}.json");
             await File.WriteAllTextAsync(path, JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        private static bool ConsumeRuntimeFlag(string fileName)
+        {
+            var path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LocalGPT",
+                "runtime",
+                fileName);
+
+            if (!File.Exists(path))
+                return false;
+
+            try
+            {
+                File.Delete(path);
+            }
+            catch
+            {
+                // A stale flag should not block diagnostics.
+            }
+
+            return true;
         }
 
         private bool TryCreateUri(String potentialUri, out Uri result)

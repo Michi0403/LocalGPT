@@ -4,6 +4,7 @@
 @inject IChatMemoryService ChatMemory
 @inject ILogger<ModelCouncil> Logger
 @inject INotificationService Notifier
+@inject NavigationManager Navigation
 @rendermode InteractiveServer
 
 <PageTitle>AI Council</PageTitle>
@@ -120,9 +121,9 @@
                     <input type="checkbox" @bind="Request.SaveToMemory" />
                     Memorize transcript
                 </label>
-                <label title="Creates a downloadable C# starter file for implementation-oriented council results.">
+                <label title="Creates downloadable C# source and, when the local .NET SDK can build it, a sandbox DLL for implementation-oriented council results.">
                     <input type="checkbox" @bind="Request.GenerateImplementationArtifact" />
-                    Generate example file
+                    Generate code + DLL
                 </label>
             </div>
 
@@ -273,10 +274,16 @@
                 <h2>Downloadable Examples</h2>
                 @foreach (var artifact in LastResult.Artifacts)
                 {
-                    <p>
-                        <a href="@artifact.DownloadUrl" download="@artifact.Name">@artifact.Name</a>
+                    <div class="artifact-download">
+                        <a href="@GetArtifactUrl(artifact)" target="_blank" rel="noopener" download="@artifact.Name">@artifact.Name</a>
                         <span class="muted"> - @artifact.Kind - @artifact.Summary</span>
-                    </p>
+                        <dl>
+                            <dt>HTTP GET</dt>
+                            <dd><a href="@GetArtifactUrl(artifact)" target="_blank" rel="noopener">@GetArtifactUrl(artifact)</a></dd>
+                            <dt>Local file</dt>
+                            <dd>@artifact.FilePath</dd>
+                        </dl>
+                    </div>
                 }
             </section>
         }
@@ -531,6 +538,9 @@
         });
         statusText = "Started a new implementation-request council chat with example file generation enabled.";
     }
+
+    string GetArtifactUrl(CouncilArtifact artifact) =>
+        Navigation.ToAbsoluteUri(artifact.DownloadUrl).ToString();
 
     void ExcludeModel(string modelName)
     {

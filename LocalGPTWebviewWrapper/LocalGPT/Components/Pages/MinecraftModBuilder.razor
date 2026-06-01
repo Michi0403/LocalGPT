@@ -6,6 +6,7 @@
 @inject INativeCommandRunner CommandRunner
 @inject IChatClient? ChatClient
 @inject IMultiModelCouncilService CouncilService
+@inject NavigationManager Navigation
 @rendermode InteractiveServer
 
 <PageTitle>Minecraft Mod Builder</PageTitle>
@@ -24,6 +25,11 @@
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       Click="CreateWorkspaceAsync"
                       Enabled="@(!isBusy)" />
+            <DxButton Text="Create Datapack ZIP"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Click="CreateDatapackZipAsync"
+                      Enabled="@(!isBusy && IsDatapack)" />
         </div>
 
         <div class="form-grid">
@@ -83,6 +89,11 @@
         <label class="wide-field">
             Council models
             <input @bind="councilModels" placeholder="gpt-oss:20b, qwen3-coder:30b" />
+        </label>
+
+        <label class="checkbox-label" title="When enabled, LocalGPT sends num_gpu=0 to Ollama for safer low-resource council tests. Turn it off only when you intentionally want a GPU-backed model run.">
+            <input type="checkbox" @bind="useCpuOnlyCouncil" />
+            CPU-only council
         </label>
 
         <div class="button-row">
@@ -174,6 +185,22 @@
                 Exit code @lastCommandResult.ExitCode in @lastCommandResult.Duration.TotalSeconds.ToString("0.0")s
             </div>
             <pre>@lastCommandResult.StandardOutput</pre>
+            @if (!string.IsNullOrWhiteSpace(artifactDownloadUrl))
+            {
+                <div class="download-row">
+                    <a class="download-link" href="@artifactDownloadUrl" target="_blank" rel="noopener" download="@artifactFileName">Download Datapack ZIP</a>
+                    <span>@artifactFileName</span>
+                </div>
+                <dl class="artifact-details">
+                    <dt>HTTP GET</dt>
+                    <dd><a href="@artifactDownloadUrl" target="_blank" rel="noopener">@artifactDownloadUrl</a></dd>
+                    <dt>Local file</dt>
+                    <dd>@artifactPath</dd>
+                </dl>
+                <div class="hint">
+                    The download route is served by ASP.NET Core and constrained to the generated Minecraft workspace folder.
+                </div>
+            }
             @if (!string.IsNullOrWhiteSpace(lastCommandResult.StandardError))
             {
                 <pre class="error-output">@lastCommandResult.StandardError</pre>
@@ -200,8 +227,14 @@
     string aiPlan = string.Empty;
     string commandFileName = "powershell.exe";
     string commandArguments = "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1";
-    string councilModels = "gpt-oss:20b, qwen3-coder:30b";
+    string councilModels = "gpt-oss:20b";
+    bool useCpuOnlyCouncil = true;
+    string? artifactDownloadUrl;
+    string? artifactDownloadRoute;
+    string? artifactFileName;
+    string? artifactPath;
     bool isBusy;
+    bool IsDatapack => string.Equals(request.Loader, "Datapack", StringComparison.OrdinalIgnoreCase);
 
     static readonly string LivingCitiesPrompt = string.Join(Environment.NewLine, new[]
     {
@@ -221,11 +254,30 @@
     {
         await RunUiActionAsync(async () =>
         {
-            workspace = await WorkspaceService.CreateWorkspaceAsync(request);
-            commandFileName = "powershell.exe";
-            commandArguments = "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1";
-            Notifier.ShowSuccess(toastName, workspace.RootPath, "Workspace created");
+            await CreateWorkspaceCoreAsync();
+            if (workspace is not null)
+                Notifier.ShowSuccess(toastName, workspace.RootPath, "Workspace created");
         }, "CreateWorkspaceAsync");
+    }
+
+    async Task CreateDatapackZipAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            await CreateWorkspaceCoreAsync();
+            await RunCommandCoreAsync();
+            if (lastCommandResult?.Succeeded == true && !string.IsNullOrWhiteSpace(artifactDownloadUrl))
+                Notifier.ShowSuccess(toastName, artifactFileName ?? "Datapack ZIP", "Datapack ZIP ready");
+        }, "CreateDatapackZipAsync");
+    }
+
+    async Task CreateWorkspaceCoreAsync()
+    {
+        workspace = await WorkspaceService.CreateWorkspaceAsync(request);
+        ClearDownloadArtifact();
+        lastCommandResult = null;
+        commandFileName = "powershell.exe";
+        commandArguments = "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1";
     }
 
     async Task GeneratePlanAsync()
@@ -263,7 +315,7 @@
                 MaxContextTokens = 2048,
                 ModelTimeoutSeconds = 300,
                 OllamaKeepAlive = "0s",
-                OllamaNumGpu = 0,
+                OllamaNumGpu = useCpuOnlyCouncil ? 0 : null,
                 IncludeMemory = true,
                 SaveToMemory = true
             });
@@ -284,12 +336,70 @@
 
         await RunUiActionAsync(async () =>
         {
-            lastCommandResult = await CommandRunner.RunAsync(commandFileName, commandArguments, workspace.RootPath);
-            if (lastCommandResult.Succeeded)
+            await RunCommandCoreAsync();
+            if (lastCommandResult?.Succeeded == true)
                 Notifier.ShowSuccess(toastName, "Command finished successfully.", "Command complete");
             else
-                Notifier.ShowError(toastName, $"Exit code {lastCommandResult.ExitCode}", "Command failed");
+                Notifier.ShowError(toastName, $"Exit code {lastCommandResult?.ExitCode.ToString() ?? "unknown"}", "Command failed");
         }, "RunCommandAsync");
+    }
+
+    async Task RunCommandCoreAsync()
+    {
+        if (workspace is null)
+            throw new InvalidOperationException("Create a workspace first.");
+
+        lastCommandResult = await CommandRunner.RunAsync(commandFileName, commandArguments, workspace.RootPath);
+        if (lastCommandResult.Succeeded)
+        {
+            SetDownloadArtifact(workspace.RootPath);
+        }
+        else
+        {
+            ClearDownloadArtifact();
+        }
+    }
+
+    void ClearDownloadArtifact()
+    {
+        artifactDownloadUrl = null;
+        artifactDownloadRoute = null;
+        artifactFileName = null;
+        artifactPath = null;
+    }
+
+    void SetDownloadArtifact(string workspaceRoot)
+    {
+        if (workspace is null)
+            return;
+
+        var buildDirectory = Path.Combine(workspaceRoot, "build");
+        if (!Directory.Exists(buildDirectory))
+        {
+            ClearDownloadArtifact();
+            return;
+        }
+
+        var zip = Directory.GetFiles(buildDirectory, "*.zip", SearchOption.TopDirectoryOnly)
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(zip))
+        {
+            ClearDownloadArtifact();
+            return;
+        }
+
+        artifactPath = zip;
+        artifactFileName = Path.GetFileName(zip);
+        var workspaceDirectory = Path.GetFileName(Path.TrimEndingDirectorySeparator(workspaceRoot));
+        if (string.IsNullOrWhiteSpace(workspaceDirectory))
+        {
+            ClearDownloadArtifact();
+            return;
+        }
+
+        artifactDownloadRoute = $"/__artifacts/minecraft/{Uri.EscapeDataString(workspaceDirectory)}/{Uri.EscapeDataString(artifactFileName)}";
+        artifactDownloadUrl = Navigation.ToAbsoluteUri(artifactDownloadRoute).ToString();
     }
 
     string CreatePlanningPrompt() => string.Join(Environment.NewLine, new[]

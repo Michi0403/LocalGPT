@@ -200,6 +200,35 @@
     background: rgba(13, 110, 253, 0.1);
 }
 
+.artifact-download {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+}
+
+.artifact-download > a {
+    width: fit-content;
+    min-height: 2.25rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid rgba(13, 110, 253, 0.45);
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.artifact-download dl {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+    margin: 0.25rem 0 0;
+}
+
+.artifact-download dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
 .transcript-panel {
     display: flex;
     flex-direction: column;

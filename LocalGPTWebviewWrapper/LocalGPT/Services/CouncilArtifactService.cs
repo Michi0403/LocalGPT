@@ -1,5 +1,6 @@
 using System.CodeDom;
 using System.CodeDom.Compiler;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
@@ -33,8 +34,8 @@ namespace LocalGPT.Services
             await File.WriteAllTextAsync(path, source, cancellationToken);
             logger.LogInformation("Wrote council implementation example artifact to {Path}", path);
 
-            return
-            [
+            var artifacts = new List<CouncilArtifact>
+            {
                 new CouncilArtifact
                 {
                     Name = fileName,
@@ -43,7 +44,106 @@ namespace LocalGPT.Services
                     DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(fileName)}",
                     Summary = $"Generated starter example for {targetArea} implementation ideas."
                 }
-            ];
+            };
+
+            var dllArtifact = await TryCreateDllArtifactAsync(fileName, source, targetArea, cancellationToken);
+            if (dllArtifact is not null)
+                artifacts.Add(dllArtifact);
+
+            return artifacts;
+        }
+
+        private async Task<CouncilArtifact?> TryCreateDllArtifactAsync(
+            string sourceFileName,
+            string source,
+            string targetArea,
+            CancellationToken cancellationToken)
+        {
+            var projectName = Path.GetFileNameWithoutExtension(sourceFileName);
+            var projectDirectory = Path.Combine(ArtifactRoot, projectName);
+            var outputDirectory = Path.Combine(projectDirectory, "bin");
+            var projectPath = Path.Combine(projectDirectory, $"{projectName}.csproj");
+            var sourcePath = Path.Combine(projectDirectory, "CouncilFeatureRequestExample.cs");
+            var dllName = $"{projectName}.dll";
+            var dllPath = Path.Combine(ArtifactRoot, dllName);
+
+            Directory.CreateDirectory(projectDirectory);
+            Directory.CreateDirectory(outputDirectory);
+
+            await File.WriteAllTextAsync(projectPath, """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net10.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                    <Nullable>enable</Nullable>
+                    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+                  </PropertyGroup>
+                </Project>
+                """, cancellationToken);
+            await File.WriteAllTextAsync(sourcePath, source, cancellationToken);
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"build \"{projectPath}\" -c Release -o \"{outputDirectory}\" /nologo /p:UseSharedCompilation=false",
+                WorkingDirectory = projectDirectory,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            try
+            {
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(TimeSpan.FromSeconds(75));
+
+                using var process = Process.Start(startInfo);
+                if (process is null)
+                    return null;
+
+                var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+                var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
+                await process.WaitForExitAsync(timeoutCts.Token);
+                var output = await outputTask;
+                var error = await errorTask;
+
+                if (process.ExitCode != 0)
+                {
+                    logger.LogWarning(
+                        "Council DLL artifact build failed with exit code {ExitCode}. Output: {Output} Error: {Error}",
+                        process.ExitCode,
+                        output,
+                        error);
+                    return null;
+                }
+
+                var builtDll = Path.Combine(outputDirectory, dllName);
+                if (!File.Exists(builtDll))
+                    return null;
+
+                File.Copy(builtDll, dllPath, overwrite: true);
+                logger.LogInformation("Wrote council DLL artifact to {Path}", dllPath);
+
+                return new CouncilArtifact
+                {
+                    Name = dllName,
+                    Kind = "Sandbox compiled .NET DLL",
+                    FilePath = dllPath,
+                    DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(dllName)}",
+                    Summary = $"Compiled sandbox assembly for {targetArea} implementation ideas."
+                };
+            }
+            catch (OperationCanceledException ex)
+            {
+                logger.LogWarning(ex, "Timed out while building council DLL artifact.");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not build council DLL artifact.");
+                return null;
+            }
         }
 
         private static string GenerateCodeDomExample(
