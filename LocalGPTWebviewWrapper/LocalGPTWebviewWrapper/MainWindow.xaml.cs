@@ -134,8 +134,17 @@ namespace WebView2_WinUI3_Sample
                     await sender.CoreWebView2.ExecuteScriptAsync("""
                         (() => {
                             window.__localGptDiagClickedCouncilFeatureChat = false;
+                            window.__localGptDiagClickedCouncilLowGpuPreset = false;
                             if (location.pathname.toLowerCase().includes('/model-council')) {
-                                const button = Array.from(document.querySelectorAll('button'))
+                                const buttons = Array.from(document.querySelectorAll('button'));
+                                const lowGpuPreset = buttons
+                                    .find(item => item.innerText && item.innerText.includes('Low GPU Preset'));
+                                if (lowGpuPreset) {
+                                    lowGpuPreset.click();
+                                    window.__localGptDiagClickedCouncilLowGpuPreset = true;
+                                }
+
+                                const button = buttons
                                     .find(item => item.innerText && item.innerText.includes('Feature Request Chat'));
                                 if (button) {
                                     button.click();
@@ -152,6 +161,20 @@ namespace WebView2_WinUI3_Sample
                             const bodyText = () => (document.body && document.body.innerText ? document.body.innerText : '');
                             const text = bodyText();
                             const prompt = document.querySelector('textarea')?.value ?? '';
+                            const readLabeledInput = (labelText) => {
+                                const label = Array.from(document.querySelectorAll('label'))
+                                    .find(item => item.innerText && item.innerText.includes(labelText));
+                                const input = label ? label.querySelector('input, select, textarea') : null;
+                                if (!input) {
+                                    return null;
+                                }
+
+                                if (input.type === 'checkbox') {
+                                    return input.checked;
+                                }
+
+                                return input.value ?? null;
+                            };
                             return {
                                 url: location.href,
                                 title: document.title,
@@ -161,6 +184,16 @@ namespace WebView2_WinUI3_Sample
                                 hasCouncilSurface: text.includes('AI Council') && text.includes('Run Council'),
                                 hasCouncilFeatureRequestChat: text.includes('Feature Request Chat'),
                                 clickedCouncilFeatureChat: !!window.__localGptDiagClickedCouncilFeatureChat,
+                                clickedCouncilLowGpuPreset: !!window.__localGptDiagClickedCouncilLowGpuPreset,
+                                councilLowGpuSettings: {
+                                    reviewRounds: readLabeledInput('Review rounds'),
+                                    parallelModels: readLabeledInput('Parallel models'),
+                                    maxOutputTokens: readLabeledInput('Max output tokens'),
+                                    contextTokens: readLabeledInput('Context tokens'),
+                                    timeoutSeconds: readLabeledInput('Timeout seconds'),
+                                    keepAlive: readLabeledInput('Ollama keep-alive'),
+                                    cpuOnlyOllama: readLabeledInput('CPU-only Ollama')
+                                },
                                 councilPromptPreview: prompt.slice(0, 1200),
                                 hasCouncilImplementationPrompt: prompt.includes('implementation-request council chat'),
                                 hasDatabaseEditor: text.includes('SQLite Database') && text.includes('Council Knowledge'),
