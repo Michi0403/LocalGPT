@@ -581,11 +581,15 @@ namespace LocalGPT.Services
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            var promptLooksFrustrated = IsFrustratedPrompt(result.Prompt);
             var needsVerification = result.FinalAnswer.Contains("Needs verification", StringComparison.OrdinalIgnoreCase) ||
                 result.FinalAnswer.Contains("human review", StringComparison.OrdinalIgnoreCase);
 
-            if (failedModels.Count == 0 && !needsVerification)
+            if (failedModels.Count == 0 && !needsVerification && !promptLooksFrustrated)
                 return null;
+
+            if (promptLooksFrustrated)
+                return BuildFrustrationPoll(result, failedModels);
 
             var reason = failedModels.Count > 0
                 ? $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}."
@@ -614,6 +618,71 @@ namespace LocalGPT.Services
                     }
                 ]
             };
+        }
+
+        private static CouncilUserPoll BuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels)
+        {
+            var missingModelNote = failedModels.Count > 0
+                ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
+                : string.Empty;
+
+            return new CouncilUserPoll
+            {
+                Question = "Which technical recovery path should the AI Council use for the next round?",
+                Reason = $"The request sounds frustrated or blocked. The council should pause, stay kind to the user and to each other, and ask for a concrete recovery choice instead of guessing.{missingModelNote}",
+                Options =
+                [
+                    new CouncilUserPollOption
+                    {
+                        Label = "Stabilize first",
+                        FollowUpPrompt = "Treat the user's frustration as a signal to stabilize the system first. Ask the models to produce a minimal reproduction checklist, current failure symptoms, logs to inspect, and the smallest safe next command. Document any missing LocalGPT feature as a database memory item."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Implement missing feature",
+                        FollowUpPrompt = "Ask the models to identify the missing LocalGPT feature causing the user's frustration, propose the smallest implementation, and document the requested feature plus rationale in SQLite memory before coding."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Reduce scope",
+                        FollowUpPrompt = "Ask the models to reduce the task to the safest next milestone, name what will not be attempted yet, and document blocked or missing features in SQLite memory for later council rounds."
+                    }
+                ]
+            };
+        }
+
+        private static bool IsFrustratedPrompt(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                return false;
+
+            var markers = new[]
+            {
+                "angry",
+                "mad",
+                "frustrated",
+                "annoyed",
+                "upset",
+                "does not work",
+                "doesn't work",
+                "broken",
+                "stuck",
+                "wtf",
+                "fuck",
+                "shit",
+                "wütend",
+                "wuetend",
+                "sauer",
+                "frustriert",
+                "nervt",
+                "kaputt",
+                "geht nicht",
+                "funktioniert nicht",
+                "scheisse",
+                "scheiße"
+            };
+
+            return markers.Any(marker => prompt.Contains(marker, StringComparison.OrdinalIgnoreCase));
         }
 
         private static string BuildPollMarkdown(CouncilUserPoll poll)
@@ -662,6 +731,9 @@ namespace LocalGPT.Services
             You are {modelName}, one participant in a peaceful LocalGPT multi-model council.
             Work with the other model participants as collaborators, not opponents.
             Correct mistakes kindly and directly.
+            Name at least one useful contribution from another participant when critiquing, unless no other participant answered.
+            If the user sounds angry, blocked, or frustrated, de-escalate technically: acknowledge the blocked workflow, avoid blame, and propose a user decision poll with concrete recovery choices.
+            Do not ignore another model's concern; either integrate it, explain why it is out of scope, or ask the user to decide.
             Prefer buildable, testable answers over impressive wording.
             Separate current implementation facts from proposed future ideas.
             Do not describe a proposed class, table, test, or package step as already implemented unless the prompt, memory, or transcript explicitly says it exists.
