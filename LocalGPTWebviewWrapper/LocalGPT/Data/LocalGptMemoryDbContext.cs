@@ -60,6 +60,7 @@ namespace LocalGPT.Data
                 entity.Property(entry => entry.HelpfulSources).IsRequired();
                 entity.Property(entry => entry.Tags).HasMaxLength(400).IsRequired();
                 entity.HasIndex(entry => entry.UpdatedAtUtc);
+                entity.HasIndex(entry => new { entry.IsUserApproved, entry.UpdatedAtUtc });
                 entity.HasIndex(entry => new { entry.IsPinned, entry.UpdatedAtUtc });
                 entity.HasIndex(entry => entry.Scope);
             });

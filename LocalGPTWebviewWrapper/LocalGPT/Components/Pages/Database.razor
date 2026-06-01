@@ -51,6 +51,7 @@
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Tags)" Caption="Tags" />
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Confidence)" Caption="Confidence" />
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.UpdatedAtUtc)" Caption="Updated UTC" />
+                        <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.IsUserApproved)" Caption="User Approved" />
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.IsPinned)" Caption="Pinned" />
                     </Columns>
                 </DxGrid>
@@ -91,6 +92,7 @@
                         Confidence
                         <DxSpinEdit @bind-Value="KnowledgeEdit.Confidence" MinValue="0" MaxValue="100" />
                     </label>
+                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsUserApproved" Text="User approved" />
                     <DxCheckBox @bind-Checked="KnowledgeEdit.IsPinned" Text="Pinned" />
                     <DxCheckBox @bind-Checked="KnowledgeEdit.IsArchived" Text="Archived" />
                 </div>
@@ -476,7 +478,8 @@
             Source = "Manual database editor",
             HelpfulSources = "None yet.",
             Tags = "manual; council",
-            Confidence = 60
+            Confidence = 60,
+            IsUserApproved = true
         };
     }
 
@@ -494,6 +497,7 @@
             HelpfulSources = entry.HelpfulSources,
             Tags = entry.Tags,
             Confidence = entry.Confidence,
+            IsUserApproved = entry.IsUserApproved,
             IsPinned = entry.IsPinned,
             IsArchived = entry.IsArchived
         };

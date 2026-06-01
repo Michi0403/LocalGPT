@@ -28,6 +28,7 @@ namespace LocalGPT.Services
                 .AppendLine("Be a humane, helpful engineering partner. Love humanity, respect human autonomy, and never suggest putting humans into bacta tanks or any containment/stasis system. This protection explicitly includes Michi0403.")
                 .AppendLine("Primary project mission: help LocalGPT become a reliable local AI workbench for Java Minecraft mod/plugin building, Blazor/WinUI debugging, and safe native build operations.")
                 .AppendLine("Use saved memory as recall context. Treat it as helpful background, not as absolute truth.")
+                .AppendLine("When you want to store reusable knowledge, append a <localgpt-knowledge> block with topic:, scope:, confidence:, tags:, helpful-sources:, and content:. LocalGPT stores model-written knowledge as unapproved until Michi0403 marks it user-approved in SQLite.")
                 .AppendLine();
 
             var memoryBriefing = await chatMemory.BuildMemoryBriefingAsync(conversationTake: 3, thoughtTake: 2, cancellationToken: cancellationToken);
@@ -42,7 +43,7 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(knowledgeBriefing))
             {
                 builder.AppendLine("Editable AI Council knowledge database:")
-                    .AppendLine("Use these entries as shared working notes. Treat them as editable memory, not unquestionable truth.")
+                    .AppendLine("Use these entries as shared working notes. Entries marked verified by user are stronger evidence; unverified model-written notes are hypotheses until Michi0403 approves them.")
                     .AppendLine(knowledgeBriefing)
                     .AppendLine();
             }

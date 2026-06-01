@@ -20,14 +20,23 @@ namespace LocalGPT.Data
                     "HelpfulSources" TEXT NOT NULL,
                     "Tags" TEXT NOT NULL,
                     "Confidence" INTEGER NOT NULL,
+                    "IsUserApproved" INTEGER NOT NULL DEFAULT 0,
                     "IsPinned" INTEGER NOT NULL,
                     "IsArchived" INTEGER NOT NULL
                 );
                 """,
                 cancellationToken);
 
+            await TryAddColumnAsync(
+                db,
+                """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "IsUserApproved" INTEGER NOT NULL DEFAULT 0;""",
+                cancellationToken);
+
             await db.Database.ExecuteSqlRawAsync(
                 """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("UpdatedAtUtc");""",
+                cancellationToken);
+            await db.Database.ExecuteSqlRawAsync(
+                """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_IsUserApproved_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("IsUserApproved", "UpdatedAtUtc");""",
                 cancellationToken);
             await db.Database.ExecuteSqlRawAsync(
                 """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_IsPinned_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("IsPinned", "UpdatedAtUtc");""",
@@ -35,6 +44,17 @@ namespace LocalGPT.Data
             await db.Database.ExecuteSqlRawAsync(
                 """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_Scope" ON "CouncilKnowledgeEntries" ("Scope");""",
                 cancellationToken);
+        }
+
+        private static async Task TryAddColumnAsync(LocalGptMemoryDbContext db, string sql, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+            }
+            catch (Exception ex) when (ex.Message.Contains("duplicate column", StringComparison.OrdinalIgnoreCase))
+            {
+            }
         }
     }
 }

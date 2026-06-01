@@ -81,6 +81,50 @@
     margin: 0.75rem 0;
 }
 
+.model-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+}
+
+.council-picker {
+    border: 1px solid rgba(127, 127, 127, 0.24);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    background: var(--bs-body-bg);
+}
+
+.council-picker > div:first-child {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.council-member-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+
+.council-member-list label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid rgba(127, 127, 127, 0.24);
+    border-radius: 6px;
+}
+
+.council-member-list small {
+    color: var(--bs-secondary-color);
+}
+
 .memory-selector {
     min-width: min(32rem, 100%);
 }

@@ -30,6 +30,7 @@ namespace LocalGPT.Services
 
             return await query
                 .OrderByDescending(entry => entry.IsPinned)
+                .ThenByDescending(entry => entry.IsUserApproved)
                 .ThenByDescending(entry => entry.UpdatedAtUtc)
                 .Take(Math.Clamp(take, 1, 500))
                 .ToListAsync(cancellationToken);
@@ -58,6 +59,7 @@ namespace LocalGPT.Services
                 existing.HelpfulSources = entry.HelpfulSources;
                 existing.Tags = entry.Tags;
                 existing.Confidence = entry.Confidence;
+                existing.IsUserApproved = entry.IsUserApproved;
                 existing.IsPinned = entry.IsPinned;
                 existing.IsArchived = entry.IsArchived;
                 existing.UpdatedAtUtc = now;
@@ -93,6 +95,7 @@ namespace LocalGPT.Services
                 HelpfulSources = ExtractHelpfulSources(result.FinalAnswer),
                 Tags = BuildTags(result, nonSubstantive),
                 Confidence = nonSubstantive ? 20 : result.Warnings.Count == 0 ? 75 : 55,
+                IsUserApproved = false,
                 IsPinned = result.UserPoll is not null && !nonSubstantive,
                 IsArchived = nonSubstantive
             };
@@ -113,16 +116,22 @@ namespace LocalGPT.Services
 
             var briefingEntries = entries
                 .Where(entry => !LooksLikeNonSubstantiveContent(entry.Content))
+                .OrderByDescending(entry => entry.IsUserApproved)
                 .GroupBy(entry => $"{entry.Scope}|{entry.Topic}|{entry.Source}", StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First());
 
             foreach (var entry in briefingEntries)
             {
+                var trust = entry.IsUserApproved
+                    ? "verified by user"
+                    : "unverified model-written note; treat as hypothesis until user approves";
                 builder
                     .Append("- ")
                     .Append(entry.Topic)
                     .Append(" [")
                     .Append(entry.Scope)
+                    .Append(", ")
+                    .Append(trust)
                     .Append(", confidence ")
                     .Append(entry.Confidence)
                     .Append("%]: ")

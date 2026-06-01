@@ -3,6 +3,7 @@
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
 @inject IChatMemoryService ChatMemory
+@inject IMultiModelCouncilService CouncilService
 @rendermode InteractiveServer
 @implements IDisposable
 <PageTitle>AI Chat</PageTitle>
@@ -34,6 +35,51 @@
                             Text="Reuse context when switching AI" />
             </span>
         </div>
+        <div class="model-toolbar" aria-label="DXAiChat model and council controls">
+            <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
+                <DxButton Text="Refresh Ollama Models"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isModelRefreshBusy)"
+                          Click="RefreshOllamaModelsAsync" />
+            </span>
+            <span title="Dynamic Ollama sessions pass num_gpu=0 and keep_alive=0s. This is slower, but avoids GPU pressure while testing.">
+                <DxCheckBox @bind-Checked="UseCpuOnlyOllamaChat"
+                            Text="CPU-only dynamic Ollama" />
+            </span>
+            <span title="When the AI Council session is selected, it can generate downloadable code/DLL examples for implementation requests.">
+                <DxCheckBox @bind-Checked="GenerateCouncilArtifacts"
+                            Text="Council code/DLL artifacts" />
+            </span>
+            @if (!string.IsNullOrWhiteSpace(modelStatus))
+            {
+                <span class="memory-status">@modelStatus</span>
+            }
+        </div>
+        @if (OllamaCandidates.Count > 0)
+        {
+            <div class="council-picker" aria-label="DXAiChat council model picker">
+                <div>
+                    <strong>DXAiChat Council Members</strong>
+                    <span class="memory-status">Select the models used by the "AI Council" chat choice.</span>
+                </div>
+                <div class="council-member-list">
+                    @foreach (var candidate in OllamaCandidates)
+                    {
+                        <label title="@candidate.Details">
+                            <input type="checkbox"
+                                   checked="@SelectedCouncilModelNames.Contains(candidate.ModelName)"
+                                   @onchange="@((ChangeEventArgs e) => ToggleCouncilModel(candidate.ModelName, e))" />
+                            <span>@candidate.ModelName</span>
+                            @if (candidate.IsLoaded)
+                            {
+                                <small>loaded</small>
+                            }
+                        </label>
+                    }
+                </div>
+            </div>
+        }
         <div class="memory-toolbar" aria-label="Chat memory controls">
             <span title="Writes the current DXAiChat messages into the local SQLite memory database.">
                 <DxButton Text="Save Memory"
@@ -111,14 +157,22 @@
     DxAIChat? DxAiChat { get; set; }
     List<ChatClientSession> ModelsList => ChatClientProvider?.AvailableChatClients ?? new();
     string toastName = "ChatToasts";
+    const string DetectedOllamaSessionPrefix = "Ollama detected — ";
+    const string CouncilSessionName = "AI Council — selected Ollama models";
     bool ReuseContextWhenSwitching { get; set; } = true;
+    bool UseCpuOnlyOllamaChat { get; set; } = true;
+    bool GenerateCouncilArtifacts { get; set; }
     List<PromptSuggestion> PromptSuggestions { get; set; } = new();
     List<ChatMemoryConversationSummary> SavedConversations { get; set; } = new();
     List<ChatMemoryThought> RecentThoughts { get; set; } = new();
+    List<MultiModelCouncilModelCandidate> OllamaCandidates { get; set; } = new();
+    List<string> SelectedCouncilModelNames { get; set; } = new();
     ChatMemoryConversationSummary? SelectedConversation { get; set; }
     Guid? ActiveConversationId { get; set; }
     string memoryStatus = string.Empty;
+    string modelStatus = string.Empty;
     bool isMemoryBusy;
+    bool isModelRefreshBusy;
     CancellationTokenSource? autoSaveCts;
     string lastSavedSignature = string.Empty;
 
@@ -126,6 +180,7 @@
     {
         PromptSuggestions = GetSuggestion();
         await RefreshMemoryAsync();
+        await RefreshOllamaModelsAsync(showToast: false);
         await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
     }
 
@@ -197,6 +252,155 @@
             Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in OnModelChanged!");
         }
 
+    }
+
+    private async Task RefreshOllamaModelsAsync()
+    {
+        await RefreshOllamaModelsAsync(showToast: true);
+    }
+
+    private async Task RefreshOllamaModelsAsync(bool showToast)
+    {
+        if (ChatClientProvider is null)
+            return;
+
+        try
+        {
+            isModelRefreshBusy = true;
+            if (DxAiChat is not null)
+                SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
+
+            OllamaCandidates = (await CouncilService.GetCandidatesAsync())
+                .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
+                .GroupBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderByDescending(candidate => candidate.IsLoaded)
+                .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (SelectedCouncilModelNames.Count == 0)
+            {
+                var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
+                    ?? OllamaCandidates.FirstOrDefault();
+                if (preferred is not null)
+                    SelectedCouncilModelNames.Add(preferred.ModelName);
+            }
+
+            RebuildDynamicSessions();
+            modelStatus = OllamaCandidates.Count == 0
+                ? "No installed Ollama models detected."
+                : $"Detected {OllamaCandidates.Count} Ollama model(s). Added missing models and AI Council to DXAiChat.";
+
+            if (showToast)
+                Notifier.ShowSuccess(toastName, modelStatus, "Ollama models refreshed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "RefreshOllamaModelsAsync failed: {Message}", ex.Message);
+            modelStatus = $"Model refresh failed: {ex.Message}";
+            if (showToast)
+                Notifier.ShowError(toastName, ex.Message, "Model refresh failed");
+        }
+        finally
+        {
+            isModelRefreshBusy = false;
+        }
+    }
+
+    private void RebuildDynamicSessions()
+    {
+        if (ChatClientProvider is null)
+            return;
+
+        var previousSelection = ChatClientProvider.SelectedSession?.Name;
+        var previousMessages = ChatClientProvider.AvailableChatClients
+            .Where(IsDynamicSession)
+            .ToDictionary(session => session.Name, session => session.Messages.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var session in ChatClientProvider.AvailableChatClients.Where(IsDynamicSession).ToList())
+        {
+            ChatClientProvider.AvailableChatClients.Remove(session);
+            session.Client.Dispose();
+        }
+
+        foreach (var candidate in OllamaCandidates)
+        {
+            if (HasConfiguredSessionForModel(candidate.ModelName))
+                continue;
+
+            var session = new ChatClientSession(
+                new OllamaThinkingChatClient(
+                    new OllamaCoreOptions { Uri = candidate.Endpoint, ModelName = candidate.ModelName },
+                    keepAlive: "0s",
+                    contextLength: 2048,
+                    timeout: TimeSpan.FromMinutes(10),
+                    numGpu: UseCpuOnlyOllamaChat ? 0 : null),
+                $"{DetectedOllamaSessionPrefix}{candidate.ModelName}");
+
+            if (previousMessages.TryGetValue(session.Name, out var messages))
+                session.Messages.AddRange(messages);
+
+            ChatClientProvider.AvailableChatClients.Add(session);
+        }
+
+        var councilSession = new ChatClientSession(
+            new CouncilChatClient(CouncilService, CreateCouncilRequest),
+            CouncilSessionName);
+        if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
+            councilSession.Messages.AddRange(councilMessages);
+        ChatClientProvider.AvailableChatClients.Add(councilSession);
+
+        ChatClientProvider.SelectedSession =
+            ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name == previousSelection)
+            ?? ChatClientProvider.SelectedSession
+            ?? ChatClientProvider.AvailableChatClients.FirstOrDefault();
+    }
+
+    private MultiModelCouncilRequest CreateCouncilRequest()
+    {
+        var selectedEndpoint = OllamaCandidates
+            .FirstOrDefault(candidate => SelectedCouncilModelNames.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase))
+            ?.Endpoint;
+
+        return new MultiModelCouncilRequest
+        {
+            ModelNames = SelectedCouncilModelNames.ToList(),
+            BaseUri = selectedEndpoint,
+            MaxRounds = 0,
+            MaxOutputTokens = 768,
+            MaxParallelModels = 1,
+            MaxContextTokens = 2048,
+            ModelTimeoutSeconds = 360,
+            OllamaKeepAlive = "0s",
+            OllamaNumGpu = UseCpuOnlyOllamaChat ? 0 : null,
+            IncludeMemory = true,
+            SaveToMemory = true,
+            GenerateImplementationArtifact = GenerateCouncilArtifacts,
+            Title = "DXAiChat AI Council"
+        };
+    }
+
+    private bool HasConfiguredSessionForModel(string modelName) =>
+        ChatClientProvider?.AvailableChatClients.Any(session =>
+            !IsDynamicSession(session) &&
+            session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
+
+    private static bool IsDynamicSession(ChatClientSession session) =>
+        session.Name.StartsWith(DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase) ||
+        session.Name.Equals(CouncilSessionName, StringComparison.OrdinalIgnoreCase);
+
+    private void ToggleCouncilModel(string modelName, ChangeEventArgs e)
+    {
+        var isChecked = e.Value is bool value && value;
+        if (isChecked)
+        {
+            if (!SelectedCouncilModelNames.Contains(modelName, StringComparer.OrdinalIgnoreCase))
+                SelectedCouncilModelNames.Add(modelName);
+        }
+        else
+        {
+            SelectedCouncilModelNames.RemoveAll(name => name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     private void SaveMessagesForSelectedSession(IEnumerable<BlazorChatMessage> saveMessages)

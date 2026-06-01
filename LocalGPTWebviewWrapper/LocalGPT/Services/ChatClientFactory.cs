@@ -16,7 +16,8 @@ namespace LocalGPT.Services
           ILoggerFactory loggerFactory,
           IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
           IAiFeatureReportService featureReportService,
-          IAiContextBootstrapService bootstrapService
+          IAiContextBootstrapService bootstrapService,
+          ICouncilKnowledgeService knowledgeService
       ) : IChatClientFactory
     {
         public CompositeChatClient Build()
@@ -132,7 +133,7 @@ namespace LocalGPT.Services
                 if (sessions.Count == 0)
                     throw new InvalidOperationException("❌ No AI providers configured. Check appsettings.json or Installation page.");
 
-                return new CompositeChatClient(logger, featureReportService, bootstrapService, sessions.ToArray());
+                return new CompositeChatClient(logger, featureReportService, bootstrapService, knowledgeService, sessions.ToArray());
             }
             catch (Exception ex)
             {
