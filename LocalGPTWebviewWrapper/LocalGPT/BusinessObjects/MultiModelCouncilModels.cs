@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace LocalGPT.BusinessObjects
 {
     public sealed class MultiModelCouncilRequest
@@ -31,6 +33,15 @@ namespace LocalGPT.BusinessObjects
         public Guid? ContinueConversationId { get; set; }
 
         public bool GenerateImplementationArtifact { get; set; }
+
+        [JsonIgnore]
+        public Action<string>? ProgressMessage { get; set; }
+
+        [JsonIgnore]
+        public Action<string>? StreamUpdate { get; set; }
+
+        [JsonIgnore]
+        public Action<MultiModelCouncilStep>? StepCompleted { get; set; }
     }
 
     public sealed record MultiModelCouncilModelCandidate(

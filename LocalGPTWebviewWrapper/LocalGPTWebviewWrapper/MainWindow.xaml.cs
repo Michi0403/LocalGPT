@@ -420,7 +420,7 @@ namespace WebView2_WinUI3_Sample
                                                 && (newest.includes('AI Council Result')
                                                     || newest.includes('Code review')
                                                     || newest.includes('Consensus'));
-                                        }, 480000);
+                                        }, 1500000);
                                     }
                                     catch (error) {
                                         smoke.error = error && error.message ? error.message : String(error);
@@ -549,7 +549,7 @@ namespace WebView2_WinUI3_Sample
                                 return !!smoke.answerVisible || !!smoke.error;
                             })()
                             """,
-                            TimeSpan.FromMinutes(9));
+                            TimeSpan.FromMinutes(26));
                     }
                     else if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))
                     {

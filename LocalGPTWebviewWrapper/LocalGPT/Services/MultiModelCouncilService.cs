@@ -107,6 +107,8 @@ namespace LocalGPT.Services
             if (ollamaNumGpu == 0)
                 result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
 
+            request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}.");
+
             var bootstrap = request.IncludeMemory
                 ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
                 : string.Empty;
@@ -129,6 +131,9 @@ namespace LocalGPT.Services
                 ollamaNumGpu,
                 maxContextTokens,
                 modelTimeoutSeconds,
+                request.ProgressMessage,
+                request.StreamUpdate,
+                request.StepCompleted,
                 cancellationToken);
 
             var critiqueRounds = Math.Clamp(request.MaxRounds, 0, 3);
@@ -152,6 +157,9 @@ namespace LocalGPT.Services
                     ollamaNumGpu,
                     maxContextTokens,
                     modelTimeoutSeconds,
+                    request.ProgressMessage,
+                    request.StreamUpdate,
+                    request.StepCompleted,
                     cancellationToken);
             }
 
@@ -181,8 +189,10 @@ namespace LocalGPT.Services
                     ollamaNumGpu,
                     maxContextTokens,
                     modelTimeoutSeconds,
+                    request.StreamUpdate,
                     cancellationToken);
                 AddOrderedStep(result, consensusStep);
+                request.StepCompleted?.Invoke(consensusStep);
                 var consensusContent = SelectConsensusContent(result, consensusStep);
 
                 if (participants.Count > 1 && critiqueRounds > 0)
@@ -201,8 +211,10 @@ namespace LocalGPT.Services
                         ollamaNumGpu,
                         maxContextTokens,
                         modelTimeoutSeconds,
+                        request.StreamUpdate,
                         cancellationToken);
                     AddOrderedStep(result, verificationStep);
+                    request.StepCompleted?.Invoke(verificationStep);
                     result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
                 }
                 else
@@ -255,8 +267,12 @@ namespace LocalGPT.Services
             int? ollamaNumGpu,
             int maxContextTokens,
             int modelTimeoutSeconds,
+            Action<string>? progressMessage,
+            Action<string>? streamUpdate,
+            Action<MultiModelCouncilStep>? stepCompleted,
             CancellationToken cancellationToken)
         {
+            progressMessage?.Invoke($"Starting council phase: round {round}, {phase}, role {role}.");
             using var gate = new SemaphoreSlim(maxParallelModels, maxParallelModels);
             var tasks = participants
                 .Select(async modelName =>
@@ -264,7 +280,10 @@ namespace LocalGPT.Services
                     await gate.WaitAsync(cancellationToken);
                     try
                     {
-                        return await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, cancellationToken);
+                        progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}.");
+                        var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
+                        stepCompleted?.Invoke(step);
+                        return step;
                     }
                     finally
                     {
@@ -273,7 +292,15 @@ namespace LocalGPT.Services
                 })
                 .ToList();
 
-            var steps = await Task.WhenAll(tasks);
+            var pending = tasks.ToList();
+            var steps = new List<MultiModelCouncilStep>();
+            while (pending.Count > 0)
+            {
+                var completed = await Task.WhenAny(pending);
+                pending.Remove(completed);
+                steps.Add(await completed);
+            }
+
             var participantOrder = participants
                 .Select((modelName, index) => new { modelName, index })
                 .ToDictionary(item => item.modelName, item => item.index, StringComparer.OrdinalIgnoreCase);
@@ -298,6 +325,7 @@ namespace LocalGPT.Services
             int? ollamaNumGpu,
             int maxContextTokens,
             int modelTimeoutSeconds,
+            Action<string>? streamUpdate,
             CancellationToken cancellationToken)
         {
             var started = DateTime.UtcNow;
@@ -320,16 +348,24 @@ namespace LocalGPT.Services
                 messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName, councilMembers)));
                 messages.Add(new ChatMessage(ChatRole.User, prompt));
 
-                var response = await client.GetResponseAsync(
+                streamUpdate?.Invoke($"<details class=\"council-step\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
+                var builder = new StringBuilder();
+                await foreach (var update in client.GetStreamingResponseAsync(
                     messages,
                     new ChatOptions
                     {
                         MaxOutputTokens = Math.Clamp(maxOutputTokens, 64, 8192),
                         Temperature = 0.2f
                     },
-                    participantCts.Token);
+                    participantCts.Token).WithCancellation(participantCts.Token))
+                {
+                    builder.Append(update.Text);
+                    streamUpdate?.Invoke(update.Text);
+                }
 
-                var content = response.Text;
+                streamUpdate?.Invoke("\n\n</details>\n\n");
+
+                var content = builder.ToString();
                 var thinking = ExtractThinking(content);
                 var visibleContent = StripThinking(content);
                 if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -34,17 +35,53 @@ public sealed class CouncilChatClient(
 
         yield return CreateUpdate($"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Local models may take a while; partial progress is shown here so DXAiChat does not look frozen._\n\n");
 
+        var updates = new ConcurrentQueue<string>();
+        request.ProgressMessage = message => updates.Enqueue($"_Council status: {message}_\n\n");
+        request.StreamUpdate = text =>
+        {
+            if (!string.IsNullOrEmpty(text))
+                updates.Enqueue(text);
+        };
+        request.StepCompleted = step => updates.Enqueue(FormatStepProgress(step));
+
+        var startedAt = DateTimeOffset.UtcNow;
+        var lastHeartbeat = DateTimeOffset.UtcNow;
+        var runTask = councilService.RunAsync(request, cancellationToken);
+        while (!runTask.IsCompleted)
+        {
+            while (updates.TryDequeue(out var update))
+                yield return CreateUpdate(update);
+
+            if (DateTimeOffset.UtcNow - lastHeartbeat > TimeSpan.FromSeconds(20))
+            {
+                lastHeartbeat = DateTimeOffset.UtcNow;
+                yield return CreateUpdate($"_Council still running after {(int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds}s. Waiting for local Ollama model output..._\n\n");
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                yield break;
+            }
+        }
+
+        while (updates.TryDequeue(out var update))
+            yield return CreateUpdate(update);
+
         MultiModelCouncilResult result;
         try
         {
-            result = await councilService.RunAsync(request, cancellationToken);
+            result = await runTask;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             yield break;
         }
 
-        yield return CreateUpdate(FormatResult(result));
+        yield return CreateUpdate(FormatResult(result, includeProcess: false));
     }
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
@@ -61,7 +98,7 @@ public sealed class CouncilChatClient(
             return "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.";
 
         var result = await councilService.RunAsync(request, cancellationToken);
-        return FormatResult(result);
+        return FormatResult(result, includeProcess: true);
     }
 
     private MultiModelCouncilRequest CreateRequest(IEnumerable<ChatMessage> messages)
@@ -95,7 +132,7 @@ public sealed class CouncilChatClient(
         return prompt.Length <= 12000 ? prompt : prompt[^12000..];
     }
 
-    private static string FormatResult(MultiModelCouncilResult result)
+    private static string FormatResult(MultiModelCouncilResult result, bool includeProcess)
     {
         var builder = new StringBuilder()
             .AppendLine("# AI Council Result")
@@ -130,7 +167,7 @@ public sealed class CouncilChatClient(
             builder.AppendLine();
         }
 
-        if (result.Steps.Count > 0)
+        if (includeProcess && result.Steps.Count > 0)
         {
             builder.AppendLine("## Council process");
             foreach (var step in result.Steps.OrderBy(step => step.SortOrder))
@@ -179,6 +216,47 @@ public sealed class CouncilChatClient(
             .AppendLine(result.FinalAnswer);
 
         return builder.ToString();
+    }
+
+    private static string FormatStepProgress(MultiModelCouncilStep step)
+    {
+        var builder = new StringBuilder()
+            .AppendLine()
+            .AppendLine($"<details class=\"council-step\" open>")
+            .Append("<summary>")
+            .Append(WebUtility.HtmlEncode($"{step.ModelName} finished {step.Phase} / {step.Role} ({step.DurationSeconds:n1}s)"))
+            .AppendLine("</summary>")
+            .AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(step.Error))
+        {
+            builder.AppendLine("**Error:**")
+                .AppendLine()
+                .AppendLine(step.Error.Trim())
+                .AppendLine();
+        }
+
+        if (!string.IsNullOrWhiteSpace(step.VisibleContent))
+        {
+            builder.AppendLine("**Step answer:**")
+                .AppendLine()
+                .AppendLine(TrimForMessage(step.VisibleContent, 1800))
+                .AppendLine();
+        }
+
+        if (!string.IsNullOrWhiteSpace(step.Thinking))
+        {
+            builder
+                .AppendLine("<details class=\"model-thinking\" open>")
+                .AppendLine("<summary>Model thinking</summary>")
+                .AppendLine("<pre>")
+                .AppendLine(WebUtility.HtmlEncode(TrimForMessage(step.Thinking, 1800)))
+                .AppendLine("</pre>")
+                .AppendLine("</details>")
+                .AppendLine();
+        }
+
+        return builder.AppendLine("</details>").AppendLine().ToString();
     }
 
     private static ChatResponseUpdate CreateUpdate(string text) =>
