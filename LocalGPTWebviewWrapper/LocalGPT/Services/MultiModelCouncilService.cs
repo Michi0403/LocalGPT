@@ -147,6 +147,13 @@ namespace LocalGPT.Services
                 result.FinalAnswer = consensusStep.VisibleContent.Trim();
             }
 
+            foreach (var failedStep in result.Steps.Where(step => !string.IsNullOrWhiteSpace(step.Error)))
+            {
+                var warning = $"{failedStep.ModelName} failed during {failedStep.Phase}: {failedStep.Error}";
+                if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
+                    result.Warnings.Add(warning);
+            }
+
             result.CompletedAtUtc = DateTime.UtcNow;
             result.LogPath = await WriteLogAsync(result, cancellationToken);
 
@@ -500,6 +507,8 @@ namespace LocalGPT.Services
             Work with the other model participants as collaborators, not opponents.
             Correct mistakes kindly and directly.
             Prefer buildable, testable answers over impressive wording.
+            Separate current implementation facts from proposed future ideas.
+            Do not describe a proposed class, table, test, or package step as already implemented unless the prompt, memory, or transcript explicitly says it exists.
             If a claim is uncertain, label it under "Needs verification".
             For Minecraft Java/Fabric work, include concrete file paths, classes, Gradle/build commands, and performance risks when relevant.
             Include brief visible reasoning notes in your answer. LocalGPT may also display provider-supplied thinking separately when the model host returns it.
@@ -513,7 +522,8 @@ namespace LocalGPT.Services
             Your task as {modelName}:
             1. Propose the best answer or implementation direction.
             2. Name assumptions and risks.
-            3. Keep the answer structured and suitable for peer review by other models.
+            3. Separate "Current facts" from "Proposed design".
+            4. Keep the answer structured and suitable for peer review by other models.
             """;
 
         private static string CreateCritiquePrompt(string modelName, string userPrompt, string transcript, bool selfReview) => $"""
@@ -541,6 +551,7 @@ namespace LocalGPT.Services
             - Merge the best ideas from all participants.
             - Include corrections from critiques.
             - Separate final answer, implementation steps, risks, and needs verification.
+            - Separate implemented/current LocalGPT behavior from proposed future improvements.
             - Keep unsupported claims out of the final answer.
             """;
 
