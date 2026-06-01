@@ -94,6 +94,7 @@ namespace LocalGPT
                 options.UseSqlite($"Data Source={memoryDbPath}"));
             builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
             builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
+            builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
 
             builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
             // Build a fresh chat client per request/scope from the latest options
@@ -335,6 +336,14 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     Response = response.Text,
                     CreatedAt = DateTimeOffset.UtcNow
                 });
+            });
+            app.MapGet("/__diag/council/models", async (IMultiModelCouncilService council, CancellationToken ct) =>
+            {
+                return Results.Ok(await council.GetCandidatesAsync(ct));
+            });
+            app.MapPost("/__diag/council", async ([FromBody] MultiModelCouncilRequest request, IMultiModelCouncilService council, CancellationToken ct) =>
+            {
+                return Results.Ok(await council.RunAsync(request, ct));
             });
             app.MapRazorComponents<App>()
                .AddInteractiveServerRenderMode()
