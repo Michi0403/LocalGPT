@@ -10,6 +10,9 @@ namespace LocalGPT.Services;
 public class CompositeChatClient : IChatClient
 {
     private const int DefaultMaxOutputTokens = 2048;
+    private const int DefaultMaxPromptCharacters = 12000;
+    private const int MaxBootstrapCharacters = 6000;
+    private const int MaxSingleConversationMessageCharacters = 5000;
     public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
     private readonly ILogger _logger;
@@ -248,12 +251,87 @@ public class CompositeChatClient : IChatClient
     {
         var messageList = messages.ToList();
         if (_bootstrapService is null)
-            return messageList;
+            return LimitPromptSize(messageList);
 
         var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(bootstrapPrompt))
-            return messageList;
+            return LimitPromptSize(messageList);
 
-        return [new ChatMessage(ChatRole.System, bootstrapPrompt), .. messageList];
+        return LimitPromptSize([new ChatMessage(ChatRole.System, bootstrapPrompt), .. messageList]);
+    }
+
+    private static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages)
+    {
+        if (messages.Sum(EstimateTextLength) <= DefaultMaxPromptCharacters)
+            return messages;
+
+        var result = new List<ChatMessage>();
+        var usedCharacters = 0;
+        var remainingSystemBudget = MaxBootstrapCharacters;
+
+        foreach (var message in messages.Where(message => message.Role == ChatRole.System))
+        {
+            var text = message.Text ?? string.Empty;
+            var budget = Math.Min(remainingSystemBudget, DefaultMaxPromptCharacters - usedCharacters);
+            if (budget <= 0)
+                break;
+
+            var trimmed = TrimForPrompt(text, budget, keepBothEnds: false);
+            if (string.IsNullOrWhiteSpace(trimmed))
+                continue;
+
+            result.Add(new ChatMessage(message.Role, trimmed));
+            usedCharacters += trimmed.Length;
+            remainingSystemBudget -= trimmed.Length;
+        }
+
+        var conversationMessages = messages
+            .Where(message => message.Role != ChatRole.System)
+            .ToList();
+        var keptConversationMessages = new Stack<ChatMessage>();
+
+        for (var index = conversationMessages.Count - 1; index >= 0; index--)
+        {
+            var remainingBudget = DefaultMaxPromptCharacters - usedCharacters;
+            if (remainingBudget <= 0)
+                break;
+
+            var message = conversationMessages[index];
+            var text = message.Text ?? string.Empty;
+            var messageBudget = Math.Min(MaxSingleConversationMessageCharacters, remainingBudget);
+            var trimmed = TrimForPrompt(text, messageBudget, keepBothEnds: true);
+            if (string.IsNullOrWhiteSpace(trimmed))
+                continue;
+
+            keptConversationMessages.Push(new ChatMessage(message.Role, trimmed));
+            usedCharacters += trimmed.Length;
+        }
+
+        result.AddRange(keptConversationMessages);
+        return result;
+    }
+
+    private static int EstimateTextLength(ChatMessage message) => message.Text?.Length ?? 0;
+
+    private static string TrimForPrompt(string text, int maxCharacters, bool keepBothEnds)
+    {
+        var normalized = text.Replace("\r\n", "\n").Trim();
+        if (maxCharacters <= 0 || string.IsNullOrWhiteSpace(normalized))
+            return string.Empty;
+
+        if (normalized.Length <= maxCharacters)
+            return normalized;
+
+        const string omission = "\n\n[...older context trimmed by LocalGPT to fit the local model context window...]\n\n";
+        if (maxCharacters <= omission.Length + 40)
+            return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
+
+        if (!keepBothEnds)
+            return $"{normalized[..(maxCharacters - omission.Length)].TrimEnd()}{omission.TrimEnd()}";
+
+        var remaining = maxCharacters - omission.Length;
+        var head = Math.Max(remaining / 2, 1);
+        var tail = Math.Max(remaining - head, 1);
+        return $"{normalized[..head].TrimEnd()}{omission}{normalized[^tail..].TrimStart()}";
     }
 }

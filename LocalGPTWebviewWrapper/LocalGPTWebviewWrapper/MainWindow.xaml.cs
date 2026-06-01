@@ -92,7 +92,7 @@ namespace WebView2_WinUI3_Sample
                 if (_runDxAiChatCouncilDiagnostics)
                     _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilMaxOutputTokens=2048&diagCouncilMaxContextTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false");
                 else if (_runDxAiChatGptOssDiagnostics)
-                    _diagnosticRoutes.Enqueue("/Chat?diagSession=gpt-oss:20b&diagOllamaMode=auto-gpu");
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=gpt-oss:20b&diagOllamaMode=auto-gpu&diagFreshChat=true");
                 else
                     _diagnosticRoutes.Enqueue("/Chat");
 
@@ -401,7 +401,7 @@ namespace WebView2_WinUI3_Sample
                                         }
 
                                         const prompt = window.__localGptDiagRunDxAiChatGptOss
-                                            ? 'Frontend GPU smoke for gpt-oss:20b through DXAiChat. Start the visible answer with READY. Then write one short sentence saying the DXAiChat gpt-oss path responded. Keep under 30 words.'
+                                            ? 'Reply with exactly one word: READY'
                                             : [
                                                 'DXAiChat two-member AI Council code review request from frontend smoke test.',
                                                 'Review these LocalGPT changes from the prompt only, then add UX/product guidance:',
@@ -432,14 +432,14 @@ namespace WebView2_WinUI3_Sample
                                             const newest = contents[contents.length - 1] || '';
                                             smoke.finalMessagePreview = newest.slice(0, 1200);
                                             smoke.hasThinkingBlock = !!document.querySelector('.model-thinking') || text().includes('Model thinking');
-                                            return contents.length > smoke.initialMessageCount
+                                            return contents.length >= smoke.initialMessageCount + (window.__localGptDiagRunDxAiChatGptOss ? 2 : 1)
                                                 && (window.__localGptDiagRunDxAiChatGptOss
-                                                    ? newest.includes('READY') && newest.length > 10
+                                                    ? newest.includes('READY')
                                                     : newest.length > 400
                                                         && (newest.includes('AI Council Result')
                                                             || newest.includes('Code review')
                                                             || newest.includes('Consensus')));
-                                        }, 1500000);
+                                        }, window.__localGptDiagRunDxAiChatGptOss ? 240000 : 1500000);
                                     }
                                     catch (error) {
                                         smoke.error = error && error.message ? error.message : String(error);

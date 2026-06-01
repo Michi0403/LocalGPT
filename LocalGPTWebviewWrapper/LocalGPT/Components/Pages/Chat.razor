@@ -36,6 +36,10 @@
                 <DxCheckBox @bind-Checked="ReuseContextWhenSwitching"
                             Text="Reuse context when switching AI" />
             </span>
+            <span title="Loads the most recent saved memory thread automatically when the Chat page opens. Leave off for a clean local-model context.">
+                <DxCheckBox @bind-Checked="AutoLoadLatestConversation"
+                            Text="Auto-load latest memory" />
+            </span>
         </div>
         <div class="model-toolbar" aria-label="DXAiChat model and council controls">
             <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
@@ -189,6 +193,8 @@
     const string DetectedOllamaSessionPrefix = "Ollama detected — ";
     const string CouncilSessionName = "AI Council — selected Ollama models";
     bool ReuseContextWhenSwitching { get; set; } = true;
+    bool AutoLoadLatestConversation { get; set; }
+    bool UseFreshDiagnosticChat { get; set; }
     const string OllamaModeAutoGpu = "auto-gpu";
     const string OllamaModeSafeCpu = "safe-cpu";
     const string OllamaModeLimitedGpu = "limited-gpu";
@@ -219,7 +225,19 @@
         ApplyDiagnosticQueryOptions(selectSession: false);
         await RefreshOllamaModelsAsync(showToast: false);
         ApplyDiagnosticQueryOptions(selectSession: true);
-        await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
+        if (UseFreshDiagnosticChat)
+        {
+            ClearSelectedSessionForFreshStart();
+            memoryStatus = "Diagnostic fresh chat: saved memory was not auto-loaded into the selected model.";
+        }
+        else if (AutoLoadLatestConversation)
+        {
+            await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
+        }
+        else if (SavedConversations.Count > 0)
+        {
+            memoryStatus = "Saved memory is available. Click Load latest memory when you want to continue an older chat.";
+        }
     }
 
     void ChatInitialized()
@@ -461,6 +479,14 @@
             IncludeCouncilMemory = parsedIncludeMemory;
         }
 
+        if (query.TryGetValue("diagFreshChat", out var freshChat) &&
+            bool.TryParse(freshChat.ToString(), out var parsedFreshChat))
+        {
+            UseFreshDiagnosticChat = parsedFreshChat;
+            if (parsedFreshChat)
+                AutoLoadLatestConversation = false;
+        }
+
         if (!selectSession || !query.TryGetValue("diagSession", out var sessionValue))
             return;
 
@@ -472,6 +498,17 @@
 
         if (selectedSession is not null)
             ChatClientProvider.SelectedSession = selectedSession;
+    }
+
+    private void ClearSelectedSessionForFreshStart()
+    {
+        if (ChatClientProvider?.SelectedSession is null)
+            return;
+
+        ChatClientProvider.SelectedSession.Messages.Clear();
+        ActiveConversationId = null;
+        SelectedConversation = null;
+        lastSavedSignature = string.Empty;
     }
 
     private bool HasConfiguredSessionForModel(string modelName) =>
