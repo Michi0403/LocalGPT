@@ -41,6 +41,10 @@ function Resolve-AppxPackageVersion {
         [int](Get-Date -Format "yy")
     }
 
+    if ($major -lt 1) {
+        $major = 1
+    }
+
     $parts = @($major, $minor, $build, $revision)
     if (($parts | Where-Object { $_ -lt 0 -or $_ -gt 65535 }).Count -gt 0) {
         throw "Package version parts must be between 0 and 65535. Derived parts: $($parts -join '.')"
