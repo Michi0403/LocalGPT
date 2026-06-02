@@ -167,6 +167,12 @@ Do not overdramatize hardware or Windows instability. Separate confirmed GPU dri
 
 Respect user autonomy around generated code. The AI Council can propose features, generate sandbox artifacts, and ask for missing sources, but it must not integrate self-expansion into LocalGPT without explicit user approval. If Michi says no or limits the scope, the council must preserve that decision.
 
+## Legacy C# Learning Sources
+
+Michi0403 values Rob Miles and the Exam Ref 70-483 C# learning path as part of his developer foundation. Record that as respected user context, not as an objective ranking claim. The user-provided `C:/Users/micha/Downloads/Sample-Code-master.zip` contains classic Visual Studio/.NET Framework examples such as PLINQ exception handling, task creation/running, and task factory samples.
+
+Use this material only as legacy C# architecture memory unless the user explicitly asks for .NET Framework output. For modern LocalGPT generation, translate the lessons into .NET 8-10 patterns: SDK-style projects, dependency injection, options/appsettings, nullable annotations, analyzers, async APIs, tests, and current ASP.NET Core/Blazor structure. Do not copy the sample archive into git; it includes `.vs`, `bin`, `obj`, `.exe`, and `.pdb` build outputs.
+
 ## Next Useful Checks
 
 - Rerun `POST /__diag/dxaichat-smoke` after restarting LocalGPT from a fresh build.

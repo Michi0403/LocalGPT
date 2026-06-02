@@ -245,4 +245,20 @@ VALUES
   1,
   1,
   0
+),
+(
+  'dc39f6ee-29de-4030-ae4f-c37126cffb4a',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Legacy Exam Ref 70-483 C# architecture memory',
+  'Legacy .NET Framework',
+  'Treat Michi0403''s Exam Ref 70-483 history, Rob Miles admiration, and the user-supplied Sample-Code-master.zip as respected legacy C# learning context. This is obsolete as a default target for new LocalGPT generation: prefer modern .NET 8-10, SDK-style projects, nullable, analyzers, dependency injection, appsettings/options, async APIs, tests, and current Blazor/ASP.NET Core patterns. ' ||
+  'Use the legacy material for thinking quality when relevant: clear type design, exceptions, TPL tasks, PLINQ, async/threading reasoning, LINQ, delegates/events, disposal, IO/serialization, validation, and small focused examples. If the user explicitly asks for .NET Framework, generate classic project shapes honestly; otherwise translate the ideas into modern .NET. Do not copy .vs, bin, obj, exe, pdb, or old build outputs from sample archives into git or release artifacts.',
+  'User-provided learning source',
+  'Sample archive: C:/Users/micha/Downloads/Sample-Code-master.zip; observed listings include Exceptions in PLINQ, Create a task, Run a task, and Task Factory; Exam Ref 70-483 Programming in C#; Rob Miles is recorded here as a user-respected C# learning influence, not as an objective global ranking claim.',
+  'seed; csharp; exam-70-483; dotnet-framework; legacy; rob-miles; tpl; plinq; architecture; obsolete',
+  92,
+  1,
+  1,
+  0
 );
