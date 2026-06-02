@@ -15,10 +15,16 @@ The main product direction is local AI-assisted Minecraft creation with Ollama:
 
 ## Recent Commits
 
-- `e6ac15f` - Harden package deploy and release packaging.
-- `7e207b9` - Add Minecraft builder target choices.
-- `28becc5` - Add LocalGPT diagnostic smoke workflows.
-- `6238bb0` - Add package-friendly WebView2 smoke trigger.
+- `c224ed8` - Restore package manifest bytes after release stamping.
+- `ef097ff` - Keep derived MSIX versions upgrade safe.
+- `05c9570` - Clean wrapper release staging folders.
+- `fa95cd9` - Harden package build exit checks.
+- `eea64d4` - Stamp MSIX package version during releases.
+- `dbf44ed` - Shorten WebView2 artifact smoke timeouts.
+- `eb6f709` - Bundle Blazor static assets in Windows package.
+- `6079846` - Add council implementation path polls.
+- `1d4dabc` - Add whole solution council artifacts.
+- `487df46` - Seed official DevExpress Microsoft council knowledge.
 
 The old remote still accepted pushes but GitHub reported the repository moved to `https://github.com/Michi0403/LocalGPT.git`.
 
@@ -40,6 +46,13 @@ Verified before this memory note:
   - function files: 32
   - zip created under the workspace `build` folder
   - council knowledge entry saved as `ddc62518-95ef-432c-a141-4c6de4e1dbf2`
+- Release `v0.1.1-ai-council.20260602` was published at `https://github.com/Michi0403/LocalGPT/releases/tag/v0.1.1-ai-council.20260602`.
+- The release includes Windows x64 MSIX/WebView2 zip artifacts, platform web-app zips, release notes, and manifest JSON.
+- The installed x64 package used derived MSIX identity version `1.0.1.2` so Windows would accept it as an upgrade over earlier local packages.
+- Packaged WebView2 smoke passed after the MSIX payload included published Blazor/DevExpress static assets.
+- Deterministic council artifact routes generated downloadable `.cs`, `.dll`, `.razor`, and whole-solution zip artifacts through `/__artifacts/council/`.
+- The generated .NET 10 DevExpress solution zip and the Ollama lab solution zip built with `dotnet build` at the time of the release smoke.
+- A CPU-only live DXAiChat council feature-artifact smoke with `deepseek-r1:8b` timed out or produced too little final text. Treat that as model-output health, not as proof that deterministic backend artifact generation failed.
 
 Expected warning: Gradle 8.14.2 may report deprecated Gradle features for some generated Java builds. The starter builds still completed successfully.
 
@@ -124,6 +137,12 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 
 - Stop running `LocalGPT.exe` or wrapper instances before rebuilding; they can lock `bin` and `obj` outputs.
 - The package/deploy path must be tested with Visual Studio MSBuild because `.wapproj` is not a normal SDK-only project.
+- Build package scripts must explicitly check `$LASTEXITCODE` after native commands. `ErrorActionPreference = Stop` does not make `dotnet`, `MSBuild`, or packaging tools fail the PowerShell script by itself.
+- If packaged WebView2 renders unstyled HTML with plain links and duplicated navigation, check MSIX payload mapping for Blazor and DevExpress static assets before chasing Razor rendering bugs.
+- The package project must carry published `_content`, `_framework`, scoped CSS, static web asset manifests, and `LocalGPT.deps.json` through `AppxPackagePayload`. A loose `AppX` copy that is not listed in `package.map.txt` is not enough.
+- MSIX package identity versions must be four-part numeric and upgrade-safe. Restore the checked-in manifest after release stamping so source control does not keep machine/generated version churn.
+- Same-version MSIX replacement is unreliable during local testing. Bump the package identity version or remove the old LocalGPT package before reinstalling.
+- Authenticode signing can look valid while `Add-AppxPackage` still rejects trust. The certificate helper supports local-machine trust when the user approves the UAC/admin step.
 - AppX registration can fail with `0x80070002`/`0x80073CF9` when Windows holds a stale LocalGPT development registration or when the loose `AppX` layout misses manifest assets. The package project now copies `Images\*.png` into `bin\<platform>\<configuration>\AppX\Images`, and the repair script retries once after removing only the stale LocalGPT package identity.
 - LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Discover the current app URL from `%LOCALAPPDATA%\LocalGPT\runtime\server.json` instead of assuming a fixed port.
 - Application warnings/errors are stored in SQLite table `ApplicationLogs` when `LoggingCore:DatabaseCore:CoreLogLevel` allows them. The database logger is queued/background-flushed and excludes EF categories to avoid recursive logging.
@@ -139,6 +158,14 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - Whole-solution artifact generation is a first-class council test path. Use `/__diag/council/artifact-smoke?target=solution` to create a downloadable .NET 10 Blazor/DevExpress solution zip with `.sln`, `.csproj`, `.razor`, CSS, service/model code, README, and manifest, without loading Ollama.
 - The Ollama .NET lab artifact is a controlled feasibility path. Use `/__diag/council/artifact-smoke?target=ollama` to create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor zip with selected Ollama-style API stubs and model catalog UI. It must say native GGML/GPU inference is not implemented unless a real backend is attached and approved by the user.
 - Thinking-only/non-substantive council runs still remain in logs/chat memory, but they are archived or skipped for active council knowledge briefings. Duplicate benchmark knowledge entries are deduplicated by topic/scope/source before entering the bootstrap prompt.
+
+## Collaboration Notes
+
+Michi0403 wants concrete progress more than careful-sounding hesitation. When he asks to fix, build, test, release, or push, do the work and report the evidence. He appreciates directness, compiler output, diagnostics, and small meaningful commits. He can be stubborn, but in this project that usually means the product requirement is not satisfied yet; turn the stubborn signal into a test, a diagnostic route, or council knowledge.
+
+Do not overdramatize hardware or Windows instability. Separate confirmed GPU driver resets from display sleep, screen saver behavior, package deployment errors, model latency, and WebView2 frontend problems. When a design path is genuinely unclear, the council should offer a small implementation poll with concrete options and then treat the user's choice as binding.
+
+Respect user autonomy around generated code. The AI Council can propose features, generate sandbox artifacts, and ask for missing sources, but it must not integrate self-expansion into LocalGPT without explicit user approval. If Michi says no or limits the scope, the council must preserve that decision.
 
 ## Next Useful Checks
 
