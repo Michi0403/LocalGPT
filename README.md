@@ -89,6 +89,9 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `GET /__diag/sqlite/tables`: live SQLite table inventory for chat memory, thoughts, logs, and council knowledge.
 - `GET /__diag/council/artifact-smoke?target=solution`: deterministic whole-solution artifact smoke test that emits a downloadable .NET 10 Blazor/DevExpress zip.
 - `GET /__diag/council/artifact-smoke?target=ollama`: deterministic Ollama-inspired .NET/DevExpress control-plane lab zip. It includes Ollama-style route stubs, model catalog UI, model download planning, settings, and explicit native GGML/GPU non-implementation notes.
+- `GET /__diag/council/artifact-smoke?target=datapack`: deterministic prompt-driven Minecraft datapack zip. Living Cities remains a separate named benchmark route, not the hidden default for all datapacks.
+- `GET /__diag/learn-base/import`: import compact architecture fingerprints from `C:\tmpselectedcodexlearnbaseforlocalgpt` into the council knowledge database.
+- `GET /__diag/benchmark/engineering`: run the five-task personal benchmark for DevExpress/EF, CRUD dashboard, packaging diagnosis, datapack generation, and loader skeleton distinction.
 
 The AI Council stores transcripts in SQLite chat memory and also writes a reusable entry into the editable council knowledge database.
 In the Council page, choose an older council memory to continue the thread, or start a new thread.
@@ -161,3 +164,17 @@ The script writes zips and a SHA256 manifest under `artifacts\releases\`. Window
 Start with [LocalGPTWebviewWrapper/readme.md](LocalGPTWebviewWrapper/readme.md) for detailed setup and repair steps. Use [docs/ARCHITECTURE_FOR_AI.md](docs/ARCHITECTURE_FOR_AI.md) for system architecture and [AGENTS.md](AGENTS.md) for agent-specific working rules.
 
 Keep claims grounded: do not say a generated mod, plugin, or datapack was built or launched unless the command output exists. When a feature is missing, write a clear missing-feature report so it can be saved to LocalGPT memory and picked up by the AI Council later.
+
+## Personal Engineering Benchmark
+
+Use the benchmark route to compare raw Ollama, LocalGPT with DX functions/memory, cloud assistants, and a manual expected-output lane across five repeatable tasks.
+The deterministic LocalGPT lane can run without loading Ollama; raw Ollama and cloud lanes stay marked `NotRun` until real transcripts are supplied.
+
+```powershell
+$server = Get-Content "$env:LOCALAPPDATA\LocalGPT\runtime\server.json" | ConvertFrom-Json
+Invoke-RestMethod "$($server.BaseUrl)/__diag/learn-base/import?maxProjects=40&saveToKnowledge=true"
+Invoke-RestMethod "$($server.BaseUrl)/__diag/benchmark/engineering?importLearnBaseFirst=false&saveToKnowledge=true"
+```
+
+The learn-base importer records architecture fingerprints: host shapes, protocols, libraries, solution topology, DevExpress Web API/security, Python.NET interop, bot/microservice patterns, and Blazor/non-Blazor hosting.
+It deliberately does not teach project names as important facts.

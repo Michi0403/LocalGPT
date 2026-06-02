@@ -55,6 +55,20 @@ public static class DxaichatFunctionCatalog
             "No parameters.",
             "Read-only. Uses installed/configured model discovery and does not call Ollama generation."),
         new(
+            "localgpt.learn_base_import",
+            "GET",
+            "/__diag/learn-base/import?maxProjects=40&saveToKnowledge=true",
+            "Import compact architecture fingerprints from the user-selected learn-base folder into CouncilKnowledgeEntries.",
+            "rootPath optional, defaults to C:\\tmpselectedcodexlearnbaseforlocalgpt; maxProjects optional; saveToKnowledge optional.",
+            "Reads local source fingerprints and skips raw binaries/build folders. It teaches architecture, protocols, host wiring, libraries, and interop patterns rather than names or branding."),
+        new(
+            "localgpt.engineering_benchmark",
+            "GET",
+            "/__diag/benchmark/engineering?importLearnBaseFirst=false&saveToKnowledge=true",
+            "Run the five-task personal engineering benchmark with honest lane scoring for raw Ollama, LocalGPT artifacts, cloud assistant, and manual expected output.",
+            "importLearnBaseFirst optional; saveToKnowledge optional.",
+            "Deterministic LocalGPT artifact lane can run without GPU. Raw Ollama and cloud lanes are marked NotRun until real transcripts are supplied."),
+        new(
             "localgpt.sqlite.tables",
             "GET",
             "/__diag/sqlite/tables",
@@ -108,7 +122,7 @@ public static class DxaichatFunctionCatalog
             "GET",
             "/__diag/council/artifact-smoke?target=blazor",
             "Generate a deterministic sandbox artifact bundle without calling Ollama, useful for testing .razor/.cs/.dll and whole-solution zip downloads.",
-            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution, target=datapack for a Minecraft Living Cities datapack zip, or target=ollama for an Ollama-inspired .NET/DevExpress control-plane lab.",
+            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution, target=datapack for a prompt-driven Minecraft datapack zip, target=loader-matrix for distinct Fabric/Paper/NeoForge skeletons, or target=ollama for an Ollama-inspired .NET/DevExpress control-plane lab.",
             "Writes files under LocalAppData/LocalGPT/CouncilArtifacts; does not integrate generated code into the project."),
         new(
             "council.run",

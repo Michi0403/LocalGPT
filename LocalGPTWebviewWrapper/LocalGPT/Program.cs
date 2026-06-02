@@ -126,6 +126,8 @@ namespace LocalGPT
             builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
             builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
             builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
+            builder.Services.AddScoped<ILearnBaseKnowledgeImporterService, LearnBaseKnowledgeImporterService>();
+            builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
             builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
             builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
             builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();

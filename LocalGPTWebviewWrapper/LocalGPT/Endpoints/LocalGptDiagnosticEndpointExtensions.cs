@@ -490,6 +490,52 @@ namespace LocalGPT.Endpoints
                     ct);
             });
 
+            app.MapPost("/__diag/learn-base/import", async (
+                [FromBody] LearnBaseImportRequest request,
+                ILearnBaseKnowledgeImporterService importer,
+                CancellationToken ct) =>
+            {
+                return Results.Ok(await importer.ImportAsync(request, ct));
+            });
+
+            app.MapGet("/__diag/learn-base/import", async (
+                string? rootPath,
+                int? maxProjects,
+                bool? saveToKnowledge,
+                ILearnBaseKnowledgeImporterService importer,
+                CancellationToken ct) =>
+            {
+                return Results.Ok(await importer.ImportAsync(new LearnBaseImportRequest
+                {
+                    RootPath = string.IsNullOrWhiteSpace(rootPath)
+                        ? @"C:\tmpselectedcodexlearnbaseforlocalgpt"
+                        : rootPath,
+                    MaxProjects = maxProjects ?? 40,
+                    SaveToKnowledge = saveToKnowledge != false
+                }, ct));
+            });
+
+            app.MapPost("/__diag/benchmark/engineering", async (
+                [FromBody] EngineeringBenchmarkRequest request,
+                IEngineeringBenchmarkService benchmark,
+                CancellationToken ct) =>
+            {
+                return Results.Ok(await benchmark.RunAsync(request, ct));
+            });
+
+            app.MapGet("/__diag/benchmark/engineering", async (
+                bool? importLearnBaseFirst,
+                bool? saveToKnowledge,
+                IEngineeringBenchmarkService benchmark,
+                CancellationToken ct) =>
+            {
+                return Results.Ok(await benchmark.RunAsync(new EngineeringBenchmarkRequest
+                {
+                    ImportLearnBaseFirst = importLearnBaseFirst == true,
+                    SaveToKnowledge = saveToKnowledge != false
+                }, ct));
+            });
+
             app.MapGet("/__diag/council/artifact-smoke", async (
                 string? target,
                 ICouncilArtifactService artifacts,
@@ -499,10 +545,14 @@ namespace LocalGPT.Endpoints
                 var isSolution = target?.Equals("solution", StringComparison.OrdinalIgnoreCase) == true;
                 var isOllamaLab = target?.Equals("ollama", StringComparison.OrdinalIgnoreCase) == true;
                 var isDatapack = target?.Equals("datapack", StringComparison.OrdinalIgnoreCase) == true;
+                var isLoaderMatrix = target?.Equals("loader-matrix", StringComparison.OrdinalIgnoreCase) == true ||
+                    target?.Equals("skeletons", StringComparison.OrdinalIgnoreCase) == true;
                 var request = new MultiModelCouncilRequest
                 {
                     Prompt = isDatapack
-                        ? "implementation-request smoke: generate a downloadable Minecraft Java 1.21.4 vanilla datapack zip for Living Cities 0.1. The zip root must contain pack.mcmeta and data/ directly. Include load/tick tags, singular function folders, storage/scoreboard setup, city/register_banner, and validation notes."
+                        ? "implementation-request smoke: generate a downloadable Minecraft Java 1.21.4 vanilla datapack zip named Benchmark Borough. The zip root must contain pack.mcmeta and data/ directly. Include load/tick tags, singular function folders, storage/scoreboard setup, city/register_banner, and validation notes."
+                        : isLoaderMatrix
+                        ? "implementation-request smoke: generate a downloadable Minecraft Java project skeleton distinction zip with separate Fabric, Paper, and NeoForge workspaces for Minecraft 1.21.4. Each loader must use its own metadata and Gradle conventions."
                         : isOllamaLab
                         ? "implementation-request smoke: generate a whole Ollama-inspired .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Provide selected Ollama-style API routes such as /api/version, /api/tags, and a safe non-inference /api/generate stub. Do not use Go and do not claim native GGML/GPU inference is implemented."
                         : isSolution
@@ -521,7 +571,9 @@ namespace LocalGPT.Endpoints
                     Prompt = request.Prompt,
                     ModelNames = ["artifact-smoke"],
                     FinalAnswer = isDatapack
-                        ? "Create a validated downloadable Living Cities datapack. It must use Minecraft 1.21.4 pack_format 61, singular function folders, no wrapper zip folder, no .mcfunction.txt placeholders, and a visible register_banner debug line."
+                        ? "Create a validated downloadable Benchmark Borough datapack. It must use Minecraft 1.21.4 pack_format 61, singular function folders, no wrapper zip folder, no .mcfunction.txt placeholders, and a visible register_banner debug line."
+                        : isLoaderMatrix
+                        ? "Create a loader matrix artifact with distinct Fabric, Paper, and NeoForge skeletons. Do not reuse Fabric metadata for Paper or NeoForge."
                         : isOllamaLab
                         ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor Ollama compatibility lab. Include typed model catalog records, endpoint/health UI, selected REST route stubs, README, manifest, and a prominent note that native inference is not implemented without a real backend."
                         : isSolution
@@ -535,7 +587,7 @@ namespace LocalGPT.Endpoints
                 var generated = await artifacts.CreateImplementationArtifactsAsync(request, result, ct);
                 return Results.Ok(new
                 {
-                    Target = isDatapack ? "datapack" : isOllamaLab ? "ollama" : isSolution ? "solution" : isBlazor ? "blazor" : target,
+                    Target = isDatapack ? "datapack" : isLoaderMatrix ? "loader-matrix" : isOllamaLab ? "ollama" : isSolution ? "solution" : isBlazor ? "blazor" : target,
                     artifacts.ArtifactRoot,
                     Count = generated.Count,
                     Artifacts = generated,

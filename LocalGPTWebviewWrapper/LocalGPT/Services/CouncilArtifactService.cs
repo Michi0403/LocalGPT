@@ -34,6 +34,12 @@ namespace LocalGPT.Services
             var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
             var artifacts = new List<CouncilArtifact>();
 
+            if (IsMinecraftSkeletonMatrixArtifactTarget(request.Prompt, result.FinalAnswer))
+            {
+                artifacts.AddRange(await CreateMinecraftSkeletonMatrixArtifactsAsync(request, result, timestamp, cancellationToken));
+                return artifacts;
+            }
+
             if (IsMinecraftDatapackArtifactTarget(request.Prompt, result.FinalAnswer))
             {
                 artifacts.AddRange(await CreateMinecraftDatapackArtifactsAsync(request, result, timestamp, cancellationToken));
@@ -97,17 +103,18 @@ namespace LocalGPT.Services
         {
             var text = $"{request.Prompt} {result.FinalAnswer}";
             var minecraftVersion = ExtractMinecraftVersion(text);
+            var identity = BuildMinecraftDatapackArtifactIdentity(text, timestamp);
             var requestModel = new MinecraftModBuildRequest
             {
-                ProjectName = $"LivingCitiesCouncil{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}",
-                ModId = "living_cities",
-                PackageName = "com.localgpt.livingcities",
+                ProjectName = identity.ProjectName,
+                ModId = identity.ModId,
+                PackageName = identity.PackageName,
                 MinecraftVersion = minecraftVersion,
                 Loader = "Datapack",
                 JavaVersion = "21",
                 GradleVersion = "8.14.2",
                 Ide = "Eclipse",
-                IncludeLivingCitiesStarter = true,
+                IncludeLivingCitiesStarter = false,
                 Description = TrimForCodeComment(request.Prompt, 1800)
             };
 
@@ -115,7 +122,7 @@ namespace LocalGPT.Services
             ValidateGeneratedDatapackWorkspace(workspace.RootPath);
 
             var runSuffix = result.RunId.ToString("N")[..8];
-            var zipName = $"living-cities-datapack-{timestamp}-{runSuffix}.zip";
+            var zipName = $"{identity.ModId}-datapack-{timestamp}-{runSuffix}.zip";
             var zipPath = Path.Combine(ArtifactRoot, zipName);
             if (File.Exists(zipPath))
                 File.Delete(zipPath);
@@ -138,7 +145,86 @@ namespace LocalGPT.Services
                     Kind = "Minecraft Java datapack zip",
                     FilePath = zipPath,
                     DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(zipName)}",
-                    Summary = $"Generated Living Cities datapack for Minecraft {minecraftVersion}. Zip root contains pack.mcmeta and data/ directly."
+                    Summary = $"Generated {identity.DisplayName} datapack for Minecraft {minecraftVersion}. Zip root contains pack.mcmeta and data/ directly."
+                }
+            ];
+        }
+
+        private async Task<IReadOnlyList<CouncilArtifact>> CreateMinecraftSkeletonMatrixArtifactsAsync(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            string timestamp,
+            CancellationToken cancellationToken)
+        {
+            var text = $"{request.Prompt} {result.FinalAnswer}";
+            var minecraftVersion = ExtractMinecraftVersion(text);
+            var runSuffix = result.RunId.ToString("N")[..8];
+            var matrixRoot = Path.Combine(ArtifactRoot, $"minecraft-loader-matrix-{timestamp}-{runSuffix}");
+            if (Directory.Exists(matrixRoot))
+                Directory.Delete(matrixRoot, recursive: true);
+
+            Directory.CreateDirectory(matrixRoot);
+
+            var loaders = new[]
+            {
+                ("Fabric", "fabric_loader_matrix", "client/server Java mod; fabric.mod.json plus Fabric API dependency"),
+                ("Paper", "paper_loader_matrix", "server-side plugin; plugin.yml plus Paper API dependency"),
+                ("NeoForge", "neoforge_loader_matrix", "Forge-family Java mod; neoforge.mods.toml plus NeoForge dependency")
+            };
+
+            foreach (var loader in loaders)
+            {
+                var workspace = await minecraftWorkspaceService.CreateWorkspaceAsync(new MinecraftModBuildRequest
+                {
+                    ProjectName = $"{loader.Item1}LoaderMatrix{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}",
+                    ModId = loader.Item2,
+                    PackageName = $"com.localgpt.matrix.{loader.Item1.ToLowerInvariant()}",
+                    MinecraftVersion = minecraftVersion,
+                    Loader = loader.Item1,
+                    JavaVersion = "21",
+                    GradleVersion = "8.14.2",
+                    Ide = "Eclipse",
+                    IncludeLivingCitiesStarter = false,
+                    Description = $"Generated for a benchmark that verifies Fabric, Paper, and NeoForge skeletons stay distinct: {loader.Item3}."
+                }, cancellationToken);
+
+                CopyDirectory(workspace.RootPath, Path.Combine(matrixRoot, loader.Item1.ToLowerInvariant()));
+            }
+
+            await WriteTextAsync(Path.Combine(matrixRoot, "PROJECT_INDEX.md"), $"""
+                # Minecraft Loader Matrix
+
+                Prompt:
+                {TrimForCodeComment(request.Prompt, 1200)}
+
+                This artifact intentionally contains three different Java Edition skeleton families:
+
+                - `fabric/`: Fabric mod skeleton with Fabric metadata/dependencies.
+                - `paper/`: Paper plugin skeleton with plugin.yml and server plugin conventions.
+                - `neoforge/`: NeoForge mod skeleton with NeoForge metadata/dependencies.
+
+                Validation rule: do not reuse one loader's metadata files for another loader.
+                Minecraft version: {minecraftVersion}
+                Generated UTC: {DateTime.UtcNow:O}
+                """, cancellationToken);
+
+            var zipName = $"minecraft-loader-matrix-{timestamp}-{runSuffix}.zip";
+            var zipPath = Path.Combine(ArtifactRoot, zipName);
+            if (File.Exists(zipPath))
+                File.Delete(zipPath);
+
+            ZipFile.CreateFromDirectory(matrixRoot, zipPath, CompressionLevel.SmallestSize, includeBaseDirectory: true);
+            logger.LogInformation("Wrote council Minecraft loader matrix artifact to {Path}", zipPath);
+
+            return
+            [
+                new CouncilArtifact
+                {
+                    Name = zipName,
+                    Kind = "Minecraft Fabric/Paper/NeoForge skeleton matrix zip",
+                    FilePath = zipPath,
+                    DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(zipName)}",
+                    Summary = "Generated separate Fabric, Paper, and NeoForge skeleton workspaces so loader-specific files cannot be mixed silently."
                 }
             ];
         }
@@ -2513,10 +2599,84 @@ namespace LocalGPT.Services
             return MinecraftPattern().IsMatch(text) && DatapackPattern().IsMatch(text);
         }
 
+        private static bool IsMinecraftSkeletonMatrixArtifactTarget(string prompt, string finalAnswer)
+        {
+            var text = $"{prompt} {finalAnswer}";
+            return MinecraftPattern().IsMatch(text) && MinecraftSkeletonMatrixPattern().IsMatch(text);
+        }
+
         private static string ExtractMinecraftVersion(string text)
         {
             var match = MinecraftVersionPattern().Match(text);
             return match.Success ? match.Groups["version"].Value : "1.21.4";
+        }
+
+        private static MinecraftDatapackArtifactIdentity BuildMinecraftDatapackArtifactIdentity(string text, string timestamp)
+        {
+            var displayName = ExtractMinecraftProjectDisplayName(text);
+            var modId = ToMinecraftNamespace(displayName);
+            var projectName = ToPascalIdentifier(displayName);
+            if (string.IsNullOrWhiteSpace(projectName))
+                projectName = "PromptedDatapack";
+            if (string.IsNullOrWhiteSpace(modId))
+                modId = "prompted_datapack";
+
+            return new MinecraftDatapackArtifactIdentity(
+                $"{projectName}Council{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}",
+                modId,
+                $"com.localgpt.{modId.Replace("_", string.Empty, StringComparison.Ordinal)}",
+                displayName);
+        }
+
+        private static string ExtractMinecraftProjectDisplayName(string text)
+        {
+            var quoted = Regex.Match(text, "\"(?<name>[A-Z][A-Za-z0-9 _-]{2,60})\"");
+            if (quoted.Success)
+                return CleanMinecraftProjectDisplayName(quoted.Groups["name"].Value);
+
+            var explicitlyNamed = Regex.Match(text, @"(?i)(?:called|named|titled)\s+(?<name>[A-Z][A-Za-z0-9 _-]{2,60})");
+            if (explicitlyNamed.Success)
+                return CleanMinecraftProjectDisplayName(explicitlyNamed.Groups["name"].Value);
+
+            var named = Regex.Match(
+                text,
+                @"(?i)(?:datapack|data pack|modpack|minecraft project|minecraft mod)\s+(?:called|named|for|about)?\s*(?<name>[A-Z][A-Za-z0-9 _-]{2,60})");
+            if (named.Success)
+                return CleanMinecraftProjectDisplayName(named.Groups["name"].Value);
+
+            var heading = Regex.Match(text, @"(?m)^#\s+(?<name>[A-Za-z0-9 _-]{3,60})");
+            if (heading.Success)
+                return CleanMinecraftProjectDisplayName(heading.Groups["name"].Value);
+
+            return "Prompted Datapack";
+        }
+
+        private static string CleanMinecraftProjectDisplayName(string value)
+        {
+            var trimmed = value.Trim();
+            foreach (var separator in new[] { " with ", " for ", " and ", " that ", " the ", " zip ", " pack " })
+            {
+                var index = trimmed.IndexOf(separator, StringComparison.OrdinalIgnoreCase);
+                if (index > 2)
+                    trimmed = trimmed[..index].Trim();
+            }
+
+            return string.IsNullOrWhiteSpace(trimmed) ? "Prompted Datapack" : trimmed;
+        }
+
+        private static string ToMinecraftNamespace(string value)
+        {
+            var normalized = Regex.Replace(value.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
+            return string.IsNullOrWhiteSpace(normalized) ? "prompted_datapack" : normalized;
+        }
+
+        private static string ToPascalIdentifier(string value)
+        {
+            var words = Regex.Matches(value, "[A-Za-z0-9]+")
+                .Select(match => match.Value)
+                .Where(word => !string.IsNullOrWhiteSpace(word))
+                .Take(5);
+            return string.Concat(words.Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
         }
 
         private static void ValidateGeneratedDatapackWorkspace(string rootPath)
@@ -2579,6 +2739,24 @@ namespace LocalGPT.Services
                 return;
 
             archive.CreateEntryFromFile(filePath, entryName.Replace('\\', '/'), CompressionLevel.SmallestSize);
+        }
+
+        private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+        {
+            Directory.CreateDirectory(destinationDirectory);
+            foreach (var directory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+            {
+                var relativeDirectory = Path.GetRelativePath(sourceDirectory, directory);
+                Directory.CreateDirectory(Path.Combine(destinationDirectory, relativeDirectory));
+            }
+
+            foreach (var file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+            {
+                var relativeFile = Path.GetRelativePath(sourceDirectory, file);
+                var destinationFile = Path.Combine(destinationDirectory, relativeFile);
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+                File.Copy(file, destinationFile, overwrite: true);
+            }
         }
 
         private static string DetectTargetArea(string prompt, string finalAnswer)
@@ -2755,6 +2933,9 @@ namespace LocalGPT.Services
         [GeneratedRegex("(datapack|data pack|pack\\.mcmeta|mcfunction|living cities)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DatapackPattern();
 
+        [GeneratedRegex("(fabric.*paper.*neoforge|neoforge.*paper.*fabric|loader.*matrix|skeleton.*distinction|project skeleton distinction)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex MinecraftSkeletonMatrixPattern();
+
         [GeneratedRegex("(?<!\\d)(?<version>1\\.\\d{1,2}(?:\\.\\d{1,2})?)(?!\\d)", RegexOptions.CultureInvariant)]
         private static partial Regex MinecraftVersionPattern();
 
@@ -2778,5 +2959,11 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
         private static partial Regex WhitespacePattern();
+
+        private sealed record MinecraftDatapackArtifactIdentity(
+            string ProjectName,
+            string ModId,
+            string PackageName,
+            string DisplayName);
     }
 }

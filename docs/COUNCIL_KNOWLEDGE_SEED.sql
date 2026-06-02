@@ -504,6 +504,25 @@ INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
 ("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
 VALUES
 (
+  '4c8b205f-f7b7-44e8-8ad5-777a5d59d9c2',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Selected learn-base import rules for architecture generation',
+  'Architecture fingerprints',
+  'The selected local learn-base exists to teach reusable solution setup, wiring, libraries, protocols, host shapes, and coding patterns. Project names and branding are not important unless the user explicitly asks for them. Learn how multi-project solutions separate business objects, core services, Web API hosts, Blazor or non-Blazor frontends, worker/microservice hosts, bot integrations, and optional native/Python execution. Jezzifa-style patterns are especially valuable for Python.NET interop: detect Python.Runtime/PythonEngine/Py.GIL/pythonnet usage, isolate Python execution behind explicit user permission gates, configure Python paths through typed options, and keep C# service boundaries testable. Also learn DevExpress Security Web API/XAF/OData business-object wiring, EF contexts, certificate/security services, Telegram/bot services, speech-to-text/Whisper-oriented data, and mixed ASP.NET Core/Blazor hosts. Ask the user for a poll before choosing monolith vs microservice, Blazor vs non-Blazor frontend, DevExpress Web API/security, Python interop, database style, or deployment model. Do not copy obscene or legacy names into generated output.',
+  'LocalGPT SQL seed',
+  'Local route: /__diag/learn-base/import imports compact source-backed fingerprints from C:\tmpselectedcodexlearnbaseforlocalgpt; local route: /__diag/benchmark/engineering scores generation tasks honestly.',
+  'seed; learn-base; architecture-fingerprint; pythonnet; devexpress-web-api; xaf; odata; microservice; blazor; aspnetcore; bot; interop',
+  94,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
   'f1127721-1bc8-46a3-9d77-f0a89c92db37',
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
