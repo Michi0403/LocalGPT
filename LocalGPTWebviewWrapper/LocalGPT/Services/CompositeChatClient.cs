@@ -13,8 +13,18 @@ public class CompositeChatClient : IChatClient
     private const int DefaultMaxPromptCharacters = 12000;
     private const int MaxBootstrapCharacters = 6000;
     private const int MaxSingleConversationMessageCharacters = 5000;
+    private const string RuntimeDecisionPolicy =
+        "LocalGPT runtime decision policy: When the user asks to generate, scaffold, implement, modify, or package code/artifacts and important architecture choices are unresolved, do not start coding yet. " +
+        "First return a short section titled \"Decision poll required\" with concrete choices and tradeoffs, then stop and wait for the user's answer. " +
+        "Ask only for decisions that materially affect the result, such as target platform/runtime, language/framework, UI stack, solution shape, data/persistence model, deployment target, security boundary, reference-app fidelity, and whether downloadable artifacts are expected. " +
+        "Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend unless the user selected it, the existing repository requires it, or the requested target clearly calls for it. " +
+        "If the user already supplied the needed decisions, proceed normally and restate the selected path briefly.";
     public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
+    public string? LockedSessionName { get; set; }
+    public int? ForcedMaxOutputTokens { get; set; }
+    public int? ForcedMaxPromptCharacters { get; set; }
+    public bool SuppressBootstrapContext { get; set; }
     private readonly ILogger _logger;
     private readonly IAiFeatureReportService? _featureReportService;
     private readonly IAiContextBootstrapService? _bootstrapService;
@@ -52,11 +62,12 @@ public class CompositeChatClient : IChatClient
         try
         {
 
-            if (SelectedSession is null)
+            var selectedSession = ResolveSelectedSession();
+            if (selectedSession is null)
                 throw new InvalidOperationException("No chat client session is selected.");
 
             var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
-            return await GetResponseAndReportAsync(SelectedSession, enrichedMessages, ApplyDefaultOptions(options), cancellationToken);
+            return await GetResponseAndReportAsync(selectedSession, enrichedMessages, ApplyDefaultOptions(options), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -71,10 +82,11 @@ public class CompositeChatClient : IChatClient
         try
         {
 
-            if (SelectedSession is null)
+            var selectedSession = ResolveSelectedSession();
+            if (selectedSession is null)
                 throw new InvalidOperationException("No chat client session is selected.");
 
-            return GetStreamingResponseAndReportAsync(SelectedSession, messages, ApplyDefaultOptions(options), cancellationToken);
+            return GetStreamingResponseAndReportAsync(selectedSession, messages, ApplyDefaultOptions(options), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -106,11 +118,32 @@ public class CompositeChatClient : IChatClient
     }
 
 
-    private static ChatOptions ApplyDefaultOptions(ChatOptions? options)
+    private ChatOptions ApplyDefaultOptions(ChatOptions? options)
     {
         options ??= new ChatOptions();
-        options.MaxOutputTokens ??= DefaultMaxOutputTokens;
+        options.MaxOutputTokens ??= ForcedMaxOutputTokens ?? DefaultMaxOutputTokens;
         return options;
+    }
+
+    private ChatClientSession? ResolveSelectedSession()
+    {
+        if (!string.IsNullOrWhiteSpace(LockedSessionName))
+        {
+            var lockedSession = AvailableChatClients.FirstOrDefault(session =>
+                session.Name.Equals(LockedSessionName, StringComparison.OrdinalIgnoreCase) ||
+                session.Name.Contains(LockedSessionName, StringComparison.OrdinalIgnoreCase));
+            if (lockedSession is not null)
+            {
+                SelectedSession = lockedSession;
+                return lockedSession;
+            }
+
+            _logger.LogWarning("Locked chat session {LockedSessionName} was not found. Falling back to selected session {SelectedSessionName}.",
+                LockedSessionName,
+                SelectedSession?.Name);
+        }
+
+        return SelectedSession;
     }
 
     private async Task<ChatResponse> GetResponseAndReportAsync(
@@ -253,29 +286,31 @@ public class CompositeChatClient : IChatClient
     private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
     {
         var messageList = messages.ToList();
-        if (_bootstrapService is null)
-            return LimitPromptSize(messageList);
+        var policyMessage = new ChatMessage(ChatRole.System, RuntimeDecisionPolicy);
+        if (SuppressBootstrapContext || _bootstrapService is null)
+            return LimitPromptSize([policyMessage, .. messageList], ForcedMaxPromptCharacters);
 
         var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(bootstrapPrompt))
-            return LimitPromptSize(messageList);
+            return LimitPromptSize([policyMessage, .. messageList], ForcedMaxPromptCharacters);
 
-        return LimitPromptSize([new ChatMessage(ChatRole.System, bootstrapPrompt), .. messageList]);
+        return LimitPromptSize([policyMessage, new ChatMessage(ChatRole.System, bootstrapPrompt), .. messageList], ForcedMaxPromptCharacters);
     }
 
-    private static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages)
+    private static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, int? forcedMaxPromptCharacters = null)
     {
-        if (messages.Sum(EstimateTextLength) <= DefaultMaxPromptCharacters)
+        var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? DefaultMaxPromptCharacters, 512, DefaultMaxPromptCharacters);
+        if (messages.Sum(EstimateTextLength) <= maxPromptCharacters)
             return messages;
 
         var result = new List<ChatMessage>();
         var usedCharacters = 0;
-        var remainingSystemBudget = MaxBootstrapCharacters;
+        var remainingSystemBudget = Math.Min(MaxBootstrapCharacters, Math.Max(maxPromptCharacters / 2, 0));
 
         foreach (var message in messages.Where(message => message.Role == ChatRole.System))
         {
             var text = message.Text ?? string.Empty;
-            var budget = Math.Min(remainingSystemBudget, DefaultMaxPromptCharacters - usedCharacters);
+            var budget = Math.Min(remainingSystemBudget, maxPromptCharacters - usedCharacters);
             if (budget <= 0)
                 break;
 
@@ -295,7 +330,7 @@ public class CompositeChatClient : IChatClient
 
         for (var index = conversationMessages.Count - 1; index >= 0; index--)
         {
-            var remainingBudget = DefaultMaxPromptCharacters - usedCharacters;
+            var remainingBudget = maxPromptCharacters - usedCharacters;
             if (remainingBudget <= 0)
                 break;
 

@@ -447,6 +447,25 @@ INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
 ("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
 VALUES
 (
+  '9a22b442-e53d-4c36-b56e-bc2a37f11c38',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'DXAiChat frontend review and recode UX rules',
+  'Blazor DevExpress generation',
+  'DXAiChat is the required human-facing test path for chat, model selection, council review, polls, and generation requests; backend-only tests are not enough for frontend acceptance. Architecture choices must be generated at runtime from the user''s actual request, not forced through preselected LocalGPT defaults. If important choices are missing, the AI or council must stop before generation, present a concise user poll, and wait for the user''s option or custom feedback. Common poll choices include target platform/runtime, language/framework, UI stack if any, solution shape, data/persistence model, deployment target, reference-app fidelity, and expected downloadable artifacts. Blazor/DevExpress is a strong LocalGPT specialization, not a universal default for every generated app. Selected provider/model must be visibly verifiable before Send and locked at the composite chat-client boundary during diagnostics so a URL or UI choice cannot silently route to another configured model. Long local inference must show a non-model runtime status heartbeat in the chat transcript, separate from model-thinking blocks, so the user knows whether LocalGPT is waiting on Ollama, first token latency, or streamed model output. Frontend smoke tests against large local models should use slim diagnostic prompts, explicit prompt/output caps, and optional bootstrap suppression; production chats may use the normal knowledge bootstrap after the frontend path is proven. When the user asks to recode a goal application, recreate its recognizable navigation, first screen, model/catalog/settings/API/download/log workflows, and UX structure with the selected architecture; do not output a generic dashboard with the same sample pages.',
+  'LocalGPT SQL seed',
+  'Local docs: docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md and docs/GENERATION_ARCHETYPE_CONTRACTS.md; Local frontend: Components/Pages/Chat.razor architecture poll and model/session lock; User review request: DXAiChat must be tested like a human and recode targets must preserve the goal app look/workflows.',
+  'seed; dxaichat; frontend-review; poll; devexpress; blazor; recode; ux; model-selection',
+  95,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
   'f1127721-1bc8-46a3-9d77-f0a89c92db37',
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),

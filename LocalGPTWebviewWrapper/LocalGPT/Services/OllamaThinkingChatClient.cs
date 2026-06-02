@@ -59,6 +59,8 @@ namespace LocalGPT.Services
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var request = CreateRequest(messages, options, stream: true);
+            yield return CreateStreamingStatusUpdate($"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...");
+
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
             {
                 Content = JsonContent.Create(request, options: JsonOptions)
@@ -77,6 +79,7 @@ namespace LocalGPT.Services
             using (response)
             {
                 await EnsureSuccessOrThrowAsync(response, cancellationToken);
+                yield return CreateStreamingStatusUpdate("Ollama accepted the request. Waiting for streamed model output...");
 
                 Stream stream;
                 try
@@ -222,6 +225,9 @@ namespace LocalGPT.Services
 
         private static ChatResponseUpdate CreateStreamingUpdate(string text) =>
             new(ChatRole.Assistant, [new TextContent(text)]);
+
+        private static ChatResponseUpdate CreateStreamingStatusUpdate(string text) =>
+            CreateStreamingUpdate($"<p class=\"localgpt-stream-status\"><em>{WebUtility.HtmlEncode(text)}</em></p>\n\n");
 
         private List<OllamaChatMessage> BuildOllamaMessages(IEnumerable<ChatMessage> messages)
         {

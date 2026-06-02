@@ -242,7 +242,15 @@ namespace LocalGPT.Services
             }
 
             result.UserPoll = BuildUserPoll(result);
-            result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
+            if (result.UserPoll is null)
+            {
+                result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
+            }
+            else if (request.GenerateImplementationArtifact)
+            {
+                result.Warnings.Add("Implementation artifacts were not generated because the council needs a user decision poll answer first.");
+            }
+
             result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken);
 
             result.CompletedAtUtc = DateTime.UtcNow;
@@ -963,30 +971,30 @@ namespace LocalGPT.Services
 
             return new CouncilUserPoll
             {
-                Question = "Which implementation path should the AI Council use for the next round?",
-                Reason = "This looks like a development request with more than one reasonable implementation path. " +
+                Question = "Which implementation path should the AI Council use before it generates code or files?",
+                Reason = "This looks like a development request with more than one reasonable architecture path. " +
                     $"The council should ask for your direction instead of choosing unclear scope on its own.{missingModelNote}",
                 Options =
                 [
                     new CouncilUserPollOption
                     {
+                        Label = "Ask architecture first",
+                        FollowUpPrompt = "Stop generation and ask the user for the minimum missing architecture decisions. Include target platform/runtime, language/framework, UI stack if any, data/persistence model, solution shape, deployment target, and expected downloadable artifacts. Do not generate files until the user answers."
+                    },
+                    new CouncilUserPollOption
+                    {
                         Label = "Sandbox prototype first",
-                        FollowUpPrompt = "Use a harmless sandbox artifact or temporary workspace first. Generate downloadable example files, name the smoke tests, and do not integrate changes into the real project until the user approves the prototype direction."
+                        FollowUpPrompt = "Use a harmless sandbox artifact or temporary workspace first. Generate downloadable example files only after the user confirms the architecture, name the smoke tests, and do not integrate changes into the real project until the user approves the prototype direction."
                     },
                     new CouncilUserPollOption
                     {
-                        Label = "Backend/data first",
-                        FollowUpPrompt = "Implement the backend/data path first. Prioritize services, EF/SQLite schema or settings storage, diagnostic routes, logging, and safe download endpoints before frontend polish. List exact backend files to change."
+                        Label = "Use repository default",
+                        FollowUpPrompt = "Use the target repository's existing architecture and libraries. If the repo is LocalGPT, prefer .NET 10, ASP.NET Core/Blazor Server InteractiveServer, DevExpress Blazor where suitable, EF/SQLite for persistent app state, backend services for native/file operations, and safe download routes. If a different repo is targeted, inspect that repo before choosing."
                     },
                     new CouncilUserPollOption
                     {
-                        Label = "Frontend UX first",
-                        FollowUpPrompt = "Implement the frontend UX path first. Prioritize a DevExpress Blazor page/component, tooltips, visible states, model/user controls, and download links while keeping backend behavior stubbed or read-only until approved."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Ask exact scope",
-                        FollowUpPrompt = "Pause implementation and ask the user one focused scope question. Offer two or three concrete alternatives, then treat the user's option or typed feedback as binding context for the next round."
+                        Label = "Target-specific stack",
+                        FollowUpPrompt = "Do not force LocalGPT's Blazor/DevExpress defaults. Choose the stack that matches the requested product: datapack for vanilla Minecraft data/commands, Fabric/NeoForge/Paper for Java mod/plugin work, ASP.NET Core API for service work, WebView2/WinUI for Windows desktop wrapper work, CLI/tooling for automation, or another explicit user-chosen target."
                     }
                 ]
             };
@@ -1208,6 +1216,8 @@ namespace LocalGPT.Services
             Treat Fabric as the fast Java iteration target, NeoForge as the modern Forge-style target, Paper as the server-side plugin target, datapack as the vanilla command/data target, and Bedrock as a separate behavior/resource pack exporter.
             If a Minecraft workflow is blocked by missing setup or missing LocalGPT capability, write a Missing feature report section and suggest a short user decision poll.
             For LocalGPT implementation-request chats, classify the owning area (.NET/Blazor/ASP.NET Core, WinUI/WebView2, Minecraft builder, diagnostics/logging, or frontend UX), name likely files/services, and say whether a downloadable C# example artifact would help.
+            For any code/artifact generation request, first decide whether material architecture choices are missing. If they are missing, do not generate code or files yet; return "Decision poll required", list only the necessary choices with concrete options/tradeoffs, and stop until the user selects an option or writes custom guidance.
+            Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend architecture unless the user selected it, the target repository already requires it, or the requested product shape clearly calls for it. LocalGPT is strong at Blazor/DevExpress, but generated apps may be CLI tools, Minecraft datapacks, Java mods/plugins, services, desktop wrappers, APIs, scripts, or other stacks.
             If the implementation path is unclear, offer different implementation possibilities and ask for a user decision poll. The user may choose a poll option or provide custom text feedback; treat either as binding scope for the next round.
             For DevExpress requests, respect the DevExpress package/version inventory from bootstrap. Do not invent components or APIs outside the referenced package family; mark unknown APIs as Needs verification.
             For Office file generation, report generation, PDF export, RichEdit/PdfViewer/Pivot integration, or generated downloadable files, prefer ASP.NET Core/Blazor server backend services plus safe download endpoints. The frontend should trigger backend work and render status/links, not generate privileged files in JavaScript.
@@ -1316,7 +1326,7 @@ namespace LocalGPT.Services
         [GeneratedRegex("(implement|implementation|develop|development|build|create|add|generate|scaffold|feature|code|page|component|service|endpoint|database|settings|artifact|solution|plugin|mod|datapack)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DevelopmentRequestPattern();
 
-        [GeneratedRegex("(user decision poll|implementation path|unclear implementation|unclear scope|scope is uncertain|ownership is uncertain|ask the user|needs user choice|choose between|pick between|multiple reasonable|trade-?off|depends on|which path|which approach)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        [GeneratedRegex("(decision poll required|user decision poll|implementation path|architecture choice|architecture decision|target platform|runtime choice|ui stack|unclear implementation|unclear scope|scope is uncertain|ownership is uncertain|ask the user|needs user choice|choose between|pick between|multiple reasonable|trade-?off|depends on|which path|which approach)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex ImplementationDecisionPattern();
 
         [GeneratedRegex("(choose|decide|pick|option|alternative|trade-?off|depends|uncertain|scope|ownership|clarify|question)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

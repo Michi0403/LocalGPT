@@ -96,6 +96,65 @@ html, body {
     color: #be123c;
 }
 
+.architecture-poll {
+    margin: 0.75rem 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #dfe3ea;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.architecture-poll summary {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.architecture-poll summary small,
+.architecture-poll label span {
+    color: #62666d;
+    font-weight: 400;
+}
+
+.architecture-poll-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+}
+
+.architecture-poll label,
+.architecture-poll-actions label {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.architecture-poll select,
+.architecture-poll input[type="text"] {
+    width: 100%;
+    min-height: 2.25rem;
+    border: 1px solid #cfd6df;
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    background: #fff;
+}
+
+.architecture-poll-actions {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) auto auto;
+    gap: 0.75rem;
+    align-items: end;
+    margin-top: 0.85rem;
+}
+
+@media (max-width: 720px) {
+    .architecture-poll-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
 :root {
     --panel-width: 100%;
 }

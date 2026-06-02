@@ -275,6 +275,27 @@ namespace LocalGPT.Services
                 },
                 new CouncilKnowledgeEntry
                 {
+                    Id = Guid.Parse("9a22b442-e53d-4c36-b56e-bc2a37f11c38"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "DXAiChat frontend review and recode UX rules",
+                    Scope = "Blazor DevExpress generation",
+                    Source = seedSource,
+                    Content = "DXAiChat is the required human-facing test path for chat, model selection, council review, polls, and generation requests; backend-only tests are not enough for frontend acceptance. " +
+                        "Architecture choices must be generated at runtime from the user's actual request, not forced through preselected LocalGPT defaults. If important choices are missing, the AI or council must stop before generation, present a concise user poll, and wait for the user's option or custom feedback. " +
+                        "Common poll choices include target platform/runtime, language/framework, UI stack if any, solution shape, data/persistence model, deployment target, reference-app fidelity, and expected downloadable artifacts. Blazor/DevExpress is a strong LocalGPT specialization, not a universal default for every generated app. " +
+                        "Selected provider/model must be visibly verifiable before Send and locked at the composite chat-client boundary during diagnostics so a URL or UI choice cannot silently route to another configured model. " +
+                        "Long local inference must show a non-model runtime status heartbeat in the chat transcript, separate from model-thinking blocks, so the user knows whether LocalGPT is waiting on Ollama, first token latency, or streamed model output. " +
+                        "Frontend smoke tests against large local models should use slim diagnostic prompts, explicit prompt/output caps, and optional bootstrap suppression; production chats may use the normal knowledge bootstrap after the frontend path is proven. " +
+                        "When the user asks to recode a goal application, recreate its recognizable navigation, first screen, model/catalog/settings/API/download/log workflows, and UX structure with Blazor and DevExpress components; do not output a generic dashboard with the same sample pages.",
+                    HelpfulSources = "- Local docs: docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md and docs/GENERATION_ARCHETYPE_CONTRACTS.md.\n- Local frontend: Components/Pages/Chat.razor architecture poll and model/session lock.\n- User review request: DXAiChat must be tested like a human and recode targets must preserve the goal app look/workflows.",
+                    Tags = "seed; dxaichat; frontend-review; poll; devexpress; blazor; recode; ux; model-selection",
+                    Confidence = 95,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
                     Id = Guid.Parse("243e82e1-9f6d-4b8c-abd8-75e7cda0c776"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,

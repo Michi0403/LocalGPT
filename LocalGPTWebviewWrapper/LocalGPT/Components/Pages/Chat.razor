@@ -161,6 +161,70 @@
                 }
             </div>
         }
+        <details class="architecture-poll">
+            <summary>
+                <span>Optional architecture choices</span>
+                <small>Open only when you want to decide now. Otherwise the AI should ask with a runtime poll before coding.</small>
+            </summary>
+            <div class="architecture-poll-grid">
+                <label title="Choose whether generated UI should use DevExpress components, plain Blazor, another UI stack, or ask at runtime.">
+                    <span>UI stack</span>
+                    <select @bind="ArchitectureUiStack">
+                        @foreach (var option in ArchitectureUiStackOptions)
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </select>
+                </label>
+                <label title="Choose whether the generated work should be one solution, split into backend/frontend projects, or ask at runtime.">
+                    <span>Solution shape</span>
+                    <select @bind="ArchitectureSolutionShape">
+                        @foreach (var option in ArchitectureSolutionShapeOptions)
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </select>
+                </label>
+                <label title="Choose the hosting/runtime model. This is not limited to Blazor; use Ask when the app target is unclear.">
+                    <span>Runtime/rendering</span>
+                    <select @bind="ArchitectureRenderMode">
+                        @foreach (var option in ArchitectureRenderModeOptions)
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </select>
+                </label>
+                <label title="Choose how closely generated UI should recreate the reference application, or ask at runtime.">
+                    <span>Reference look</span>
+                    <select @bind="ArchitectureReferenceLook">
+                        @foreach (var option in ArchitectureReferenceLookOptions)
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </select>
+                </label>
+            </div>
+            <div class="architecture-poll-actions">
+                <label title="Optional detail for the next council answer, for example an app to recode or special backend constraints.">
+                    <span>Extra direction</span>
+                    <input type="text"
+                           @bind="ArchitecturePollNotes"
+                           placeholder="Example: ask me first if target platform, framework, data model, or deployment are unclear." />
+                </label>
+                <DxButton Text="Add Decision To Chat"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="AddArchitecturePollToChatAsync" />
+                <DxButton Text="Reset"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="ResetArchitecturePoll" />
+            </div>
+            @if (!string.IsNullOrWhiteSpace(ArchitecturePollStatus))
+            {
+                <p class="memory-status">@ArchitecturePollStatus</p>
+            }
+        </details>
         <DxAIChat Initialized="ChatInitialized" ResponseContentFormat="ResponseContentFormat.Markdown" UseStreaming="true" FileUploadEnabled="true" @ref="DxAiChat" CssClass="demo-chat">
             <PromptSuggestions>
                 @foreach (var suggestion in PromptSuggestions)
@@ -220,6 +284,47 @@
     string? DiagnosticRequestedSessionName { get; set; }
     int CouncilMaxOutputTokens { get; set; } = DefaultCouncilOutputTokens;
     int CouncilMaxContextTokens { get; set; } = DefaultCouncilContextTokens;
+    static readonly string[] ArchitectureUiStackOptions =
+    [
+        "Ask me before choosing UI stack",
+        "DevExpress Blazor components",
+        "Plain Blazor components",
+        "No UI / backend or tool only",
+        "Other target-specific UI"
+    ];
+    static readonly string[] ArchitectureSolutionShapeOptions =
+    [
+        "Ask me before choosing solution shape",
+        "Single cohesive solution",
+        "Split backend and frontend projects",
+        "Library/plugin/package only",
+        "Datapack/mod workspace only"
+    ];
+    static readonly string[] ArchitectureRenderModeOptions =
+    [
+        "Ask me before choosing runtime/rendering",
+        "Blazor Server / InteractiveServer",
+        "Blazor WebAssembly with ASP.NET Core backend",
+        "Static SSR plus interactive islands",
+        "ASP.NET Core API / backend only",
+        "Desktop wrapper / WebView2",
+        "Minecraft Java/datapack runtime",
+        "CLI/tooling runtime"
+    ];
+    static readonly string[] ArchitectureReferenceLookOptions =
+    [
+        "Ask me before choosing visual fidelity",
+        "Recreate the goal app look closely",
+        "Use LocalGPT style but preserve goal app structure",
+        "Functional prototype first",
+        "No visual reference"
+    ];
+    string ArchitectureUiStack { get; set; } = ArchitectureUiStackOptions[0];
+    string ArchitectureSolutionShape { get; set; } = ArchitectureSolutionShapeOptions[0];
+    string ArchitectureRenderMode { get; set; } = ArchitectureRenderModeOptions[0];
+    string ArchitectureReferenceLook { get; set; } = ArchitectureReferenceLookOptions[0];
+    string ArchitecturePollNotes { get; set; } = string.Empty;
+    string ArchitecturePollStatus { get; set; } = string.Empty;
     List<PromptSuggestion> PromptSuggestions { get; set; } = new();
     List<ChatMemoryConversationSummary> SavedConversations { get; set; } = new();
     List<ChatMemoryThought> RecentThoughts { get; set; } = new();
@@ -303,6 +408,62 @@
 
     }
 
+    private async Task AddArchitecturePollToChatAsync()
+    {
+        try
+        {
+            if (ChatClientProvider?.SelectedSession is null || DxAiChat is null)
+                return;
+
+            var messages = DxAiChat.SaveMessages().ToList();
+            var pollMessage = BuildArchitecturePollMessage();
+            messages.Add(new BlazorChatMessage(ChatRole.User, pollMessage, new List<AIChatUploadFileInfo>()));
+            ChatClientProvider.SelectedSession.Messages.Clear();
+            ChatClientProvider.SelectedSession.Messages.AddRange(messages);
+            DxAiChat.LoadMessages(messages);
+            await PersistMessagesAsync(messages, force: true, showToast: false);
+            ArchitecturePollStatus = "Architecture decision guidance was added to the DXAiChat conversation.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in AddArchitecturePollToChatAsync: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.Message, "Architecture poll failed");
+        }
+    }
+
+    private string BuildArchitecturePollMessage()
+    {
+        var builder = new System.Text.StringBuilder()
+            .AppendLine("# LocalGPT Architecture Poll Decision")
+            .AppendLine()
+            .AppendLine("Treat explicit non-Ask values as my current decision for the next answer. Treat Ask values as unresolved and ask me before implementing:")
+            .AppendLine($"- UI stack: {ArchitectureUiStack}")
+            .AppendLine($"- Solution shape: {ArchitectureSolutionShape}")
+            .AppendLine($"- Runtime/rendering: {ArchitectureRenderMode}")
+            .AppendLine($"- Reference look: {ArchitectureReferenceLook}");
+
+        if (!string.IsNullOrWhiteSpace(ArchitecturePollNotes))
+            builder.AppendLine($"- Extra direction: {ArchitecturePollNotes.Trim()}");
+
+        builder
+            .AppendLine()
+            .AppendLine("If any selected value says \"Ask me\", stop before generating code or files. Return a concise runtime poll with concrete options and wait for my answer.")
+            .AppendLine("Do not assume Blazor or DevExpress unless I chose it, the target repository already requires it, or the requested app type clearly benefits from it.")
+            .AppendLine("When recreating a goal application, compare its layout, navigation, data flows, API routes, settings, and user workflows, then recreate the recognizable structure with the selected architecture.");
+
+        return builder.ToString().Trim();
+    }
+
+    private void ResetArchitecturePoll()
+    {
+        ArchitectureUiStack = ArchitectureUiStackOptions[0];
+        ArchitectureSolutionShape = ArchitectureSolutionShapeOptions[0];
+        ArchitectureRenderMode = ArchitectureRenderModeOptions[0];
+        ArchitectureReferenceLook = ArchitectureReferenceLookOptions[0];
+        ArchitecturePollNotes = string.Empty;
+        ArchitecturePollStatus = "Architecture choices reset to ask-at-runtime defaults.";
+    }
+
     private async Task OnModelChanged(ChatClientSession value)
     {
         try
@@ -317,6 +478,7 @@
                 if (diagnosticSession is not null)
                 {
                     ChatClientProvider.SelectedSession = diagnosticSession;
+                    ChatClientProvider.LockedSessionName = diagnosticSession.Name;
                     DxAiChat.LoadMessages(diagnosticSession.Messages);
                     modelStatus = $"Diagnostic session locked to {diagnosticSession.Name}.";
                 }
@@ -328,6 +490,10 @@
             SaveMessagesForSelectedSession(currentMessages);
             await PersistMessagesAsync(currentMessages, force: true, showToast: false);
 
+            ChatClientProvider.LockedSessionName = null;
+            ChatClientProvider.ForcedMaxOutputTokens = null;
+            ChatClientProvider.ForcedMaxPromptCharacters = null;
+            ChatClientProvider.SuppressBootstrapContext = false;
             ChatClientProvider.SelectedSession = value;
 
             if (ReuseContextWhenSwitching && value.Messages.Count == 0 && currentMessages.Count > 0)
@@ -526,6 +692,24 @@
             CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, MinCouncilContextTokens, MaxCouncilContextTokens);
         }
 
+        if (query.TryGetValue("diagMaxOutputTokens", out var maxOutputTokens) &&
+            int.TryParse(maxOutputTokens.ToString(), out var parsedMaxOutputTokens))
+        {
+            ChatClientProvider.ForcedMaxOutputTokens = Math.Clamp(parsedMaxOutputTokens, 64, 131072);
+        }
+
+        if (query.TryGetValue("diagMaxPromptCharacters", out var maxPromptCharacters) &&
+            int.TryParse(maxPromptCharacters.ToString(), out var parsedMaxPromptCharacters))
+        {
+            ChatClientProvider.ForcedMaxPromptCharacters = Math.Clamp(parsedMaxPromptCharacters, 512, 12000);
+        }
+
+        if (query.TryGetValue("diagSkipBootstrap", out var skipBootstrap) &&
+            bool.TryParse(skipBootstrap.ToString(), out var parsedSkipBootstrap))
+        {
+            ChatClientProvider.SuppressBootstrapContext = parsedSkipBootstrap;
+        }
+
         if (query.TryGetValue("diagOllamaMode", out var ollamaMode))
         {
             var mode = ollamaMode.ToString();
@@ -588,6 +772,7 @@
         if (selectedSession is not null)
         {
             ChatClientProvider.SelectedSession = selectedSession;
+            ChatClientProvider.LockedSessionName = selectedSession.Name;
             modelStatus = $"Diagnostic session locked to {selectedSession.Name}.";
         }
 

@@ -136,13 +136,27 @@ Use Microsoft Learn architecture guidance for modern .NET decisions:
 
 Translate those sources into these generation rules:
 
-- Prefer a cohesive monolithic Blazor/ASP.NET Core app unless a real independent service boundary exists.
+- When the selected target is a .NET web app, prefer a cohesive monolithic
+  Blazor/ASP.NET Core app unless a real independent service boundary exists.
+  For non-.NET-web targets, choose the target-specific archetype first.
 - Use service-oriented separation for real boundaries: independent scaling, external runners, background work, downloads, report/document generation, or integrations.
 - Keep UI interaction in Razor components and business/native/data work in services.
 - Use dependency injection and testable service APIs instead of embedding logic in markup strings.
 - Keep appsettings for bootstrap/runtime configuration and store user/application state in EF/SQLite when it must survive restarts.
 - Include diagnostics or health checks for generated runtime features.
 - Design APIs and models with clear naming, stable contracts, debuggability, and evolution in mind.
+- Before implementing ambiguous architecture, ask the user with a concrete poll
+  and stop before generating code or files. Polls should be created from the
+  user's actual request and include only material tradeoffs such as target
+  platform/runtime, language/framework, UI stack if any, single solution versus
+  split frontend/API, server-rendered versus client-rendered UI, direct EF
+  entities versus DTO/API boundaries, deployment target, artifact expectations,
+  and reference-app fidelity versus functional prototype speed.
+- For a "goal to recode" application, extract the reference app's product shape:
+  navigation, index/landing behavior, model/data catalog, settings, API routes,
+  downloads, logs, statuses, and primary workflows. The generated app must use
+  the selected stack to recreate that product shape, not reuse a LocalGPT sample
+  or force Blazor/DevExpress when the user did not choose it.
 
 ## Bad Output Signals
 
@@ -156,6 +170,10 @@ Reject or regenerate output when:
 - The artifact lacks navigation or a user-visible first screen.
 - The model says "build passed" without command output.
 - Binary payloads are printed in chat instead of exposed through download routes.
+- The generated app ignores the reference application's recognizable layout,
+  navigation, routes, settings, or workflows.
+- A model/provider selection test says one model in the UI/URL but sends the
+  request to another runtime model.
 
 ## Pipeline
 

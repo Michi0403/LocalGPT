@@ -161,7 +161,32 @@ screens:
 - Keep advanced settings visible but grouped, not hidden behind mystery states.
 - Save user-affecting defaults and presets in EF/SQLite, while appsettings keeps
   bootstrap and logging configuration.
+- When a request has important unresolved architecture choices, generate a
+  runtime decision poll and stop before coding. Do not treat Blazor/DevExpress
+  as the default for every app; offer it only when the user picked it, the target
+  repository already uses it, or the product shape clearly benefits from it.
+  Poll options should cover target platform/runtime, language/framework, UI
+  stack if any, solution split, data model style, security, deployment, artifact
+  expectations, and reference-app fidelity.
+- When the user asks to recode or clone a goal application, preserve its
+  recognizable navigation, first-screen workflow, API/settings surface, model
+  catalog/state, and user tasks. If Blazor/DevExpress is the chosen stack,
+  DevExpress components should recreate the app's information architecture, not
+  replace it with a generic dashboard.
+- Make the selected AI/model/provider visibly verifiable before sending. If a
+  diagnostic URL requests a model, lock the runtime chat session to that model
+  and surface the lock in the UI/status text so frontend tests cannot silently
+  hit a different configured model.
+- For local inference, show runtime status before the first model token arrives.
+  Keep this separate from model-thinking blocks so users can distinguish
+  LocalGPT/Ollama transport progress from the AI's actual reasoning.
+- Keep frontend smoke prompts deliberately small for large local models. Verify
+  DXAiChat selection, poll injection, send behavior, streaming status, and
+  answer rendering with capped context/output before asking the model to review
+  a full source tree.
 
-If a generated result lacks routing, navigation, an index page, real DevExpress
-components, or a project-specific information architecture, reject it and ask
-the council to regenerate from the archetype contract.
+If a generated Blazor/DevExpress result lacks routing, navigation, an index
+page, real DevExpress components, or a project-specific information
+architecture, reject it and ask the council to regenerate from the archetype
+contract. If the target is not Blazor/DevExpress, judge it against the selected
+stack instead.
