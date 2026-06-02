@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" DefaultTargets="Build" InitialTargets="EnsureWindowsAppSdkPackageRuntimeFolders" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '15.0'">
-	  <IsPackable>true</IsPackable>
+    <IsPackable>true</IsPackable>
     <NoWarn>$(NoWarn);NU1701</NoWarn>
     <VisualStudioVersion>15.0</VisualStudioVersion>
   </PropertyGroup>
@@ -63,8 +63,8 @@
   <Import Project="LocalGPTWebviewWrapper (Package).local.props" Condition="Exists('LocalGPTWebviewWrapper (Package).local.props')" />
   <PropertyGroup>
     <ProjectGuid>c55695ec-29c1-4544-857c-931372c2e7e6</ProjectGuid>
-	  <TargetPlatformVersion>10.0.22621.0</TargetPlatformVersion>
-	  <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
+    <TargetPlatformVersion>10.0.22621.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
     <AssetTargetFallback>net10.0-windows$(TargetPlatformVersion);$(AssetTargetFallback)</AssetTargetFallback>
     <DefaultLanguage>en-US</DefaultLanguage>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -74,36 +74,36 @@
     <AppxPackageDir>$(Temp)\LocalGPTWebviewWrapper\AppPackages\</AppxPackageDir>
     <AppxPackageSigningEnabled Condition="'$(AppxPackageSigningEnabled)' == ''">False</AppxPackageSigningEnabled>
     <EntryPointProjectUniqueName>..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj</EntryPointProjectUniqueName>
-	  <IncludeLocalGptPublishedPayload Condition="'$(IncludeLocalGptPublishedPayload)' == ''">false</IncludeLocalGptPublishedPayload>
-	  <PackageCertificateThumbprint Condition="'$(PackageCertificateThumbprint)' == '' and '$(LocalGPTPackageCertificateThumbprint)' != ''">$(LocalGPTPackageCertificateThumbprint)</PackageCertificateThumbprint>
+    <IncludeLocalGptPublishedPayload Condition="'$(IncludeLocalGptPublishedPayload)' == ''">false</IncludeLocalGptPublishedPayload>
+    <PackageCertificateThumbprint Condition="'$(PackageCertificateThumbprint)' == '' and '$(LocalGPTPackageCertificateThumbprint)' != ''">$(LocalGPTPackageCertificateThumbprint)</PackageCertificateThumbprint>
     <PackageCertificateKeyFile Condition="'$(PackageCertificateKeyFile)' == '' and '$(LocalGPTPackageCertificateKeyFile)' != ''">$(LocalGPTPackageCertificateKeyFile)</PackageCertificateKeyFile>
   </PropertyGroup>
-	<Target Name="EnsureWindowsAppSdkPackageRuntimeFolders"
+  <Target Name="EnsureWindowsAppSdkPackageRuntimeFolders"
         BeforeTargets="Build;_CopyPackageFiles_Core;_CopyUploadPackageFiles_Core;_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage;CopyFilesToOutputDirectory;_CopyFilesToAppxLayout;_CopyPackageFilesToLayout;_CopyPackageFilesToOutputDirectory">
-		<ItemGroup>
-			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x64\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x86\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
-			<_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
-			<_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
-			<_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
-			<_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
-			<_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" Condition="'$(AppxLayoutDir)' != ''" />
-			<_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" Condition="'$(AppxLayoutDir)' != ''" />
-			<_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" Condition="'$(AppxLayoutDir)' != ''" />
-			<_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" Condition="'$(AppxLayoutDir)' != ''" />
-		</ItemGroup>
-		<MakeDir Directories="@(_WindowsAppSdkRuntimeDir)" />
-	</Target>
+    <ItemGroup>
+      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x64\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x86\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
+      <_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
+      <_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
+      <_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
+      <_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
+      <_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" Condition="'$(AppxLayoutDir)' != ''" />
+      <_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" Condition="'$(AppxLayoutDir)' != ''" />
+      <_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" Condition="'$(AppxLayoutDir)' != ''" />
+      <_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" Condition="'$(AppxLayoutDir)' != ''" />
+    </ItemGroup>
+    <MakeDir Directories="@(_WindowsAppSdkRuntimeDir)" />
+  </Target>
   <Target Name="OverlaySelfContainedWrapperPublishOutput"
           BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage"
           Condition="Exists('..\LocalGPTWebviewWrapper\bin\win-$(Platform)\publish\LocalGPTWebviewWrapper.exe')">
@@ -120,7 +120,7 @@
   </Target>
   <Target Name="PublishLocalGptWebAssetsForPackaging"
           BeforeTargets="_ConvertItems"
-		  Condition="'$(IncludeLocalGptPublishedPayload)' == 'true'">
+          Condition="'$(IncludeLocalGptPublishedPayload)' == 'true'">
     <PropertyGroup>
       <LocalGptWebPublishDir>..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\</LocalGptWebPublishDir>
     </PropertyGroup>
@@ -145,7 +145,7 @@
   </Target>
   <Target Name="AddPublishedLocalGptWebAssetsToPackagePayload"
           BeforeTargets="_WritePayloadFiles"
-		   Condition="'$(IncludeLocalGptPublishedPayload)' == 'true'">
+          Condition="'$(IncludeLocalGptPublishedPayload)' == 'true'">
     <PropertyGroup>
       <LocalGptWebPublishDir>..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\</LocalGptWebPublishDir>
     </PropertyGroup>
@@ -161,9 +161,9 @@
       </AppxPackagePayload>
     </ItemGroup>
   </Target>
-	<Target Name="OverlayLocalGptWebPublishOutput"
-			BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage"
-			Condition="'$(IncludeLocalGptPublishedPayload)' == 'true' and Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\LocalGPT.dll')">
+  <Target Name="OverlayLocalGptWebPublishOutput"
+          BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage"
+          Condition="'$(IncludeLocalGptPublishedPayload)' == 'true' and Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\LocalGPT.dll')">
     <ItemGroup>
       <_PublishedLocalGptFile Include="..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\**\*.*" />
     </ItemGroup>
@@ -310,8 +310,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-	  <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
-	
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+
   </ItemGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" />
 </Project>

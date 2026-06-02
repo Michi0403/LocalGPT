@@ -21,6 +21,7 @@ Important assumptions:
 - Visual Studio MSBuild is required for full package validation
 - .NET 10 is the current target; `global.json` pins SDK 10.0.300 with latest-feature roll-forward
 - loose AppX deploy needs image assets under bin/<platform>/<configuration>/AppX/Images; 0x80070002, 0x80073CF9, or DEP1000 can mean stale LocalGPT registration or missing manifest images
+- IncludeLocalGptPublishedPayload stays false for Visual Studio Debug/F5 and is enabled only by release/publish scripts; do not duplicate LocalGPT.deps.json, static web asset endpoint JSON, or published wwwroot payload entries
 - DevExpress 25.1 packages are expected
 - Ollama runs outside the app and is selected/configured through setup data
 - preferred Ollama debug model is gpt-oss:20b

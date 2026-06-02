@@ -33,6 +33,8 @@ Current expectations:
 - LocalGPT targets .NET 10 and the wrapper is framework-dependent on the installed .NET 10 Desktop Runtime
 - the repair script installs `Microsoft.DotNet.DesktopRuntime.10` with winget when `-InstallMissingRuntime` is used
 - the package project overlays the wrapper publish output into AppX
+- `IncludeLocalGptPublishedPayload` defaults to `false` so Visual Studio Debug/F5 does not double-include published Blazor assets
+- release and publish scripts may opt in with `IncludeLocalGptPublishedPayload=true`; keep that opt-in explicit to avoid APPX1111 duplicate payload entries
 - Windows App SDK debug framework references are avoided in the manifest
 - `LocalGPT.staticwebassets.runtime.json` is copied beside the packaged executable
 - loose AppX image assets are copied into `bin\<platform>\<configuration>\AppX\Images`; missing images or stale package registrations can appear as `0x80070002`, `0x80073CF9`, or `DEP1000`

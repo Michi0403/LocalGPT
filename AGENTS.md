@@ -81,6 +81,8 @@ Important package behavior:
 
 - `LocalGPTWebviewWrapper` publishes framework-dependent for .NET 10; use the repair script to install the .NET 10 Desktop Runtime instead of letting Windows open an Edge runtime prompt
 - the package project overlays that publish output into the AppX layout
+- keep `IncludeLocalGptPublishedPayload` defaulted to `false` for Visual Studio Debug/F5; release/publish scripts may opt in with `true` after the web project is published
+- do not make published Blazor payload inclusion unconditional, because duplicate `LocalGPT.deps.json`, static web asset endpoint JSON, or `wwwroot` entries can trigger APPX1111 package-map failures
 - `LocalGPT.staticwebassets.runtime.json` must exist beside the packaged executable
 - AppX image assets must exist in the loose `bin\<platform>\<configuration>\AppX\Images` layout; missing manifest images can surface as `0x80070002`, `0x80073CF9`, or `DEP1000`
 - when Windows keeps a stale LocalGPT development registration, use `build\Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`; it removes only the LocalGPT package identity and retries once

@@ -137,6 +137,11 @@ Build the WinUI/MSIX package with Visual Studio MSBuild:
   /v:minimal
 ```
 
+The package project keeps `IncludeLocalGptPublishedPayload` defaulted to `false` so Visual Studio Debug/F5 does not double-include the Blazor payload.
+Release and publish scripts intentionally opt in with `IncludeLocalGptPublishedPayload=true` after publishing the LocalGPT web project.
+Do not make that opt-in unconditional; duplicate entries for `LocalGPT.deps.json`, `LocalGPT.staticwebassets.endpoints.json`,
+or published `wwwroot` files can reintroduce APPX1111 package-map failures.
+
 ## Release Packages
 
 Create zip packages for multiple architectures:
