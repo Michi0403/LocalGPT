@@ -131,6 +131,7 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - Do not treat raw model output as verified facts. The council should mark uncertain claims as `Needs verification`.
 - Some models, especially reasoning models, may return thinking-only output when the token budget is too small. LocalGPT now separates thinking from visible text and should surface a clear placeholder if no final answer appears.
 - Keep the council database-first: use pinned `CouncilKnowledgeEntries`, selected saved conversations, and route outputs as concise grounding. Avoid huge prompt blobs unless a model explicitly needs one targeted excerpt.
+- Official DevExpress/Microsoft source knowledge is backed by `docs/COUNCIL_KNOWLEDGE_SEED.sql`. LocalGPT imports this file with `INSERT OR IGNORE`, so it restores missing source-backed rows into SQLite without overwriting user edits or approval flags.
 - Thinking-only/non-substantive council runs still remain in logs/chat memory, but they are archived or skipped for active council knowledge briefings. Duplicate benchmark knowledge entries are deduplicated by topic/scope/source before entering the bootstrap prompt.
 
 ## Next Useful Checks

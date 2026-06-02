@@ -17,14 +17,14 @@ namespace LocalGPT.Services
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
             await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            await SeedBuiltInKnowledgeAsync(db, cancellationToken);
+            await SeedKnowledgeAsync(db, cancellationToken);
         }
 
         public async Task<IReadOnlyList<CouncilKnowledgeEntry>> GetEntriesAsync(bool includeArchived = false, int take = 100, CancellationToken cancellationToken = default)
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
             await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            await SeedBuiltInKnowledgeAsync(db, cancellationToken);
+            await SeedKnowledgeAsync(db, cancellationToken);
 
             var query = db.CouncilKnowledgeEntries.AsNoTracking();
             if (!includeArchived)
@@ -42,7 +42,7 @@ namespace LocalGPT.Services
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
             await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            await SeedBuiltInKnowledgeAsync(db, cancellationToken);
+            await SeedKnowledgeAsync(db, cancellationToken);
 
             var now = DateTime.UtcNow;
             var existing = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == entry.Id, cancellationToken);
@@ -78,7 +78,7 @@ namespace LocalGPT.Services
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
             await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            await SeedBuiltInKnowledgeAsync(db, cancellationToken);
+            await SeedKnowledgeAsync(db, cancellationToken);
             var entry = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
             if (entry is null)
                 return;
@@ -155,6 +155,12 @@ namespace LocalGPT.Services
             entry.Source = TrimOrFallback(entry.Source, 240, "Manual");
             entry.Tags = Trim(entry.Tags, 400);
             entry.Confidence = Math.Clamp(entry.Confidence, 0, 100);
+        }
+
+        private static async Task SeedKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
+        {
+            await SeedBuiltInKnowledgeAsync(db, cancellationToken);
+            await SeedSqlKnowledgeAsync(db, cancellationToken);
         }
 
         private static async Task SeedBuiltInKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
@@ -279,6 +285,47 @@ namespace LocalGPT.Services
             {
                 // Another startup request may have inserted the same stable seed IDs first.
             }
+        }
+
+        private static async Task SeedSqlKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
+        {
+            var path = FindSqlSeedPath();
+            if (path is null)
+                return;
+
+            var sql = await File.ReadAllTextAsync(path, cancellationToken);
+            if (string.IsNullOrWhiteSpace(sql))
+                return;
+
+            await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+        }
+
+        private static string? FindSqlSeedPath()
+        {
+            const string seedFileName = "COUNCIL_KNOWLEDGE_SEED.sql";
+            var candidates = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "docs", seedFileName),
+                Path.Combine(Directory.GetCurrentDirectory(), "docs", seedFileName)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+
+            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            while (directory is not null)
+            {
+                var candidate = Path.Combine(directory.FullName, "docs", seedFileName);
+                if (File.Exists(candidate))
+                    return candidate;
+
+                directory = directory.Parent;
+            }
+
+            return null;
         }
 
         private static string BuildCouncilKnowledgeContent(MultiModelCouncilResult result)
