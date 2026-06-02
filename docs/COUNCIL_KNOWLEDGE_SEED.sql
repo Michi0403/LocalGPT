@@ -504,6 +504,25 @@ INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
 ("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
 VALUES
 (
+  '130006cf-f8e5-4664-aebd-11acb6b8a580',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Ollama replacement architecture is decomposable',
+  'Ollama .NET Lab',
+  'An Ollama replacement is not magic, but it must be decomposed honestly. Separate API/control plane, model storage/lifecycle, inference runtime, and hardware backend. LocalGPT can generate and test a .NET ASP.NET Core/DevExpress Blazor API-compatible control plane with routes, model catalog, download planning, settings, logs, API console, and provider interfaces. It must not claim native GGML/GGUF/GPU inference exists unless a real approved backend is attached. A practical first design is an API-compatible facade with IModelCatalogService, IModelDownloadService, IInferenceProvider, IModelRuntimeSession, IHardwareBudgetService, and IChatTemplateService. Native tensor kernels, tokenizer/runtime correctness, KV cache, sampling, embeddings, AMD/NVIDIA/Intel GPU backends, and VRAM scheduling are separate hard runtime work. Ask the user whether they want API compatibility, UI/control plane, provider facade, or native inference before generating.',
+  'LocalGPT SQL seed',
+  'Local doc: docs/OLLAMA_REPLACEMENT_ARCHITECTURE.md; related artifact route: /__diag/council/artifact-smoke?target=ollama.',
+  'seed; ollama; replacement; dotnet; aspnetcore; devexpress; inference-provider; gpu; api-compatibility',
+  93,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
   '4c8b205f-f7b7-44e8-8ad5-777a5d59d9c2',
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
