@@ -74,7 +74,8 @@
     <AppxPackageDir>$(Temp)\LocalGPTWebviewWrapper\AppPackages\</AppxPackageDir>
     <AppxPackageSigningEnabled Condition="'$(AppxPackageSigningEnabled)' == ''">False</AppxPackageSigningEnabled>
     <EntryPointProjectUniqueName>..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj</EntryPointProjectUniqueName>
-    <PackageCertificateThumbprint Condition="'$(PackageCertificateThumbprint)' == '' and '$(LocalGPTPackageCertificateThumbprint)' != ''">$(LocalGPTPackageCertificateThumbprint)</PackageCertificateThumbprint>
+	  <IncludeLocalGptPublishedPayload Condition="'$(IncludeLocalGptPublishedPayload)' == ''">false</IncludeLocalGptPublishedPayload>
+	  <PackageCertificateThumbprint Condition="'$(PackageCertificateThumbprint)' == '' and '$(LocalGPTPackageCertificateThumbprint)' != ''">$(LocalGPTPackageCertificateThumbprint)</PackageCertificateThumbprint>
     <PackageCertificateKeyFile Condition="'$(PackageCertificateKeyFile)' == '' and '$(LocalGPTPackageCertificateKeyFile)' != ''">$(LocalGPTPackageCertificateKeyFile)</PackageCertificateKeyFile>
   </PropertyGroup>
 	<Target Name="EnsureWindowsAppSdkPackageRuntimeFolders"
@@ -118,7 +119,8 @@
           Condition="'$(LayoutDir)' != ''" />
   </Target>
   <Target Name="PublishLocalGptWebAssetsForPackaging"
-          BeforeTargets="_ConvertItems">
+          BeforeTargets="_ConvertItems"
+		  Condition="'$(IncludeLocalGptPublishedPayload)' == 'true'">
     <PropertyGroup>
       <LocalGptWebPublishDir>..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\</LocalGptWebPublishDir>
     </PropertyGroup>
@@ -142,7 +144,8 @@
     </ItemGroup>
   </Target>
   <Target Name="AddPublishedLocalGptWebAssetsToPackagePayload"
-          BeforeTargets="_WritePayloadFiles">
+          BeforeTargets="_WritePayloadFiles"
+		   Condition="'$(IncludeLocalGptPublishedPayload)' == 'true'">
     <PropertyGroup>
       <LocalGptWebPublishDir>..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\</LocalGptWebPublishDir>
     </PropertyGroup>
@@ -158,9 +161,9 @@
       </AppxPackagePayload>
     </ItemGroup>
   </Target>
-  <Target Name="OverlayLocalGptWebPublishOutput"
-          BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage"
-          Condition="Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\LocalGPT.dll')">
+	<Target Name="OverlayLocalGptWebPublishOutput"
+			BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage"
+			Condition="'$(IncludeLocalGptPublishedPayload)' == 'true' and Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\LocalGPT.dll')">
     <ItemGroup>
       <_PublishedLocalGptFile Include="..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\**\*.*" />
     </ItemGroup>
