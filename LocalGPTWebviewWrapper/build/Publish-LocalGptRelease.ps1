@@ -86,6 +86,21 @@ function Restore-PackageManifestVersion {
     }
 }
 
+function Invoke-CheckedNative {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    & $FilePath @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $($Arguments -join ' ')"
+    }
+}
+
 trap {
     Restore-PackageManifestVersion
     throw $_
@@ -188,14 +203,21 @@ if (-not $SkipBackend) {
         }
         New-Item -ItemType Directory -Force -Path $backendRoot | Out-Null
 
-        & dotnet publish $backendProject `
-            -c $Configuration `
-            -r $rid `
-            --self-contained false `
-            -o $backendRoot `
-            /p:Platform=AnyCPU `
-            /p:UseSharedCompilation=false `
-            /p:PublishSingleFile=false
+        Invoke-CheckedNative "dotnet" @(
+            "publish",
+            $backendProject,
+            "-c",
+            $Configuration,
+            "-r",
+            $rid,
+            "--self-contained",
+            "false",
+            "-o",
+            $backendRoot,
+            "/p:Platform=AnyCPU",
+            "/p:UseSharedCompilation=false",
+            "/p:PublishSingleFile=false"
+        )
 
         $runCommand = if ($rid.StartsWith("win-", [StringComparison]::OrdinalIgnoreCase)) {
             ".\LocalGPT.exe"
@@ -313,5 +335,5 @@ if ($CreateGitHubRelease) {
     $ghArgs += $manifestPath
     $ghArgs += $releaseNotesPath
 
-    & $ghCommand @ghArgs
+    Invoke-CheckedNative $ghCommand $ghArgs
 }
