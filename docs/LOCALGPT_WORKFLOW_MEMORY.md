@@ -136,6 +136,7 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - Native command execution is intentionally narrow: commands must run under the LocalGPT Minecraft workspace root, executables are allowlisted, PowerShell must use `-File` against a workspace `.ps1`, and attempts/results are logged in the `NativeCommandLogs` SQLite table.
 - Formatting hardening is not about editor soft-wrap. Audit raw newline characters and physical line length. Current threshold check: no tracked `.cs`, `.razor`, or `.md` source/docs outside build outputs should contain physical lines over 600 characters.
 - Whole-solution artifact generation is a first-class council test path. Use `/__diag/council/artifact-smoke?target=solution` to create a downloadable .NET 10 Blazor/DevExpress solution zip with `.sln`, `.csproj`, `.razor`, CSS, service/model code, README, and manifest, without loading Ollama.
+- The Ollama .NET lab artifact is a controlled feasibility path. Use `/__diag/council/artifact-smoke?target=ollama` to create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor zip with selected Ollama-style API stubs and model catalog UI. It must say native GGML/GPU inference is not implemented unless a real backend is attached and approved by the user.
 - Thinking-only/non-substantive council runs still remain in logs/chat memory, but they are archived or skipped for active council knowledge briefings. Duplicate benchmark knowledge entries are deduplicated by topic/scope/source before entering the bootstrap prompt.
 
 ## Next Useful Checks

@@ -345,6 +345,41 @@ namespace LocalGPT.Services
                     Confidence = 90,
                     IsUserApproved = true,
                     IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("3c0f8c1e-7a27-466d-9f8e-11ff4a3a7a22"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Ollama .NET Blazor experiment feasibility",
+                    Scope = "LocalGPT generation",
+                    Source = seedSource,
+                    Content = "The user-provided ollama-main.zip is mostly Go plus native runtime/build layers: about 1,214 source entries, about 722 .go files, and major areas such as app, docs, template, model, server, cmd, convert, discover, llm, api, llama, runner, native C/C++ headers, and CMake. " +
+                        "A pure .NET/Blazor replacement should be treated as a fun feasibility lab, not a real drop-in Ollama replacement. Feasible target: generate a .NET 10 ASP.NET Core control plane and DevExpress Blazor UI that mimics selected Ollama REST routes, model catalog/status, runner health, logs, and compatibility notes. " +
+                        "Infeasible without deeper work: replacing Ollama's native inference/runtime, GGML/GPU backends, CMake payload, CUDA/ROCm/Vulkan/Metal paths, tokenizer/model conversion, and full manifest/model storage semantics. " +
+                        "Generated work must be a sandbox solution zip and must not claim real inference unless an actual .NET/native inference backend is supplied and tested.",
+                    HelpfulSources = "- User-provided source archive: C:/Users/micha/Downloads/ollama-main.zip\n- Local note: docs/OLLAMA_DOTNET_EXPERIMENT.md\n- Useful generated route: GET /__diag/council/artifact-smoke?target=ollama",
+                    Tags = "seed; ollama; dotnet; blazor; devexpress; feasibility; whole-solution; artifacts",
+                    Confidence = 88,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("77d1c42f-1c72-47bb-a08e-522ce742126d"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Ollama .NET lab generated stack constraint",
+                    Scope = "LocalGPT generation",
+                    Source = seedSource,
+                    Content = "For the Ollama-inspired .NET/Blazor/DevExpress lab, the generated downloadable project must stay in .NET, C#, ASP.NET Core, Razor, EF/SQLite, and DevExpress Blazor. " +
+                        "Do not propose generated Go or Python projects for this lab. If inference is discussed, describe it as a generic external/native backend contract, an existing service adapter, or a future approved .NET/native integration. " +
+                        "The generated solution should include selected Ollama-style route stubs and UI, but must clearly say native model inference is not implemented by the all-.NET lab.",
+                    HelpfulSources = "- Local note: docs/OLLAMA_DOTNET_EXPERIMENT.md\n- Local artifact route: GET /__diag/council/artifact-smoke?target=ollama",
+                    Tags = "seed; ollama; dotnet-only; blazor; devexpress; constraints; artifacts",
+                    Confidence = 92,
+                    IsUserApproved = true,
+                    IsPinned = true
                 }
             };
 

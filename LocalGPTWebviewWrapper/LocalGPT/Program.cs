@@ -573,9 +573,12 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             {
                 var isBlazor = string.IsNullOrWhiteSpace(target) || target.Equals("blazor", StringComparison.OrdinalIgnoreCase);
                 var isSolution = target?.Equals("solution", StringComparison.OrdinalIgnoreCase) == true;
+                var isOllamaLab = target?.Equals("ollama", StringComparison.OrdinalIgnoreCase) == true;
                 var request = new MultiModelCouncilRequest
                 {
-                    Prompt = isSolution
+                    Prompt = isOllamaLab
+                        ? "implementation-request smoke: generate a whole Ollama-inspired .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Provide selected Ollama-style API routes such as /api/version, /api/tags, and a safe non-inference /api/generate stub. Do not use Go and do not claim native GGML/GPU inference is implemented."
+                        : isSolution
                         ? "implementation-request smoke: generate a whole LocalGPT/TacosPortalOpen-style .NET 10 Blazor DevExpress solution zip with .sln, .csproj, real .razor pages, css, service/model code, README, and manifest. The zip must be downloadable through /__artifacts/council/."
                         : isBlazor
                         ? "implementation-request smoke: generate a real .NET 10 Blazor server-interactive DevExpress Razor page for a LocalGPT backend health summary card. Include a service method idea, DxGrid, DxFormLayout, DxButton, DxCheckBox, and safe download guidance."
@@ -590,7 +593,9 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 {
                     Prompt = request.Prompt,
                     ModelNames = ["artifact-smoke"],
-                    FinalAnswer = isSolution
+                    FinalAnswer = isOllamaLab
+                        ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor Ollama compatibility lab. Include typed model catalog records, endpoint/health UI, selected REST route stubs, README, manifest, and a prominent note that native inference is not implemented without a real backend."
+                        : isSolution
                         ? "Create a whole downloadable .NET 10 Blazor/DevExpress solution artifact with project files, routable Razor pages, CSS, service/model code, README, manifest, and safe sandbox guidance. Do not self-integrate generated files into LocalGPT without user approval."
                         : isBlazor
                         ? "Create a real Razor page artifact using @page, @rendermode InteractiveServer, DevExpress controls, and an @code block. Also include compileable support code. Keep it sandboxed until the user approves integration."
@@ -601,7 +606,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 var generated = await artifacts.CreateImplementationArtifactsAsync(request, result, ct);
                 return Results.Ok(new
                 {
-                    Target = isSolution ? "solution" : isBlazor ? "blazor" : target,
+                    Target = isOllamaLab ? "ollama" : isSolution ? "solution" : isBlazor ? "blazor" : target,
                     artifacts.ArtifactRoot,
                     Count = generated.Count,
                     Artifacts = generated,

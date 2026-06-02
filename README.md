@@ -88,6 +88,7 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `GET /__diag/knowledge`: editable council knowledge notes saved from council runs and manual user edits.
 - `GET /__diag/sqlite/tables`: live SQLite table inventory for chat memory, thoughts, logs, and council knowledge.
 - `GET /__diag/council/artifact-smoke?target=solution`: deterministic whole-solution artifact smoke test that emits a downloadable .NET 10 Blazor/DevExpress zip.
+- `GET /__diag/council/artifact-smoke?target=ollama`: deterministic Ollama-inspired .NET/DevExpress control-plane lab zip. It includes selected Ollama-style API stubs and explicitly does not implement native GGML/GPU inference.
 
 The AI Council stores transcripts in SQLite chat memory and also writes a reusable entry into the editable council knowledge database.
 In the Council page, choose an older council memory to continue the thread, or start a new thread.
