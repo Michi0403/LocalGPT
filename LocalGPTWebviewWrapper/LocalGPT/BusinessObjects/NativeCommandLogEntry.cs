@@ -1,20 +1,20 @@
 namespace LocalGPT.BusinessObjects
 {
-    public class CommandExecutionResult
+    public class NativeCommandLogEntry
     {
-        public string FileName { get; set; } = string.Empty;
+        public long Id { get; set; }
+        public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
+        public DateTime CompletedAtUtc { get; set; } = DateTime.UtcNow;
+        public string FeatureName { get; set; } = "Minecraft Builder";
+        public string RequestedBy { get; set; } = "LocalGPT user";
+        public string Executable { get; set; } = string.Empty;
         public string Arguments { get; set; } = string.Empty;
         public string WorkingDirectory { get; set; } = string.Empty;
-        public DateTime StartedAtUtc { get; set; }
-        public DateTime CompletedAtUtc { get; set; }
         public int ExitCode { get; set; }
-        public string StandardOutput { get; set; } = string.Empty;
-        public string StandardError { get; set; } = string.Empty;
-        public TimeSpan Duration { get; set; }
+        public double DurationMilliseconds { get; set; }
         public string StdoutPath { get; set; } = string.Empty;
         public string StderrPath { get; set; } = string.Empty;
         public string PolicyDecision { get; set; } = "Allowed";
         public string PolicyReason { get; set; } = string.Empty;
-        public bool Succeeded => ExitCode == 0;
     }
 }

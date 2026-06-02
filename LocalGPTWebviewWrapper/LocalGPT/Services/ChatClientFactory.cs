@@ -80,13 +80,13 @@ namespace LocalGPT.Services
 
                     // Allow custom endpoint (use default if empty)
                     var configString = openai.Endpoint?.TrimEnd('/');
-                    var endpoint = string.IsNullOrWhiteSpace( configString)? "https://api.openai.com/v1" : configString;
+                    var endpoint = string.IsNullOrWhiteSpace(configString) ? "https://api.openai.com/v1" : configString;
 
                     var oai = new OpenAIClient(
                         new ApiKeyCredential(openai.ApiKey),
                         new OpenAIClientOptions
                         {
-                            Endpoint = new Uri(endpoint,uriKind: UriKind.Absolute),
+                            Endpoint = new Uri(endpoint, uriKind: UriKind.Absolute),
                             ClientLoggingOptions = new ClientLoggingOptions
                             {
                                 EnableLogging = true,

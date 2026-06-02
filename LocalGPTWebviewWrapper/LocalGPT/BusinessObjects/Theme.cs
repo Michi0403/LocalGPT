@@ -5,10 +5,10 @@ namespace LocalGPT.BusinessObjects
     public class Theme
     {
         const string BsNativeDarkModePostfix = "-dark";
-        public string Name  { get; set; }
+        public string Name { get; set; }
         public string Title { get { return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Name.Replace("-", " ")); } }
         public string IconCssClass { get { return Name.ToLower(); } }
-        public bool IsBootstrapNative  { get; set; }
+        public bool IsBootstrapNative { get; set; }
         public string BootstrapThemeMode => IsBootstrapNative && Name.Contains(BsNativeDarkModePostfix) ? "dark" : "light";
         public string GetCssClass(bool isActive) => isActive ? "active" : "text-body";
         public string ThemePath => IsBootstrapNative ? Name.Replace(BsNativeDarkModePostfix, string.Empty) : Name;
@@ -24,8 +24,8 @@ namespace LocalGPT.BusinessObjects
         static readonly HashSet<string> BuiltInThemes = new() {
             "blazing-berry", "blazing-dark", "purple", "office-white", "fluent-light", "fluent-dark"
         };
-        public string Title  { get; set; }
-        public Theme[] Themes  { get; set; }
+        public string Title { get; set; }
+        public Theme[] Themes { get; set; }
         public ThemeSet(string title, params string[] themes)
         {
             Title = title;

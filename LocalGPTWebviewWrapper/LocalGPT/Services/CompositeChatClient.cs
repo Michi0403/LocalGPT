@@ -66,7 +66,8 @@ public class CompositeChatClient : IChatClient
     }
 
     public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
-        CancellationToken cancellationToken = new CancellationToken()) {
+        CancellationToken cancellationToken = new CancellationToken())
+    {
         try
         {
 
@@ -82,14 +83,16 @@ public class CompositeChatClient : IChatClient
         }
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         for (int i = 0; i < AvailableChatClients.Count; i++)
         {
             AvailableChatClients[i].Client.Dispose();
             AvailableChatClients[i].Messages.Clear();
         }
     }
-    public object? GetService(Type serviceType, object? serviceKey = null) {
+    public object? GetService(Type serviceType, object? serviceKey = null)
+    {
         try
         {
 

@@ -50,6 +50,7 @@
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Scope)" Caption="Scope" />
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Tags)" Caption="Tags" />
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Confidence)" Caption="Confidence" />
+                        <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.VerificationStatus)" Caption="Status" />
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.UpdatedAtUtc)" Caption="Updated UTC" />
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.IsUserApproved)" Caption="User Approved" />
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.IsPinned)" Caption="Pinned" />
@@ -86,6 +87,10 @@
                 <label title="Semicolon-separated tags help the council and humans filter notes.">
                     Tags
                     <DxTextBox @bind-Text="KnowledgeEdit.Tags" />
+                </label>
+                <label title="Trust bucket used by the council. Suggested values: SourceBacked, UserVerified, ModelSuggested, NeedsVerification, Archived.">
+                    Verification Status
+                    <DxTextBox @bind-Text="KnowledgeEdit.VerificationStatus" />
                 </label>
                 <div class="form-row">
                     <label title="How reliable the note currently is.">
@@ -479,6 +484,7 @@
             HelpfulSources = "None yet.",
             Tags = "manual; council",
             Confidence = 60,
+            VerificationStatus = "UserVerified",
             IsUserApproved = true
         };
     }
@@ -497,6 +503,7 @@
             HelpfulSources = entry.HelpfulSources,
             Tags = entry.Tags,
             Confidence = entry.Confidence,
+            VerificationStatus = entry.VerificationStatus,
             IsUserApproved = entry.IsUserApproved,
             IsPinned = entry.IsPinned,
             IsArchived = entry.IsArchived

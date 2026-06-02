@@ -112,14 +112,14 @@ namespace WebView2_WinUI3_Sample
             }
 
             // Let system theme decide (don’t force dark)
-        
+
             Closed += (_, __) => WebView2?.Close();
 
             //AddressBar.Text = _baseUrl;          // prefill with local server
             WebView2.NavigationCompleted += WebView2_NavigationCompleted;
             WebView2.CoreWebView2Initialized += WebView2_CoreWebView2Initialized;
             WebView2.RequestedTheme = ElementTheme.Default;
-            
+
             var initialUrl = _baseUrl;
             if (_runDiagnostics && _diagnosticRoutes.Count > 0)
                 initialUrl = $"{_baseUrl}{_diagnosticRoutes.Dequeue()}";

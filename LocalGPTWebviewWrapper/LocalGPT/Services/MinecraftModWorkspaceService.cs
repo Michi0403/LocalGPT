@@ -1132,13 +1132,25 @@ namespace LocalGPT.Services
             execute if score #registered_this_scan lc_population matches 1.. run data modify storage {{{context.ModId}}}:chronicle events append value {type:"citizens_registered",text:"New citizens were registered.",year:1}
             """;
 
-        private static string CreateDatapackAdminBookFunction(WorkspaceContext context) =>
-            """
-            tag @s add lc_received_book
-            scoreboard players enable @s lc_menu
-            give @s written_book[written_book_content={title:"Living Cities",author:"LocalGPT",pages:[[{text:"=== Living Cities ===\n\n",bold:true,color:"gold"},{text:"[Found city]\n",color:"green",click_event:{action:"run_command",command:"/trigger lc_menu set 1"}},{text:"\n[Status]\n",color:"aqua",click_event:{action:"run_command",command:"/trigger lc_menu set 2"}},{text:"\n[Register banner]\n",color:"yellow",click_event:{action:"run_command",command:"/trigger lc_menu set 3"}},{text:"\n[Register house]\n",color:"light_purple",click_event:{action:"run_command",command:"/trigger lc_menu set 4"}},{text:"\n[Chronicle]\n",color:"gold",click_event:{action:"run_command",command:"/trigger lc_menu set 5"}},{text:"\n[Reset test city]",color:"red",click_event:{action:"run_command",command:"/trigger lc_menu set 6"}}]]}] 1
-            tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Admin book created. You can also run /function {{MOD_ID}}:ui/townhall."}]
-            """.Replace("{{MOD_ID}}", context.ModId, StringComparison.Ordinal);
+        private static string CreateDatapackAdminBookFunction(WorkspaceContext context)
+        {
+            var bookContent = "{title:\"Living Cities\",author:\"LocalGPT\",pages:[["
+                + "{text:\"=== Living Cities ===\\n\\n\",bold:true,color:\"gold\"},"
+                + "{text:\"[Found city]\\n\",color:\"green\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 1\"}},"
+                + "{text:\"\\n[Status]\\n\",color:\"aqua\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 2\"}},"
+                + "{text:\"\\n[Register banner]\\n\",color:\"yellow\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 3\"}},"
+                + "{text:\"\\n[Register house]\\n\",color:\"light_purple\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 4\"}},"
+                + "{text:\"\\n[Chronicle]\\n\",color:\"gold\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 5\"}},"
+                + "{text:\"\\n[Reset test city]\",color:\"red\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 6\"}}"
+                + "]]}";
+
+            return $$"""
+                tag @s add lc_received_book
+                scoreboard players enable @s lc_menu
+                give @s written_book[written_book_content={{bookContent}}] 1
+                tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Admin book created. You can also run /function {{context.ModId}}:ui/townhall."}]
+                """;
+        }
 
         private static string CreateDatapackTownHallFunction(WorkspaceContext context) =>
             $$$"""
@@ -1502,16 +1514,16 @@ namespace LocalGPT.Services
             public MinecraftModWorkspace ToResult(
                 string buildCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
                 string eclipseImportHint = "File > Import > Gradle > Existing Gradle Project") => new()
-            {
-                ProjectName = Context.ProjectName,
-                RootPath = Context.ProjectRoot,
-                MainClassPath = Context.MainClassPath,
-                MetadataPath = Context.MetadataPath,
-                BuildFilePath = Context.BuildFilePath,
-                ReadmePath = Context.ReadmePath,
-                BuildCommand = buildCommand,
-                EclipseImportHint = eclipseImportHint
-            };
+                {
+                    ProjectName = Context.ProjectName,
+                    RootPath = Context.ProjectRoot,
+                    MainClassPath = Context.MainClassPath,
+                    MetadataPath = Context.MetadataPath,
+                    BuildFilePath = Context.BuildFilePath,
+                    ReadmePath = Context.ReadmePath,
+                    BuildCommand = buildCommand,
+                    EclipseImportHint = eclipseImportHint
+                };
         }
     }
 }

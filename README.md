@@ -88,9 +88,14 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `GET /__diag/knowledge`: editable council knowledge notes saved from council runs and manual user edits.
 - `GET /__diag/sqlite/tables`: live SQLite table inventory for chat memory, thoughts, logs, and council knowledge.
 
-The AI Council stores transcripts in SQLite chat memory and also writes a reusable entry into the editable council knowledge database. In the Council page, choose an older council memory to continue the thread, or start a new thread. Each run and step records the full council member list; faulty or unavailable members can be excluded from the next round by the user, while models must propose that through a poll instead of removing peers on their own. Use **Feature Request Chat** for implementation ideas; it enables a CodeDOM-generated C# example file and exposes it through a download link in the council result.
+The AI Council stores transcripts in SQLite chat memory and also writes a reusable entry into the editable council knowledge database.
+In the Council page, choose an older council memory to continue the thread, or start a new thread.
+Each run and step records the full council member list; faulty or unavailable members can be excluded from the next round by the user,
+while models must propose that through a poll instead of removing peers on their own.
+Use **Feature Request Chat** for implementation ideas; it enables a CodeDOM-generated C# example file and exposes it through a download link in the council result.
 
 Open **SQLite Database** in the navigation to edit council knowledge with DevExpress controls and inspect live SQLite tables. The generic editor protects primary-key columns in the form, but it still edits the live local database, so use it as an administrative tool.
+Native Minecraft builder commands are restricted to the LocalGPT Minecraft workspace, checked against an executable policy, and written to the `NativeCommandLogs` table with stdout/stderr artifact paths.
 
 For DevExpress-related feature requests, use `GET /__diag/devexpress` to inspect referenced package versions, imported namespaces, registered services, and loaded assemblies. DevExpress Office/report/PDF generation should be implemented in backend services with safe download links, while the Blazor frontend handles controls, status, and navigation.
 

@@ -8,7 +8,7 @@ namespace LocalGPT.Helper
         /// </summary>
         /// <param name="relativePath">A path like "chathub" or "api/messages"</param>
         /// <returns>A combined Uri</returns>
-        public static Uri BuildAbsoluteUriFromConfig( string relativePath)
+        public static Uri BuildAbsoluteUriFromConfig(string relativePath)
         {
             var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
             var baseUrl = $"http://localhost:{port}";

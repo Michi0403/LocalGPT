@@ -81,7 +81,7 @@ namespace LocalGPT
                    configuration));
 
             // Program.cs (only the AI registration part shown)
-         
+
             builder.Services
                 .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
                 .Bind(configuration);
@@ -154,12 +154,12 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
         "application/octet-stream"
    });
                });
-                   //builder.Host.UseContentRoot(options.ContentRootPath);
-                   //builder.WebHost.UseWebRoot(Path.Combine(options.WebRootPath, "wwwroot"));         // ensure /wwwroot is found
+            //builder.Host.UseContentRoot(options.ContentRootPath);
+            //builder.WebHost.UseWebRoot(Path.Combine(options.WebRootPath, "wwwroot"));         // ensure /wwwroot is found
 
-                   // 2) Load static web assets for THIS assembly (enables /_content/* and isolated CSS)
-                   // Load static web assets (/_content/** and CSS isolation)
-                   builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+            // 2) Load static web assets for THIS assembly (enables /_content/* and isolated CSS)
+            // Load static web assets (/_content/** and CSS isolation)
+            builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddHealthChecks();
             builder.Services.AddDevExpressBlazor(o => o.SizeMode = DevExpress.Blazor.SizeMode.Small);
             builder.Services.AddMvc();
@@ -209,7 +209,8 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             app.MapControllers();
             _ = app.MapHub<ChatHub>("/chathub");
             app.MapHealthChecks("/health");
-            app.MapGet("/__diag", (IWebHostEnvironment env) => new {
+            app.MapGet("/__diag", (IWebHostEnvironment env) => new
+            {
                 env.EnvironmentName,
                 env.ContentRootPath,
                 env.WebRootPath,
@@ -939,7 +940,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                     RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)
                 .Trim();
         }
-    } 
+    }
 }
 
-      
+

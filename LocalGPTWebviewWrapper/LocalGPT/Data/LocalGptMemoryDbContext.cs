@@ -9,6 +9,7 @@ namespace LocalGPT.Data
         public DbSet<ChatMemoryMessage> Messages => Set<ChatMemoryMessage>();
         public DbSet<ApplicationLogEntry> ApplicationLogs => Set<ApplicationLogEntry>();
         public DbSet<CouncilKnowledgeEntry> CouncilKnowledgeEntries => Set<CouncilKnowledgeEntry>();
+        public DbSet<NativeCommandLogEntry> NativeCommandLogs => Set<NativeCommandLogEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -59,10 +60,30 @@ namespace LocalGPT.Data
                 entity.Property(entry => entry.Source).HasMaxLength(240).IsRequired();
                 entity.Property(entry => entry.HelpfulSources).IsRequired();
                 entity.Property(entry => entry.Tags).HasMaxLength(400).IsRequired();
+                entity.Property(entry => entry.VerificationStatus).HasMaxLength(80).IsRequired();
                 entity.HasIndex(entry => entry.UpdatedAtUtc);
                 entity.HasIndex(entry => new { entry.IsUserApproved, entry.UpdatedAtUtc });
                 entity.HasIndex(entry => new { entry.IsPinned, entry.UpdatedAtUtc });
+                entity.HasIndex(entry => entry.VerificationStatus);
                 entity.HasIndex(entry => entry.Scope);
+            });
+
+            modelBuilder.Entity<NativeCommandLogEntry>(entity =>
+            {
+                entity.ToTable("NativeCommandLogs");
+                entity.HasKey(entry => entry.Id);
+                entity.Property(entry => entry.FeatureName).HasMaxLength(120).IsRequired();
+                entity.Property(entry => entry.RequestedBy).HasMaxLength(120).IsRequired();
+                entity.Property(entry => entry.Executable).HasMaxLength(260).IsRequired();
+                entity.Property(entry => entry.Arguments).IsRequired();
+                entity.Property(entry => entry.WorkingDirectory).HasMaxLength(1024).IsRequired();
+                entity.Property(entry => entry.StdoutPath).HasMaxLength(1024).IsRequired();
+                entity.Property(entry => entry.StderrPath).HasMaxLength(1024).IsRequired();
+                entity.Property(entry => entry.PolicyDecision).HasMaxLength(80).IsRequired();
+                entity.Property(entry => entry.PolicyReason).HasMaxLength(500).IsRequired();
+                entity.HasIndex(entry => entry.StartedAtUtc);
+                entity.HasIndex(entry => entry.Executable);
+                entity.HasIndex(entry => entry.PolicyDecision);
             });
         }
     }

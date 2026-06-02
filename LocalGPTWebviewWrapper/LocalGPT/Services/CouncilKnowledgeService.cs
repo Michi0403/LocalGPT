@@ -62,6 +62,7 @@ namespace LocalGPT.Services
                 existing.HelpfulSources = entry.HelpfulSources;
                 existing.Tags = entry.Tags;
                 existing.Confidence = entry.Confidence;
+                existing.VerificationStatus = entry.VerificationStatus;
                 existing.IsUserApproved = entry.IsUserApproved;
                 existing.IsPinned = entry.IsPinned;
                 existing.IsArchived = entry.IsArchived;
@@ -99,6 +100,7 @@ namespace LocalGPT.Services
                 HelpfulSources = ExtractHelpfulSources(result.FinalAnswer),
                 Tags = BuildTags(result, nonSubstantive),
                 Confidence = nonSubstantive ? 20 : result.Warnings.Count == 0 ? 75 : 55,
+                VerificationStatus = nonSubstantive ? "Archived" : "ModelSuggested",
                 IsUserApproved = false,
                 IsPinned = result.UserPoll is not null && !nonSubstantive,
                 IsArchived = nonSubstantive
@@ -126,9 +128,7 @@ namespace LocalGPT.Services
 
             foreach (var entry in briefingEntries)
             {
-                var trust = entry.IsUserApproved
-                    ? "verified by user"
-                    : "unverified model-written note; treat as hypothesis until user approves";
+                var trust = BuildTrustLabel(entry);
                 builder
                     .Append("- ")
                     .Append(entry.Topic)
@@ -155,6 +155,47 @@ namespace LocalGPT.Services
             entry.Source = TrimOrFallback(entry.Source, 240, "Manual");
             entry.Tags = Trim(entry.Tags, 400);
             entry.Confidence = Math.Clamp(entry.Confidence, 0, 100);
+            entry.VerificationStatus = NormalizeVerificationStatus(entry);
+        }
+
+        private static string BuildTrustLabel(CouncilKnowledgeEntry entry)
+        {
+            return entry.VerificationStatus switch
+            {
+                "SourceBacked" => "source-backed seed",
+                "UserVerified" => "verified by user",
+                "ModelSuggested" => "model-suggested; treat as hypothesis until user approves",
+                "Archived" => "archived; do not use as active evidence",
+                _ => entry.IsUserApproved
+                    ? "verified by user"
+                    : "needs verification"
+            };
+        }
+
+        private static string NormalizeVerificationStatus(CouncilKnowledgeEntry entry)
+        {
+            if (entry.IsArchived)
+                return "Archived";
+
+            var requested = Trim(entry.VerificationStatus, 80).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
+            if (IsKnownVerificationStatus(requested))
+                return requested;
+
+            if (entry.Source.Contains("seed", StringComparison.OrdinalIgnoreCase))
+                return "SourceBacked";
+
+            if (entry.IsUserApproved)
+                return "UserVerified";
+
+            if (entry.Source.StartsWith("AI Council ", StringComparison.OrdinalIgnoreCase))
+                return "ModelSuggested";
+
+            return "NeedsVerification";
+        }
+
+        private static bool IsKnownVerificationStatus(string value)
+        {
+            return value is "SourceBacked" or "UserVerified" or "ModelSuggested" or "NeedsVerification" or "Archived";
         }
 
         private static async Task SeedKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
@@ -182,7 +223,11 @@ namespace LocalGPT.Services
                     Topic = "LocalGPT Blazor/DevExpress page generation rules",
                     Scope = "Blazor frontend",
                     Source = seedSource,
-                    Content = "When generating LocalGPT UI, produce real .razor artifacts instead of C# classes that only build strings. Use @page, @rendermode InteractiveServer, @code blocks, dependency injection, and existing project styling such as main-container/top-container. Prefer known DevExpress Blazor components already used in this project: DxButton, DxCheckBox, DxComboBox, DxTextBox, DxMemo, DxSpinEdit, DxGrid, DxGridDataColumn, DxFormLayout, DxFormLayoutGroup, DxFormLayoutItem, DxLoadingPanel, DxMenu, DxGridLayout, and DXAiChat. Keep native commands and generated files in backend services with safe download routes.",
+                    Content = "When generating LocalGPT UI, produce real .razor artifacts instead of C# classes that only build strings. " +
+                        "Use @page, @rendermode InteractiveServer, @code blocks, dependency injection, and existing project styling such as main-container/top-container. " +
+                        "Prefer known DevExpress Blazor components already used in this project: DxButton, DxCheckBox, DxComboBox, DxTextBox, DxMemo, DxSpinEdit, " +
+                        "DxGrid, DxGridDataColumn, DxFormLayout, DxFormLayoutGroup, DxFormLayoutItem, DxLoadingPanel, DxMenu, DxGridLayout, and DXAiChat. " +
+                        "Keep native commands and generated files in backend services with safe download routes.",
                     HelpfulSources = "- GET /__diag/devexpress for local DevExpress package/import/service inventory.\n- Local project pages: Components/Pages/Chat.razor, Database.razor, Install.razor, ModelCouncil.razor.\n- TacosPortalOpen sample zip inspected locally for server-interactive Razor + DevExpress patterns.",
                     Tags = "seed; blazor; devexpress; razor; dxaichat; artifacts",
                     Confidence = 90,
@@ -197,7 +242,10 @@ namespace LocalGPT.Services
                     Topic = "TacosPortalOpen server-interactive architecture sample",
                     Scope = "Blazor frontend",
                     Source = seedSource,
-                    Content = "TacosPortalOpen is a useful local architecture sample for Michi0403-style Blazor work. Relevant server-side patterns include Routes.razor with AuthorizeRouteView, pages using @rendermode InteractiveServer or new InteractiveServerRenderMode(prerender: true/false), AuthorizeView for protected UI, ToastWrapper/INotificationService for user feedback, and DevExpress DxGrid edit forms with EditFormTemplate + DxFormLayout. Treat the sample as architecture guidance, not code to copy blindly into LocalGPT.",
+                    Content = "TacosPortalOpen is a useful local architecture sample for Michi0403-style Blazor work. Relevant server-side patterns include Routes.razor " +
+                        "with AuthorizeRouteView, pages using @rendermode InteractiveServer or new InteractiveServerRenderMode(prerender: true/false), AuthorizeView " +
+                        "for protected UI, ToastWrapper/INotificationService for user feedback, and DevExpress DxGrid edit forms with EditFormTemplate + DxFormLayout. " +
+                        "Treat the sample as architecture guidance, not code to copy blindly into LocalGPT.",
                     HelpfulSources = "- User-provided C:/Users/micha/Downloads/TacosPortalOpen-main.zip.\n- Inspected files: TacosPortal/Components/App.razor, Routes.razor, Pages/Index.razor, Pages/Admin/RoleAdministration.razor, Pages/GenericEditGrid.razor, Startup.cs.",
                     Tags = "seed; tacosportalopen; blazor; interactive-server; devexpress",
                     Confidence = 85,
@@ -212,7 +260,10 @@ namespace LocalGPT.Services
                     Topic = "Official docs and missing-source behavior",
                     Scope = "AI Council",
                     Source = seedSource,
-                    Content = "If the council needs GitHub repository details, DevExpress APIs, .NET/Blazor version behavior, or official syntax rules and the local diagnostics do not provide enough evidence, it must say exactly which source is needed under Helpful sources requested or Missing feature report. Do not blame the user or hallucinate APIs. Prefer compact diagnostics first: /__diag/devexpress, /__diag/dxaichat-functions, /__diag/build-debug-files, /__diag/logs, and SQLite knowledge entries. Mark claims as Needs verification until the source or local package inventory confirms them.",
+                    Content = "If the council needs GitHub repository details, DevExpress APIs, .NET/Blazor version behavior, or official syntax rules and the local diagnostics " +
+                        "do not provide enough evidence, it must say exactly which source is needed under Helpful sources requested or Missing feature report. " +
+                        "Do not blame the user or hallucinate APIs. Prefer compact diagnostics first: /__diag/devexpress, /__diag/dxaichat-functions, " +
+                        "/__diag/build-debug-files, /__diag/logs, and SQLite knowledge entries. Mark claims as Needs verification until the source or local package inventory confirms them.",
                     HelpfulSources = "- Official Microsoft Learn .NET/ASP.NET Core/Blazor docs when internet access is allowed.\n- DevExpress official Blazor docs matching the installed package version.\n- GitHub repository source files or local extracted zips supplied by Michi0403.",
                     Tags = "seed; sources; github; dotnet; devexpress; needs-verification",
                     Confidence = 95,
@@ -227,7 +278,12 @@ namespace LocalGPT.Services
                     Topic = "Minecraft Java mod and plugin source map",
                     Scope = "Minecraft Builder",
                     Source = seedSource,
-                    Content = "Use this source map before generating Java Minecraft workspaces. Classic Forge uses the Forge MDK: download the MDK, extract it into an empty directory, import/open the Gradle project in Eclipse or IntelliJ, build with gradlew build, and test with generated run configs or gradlew runClient/runServer. Fabric builds with ./gradlew build or ./gradlew.bat build; use the shortest jar in build/libs for distribution and make sure the terminal/IDE Java version matches the project. Paper is the server-side plugin path for users who do not want a modded client; include plugin.yml and use Paper's plugin project setup guidance. Use Gradle Java toolchains or explicit IDE Gradle JVM settings to avoid inconsistent JDK behavior. Java syntax should be grounded in the Java Language Specification/JDK docs; Microsoft OpenJDK is a supported JDK distribution, not a separate Java syntax.",
+                    Content = "Use this source map before generating Java Minecraft workspaces. Classic Forge uses the Forge MDK: download the MDK, extract it into an empty directory, " +
+                        "import/open the Gradle project in Eclipse or IntelliJ, build with gradlew build, and test with generated run configs or gradlew runClient/runServer. " +
+                        "Fabric builds with ./gradlew build or ./gradlew.bat build; use the shortest jar in build/libs for distribution and make sure the terminal/IDE Java version matches the project. " +
+                        "Paper is the server-side plugin path for users who do not want a modded client; include plugin.yml and use Paper's plugin project setup guidance. " +
+                        "Use Gradle Java toolchains or explicit IDE Gradle JVM settings to avoid inconsistent JDK behavior. Java syntax should be grounded in the Java Language Specification/JDK docs; " +
+                        "Microsoft OpenJDK is a supported JDK distribution, not a separate Java syntax.",
                     HelpfulSources = "- Forge getting started: https://docs.minecraftforge.net/en/latest/gettingstarted/\n- NeoForge getting started: https://docs.neoforged.net/docs/gettingstarted/\n- Fabric building a mod: https://docs.fabricmc.net/develop/getting-started/building-a-mod\n- Paper getting started: https://docs.papermc.io/paper/dev/getting-started/\n- Gradle JVM toolchains: https://docs.gradle.org/current/userguide/toolchains.html\n- Oracle JDK 21 documentation: https://docs.oracle.com/en/java/javase/21/",
                     Tags = "seed; minecraft; forge; fabric; neoforge; paper; gradle; java; sources",
                     Confidence = 92,
@@ -242,7 +298,11 @@ namespace LocalGPT.Services
                     Topic = "Minecraft datapack generation source rules",
                     Scope = "Minecraft Builder",
                     Source = seedSource,
-                    Content = "For vanilla Java datapacks, generate a zip/folder whose root contains pack.mcmeta and data/. The data folder contains namespaces; function entry points for modern 1.21-style generated packs should use singular folders such as data/<namespace>/function and data/minecraft/tags/function. Add data/minecraft/tags/function/load.json and tick.json to call namespace functions; minecraft:load runs after /reload or server load, and minecraft:tick runs each tick, so tick functions must stay tiny and delegate scheduled aggregate work. pack_format is required and version-sensitive; LocalGPT should use its datapack version catalog or source-check the target version before claiming compatibility. supported_formats and overlays exist for multi-format packs, but basic generated starters should keep one target version unless the user asks for overlays.",
+                    Content = "For vanilla Java datapacks, generate a zip/folder whose root contains pack.mcmeta and data/. The data folder contains namespaces; function entry points " +
+                        "for modern 1.21-style generated packs should use singular folders such as data/<namespace>/function and data/minecraft/tags/function. " +
+                        "Add data/minecraft/tags/function/load.json and tick.json to call namespace functions; minecraft:load runs after /reload or server load, and minecraft:tick runs each tick, " +
+                        "so tick functions must stay tiny and delegate scheduled aggregate work. pack_format is required and version-sensitive; LocalGPT should use its datapack version catalog " +
+                        "or source-check the target version before claiming compatibility. supported_formats and overlays exist for multi-format packs, but basic generated starters should keep one target version unless the user asks for overlays.",
                     HelpfulSources = "- Minecraft Wiki data pack structure and pack.mcmeta: https://minecraft.wiki/w/Data_pack\n- Minecraft Wiki Java function tags: https://minecraft.wiki/w/Function_tag_(Java_Edition)\n- Minecraft Java snapshot 23w31a pack metadata supported_formats/overlays: https://feedback.minecraft.net/hc/en-us/articles/18619031671821-Minecraft-Java-Edition-Snapshot-23w31a\n- Minecraft Wiki pack_format table: https://minecraft.wiki/w/Pack_format",
                     Tags = "seed; minecraft; datapack; pack.mcmeta; function-tags; pack-format; sources",
                     Confidence = 88,
@@ -257,7 +317,11 @@ namespace LocalGPT.Services
                     Topic = "Living Cities datapack benchmark acceptance",
                     Scope = "Minecraft Builder",
                     Source = seedSource,
-                    Content = "Use /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4 as the low-context Living Cities datapack benchmark. A useful result must generate real .mcfunction files, no .mcfunction.txt placeholders, pack.mcmeta, minecraft load/tick function tags, namespace functions, JSON validation, function-reference validation, and a zip under build/. Compare against the friend's early living_cities.zip for preserved traits: namespace living_cities, core/load and core/tick entry points, scoreboards for year/population/food/security/prestige/birth year, storage areas for city/chronicle/personalities, and a town hall/admin workflow. Do not tell the user it was game-tested until /reload and in-game commands were actually run in Minecraft.",
+                    Content = "Use /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4 as the low-context Living Cities datapack benchmark. " +
+                        "A useful result must generate real .mcfunction files, no .mcfunction.txt placeholders, pack.mcmeta, minecraft load/tick function tags, namespace functions, " +
+                        "JSON validation, function-reference validation, and a zip under build/. Compare against the friend's early living_cities.zip for preserved traits: namespace living_cities, " +
+                        "core/load and core/tick entry points, scoreboards for year/population/food/security/prestige/birth year, storage areas for city/chronicle/personalities, " +
+                        "and a town hall/admin workflow. Do not tell the user it was game-tested until /reload and in-game commands were actually run in Minecraft.",
                     HelpfulSources = "- Local route: GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4\n- User-provided benchmark: C:/Users/micha/Downloads/living_cities.zip\n- User-provided design prompt: C:/Users/micha/Downloads/message (1).txt",
                     Tags = "seed; minecraft; datapack; living-cities; benchmark; validation",
                     Confidence = 90,
@@ -298,6 +362,14 @@ namespace LocalGPT.Services
                 return;
 
             await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                UPDATE "CouncilKnowledgeEntries"
+                SET "VerificationStatus" = 'SourceBacked'
+                WHERE "Source" = 'LocalGPT SQL seed'
+                  AND ("VerificationStatus" IS NULL OR trim("VerificationStatus") = '' OR "VerificationStatus" = 'NeedsVerification');
+                """,
+                cancellationToken);
         }
 
         private static string? FindSqlSeedPath()

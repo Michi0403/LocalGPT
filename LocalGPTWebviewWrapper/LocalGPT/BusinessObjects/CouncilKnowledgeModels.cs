@@ -12,6 +12,7 @@ namespace LocalGPT.BusinessObjects
         public string HelpfulSources { get; set; } = string.Empty;
         public string Tags { get; set; } = string.Empty;
         public int Confidence { get; set; } = 60;
+        public string VerificationStatus { get; set; } = "NeedsVerification";
         public bool IsUserApproved { get; set; }
         public bool IsPinned { get; set; }
         public bool IsArchived { get; set; }

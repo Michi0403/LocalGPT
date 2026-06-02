@@ -3,7 +3,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 
-namespace  LocalGPT.Services
+namespace LocalGPT.Services
 {
     public class ThemeService
     {
