@@ -895,12 +895,16 @@ namespace LocalGPT.Services
             var promptLooksFrustrated = IsFrustratedPrompt(result.Prompt);
             var needsVerification = result.FinalAnswer.Contains("Needs verification", StringComparison.OrdinalIgnoreCase) ||
                 result.FinalAnswer.Contains("human review", StringComparison.OrdinalIgnoreCase);
+            var needsImplementationPathDecision = NeedsImplementationPathDecision(result);
 
-            if (failedModels.Count == 0 && !needsVerification && !promptLooksFrustrated)
+            if (failedModels.Count == 0 && !needsVerification && !promptLooksFrustrated && !needsImplementationPathDecision)
                 return null;
 
             if (promptLooksFrustrated)
                 return BuildFrustrationPoll(result, failedModels);
+
+            if (needsImplementationPathDecision)
+                return BuildImplementationPathPoll(result, failedModels);
 
             var reason = failedModels.Count > 0
                 ? $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}."
@@ -940,6 +944,43 @@ namespace LocalGPT.Services
                 Question = "How should the AI Council continue so every model stays aligned with your decision?",
                 Reason = reason,
                 Options = options
+            };
+        }
+
+        private static CouncilUserPoll BuildImplementationPathPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels)
+        {
+            var missingModelNote = failedModels.Count > 0
+                ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
+                : string.Empty;
+
+            return new CouncilUserPoll
+            {
+                Question = "Which implementation path should the AI Council use for the next round?",
+                Reason = "This looks like a development request with more than one reasonable implementation path. " +
+                    $"The council should ask for your direction instead of choosing unclear scope on its own.{missingModelNote}",
+                Options =
+                [
+                    new CouncilUserPollOption
+                    {
+                        Label = "Sandbox prototype first",
+                        FollowUpPrompt = "Use a harmless sandbox artifact or temporary workspace first. Generate downloadable example files, name the smoke tests, and do not integrate changes into the real project until the user approves the prototype direction."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Backend/data first",
+                        FollowUpPrompt = "Implement the backend/data path first. Prioritize services, EF/SQLite schema or settings storage, diagnostic routes, logging, and safe download endpoints before frontend polish. List exact backend files to change."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Frontend UX first",
+                        FollowUpPrompt = "Implement the frontend UX path first. Prioritize a DevExpress Blazor page/component, tooltips, visible states, model/user controls, and download links while keeping backend behavior stubbed or read-only until approved."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Ask exact scope",
+                        FollowUpPrompt = "Pause implementation and ask the user one focused scope question. Offer two or three concrete alternatives, then treat the user's option or typed feedback as binding context for the next round."
+                    }
+                ]
             };
         }
 
@@ -1008,6 +1049,64 @@ namespace LocalGPT.Services
             return markers.Any(marker => prompt.Contains(marker, StringComparison.OrdinalIgnoreCase));
         }
 
+        private static bool NeedsImplementationPathDecision(MultiModelCouncilResult result)
+        {
+            if (!IsDevelopmentRequest(result.Prompt))
+                return false;
+
+            var text = $"{result.Prompt} {result.FinalAnswer}";
+            if (ImplementationDecisionPattern().IsMatch(text))
+                return true;
+
+            var areaHits = CountImplementationAreaHits(text);
+            return areaHits >= 3 && ImplementationChoicePattern().IsMatch(text);
+        }
+
+        private static bool IsDevelopmentRequest(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                return false;
+
+            return DevelopmentRequestPattern().IsMatch(prompt);
+        }
+
+        private static int CountImplementationAreaHits(string text)
+        {
+            var hits = 0;
+            var areas = new[]
+            {
+                "backend",
+                "frontend",
+                "blazor",
+                "razor",
+                "devexpress",
+                "database",
+                "sqlite",
+                "entityframework",
+                "ef",
+                "service",
+                "api",
+                "endpoint",
+                "winui",
+                "webview2",
+                "minecraft",
+                "datapack",
+                "fabric",
+                "neoforge",
+                "paper",
+                "artifact",
+                "download"
+            };
+
+            foreach (var area in areas)
+            {
+                if (text.Contains(area, StringComparison.OrdinalIgnoreCase))
+                    hits++;
+            }
+
+            return hits;
+        }
+
         private static string BuildPollMarkdown(CouncilUserPoll poll)
         {
             var builder = new StringBuilder()
@@ -1026,6 +1125,10 @@ namespace LocalGPT.Services
                     .Append("**: ")
                     .AppendLine(option.FollowUpPrompt);
             }
+
+            builder
+                .AppendLine()
+                .AppendLine("You can also type custom feedback. The next council round must treat the selected option or typed feedback as binding implementation guidance unless the user changes it.");
 
             return builder.ToString().Trim();
         }
@@ -1095,6 +1198,7 @@ namespace LocalGPT.Services
             Treat Fabric as the fast Java iteration target, NeoForge as the modern Forge-style target, Paper as the server-side plugin target, datapack as the vanilla command/data target, and Bedrock as a separate behavior/resource pack exporter.
             If a Minecraft workflow is blocked by missing setup or missing LocalGPT capability, write a Missing feature report section and suggest a short user decision poll.
             For LocalGPT implementation-request chats, classify the owning area (.NET/Blazor/ASP.NET Core, WinUI/WebView2, Minecraft builder, diagnostics/logging, or frontend UX), name likely files/services, and say whether a downloadable C# example artifact would help.
+            If the implementation path is unclear, offer different implementation possibilities and ask for a user decision poll. The user may choose a poll option or provide custom text feedback; treat either as binding scope for the next round.
             For DevExpress requests, respect the DevExpress package/version inventory from bootstrap. Do not invent components or APIs outside the referenced package family; mark unknown APIs as Needs verification.
             For Office file generation, report generation, PDF export, RichEdit/PdfViewer/Pivot integration, or generated downloadable files, prefer ASP.NET Core/Blazor server backend services plus safe download endpoints. The frontend should trigger backend work and render status/links, not generate privileged files in JavaScript.
             Build debug symbol inventory may list .pdb, .pdg, or .appxsym files. Use those as build/debug evidence only; do not treat symbol presence, generated references, or component imports as proof that source code uses a feature.
@@ -1198,6 +1302,15 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
         private static partial Regex WhitespacePattern();
+
+        [GeneratedRegex("(implement|implementation|develop|development|build|create|add|generate|scaffold|feature|code|page|component|service|endpoint|database|settings|artifact|solution|plugin|mod|datapack)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex DevelopmentRequestPattern();
+
+        [GeneratedRegex("(user decision poll|implementation path|unclear implementation|unclear scope|scope is uncertain|ownership is uncertain|ask the user|needs user choice|choose between|pick between|multiple reasonable|trade-?off|depends on|which path|which approach)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex ImplementationDecisionPattern();
+
+        [GeneratedRegex("(choose|decide|pick|option|alternative|trade-?off|depends|uncertain|scope|ownership|clarify|question)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex ImplementationChoicePattern();
 
         private sealed class OllamaTagsResponse
         {

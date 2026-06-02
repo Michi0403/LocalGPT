@@ -157,6 +157,11 @@ Database-first rule: council bootstrap should prefer pinned `CouncilKnowledgeEnt
 
 Decision rule: if a participant is unavailable, the council cannot converge, or the final answer still needs human verification, the result should include a user decision poll. The poll is saved into memory and shown in the UI so the next council round can treat the user's choice as binding shared context.
 
+Implementation-path rule: when a user asks for development work and the ownership, scope, or implementation path is unclear,
+the council should not silently choose one path. It should offer concrete implementation possibilities in a user decision poll,
+such as sandbox prototype first, backend/data first, frontend UX first, or ask exact scope. The user can choose an option
+or type custom feedback; the next council round must treat that decision as binding context.
+
 Frustration rule: if the user's prompt sounds angry, blocked, or frustrated, the council must stay kind, avoid blame, and turn the emotion into a technical recovery poll. Poll options should cover stabilization, missing-feature implementation, and scope reduction. The selected path and any missing LocalGPT feature request should be saved into SQLite chat memory so later models can see it.
 
 Design rule: the council can display provider-supplied visible thinking and model-written reasoning notes, but user-facing controls should make it clear which model produced each note. Treat council output as reviewed assistance, not as automatically true.

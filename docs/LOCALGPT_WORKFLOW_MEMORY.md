@@ -58,6 +58,7 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Saves every completed council run into the editable `CouncilKnowledgeEntries` table so later model calls can reuse grounded notes.
   - Can continue an older saved council conversation by sending `ContinueConversationId` or selecting the saved council memory in the frontend.
   - Every result step records the full council roster. Faulty members can be excluded from the next round by user action; models should propose exclusion only through a poll.
+  - Development requests with unclear implementation ownership or scope should create an implementation-path poll. Offer concrete options such as sandbox prototype first, backend/data first, frontend UX first, or ask exact scope. The user can choose an option or type custom feedback, and the next council round must treat that decision as binding context.
   - `GenerateImplementationArtifact` creates sandbox artifacts under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\` and returns safe `/__artifacts/council/{fileName}` download links. For Blazor/DevExpress frontend requests, it should emit a real `.razor` page artifact plus compileable `.cs` support code and a `.dll` when the support code builds.
   - Generated implementation ideas must stay as sandbox artifacts or temporary workspaces until the user explicitly permits integration. The council must never overrule a user decision that denies or limits self-expansion.
   - Use `MaxParallelModels = 1` for 20B/30B local models on 24 GB VRAM unless the user asks for heavier runs.

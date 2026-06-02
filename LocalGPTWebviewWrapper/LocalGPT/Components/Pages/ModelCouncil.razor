@@ -265,6 +265,18 @@
                         </button>
                     }
                 </div>
+                <div class="poll-feedback">
+                    <label for="custom-poll-feedback">Custom direction for the next round</label>
+                    <textarea id="custom-poll-feedback"
+                              @bind="CustomPollFeedback"
+                              rows="3"
+                              placeholder="Describe exactly what or how the council should implement..."></textarea>
+                    <DxButton Text="Use Custom Feedback"
+                              RenderStyle="ButtonRenderStyle.Secondary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Enabled="@(!string.IsNullOrWhiteSpace(CustomPollFeedback))"
+                              Click="ApplyCustomPollFeedback" />
+                </div>
             </section>
         }
 
@@ -334,6 +346,7 @@
     ChatMemoryConversationSummary? SelectedCouncilConversation { get; set; }
     MultiModelCouncilResult? LastResult { get; set; }
     string ManualModelName { get; set; } = "qwen3-coder:30b";
+    string CustomPollFeedback { get; set; } = string.Empty;
     string statusText = string.Empty;
     bool isBusy;
 
@@ -573,7 +586,22 @@
         }
 
         Request.Prompt = $"{Request.Prompt}\n\nUser decision for the next council round:\n{option.FollowUpPrompt}";
+        CustomPollFeedback = string.Empty;
         statusText = $"Poll choice added: {option.Label}. Run Council again to continue.";
+    }
+
+    void ApplyCustomPollFeedback()
+    {
+        var feedback = CustomPollFeedback.Trim();
+        if (string.IsNullOrWhiteSpace(feedback))
+        {
+            statusText = "Write a custom council direction before adding it.";
+            return;
+        }
+
+        Request.Prompt = $"{Request.Prompt}\n\nUser custom decision for the next council round:\n{feedback}\n\nAll council members must treat this typed feedback as binding implementation guidance unless the user changes it later.";
+        CustomPollFeedback = string.Empty;
+        statusText = "Custom poll feedback added. Run Council again to continue.";
     }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
