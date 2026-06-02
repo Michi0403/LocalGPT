@@ -254,6 +254,24 @@ namespace LocalGPT.Services
                 },
                 new CouncilKnowledgeEntry
                 {
+                    Id = Guid.Parse("ef1d0872-b8bb-4d7c-9b67-3d092f99a54d"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "TacosPortalOpen source-fidelity generation contract",
+                    Scope = "Replacement generation / Blazor / DevExpress",
+                    Source = seedSource,
+                    Content = "A generated TacosPortalOpen replacement must preserve the actual architecture signals, not only the domain name. " +
+                        "The useful pattern is a multi-project .NET/Blazor solution with a shared/core layer, server-interactive host, optional WASM client, WinUI/WebView2 wrapper boundary, Telegram or message-event ingestion, update handlers, service/API boundaries, normalized persistence, worker/polling services, notifications/logging, custom security/admin screens, and build/deploy diagnostics. " +
+                        "A generic taco menu, order queue, and reservation app is the wrong template unless the user explicitly asks for only restaurant CRUD. " +
+                        "Generated replacements should include a Source Fidelity page/service/doc explaining which original-system workflows are represented, boundary-only, or missing.",
+                    HelpfulSources = "- Local learn-base: C:\\tmpselectedcodexlearnbaseforlocalgpt\\TacosPortalOpen.\n- Local docs: docs/GENERATION_ARCHETYPE_CONTRACTS.md.\n- Local generator files: CouncilArtifactService source-fidelity artifact contract and EngineeringBenchmarkService replacement tasks.",
+                    Tags = "seed; tacosportalopen; source-fidelity; replacement; telegram; workers; webview2; wasm; devexpress; blazor",
+                    Confidence = 94,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
                     Id = Guid.Parse("58d6b4d7-c8e3-450a-a31a-57f0e9fc0b1a"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,
@@ -288,6 +306,7 @@ namespace LocalGPT.Services
                         "Generate provider-neutral ASP.NET Core routes, typed options, DI registrations, EF/SQLite state, model catalog/download/session services, chat/template services, logs, settings, hardware budget policy, and downloadable artifact routes when useful. " +
                         "Use interface-driven boundaries: IModelCatalogService, IModelTransferService, IInferenceProvider, IInferenceRunner, IPluginCatalogService, IScriptExecutionService, IHardwareBudgetService, and IChatTemplateService. " +
                         "External hosts such as Ollama, LM Studio, OpenAI, HuggingFace downloads, Python.NET, PowerShell, ONNX, ML.NET, or native executables are adapters behind interfaces, not the product identity. " +
+                        "TypeScript is allowed when the requested solution needs client assets, browser automation, or a script adapter inside the ASP.NET Core/.NET application, but it should not accidentally replace the .NET control plane or Python/Python.NET model-runtime architecture. " +
                         "Use .NET DI/IoC, the options pattern, hosted/background services for queued work, typed HttpClient for provider calls, AssemblyLoadContext/AssemblyDependencyResolver only for trusted plugins, and permission-gated Python.NET/PowerShell/native process execution with safe directories, cancellation, and logs. " +
                         "If real native inference is not implemented, say so in the generated UI and produce a visible runner/plugin capability page instead of hiding the gap. " +
                         "Generated AI-host solutions must include recognizable navigation for dashboard, model catalog, API console, chat, running models, downloads, templates, hardware, runner/plugins, logs, and settings.",
@@ -360,6 +379,24 @@ namespace LocalGPT.Services
                     HelpfulSources = "- Official Microsoft Learn .NET/ASP.NET Core/Blazor docs when internet access is allowed.\n- DevExpress official Blazor docs matching the installed package version.\n- GitHub repository source files or local extracted zips supplied by Michi0403.",
                     Tags = "seed; sources; github; dotnet; devexpress; needs-verification",
                     Confidence = 95,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("5b5c25cc-8caa-4d59-81a4-09199d96dd50"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "DocFX and Windows developer docs for LocalGPT software generation",
+                    Scope = "DocFX / Windows developer support / .NET generation",
+                    Source = seedSource,
+                    Content = "The local windows-dev-docs-docs corpus should be treated as source-backed developer and technician knowledge. " +
+                        "For documentation generation, use Microsoft Learn/DocFX-style Markdown with normal physical line breaks, front matter, title and description metadata, ms.topic/ms.date fields, includes, images, relative links, and TOC-aware structure. " +
+                        "For software support and generation, use it as a source map for Windows App SDK, WinUI, WebView2, MSIX packaging/deployment, Developer Mode, Device Portal/discovery, winget, Terminal, Dev Drive, PowerToys, Arm64 compatibility, diagnostics, certificates, accessibility, and Windows app design. " +
+                        "LocalGPT should teach this through compact knowledge entries and DocFX-ready docs rather than stuffing large Markdown files into model context.",
+                    HelpfulSources = "- Local learn-base: C:\\tmpselectedcodexlearnbaseforlocalgpt\\windows-dev-docs-docs.\n- Local importer: LearnBaseKnowledgeImporterService Windows docs corpus entries.\n- Microsoft Learn Windows app design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/guidelines-overview.",
+                    Tags = "seed; docfx; windows-dev-docs; microsoft-learn; winui; webview2; msix; windowsappsdk; accessibility",
+                    Confidence = 90,
                     IsUserApproved = true,
                     IsPinned = true
                 },
@@ -571,6 +608,24 @@ namespace LocalGPT.Services
                     Confidence = 95,
                     IsUserApproved = true,
                     IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("0e8fb6af-33d2-4a90-aac3-34f3cf7f66c7"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Eick-at Moodle programming curriculum source map",
+                    Scope = "C#/.NET/OOP/business developer thinking",
+                    Source = seedSource,
+                    Content = "The public Moodle course outlines from eick-at are useful as curriculum-level source maps for programming and business-developer thinking. " +
+                        "Relevant concepts include program flowcharts/PAP, OOP vs procedural programming, classes/objects, scope, constructors, UML use-case/class/object/sequence diagrams, aggregation vs composition, navigation direction and role names, inheritance, interfaces, abstract classes, polymorphism, software testing, unit/component testing, TDD, Git, and production-ready workflows. " +
+                        "Use these as design and teaching prompts for generated .NET/C# systems: ask for use cases, draw/describe domain relationships, separate responsibilities, write tests, and explain deployment/support expectations. " +
+                        "Only the course outlines are source-backed here; exact diagrams or private course pages need a user-provided export before being treated as verified detailed content.",
+                    HelpfulSources = "- Public course/section outline: https://moodle.eick-at.de/course/section.php?id=31.\n- Public Java OOP outline with UML/testing/Git parallels: https://moodle.eick-at.de/course/view.php?id=11.\n- Public Python/AD course outline with production and Windows/AD support parallels: https://moodle.eick-at.de/course/view.php?id=14.",
+                    Tags = "seed; moodle; oop; csharp; uml; pap; testing; tdd; git; business-developer; needs-page-export-for-details",
+                    Confidence = 76,
+                    IsUserApproved = true,
+                    IsPinned = false
                 },
                 new CouncilKnowledgeEntry
                 {

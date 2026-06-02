@@ -273,13 +273,14 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(projectRoot, $"{projectName}.csproj"), GenerateSolutionProjectFile(), cancellationToken);
             await WriteTextAsync(Path.Combine(projectRoot, "Program.cs"), GenerateSolutionProgram(projectName, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(projectRoot, "_Imports.razor"), GenerateSolutionImports(projectName), cancellationToken);
-            await WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), "{\n  \"Logging\": {\n    \"LogLevel\": {\n      \"Default\": \"Information\"\n    }\n  }\n}\n", cancellationToken);
+            await WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), GenerateSolutionAppSettings(isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), GenerateSolutionAppRazor(), cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), GenerateSolutionRoutesRazor(), cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), GenerateSolutionNavigationRazor(archetype), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), GenerateSolutionIndexRazor(request, result, archetype), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), GenerateSolutionDashboardRazor(request, result, archetype), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), GenerateSolutionKnowledgeTableRazor(isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "SourceFidelity.razor"), GenerateSourceFidelityRazor(), cancellationToken);
             await WriteTextAsync(
                 Path.Combine(pagesRoot, isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
                 GenerateSolutionDetailRazor(request, result, isAiHostLab),
@@ -301,6 +302,7 @@ namespace LocalGPT.Services
             }
 
             await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), GenerateSolutionService(projectName, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedSourceFidelityService.cs"), GenerateSourceFidelityService(projectName, archetype), cancellationToken);
             if (isAiHostLab)
                 await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedAiHostArchitectureServices.cs"), GenerateAiHostArchitectureServices(projectName), cancellationToken);
 
@@ -312,6 +314,7 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(solutionRoot, "README.md"), GenerateSolutionReadme(projectName, request, result, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), GenerateSolutionProjectIndex(projectName, request, result, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), GenerateSolutionArchitectureDoc(projectName, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), GenerateSourceFidelityDoc(projectName, archetype), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab), cancellationToken);
@@ -471,11 +474,51 @@ namespace LocalGPT.Services
             </Project>
             """;
 
+        private static string GenerateSolutionAppSettings(bool isAiHostLab)
+        {
+            if (!isAiHostLab)
+            {
+                return """
+                {
+                  "Logging": {
+                    "LogLevel": {
+                      "Default": "Information"
+                    }
+                  }
+                }
+                """;
+            }
+
+            return """
+            {
+              "Logging": {
+                "LogLevel": {
+                  "Default": "Information"
+                }
+              },
+              "AiHost": {
+                "ProviderBaseUri": "http://127.0.0.1:11434",
+                "DefaultModel": "gpt-oss:20b",
+                "SafeStorageRoot": "%LOCALAPPDATA%/GeneratedAiHost",
+                "PluginRoot": "plugins",
+                "ContextTokens": 32768,
+                "GpuLayers": 20,
+                "AllowExternalProviderDelegation": true,
+                "AllowNativeRunner": false,
+                "AllowPythonNet": false,
+                "AllowPowerShellScripts": false,
+                "AllowTypeScriptAdapters": false
+              }
+            }
+            """;
+        }
+
         private static string GenerateSolutionProgram(string projectName, bool isAiHostLab)
         {
             var aiHostServiceRegistrations = isAiHostLab
                 ? """
                   builder.Services.Configure<AiHostRuntimeOptions>(builder.Configuration.GetSection("AiHost"));
+                  builder.Services.AddHttpClient();
                   builder.Services.AddSingleton<IModelCatalogService>(sp => sp.GetRequiredService<GeneratedHealthSummaryService>());
                   builder.Services.AddSingleton<IModelTransferService>(sp => sp.GetRequiredService<GeneratedHealthSummaryService>());
                   builder.Services.AddSingleton<IInferenceProvider, ExternalProviderInferenceProvider>();
@@ -532,6 +575,7 @@ namespace LocalGPT.Services
                 .AddInteractiveServerComponents();
             builder.Services.AddDevExpressBlazor(options => options.SizeMode = SizeMode.Small);
             builder.Services.AddSingleton<GeneratedHealthSummaryService>();
+            builder.Services.AddSingleton<ISourceFidelityService, GeneratedSourceFidelityService>();
             {{aiHostServiceRegistrations}}
 
             var app = builder.Build();
@@ -680,30 +724,30 @@ namespace LocalGPT.Services
                     </a>
                 """,
                 GeneratedSolutionArchetype.TacosPortal => """
-                    <a href="/orders">
+                    <a href="/telegram-ingestion">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
-                        <span>Orders</span>
+                        <span>Ingestion</span>
                     </a>
-                    <a href="/menu">
+                    <a href="/persistence">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
-                        <span>Menu</span>
+                        <span>Persistence</span>
                     </a>
-                    <a href="/reservations">
+                    <a href="/workers">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
-                        <span>Reservations</span>
+                        <span>Workers</span>
                     </a>
                     <a href="/admin">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
                         <span>Admin</span>
                     </a>
-                    <a href="/bot-backend">
+                    <a href="/client-shells">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
-                        <span>Bot Backend</span>
+                        <span>Client Shells</span>
                     </a>
                 """,
                 GeneratedSolutionArchetype.BotBackend => """
@@ -748,6 +792,11 @@ namespace LocalGPT.Services
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
                         <span>{{detailText}}</span>
+                    </a>
+                    <a href="/source-fidelity">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
+                        <span>Source Fidelity</span>
                     </a>
                     {{aiHostLinks}}
                     {{archetypeLinks}}
@@ -1026,6 +1075,59 @@ namespace LocalGPT.Services
             """;
         }
 
+        private static string GenerateSourceFidelityRazor() =>
+            """
+            @page "/source-fidelity"
+            @rendermode InteractiveServer
+            @inject ISourceFidelityService FidelityService
+
+            <PageTitle>Source Fidelity</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>Source Fidelity</h1>
+                        <p>Checks whether this generated solution represents the requested source architecture instead of only compiling.</p>
+                    </div>
+                </section>
+
+                <DxGrid Data="@Rows"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        ShowFilterRow="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Area)" Caption="Area" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.SourceSignal)" Caption="Source Signal" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.GeneratedBoundary)" Caption="Generated Boundary" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Status)" Caption="Status" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Evidence)" Caption="Evidence" />
+                    </Columns>
+                </DxGrid>
+
+                <DxFormLayout CssClass="generated-form">
+                    <DxFormLayoutGroup Caption="Review rule" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Acceptance" ColSpanMd="12">
+                            <DxMemo Text="@ReviewRule" Rows="4" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                    </DxFormLayoutGroup>
+                </DxFormLayout>
+            </main>
+
+            @code {
+                IReadOnlyList<GeneratedSourceFidelityRequirement> Rows { get; set; } = [];
+                string ReviewRule { get; } =
+                    "A generated replacement is not accepted just because it builds. It must preserve the source application's recognizable workflows, service boundaries, persistence shape, navigation, diagnostics, and artifact/download behavior.";
+
+                protected override void OnInitialized()
+                {
+                    Rows = FidelityService.GetRequirements();
+                }
+            }
+            """;
+
         private static IReadOnlyList<GeneratedArchetypePage> GenerateArchetypePages(GeneratedSolutionArchetype archetype)
         {
             return archetype switch
@@ -1041,11 +1143,11 @@ namespace LocalGPT.Services
                 ],
                 GeneratedSolutionArchetype.TacosPortal =>
                 [
-                    ArchetypePage("Orders.razor", "/orders", "Orders", "Server-interactive order queue with kitchen status, payment state, pickup timing, and operator notes.", ["New orders", "Kitchen queue", "Payment status", "Pickup window"]),
-                    ArchetypePage("Menu.razor", "/menu", "Menu", "Menu/catalog management with product variants, prices, availability, images, and publish state.", ["Products", "Categories", "Price rules", "Publish state"]),
-                    ArchetypePage("Reservations.razor", "/reservations", "Reservations", "Reservation and table planning surface with customer messages, occupancy, and conflict checks.", ["Tables", "Timeslots", "Guests", "Conflicts"]),
-                    ArchetypePage("Admin.razor", "/admin", "Admin", "DevExpress CRUD/admin workbench with roles, audit log, validation, and operational settings.", ["Users", "Roles", "Audit", "Settings"]),
-                    ArchetypePage("BotBackend.razor", "/bot-backend", "Bot Backend", "Simple bot backend boundary for order notifications, customer replies, command routing, and retry queues.", ["Webhook", "Commands", "Retries", "Escalation"])
+                    ArchetypePage("TelegramIngestion.razor", "/telegram-ingestion", "Telegram Ingestion", "Event-ingestion boundary with update handling, command routing, idempotency, retries, and sanitized bot service wiring.", ["Update handler", "Command router", "Idempotency", "Retry queue"]),
+                    ArchetypePage("Persistence.razor", "/persistence", "Persistence", "Normalized domain persistence with EF/SQLite or provider-specific backend, explicit DTO/service boundaries, and migration notes.", ["Business objects", "DbContext", "DTO boundaries", "Migration safety"]),
+                    ArchetypePage("Workers.razor", "/workers", "Workers", "Hosted/background worker view for polling, notification dispatch, API synchronization, and operational diagnostics.", ["Hosted services", "Polling", "Notifications", "Diagnostics"]),
+                    ArchetypePage("Admin.razor", "/admin", "Admin", "DevExpress CRUD/admin workbench with roles, audit log, validation, custom security, and operational settings.", ["Users", "Roles", "Audit", "Settings"]),
+                    ArchetypePage("ClientShells.razor", "/client-shells", "Client Shells", "Host map for Blazor server, optional WASM client, WinUI/WebView2 wrapper, package boundaries, and debug/deploy notes.", ["Server host", "WASM client", "WinUI/WebView2", "Package diagnostics"])
                 ],
                 GeneratedSolutionArchetype.BotBackend =>
                 [
@@ -1696,8 +1798,8 @@ namespace LocalGPT.Services
                           new("POST", "/api/create", "Return a model-create plan.", "No Modelfile build happens in this sandbox."),
                           new("POST", "/api/copy", "Return a model-copy plan.", "No local blob mutation happens."),
                           new("DELETE", "/api/delete", "Return a model-delete plan.", "No file deletion happens."),
-                          new("POST", "/api/generate", "Return a deterministic non-inference response for UI/API plumbing tests.", "Must attach a real runner before claiming generation."),
-                          new("POST", "/api/chat", "Return a deterministic chat response.", "No token generation or context cache is implemented."),
+                          new("POST", "/api/generate", "Delegate to the configured external Ollama-compatible provider, with fallback text if unavailable.", "Native token generation remains outside this generated host."),
+                          new("POST", "/api/chat", "Delegate chat requests to the configured external Ollama-compatible provider, with safe fallback when unreachable.", "Context/cache ownership stays in the provider adapter until a native runner is approved."),
                           new("POST", "/api/embed", "Return a tiny deterministic vector.", "Not a real embedding model.")
                   """
                 : """
@@ -1992,8 +2094,176 @@ namespace LocalGPT.Services
             """;
         }
 
+        private static string GenerateSourceFidelityService(string projectName, GeneratedSolutionArchetype archetype)
+        {
+            var rows = archetype switch
+            {
+                GeneratedSolutionArchetype.LocalGpt => """
+                        new(
+                            "DXAiChat workbench",
+                            "Original LocalGPT centers user work in DXAiChat with model selection, council mode, uploads, memory, visible progress, and artifact links.",
+                            "Generated Chat page plus backend service boundaries for model routing, file context, Harmony/thinking display, and downloadable artifacts.",
+                            "Represented",
+                            "Components/Pages/Chat.razor, Source Fidelity page, and artifact contract docs."),
+                        new(
+                            "AI Council",
+                            "Original LocalGPT supports multi-model council talks, polls, missing-feature logs, and user-approved implementation artifacts.",
+                            "Generated Model Council page with minimum-member, poll-gate, feedback-log, and artifact-delivery requirements.",
+                            "Represented",
+                            "Components/Pages/ModelCouncil.razor and SOURCE_FIDELITY.md."),
+                        new(
+                            "SQLite memory and knowledge",
+                            "Original LocalGPT persists chats, thoughts, logs, knowledge, approvals, and benchmark feedback in SQLite.",
+                            "Generated Database page and source-fidelity rows state EF/SQLite as durable state boundary.",
+                            "Boundary",
+                            "Components/Pages/Database.razor; real DbContext integration must be added when moving beyond sandbox."),
+                        new(
+                            "Minecraft builder",
+                            "Original LocalGPT can generate datapacks and loader skeletons through backend artifact routes.",
+                            "Generated Minecraft Mod Builder page represents datapack, loader matrix, version resolver, validation, and downloads.",
+                            "Represented",
+                            "Components/Pages/MinecraftModBuilder.razor."),
+                        new(
+                            "Install and diagnostics",
+                            "Original LocalGPT detects Ollama/LM Studio/runtime setup and exposes frontend-facing test routes.",
+                            "Generated Install and Test Lab pages require local host status, runtime checks, and route smoke tests.",
+                            "Represented",
+                            "Components/Pages/Install.razor and Components/Pages/TestLab.razor.")
+                """,
+                GeneratedSolutionArchetype.TacosPortal => """
+                        new(
+                            "Multi-host topology",
+                            "Original TacosPortalOpen is a multi-project .NET/Blazor system with core library, server host, WASM/client option, and WinUI/WebView2 wrapper boundaries.",
+                            "Generated Client Shells page and source docs require server, WASM, WebView2, packaging, and debug/deploy boundaries.",
+                            "Represented",
+                            "Components/Pages/ClientShells.razor and SOURCE_FIDELITY.md."),
+                        new(
+                            "Telegram/event ingestion",
+                            "Original TacosPortalOpen uses Telegram-style event ingestion flowing through handlers, service/API layers, persistence, workers, and UI.",
+                            "Generated Telegram Ingestion page models update handling, command routing, idempotency, and retry queues.",
+                            "Represented",
+                            "Components/Pages/TelegramIngestion.razor."),
+                        new(
+                            "Normalized persistence",
+                            "Original TacosPortalOpen separates domain/business objects, persistence, DTO/service boundaries, and migration safety.",
+                            "Generated Persistence page requires business objects, DbContext boundaries, DTOs, and safe migrations.",
+                            "Boundary",
+                            "Components/Pages/Persistence.razor; real entities/migrations are a follow-up for the selected target database."),
+                        new(
+                            "Workers and notifications",
+                            "Original TacosPortalOpen includes polling/background services, notifications, logs, and integration diagnostics.",
+                            "Generated Workers page models hosted services, polling, notification dispatch, and diagnostics.",
+                            "Represented",
+                            "Components/Pages/Workers.razor."),
+                        new(
+                            "DevExpress admin/security",
+                            "Original TacosPortalOpen uses DevExpress/XAF-adjacent admin, role/security, audit, validation, and CRUD forms.",
+                            "Generated Admin page requires users, roles, audit, validation, and settings through DevExpress controls.",
+                            "Represented",
+                            "Components/Pages/Admin.razor.")
+                """,
+                GeneratedSolutionArchetype.AiHost => """
+                        new(
+                            "Provider-compatible routes",
+                            "AI-host-shaped requests need /api/version, /api/tags, /api/ps, /api/chat, /api/generate, embeddings, and OpenAI-compatible routes.",
+                            "Generated Program.cs maps route stubs through provider/catalog/runner service contracts.",
+                            "Represented",
+                            "Program.cs and Services/GeneratedAiHostArchitectureServices.cs."),
+                        new(
+                            "Native runner boundary",
+                            "A real AI host needs native model loading, tokenizer/template handling, GPU scheduling, blobs, and runner lifecycle.",
+                            "Generated runner/plugin pages expose that native inference is not implemented rather than hiding it.",
+                            "CapabilityGap",
+                            "Components/Pages/RunnerPlugins.razor and IInferenceRunner."),
+                        new(
+                            "Model catalog and downloads",
+                            "AI host UX needs model inventory, running models, download/pull planning, settings, hardware, and logs.",
+                            "Generated pages cover catalog, downloads, running models, templates, hardware, logs, and settings.",
+                            "Represented",
+                            "Components/Pages/ModelDownloads.razor, RunningModels.razor, Hardware.razor, Logs.razor, Settings.razor."),
+                        new(
+                            "Adapter architecture",
+                            "External hosts, HuggingFace downloads, Python.NET, PowerShell, optional TypeScript client/script assets, and plugins should sit behind explicit interfaces.",
+                            "Generated service file declares provider, runner, plugin, script, hardware, and template interfaces.",
+                            "Represented",
+                            "Services/GeneratedAiHostArchitectureServices.cs.")
+                """,
+                GeneratedSolutionArchetype.BotBackend => """
+                        new(
+                            "Webhook ingress",
+                            "Bot backend requests need signed/idempotent event intake and retry/dead-letter diagnostics.",
+                            "Generated Webhooks page models ingress, signature check, idempotency, and dead letters.",
+                            "Represented",
+                            "Components/Pages/Webhooks.razor."),
+                        new(
+                            "Conversation state",
+                            "Bot systems need persisted conversation memory, moderation, transcript review, and handoff.",
+                            "Generated Conversations page models memory, moderation, handoff, and transcript work.",
+                            "Boundary",
+                            "Components/Pages/Conversations.razor; real EF/SQLite implementation must be added for production."),
+                        new(
+                            "Optional Python interop",
+                            "Legacy examples show Python.NET/process adapters for speech, translation, or automation helpers.",
+                            "Generated Python Interop page keeps this permission-gated and backend-owned.",
+                            "Represented",
+                            "Components/Pages/PythonInterop.razor.")
+                """,
+                _ => """
+                        new(
+                            "Generated sandbox",
+                            "User requested a downloadable .NET/Blazor/DevExpress artifact.",
+                            "Generated files include navigation, pages, service/model code, docs, and contract JSON.",
+                            "Represented",
+                            "PROJECT_INDEX.md and .localgpt-generation.json.")
+                """
+            };
+
+            return $$"""
+            namespace {{projectName}}.Services;
+
+            /// <summary>
+            /// Describes whether the generated sandbox preserves the requested source architecture.
+            /// </summary>
+            public interface ISourceFidelityService
+            {
+                /// <summary>
+                /// Returns source-fidelity requirements for review and benchmark scoring.
+                /// </summary>
+                IReadOnlyList<GeneratedSourceFidelityRequirement> GetRequirements();
+            }
+
+            /// <summary>
+            /// Deterministic source-fidelity service generated by LocalGPT.
+            /// </summary>
+            public sealed class GeneratedSourceFidelityService : ISourceFidelityService
+            {
+                /// <inheritdoc />
+                public IReadOnlyList<GeneratedSourceFidelityRequirement> GetRequirements()
+                {
+                    return
+                    [
+                {{rows}}
+                    ];
+                }
+            }
+
+            /// <summary>
+            /// One source-fidelity requirement represented by this generated sandbox.
+            /// </summary>
+            public sealed record GeneratedSourceFidelityRequirement(
+                string Area,
+                string SourceSignal,
+                string GeneratedBoundary,
+                string Status,
+                string Evidence);
+            """;
+        }
+
         private static string GenerateAiHostArchitectureServices(string projectName) =>
             $$"""
+            using System.Net.Http;
+            using System.Net.Http.Json;
+            using System.Text.Json.Serialization;
             using Microsoft.Extensions.Options;
             using {{projectName}}.Models;
 
@@ -2018,6 +2288,7 @@ namespace LocalGPT.Services
                 public bool AllowNativeRunner { get; set; }
                 public bool AllowPythonNet { get; set; }
                 public bool AllowPowerShellScripts { get; set; }
+                public bool AllowTypeScriptAdapters { get; set; }
             }
 
             public interface IModelCatalogService
@@ -2067,26 +2338,190 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Delegates to an external provider boundary in a real app. This generated lab returns deterministic safe responses.
+            /// Delegates to an external provider boundary first, then falls back to deterministic safe responses.
             /// </summary>
             public sealed class ExternalProviderInferenceProvider(
                 GeneratedHealthSummaryService fallback,
+                IHttpClientFactory httpClientFactory,
                 IOptions<AiHostRuntimeOptions> options) : IInferenceProvider
             {
-                public string ProviderKind => "External provider adapter boundary";
+                public string ProviderKind => "External provider adapter";
 
-                public Task<GeneratedChatResponse> ChatAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default)
+                public async Task<GeneratedChatResponse> ChatAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default)
                 {
-                    return Task.FromResult(fallback.CreateChatResponse(request));
+                    if (!options.Value.AllowExternalProviderDelegation)
+                        return fallback.CreateChatResponse(request);
+
+                    try
+                    {
+                        var client = CreateProviderClient();
+                        var proxyRequest = new OllamaChatProxyRequest
+                        {
+                            Model = NormalizeModel(request.Model, options.Value.DefaultModel),
+                            Stream = false,
+                            KeepAlive = "0s",
+                            Messages = request.Messages
+                                .Where(message => !string.IsNullOrWhiteSpace(message.Content))
+                                .Select(message => new OllamaChatProxyMessage(message.Role, message.Content))
+                                .ToList(),
+                            Options = BuildProxyOptions(request.Options)
+                        };
+
+                        using var response = await client.PostAsJsonAsync("/api/chat", proxyRequest, cancellationToken);
+                        response.EnsureSuccessStatusCode();
+                        var proxied = await response.Content.ReadFromJsonAsync<OllamaChatProxyResponse>(cancellationToken);
+                        if (proxied?.Message is null)
+                            return fallback.CreateChatResponse(request);
+
+                        return new GeneratedChatResponse(
+                            string.IsNullOrWhiteSpace(proxied.Model) ? proxyRequest.Model : proxied.Model,
+                            proxied.CreatedAt == default ? DateTimeOffset.UtcNow : proxied.CreatedAt,
+                            new GeneratedChatMessage(proxied.Message.Role, proxied.Message.Content),
+                            proxied.Done);
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+                    {
+                        var fallbackResponse = fallback.CreateChatResponse(request);
+                        return new GeneratedChatResponse(
+                            fallbackResponse.Model,
+                            fallbackResponse.CreatedAt,
+                            new GeneratedChatMessage(
+                                "assistant",
+                                "External provider was unavailable, so the generated host returned a safe fallback. " +
+                                $"Provider: {options.Value.ProviderBaseUri}. Error: {ex.GetType().Name}."),
+                            true);
+                    }
                 }
 
-                public Task<object> GenerateAsync(GeneratedModelActionRequest request, CancellationToken cancellationToken = default)
+                public async Task<object> GenerateAsync(GeneratedModelActionRequest request, CancellationToken cancellationToken = default)
                 {
-                    var response = options.Value.AllowExternalProviderDelegation
-                        ? fallback.CreateGenerateResponse(request)
-                        : new { error = "External provider delegation is disabled by generated options." };
-                    return Task.FromResult<object>(response);
+                    if (!options.Value.AllowExternalProviderDelegation)
+                        return new { error = "External provider delegation is disabled by generated options." };
+
+                    try
+                    {
+                        var client = CreateProviderClient();
+                        var proxyRequest = new OllamaGenerateProxyRequest
+                        {
+                            Model = NormalizeModel(request.Model, options.Value.DefaultModel),
+                            Prompt = string.IsNullOrWhiteSpace(request.Prompt) ? "LocalGPT generated AI host smoke test." : request.Prompt,
+                            Stream = false,
+                            KeepAlive = "0s",
+                            Options = BuildProxyOptions(request.Options)
+                        };
+                        using var response = await client.PostAsJsonAsync("/api/generate", proxyRequest, cancellationToken);
+                        response.EnsureSuccessStatusCode();
+                        var proxied = await response.Content.ReadFromJsonAsync<object>(cancellationToken);
+                        return proxied ?? fallback.CreateGenerateResponse(request);
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+                    {
+                        return new
+                        {
+                            model = NormalizeModel(request.Model, options.Value.DefaultModel),
+                            response = "External provider was unavailable, so the generated host returned a safe fallback.",
+                            provider = options.Value.ProviderBaseUri,
+                            error = ex.GetType().Name,
+                            done = true
+                        };
+                    }
                 }
+
+                private HttpClient CreateProviderClient()
+                {
+                    var client = httpClientFactory.CreateClient("GeneratedAiHost.ExternalProvider");
+                    client.BaseAddress = new Uri(options.Value.ProviderBaseUri.TrimEnd('/') + "/");
+                    client.Timeout = TimeSpan.FromMinutes(4);
+                    return client;
+                }
+
+                private OllamaProxyOptions BuildProxyOptions(GeneratedRequestOptions? requestOptions)
+                {
+                    return new OllamaProxyOptions
+                    {
+                        NumCtx = Math.Clamp(requestOptions?.NumCtx ?? options.Value.ContextTokens, 2048, 262144),
+                        NumPredict = Math.Clamp(requestOptions?.NumPredict ?? 1024, 64, 262144),
+                        NumGpu = Math.Clamp(requestOptions?.NumGpu ?? options.Value.GpuLayers, 0, 99),
+                        Temperature = requestOptions?.Temperature
+                    };
+                }
+
+                private static string NormalizeModel(string? model, string fallbackModel)
+                {
+                    return string.IsNullOrWhiteSpace(model)
+                        ? fallbackModel
+                        : model.Trim();
+                }
+            }
+
+            public sealed class OllamaChatProxyRequest
+            {
+                [JsonPropertyName("model")]
+                public string Model { get; set; } = string.Empty;
+
+                [JsonPropertyName("stream")]
+                public bool Stream { get; set; }
+
+                [JsonPropertyName("keep_alive")]
+                public string KeepAlive { get; set; } = "0s";
+
+                [JsonPropertyName("messages")]
+                public List<OllamaChatProxyMessage> Messages { get; set; } = [];
+
+                [JsonPropertyName("options")]
+                public OllamaProxyOptions Options { get; set; } = new();
+            }
+
+            public sealed record OllamaChatProxyMessage(
+                [property: JsonPropertyName("role")] string Role,
+                [property: JsonPropertyName("content")] string Content);
+
+            public sealed class OllamaGenerateProxyRequest
+            {
+                [JsonPropertyName("model")]
+                public string Model { get; set; } = string.Empty;
+
+                [JsonPropertyName("prompt")]
+                public string Prompt { get; set; } = string.Empty;
+
+                [JsonPropertyName("stream")]
+                public bool Stream { get; set; }
+
+                [JsonPropertyName("keep_alive")]
+                public string KeepAlive { get; set; } = "0s";
+
+                [JsonPropertyName("options")]
+                public OllamaProxyOptions Options { get; set; } = new();
+            }
+
+            public sealed class OllamaProxyOptions
+            {
+                [JsonPropertyName("num_ctx")]
+                public int NumCtx { get; set; }
+
+                [JsonPropertyName("num_predict")]
+                public int NumPredict { get; set; }
+
+                [JsonPropertyName("num_gpu")]
+                public int NumGpu { get; set; }
+
+                [JsonPropertyName("temperature")]
+                public float? Temperature { get; set; }
+            }
+
+            public sealed class OllamaChatProxyResponse
+            {
+                [JsonPropertyName("model")]
+                public string Model { get; set; } = string.Empty;
+
+                [JsonPropertyName("created_at")]
+                public DateTimeOffset CreatedAt { get; set; }
+
+                [JsonPropertyName("message")]
+                public GeneratedChatMessage? Message { get; set; }
+
+                [JsonPropertyName("done")]
+                public bool Done { get; set; }
             }
 
             /// <summary>
@@ -2124,6 +2559,7 @@ namespace LocalGPT.Services
                         new("external-http-provider", "External HTTP Provider Adapter", "1.0.0", "IInferenceProvider", true, "Delegates to Ollama, LM Studio, or OpenAI-compatible endpoints."),
                         new("pythonnet-runner", "Python.NET Runner Boundary", "planned", "IInferenceRunner", false, "Requires approved Python runtime, PYTHONNET_PYDLL, package list, and GIL-safe service code."),
                         new("powershell-runner", "PowerShell Script Boundary", "planned", "IScriptExecutionService", false, "Requires explicit script files, safe directories, constrained runspace policy, and user approval."),
+                        new("typescript-client-adapter", "TypeScript Client/Adapter Boundary", "planned", "ASP.NET Core static asset or script adapter", false, "Allowed only when embedded deliberately inside the .NET app as client assets or an approved script layer, not as the control-plane owner."),
                         new("native-process-runner", "Native Process Runner Boundary", "planned", "IInferenceRunner", false, "Requires approved executable, arguments, stdout/stderr streaming, cancellation, and hardware policy."),
                         new("onnx-runtime-runner", "ONNX Runtime Runner Boundary", "planned", "IInferenceRunner", false, "Only for compatible ONNX models; not a universal LLM replacement.")
                     ];
@@ -2461,6 +2897,42 @@ namespace LocalGPT.Services
                 /// </summary>
                 [JsonPropertyName("stream")]
                 public bool Stream { get; set; }
+
+                /// <summary>
+                /// Gets or sets Ollama-compatible request options.
+                /// </summary>
+                [JsonPropertyName("options")]
+                public GeneratedRequestOptions? Options { get; set; }
+            }
+
+            /// <summary>
+            /// Represents Ollama-compatible request options accepted by the generated host.
+            /// </summary>
+            public sealed class GeneratedRequestOptions
+            {
+                /// <summary>
+                /// Gets or sets the requested context token budget.
+                /// </summary>
+                [JsonPropertyName("num_ctx")]
+                public int? NumCtx { get; set; }
+
+                /// <summary>
+                /// Gets or sets the requested output token budget.
+                /// </summary>
+                [JsonPropertyName("num_predict")]
+                public int? NumPredict { get; set; }
+
+                /// <summary>
+                /// Gets or sets the requested GPU layer count.
+                /// </summary>
+                [JsonPropertyName("num_gpu")]
+                public int? NumGpu { get; set; }
+
+                /// <summary>
+                /// Gets or sets the requested sampling temperature.
+                /// </summary>
+                [JsonPropertyName("temperature")]
+                public float? Temperature { get; set; }
             }
 
             /// <summary>
@@ -2503,6 +2975,12 @@ namespace LocalGPT.Services
                 /// </summary>
                 [JsonPropertyName("stream")]
                 public bool Stream { get; set; }
+
+                /// <summary>
+                /// Gets or sets Ollama-compatible request options.
+                /// </summary>
+                [JsonPropertyName("options")]
+                public GeneratedRequestOptions? Options { get; set; }
             }
 
             /// <summary>
@@ -2972,9 +3450,9 @@ namespace LocalGPT.Services
                 ? """
                   ## AI Host Control-Plane Lab Scope
 
-                  This prototype can demonstrate selected provider-compatible HTTP routes, model catalog UX, health cards, and endpoint testing in .NET/Blazor.
+                  This prototype can demonstrate selected provider-compatible HTTP routes, model catalog UX, health cards, endpoint testing in .NET/Blazor, and external-provider delegation to an Ollama-compatible base URL.
 
-                  It does not replace any native runner, GGML/GPU backend, model loader, native build stack, or hardware-specific inference path. Attach a real backend before calling it a complete AI host.
+                  It does not replace any native runner, GGML/GPU backend, model loader, native build stack, or hardware-specific inference path. It can serve LocalGPT-style `/api/chat` requests by proxying to a configured external provider while clearly marking native inference as a capability gap.
                   """
                 : """
                   ## Scope
@@ -3001,6 +3479,7 @@ namespace LocalGPT.Services
             - Navigation SVG pairs under `wwwroot/icons/nav`
             - `PROJECT_INDEX.md`
             - `ARCHITECTURE.md`
+            - `SOURCE_FIDELITY.md`
             - `BUILD_AND_RUN.md`
             - `.localgpt-generation.json`
             - `LocalGPT.GenerationManifest.json`
@@ -3100,7 +3579,8 @@ namespace LocalGPT.Services
               "expected_entrypoints": [
                 "src/{{projectName}}/Program.cs",
                 "src/{{projectName}}/Components/Pages/Index.razor",
-                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor"{{aiHostExpectedEntryPoints}}
+                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
+                "src/{{projectName}}/Components/Pages/SourceFidelity.razor"{{aiHostExpectedEntryPoints}}
               ]
             }
             ```
@@ -3115,6 +3595,7 @@ namespace LocalGPT.Services
             - `src/{{projectName}}/Components/Pages/GeneratedDashboard.razor` - health/status grid.
             - `src/{{projectName}}/Components/Pages/{{catalogPage}}` - archetype catalog page.
             - `src/{{projectName}}/Components/Pages/{{detailPage}}` - archetype-specific detail page.
+            - `src/{{projectName}}/Components/Pages/SourceFidelity.razor` - source-fidelity review grid.
             {{aiHostEntryPoints}}
 
             ## Generated Files
@@ -3124,6 +3605,7 @@ namespace LocalGPT.Services
             | `{{projectName}}.sln` | Visual Studio and CLI solution entry point. |
             | `src/{{projectName}}/{{projectName}}.csproj` | .NET 10 Blazor Web App project with DevExpress dependency. |
             | `src/{{projectName}}/Services/GeneratedHealthSummaryService.cs` | Typed demo service instead of Razor-only fake data. |
+            | `src/{{projectName}}/Services/GeneratedSourceFidelityService.cs` | Typed evidence that the sandbox preserves source workflows or marks capability gaps. |
             | `src/{{projectName}}/Models/GeneratedHealthCard.cs` | Shared model records for grids/catalog rows. |
             {{aiHostGeneratedFiles}}
             | `src/{{projectName}}/wwwroot/app.css` | Local styling for the generated shell. |
@@ -3131,6 +3613,7 @@ namespace LocalGPT.Services
             | `src/{{projectName}}/wwwroot/icons/nav/*-solid.svg` | Hover/focus navigation icon style. |
             | `PROJECT_INDEX.md` | Required generated-project map and archetype declaration. |
             | `ARCHITECTURE.md` | Explains why this artifact differs from other project types. |
+            | `SOURCE_FIDELITY.md` | Explains why a compiling artifact still needs architectural fidelity review. |
             | `BUILD_AND_RUN.md` | Exact restore/build/run commands and expected checks. |
             | `.localgpt-generation.json` | Machine-readable generation contract. |
             | `LocalGPT.GenerationManifest.json` | LocalGPT artifact metadata and safety notes. |
@@ -3194,7 +3677,56 @@ namespace LocalGPT.Services
             3. `src/{{projectName}}/Program.cs`
             4. `src/{{projectName}}/Components/Pages/Index.razor`
             5. `src/{{projectName}}/Services/GeneratedHealthSummaryService.cs`
-            {{(isAiHostLab ? $"6. `src/{projectName}/Services/GeneratedAiHostArchitectureServices.cs`" : string.Empty)}}
+            6. `SOURCE_FIDELITY.md`
+            7. `src/{{projectName}}/Services/GeneratedSourceFidelityService.cs`
+            {{(isAiHostLab ? $"8. `src/{projectName}/Services/GeneratedAiHostArchitectureServices.cs`" : string.Empty)}}
+            """;
+        }
+
+        private static string GenerateSourceFidelityDoc(string projectName, GeneratedSolutionArchetype archetype)
+        {
+            var expectedShape = archetype switch
+            {
+                GeneratedSolutionArchetype.LocalGpt =>
+                    "A LocalGPT replacement must look and behave like a local-first AI workbench: DXAiChat, AI Council, SQLite memory/knowledge, artifact downloads, Minecraft builder, Install, Test Lab, diagnostics, and visible model/runtime status.",
+                GeneratedSolutionArchetype.TacosPortal =>
+                    "A TacosPortalOpen replacement must preserve the multi-host/event-ingestion architecture: core/shared services, Telegram or message ingestion, normalized persistence, workers, notifications, DevExpress admin/security, optional WASM client, and WinUI/WebView2 wrapper boundaries. It is not accepted as a generic restaurant ordering portal.",
+                GeneratedSolutionArchetype.AiHost =>
+                    "An AI-host control-plane replacement must expose provider-compatible API routes, catalog/download/running-model UX, chat/API console, logs, settings, templates, hardware policy, runner/plugin boundaries, external-provider delegation, and honest native-inference status.",
+                GeneratedSolutionArchetype.BotBackend =>
+                    "A bot backend replacement must expose webhook ingress, conversation state, command routing, moderation/retry queues, settings/logs, optional Python interop, and permission gates.",
+                _ =>
+                    "A generic generated solution must still show which source behaviors are represented, stubbed, or out of scope."
+            };
+
+            return $$"""
+            # Source Fidelity
+
+            Generated project: `{{projectName}}`
+
+            ## Acceptance Rule
+
+            A generated solution is not accepted merely because it compiles. It must preserve the requested source application's recognizable workflows, navigation, service boundaries, persistence shape, diagnostics, and download/artifact behavior.
+
+            ## Expected Shape
+
+            {{expectedShape}}
+
+            ## Review Files
+
+            - `src/{{projectName}}/Components/Pages/SourceFidelity.razor`
+            - `src/{{projectName}}/Services/GeneratedSourceFidelityService.cs`
+            - `PROJECT_INDEX.md`
+            - `.localgpt-generation.json`
+            - `ARCHITECTURE.md`
+
+            ## Benchmark Guidance
+
+            LocalGPT replacement benchmarks should inspect this file and the generated source-fidelity service before awarding architecture points. A page-only solution should score low when it misses source workflows, service contracts, or persistence boundaries.
+
+            ## Integration Rule
+
+            This remains a sandbox artifact. Copying generated files into a real repo requires explicit user approval, a build, and a focused smoke test.
             """;
         }
 
@@ -3224,6 +3756,7 @@ namespace LocalGPT.Services
 
             - `/` shows the generated index page with navigation.
             - `/dashboard` shows the generated health/status grid.
+            - `/source-fidelity` shows source-signal, boundary, status, and evidence rows.
             - {{smokeRoute}}
             - `PROJECT_INDEX.md` and `.localgpt-generation.json` describe the selected archetype.
 
@@ -3245,8 +3778,8 @@ namespace LocalGPT.Services
                 : "dotnet10_aspnetcore_devexpress_blazor_localgpt_feature";
             var detailPage = isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
             var validationNotes = isAiHostLab
-                ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, chat, running-models, model-download, templates, hardware, runner-plugin, logs, settings, and AI-host architecture service files were present before zipping."
-                : "Required docs, manifest, navigation, paired nav icons, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
+                ? "Required docs, source-fidelity files, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, chat, running-models, model-download, templates, hardware, runner-plugin, logs, settings, and AI-host architecture service files were present before zipping."
+                : "Required docs, source-fidelity files, manifest, navigation, paired nav icons, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
             var aiHostExpectedEntryPoints = isAiHostLab
                 ? $$"""
                 ,
@@ -3298,6 +3831,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/GeneratedNavigation.razor",
                 "src/{{projectName}}/Components/Pages/Index.razor",
                 "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
+                "src/{{projectName}}/Components/Pages/SourceFidelity.razor",
                 "src/{{projectName}}/Components/Pages/{{detailPage}}"{{aiHostExpectedEntryPoints}}
               ],
               "generated_files": [
@@ -3305,6 +3839,7 @@ namespace LocalGPT.Services
                 "README.md",
                 "PROJECT_INDEX.md",
                 "ARCHITECTURE.md",
+                "SOURCE_FIDELITY.md",
                 "BUILD_AND_RUN.md",
                 ".localgpt-generation.json",
                 "LocalGPT.GenerationManifest.json",
@@ -3315,8 +3850,10 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/GeneratedNavigation.razor",
                 "src/{{projectName}}/Components/Pages/Index.razor",
                 "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
+                "src/{{projectName}}/Components/Pages/SourceFidelity.razor",
                 "src/{{projectName}}/Components/Pages/{{detailPage}}"{{aiHostGeneratedFiles}},
                 "src/{{projectName}}/Services/GeneratedHealthSummaryService.cs",
+                "src/{{projectName}}/Services/GeneratedSourceFidelityService.cs",
                 "src/{{projectName}}/Models/GeneratedHealthCard.cs",
                 "src/{{projectName}}/wwwroot/app.css",
                 "src/{{projectName}}/wwwroot/icons/nav/dashboard-line.svg",
@@ -3838,6 +4375,7 @@ namespace LocalGPT.Services
                 "README.md",
                 "PROJECT_INDEX.md",
                 "ARCHITECTURE.md",
+                "SOURCE_FIDELITY.md",
                 "BUILD_AND_RUN.md",
                 ".localgpt-generation.json",
                 "LocalGPT.GenerationManifest.json",
@@ -3847,8 +4385,10 @@ namespace LocalGPT.Services
                 Path.Combine("src", projectName, "Components", "Pages", "Index.razor"),
                 Path.Combine("src", projectName, "Components", "Pages", "GeneratedDashboard.razor"),
                 Path.Combine("src", projectName, "Components", "Pages", "GeneratedKnowledgeTable.razor"),
+                Path.Combine("src", projectName, "Components", "Pages", "SourceFidelity.razor"),
                 Path.Combine("src", projectName, "Components", "Pages", isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
                 Path.Combine("src", projectName, "Services", "GeneratedHealthSummaryService.cs"),
+                Path.Combine("src", projectName, "Services", "GeneratedSourceFidelityService.cs"),
                 Path.Combine("src", projectName, "Models", "GeneratedHealthCard.cs"),
                 Path.Combine("src", projectName, "wwwroot", "app.css"),
                 Path.Combine("src", projectName, "wwwroot", "icons", "nav", "dashboard-line.svg"),

@@ -110,11 +110,11 @@
                 <div class="council-member-list">
                     @foreach (var candidate in OllamaCandidates)
                     {
-                        <label title="@candidate.Details">
+                        <label title="@BuildCandidateTitle(candidate)">
                             <input type="checkbox"
                                    checked="@SelectedCouncilModelNames.Contains(candidate.ModelName)"
                                    @onchange="@((ChangeEventArgs e) => ToggleCouncilModel(candidate.ModelName, e))" />
-                            <span>@candidate.ModelName</span>
+                            <span>@BuildCandidateLabel(candidate)</span>
                             @if (candidate.IsLoaded)
                             {
                                 <small>loaded</small>
@@ -320,6 +320,7 @@
     bool GenerateCouncilArtifacts { get; set; } = true;
     bool IncludeCouncilMemory { get; set; } = true;
     string? DiagnosticRequestedSessionName { get; set; }
+    string? DiagnosticOllamaEndpoint { get; set; }
     int CouncilMaxOutputTokens { get; set; } = DefaultCouncilOutputTokens;
     int CouncilMaxContextTokens { get; set; } = DefaultCouncilContextTokens;
     static readonly string[] ArchitectureUiStackOptions =
@@ -734,9 +735,8 @@
 
             OllamaCandidates = (await CouncilService.GetCandidatesAsync())
                 .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
-                .GroupBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First())
                 .OrderByDescending(candidate => candidate.IsLoaded)
+                .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -791,7 +791,7 @@
 
         foreach (var candidate in OllamaCandidates)
         {
-            if (HasConfiguredSessionForModel(candidate.ModelName) && !ShouldAddRuntimeProfileSession())
+            if (candidate.IsConfigured && HasConfiguredSessionForModel(candidate.ModelName) && !ShouldAddRuntimeProfileSession())
                 continue;
 
             var session = new ChatClientSession(
@@ -801,7 +801,7 @@
                     contextLength: ResolveCouncilContextTokens(),
                     timeout: TimeSpan.FromMinutes(10),
                     numGpu: ResolveOllamaNumGpu()),
-                $"{DetectedOllamaSessionPrefix}{candidate.ModelName}");
+                BuildDynamicSessionName(candidate));
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
                 session.Messages.AddRange(messages);
@@ -834,7 +834,9 @@
             return;
         }
 
-        var endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
+        var endpoint = DiagnosticOllamaEndpoint;
+        if (string.IsNullOrWhiteSpace(endpoint))
+            endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
         if (string.IsNullOrWhiteSpace(endpoint))
             endpoint = DefaultOllamaEndpoint;
 
@@ -842,10 +844,10 @@
             new OllamaThinkingChatClient(
                 new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
                 keepAlive: "0s",
-                contextLength: ResolveCouncilContextTokens(),
-                timeout: TimeSpan.FromMinutes(10),
-                numGpu: ResolveOllamaNumGpu()),
-            $"{DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName}");
+                    contextLength: ResolveCouncilContextTokens(),
+                    timeout: TimeSpan.FromMinutes(10),
+                    numGpu: ResolveOllamaNumGpu()),
+            $"{DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {TrimEndpoint(endpoint)}");
 
         if (previousMessages.TryGetValue(session.Name, out var messages))
             session.Messages.AddRange(messages);
@@ -970,6 +972,13 @@
         if (query.TryGetValue("diagSession", out var sessionValue))
             DiagnosticRequestedSessionName = sessionValue.ToString();
 
+        if (query.TryGetValue("diagOllamaEndpoint", out var endpointValue))
+        {
+            var endpoint = endpointValue.ToString();
+            if (!string.IsNullOrWhiteSpace(endpoint))
+                DiagnosticOllamaEndpoint = endpoint.TrimEnd('/');
+        }
+
         if (!selectSession || string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName))
             return;
 
@@ -1030,6 +1039,31 @@
         ChatClientProvider?.AvailableChatClients.Any(session =>
             !IsDynamicSession(session) &&
             session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
+
+    private static string BuildDynamicSessionName(MultiModelCouncilModelCandidate candidate) =>
+        $"{DetectedOllamaSessionPrefix}{candidate.ModelName} @ {TrimEndpoint(candidate.Endpoint)}";
+
+    private static string BuildCandidateLabel(MultiModelCouncilModelCandidate candidate) =>
+        $"{candidate.ModelName} @ {TrimEndpoint(candidate.Endpoint)}";
+
+    private static string BuildCandidateTitle(MultiModelCouncilModelCandidate candidate)
+    {
+        var details = string.IsNullOrWhiteSpace(candidate.Details)
+            ? "No model details reported."
+            : candidate.Details;
+        return $"{candidate.Provider} at {candidate.Endpoint}. {details}";
+    }
+
+    private static string TrimEndpoint(string endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return "unknown endpoint";
+
+        return endpoint
+            .Replace("http://", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .TrimEnd('/');
+    }
 
     private static bool IsDynamicSession(ChatClientSession session) =>
         session.Name.StartsWith(DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase) ||

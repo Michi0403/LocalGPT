@@ -481,19 +481,19 @@ namespace LocalGPT.Services
                     "A strong answer is a buildable .NET/Blazor/DevExpress solution with recognizable LocalGPT navigation: DXAiChat, AI Council, SQLite Database, Minecraft Mod Builder, Install, Help/Test Lab, artifact routes, memory/knowledge services, logs, and missing-feature feedback capture.",
                     "Benchmark answer: create a full LocalGPT-like workbench solution zip with distinct pages for DXAiChat, AI Council, SQLite, Minecraft, Install, and Test Lab. Include Implementation artifact request.",
                     7,
-                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Components/Pages/MinecraftModBuilder.razor", "Components/Pages/TestLab.razor", "Components/Pages/Install.razor"],
-                    ["DXAiChat", "AI Council", "SQLite", "Minecraft", "Test Lab"],
-                    ["Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor"]),
+                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Components/Pages/MinecraftModBuilder.razor", "Components/Pages/TestLab.razor", "Components/Pages/Install.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
+                    ["DXAiChat", "AI Council", "SQLite", "Minecraft", "Test Lab", "Source Fidelity", "Artifact"],
+                    ["Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Services/GeneratedSourceFidelityService.cs"]),
                 new(
                     "tacosportalopen-replacement",
                     "TacosPortalOpen replacement portal",
-                    "Generate a downloadable whole solution zip that can stand in for TacosPortalOpen as a server-interactive operations portal. It must include menu/catalog management, orders, reservations, admin CRUD grid/detail forms, notifications, audit state, EF/SQLite, and a simpler bot backend implementation for customer/order messages.",
-                    "A strong answer is a buildable .NET/Blazor/DevExpress operations portal with pages for Orders, Menu, Reservations, Admin, Bot Backend, service boundaries, EF/SQLite persistence, validation, and build/run docs.",
-                    "Benchmark answer: create a full TacosPortalOpen-style operations portal solution zip with menu/orders/reservations/admin/bot pages and backend service boundaries. Include Implementation artifact request.",
+                    "Generate a downloadable whole solution zip that can stand in for TacosPortalOpen as a server-interactive DevExpress/Blazor system. It must represent the real architecture: multi-project/core service topology, Telegram or message-event ingestion, normalized persistence, worker services, notifications/logging, custom security/admin UI, optional WASM client, WinUI/WebView2 wrapper boundary, and a sanitized simpler bot backend implementation.",
+                    "A strong answer is a buildable .NET/Blazor/DevExpress solution with pages and service boundaries for Telegram ingestion, persistence, workers, admin/security, client shells, notification/logging, EF/SQLite or provider-backed data, validation, and build/run docs. A generic menu/orders/reservations restaurant portal is the wrong template.",
+                    "Benchmark answer: create a full TacosPortalOpen-style multi-host/event-ingestion solution zip with Telegram ingestion, persistence, workers, admin, client-shell boundaries, and source-fidelity docs. Include Implementation artifact request.",
                     7,
-                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/", "Components/Pages/Orders.razor", "Components/Pages/Menu.razor", "Components/Pages/Reservations.razor", "Components/Pages/Admin.razor", "Components/Pages/BotBackend.razor"],
-                    ["Orders", "Menu", "Reservations", "Bot Backend"],
-                    ["Components/Pages/Orders.razor", "Components/Pages/Menu.razor", "Components/Pages/BotBackend.razor"]),
+                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/TelegramIngestion.razor", "Components/Pages/Persistence.razor", "Components/Pages/Workers.razor", "Components/Pages/Admin.razor", "Components/Pages/ClientShells.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
+                    ["Telegram", "Persistence", "Workers", "WebView2", "WASM", "DevExpress", "Source Fidelity"],
+                    ["Components/Pages/TelegramIngestion.razor", "Components/Pages/Persistence.razor", "Components/Pages/Workers.razor", "Services/GeneratedSourceFidelityService.cs"]),
                 new(
                     "ai-host-replacement",
                     "Provider-compatible AI host replacement",
@@ -501,9 +501,9 @@ namespace LocalGPT.Services
                     "A strong answer is a buildable AI-host control-plane solution with provider-compatible routes, DevExpress navigation, model/download/runtime pages, plugin/native-runner interfaces, safe external-provider delegation, and explicit non-implemented native inference status.",
                     "Benchmark answer: create a buildable AI-host replacement solution zip with DevExpress pages, provider-compatible routes, runner/plugin service contracts, and no Go dependency. Include Implementation artifact request.",
                     9,
-                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/RunningModels.razor", "Components/Pages/ModelDownloads.razor", "Components/Pages/RunnerPlugins.razor", "Services/GeneratedAiHostArchitectureServices.cs"],
-                    ["IInferenceProvider", "IInferenceRunner", "RunnerPlugins", "/api/chat"],
-                    ["Components/Pages/RunnerPlugins.razor", "Services/GeneratedAiHostArchitectureServices.cs"]),
+                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/RunningModels.razor", "Components/Pages/ModelDownloads.razor", "Components/Pages/RunnerPlugins.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedAiHostArchitectureServices.cs", "Services/GeneratedSourceFidelityService.cs"],
+                    ["IInferenceProvider", "IInferenceRunner", "RunnerPlugins", "/api/chat", "Source Fidelity"],
+                    ["Components/Pages/RunnerPlugins.razor", "Services/GeneratedAiHostArchitectureServices.cs", "Services/GeneratedSourceFidelityService.cs"]),
                 new(
                     "simple-bot-backend",
                     "Simpler bot backend implementation",
@@ -511,9 +511,9 @@ namespace LocalGPT.Services
                     "A strong answer is a buildable .NET/Blazor/DevExpress bot backend with Webhooks, Conversations, Bot Settings, Python Interop pages, services, safe permission gates, and no private database dump requirement.",
                     "Benchmark answer: create a simple bot backend solution zip with webhook/conversation/settings/python-interop pages and safe backend service boundaries. Include Implementation artifact request.",
                     7,
-                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/", "Components/Pages/Webhooks.razor", "Components/Pages/Conversations.razor", "Components/Pages/BotSettings.razor", "Components/Pages/PythonInterop.razor"],
+                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Webhooks.razor", "Components/Pages/Conversations.razor", "Components/Pages/BotSettings.razor", "Components/Pages/PythonInterop.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
                     ["Webhooks", "Conversations", "Python Interop", "SQLite"],
-                    ["Components/Pages/Webhooks.razor", "Components/Pages/PythonInterop.razor"])
+                    ["Components/Pages/Webhooks.razor", "Components/Pages/PythonInterop.razor", "Services/GeneratedSourceFidelityService.cs"])
             ];
         }
 

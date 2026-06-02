@@ -103,6 +103,8 @@ namespace LocalGPT.Services
             }
 
             await knowledgeService.EnsureCreatedAsync(cancellationToken);
+            if (LooksLikeWindowsDevDocsRoot(rootPath))
+                await ImportWindowsDevDocsCorpusAsync(rootPath, request, result, cancellationToken);
 
             var projectDirectories = BuildImportDirectories(rootPath, Math.Clamp(request.MaxProjects, 1, 120))
                 .ToArray();
@@ -132,6 +134,164 @@ namespace LocalGPT.Services
 
             result.ProjectCount = result.Projects.Count;
             return result;
+        }
+
+        private async Task ImportWindowsDevDocsCorpusAsync(
+            string rootPath,
+            LearnBaseImportRequest request,
+            LearnBaseImportResult result,
+            CancellationToken cancellationToken)
+        {
+            var markdownFiles = EnumerateUsefulFiles(rootPath)
+                .Where(file => file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
+                .Take(6000)
+                .ToArray();
+            if (markdownFiles.Length == 0)
+                return;
+
+            foreach (var entry in BuildWindowsDevDocsEntries(rootPath, markdownFiles))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Guid? knowledgeEntryId = null;
+                if (request.SaveToKnowledge)
+                {
+                    var saved = await knowledgeService.SaveEntryAsync(entry, cancellationToken);
+                    knowledgeEntryId = saved.Id;
+                    result.SavedKnowledgeCount++;
+                }
+
+                result.Projects.Add(new LearnBaseProjectSummary
+                {
+                    Name = entry.Topic,
+                    SourcePath = rootPath,
+                    Architecture = "Windows developer docs corpus; DocFX/Microsoft Learn authoring; Windows app platform; deployment/support/design guidance",
+                    ProtocolsAndComponents = "DocFX; Microsoft Learn markdown; Windows App SDK; WinUI; WebView2; MSIX; winget; Terminal; Dev Drive; PowerToys; Arm64; accessibility",
+                    TargetFrameworks = "Documentation corpus, not a compiled project",
+                    PackageReferences = "none",
+                    ImportantFiles = entry.HelpfulSources,
+                    SourceFileCount = markdownFiles.Length,
+                    BinaryFileCount = 0,
+                    KnowledgeEntryId = knowledgeEntryId
+                });
+            }
+        }
+
+        private static IReadOnlyList<CouncilKnowledgeEntry> BuildWindowsDevDocsEntries(
+            string rootPath,
+            IReadOnlyList<FileInfo> markdownFiles)
+        {
+            var now = DateTime.UtcNow;
+            var docfxSamples = BuildWindowsDocsPathSamples(rootPath, markdownFiles, "docfx", "metadata", "toc", "index", "authoring");
+            var platformSamples = BuildWindowsDocsPathSamples(rootPath, markdownFiles, "windows-app-sdk", "winui", "webview2", "msix", "desktop");
+            var supportSamples = BuildWindowsDocsPathSamples(rootPath, markdownFiles, "developer-mode", "dev-drive", "winget", "terminal", "arm64");
+            var designSamples = BuildWindowsDocsPathSamples(rootPath, markdownFiles, "design", "accessibility", "navigation", "layout", "typography");
+            var frontMatterCount = markdownFiles
+                .Take(800)
+                .Select(ReadSmallText)
+                .Count(text => text.TrimStart().StartsWith("---", StringComparison.Ordinal));
+
+            return
+            [
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"windows-dev-docs|docfx|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Windows developer docs DocFX and Microsoft Learn authoring",
+                    Scope = "DocFX / developer documentation",
+                    Source = "Local learn-base docs corpus: windows-dev-docs-docs",
+                    Content = "The local Windows developer docs corpus uses Microsoft Learn/DocFX-style Markdown. " +
+                        "Generation should preserve normal physical line breaks, front matter, title/description metadata, ms.topic/ms.date fields, relative links, includes, image references, and table/list readability. " +
+                        "For docfx generation, produce docs that can be indexed by topic, source file, service boundary, build command, troubleshooting case, and related API/platform area. " +
+                        "Do not paste full docs into prompts; summarize source maps and let LocalGPT retrieve narrow entries. " +
+                        $"Sampled {markdownFiles.Count} markdown files; {frontMatterCount} of the first 800 looked like front-matter pages.",
+                    HelpfulSources = docfxSamples,
+                    Tags = "learn-base; windows-dev-docs; docfx; microsoft-learn; markdown; documentation; source-backed",
+                    Confidence = 88,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"windows-dev-docs|platform|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Windows app platform source map for LocalGPT generation",
+                    Scope = "Windows app development",
+                    Source = "Local learn-base docs corpus: windows-dev-docs-docs",
+                    Content = "When generating Windows-capable .NET apps, use the Windows docs corpus as a compact source map for Windows App SDK, WinUI, WebView2, MSIX/package deployment, app lifecycle, desktop integration, and Windows desktop support boundaries. " +
+                        "For LocalGPT-style apps, keep WebView2 wrappers thin, own Blazor/ASP.NET Core work in the backend, and document static assets, package/runtime dependencies, and deploy/debug differences. " +
+                        "Generated projects should include health routes, package diagnostics, build/run docs, and clear user-facing setup checks.",
+                    HelpfulSources = platformSamples,
+                    Tags = "learn-base; windows; winui; windowsappsdk; webview2; msix; deployment; desktop; source-backed",
+                    Confidence = 88,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"windows-dev-docs|support|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Windows technician workflow for developer support",
+                    Scope = "Windows support / operations",
+                    Source = "Local learn-base docs corpus: windows-dev-docs-docs",
+                    Content = "Use the Windows docs corpus to support developer-machine setup and troubleshooting: Developer Mode, Device Portal/discovery, winget, Windows Terminal, Dev Drive, PowerToys, Visual Studio/SDK/runtime checks, Arm64/Arm64EC/Arm64X compatibility, package logs, event logs, certificates, and deployment diagnostics. " +
+                        "LocalGPT should present these as guided checks and repair scripts, not as vague advice. Mark actions that need admin rights, downloads, or package changes before running them.",
+                    HelpfulSources = supportSamples,
+                    Tags = "learn-base; windows-support; winget; terminal; dev-drive; arm64; diagnostics; technician; source-backed",
+                    Confidence = 86,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"windows-dev-docs|design|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Windows design and accessibility guidance for generated Blazor apps",
+                    Scope = "Frontend design / accessibility",
+                    Source = "Local learn-base docs corpus: windows-dev-docs-docs",
+                    Content = "Use Windows design guidance as a source-backed supplement for generated Blazor/DevExpress apps: navigation clarity, command placement, typography, layout, iconography, accessibility, keyboard focus, density, status messages, and responsive behavior. " +
+                        "Generated apps should be understandable without long instructional text, while still surfacing setup state, loading state, errors, empty states, and next actions.",
+                    HelpfulSources = designSamples,
+                    Tags = "learn-base; windows-design; accessibility; blazor; devexpress; ux; source-backed",
+                    Confidence = 86,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                }
+            ];
+        }
+
+        private static string BuildWindowsDocsPathSamples(
+            string rootPath,
+            IReadOnlyList<FileInfo> markdownFiles,
+            params string[] needles)
+        {
+            var matches = markdownFiles
+                .Where(file =>
+                {
+                    var relative = Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/');
+                    return needles.Any(needle => relative.Contains(needle, StringComparison.OrdinalIgnoreCase));
+                })
+                .OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
+                .Take(16)
+                .Select(file => "- " + RedactSensitiveName(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/')))
+                .ToArray();
+
+            if (matches.Length > 0)
+                return string.Join("\n", matches);
+
+            return string.Join(
+                "\n",
+                markdownFiles
+                    .OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
+                    .Take(16)
+                    .Select(file => "- " + RedactSensitiveName(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/'))));
         }
 
         private static LearnBaseProjectSummary BuildProjectSummary(string rootPath, string projectDirectory)
@@ -446,6 +606,31 @@ namespace LocalGPT.Services
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 return [];
+            }
+        }
+
+        private static bool LooksLikeWindowsDevDocsRoot(string rootPath)
+        {
+            var directory = new DirectoryInfo(rootPath);
+            if (!directory.Exists)
+                return false;
+
+            if (directory.Name.Equals("windows-dev-docs-docs", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            try
+            {
+                var childNames = directory.GetDirectories()
+                    .Select(child => child.Name)
+                    .ToArray();
+                return childNames.Any(name => name.Contains("windows", StringComparison.OrdinalIgnoreCase)) &&
+                    childNames.Any(name => name.Contains("windows-app", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("uwp", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("design", StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
             }
         }
 

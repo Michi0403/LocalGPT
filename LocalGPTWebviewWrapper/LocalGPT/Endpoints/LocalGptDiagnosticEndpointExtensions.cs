@@ -43,6 +43,49 @@ namespace LocalGPT.Endpoints
                 });
             });
 
+            app.MapGet("/__diag/ollama-compatible-smoke", async (
+                string endpoint,
+                string? model,
+                string? prompt,
+                int? numGpu,
+                int? maxOutputTokens,
+                CancellationToken ct) =>
+            {
+                var normalizedEndpoint = string.IsNullOrWhiteSpace(endpoint)
+                    ? "http://127.0.0.1:11434"
+                    : endpoint.TrimEnd('/');
+                var modelName = string.IsNullOrWhiteSpace(model) ? "gpt-oss:20b" : model.Trim();
+                using var client = new OllamaThinkingChatClient(
+                    new OllamaCoreOptions { Uri = normalizedEndpoint, ModelName = modelName },
+                    keepAlive: "0s",
+                    contextLength: 2048,
+                    timeout: TimeSpan.FromMinutes(5),
+                    numGpu: numGpu ?? 0);
+
+                var response = await client.GetResponseAsync(
+                    [
+                        new ChatMessage(ChatRole.User, string.IsNullOrWhiteSpace(prompt)
+                            ? "Reply with exactly: LocalGPT Ollama-compatible endpoint smoke passed."
+                            : prompt)
+                    ],
+                    new ChatOptions
+                    {
+                        MaxOutputTokens = Math.Clamp(maxOutputTokens ?? 128, 64, 4096),
+                        Temperature = 0.1f
+                    },
+                    ct);
+
+                return Results.Ok(new
+                {
+                    Source = "LocalGPT OllamaThinkingChatClient",
+                    Endpoint = normalizedEndpoint,
+                    Model = modelName,
+                    NumGpu = numGpu ?? 0,
+                    Text = response.Text,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
             app.MapPost("/__diag/dxaichat-smoke", async (
                 [FromBody] DxaichatSmokeRequest request,
                 IChatClient chatClient,
@@ -699,7 +742,7 @@ namespace LocalGPT.Endpoints
                         : isLoaderMatrix
                         ? "implementation-request smoke: generate a downloadable Minecraft Java project skeleton distinction zip with separate Fabric, Paper, and NeoForge workspaces for Minecraft 26.1. Each loader must use its own metadata and Gradle conventions."
                         : isAiHostLab
-                        ? "implementation-request smoke: generate a whole local AI host .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Include a left navigation shell, model catalog, chat, downloads, running models, API console, settings, logs, and selected provider-compatible API routes such as /api/version, /api/tags, /api/ps, /api/chat, and a safe non-inference /api/generate stub. Do not use Go and do not claim native GGML/GPU inference is implemented."
+                        ? "implementation-request smoke: generate a whole local AI host .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Include a left navigation shell, model catalog, chat, downloads, running models, API console, settings, logs, and selected provider-compatible API routes such as /api/version, /api/tags, /api/ps, /api/chat, and /api/generate. The generated host should delegate to an approved external Ollama-compatible provider URL by default, then fall back safely when that provider is unavailable. Do not use Go and do not claim native GGML/GPU inference is implemented."
                         : isSolution
                         ? "implementation-request smoke: generate a whole LocalGPT/TacosPortalOpen-style .NET 10 Blazor DevExpress solution zip with .sln, .csproj, real .razor pages, css, service/model code, README, and manifest. The zip must be downloadable through /__artifacts/council/."
                         : isBlazor
@@ -720,7 +763,7 @@ namespace LocalGPT.Endpoints
                         : isLoaderMatrix
                         ? "Create a loader matrix artifact with distinct Fabric, Paper, and NeoForge skeletons. Do not reuse Fabric metadata for Paper or NeoForge."
                         : isAiHostLab
-                        ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab. Include a left navigation app shell, typed model catalog records, chat/download/running-model/API-console/settings/log pages, selected REST route stubs, README, manifest, and a prominent note that native inference is not implemented without a real backend."
+                        ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab. Include a left navigation app shell, typed model catalog records, chat/download/running-model/API-console/settings/log pages, selected REST routes, README, manifest, external-provider delegation to an Ollama-compatible URL, and a prominent note that native inference is not implemented without a real backend."
                         : isSolution
                         ? "Create a whole downloadable .NET 10 Blazor/DevExpress solution artifact with project files, routable Razor pages, CSS, service/model code, README, manifest, and safe sandbox guidance. Do not self-integrate generated files into LocalGPT without user approval."
                         : isBlazor

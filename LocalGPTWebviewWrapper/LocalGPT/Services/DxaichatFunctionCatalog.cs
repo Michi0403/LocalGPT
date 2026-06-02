@@ -146,6 +146,13 @@ public static class DxaichatFunctionCatalog
             "No parameters.",
             "Read-only. Use this before saying a local AI host .NET rebuild is too large or before producing a generic dashboard."),
         new(
+            "localgpt.ollama_compatible_smoke",
+            "GET",
+            "/__diag/ollama-compatible-smoke?endpoint=http://127.0.0.1:11434&model=gpt-oss:20b&numGpu=0",
+            "Call an Ollama-compatible endpoint through LocalGPT's own OllamaThinkingChatClient to prove LocalGPT can use a generated .NET AI host exactly like Ollama.",
+            "endpoint/model required for generated-host tests. prompt/maxOutputTokens/numGpu are optional.",
+            "Calls a local model endpoint. Use tiny prompts and numGpu=0 or keep_alive=0s-compatible generated hosts for safe first tests."),
+        new(
             "localgpt.frontend_test_guidance",
             "GET",
             "/__diag/frontend-test-guidance",
