@@ -129,6 +129,9 @@ if (-not $SkipWrapper) {
         }
 
         $platformRoot = Join-Path $releaseRoot "LocalGPT-WebView2-$Version-windows-$platform"
+        if (Test-Path $platformRoot) {
+            Remove-Item $platformRoot -Recurse -Force
+        }
         New-Item -ItemType Directory -Force -Path $platformRoot | Out-Null
         Copy-Item -LiteralPath $package.FullName -Destination $platformRoot -Force
 
