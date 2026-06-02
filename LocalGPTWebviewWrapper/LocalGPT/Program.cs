@@ -315,8 +315,9 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 var isSource = safeFileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
                 var isRazor = safeFileName.EndsWith(".razor", StringComparison.OrdinalIgnoreCase);
                 var isDll = safeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
+                var isZip = safeFileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
                 if (!string.Equals(fileName, safeFileName, StringComparison.Ordinal) ||
-                    (!isSource && !isRazor && !isDll))
+                    (!isSource && !isRazor && !isDll && !isZip))
                     return Results.BadRequest("Invalid artifact file name.");
 
                 var path = Path.Combine(artifacts.ArtifactRoot, safeFileName);
@@ -325,7 +326,10 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
 
                 httpContext.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{safeFileName}\"";
                 httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
-                return Results.File(path, isDll ? "application/octet-stream" : "text/plain; charset=utf-8", safeFileName);
+                var contentType = isZip
+                    ? "application/zip"
+                    : isDll ? "application/octet-stream" : "text/plain; charset=utf-8";
+                return Results.File(path, contentType, safeFileName);
             });
             app.MapGet("/__artifacts/minecraft/{projectName}/{fileName}", (string projectName, string fileName, IMinecraftModWorkspaceService workspaces, HttpContext httpContext) =>
             {
@@ -568,9 +572,12 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             app.MapGet("/__diag/council/artifact-smoke", async (string? target, ICouncilArtifactService artifacts, CancellationToken ct) =>
             {
                 var isBlazor = string.IsNullOrWhiteSpace(target) || target.Equals("blazor", StringComparison.OrdinalIgnoreCase);
+                var isSolution = target?.Equals("solution", StringComparison.OrdinalIgnoreCase) == true;
                 var request = new MultiModelCouncilRequest
                 {
-                    Prompt = isBlazor
+                    Prompt = isSolution
+                        ? "implementation-request smoke: generate a whole LocalGPT/TacosPortalOpen-style .NET 10 Blazor DevExpress solution zip with .sln, .csproj, real .razor pages, css, service/model code, README, and manifest. The zip must be downloadable through /__artifacts/council/."
+                        : isBlazor
                         ? "implementation-request smoke: generate a real .NET 10 Blazor server-interactive DevExpress Razor page for a LocalGPT backend health summary card. Include a service method idea, DxGrid, DxFormLayout, DxButton, DxCheckBox, and safe download guidance."
                         : "implementation-request smoke: generate a LocalGPT backend feature artifact.",
                     ModelNames = ["artifact-smoke"],
@@ -583,7 +590,9 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 {
                     Prompt = request.Prompt,
                     ModelNames = ["artifact-smoke"],
-                    FinalAnswer = isBlazor
+                    FinalAnswer = isSolution
+                        ? "Create a whole downloadable .NET 10 Blazor/DevExpress solution artifact with project files, routable Razor pages, CSS, service/model code, README, manifest, and safe sandbox guidance. Do not self-integrate generated files into LocalGPT without user approval."
+                        : isBlazor
                         ? "Create a real Razor page artifact using @page, @rendermode InteractiveServer, DevExpress controls, and an @code block. Also include compileable support code. Keep it sandboxed until the user approves integration."
                         : "Create a compileable backend support code artifact.",
                     CompletedAtUtc = DateTime.UtcNow
@@ -592,7 +601,7 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 var generated = await artifacts.CreateImplementationArtifactsAsync(request, result, ct);
                 return Results.Ok(new
                 {
-                    Target = isBlazor ? "blazor" : target,
+                    Target = isSolution ? "solution" : isBlazor ? "blazor" : target,
                     artifacts.ArtifactRoot,
                     Count = generated.Count,
                     Artifacts = generated,

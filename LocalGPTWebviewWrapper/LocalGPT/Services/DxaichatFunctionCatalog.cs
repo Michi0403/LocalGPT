@@ -51,8 +51,8 @@ public static class DxaichatFunctionCatalog
             "council.artifact_smoke",
             "GET",
             "/__diag/council/artifact-smoke?target=blazor",
-            "Generate a deterministic sandbox artifact bundle without calling Ollama, useful for testing .razor/.cs/.dll downloads.",
-            "target: optional, defaults to blazor.",
+            "Generate a deterministic sandbox artifact bundle without calling Ollama, useful for testing .razor/.cs/.dll and whole-solution zip downloads.",
+            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution.",
             "Writes files under LocalAppData/LocalGPT/CouncilArtifacts; does not integrate generated code into the project."),
         new(
             "council.run",

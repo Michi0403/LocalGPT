@@ -1,6 +1,7 @@
 using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
@@ -73,7 +74,69 @@ namespace LocalGPT.Services
             if (dllArtifact is not null)
                 artifacts.Add(dllArtifact);
 
+            if (IsWholeSolutionTarget(request.Prompt, result.FinalAnswer))
+                artifacts.Add(await CreateSolutionZipArtifactAsync(request, result, timestamp, cancellationToken));
+
             return artifacts;
+        }
+
+        private async Task<CouncilArtifact> CreateSolutionZipArtifactAsync(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            string timestamp,
+            CancellationToken cancellationToken)
+        {
+            var projectName = $"GeneratedLocalGptSolution{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}";
+            var solutionRoot = Path.Combine(ArtifactRoot, $"{projectName}-{result.RunId:N}");
+            var projectRoot = Path.Combine(solutionRoot, "src", projectName);
+            var componentsRoot = Path.Combine(projectRoot, "Components");
+            var pagesRoot = Path.Combine(componentsRoot, "Pages");
+            var servicesRoot = Path.Combine(projectRoot, "Services");
+            var modelsRoot = Path.Combine(projectRoot, "Models");
+            var wwwroot = Path.Combine(projectRoot, "wwwroot");
+
+            if (Directory.Exists(solutionRoot))
+                Directory.Delete(solutionRoot, recursive: true);
+
+            Directory.CreateDirectory(pagesRoot);
+            Directory.CreateDirectory(servicesRoot);
+            Directory.CreateDirectory(modelsRoot);
+            Directory.CreateDirectory(wwwroot);
+
+            var solutionGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
+            var projectGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
+
+            await WriteTextAsync(Path.Combine(solutionRoot, $"{projectName}.sln"), GenerateSolutionFile(projectName, projectGuid), cancellationToken);
+            await WriteTextAsync(Path.Combine(projectRoot, $"{projectName}.csproj"), GenerateSolutionProjectFile(), cancellationToken);
+            await WriteTextAsync(Path.Combine(projectRoot, "Program.cs"), GenerateSolutionProgram(projectName), cancellationToken);
+            await WriteTextAsync(Path.Combine(projectRoot, "_Imports.razor"), GenerateSolutionImports(projectName), cancellationToken);
+            await WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), "{\n  \"Logging\": {\n    \"LogLevel\": {\n      \"Default\": \"Information\"\n    }\n  }\n}\n", cancellationToken);
+            await WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), GenerateSolutionAppRazor(), cancellationToken);
+            await WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), GenerateSolutionRoutesRazor(), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), GenerateSolutionDashboardRazor(request, result), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), GenerateSolutionKnowledgeTableRazor(), cancellationToken);
+            await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), GenerateSolutionService(projectName), cancellationToken);
+            await WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), GenerateSolutionModel(projectName), cancellationToken);
+            await WriteTextAsync(Path.Combine(wwwroot, "app.css"), GenerateSolutionCss(), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "README.md"), GenerateSolutionReadme(projectName, request, result), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), GenerateSolutionManifest(projectName, solutionGuid, request, result), cancellationToken);
+
+            var zipName = $"{projectName}-{result.RunId:N}.zip";
+            var zipPath = Path.Combine(ArtifactRoot, zipName);
+            if (File.Exists(zipPath))
+                File.Delete(zipPath);
+
+            ZipFile.CreateFromDirectory(solutionRoot, zipPath, CompressionLevel.SmallestSize, includeBaseDirectory: true);
+            logger.LogInformation("Wrote council whole-solution artifact to {Path}", zipPath);
+
+            return new CouncilArtifact
+            {
+                Name = zipName,
+                Kind = "Downloadable .NET 10 Blazor/DevExpress solution zip",
+                FilePath = zipPath,
+                DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(zipName)}",
+                Summary = "Generated whole-solution artifact with .sln, .csproj, Razor pages, CSS, service/model code, README, and manifest."
+            };
         }
 
         private async Task<CouncilArtifact?> TryCreateDllArtifactAsync(
@@ -168,6 +231,380 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+
+        private static Task WriteTextAsync(string path, string content, CancellationToken cancellationToken)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new InvalidOperationException($"Path has no directory: {path}"));
+            return File.WriteAllTextAsync(path, content, cancellationToken);
+        }
+
+        private static string GenerateSolutionFile(string projectName, string projectGuid) =>
+            $$"""
+            Microsoft Visual Studio Solution File, Format Version 12.00
+            # Visual Studio Version 17
+            VisualStudioVersion = 17.0.31903.59
+            MinimumVisualStudioVersion = 10.0.40219.1
+            Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "{{projectName}}", "src\{{projectName}}\{{projectName}}.csproj", "{{projectGuid}}"
+            EndProject
+            Global
+            	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+            		Debug|Any CPU = Debug|Any CPU
+            		Release|Any CPU = Release|Any CPU
+            	EndGlobalSection
+            	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+            		{{projectGuid}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+            		{{projectGuid}}.Debug|Any CPU.Build.0 = Debug|Any CPU
+            		{{projectGuid}}.Release|Any CPU.ActiveCfg = Release|Any CPU
+            		{{projectGuid}}.Release|Any CPU.Build.0 = Release|Any CPU
+            	EndGlobalSection
+            EndGlobal
+            """;
+
+        private static string GenerateSolutionProjectFile() =>
+            """
+            <Project Sdk="Microsoft.NET.Sdk.Web">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <Nullable>enable</Nullable>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <GenerateDocumentationFile>true</GenerateDocumentationFile>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="DevExpress.Blazor" Version="25.1.*" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        private static string GenerateSolutionProgram(string projectName) =>
+            $$"""
+            using DevExpress.Blazor;
+            using {{projectName}}.Components;
+            using {{projectName}}.Services;
+
+            var builder = WebApplication.CreateBuilder(args);
+
+            builder.Services.AddRazorComponents()
+                .AddInteractiveServerComponents();
+            builder.Services.AddDevExpressBlazor(options => options.SizeMode = SizeMode.Small);
+            builder.Services.AddSingleton<GeneratedHealthSummaryService>();
+
+            var app = builder.Build();
+
+            app.UseStaticFiles();
+            app.UseAntiforgery();
+            app.MapGet("/__generated/health", (GeneratedHealthSummaryService service) => service.GetCards());
+            app.MapRazorComponents<App>()
+                .AddInteractiveServerRenderMode();
+
+            app.Run();
+            """;
+
+        private static string GenerateSolutionImports(string projectName) =>
+            $$"""
+            @using System.Net.Http
+            @using Microsoft.AspNetCore.Components.Forms
+            @using Microsoft.AspNetCore.Components.Routing
+            @using Microsoft.AspNetCore.Components.Web
+            @using Microsoft.AspNetCore.Components.Web.Virtualization
+            @using static Microsoft.AspNetCore.Components.Web.RenderMode
+            @using Microsoft.JSInterop
+            @using DevExpress.Blazor
+            @using {{projectName}}
+            @using {{projectName}}.Models
+            @using {{projectName}}.Services
+            """;
+
+        private static string GenerateSolutionAppRazor() =>
+            """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <base href="/" />
+                <link href="_content/DevExpress.Blazor.Themes/blazing-berry.bs5.css" rel="stylesheet" />
+                <link href="app.css" rel="stylesheet" />
+                <HeadOutlet @rendermode="InteractiveServer" />
+            </head>
+            <body>
+                <Routes @rendermode="InteractiveServer" />
+                <script src="_framework/blazor.web.js"></script>
+            </body>
+            </html>
+            """;
+
+        private static string GenerateSolutionRoutesRazor() =>
+            """
+            <Router AppAssembly="@typeof(Program).Assembly">
+                <Found Context="routeData">
+                    <RouteView RouteData="@routeData" />
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                </Found>
+                <NotFound>
+                    <PageTitle>Not Found</PageTitle>
+                    <p role="alert">This generated LocalGPT route was not found.</p>
+                </NotFound>
+            </Router>
+            """;
+
+        private static string GenerateSolutionDashboardRazor(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result)
+        {
+            var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700));
+            var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900));
+            return $$"""
+            @page "/"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>Generated LocalGPT Workbench</PageTitle>
+
+            <main class="generated-shell">
+                <section class="generated-header">
+                    <div>
+                        <h1>Generated LocalGPT Workbench</h1>
+                        <p>Whole-solution artifact generated by the LocalGPT AI Council sandbox.</p>
+                    </div>
+                    <DxButton Text="Refresh"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Click="RefreshAsync" />
+                </section>
+
+                <DxGrid Data="@Cards"
+                        KeyFieldName="@nameof(GeneratedHealthCard.Area)"
+                        ShowSearchBox="true"
+                        ShowFilterRow="true"
+                        TextWrapEnabled="false"
+                        CssClass="generated-grid">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.Area)" Caption="Area" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.Status)" Caption="Status" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.NextAction)" Caption="Next Action" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.Detail)" Caption="Detail" />
+                    </Columns>
+                </DxGrid>
+
+                <DxFormLayout CssClass="generated-form">
+                    <DxFormLayoutGroup Caption="Generation Context" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Request" ColSpanMd="12">
+                            <DxMemo Text="@RequestSummary" Rows="4" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Council Output" ColSpanMd="12">
+                            <DxMemo Text="@CouncilSummary" Rows="5" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                    </DxFormLayoutGroup>
+                </DxFormLayout>
+            </main>
+
+            @code {
+                IReadOnlyList<GeneratedHealthCard> Cards { get; set; } = [];
+                string RequestSummary { get; } = "{{requestSummary}}";
+                string CouncilSummary { get; } = "{{consensusSummary}}";
+
+                protected override Task OnInitializedAsync() => RefreshAsync();
+
+                Task RefreshAsync()
+                {
+                    Cards = HealthService.GetCards();
+                    return Task.CompletedTask;
+                }
+            }
+            """;
+        }
+
+        private static string GenerateSolutionKnowledgeTableRazor() =>
+            """
+            @page "/knowledge"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>Generation Knowledge</PageTitle>
+
+            <main class="generated-shell">
+                <h1>Generation Knowledge</h1>
+                <p class="generated-muted">This page demonstrates a second routable Razor file in the generated solution.</p>
+
+                <DxGrid Data="@HealthService.GetCards()"
+                        ShowSearchBox="true"
+                        CssClass="generated-grid">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.Area)" Caption="Area" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.Status)" Caption="Status" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.Detail)" Caption="Detail" />
+                    </Columns>
+                </DxGrid>
+            </main>
+            """;
+
+        private static string GenerateSolutionService(string projectName) =>
+            $$"""
+            using {{projectName}}.Models;
+
+            namespace {{projectName}}.Services;
+
+            /// <summary>
+            /// Provides deterministic health cards for the generated LocalGPT sandbox solution.
+            /// </summary>
+            public sealed class GeneratedHealthSummaryService
+            {
+                /// <summary>
+                /// Returns the cards displayed by the generated DevExpress grids.
+                /// </summary>
+                public IReadOnlyList<GeneratedHealthCard> GetCards()
+                {
+                    return
+                    [
+                        new("Blazor", "Ready", "Open the generated solution in Visual Studio or run dotnet build.", "Uses .NET 10 Blazor Web App patterns with Interactive Server rendering."),
+                        new("DevExpress", "SourceBacked", "Verify package restore against the installed DevExpress 25.1 feed.", "Uses DxGrid, DxFormLayout, DxButton, and DxMemo."),
+                        new("Sandbox", "Required", "Review generated code before copying into LocalGPT or TacosPortalOpen.", "Generated solutions are downloadable prototypes, not automatic self-expansion.")
+                    ];
+                }
+            }
+            """;
+
+        private static string GenerateSolutionModel(string projectName) =>
+            $$"""
+            namespace {{projectName}}.Models;
+
+            /// <summary>
+            /// Describes one status card rendered by the generated LocalGPT workbench.
+            /// </summary>
+            public sealed class GeneratedHealthCard
+            {
+                /// <summary>
+                /// Creates a generated health card.
+                /// </summary>
+                public GeneratedHealthCard(string area, string status, string nextAction, string detail)
+                {
+                    Area = area;
+                    Status = status;
+                    NextAction = nextAction;
+                    Detail = detail;
+                }
+
+                /// <summary>
+                /// Gets the subsystem or concern represented by the card.
+                /// </summary>
+                public string Area { get; }
+
+                /// <summary>
+                /// Gets the current generated status.
+                /// </summary>
+                public string Status { get; }
+
+                /// <summary>
+                /// Gets the next suggested action.
+                /// </summary>
+                public string NextAction { get; }
+
+                /// <summary>
+                /// Gets the implementation detail shown in expanded views.
+                /// </summary>
+                public string Detail { get; }
+            }
+            """;
+
+        private static string GenerateSolutionCss() =>
+            """
+            :root {
+                color-scheme: light;
+                font-family: "Segoe UI", Arial, sans-serif;
+            }
+
+            body {
+                margin: 0;
+                background: #f7f8fa;
+                color: #1f2937;
+            }
+
+            .generated-shell {
+                max-width: 1180px;
+                margin: 0 auto;
+                padding: 32px;
+            }
+
+            .generated-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                margin-bottom: 20px;
+            }
+
+            .generated-header h1 {
+                margin: 0;
+                font-size: 28px;
+            }
+
+            .generated-header p,
+            .generated-muted {
+                margin: 6px 0 0;
+                color: #5f6b7a;
+            }
+
+            .generated-grid,
+            .generated-form {
+                margin-top: 18px;
+            }
+            """;
+
+        private static string GenerateSolutionReadme(
+            string projectName,
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result) =>
+            $$"""
+            # {{projectName}}
+
+            Generated by LocalGPT as a whole-solution AI Council artifact.
+
+            This zip is a sandbox prototype. Review it before copying any file into LocalGPT, TacosPortalOpen, or another real project.
+
+            ## Contents
+
+            - `{{projectName}}.sln`
+            - `src/{{projectName}}/{{projectName}}.csproj`
+            - Blazor Web App `Program.cs`, `App.razor`, `Routes.razor`
+            - Routable Razor pages under `Components/Pages`
+            - Service/model code under `Services` and `Models`
+            - `wwwroot/app.css`
+            - `LocalGPT.GenerationManifest.json`
+
+            ## Build
+
+            ```powershell
+            dotnet restore
+            dotnet build
+            ```
+
+            ## Original Request
+
+            {{TrimForCodeComment(request.Prompt, 1200)}}
+
+            ## Council Output Summary
+
+            {{TrimForCodeComment(result.FinalAnswer, 1200)}}
+            """;
+
+        private static string GenerateSolutionManifest(
+            string projectName,
+            string solutionGuid,
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result) =>
+            $$"""
+            {
+              "projectName": "{{EscapeJsonString(projectName)}}",
+              "solutionGuid": "{{EscapeJsonString(solutionGuid)}}",
+              "generatedAtUtc": "{{DateTime.UtcNow:O}}",
+              "modelNames": "{{EscapeJsonString(string.Join(", ", result.ModelNames))}}",
+              "artifactKind": "WholeSolutionZip",
+              "sourceGoal": "LocalGPT/TacosPortalOpen-style .NET 10 Blazor and DevExpress generation",
+              "request": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 1400))}}",
+              "finalAnswer": "{{EscapeJsonString(TrimForCodeComment(result.FinalAnswer, 1400))}}",
+              "safety": "Sandbox artifact only. Integration requires explicit user approval."
+            }
+            """;
 
         private static string GenerateBlazorDevExpressRazorExample(
             MultiModelCouncilRequest request,
@@ -419,6 +856,11 @@ namespace LocalGPT.Services
                 BlazorFrontendPattern().IsMatch($"{prompt} {finalAnswer}");
         }
 
+        private static bool IsWholeSolutionTarget(string prompt, string finalAnswer)
+        {
+            return WholeSolutionPattern().IsMatch($"{prompt} {finalAnswer}");
+        }
+
         private static string TrimForCodeComment(string text, int maxLength)
         {
             var normalized = WhitespacePattern().Replace(text, " ").Trim();
@@ -436,6 +878,11 @@ namespace LocalGPT.Services
                 .Replace("\n", "\\n", StringComparison.Ordinal);
         }
 
+        private static string EscapeJsonString(string text)
+        {
+            return EscapeCSharpString(text);
+        }
+
         [GeneratedRegex("(devexpress|richedit|pdfviewer|pivot|report|xtrareport|office|docx|xlsx|pdf export|spreadsheet|document generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DevExpressDocumentPattern();
 
@@ -450,6 +897,9 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("(frontend|razor|devexpress|dxaichat|css|javascript)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex FrontendPattern();
+
+        [GeneratedRegex("(whole solution|full solution|entire solution|solution zip|project zip|\\.sln|\\.csproj|all source files|tacosportalopen|localgpt)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex WholeSolutionPattern();
 
         [GeneratedRegex("(log|logger|diagnostic|error|warning|telemetry)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex LoggingPattern();

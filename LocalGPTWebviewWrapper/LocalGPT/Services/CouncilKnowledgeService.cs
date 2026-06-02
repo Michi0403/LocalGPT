@@ -327,6 +327,24 @@ namespace LocalGPT.Services
                     Confidence = 90,
                     IsUserApproved = true,
                     IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("eaf4e13b-9a10-42fa-9280-fd0fe5c01f9f"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Whole solution Blazor/DevExpress generation acceptance",
+                    Scope = "LocalGPT generation",
+                    Source = seedSource,
+                    Content = "When a user asks for more than a snippet, LocalGPT should create a downloadable whole-solution zip. " +
+                        "A useful .NET 10 Blazor/DevExpress solution artifact includes a .sln, .csproj, Program.cs, _Imports.razor, App/Routes, routable .razor pages, CSS, service/model code, README, and manifest. " +
+                        "For LocalGPT/TacosPortalOpen-style requests, generate real Razor components with DevExpress controls and backend/service boundaries, then expose the zip through /__artifacts/council/. " +
+                        "Do not send entire repositories as giant model context; use compact source-corpus metadata and official/source-backed knowledge first.",
+                    HelpfulSources = "- Local artifact route: GET /__diag/council/artifact-smoke?target=solution\n- LocalGPT source tree for current Blazor/DevExpress patterns\n- User-provided TacosPortalOpen-main.zip for server-interactive architecture patterns",
+                    Tags = "seed; whole-solution; blazor; devexpress; tacosportalopen; localgpt; artifacts",
+                    Confidence = 90,
+                    IsUserApproved = true,
+                    IsPinned = true
                 }
             };
 

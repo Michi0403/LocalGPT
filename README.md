@@ -87,6 +87,7 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `GET /__diag/logs?minimumLevel=Warning&take=30`: recent SQLite application logs and the AI briefing built from them. Add `writeSmoke=true` to write a harmless warning and verify the async database logger.
 - `GET /__diag/knowledge`: editable council knowledge notes saved from council runs and manual user edits.
 - `GET /__diag/sqlite/tables`: live SQLite table inventory for chat memory, thoughts, logs, and council knowledge.
+- `GET /__diag/council/artifact-smoke?target=solution`: deterministic whole-solution artifact smoke test that emits a downloadable .NET 10 Blazor/DevExpress zip.
 
 The AI Council stores transcripts in SQLite chat memory and also writes a reusable entry into the editable council knowledge database.
 In the Council page, choose an older council memory to continue the thread, or start a new thread.
