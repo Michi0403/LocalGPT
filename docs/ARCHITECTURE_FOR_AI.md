@@ -59,7 +59,8 @@ For DevExpress 25, the main module path is:
 The AI bootstrap includes a DevExpress inventory built from `LocalGPT.csproj`, `_Imports.razor`, `Program.cs`,
 and loaded assemblies when available. Use `GET /__diag/devexpress` to inspect it.
 Use `GET /__diag/blazor-devexpress-guidance` before asking the council to generate Blazor pages;
-it summarizes LocalGPT and TacosPortalOpen server-interactive Razor patterns.
+it summarizes LocalGPT/TacosPortalOpen server-interactive Razor patterns plus Bootstrap v5
+layout, DevExpress template starting points, and navigation SVG icon style rules.
 When a user asks for DevExpress Office document generation, report generation, PDF export,
 RichEdit/PdfViewer/Pivot integration, or generated downloadable files, place generation work in
 ASP.NET Core/Blazor server backend services and expose safe download endpoints.

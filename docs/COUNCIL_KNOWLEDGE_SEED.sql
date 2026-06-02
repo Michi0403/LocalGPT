@@ -330,4 +330,52 @@ VALUES
   1,
   1,
   0
+),
+(
+  '32ecda45-3fa8-42f1-86c6-d8b276f99861',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Bootstrap v5 and DevExpress Blazor design generation',
+  'Blazor Design',
+  'Use Bootstrap v5 for macro layout and DevExpress Blazor for real application controls. Bootstrap owns containers, rows, columns, gutters, spacing, flex alignment, responsive breakpoints, and small utility classes. ' ||
+  'DevExpress owns grids, forms, editors, toolbars, menus, navigation widgets, upload, charts, reports, dialogs, AI chat, and document/file workflows. Generated pages should feel like working application screens: compact headings, helpful tooltips, visible loading/error/success states, and real backend download links when files are generated.',
+  'Official DevExpress and Bootstrap docs',
+  'Local doc: docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md; DevExpress components: https://docs.devexpress.com/Blazor/400725/blazor-components; Bootstrap grid: https://getbootstrap.com/docs/5.3/layout/grid/',
+  'seed; blazor; bootstrap5; devexpress; design; responsive; generation',
+  96,
+  1,
+  1,
+  0
+),
+(
+  '0f345732-a0e9-4867-9ec2-d80fb49de4ab',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'DevExpress Blazor template and component starting points',
+  'DevExpress Blazor',
+  'For new generated Blazor solutions, start from official project-template shapes before inventing architecture. Use the DevExpress Blazor Template Kit as a model for a themed shell, Bootstrap stylesheet choice, optional Open Iconic resources, ready pages, and component demos. ' ||
+  'Use Microsoft Blazor templates or official samples for base hosting structure. Pick DevExpress components by workflow: DxGrid for editable tabular data, DxFormLayout for settings and forms, DxToolbar/DxMenu/DxTreeView/DxTabs/DxDrawer for navigation/actions, DxLoadingPanel for long work, and DxAIChat for model conversations.',
+  'Official DevExpress docs',
+  'DevExpress get started: https://docs.devexpress.com/Blazor/401057/get-started; Template Kit: https://docs.devexpress.com/Blazor/405308/get-started/template-kit; Components: https://docs.devexpress.com/Blazor/400725/blazor-components',
+  'seed; devexpress; templates; component-selection; blazor; dotnet10; generation',
+  95,
+  1,
+  1,
+  0
+),
+(
+  'd8f010f6-6861-49f3-9e29-0e37cebc09ee',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Navigation SVG icon generation contract',
+  'Blazor Design',
+  'When generating navigation icons, create two SVG styles for every concept: a line icon for the default state and a solid or duotone icon for hover, active, selected, or compact states. ' ||
+  'Use a square viewBox, currentColor, consistent visual weight, short title text, no embedded text, no gradients, no decorative blobs, and readable geometry at 16px and 24px. Use DevExpress IconUrl or IconCssClass when icons belong to DevExpress navigation components; otherwise use img aria-hidden=true inside Bootstrap navigation with visible text labels.',
+  'LocalGPT design contract and DevExpress icon docs',
+  'Local doc: docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md; DevExpress icons: https://docs.devexpress.com/Blazor/401749/styling-and-themes/icons',
+  'seed; svg; navigation; icons; devexpress; bootstrap; design',
+  96,
+  1,
+  1,
+  0
 );

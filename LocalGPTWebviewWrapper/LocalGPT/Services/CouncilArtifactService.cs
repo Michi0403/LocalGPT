@@ -97,6 +97,7 @@ namespace LocalGPT.Services
             var servicesRoot = Path.Combine(projectRoot, "Services");
             var modelsRoot = Path.Combine(projectRoot, "Models");
             var wwwroot = Path.Combine(projectRoot, "wwwroot");
+            var navIconsRoot = Path.Combine(wwwroot, "icons", "nav");
 
             if (Directory.Exists(solutionRoot))
                 Directory.Delete(solutionRoot, recursive: true);
@@ -105,6 +106,7 @@ namespace LocalGPT.Services
             Directory.CreateDirectory(servicesRoot);
             Directory.CreateDirectory(modelsRoot);
             Directory.CreateDirectory(wwwroot);
+            Directory.CreateDirectory(navIconsRoot);
 
             var solutionGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
             var projectGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
@@ -127,6 +129,9 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), GenerateSolutionService(projectName, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), GenerateSolutionModel(projectName), cancellationToken);
             await WriteTextAsync(Path.Combine(wwwroot, "app.css"), GenerateSolutionCss(), cancellationToken);
+            foreach (var icon in GenerateNavigationIconSvgs())
+                await WriteTextAsync(Path.Combine(navIconsRoot, icon.FileName), icon.Svg, cancellationToken);
+
             await WriteTextAsync(Path.Combine(solutionRoot, "README.md"), GenerateSolutionReadme(projectName, request, result, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), GenerateSolutionProjectIndex(projectName, request, result, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), GenerateSolutionArchitectureDoc(projectName, isOllamaLab), cancellationToken);
@@ -392,9 +397,21 @@ namespace LocalGPT.Services
             return $$"""
                 <nav class="generated-nav" aria-label="{{labName}} navigation">
                     <a class="generated-brand" href="/">{{labName}}</a>
-                    <a href="/dashboard">Dashboard</a>
-                    <a href="{{catalogHref}}">{{catalogText}}</a>
-                    <a href="{{detailHref}}">{{detailText}}</a>
+                    <a href="/dashboard">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="{{catalogHref}}">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
+                        <span>{{catalogText}}</span>
+                    </a>
+                    <a href="{{detailHref}}">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>{{detailText}}</span>
+                    </a>
                 </nav>
 
                 @code {
@@ -947,15 +964,43 @@ namespace LocalGPT.Services
             }
 
             .generated-nav a {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
                 color: #384252;
                 text-decoration: none;
                 font-weight: 600;
+            }
+
+            .generated-nav a:hover,
+            .generated-nav a:focus-visible {
+                color: #0b5cab;
             }
 
             .generated-nav .generated-brand {
                 margin-right: auto;
                 color: #172033;
                 font-weight: 700;
+            }
+
+            .generated-nav-icon {
+                width: 18px;
+                height: 18px;
+                flex: 0 0 18px;
+            }
+
+            .generated-nav-icon-solid {
+                display: none;
+            }
+
+            .generated-nav a:hover .generated-nav-icon-line,
+            .generated-nav a:focus-visible .generated-nav-icon-line {
+                display: none;
+            }
+
+            .generated-nav a:hover .generated-nav-icon-solid,
+            .generated-nav a:focus-visible .generated-nav-icon-solid {
+                display: inline-block;
             }
 
             .generated-hero {
@@ -1051,6 +1096,69 @@ namespace LocalGPT.Services
             }
             """;
 
+        private static IReadOnlyList<(string FileName, string Svg)> GenerateNavigationIconSvgs() =>
+        [
+            ("dashboard-line.svg", """
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="dashboard-line-title">
+                  <title id="dashboard-line-title">Dashboard line icon</title>
+                  <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="4" width="7" height="7" rx="1.5" />
+                    <rect x="13" y="4" width="7" height="4.8" rx="1.5" />
+                    <rect x="13" y="11.2" width="7" height="8.8" rx="1.5" />
+                    <rect x="4" y="13" width="7" height="7" rx="1.5" />
+                  </g>
+                </svg>
+                """),
+            ("dashboard-solid.svg", """
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="dashboard-solid-title">
+                  <title id="dashboard-solid-title">Dashboard solid icon</title>
+                  <path fill="currentColor" opacity=".22" d="M4 5.6A1.6 1.6 0 0 1 5.6 4h4.8A1.6 1.6 0 0 1 12 5.6v4.8A1.6 1.6 0 0 1 10.4 12H5.6A1.6 1.6 0 0 1 4 10.4z" />
+                  <path fill="currentColor" d="M13 5.6A1.6 1.6 0 0 1 14.6 4h4.8A1.6 1.6 0 0 1 21 5.6v3A1.6 1.6 0 0 1 19.4 10h-4.8A1.6 1.6 0 0 1 13 8.6z" />
+                  <path fill="currentColor" d="M13 12.6a1.6 1.6 0 0 1 1.6-1.6h4.8a1.6 1.6 0 0 1 1.6 1.6v5.8a1.6 1.6 0 0 1-1.6 1.6h-4.8a1.6 1.6 0 0 1-1.6-1.6z" />
+                  <path fill="currentColor" d="M4 14.6A1.6 1.6 0 0 1 5.6 13h4.8a1.6 1.6 0 0 1 1.6 1.6v4.8a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 19.4z" />
+                </svg>
+                """),
+            ("catalog-line.svg", """
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="catalog-line-title">
+                  <title id="catalog-line-title">Catalog line icon</title>
+                  <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5H7.5A2.5 2.5 0 0 0 5 21z" />
+                    <path d="M5 18.5A2.5 2.5 0 0 0 7.5 21H19" />
+                    <path d="M9 7h6" />
+                    <path d="M9 10.5h5" />
+                    <path d="M9 14h4" />
+                  </g>
+                </svg>
+                """),
+            ("catalog-solid.svg", """
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="catalog-solid-title">
+                  <title id="catalog-solid-title">Catalog solid icon</title>
+                  <path fill="currentColor" opacity=".2" d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5H7.5A2.5 2.5 0 0 0 5 21z" />
+                  <path fill="currentColor" d="M7.5 3A2.5 2.5 0 0 0 5 5.5V21a2.5 2.5 0 0 1 2.5-2.5H19V3zm1.8 4.2h6.4v1.7H9.3zm0 3.8h5.4v1.7H9.3zm0 3.8h4.2v1.7H9.3z" />
+                </svg>
+                """),
+            ("detail-line.svg", """
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="detail-line-title">
+                  <title id="detail-line-title">Detail line icon</title>
+                  <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="4" width="16" height="16" rx="2.2" />
+                    <path d="M8 8h8" />
+                    <path d="M8 12h8" />
+                    <path d="M8 16h4.5" />
+                    <path d="m14.8 16.1 1.3 1.3 2.3-2.7" />
+                  </g>
+                </svg>
+                """),
+            ("detail-solid.svg", """
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="detail-solid-title">
+                  <title id="detail-solid-title">Detail solid icon</title>
+                  <path fill="currentColor" opacity=".2" d="M4 6.2A2.2 2.2 0 0 1 6.2 4h11.6A2.2 2.2 0 0 1 20 6.2v11.6a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 17.8z" />
+                  <path fill="currentColor" d="M8 7.4h8v1.8H8zm0 3.7h8v1.8H8zm0 3.7h4.5v1.8H8z" />
+                  <path fill="currentColor" d="m15 16.3 1.1 1.1 2.6-3 .9 1-3.5 4L14 17.3z" />
+                </svg>
+                """)
+        ];
+
         private static string GenerateSolutionReadme(
             string projectName,
             MultiModelCouncilRequest request,
@@ -1091,6 +1199,7 @@ namespace LocalGPT.Services
             - Routable Razor pages under `Components/Pages`
             - Service/model code under `Services` and `Models`
             - `wwwroot/app.css`
+            - Navigation SVG pairs under `wwwroot/icons/nav`
             - `PROJECT_INDEX.md`
             - `ARCHITECTURE.md`
             - `BUILD_AND_RUN.md`
@@ -1098,6 +1207,10 @@ namespace LocalGPT.Services
             - `LocalGPT.GenerationManifest.json`
 
             {{notes}}
+
+            ## Design Contract
+
+            The UI uses Bootstrap v5-style spacing and responsive layout with DevExpress Blazor controls for actual interaction. Navigation includes line SVG icons for the default state and solid SVG icons for hover/focus states so generated apps have a reusable icon language.
 
             ## Build
 
@@ -1175,6 +1288,8 @@ namespace LocalGPT.Services
             | `src/{{projectName}}/Services/GeneratedHealthSummaryService.cs` | Typed demo service instead of Razor-only fake data. |
             | `src/{{projectName}}/Models/GeneratedHealthCard.cs` | Shared model records for grids/catalog rows. |
             | `src/{{projectName}}/wwwroot/app.css` | Local styling for the generated shell. |
+            | `src/{{projectName}}/wwwroot/icons/nav/*-line.svg` | Default navigation icon style. |
+            | `src/{{projectName}}/wwwroot/icons/nav/*-solid.svg` | Hover/focus navigation icon style. |
             | `PROJECT_INDEX.md` | Required generated-project map and archetype declaration. |
             | `ARCHITECTURE.md` | Explains why this artifact differs from other project types. |
             | `BUILD_AND_RUN.md` | Exact restore/build/run commands and expected checks. |
@@ -1229,6 +1344,8 @@ namespace LocalGPT.Services
             - Keep configuration/bootstrap data in appsettings and durable user/application state in EF/SQLite.
             - Keep APIs and services testable through DI rather than embedding logic in markup strings.
             - Provide health/status views and build instructions so the artifact can be reviewed line by line.
+            - Use Bootstrap v5 for responsive page structure and DevExpress controls for real application interactions.
+            - Include paired line/solid SVG navigation icons so default and active states are visually distinct.
 
             ## Files To Review First
 
@@ -1282,8 +1399,8 @@ namespace LocalGPT.Services
             var projectKind = isOllamaLab ? "dotnet_service" : "localgpt_feature";
             var detailPage = isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
             var validationNotes = isOllamaLab
-                ? "Required docs, manifest, navigation, index, dashboard, model catalog, and API console files were present before zipping."
-                : "Required docs, manifest, navigation, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
+                ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, and API console files were present before zipping."
+                : "Required docs, manifest, navigation, paired nav icons, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
 
             return $$"""
             {
@@ -1326,7 +1443,13 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/Pages/{{detailPage}}",
                 "src/{{projectName}}/Services/GeneratedHealthSummaryService.cs",
                 "src/{{projectName}}/Models/GeneratedHealthCard.cs",
-                "src/{{projectName}}/wwwroot/app.css"
+                "src/{{projectName}}/wwwroot/app.css",
+                "src/{{projectName}}/wwwroot/icons/nav/dashboard-line.svg",
+                "src/{{projectName}}/wwwroot/icons/nav/dashboard-solid.svg",
+                "src/{{projectName}}/wwwroot/icons/nav/catalog-line.svg",
+                "src/{{projectName}}/wwwroot/icons/nav/catalog-solid.svg",
+                "src/{{projectName}}/wwwroot/icons/nav/detail-line.svg",
+                "src/{{projectName}}/wwwroot/icons/nav/detail-solid.svg"
               ],
               "safety": "Sandbox artifact only. Integration requires explicit user approval."
             }
@@ -1353,6 +1476,7 @@ namespace LocalGPT.Services
               "modelNames": "{{EscapeJsonString(string.Join(", ", result.ModelNames))}}",
               "artifactKind": "WholeSolutionZip",
               "sourceGoal": "{{EscapeJsonString(sourceGoal)}}",
+              "designContract": "Bootstrap v5 layout, DevExpress Blazor controls, and paired line/solid SVG navigation icons.",
               "request": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 1400))}}",
               "finalAnswer": "{{EscapeJsonString(TrimForCodeComment(result.FinalAnswer, 1400))}}",
               "safety": "Sandbox artifact only. Integration requires explicit user approval."
@@ -1663,7 +1787,13 @@ namespace LocalGPT.Services
                 Path.Combine("src", projectName, "Components", "Pages", isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
                 Path.Combine("src", projectName, "Services", "GeneratedHealthSummaryService.cs"),
                 Path.Combine("src", projectName, "Models", "GeneratedHealthCard.cs"),
-                Path.Combine("src", projectName, "wwwroot", "app.css")
+                Path.Combine("src", projectName, "wwwroot", "app.css"),
+                Path.Combine("src", projectName, "wwwroot", "icons", "nav", "dashboard-line.svg"),
+                Path.Combine("src", projectName, "wwwroot", "icons", "nav", "dashboard-solid.svg"),
+                Path.Combine("src", projectName, "wwwroot", "icons", "nav", "catalog-line.svg"),
+                Path.Combine("src", projectName, "wwwroot", "icons", "nav", "catalog-solid.svg"),
+                Path.Combine("src", projectName, "wwwroot", "icons", "nav", "detail-line.svg"),
+                Path.Combine("src", projectName, "wwwroot", "icons", "nav", "detail-solid.svg")
             };
 
             var missing = requiredFiles

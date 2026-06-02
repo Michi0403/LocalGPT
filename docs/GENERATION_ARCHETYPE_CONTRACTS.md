@@ -93,6 +93,7 @@ An Ollama .NET lab should look like an API-control-plane experiment: Ollama-shap
 - `Interfaces/I<FeatureService>.cs` when the service is injected across boundaries
 - `BusinessObjects/<FeatureOptions>.cs` or model records when state is shared
 - Backend route extension or diagnostic route when downloads, native commands, or health checks are involved
+- `wwwroot/icons/nav/*-line.svg` and `wwwroot/icons/nav/*-solid.svg` when generated navigation needs icons
 - `docs/<FEATURE>.md`
 - Test, smoke route, or diagnostic route
 
@@ -107,7 +108,14 @@ An Ollama .NET lab should look like an API-control-plane experiment: Ollama-shap
 - Navigation component
 - Service/model folders
 - `wwwroot/app.css`
+- `wwwroot/icons/nav/*-line.svg`
+- `wwwroot/icons/nav/*-solid.svg`
 - Required project docs and generation manifest
+
+Use Bootstrap v5 for page grid, spacing, and flex layout. Use DevExpress
+components for real application controls. Navigation icons should have paired
+line and solid SVG styles so default, hover, active, and compact states are
+available without regenerating assets.
 
 ## Microsoft .NET Architecture Grounding
 
@@ -154,4 +162,3 @@ Reject or regenerate output when:
 7. Validate required files and platform metadata.
 8. Optionally build or smoke test.
 9. Save the result and validation status to Council memory.
-

@@ -23,6 +23,7 @@ namespace LocalGPT.Services
             Path.Combine("docs", "OLLAMA_DOTNET_EXPERIMENT.md"),
             Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md"),
             Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
+            Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md"),
             Path.Combine("docs", "GENERATION_ARCHETYPE_CONTRACTS.md")
         ];
 

@@ -2,6 +2,10 @@
 
 Use this compact guide when LocalGPT or the AI Council generates .NET 10 Blazor UI for this repository.
 
+For layout, Bootstrap v5 utility usage, DevExpress template starting points, and
+navigation SVG icon style contracts, also read
+`docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md`.
+
 ## Core Rule
 
 For Blazor UI requests, generate a real `.razor` component or page. Do not answer with a C# class that only builds markup or Markdown strings unless the user explicitly asks for a helper class.

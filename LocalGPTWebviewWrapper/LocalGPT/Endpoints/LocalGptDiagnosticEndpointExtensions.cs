@@ -370,31 +370,55 @@ namespace LocalGPT.Endpoints
 
             app.MapGet("/__diag/blazor-devexpress-guidance", async (IWebHostEnvironment env, CancellationToken ct) =>
             {
-                var relativePath = Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md");
-                var candidatePaths = new[]
+                var relativePaths = new[]
                 {
-                    Path.Combine(AppContext.BaseDirectory, relativePath),
-                    Path.Combine(env.ContentRootPath, relativePath),
-                    Path.Combine(Directory.GetCurrentDirectory(), relativePath)
-                }.Distinct(StringComparer.OrdinalIgnoreCase);
+                    Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
+                    Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md")
+                };
 
-                foreach (var path in candidatePaths)
+                var foundFiles = new List<object>();
+                var briefing = new StringBuilder();
+
+                foreach (var relativePath in relativePaths)
                 {
-                    if (!File.Exists(path))
+                    var candidatePaths = new[]
+                    {
+                        Path.Combine(AppContext.BaseDirectory, relativePath),
+                        Path.Combine(env.ContentRootPath, relativePath),
+                        Path.Combine(Directory.GetCurrentDirectory(), relativePath)
+                    }.Distinct(StringComparer.OrdinalIgnoreCase);
+
+                    var path = candidatePaths.FirstOrDefault(File.Exists);
+                    if (path is null)
                         continue;
 
+                    var text = await File.ReadAllTextAsync(path, ct);
+                    foundFiles.Add(new
+                    {
+                        RelativePath = relativePath.Replace('\\', '/'),
+                        SourcePath = path,
+                    });
+
+                    briefing
+                        .Append("# ")
+                        .AppendLine(Path.GetFileName(relativePath))
+                        .AppendLine()
+                        .AppendLine(text.Trim())
+                        .AppendLine();
+                }
+
+                if (foundFiles.Count > 0)
                     return Results.Ok(new
                     {
-                        SourcePath = path,
-                        Briefing = await File.ReadAllTextAsync(path, ct),
+                        GuidanceFiles = foundFiles,
+                        Briefing = briefing.ToString().Trim(),
                         CreatedAt = DateTimeOffset.UtcNow
                     });
-                }
 
                 return Results.Ok(new
                 {
-                    SourcePath = "embedded fallback",
-                    Briefing = "Generate real .razor files for Blazor UI requests. Use @page, @rendermode InteractiveServer, @code, dependency injection, and known DevExpress Blazor controls. Check /__diag/devexpress for package inventory and mark unknown APIs as Needs verification.",
+                    GuidanceFiles = Array.Empty<object>(),
+                    Briefing = "Generate real .razor files for Blazor UI requests. Use @page, @rendermode InteractiveServer, @code, dependency injection, Bootstrap v5 layout utilities, and known DevExpress Blazor controls. Generate line and solid SVG navigation icon variants when nav icons are requested. Check /__diag/devexpress for package inventory and mark unknown APIs as Needs verification.",
                     CreatedAt = DateTimeOffset.UtcNow
                 });
             });

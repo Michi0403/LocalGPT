@@ -51,7 +51,7 @@ public static class DxaichatFunctionCatalog
             "localgpt.blazor_devexpress_guidance",
             "GET",
             "/__diag/blazor-devexpress-guidance",
-            "Return compact LocalGPT/TacosPortalOpen-derived guidance for generating real .NET 10 Blazor server-interactive pages with DevExpress components.",
+            "Return compact LocalGPT/TacosPortalOpen guidance for real .NET 10 Blazor, DevExpress, Bootstrap v5 layout, template starting points, and navigation SVG icon styles.",
             "No parameters.",
             "Read-only. Use this before generating Razor pages or blaming missing DevExpress/.NET context."),
         new(
