@@ -507,7 +507,9 @@ namespace WebView2_WinUI3_Sample
                                                         && (newest.includes('AI Council Result')
                                                             || newest.includes('Code review')
                                                             || newest.includes('Consensus')));
-                                        }, window.__localGptDiagRunDxAiChatGptOss ? 90000 : 1500000);
+                                        }, window.__localGptDiagRunDxAiChatGptOss ? 90000
+                                            : window.__localGptDiagRunDxAiChatFeatureArtifacts ? 240000
+                                            : 1500000);
                                         if (!smoke.answerVisible) {
                                             smoke.error = window.__localGptDiagRunDxAiChatGptOss
                                                 ? `Timed out waiting for gpt-oss DXAiChat answer. Preview: ${smoke.finalMessagePreview}`
@@ -516,7 +518,7 @@ namespace WebView2_WinUI3_Sample
                                         if (window.__localGptDiagRunDxAiChatFeatureArtifacts && smoke.answerVisible) {
                                             smoke.artifactSectionVisible = await waitFor(
                                                 () => text().includes('Downloadable Artifacts') && !!document.querySelector('a[href*="/__artifacts/council/"]'),
-                                                120000);
+                                                60000);
                                             if (!smoke.artifactSectionVisible) {
                                                 smoke.error = `Timed out waiting for DXAiChat council artifact links. Preview: ${smoke.finalMessagePreview}`;
                                             }
@@ -645,7 +647,7 @@ namespace WebView2_WinUI3_Sample
                             return window.__localGptDiagClickedCouncilFeatureChat;
                         })()
                         """, _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(2)
-                            : _runDxAiChatFeatureArtifactsDiagnostics ? TimeSpan.FromMinutes(12)
+                            : _runDxAiChatFeatureArtifactsDiagnostics ? TimeSpan.FromMinutes(5)
                             : TimeSpan.FromMinutes(26));
                     var path = sender.Source?.AbsolutePath.ToLowerInvariant() ?? string.Empty;
                     if (path.Contains("/chat", StringComparison.Ordinal) && (_runDxAiChatCouncilDiagnostics || _runDxAiChatGptOssDiagnostics || _runDxAiChatFeatureArtifactsDiagnostics))
@@ -663,7 +665,7 @@ namespace WebView2_WinUI3_Sample
                             })()
                             """,
                             _runDxAiChatGptOssDiagnostics ? TimeSpan.FromMinutes(3)
-                                : _runDxAiChatFeatureArtifactsDiagnostics ? TimeSpan.FromMinutes(13)
+                                : _runDxAiChatFeatureArtifactsDiagnostics ? TimeSpan.FromMinutes(6)
                                 : TimeSpan.FromMinutes(26));
                     }
                     else if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))
