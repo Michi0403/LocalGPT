@@ -26,6 +26,7 @@ $buildScript = Join-Path $wrapperRoot "build\Build-LocalGptPackage.ps1"
 $backendProject = Join-Path $wrapperRoot "LocalGPT\LocalGPT.csproj"
 $packageManifest = Join-Path $wrapperRoot "LocalGPTWebviewWrapper (Package)\Package.appxmanifest"
 $script:originalPackageManifest = $null
+$script:originalPackageManifestBytes = $null
 
 function Resolve-AppxPackageVersion {
     param([string]$ReleaseVersion)
@@ -69,7 +70,8 @@ function Set-PackageManifestVersion {
         throw "PackageVersion parts must be between 0 and 65535: $VersionToWrite"
     }
 
-    $script:originalPackageManifest = Get-Content -LiteralPath $packageManifest -Raw
+    $script:originalPackageManifestBytes = [System.IO.File]::ReadAllBytes($packageManifest)
+    $script:originalPackageManifest = [System.Text.Encoding]::UTF8.GetString($script:originalPackageManifestBytes)
     $updated = $script:originalPackageManifest -replace 'Version="\d+\.\d+\.\d+\.\d+"', "Version=`"$VersionToWrite`""
     Set-Content -LiteralPath $packageManifest -Value $updated -Encoding utf8
     Write-Host "Stamped MSIX package identity version: $VersionToWrite"
@@ -77,8 +79,9 @@ function Set-PackageManifestVersion {
 
 function Restore-PackageManifestVersion {
     if ($null -ne $script:originalPackageManifest) {
-        Set-Content -LiteralPath $packageManifest -Value $script:originalPackageManifest -Encoding utf8
+        [System.IO.File]::WriteAllBytes($packageManifest, $script:originalPackageManifestBytes)
         $script:originalPackageManifest = $null
+        $script:originalPackageManifestBytes = $null
         Write-Host "Restored checked-in package manifest version."
     }
 }
