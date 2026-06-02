@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Version = "",
+    [string]$PackageVersion = "",
 
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
@@ -23,6 +24,65 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $wrapperRoot = Join-Path $repoRoot "LocalGPTWebviewWrapper"
 $buildScript = Join-Path $wrapperRoot "build\Build-LocalGptPackage.ps1"
 $backendProject = Join-Path $wrapperRoot "LocalGPT\LocalGPT.csproj"
+$packageManifest = Join-Path $wrapperRoot "LocalGPTWebviewWrapper (Package)\Package.appxmanifest"
+$script:originalPackageManifest = $null
+
+function Resolve-AppxPackageVersion {
+    param([string]$ReleaseVersion)
+
+    $numbers = [regex]::Matches($ReleaseVersion, "\d+") | ForEach-Object { [int]$_.Value }
+    $major = if ($numbers.Count -gt 0) { $numbers[0] } else { 0 }
+    $minor = if ($numbers.Count -gt 1) { $numbers[1] } else { 0 }
+    $build = if ($numbers.Count -gt 2) { $numbers[2] } else { 0 }
+    $revision = if ($numbers.Count -gt 3 -and $numbers[3] -le 65535) {
+        $numbers[3]
+    }
+    else {
+        [int](Get-Date -Format "yy")
+    }
+
+    $parts = @($major, $minor, $build, $revision)
+    if (($parts | Where-Object { $_ -lt 0 -or $_ -gt 65535 }).Count -gt 0) {
+        throw "Package version parts must be between 0 and 65535. Derived parts: $($parts -join '.')"
+    }
+
+    return $parts -join "."
+}
+
+function Set-PackageManifestVersion {
+    param([string]$VersionToWrite)
+
+    if (-not (Test-Path $packageManifest)) {
+        throw "Package manifest not found: $packageManifest"
+    }
+
+    if (-not ($VersionToWrite -match "^\d+\.\d+\.\d+\.\d+$")) {
+        throw "PackageVersion must be a four-part numeric MSIX version such as 0.1.1.2."
+    }
+
+    $parts = $VersionToWrite.Split(".") | ForEach-Object { [int]$_ }
+    if (($parts | Where-Object { $_ -lt 0 -or $_ -gt 65535 }).Count -gt 0) {
+        throw "PackageVersion parts must be between 0 and 65535: $VersionToWrite"
+    }
+
+    $script:originalPackageManifest = Get-Content -LiteralPath $packageManifest -Raw
+    $updated = $script:originalPackageManifest -replace 'Version="\d+\.\d+\.\d+\.\d+"', "Version=`"$VersionToWrite`""
+    Set-Content -LiteralPath $packageManifest -Value $updated -Encoding utf8
+    Write-Host "Stamped MSIX package identity version: $VersionToWrite"
+}
+
+function Restore-PackageManifestVersion {
+    if ($null -ne $script:originalPackageManifest) {
+        Set-Content -LiteralPath $packageManifest -Value $script:originalPackageManifest -Encoding utf8
+        $script:originalPackageManifest = $null
+        Write-Host "Restored checked-in package manifest version."
+    }
+}
+
+trap {
+    Restore-PackageManifestVersion
+    throw $_
+}
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $commit = (& git -C $repoRoot rev-parse --short HEAD 2>$null)
@@ -33,17 +93,24 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = "0.0.0-$commit"
 }
 
+if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
+    $PackageVersion = Resolve-AppxPackageVersion $Version
+}
+
 $releaseRoot = Join-Path $repoRoot "artifacts\releases\$Version"
 New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
 
 Write-Host "LocalGPT release packaging"
 Write-Host "Version: $Version"
+Write-Host "MSIX package version: $PackageVersion"
 Write-Host "Configuration: $Configuration"
 Write-Host "Windows wrapper platforms: $($Platforms -join ', ')"
 Write-Host "Backend runtime identifiers: $($BackendRuntimeIdentifiers -join ', ')"
 Write-Host "Output: $releaseRoot"
 
 if (-not $SkipWrapper) {
+    Set-PackageManifestVersion $PackageVersion
+
     foreach ($platform in $Platforms) {
         if (-not $SkipBuild) {
             Write-Host ""
@@ -96,6 +163,8 @@ For development setup, see the top-level README and `LocalGPTWebviewWrapper/read
         Compress-Archive -Path (Join-Path $platformRoot "*") -DestinationPath $zipPath
         Write-Host "Created $zipPath"
     }
+
+    Restore-PackageManifestVersion
 }
 
 if (-not $SkipBackend) {
