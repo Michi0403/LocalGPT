@@ -64,10 +64,24 @@ public static class DxaichatFunctionCatalog
         new(
             "localgpt.engineering_benchmark",
             "GET",
-            "/__diag/benchmark/engineering?importLearnBaseFirst=false&saveToKnowledge=true",
+            "/__diag/benchmark/engineering?taskSet=engineering&importLearnBaseFirst=false&saveToKnowledge=true",
             "Run the five-task personal engineering benchmark with honest lane scoring for raw Ollama, LocalGPT artifacts, cloud assistant, and manual expected output.",
-            "importLearnBaseFirst optional; saveToKnowledge optional.",
+            "taskSet optional: engineering, replacement, or all. importLearnBaseFirst/saveToKnowledge/validateBuildableArtifacts/maxBuildArtifacts are optional.",
             "Deterministic LocalGPT artifact lane can run without GPU. Raw Ollama and cloud lanes are marked NotRun until real transcripts are supplied."),
+        new(
+            "localgpt.replacement_benchmark",
+            "GET",
+            "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4&saveToKnowledge=true",
+            "Benchmark LocalGPT-style, TacosPortalOpen-style, provider-compatible AI-host, and simple bot-backend replacement solution generation with downloadable artifacts and optional dotnet build checks.",
+            "validateBuildableArtifacts optional, defaults false unless this route sets it true. maxBuildArtifacts limits build checks.",
+            "Runs deterministic artifact generation and dotnet build checks for generated .NET solution zips. Does not call local Ollama models."),
+        new(
+            "council.development_feedback_talk",
+            "GET",
+            "/__diag/council/development-feedback-talk?maxOutputTokens=2048&maxContextTokens=32768&maxRounds=0",
+            "Run a compact minimum-two-member AI Council feedback talk about LocalGPT development, missing features, replacement benchmarks, and needed knowledge/functions.",
+            "modelNames optional comma-separated list. maxOutputTokens/maxContextTokens/maxRounds/ollamaNumGpu are optional.",
+            "Calls local Ollama through the Council service. Uses sequential scheduling and keep_alive=0s; 32K is the compact feedback default, while 64K+ context/output may be needed for source generation when the model supports it."),
         new(
             "localgpt.sqlite.tables",
             "GET",

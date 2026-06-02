@@ -16,7 +16,10 @@ namespace LocalGPT.Services
             EngineeringBenchmarkRequest request,
             CancellationToken cancellationToken = default)
         {
-            var result = new EngineeringBenchmarkResult();
+            var result = new EngineeringBenchmarkResult
+            {
+                TaskSet = NormalizeTaskSet(request.TaskSet)
+            };
             if (request.ImportLearnBaseFirst)
                 result.LearnBaseImport = await learnBaseImporter.ImportAsync(new LearnBaseImportRequest
                 {
@@ -25,7 +28,7 @@ namespace LocalGPT.Services
                     MaxProjects = 40
                 }, cancellationToken);
 
-            foreach (var task in BuildTasks())
+            foreach (var task in BuildTasks(result.TaskSet))
             {
                 var taskResult = new EngineeringBenchmarkTaskResult
                 {
@@ -36,7 +39,7 @@ namespace LocalGPT.Services
 
                 taskResult.Lanes.Add(NotRunLane("A. raw Ollama model", "Live raw Ollama call intentionally not run in this deterministic benchmark. Run later with GPU-safe caps and record the transcript."));
                 if (request.RunLocalGptArtifacts)
-                    taskResult.Lanes.Add(await RunLocalGptLaneAsync(task, cancellationToken));
+                    taskResult.Lanes.Add(await RunLocalGptLaneAsync(task, request, cancellationToken));
                 else
                     taskResult.Lanes.Add(NotRunLane("B. LocalGPT with DxFunctions + memory", "Skipped by request."));
 
@@ -55,6 +58,7 @@ namespace LocalGPT.Services
 
         private async Task<EngineeringBenchmarkLaneResult> RunLocalGptLaneAsync(
             BenchmarkTaskDefinition task,
+            EngineeringBenchmarkRequest request,
             CancellationToken cancellationToken)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -98,12 +102,17 @@ namespace LocalGPT.Services
             lane.MissingFiles.AddRange(task.RequiredArtifactEntries.Where(required => !ContainsZipEntry(artifactEntries, required)));
             lane.MissingFilesScore = lane.MissingFiles.Count == 0 ? 10 : Math.Max(0, 10 - lane.MissingFiles.Count * 2);
             lane.ValidArchitectureScore = ScoreArchitecture(task, artifactEntries, artifacts);
-            lane.BuildabilityScore = artifacts.Count > 0 ? task.LocalGptBuildabilityScore : 0;
+            if (request.ValidateBuildableArtifacts)
+                lane.BuildChecks.AddRange(await ValidateBuildableArtifactsAsync(artifacts, request.MaxBuildArtifacts, cancellationToken));
+
+            lane.BuildabilityScore = ScoreBuildability(task, artifacts, lane.BuildChecks, request.ValidateBuildableArtifacts);
             lane.WrongPackagesTemplatesScore = ScoreWrongTemplateRisk(task, artifactEntries);
             lane.TotalScore = SumScores(lane);
             lane.Notes = lane.MissingFiles.Count == 0
                 ? "Deterministic LocalGPT artifact path produced expected benchmark files."
                 : "Artifact was produced, but required benchmark entries were missing. This is improvement fuel, not a pass.";
+            if (request.ValidateBuildableArtifacts && lane.BuildChecks.Count > 0)
+                lane.Notes += $" Build checks: {string.Join("; ", lane.BuildChecks.Select(check => $"{check.ArtifactName}={check.Status}"))}.";
             return lane;
         }
 
@@ -137,11 +146,117 @@ namespace LocalGPT.Services
             };
         }
 
+        private static async Task<IReadOnlyList<EngineeringBenchmarkBuildCheck>> ValidateBuildableArtifactsAsync(
+            IReadOnlyList<CouncilArtifact> artifacts,
+            int maxBuildArtifacts,
+            CancellationToken cancellationToken)
+        {
+            var checks = new List<EngineeringBenchmarkBuildCheck>();
+            var zipArtifacts = artifacts
+                .Where(artifact => artifact.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+                    File.Exists(artifact.FilePath))
+                .Take(Math.Clamp(maxBuildArtifacts, 1, 8))
+                .ToArray();
+
+            foreach (var artifact in zipArtifacts)
+            {
+                checks.Add(await ValidateBuildableArtifactAsync(artifact, cancellationToken));
+            }
+
+            return checks;
+        }
+
+        private static async Task<EngineeringBenchmarkBuildCheck> ValidateBuildableArtifactAsync(
+            CouncilArtifact artifact,
+            CancellationToken cancellationToken)
+        {
+            var started = DateTime.UtcNow;
+            var root = Path.Combine(
+                Path.GetTempPath(),
+                "LocalGPT",
+                "EngineeringBenchmarkBuilds",
+                $"{Path.GetFileNameWithoutExtension(artifact.Name)}-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(root);
+
+            var check = new EngineeringBenchmarkBuildCheck
+            {
+                ArtifactName = artifact.Name,
+                ExtractedRoot = root
+            };
+
+            try
+            {
+                ZipFile.ExtractToDirectory(artifact.FilePath, root, overwriteFiles: true);
+                var solutionPath = Directory
+                    .EnumerateFiles(root, "*.sln", SearchOption.AllDirectories)
+                    .OrderBy(path => path.Length)
+                    .FirstOrDefault();
+
+                if (solutionPath is null)
+                {
+                    check.Status = "NoSolution";
+                    check.OutputPreview = "No .sln file found. This artifact is not a .NET build target.";
+                    return check;
+                }
+
+                check.SolutionPath = solutionPath;
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "dotnet",
+                    Arguments = $"build \"{solutionPath}\" -c Debug /nologo /p:UseSharedCompilation=false",
+                    WorkingDirectory = Path.GetDirectoryName(solutionPath) ?? root,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(TimeSpan.FromMinutes(3));
+
+                using var process = Process.Start(startInfo);
+                if (process is null)
+                {
+                    check.Status = "ProcessNotStarted";
+                    return check;
+                }
+
+                var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+                var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
+                await process.WaitForExitAsync(timeoutCts.Token);
+                var output = await outputTask;
+                var error = await errorTask;
+
+                check.ExitCode = process.ExitCode;
+                check.Status = process.ExitCode == 0 ? "BuildPassed" : "BuildFailed";
+                check.OutputPreview = TrimForPrompt(output, 1800);
+                check.ErrorPreview = TrimForPrompt(error, 1200);
+                return check;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                check.Status = "TimedOut";
+                check.ErrorPreview = "dotnet build exceeded the 3 minute benchmark timeout.";
+                return check;
+            }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                check.Status = "BuildCheckError";
+                check.ErrorPreview = TrimForPrompt(ex.Message, 1200);
+                return check;
+            }
+            finally
+            {
+                check.Duration = DateTime.UtcNow - started;
+            }
+        }
+
         private async Task<Guid> SaveBenchmarkKnowledgeAsync(EngineeringBenchmarkResult result, CancellationToken cancellationToken)
         {
             var summary = new StringBuilder()
                 .AppendLine($"Engineering benchmark run {result.RunId} completed at {result.CompletedAtUtc:O}.")
-                .AppendLine("Tasks: DevExpress webshop with EF Core; Blazor CRUD dashboard; MSIX/WinUI/Blazor packaging diagnosis; Minecraft datapack workspace; Fabric/Paper/NeoForge skeleton distinction.")
+                .AppendLine($"Task set: {result.TaskSet}.")
+                .AppendLine($"Tasks: {string.Join("; ", result.Tasks.Select(task => task.Name))}.")
                 .AppendLine("Lane rule: raw Ollama and cloud lanes must be run with real transcripts before scoring; deterministic LocalGPT artifacts are allowed for no-GPU smoke evidence.");
 
             foreach (var task in result.Tasks)
@@ -150,6 +265,8 @@ namespace LocalGPT.Services
                 summary.AppendLine($"- {task.Name}: LocalGPT status {local?.Status}, score {local?.TotalScore}, artifacts {local?.Artifacts.Count ?? 0}.");
                 if (local?.MissingFiles.Count > 0)
                     summary.AppendLine($"  Missing: {string.Join(", ", local.MissingFiles)}");
+                if (local?.BuildChecks.Count > 0)
+                    summary.AppendLine($"  Build checks: {string.Join(", ", local.BuildChecks.Select(check => $"{check.ArtifactName}={check.Status}"))}");
             }
 
             var entry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
@@ -158,7 +275,7 @@ namespace LocalGPT.Services
                 Scope = "Benchmark",
                 Source = $"/__diag/benchmark/engineering {result.RunId}",
                 Content = summary.ToString(),
-                HelpfulSources = "Use selected learn-base knowledge entries, artifact zips, raw Ollama transcripts, and cloud assistant transcripts. Do not fake unrun lanes.",
+                HelpfulSources = "Use selected learn-base knowledge entries, artifact zips, build checks, raw Ollama transcripts, and cloud assistant transcripts. Do not fake unrun lanes.",
                 Tags = "benchmark; localgpt; ollama; devexpress; blazor; minecraft; artifacts",
                 Confidence = 70,
                 VerificationStatus = "SourceBacked",
@@ -193,6 +310,30 @@ namespace LocalGPT.Services
 
             var guardHits = task.WrongTemplateGuards.Count(guard => ContainsZipEntry(zipEntries, guard));
             return guardHits == task.WrongTemplateGuards.Count ? 10 : Math.Max(0, 10 - (task.WrongTemplateGuards.Count - guardHits) * 3);
+        }
+
+        private static int ScoreBuildability(
+            BenchmarkTaskDefinition task,
+            IReadOnlyList<CouncilArtifact> artifacts,
+            IReadOnlyList<EngineeringBenchmarkBuildCheck> buildChecks,
+            bool validateBuildableArtifacts)
+        {
+            if (artifacts.Count == 0)
+                return 0;
+
+            if (!validateBuildableArtifacts)
+                return task.LocalGptBuildabilityScore;
+
+            var dotnetChecks = buildChecks
+                .Where(check => !check.Status.Equals("NoSolution", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            if (dotnetChecks.Length == 0)
+                return task.LocalGptBuildabilityScore;
+
+            return dotnetChecks.All(check => check.Status.Equals("BuildPassed", StringComparison.OrdinalIgnoreCase))
+                ? 10
+                : 0;
         }
 
         private static bool ContainsZipEntry(HashSet<string> zipEntries, string required)
@@ -235,7 +376,44 @@ namespace LocalGPT.Services
                 lane.DownloadableArtifactScore;
         }
 
-        private static IReadOnlyList<BenchmarkTaskDefinition> BuildTasks()
+        private static string NormalizeTaskSet(string? taskSet)
+        {
+            if (string.IsNullOrWhiteSpace(taskSet))
+                return "engineering";
+
+            return taskSet.Trim().ToLowerInvariant() switch
+            {
+                "replacement" or "replacements" or "apps" or "app-replacements" => "replacement",
+                "all" or "full" => "all",
+                _ => "engineering"
+            };
+        }
+
+        private static string TrimForPrompt(string text, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return string.Empty;
+
+            var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
+            return normalized.Length <= maxLength
+                ? normalized
+                : $"{normalized[..maxLength].TrimEnd()}...";
+        }
+
+        private static IReadOnlyList<BenchmarkTaskDefinition> BuildTasks(string taskSet)
+        {
+            var engineering = BuildEngineeringTasks();
+            var replacements = BuildReplacementTasks();
+
+            return taskSet switch
+            {
+                "replacement" => replacements,
+                "all" => engineering.Concat(replacements).ToArray(),
+                _ => engineering
+            };
+        }
+
+        private static IReadOnlyList<BenchmarkTaskDefinition> BuildEngineeringTasks()
         {
             return
             [
@@ -289,6 +467,53 @@ namespace LocalGPT.Services
                     ["fabric/", "paper/", "neoforge/"],
                     ["Fabric", "Paper", "NeoForge"],
                     ["fabric", "paper", "neoforge"])
+            ];
+        }
+
+        private static IReadOnlyList<BenchmarkTaskDefinition> BuildReplacementTasks()
+        {
+            return
+            [
+                new(
+                    "localgpt-replacement",
+                    "LocalGPT replacement workbench",
+                    "Generate a downloadable whole solution zip that can stand in for LocalGPT as a local-first AI workbench. It must include DXAiChat, AI Council with minimum two-member feedback talk, SQLite memory and knowledge approval markers, artifact download routes, Minecraft builder, install/setup, and Test Lab surfaces. No missing feature is acceptable; if a capability is not implemented, represent it as a visible backend service boundary and capability gap.",
+                    "A strong answer is a buildable .NET/Blazor/DevExpress solution with recognizable LocalGPT navigation: DXAiChat, AI Council, SQLite Database, Minecraft Mod Builder, Install, Help/Test Lab, artifact routes, memory/knowledge services, logs, and missing-feature feedback capture.",
+                    "Benchmark answer: create a full LocalGPT-like workbench solution zip with distinct pages for DXAiChat, AI Council, SQLite, Minecraft, Install, and Test Lab. Include Implementation artifact request.",
+                    7,
+                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Components/Pages/MinecraftModBuilder.razor", "Components/Pages/TestLab.razor", "Components/Pages/Install.razor"],
+                    ["DXAiChat", "AI Council", "SQLite", "Minecraft", "Test Lab"],
+                    ["Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor"]),
+                new(
+                    "tacosportalopen-replacement",
+                    "TacosPortalOpen replacement portal",
+                    "Generate a downloadable whole solution zip that can stand in for TacosPortalOpen as a server-interactive operations portal. It must include menu/catalog management, orders, reservations, admin CRUD grid/detail forms, notifications, audit state, EF/SQLite, and a simpler bot backend implementation for customer/order messages.",
+                    "A strong answer is a buildable .NET/Blazor/DevExpress operations portal with pages for Orders, Menu, Reservations, Admin, Bot Backend, service boundaries, EF/SQLite persistence, validation, and build/run docs.",
+                    "Benchmark answer: create a full TacosPortalOpen-style operations portal solution zip with menu/orders/reservations/admin/bot pages and backend service boundaries. Include Implementation artifact request.",
+                    7,
+                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/", "Components/Pages/Orders.razor", "Components/Pages/Menu.razor", "Components/Pages/Reservations.razor", "Components/Pages/Admin.razor", "Components/Pages/BotBackend.razor"],
+                    ["Orders", "Menu", "Reservations", "Bot Backend"],
+                    ["Components/Pages/Orders.razor", "Components/Pages/Menu.razor", "Components/Pages/BotBackend.razor"]),
+                new(
+                    "ai-host-replacement",
+                    "Provider-compatible AI host replacement",
+                    "Generate a downloadable whole solution zip for a provider-neutral AI host replacement in .NET 10, ASP.NET Core, Blazor, and DevExpress. It must include model catalog, chat, downloads, running models, API console, logs, settings, templates, hardware, runner/plugins, /api/version, /api/tags, /api/ps, /api/chat, /api/generate, OpenAI-compatible routes, provider adapters, native-runner capability gap, Python.NET/PowerShell extension boundaries, and SQLite/appsettings state.",
+                    "A strong answer is a buildable AI-host control-plane solution with provider-compatible routes, DevExpress navigation, model/download/runtime pages, plugin/native-runner interfaces, safe external-provider delegation, and explicit non-implemented native inference status.",
+                    "Benchmark answer: create a buildable AI-host replacement solution zip with DevExpress pages, provider-compatible routes, runner/plugin service contracts, and no Go dependency. Include Implementation artifact request.",
+                    9,
+                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/RunningModels.razor", "Components/Pages/ModelDownloads.razor", "Components/Pages/RunnerPlugins.razor", "Services/GeneratedAiHostArchitectureServices.cs"],
+                    ["IInferenceProvider", "IInferenceRunner", "RunnerPlugins", "/api/chat"],
+                    ["Components/Pages/RunnerPlugins.razor", "Services/GeneratedAiHostArchitectureServices.cs"]),
+                new(
+                    "simple-bot-backend",
+                    "Simpler bot backend implementation",
+                    "Generate a downloadable whole solution zip for a simpler bot backend inspired by legacy Telegram-style integrations, but sanitized. It must include webhooks, conversation state, command routing, moderation/retry queues, optional Python.NET boundary for speech/translation/media helpers, settings, logs, EF/SQLite, and a DevExpress Blazor operator UI.",
+                    "A strong answer is a buildable .NET/Blazor/DevExpress bot backend with Webhooks, Conversations, Bot Settings, Python Interop pages, services, safe permission gates, and no private database dump requirement.",
+                    "Benchmark answer: create a simple bot backend solution zip with webhook/conversation/settings/python-interop pages and safe backend service boundaries. Include Implementation artifact request.",
+                    7,
+                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/", "Components/Pages/Webhooks.razor", "Components/Pages/Conversations.razor", "Components/Pages/BotSettings.razor", "Components/Pages/PythonInterop.razor"],
+                    ["Webhooks", "Conversations", "Python Interop", "SQLite"],
+                    ["Components/Pages/Webhooks.razor", "Components/Pages/PythonInterop.razor"])
             ];
         }
 

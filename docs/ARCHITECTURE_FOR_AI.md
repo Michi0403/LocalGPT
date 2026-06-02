@@ -251,6 +251,15 @@ Use `POST /__diag/dxaichat-smoke` to exercise the configured `IChatClient` used 
 
 Use `POST /__diag/council` to exercise the AI Council through LocalGPT. Keep `MaxParallelModels = 1` for 20B/30B local models on consumer GPUs unless the user explicitly wants a heavier run.
 
+Use `GET /__diag/council/development-feedback-talk` for the regular minimum-two-member Council feedback talk about
+LocalGPT development process, missing features, benchmark gaps, and needed DXAiFunctions or knowledge sources. This is
+also exposed from the Test Lab frontend as `Council Feedback`. It should save memory/knowledge and include a capability
+gap report when the Council sees missing functionality. Do not treat 4K/8K as serious source-generation context; they
+are tiny smoke-test budgets. Local Ollama coding runs should default around 32K context, use 64K or more for larger
+source/solution generation, and allow up to 256K when the model/runtime supports it.
+
+Use `GET /__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true` for the replacement benchmark. It should generate and score downloadable LocalGPT-style, TacosPortalOpen-style, provider-compatible AI-host, and simple bot-backend solution zips through LocalGPT's artifact path, then build-check .NET solution artifacts. Raw Ollama and cloud comparison lanes must use real transcripts; do not fake them.
+
 Use `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge` to generate a buildable workspace through the app service, then run the generated `build-local.ps1`.
 
 Use `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=26.1` for the current datapack benchmark. It does not load Ollama; it creates the datapack workspace, runs the local validator/zip script, and saves a compact council knowledge entry for later model review. Use `minecraftVersion=1.21.4` only when intentionally comparing against legacy 1.21.x behavior.

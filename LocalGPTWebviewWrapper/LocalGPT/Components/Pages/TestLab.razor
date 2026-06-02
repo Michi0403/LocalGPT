@@ -89,13 +89,16 @@
         new("Minecraft 26.1", "/__diag/minecraft/datapack-version?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
         new("Datapack ZIP", "/__diag/council/artifact-smoke?target=datapack", ButtonRenderStyle.Primary),
         new("AI Host ZIP", "/__diag/council/artifact-smoke?target=ai-host", ButtonRenderStyle.Primary),
-        new("Benchmark", "/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1", ButtonRenderStyle.Secondary)
+        new("Minecraft Benchmark", "/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
+        new("Engineering Benchmark", "/__diag/benchmark/engineering?taskSet=engineering&saveToKnowledge=true", ButtonRenderStyle.Secondary),
+        new("Replacement Benchmark", "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4&saveToKnowledge=true", ButtonRenderStyle.Primary),
+        new("Council Feedback", "/__diag/council/development-feedback-talk?maxOutputTokens=2048&maxContextTokens=32768&maxRounds=0", ButtonRenderStyle.Primary)
     ];
 
     private bool isBusy;
     private string statusText = "Ready.";
     private string resultText = "Run a local diagnostic route to see JSON here.";
-    private string customRoute = "/__diag/council/artifact-smoke?target=solution";
+    private string customRoute = "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4";
     private string learnBaseRoot = @"C:\tmpselectedcodexlearnbaseforlocalgpt\AutomatedDiscordLogin-master";
     private int maxProjects = 30;
     private List<TestLabDownloadLink> downloadLinks = [];

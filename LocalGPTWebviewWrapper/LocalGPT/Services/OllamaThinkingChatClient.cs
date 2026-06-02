@@ -19,7 +19,7 @@ namespace LocalGPT.Services
         };
         private const string HarmonyResponseProtocol =
             "Response protocol for Harmony/OpenAI-style local models: keep analysis short, " +
-            "always finish with user-visible final answer text in the final channel, and if the request is too large, " +
+            "emit user-visible final answer text early in the final channel, never spend the whole budget on analysis, and if the request is too large, " +
             "say what is missing or what to do next in final instead of spending the whole answer budget on analysis.";
         private const string MissingFinalAnswerNotice =
             "**No final answer was emitted.** The model only sent thinking. LocalGPT kept the thinking visible and stopped the spinner; " +

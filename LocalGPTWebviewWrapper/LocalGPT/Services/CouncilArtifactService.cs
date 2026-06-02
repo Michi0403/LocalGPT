@@ -235,8 +235,16 @@ namespace LocalGPT.Services
             string timestamp,
             CancellationToken cancellationToken)
         {
-            var isAiHostLab = IsAiHostExperimentTarget(request.Prompt, result.FinalAnswer);
-            var projectPrefix = isAiHostLab ? "AiHostLab" : "LocalGptLab";
+            var archetype = DetectSolutionArchetype(request.Prompt, result.FinalAnswer);
+            var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
+            var projectPrefix = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "AiHostLab",
+                GeneratedSolutionArchetype.LocalGpt => "LocalGPTApp",
+                GeneratedSolutionArchetype.TacosPortal => "TacosPortal",
+                GeneratedSolutionArchetype.BotBackend => "BotBackend",
+                _ => "LocalGptLab"
+            };
             var runSuffix = result.RunId.ToString("N")[..8];
             var compactTimestamp = timestamp.Replace("-", string.Empty, StringComparison.Ordinal);
             var projectName = $"{projectPrefix}{compactTimestamp[^6..]}";
@@ -268,14 +276,18 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), "{\n  \"Logging\": {\n    \"LogLevel\": {\n      \"Default\": \"Information\"\n    }\n  }\n}\n", cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), GenerateSolutionAppRazor(), cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), GenerateSolutionRoutesRazor(), cancellationToken);
-            await WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), GenerateSolutionNavigationRazor(isAiHostLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), GenerateSolutionIndexRazor(request, result, isAiHostLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), GenerateSolutionDashboardRazor(request, result, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), GenerateSolutionNavigationRazor(archetype), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), GenerateSolutionIndexRazor(request, result, archetype), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), GenerateSolutionDashboardRazor(request, result, archetype), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), GenerateSolutionKnowledgeTableRazor(isAiHostLab), cancellationToken);
             await WriteTextAsync(
                 Path.Combine(pagesRoot, isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
                 GenerateSolutionDetailRazor(request, result, isAiHostLab),
                 cancellationToken);
+
+            foreach (var page in GenerateArchetypePages(archetype))
+                await WriteTextAsync(Path.Combine(pagesRoot, page.FileName), page.Source, cancellationToken);
+
             if (isAiHostLab)
             {
                 await WriteTextAsync(Path.Combine(pagesRoot, "Chat.razor"), GenerateAiHostChatRazor(), cancellationToken);
@@ -586,8 +598,9 @@ namespace LocalGPT.Services
             </Router>
             """;
 
-        private static string GenerateSolutionNavigationRazor(bool isAiHostLab)
+        private static string GenerateSolutionNavigationRazor(GeneratedSolutionArchetype archetype)
         {
+            var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
             var labName = isAiHostLab ? "AI Host Control Plane" : "LocalGPT Generation Lab";
             var catalogHref = isAiHostLab ? "/models" : "/knowledge";
             var catalogText = isAiHostLab ? "Model Catalog" : "Knowledge";
@@ -637,6 +650,86 @@ namespace LocalGPT.Services
                     </a>
                 """
                 : string.Empty;
+            var archetypeLinks = archetype switch
+            {
+                GeneratedSolutionArchetype.LocalGpt => """
+                    <a href="/chat">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>DXAiChat</span>
+                    </a>
+                    <a href="/model-council">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
+                        <span>AI Council</span>
+                    </a>
+                    <a href="/database">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
+                        <span>SQLite</span>
+                    </a>
+                    <a href="/minecraft-mod-builder">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
+                        <span>Minecraft</span>
+                    </a>
+                    <a href="/test-lab">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>Test Lab</span>
+                    </a>
+                """,
+                GeneratedSolutionArchetype.TacosPortal => """
+                    <a href="/orders">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
+                        <span>Orders</span>
+                    </a>
+                    <a href="/menu">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
+                        <span>Menu</span>
+                    </a>
+                    <a href="/reservations">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>Reservations</span>
+                    </a>
+                    <a href="/admin">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
+                        <span>Admin</span>
+                    </a>
+                    <a href="/bot-backend">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>Bot Backend</span>
+                    </a>
+                """,
+                GeneratedSolutionArchetype.BotBackend => """
+                    <a href="/webhooks">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>Webhooks</span>
+                    </a>
+                    <a href="/conversations">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
+                        <span>Conversations</span>
+                    </a>
+                    <a href="/bot-settings">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
+                        <span>Bot Settings</span>
+                    </a>
+                    <a href="/python-interop">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>Python Interop</span>
+                    </a>
+                """,
+                _ => string.Empty
+            };
 
             return $$"""
                 <nav class="generated-nav" aria-label="{{labName}} navigation">
@@ -657,6 +750,7 @@ namespace LocalGPT.Services
                         <span>{{detailText}}</span>
                     </a>
                     {{aiHostLinks}}
+                    {{archetypeLinks}}
                 </nav>
 
                 @code {
@@ -669,17 +763,58 @@ namespace LocalGPT.Services
         private static string GenerateSolutionIndexRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isAiHostLab)
+            GeneratedSolutionArchetype archetype)
         {
+            var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
             var isAiHostLiteral = isAiHostLab ? "true" : "false";
-            var title = isAiHostLab ? "AI Host Control Plane" : "LocalGPT Feature Generation Lab";
-            var subtitle = isAiHostLab
-                ? "A DevExpress Blazor shell for provider-compatible API routes, model cataloging, endpoint checks, and external runner boundaries."
-                : "A LocalGPT/TacosPortalOpen-style sandbox for AI Council feature requests, implementation planning, knowledge-backed generation, and artifact review.";
-            var primaryHref = isAiHostLab ? "/api-console" : "/implementation-plan";
-            var primaryLabel = isAiHostLab ? "Open API console" : "Open implementation plan";
-            var secondaryHref = isAiHostLab ? "/models" : "/knowledge";
-            var secondaryLabel = isAiHostLab ? "Review model catalog" : "Review knowledge table";
+            var title = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
+                GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench",
+                GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations",
+                GeneratedSolutionArchetype.BotBackend => "Bot Backend Control Plane",
+                _ => "LocalGPT Feature Generation Lab"
+            };
+            var subtitle = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "A DevExpress Blazor shell for provider-compatible API routes, model cataloging, endpoint checks, and external runner boundaries.",
+                GeneratedSolutionArchetype.LocalGpt => "A local-first AI workbench with DXAiChat, AI Council, SQLite memory, artifact downloads, Minecraft generation, setup, and test-lab surfaces.",
+                GeneratedSolutionArchetype.TacosPortal => "A server-interactive operations portal with menu, orders, reservations, admin CRUD, notifications, and a simple bot backend boundary.",
+                GeneratedSolutionArchetype.BotBackend => "A compact bot backend with webhooks, conversation state, moderation/retry queues, Python interop boundaries, and operator settings.",
+                _ => "A LocalGPT/TacosPortalOpen-style sandbox for AI Council feature requests, implementation planning, knowledge-backed generation, and artifact review."
+            };
+            var primaryHref = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "/api-console",
+                GeneratedSolutionArchetype.LocalGpt => "/chat",
+                GeneratedSolutionArchetype.TacosPortal => "/orders",
+                GeneratedSolutionArchetype.BotBackend => "/webhooks",
+                _ => "/implementation-plan"
+            };
+            var primaryLabel = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "Open API console",
+                GeneratedSolutionArchetype.LocalGpt => "Open DXAiChat",
+                GeneratedSolutionArchetype.TacosPortal => "Open orders",
+                GeneratedSolutionArchetype.BotBackend => "Open webhooks",
+                _ => "Open implementation plan"
+            };
+            var secondaryHref = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "/models",
+                GeneratedSolutionArchetype.LocalGpt => "/model-council",
+                GeneratedSolutionArchetype.TacosPortal => "/menu",
+                GeneratedSolutionArchetype.BotBackend => "/conversations",
+                _ => "/knowledge"
+            };
+            var secondaryLabel = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "Review model catalog",
+                GeneratedSolutionArchetype.LocalGpt => "Review AI Council",
+                GeneratedSolutionArchetype.TacosPortal => "Review menu",
+                GeneratedSolutionArchetype.BotBackend => "Review conversations",
+                _ => "Review knowledge table"
+            };
             var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500));
             var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 700));
 
@@ -749,15 +884,28 @@ namespace LocalGPT.Services
         private static string GenerateSolutionDashboardRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isAiHostLab)
+            GeneratedSolutionArchetype archetype)
         {
+            var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
             var isAiHostLiteral = isAiHostLab ? "true" : "false";
             var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700));
             var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900));
-            var title = isAiHostLab ? "AI Host Dashboard" : "LocalGPT Generation Dashboard";
-            var subtitle = isAiHostLab
-                ? "Track API compatibility, model catalog readiness, runner adapter boundaries, and endpoint-test status."
-                : "Track AI Council feature-generation readiness, knowledge grounding, artifact review, and integration safety.";
+            var title = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "AI Host Dashboard",
+                GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench Dashboard",
+                GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations Dashboard",
+                GeneratedSolutionArchetype.BotBackend => "Bot Backend Dashboard",
+                _ => "LocalGPT Generation Dashboard"
+            };
+            var subtitle = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "Track API compatibility, model catalog readiness, runner adapter boundaries, and endpoint-test status.",
+                GeneratedSolutionArchetype.LocalGpt => "Track model connectivity, Council health, SQLite memory, generated artifacts, Minecraft builder readiness, and frontend test status.",
+                GeneratedSolutionArchetype.TacosPortal => "Track order throughput, kitchen state, menu publishing, reservations, admin CRUD, and bot notification boundaries.",
+                GeneratedSolutionArchetype.BotBackend => "Track webhook health, queue state, conversation memory, retry policy, Python interop, and operator approvals.",
+                _ => "Track AI Council feature-generation readiness, knowledge grounding, artifact review, and integration safety."
+            };
             return $$"""
             @page "/dashboard"
             @rendermode InteractiveServer
@@ -876,6 +1024,135 @@ namespace LocalGPT.Services
                 </DxGrid>
             </main>
             """;
+        }
+
+        private static IReadOnlyList<GeneratedArchetypePage> GenerateArchetypePages(GeneratedSolutionArchetype archetype)
+        {
+            return archetype switch
+            {
+                GeneratedSolutionArchetype.LocalGpt =>
+                [
+                    ArchetypePage("Chat.razor", "/chat", "DXAiChat", "Chat surface with model routing, uploads, artifact links, visible progress, and memory-aware continuation.", ["Model selection", "Council mode", "File context", "Artifact downloads"]),
+                    ArchetypePage("ModelCouncil.razor", "/model-council", "AI Council", "Multi-model review surface for feedback talks, polls, missing features, source requests, and implementation artifacts.", ["Minimum two members", "Sequential scheduling", "Poll gate", "Feedback log"]),
+                    ArchetypePage("Database.razor", "/database", "SQLite Database", "Editable operational memory for chats, thoughts, logs, knowledge, benchmark scores, and approval markers.", ["CouncilKnowledgeEntries", "ChatMessages", "ApplicationLogs", "BenchmarkResults"]),
+                    ArchetypePage("MinecraftModBuilder.razor", "/minecraft-mod-builder", "Minecraft Mod Builder", "Workspace generator for datapacks, Fabric, Paper, NeoForge, Java/Gradle setup, validation, and downloads.", ["Datapack zip", "Loader matrix", "Version resolver", "Validation script"]),
+                    ArchetypePage("TestLab.razor", "/test-lab", "Test Lab", "Frontend-accessible diagnostics for API smoke checks, benchmark routes, artifact downloads, and WebView2 workflows.", ["Health", "DXAiFunctions", "Replacement benchmark", "Council feedback"]),
+                    ArchetypePage("Install.razor", "/install", "Install", "Model host discovery, Ollama/LM Studio status, model pull planning, runtime checks, and setup guidance.", ["Ollama status", "LM Studio status", "Model downloads", "Java/.NET checks"])
+                ],
+                GeneratedSolutionArchetype.TacosPortal =>
+                [
+                    ArchetypePage("Orders.razor", "/orders", "Orders", "Server-interactive order queue with kitchen status, payment state, pickup timing, and operator notes.", ["New orders", "Kitchen queue", "Payment status", "Pickup window"]),
+                    ArchetypePage("Menu.razor", "/menu", "Menu", "Menu/catalog management with product variants, prices, availability, images, and publish state.", ["Products", "Categories", "Price rules", "Publish state"]),
+                    ArchetypePage("Reservations.razor", "/reservations", "Reservations", "Reservation and table planning surface with customer messages, occupancy, and conflict checks.", ["Tables", "Timeslots", "Guests", "Conflicts"]),
+                    ArchetypePage("Admin.razor", "/admin", "Admin", "DevExpress CRUD/admin workbench with roles, audit log, validation, and operational settings.", ["Users", "Roles", "Audit", "Settings"]),
+                    ArchetypePage("BotBackend.razor", "/bot-backend", "Bot Backend", "Simple bot backend boundary for order notifications, customer replies, command routing, and retry queues.", ["Webhook", "Commands", "Retries", "Escalation"])
+                ],
+                GeneratedSolutionArchetype.BotBackend =>
+                [
+                    ArchetypePage("Webhooks.razor", "/webhooks", "Webhooks", "Inbound message and event receiver surface with validation, idempotency, and retry diagnostics.", ["Ingress", "Signature check", "Idempotency", "Dead letters"]),
+                    ArchetypePage("Conversations.razor", "/conversations", "Conversations", "Conversation-state workbench with memory, moderation, handoff, and compact transcript review.", ["Memory", "Moderation", "Handoff", "Transcript"]),
+                    ArchetypePage("BotSettings.razor", "/bot-settings", "Bot Settings", "Provider-neutral bot configuration with secrets stored outside the generated code and visible safety gates.", ["Provider", "Token source", "Allowed commands", "Rate limit"]),
+                    ArchetypePage("PythonInterop.razor", "/python-interop", "Python Interop", "Optional Python.NET or process-adapter boundary for transcription, translation, media, or model tooling.", ["Python.NET", "Process adapter", "Safe directory", "User approval"])
+                ],
+                _ => []
+            };
+        }
+
+        private static GeneratedArchetypePage ArchetypePage(
+            string fileName,
+            string route,
+            string title,
+            string summary,
+            IReadOnlyList<string> areas)
+        {
+            return new GeneratedArchetypePage(
+                fileName,
+                GenerateArchetypePageRazor(route, title, summary, areas));
+        }
+
+        private static string GenerateArchetypePageRazor(
+            string route,
+            string title,
+            string summary,
+            IReadOnlyList<string> areas)
+        {
+            var rows = string.Join(
+                "," + Environment.NewLine + "            ",
+                areas.Select((area, index) => $$"""new("{{EscapeCSharpString(area)}}", "{{(index == 0 ? "Ready" : "Planned")}}", "{{EscapeCSharpString(BuildArchetypeNextAction(area))}}")"""));
+
+            return $$"""
+            @page "{{route}}"
+            @rendermode InteractiveServer
+
+            <PageTitle>{{title}}</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>{{title}}</h1>
+                        <p>{{summary}}</p>
+                    </div>
+                    <DxButton Text="Refresh"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Click="Refresh" />
+                </section>
+
+                <DxGrid Data="@Rows"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedArchetypeRow.Area)" Caption="Area" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedArchetypeRow.Status)" Caption="Status" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedArchetypeRow.NextAction)" Caption="Next Action" />
+                    </Columns>
+                </DxGrid>
+
+                <DxFormLayout CssClass="generated-form">
+                    <DxFormLayoutGroup Caption="Implementation boundary" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Service rule" ColSpanMd="6">
+                            <DxTextBox Text="Keep business logic in backend services." ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Persistence rule" ColSpanMd="6">
+                            <DxTextBox Text="Persist durable user state in EF/SQLite." ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Safety" ColSpanMd="12">
+                            <DxMemo Text="Generated sandbox page. Integrate into the real project only after user approval, build verification, and route-specific tests." Rows="3" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                    </DxFormLayoutGroup>
+                </DxFormLayout>
+            </main>
+
+            @code {
+                IReadOnlyList<GeneratedArchetypeRow> Rows { get; set; } =
+                [
+                    {{rows}}
+                ];
+
+                void Refresh()
+                {
+                    Rows = Rows.ToArray();
+                }
+
+                private sealed record GeneratedArchetypeRow(string Area, string Status, string NextAction);
+            }
+            """;
+        }
+
+        private static string BuildArchetypeNextAction(string area)
+        {
+            return area switch
+            {
+                "Minimum two members" => "Require at least two council members for feedback talks.",
+                "Replacement benchmark" => "Run benchmark task set with build validation.",
+                "Council feedback" => "Capture missing features and source requests in memory.",
+                "Webhook" or "Ingress" => "Add signature validation, idempotency, and retry logs.",
+                "Python.NET" => "Gate runtime loading behind explicit user approval.",
+                _ => $"Wire {area} through a typed service, route, and test."
+            };
         }
 
         private static string GenerateSolutionDetailRazor(
@@ -1430,6 +1707,9 @@ namespace LocalGPT.Services
                           new("4", "Artifact download", "Expose generated files through safe HTTP download routes.", "No binary blobs inside chat messages."),
                           new("5", "Frontend smoke", "Exercise the generated workflow like a user in WebView2.", "Do not rely only on backend APIs.")
                   """;
+            var serviceInterfaces = isAiHostLab
+                ? " : IModelCatalogService, IModelTransferService"
+                : string.Empty;
 
             return $$"""
             using {{projectName}}.Models;
@@ -1439,7 +1719,7 @@ namespace LocalGPT.Services
             /// <summary>
             /// Provides deterministic health cards for the generated LocalGPT sandbox solution.
             /// </summary>
-            public sealed class GeneratedHealthSummaryService : IModelCatalogService, IModelTransferService
+            public sealed class GeneratedHealthSummaryService{{serviceInterfaces}}
             {
                 /// <summary>
                 /// Returns the cards displayed by the generated DevExpress grids.
@@ -3513,6 +3793,21 @@ namespace LocalGPT.Services
             return AiHostExperimentPattern().IsMatch($"{prompt} {finalAnswer}");
         }
 
+        private static GeneratedSolutionArchetype DetectSolutionArchetype(string prompt, string finalAnswer)
+        {
+            var text = $"{prompt} {finalAnswer}";
+            if (AiHostExperimentPattern().IsMatch(text))
+                return GeneratedSolutionArchetype.AiHost;
+            if (LocalGptReplacementPattern().IsMatch(text))
+                return GeneratedSolutionArchetype.LocalGpt;
+            if (TacosPortalPattern().IsMatch(text))
+                return GeneratedSolutionArchetype.TacosPortal;
+            if (BotBackendPattern().IsMatch(text))
+                return GeneratedSolutionArchetype.BotBackend;
+
+            return GeneratedSolutionArchetype.Generic;
+        }
+
         private static string TrimForCodeComment(string text, int maxLength)
         {
             var normalized = WhitespacePattern().Replace(text, " ").Trim();
@@ -3682,6 +3977,15 @@ namespace LocalGPT.Services
         [GeneratedRegex("(ai host|local ai host|model host|chat host|ollama).*(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net)|(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net).*(ai host|local ai host|model host|chat host|ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex AiHostExperimentPattern();
 
+        [GeneratedRegex("(localgpt|local gpt|dxaichat|ai council|minecraft mod builder|sqlite memory|test lab)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex LocalGptReplacementPattern();
+
+        [GeneratedRegex("(tacosportalopen|tacos portal|restaurant portal|orders.*menu|menu.*orders|reservation|kitchen queue)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex TacosPortalPattern();
+
+        [GeneratedRegex("(bot backend|telegram bot|botapi|webhook|conversation state|python\\.net|whisper|translator bot)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex BotBackendPattern();
+
         [GeneratedRegex("(log|logger|diagnostic|error|warning|telemetry)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex LoggingPattern();
 
@@ -3693,5 +3997,16 @@ namespace LocalGPT.Services
             string ModId,
             string PackageName,
             string DisplayName);
+
+        private enum GeneratedSolutionArchetype
+        {
+            Generic,
+            LocalGpt,
+            TacosPortal,
+            BotBackend,
+            AiHost
+        }
+
+        private sealed record GeneratedArchetypePage(string FileName, string Source);
     }
 }

@@ -79,19 +79,19 @@
                 <DxCheckBox @bind-Checked="IncludeCouncilMemory" />
                 <span>Council uses memory</span>
             </label>
-            <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Use 32768+ for source generation; lower it for quick checks.">
+            <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Use 65536+ for large source or solution generation; lower it for quick checks.">
                 <span>Council answer tokens</span>
                 <input type="number"
                        min="256"
-                       max="131072"
+                       max="262144"
                        step="1024"
                        @bind="CouncilMaxOutputTokens" />
             </label>
-            <label class="council-token-setting" title="Maximum Ollama context window requested for council and detected model sessions. Lower this if Ollama reports context or VRAM errors.">
+            <label class="council-token-setting" title="Maximum Ollama context window requested for council and detected model sessions. 32768 is compact, 65536+ is often needed for serious code generation, and 262144 is available when the model/runtime supports it.">
                 <span>Council context tokens</span>
                 <input type="number"
                        min="2048"
-                       max="131072"
+                       max="262144"
                        step="2048"
                        @bind="CouncilMaxContextTokens" />
             </label>
@@ -311,10 +311,10 @@
     const string OllamaModeLimitedGpu = "limited-gpu";
     const int MinCouncilOutputTokens = 256;
     const int DefaultCouncilOutputTokens = 32768;
-    const int MaxCouncilOutputTokens = 131072;
+    const int MaxCouncilOutputTokens = 262144;
     const int MinCouncilContextTokens = 2048;
     const int DefaultCouncilContextTokens = 32768;
-    const int MaxCouncilContextTokens = 131072;
+    const int MaxCouncilContextTokens = 262144;
     string OllamaAccelerationMode { get; set; } = OllamaModeAutoGpu;
     int LimitedGpuLayers { get; set; } = 20;
     bool GenerateCouncilArtifacts { get; set; } = true;
@@ -902,7 +902,7 @@
         if (query.TryGetValue("diagMaxOutputTokens", out var maxOutputTokens) &&
             int.TryParse(maxOutputTokens.ToString(), out var parsedMaxOutputTokens))
         {
-            ChatClientProvider.ForcedMaxOutputTokens = Math.Clamp(parsedMaxOutputTokens, 64, 131072);
+            ChatClientProvider.ForcedMaxOutputTokens = Math.Clamp(parsedMaxOutputTokens, 64, 262144);
         }
 
         if (query.TryGetValue("diagMaxPromptCharacters", out var maxPromptCharacters) &&

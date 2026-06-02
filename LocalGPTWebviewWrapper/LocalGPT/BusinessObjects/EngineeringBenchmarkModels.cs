@@ -8,6 +8,12 @@ namespace LocalGPT.BusinessObjects
 
         public bool ImportLearnBaseFirst { get; set; }
 
+        public bool ValidateBuildableArtifacts { get; set; }
+
+        public int MaxBuildArtifacts { get; set; } = 3;
+
+        public string TaskSet { get; set; } = "engineering";
+
         public string LearnBaseRootPath { get; set; } = @"C:\tmpselectedcodexlearnbaseforlocalgpt";
     }
 
@@ -26,6 +32,8 @@ namespace LocalGPT.BusinessObjects
         public LearnBaseImportResult? LearnBaseImport { get; set; }
 
         public List<string> Warnings { get; set; } = [];
+
+        public string TaskSet { get; set; } = "engineering";
     }
 
     public sealed class EngineeringBenchmarkTaskResult
@@ -71,6 +79,27 @@ namespace LocalGPT.BusinessObjects
 
         public List<string> MissingFiles { get; set; } = [];
 
+        public List<EngineeringBenchmarkBuildCheck> BuildChecks { get; set; } = [];
+
         public string Notes { get; set; } = string.Empty;
+    }
+
+    public sealed class EngineeringBenchmarkBuildCheck
+    {
+        public string ArtifactName { get; set; } = string.Empty;
+
+        public string Status { get; set; } = string.Empty;
+
+        public string ExtractedRoot { get; set; } = string.Empty;
+
+        public string SolutionPath { get; set; } = string.Empty;
+
+        public int? ExitCode { get; set; }
+
+        public TimeSpan? Duration { get; set; }
+
+        public string OutputPreview { get; set; } = string.Empty;
+
+        public string ErrorPreview { get; set; } = string.Empty;
     }
 }

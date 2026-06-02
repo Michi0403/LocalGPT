@@ -25,9 +25,9 @@ namespace LocalGPT.Services
         private const int DefaultHeavyModelGpuLayers = 20;
         private const int MinContextTokens = 2048;
         private const int DefaultContextTokens = 32768;
-        private const int MaxContextTokens = 131072;
+        private const int MaxContextTokens = 262144;
         private const int MinOutputTokens = 64;
-        private const int MaxOutputTokens = 131072;
+        private const int MaxOutputTokens = 262144;
 
         public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
         {
@@ -397,6 +397,25 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
                     visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
 
+                if (IsThinkingOnlyCouncilContent(visibleContent))
+                {
+                    var recovery = await RunFinalOnlyRecoveryAsync(
+                        client,
+                        modelName,
+                        phase,
+                        messages,
+                        Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 2048), 8192), MinOutputTokens, MaxOutputTokens),
+                        streamUpdate,
+                        participantCts.Token);
+
+                    if (!string.IsNullOrWhiteSpace(recovery.Content))
+                        content = $"{content}{Environment.NewLine}{Environment.NewLine}{recovery.Content}";
+                    if (!string.IsNullOrWhiteSpace(recovery.Thinking))
+                        thinking = string.Join(Environment.NewLine, new[] { thinking, recovery.Thinking }.Where(text => !string.IsNullOrWhiteSpace(text)));
+                    if (IsSubstantiveCouncilContent(recovery.VisibleContent))
+                        visibleContent = recovery.VisibleContent;
+                }
+
                 stopwatch.Stop();
                 return new MultiModelCouncilStep
                 {
@@ -459,6 +478,45 @@ namespace LocalGPT.Services
             }
         }
 
+        private static async Task<(string Content, string VisibleContent, string? Thinking)> RunFinalOnlyRecoveryAsync(
+            IChatClient client,
+            string modelName,
+            string phase,
+            IReadOnlyList<ChatMessage> originalMessages,
+            int maxOutputTokens,
+            Action<string>? streamUpdate,
+            CancellationToken cancellationToken)
+        {
+            var messages = originalMessages.ToList();
+            messages.Add(new ChatMessage(ChatRole.User, $"""
+                Your previous {phase} response for LocalGPT produced model thinking/status but no user-visible final answer.
+                Do not analyze again. Do not emit hidden reasoning. Do not use tool calls.
+                Emit only the final visible answer now in concise Markdown bullets.
+                Start with: Final answer:
+                """));
+
+            var builder = new StringBuilder();
+            streamUpdate?.Invoke($"<details class=\"council-step\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
+            await foreach (var update in client.GetStreamingResponseAsync(
+                messages,
+                new ChatOptions
+                {
+                    MaxOutputTokens = maxOutputTokens,
+                    Temperature = 0.1f
+                },
+                cancellationToken).WithCancellation(cancellationToken))
+            {
+                builder.Append(update.Text);
+                streamUpdate?.Invoke(update.Text);
+            }
+
+            streamUpdate?.Invoke("\n\n</details>\n\n");
+            var content = builder.ToString();
+            var thinking = ExtractThinking(content);
+            var visibleContent = StripThinking(content);
+            return (content, visibleContent, thinking);
+        }
+
         private void AddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step)
         {
             step.SortOrder = result.Steps.Count;
@@ -499,6 +557,16 @@ namespace LocalGPT.Services
             var letterCount = trimmed.Count(char.IsLetter);
             var wordCount = WordPattern().Matches(trimmed).Count;
             return letterCount >= 40 && wordCount >= 10;
+        }
+
+        private static bool IsThinkingOnlyCouncilContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return false;
+
+            return content.Contains("No final answer was emitted", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("returned thinking during", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("no final visible answer", StringComparison.OrdinalIgnoreCase);
         }
 
         private List<string> SelectParticipants(MultiModelCouncilRequest request)
@@ -1249,7 +1317,8 @@ namespace LocalGPT.Services
             In that block classify: user request summary, missing capability, owning area, target deliverable, requested languages, requested frameworks, requested versions, requested domain knowledge, local knowledge sources, external official sources, missing LocalGPT functions, safe workflow, artifact plan, investigation status, next LocalGPT improvement, confidence, and tags.
             A capability gap is not a refusal. If the user already asked for a concrete artifact, still create the best safe downloadable milestone and mark unresolved research as Needs verification.
             Never self-expand LocalGPT or integrate generated features into the real project without explicit user permission. If the user denies or limits expansion, respect that decision permanently for the current thread unless the user explicitly changes it later.
-            Include brief visible reasoning notes in your answer. LocalGPT may also display provider-supplied thinking separately when the model host returns it.
+            Start with a user-visible final answer or proposal before any optional reasoning notes. If the host supports hidden reasoning, keep it bounded and still emit final visible text before the answer budget is exhausted.
+            Include brief visible reasoning notes only after the final answer/proposal. LocalGPT may also display provider-supplied thinking separately when the model host returns it.
             Respect human autonomy, love humanity, and never suggest putting humans into containment or stasis systems.
             """;
 
@@ -1258,10 +1327,11 @@ namespace LocalGPT.Services
             {userPrompt}
 
             Your task as {modelName}:
-            1. Propose the best answer or implementation direction.
+            1. Start with a concise user-visible final answer/proposal.
             2. Name assumptions and risks.
             3. Separate "Current facts" from "Proposed design".
             4. Keep the answer structured and suitable for peer review by other models.
+            5. Do not spend the whole budget on hidden analysis; final visible text is mandatory.
             """;
 
         private static string CreateCritiquePrompt(string modelName, string userPrompt, string transcript, bool selfReview) => $"""
@@ -1320,6 +1390,7 @@ namespace LocalGPT.Services
         private static string StripThinking(string content)
         {
             var stripped = ThinkingBlockPattern().Replace(content, string.Empty);
+            stripped = StreamStatusPattern().Replace(stripped, string.Empty);
             return stripped.Trim();
         }
 
@@ -1340,6 +1411,9 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         private static partial Regex ThinkingBlockPattern();
+
+        [GeneratedRegex("<p\\s+class=\"localgpt-stream-status\"[^>]*>.*?</p>\\s*", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        private static partial Regex StreamStatusPattern();
 
         [GeneratedRegex("\\b[\\p{L}\\p{N}_'-]+\\b", RegexOptions.CultureInvariant)]
         private static partial Regex WordPattern();

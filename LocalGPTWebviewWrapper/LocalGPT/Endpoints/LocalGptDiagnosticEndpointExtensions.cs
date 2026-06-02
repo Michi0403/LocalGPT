@@ -401,9 +401,9 @@ namespace LocalGPT.Endpoints
                             Members = preferredGptOss is null ? Array.Empty<string>() : new[] { preferredGptOss.ModelName },
                             MaxParallelModels = 1,
                             OllamaNumGpu = (int?)null,
-                            MaxContextTokens = 8192,
-                            MaxOutputTokens = 4096,
-                            Purpose = "Verify Harmony formatting, streaming, artifact links, and normal DXAiChat usability."
+                            MaxContextTokens = 32768,
+                            MaxOutputTokens = 8192,
+                            Purpose = "Verify Harmony formatting, streaming, artifact links, and normal DXAiChat usability with a compact but realistic local context."
                         },
                         new
                         {
@@ -411,8 +411,8 @@ namespace LocalGPT.Endpoints
                             Members = preferredDeepseek is null ? Array.Empty<string>() : new[] { preferredDeepseek.ModelName },
                             MaxParallelModels = 1,
                             OllamaNumGpu = (int?)0,
-                            MaxContextTokens = 4096,
-                            MaxOutputTokens = 2048,
+                            MaxContextTokens = 32768,
+                            MaxOutputTokens = 4096,
                             Purpose = "Slow but GPU-safe review of generated .NET/DevExpress or Minecraft datapack output."
                         },
                         new
@@ -424,8 +424,8 @@ namespace LocalGPT.Endpoints
                                 .ToArray(),
                             MaxParallelModels = 1,
                             OllamaNumGpu = (int?)0,
-                            MaxContextTokens = 8192,
-                            MaxOutputTokens = 4096,
+                            MaxContextTokens = 32768,
+                            MaxOutputTokens = 8192,
                             Purpose = "Best default cross-check without concurrent VRAM pressure; use keep_alive=0s."
                         },
                         new
@@ -434,8 +434,8 @@ namespace LocalGPT.Endpoints
                             Members = preferredQwen is null ? Array.Empty<string>() : new[] { preferredQwen.ModelName },
                             MaxParallelModels = 1,
                             OllamaNumGpu = (int?)12,
-                            MaxContextTokens = 8192,
-                            MaxOutputTokens = 4096,
+                            MaxContextTokens = 65536,
+                            MaxOutputTokens = 32768,
                             Purpose = "Optional qwen/gwen solo code-generation check after Ollama/GPU stability is confirmed. Do not combine with other heavy models."
                         }
                     },
@@ -597,14 +597,87 @@ namespace LocalGPT.Endpoints
             app.MapGet("/__diag/benchmark/engineering", async (
                 bool? importLearnBaseFirst,
                 bool? saveToKnowledge,
+                bool? validateBuildableArtifacts,
+                int? maxBuildArtifacts,
+                string? taskSet,
                 IEngineeringBenchmarkService benchmark,
                 CancellationToken ct) =>
             {
                 return Results.Ok(await benchmark.RunAsync(new EngineeringBenchmarkRequest
                 {
                     ImportLearnBaseFirst = importLearnBaseFirst == true,
-                    SaveToKnowledge = saveToKnowledge != false
+                    SaveToKnowledge = saveToKnowledge != false,
+                    ValidateBuildableArtifacts = validateBuildableArtifacts == true,
+                    MaxBuildArtifacts = maxBuildArtifacts ?? 3,
+                    TaskSet = string.IsNullOrWhiteSpace(taskSet) ? "engineering" : taskSet
                 }, ct));
+            });
+
+            app.MapGet("/__diag/council/development-feedback-talk", async (
+                string? modelNames,
+                int? maxOutputTokens,
+                int? maxContextTokens,
+                int? maxRounds,
+                int? ollamaNumGpu,
+                IMultiModelCouncilService council,
+                CancellationToken ct) =>
+            {
+                var requestedModels = (modelNames ?? string.Empty)
+                    .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(model => !string.IsNullOrWhiteSpace(model))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(4)
+                    .ToList();
+
+                if (requestedModels.Count < 2)
+                {
+                    var candidates = await council.GetCandidatesAsync(ct);
+                    requestedModels = candidates
+                        .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
+                        .Select(candidate => candidate.ModelName)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Take(2)
+                        .ToList();
+                }
+
+                if (requestedModels.Count < 2)
+                    requestedModels = ["gpt-oss:20b", "deepseek-r1:8b"];
+
+                var request = new MultiModelCouncilRequest
+                {
+                    Title = "LocalGPT development feedback talk",
+                    Prompt = """
+                        LocalGPT Council development feedback talk.
+
+                        Speak as at least two cooperative council members reviewing our development process.
+                        Discuss what LocalGPT still needs to generate fully working LocalGPT-style, TacosPortalOpen-style,
+                        provider-compatible AI-host, and simple bot-backend replacement solutions faster and with fewer
+                        missing features.
+
+                        Requirements:
+                        - Be kind to each other and to Michi0403.
+                        - Do not refuse because the task is large; propose buildable milestones.
+                        - Report missing LocalGPT functions, knowledge, routes, UI controls, benchmark evidence, or sources.
+                        - Include a concise Capability gap report when anything is missing.
+                        - Mention whether the replacement benchmark should run with build validation.
+                        - Keep the answer compact enough for DXAiChat/Test Lab.
+                    """,
+                    ModelNames = requestedModels,
+                    MaxOutputTokens = Math.Clamp(maxOutputTokens ?? 2048, 128, 262144),
+                    MaxContextTokens = Math.Clamp(maxContextTokens ?? 32768, 2048, 262144),
+                    MaxRounds = Math.Clamp(maxRounds ?? 0, 0, 1),
+                    MaxParallelModels = 1,
+                    OllamaKeepAlive = "0s",
+                    OllamaNumGpu = ollamaNumGpu,
+                    IncludeMemory = true,
+                    SaveToMemory = true,
+                    GenerateImplementationArtifact = false
+                };
+
+                if (request.ModelNames.Count < 2)
+                    return Results.BadRequest(new { Error = "Development feedback talk requires at least two council members.", request.ModelNames });
+
+                return Results.Ok(await council.RunAsync(request, ct));
             });
 
             app.MapGet("/__diag/council/artifact-smoke", async (
