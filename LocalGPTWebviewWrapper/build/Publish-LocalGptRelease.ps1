@@ -290,6 +290,7 @@ $releaseNotes = @(
     "",
     "- DXAiChat and AI Council support Ollama model discovery, memory-backed conversations, visible model-thinking/status output, and safer cancellation.",
     '- Council-generated implementation artifacts can be downloaded through `/__artifacts/council/`, including real `.razor` files and compiled `.dll` examples when compilation succeeds.',
+    "- Ollama .NET lab artifacts now include Ollama-style API route stubs, model catalog UI, model download planning, settings, and explicit native-runner boundaries.",
     "- Minecraft builder diagnostics can generate and validate datapack workspaces without loading a large model.",
     "- SQLite knowledge and log tables help the council reuse compact project knowledge instead of bloated prompts.",
     "- Official DevExpress, Microsoft, and Minecraft source-backed knowledge is seeded into SQLite for safer Blazor/DevExpress/WASM and datapack generation.",
