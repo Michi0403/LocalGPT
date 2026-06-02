@@ -473,6 +473,23 @@ namespace LocalGPT.Endpoints
                     ct);
             });
 
+            app.MapGet("/__diag/frontend-design-guidance", async (IWebHostEnvironment env, CancellationToken ct) =>
+            {
+                return await ReadGuidanceDocsAsync(
+                    env,
+                    [
+                        Path.Combine("docs", "FRONTEND_DESIGN_PATTERN_LIBRARY.md"),
+                        Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md")
+                    ],
+                    """
+                    Use LocalGPT's compiled frontend design pattern library directly.
+                    Classify the app archetype, primary task, information architecture, Windows/Fluent design
+                    principles, Bootstrap layout, DevExpress/custom Razor components, injected services,
+                    accessibility states, and safe downloadable artifact path before generating frontend code.
+                    """,
+                    ct);
+            });
+
             app.MapGet("/__diag/dotnet-sample-curriculum", async (IWebHostEnvironment env, CancellationToken ct) =>
             {
                 return await ReadGuidanceDocsAsync(
@@ -496,13 +513,15 @@ namespace LocalGPT.Endpoints
                     env,
                     [
                         Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
-                        Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md")
+                        Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md"),
+                        Path.Combine("docs", "DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md")
                     ],
                     """
                     Generate a local AI host .NET/ASP.NET Core/DevExpress Blazor control-plane app with a
                     recognizable left navigation shell, model catalog, chat, downloads, running models, API console,
-                    templates, hardware, logs, diagnostics, settings, and representative provider-compatible API routes.
-                    Generate a buildable milestone instead of refusing as too large.
+                    templates, hardware, logs, diagnostics, settings, representative provider-compatible API routes,
+                    DI/IoC registrations, provider adapters, plugin/native-runner interfaces, Python.NET/PowerShell
+                    boundaries when useful, and an honest native-inference capability gap until a real runner exists.
                     """,
                     ct);
             });

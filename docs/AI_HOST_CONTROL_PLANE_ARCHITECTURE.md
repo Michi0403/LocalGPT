@@ -24,10 +24,21 @@ A serious .NET version should start as an API-compatible control plane with prov
 - `IModelRuntimeSession`: loaded model lifetime, keep-alive, unload, and cancellation.
 - `IHardwareBudgetService`: CPU/GPU/VRAM policy and safe defaults.
 - `IChatTemplateService`: model-specific prompt templates, harmony/thinking parsing, and role formatting.
+- `IPluginCatalogService`: trusted runner/provider plugin discovery and manifest validation.
+- `IInferenceRunner`: native, process, plugin, Python.NET, PowerShell, ONNX, or ML.NET runner boundary.
+- `IScriptExecutionService`: approved script execution with safe directories, logs, and cancellation.
 
 The first backend can call existing Ollama, LM Studio, OpenAI-compatible, or custom providers.
 A later native backend can wrap an approved inference engine or library.
 Do not start by reimplementing tensor kernels inside Razor pages.
+
+Use .NET dependency injection and the options pattern to wire these boundaries.
+Use hosted services for long-running downloads, session cleanup, and runner jobs.
+Use `AssemblyLoadContext`/`AssemblyDependencyResolver` only for trusted plugin
+loading; it is dependency isolation, not a security sandbox.
+Python.NET and PowerShell are valid adapter patterns when user-approved, but
+they must remain behind backend interfaces with visible permissions, logs,
+safe working directories, and cancellation.
 
 ## API Routes to Emulate
 

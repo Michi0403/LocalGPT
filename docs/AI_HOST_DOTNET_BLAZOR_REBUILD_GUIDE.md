@@ -32,14 +32,76 @@ Translate those into .NET patterns:
 - `IModelCatalogService` for installed, downloadable, and running models.
 - `IModelTransferService` for pull/push/download progress and checksums.
 - `IInferenceProvider` for chat, generate, embeddings, cancellation, and streaming.
+- `IInferenceRunner` for native/process/plugin/Python execution with load,
+  unload, infer, embed, health, cancellation, and shutdown.
 - `IRuntimeSessionService` for load/unload, keep-alive, and current model state.
 - `IHardwareBudgetService` for CPU/GPU/VRAM/concurrency settings.
 - `IChatTemplateService` for role formatting, harmony parsing, thinking extraction, and tool calls.
+- `IPluginCatalogService` for runner/provider plugin discovery, manifest
+  validation, trust status, and approved loading.
+- `IScriptExecutionService` for approved PowerShell/Python/native scripts with
+  safe working directories, logs, and cancellation.
 - ASP.NET Core endpoints for provider-compatible route families.
 - SignalR or server-side streaming for progress and token output.
 - EF/SQLite records for model metadata, settings, chat history, logs, downloads, and knowledge entries.
 
 Native tensor execution is a separate backend. A generated first milestone can be a real control plane with an Ollama, LM Studio, OpenAI-compatible, or custom provider adapter, plus explicit extension points for native inference.
+
+## .NET Architecture Patterns To Apply
+
+An AI host generated in .NET should use these Microsoft-supported patterns:
+
+- Dependency injection as the composition root. Register provider adapters,
+  catalog/download/session services, hardware budget services, template parsers,
+  plugin catalog services, and runner interfaces in `Program.cs` or an
+  `AddAiHostCore()` extension.
+- Options pattern for provider profiles, safe storage roots, hardware budgets,
+  context/output defaults, plugin roots, Python paths, script policy, and first
+  bootstrap URL.
+- Hosted services or worker services for long-running downloads, model unload
+  timers, session cleanup, background indexing, and nonblocking diagnostics.
+- `AssemblyLoadContext` plus `AssemblyDependencyResolver` when runner/provider
+  plugins need isolated dependencies or native libraries. This is not a security
+  sandbox; untrusted code needs process/OS/container isolation.
+- Interface adapter layers for external providers, native processes, ONNX/ML.NET,
+  Python.NET, and PowerShell scripts.
+- EF/SQLite for user-approved settings, model sources, downloads, jobs, logs,
+  plugin manifests, and chat history. Appsettings should keep bootstrap/logging.
+- Typed `HttpClient` adapters for HTTP providers and OpenAI-compatible surfaces.
+- Capability gap reporting when a native runner, tokenizer, model format, GPU
+  backend, or plugin implementation is missing.
+
+## Native Runner And Plugin Milestone
+
+The generated app should make native inference achievable instead of hiding it:
+
+- `ExternalProviderInferenceProvider`: delegates to Ollama, LM Studio, or
+  OpenAI-compatible endpoints so LocalGPT can test provider URL compatibility.
+- `ProcessInferenceRunner`: starts an approved executable with safe arguments,
+  streams output, handles cancellation, and records logs.
+- `PythonNetInferenceRunner`: embeds Python after user approval, configured
+  `PYTHONNET_PYDLL`, and package/runtime checks. Python calls must use `Py.GIL()`
+  and belong behind a backend service.
+- `PowerShellRunner`: runs explicit approved scripts or constrained runspaces
+  for diagnostics/setup, never arbitrary command strings from UI.
+- `OnnxRuntimeRunner` or `MlNetRunner`: represents compatible managed inference
+  paths, not universal LLM replacement.
+- `PluginLoadContext`: loads trusted runner/provider plugins and reports
+  manifest, version, supported formats, hardware support, and approval state.
+
+Milestones:
+
+1. Buildable control plane with routes, UI, settings, logs, and deterministic
+   non-inference responses.
+2. External provider adapter that delegates chat/generate/embed to a selected
+   provider URL.
+3. Download/catalog service with user-approved HuggingFace/GitHub/provider
+   model plans and checksums.
+4. Python.NET, PowerShell, ONNX/ML.NET, or native-process runner adapter.
+5. LocalGPT compatibility test by pointing DXAiChat at the generated host URL.
+
+Do not present milestone 1 as a complete local AI host. Do present it as a
+serious control-plane foundation with the correct extension points.
 
 ## Provider-Compatible Local Model Host Milestone
 

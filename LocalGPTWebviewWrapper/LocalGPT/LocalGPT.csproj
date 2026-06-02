@@ -48,12 +48,14 @@
 		<Content Include="..\..\docs\AI_HOST_DOTNET_EXPERIMENT.md" Link="docs\AI_HOST_DOTNET_EXPERIMENT.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md" Link="docs\AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\AI_HOST_CONTROL_PLANE_ARCHITECTURE.md" Link="docs\AI_HOST_CONTROL_PLANE_ARCHITECTURE.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md" Link="docs\DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\LOCALGPT_DEVELOPER_DIARY.md" Link="docs\LOCALGPT_DEVELOPER_DIARY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\LOCALGPT_WORKFLOW_MEMORY.md" Link="docs\LOCALGPT_WORKFLOW_MEMORY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\CAPABILITY_GAP_CONTRACT.md" Link="docs\CAPABILITY_GAP_CONTRACT.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\FRONTEND_TEST_AUTOMATION.md" Link="docs\FRONTEND_TEST_AUTOMATION.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" Link="docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md" Link="docs\BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\FRONTEND_DESIGN_PATTERN_LIBRARY.md" Link="docs\FRONTEND_DESIGN_PATTERN_LIBRARY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md" Link="docs\MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\GENERATION_ARCHETYPE_CONTRACTS.md" Link="docs\GENERATION_ARCHETYPE_CONTRACTS.md" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>

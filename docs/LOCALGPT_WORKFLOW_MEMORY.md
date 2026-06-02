@@ -104,9 +104,15 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Returns compact LocalGPT/TacosPortalOpen-derived guidance for generating real `.razor` pages with DevExpress Blazor components, Bootstrap v5 layout, DevExpress template starting points, and paired navigation SVG icon styles.
   - Use this before implementation-request artifact generation so the council does not produce C# classes that only return markup strings.
   - The same guidance is seeded into `CouncilKnowledgeEntries` as pinned, user-approved bootstrap knowledge.
+- `GET /__diag/frontend-design-guidance`
+  - Returns LocalGPT's compiled frontend design pattern library for social, commerce, admin, AI-tool, media, Bootstrap, DevExpress/custom Razor components, Windows/Fluent principles, service wiring, accessibility, and artifact expectations.
+  - Use this before broad frontend generation, goal-app recoding, or visually rich app prompts so the council uses reusable patterns instead of copying names/assets or producing a generic dashboard.
 - `GET /__diag/dotnet-sample-curriculum`
   - Returns official Microsoft/dotnet sample and Learn curriculum guidance for C#, .NET, ASP.NET Core, Blazor, EF Core, DevOps, architecture, and technician troubleshooting.
   - Use this before whole-solution generation, backend service generation, CI/release advice, or training/help prompts.
+- `GET /__diag/ai-host-rebuild-guidance`
+  - Returns LocalGPT's AI-host control-plane architecture guide, including .NET DI/options, hosted services, provider adapters, plugin/native-runner interfaces, Python.NET/PowerShell boundaries, EF/SQLite state, and capability gaps.
+  - Use this before generating provider-compatible AI-host solutions or judging whether an AI-host milestone is complete.
 - `GET /__diag/build-debug-files?copy=true`
   - Lists and optionally copies `.pdb`, `.pdg`, and `.appxsym` build debug files into `%LOCALAPPDATA%\LocalGPT\BuildDebugFiles\`.
   - Use this for council diagnostics when source/reference usage is confusing, but do not treat symbol presence as proof of real feature usage.
@@ -180,8 +186,15 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   bot/microservice patterns, and solution topology rather than names.
 - Use `/__diag/benchmark/engineering` for the five-task personal engineering benchmark. LocalGPT artifact lanes can be tested without GPU; raw Ollama and cloud lanes must remain `NotRun` until real transcripts are supplied.
 - DevExpress/Bootstrap design generation has a dedicated guide in `docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md`. Use Bootstrap v5 for containers, grids, responsive gutters, spacing, and flex utility layout. Use DevExpress controls for grids, forms, navigation, toolbars, dialogs, upload, charts, reports, AI chat, and other real app interactions. Generated navigation should include two SVG styles per concept: line icons for the default state and solid icons for hover/active states.
+- Visual frontend generation has a dedicated compiled pattern library in `docs/FRONTEND_DESIGN_PATTERN_LIBRARY.md`.
+  Use it directly for archetype, information architecture, Windows/Fluent design principles, Bootstrap layout,
+  DevExpress/custom Razor component roles, services, accessibility states, and buildable files.
 - Official Microsoft sample/curriculum generation has a dedicated guide in `docs/MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md`. Use `dotnet/samples` as focused sample evidence and Microsoft Learn as the developer/technician curriculum baseline before asking the council to generate .NET solutions, services, Blazor pages, EF data access, CI workflows, or release guidance.
 - The AI host control-plane artifact is a controlled feasibility path. Use `/__diag/council/artifact-smoke?target=ai-host` to create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor zip with provider-compatible route stubs, model catalog UI, chat, model download planning, running models, logs, and settings. Expected route families include version, tags, running models, show, pull, push, create, copy, delete, generate, chat, and embed. It must say native GGML/GPU inference is not implemented unless a real backend is attached and approved by the user.
+- AI-host generation must apply `docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md`.
+  A thin dashboard is a failed milestone. Generate service interfaces, provider adapters, runner/plugin contracts,
+  options, hosted-job boundaries, Python.NET/PowerShell/native-process extension points, model download/catalog storage,
+  and a LocalGPT compatibility test plan.
 - Thinking-only/non-substantive council runs still remain in logs/chat memory, but they are archived or skipped for active council knowledge briefings. Duplicate benchmark knowledge entries are deduplicated by topic/scope/source before entering the bootstrap prompt.
 - Diagnostic and artifact routes now live outside startup code. `Program.cs` maps normal middleware and calls `MapLocalGptDiagnosticEndpoints()` plus `MapMinecraftDiagnosticEndpoints()`, while route details live in `Endpoints/LocalGptDiagnosticEndpointExtensions.cs` and `Endpoints/MinecraftDiagnosticEndpointExtensions.cs`.
 - Minecraft Java workspace generation now has `MinecraftDependencyVersionCatalog` and `/__diag/minecraft/dependency-version`. Use this before workspace generation so Fabric/NeoForge/Paper/datapack version decisions are explicit and unknown mappings are marked `NeedsVerification`.

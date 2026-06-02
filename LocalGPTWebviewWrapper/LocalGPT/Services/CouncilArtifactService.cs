@@ -283,11 +283,15 @@ namespace LocalGPT.Services
                 await WriteTextAsync(Path.Combine(pagesRoot, "ModelDownloads.razor"), GenerateAiHostModelDownloadsRazor(), cancellationToken);
                 await WriteTextAsync(Path.Combine(pagesRoot, "Templates.razor"), GenerateAiHostTemplatesRazor(), cancellationToken);
                 await WriteTextAsync(Path.Combine(pagesRoot, "Hardware.razor"), GenerateAiHostHardwareRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "RunnerPlugins.razor"), GenerateAiHostRunnerPluginsRazor(), cancellationToken);
                 await WriteTextAsync(Path.Combine(pagesRoot, "Logs.razor"), GenerateAiHostLogsRazor(), cancellationToken);
                 await WriteTextAsync(Path.Combine(pagesRoot, "Settings.razor"), GenerateAiHostSettingsRazor(), cancellationToken);
             }
 
             await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), GenerateSolutionService(projectName, isAiHostLab), cancellationToken);
+            if (isAiHostLab)
+                await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedAiHostArchitectureServices.cs"), GenerateAiHostArchitectureServices(projectName), cancellationToken);
+
             await WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), GenerateSolutionModel(projectName), cancellationToken);
             await WriteTextAsync(Path.Combine(wwwroot, "app.css"), GenerateSolutionCss(), cancellationToken);
             foreach (var icon in GenerateNavigationIconSvgs())
@@ -457,6 +461,20 @@ namespace LocalGPT.Services
 
         private static string GenerateSolutionProgram(string projectName, bool isAiHostLab)
         {
+            var aiHostServiceRegistrations = isAiHostLab
+                ? """
+                  builder.Services.Configure<AiHostRuntimeOptions>(builder.Configuration.GetSection("AiHost"));
+                  builder.Services.AddSingleton<IModelCatalogService>(sp => sp.GetRequiredService<GeneratedHealthSummaryService>());
+                  builder.Services.AddSingleton<IModelTransferService>(sp => sp.GetRequiredService<GeneratedHealthSummaryService>());
+                  builder.Services.AddSingleton<IInferenceProvider, ExternalProviderInferenceProvider>();
+                  builder.Services.AddSingleton<IInferenceRunner, NativeRunnerCapabilityGapRunner>();
+                  builder.Services.AddSingleton<IPluginCatalogService, GeneratedPluginCatalogService>();
+                  builder.Services.AddSingleton<IScriptExecutionService, PermissionGatedScriptExecutionService>();
+                  builder.Services.AddSingleton<IHardwareBudgetService, GeneratedHardwareBudgetService>();
+                  builder.Services.AddSingleton<IChatTemplateService, GeneratedChatTemplateService>();
+                  """
+                : string.Empty;
+
             var aiHostRoutes = isAiHostLab
                 ? """
                   app.MapGet("/api/version", () => new
@@ -465,21 +483,26 @@ namespace LocalGPT.Services
                       source = "LocalGPT generated sandbox",
                       native_inference = false
                   });
-                  app.MapGet("/api/tags", ([FromServices] GeneratedHealthSummaryService service) => new { models = service.GetAiHostTags() });
-                  app.MapGet("/api/ps", ([FromServices] GeneratedHealthSummaryService service) => new { models = service.GetRunningModels() });
-                  app.MapPost("/api/show", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.GetModelDetails(request));
-                  app.MapPost("/api/pull", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreatePullPlan(request));
+                  app.MapGet("/api/tags", ([FromServices] IModelCatalogService catalog) => new { models = catalog.GetAiHostTags() });
+                  app.MapGet("/api/ps", ([FromServices] IModelCatalogService catalog) => new { models = catalog.GetRunningModels() });
+                  app.MapPost("/api/show", ([FromServices] IModelCatalogService catalog, [FromBody] GeneratedModelActionRequest request) => catalog.GetModelDetails(request));
+                  app.MapPost("/api/pull", ([FromServices] IModelTransferService transfer, [FromBody] GeneratedModelActionRequest request) => transfer.CreatePullPlan(request));
                   app.MapPost("/api/push", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateOperation("push", request.Model));
                   app.MapPost("/api/create", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateOperation("create", request.Model));
                   app.MapPost("/api/copy", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelCopyRequest request) => service.CreateCopyPlan(request));
                   app.MapDelete("/api/delete", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateOperation("delete", request.Model));
-                  app.MapPost("/api/generate", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateGenerateResponse(request));
-                  app.MapPost("/api/chat", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedChatRequest request) => service.CreateChatResponse(request));
+                  app.MapPost("/api/generate", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedModelActionRequest request, CancellationToken cancellationToken) => await provider.GenerateAsync(request, cancellationToken));
+                  app.MapPost("/api/chat", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedChatRequest request, CancellationToken cancellationToken) => await provider.ChatAsync(request, cancellationToken));
                   app.MapPost("/api/embed", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   app.MapPost("/api/embeddings", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   app.MapGet("/api/blobs/{digest}", (string digest) => Results.Json(new { digest, status = "planned", boundary = "Blob storage is represented as metadata only in this generated lab." }));
-                  app.MapGet("/v1/models", ([FromServices] GeneratedHealthSummaryService service) => new { data = service.GetAiHostTags() });
-                  app.MapPost("/v1/chat/completions", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedChatRequest request) => service.CreateChatResponse(request));
+                  app.MapGet("/api/localgpt/runner/capability", async ([FromServices] IInferenceRunner runner, CancellationToken cancellationToken) => await runner.GetCapabilityAsync(cancellationToken));
+                  app.MapGet("/api/localgpt/plugins", ([FromServices] IPluginCatalogService plugins) => plugins.GetPlugins());
+                  app.MapGet("/api/localgpt/hardware-budget", ([FromServices] IHardwareBudgetService hardware) => hardware.GetBudget());
+                  app.MapGet("/api/localgpt/chat-templates", ([FromServices] IChatTemplateService templates) => templates.GetTemplateRules());
+                  app.MapPost("/api/localgpt/scripts/plan", ([FromServices] IScriptExecutionService scripts, [FromBody] GeneratedScriptPlanRequest request) => scripts.CreatePlan(request.ScriptKind, request.Target, request.UserApproved));
+                  app.MapGet("/v1/models", ([FromServices] IModelCatalogService catalog) => new { data = catalog.GetAiHostTags() });
+                  app.MapPost("/v1/chat/completions", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedChatRequest request, CancellationToken cancellationToken) => await provider.ChatAsync(request, cancellationToken));
                   app.MapPost("/v1/embeddings", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   """
                 : string.Empty;
@@ -497,6 +520,7 @@ namespace LocalGPT.Services
                 .AddInteractiveServerComponents();
             builder.Services.AddDevExpressBlazor(options => options.SizeMode = SizeMode.Small);
             builder.Services.AddSingleton<GeneratedHealthSummaryService>();
+            {{aiHostServiceRegistrations}}
 
             var app = builder.Build();
 
@@ -595,6 +619,11 @@ namespace LocalGPT.Services
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
                         <span>Hardware</span>
+                    </a>
+                    <a href="/runner-plugins">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
+                        <span>Runner Plugins</span>
                     </a>
                     <a href="/logs">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
@@ -1166,6 +1195,106 @@ namespace LocalGPT.Services
             </main>
             """;
 
+        private static string GenerateAiHostRunnerPluginsRazor() =>
+            """
+            @page "/runner-plugins"
+            @rendermode InteractiveServer
+            @inject IPluginCatalogService PluginCatalog
+            @inject IInferenceRunner Runner
+            @inject IHardwareBudgetService HardwareBudget
+            @inject IChatTemplateService ChatTemplates
+
+            <PageTitle>Runner Plugins</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation IsAiHostLab="true" />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>Runner Plugins</h1>
+                        <p>Show provider adapters, native-runner boundaries, Python.NET, PowerShell, and managed inference paths as explicit architecture contracts.</p>
+                    </div>
+                    <DxButton Text="Refresh capability"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Click="RefreshCapabilityAsync" />
+                </section>
+
+                <div class="generated-status-strip">
+                    <article>
+                        <strong>Native inference</strong>
+                        <span>@(Capability?.NativeInferenceImplemented == true ? "Implemented" : "Capability gap")</span>
+                    </article>
+                    <article>
+                        <strong>GPU target</strong>
+                        <span>@Budget.TargetGpuLoadPercent% sustained</span>
+                    </article>
+                    <article>
+                        <strong>Parallel models</strong>
+                        <span>@Budget.MaxParallelModels</span>
+                    </article>
+                </div>
+
+                <DxGrid Data="@PluginCatalog.GetPlugins()"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.Id)" Caption="Plugin Id" />
+                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.DisplayName)" Caption="Name" />
+                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.Contract)" Caption="Contract" />
+                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.Approved)" Caption="Approved" />
+                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.Notes)" Caption="Notes" />
+                    </Columns>
+                </DxGrid>
+
+                <DxFormLayout CssClass="generated-form">
+                    <DxFormLayoutGroup Caption="Runner capability" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Runner kind" ColSpanMd="4">
+                            <DxTextBox Text="@Runner.RunnerKind" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Supported formats" ColSpanMd="8">
+                            <DxTextBox Text="@SupportedFormatsText" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Missing capability" ColSpanMd="12">
+                            <DxMemo Text="@(Capability?.MissingCapability ?? "Capability not loaded yet.")" Rows="3" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Next milestone" ColSpanMd="12">
+                            <DxMemo Text="@(Capability?.NextMilestone ?? "Click Refresh capability.")" Rows="3" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                    </DxFormLayoutGroup>
+                </DxFormLayout>
+
+                <DxGrid Data="@ChatTemplates.GetTemplateRules()"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(ChatTemplateRule.Name)" Caption="Template" />
+                        <DxGridDataColumn FieldName="@nameof(ChatTemplateRule.Rule)" Caption="Rule" />
+                    </Columns>
+                </DxGrid>
+            </main>
+
+            @code {
+                RunnerCapabilityReport? Capability { get; set; }
+                HardwareBudgetSnapshot Budget { get; set; } = new(85, 20, 2048, 1, "Sequential by default.");
+                string SupportedFormatsText => Capability is null ? string.Empty : string.Join(", ", Capability.SupportedFormats);
+
+                protected override async Task OnInitializedAsync()
+                {
+                    Budget = HardwareBudget.GetBudget();
+                    Capability = await Runner.GetCapabilityAsync();
+                }
+
+                async Task RefreshCapabilityAsync()
+                {
+                    Budget = HardwareBudget.GetBudget();
+                    Capability = await Runner.GetCapabilityAsync();
+                }
+            }
+            """;
+
         private static string GenerateAiHostLogsRazor() =>
             """
             @page "/logs"
@@ -1310,7 +1439,7 @@ namespace LocalGPT.Services
             /// <summary>
             /// Provides deterministic health cards for the generated LocalGPT sandbox solution.
             /// </summary>
-            public sealed class GeneratedHealthSummaryService
+            public sealed class GeneratedHealthSummaryService : IModelCatalogService, IModelTransferService
             {
                 /// <summary>
                 /// Returns the cards displayed by the generated DevExpress grids.
@@ -1582,6 +1711,224 @@ namespace LocalGPT.Services
             }
             """;
         }
+
+        private static string GenerateAiHostArchitectureServices(string projectName) =>
+            $$"""
+            using Microsoft.Extensions.Options;
+            using {{projectName}}.Models;
+
+            #pragma warning disable CS1591 // Generated sandbox contracts are documented in ARCHITECTURE.md and BUILD_AND_RUN.md.
+
+            namespace {{projectName}}.Services;
+
+            /// <summary>
+            /// Typed bootstrap settings for a generated provider-compatible AI host control plane.
+            /// Persist user-edited runtime values in SQLite when this lab becomes a real app.
+            /// </summary>
+            public sealed class AiHostRuntimeOptions
+            {
+                public string ProviderBaseUri { get; set; } = "http://127.0.0.1:11434";
+                public string DefaultModel { get; set; } = "gpt-oss:20b";
+                public string SafeStorageRoot { get; set; } = "%LOCALAPPDATA%/GeneratedAiHost";
+                public string PluginRoot { get; set; } = "plugins";
+                public string? PythonDll { get; set; }
+                public int ContextTokens { get; set; } = 2048;
+                public int GpuLayers { get; set; } = 20;
+                public bool AllowExternalProviderDelegation { get; set; } = true;
+                public bool AllowNativeRunner { get; set; }
+                public bool AllowPythonNet { get; set; }
+                public bool AllowPowerShellScripts { get; set; }
+            }
+
+            public interface IModelCatalogService
+            {
+                IReadOnlyList<GeneratedAiHostModelTag> GetAiHostTags();
+                IReadOnlyList<GeneratedAiHostModelTag> GetRunningModels();
+                object GetModelDetails(GeneratedModelActionRequest request);
+            }
+
+            public interface IModelTransferService
+            {
+                GeneratedAiHostOperation CreatePullPlan(GeneratedModelActionRequest request);
+            }
+
+            public interface IInferenceProvider
+            {
+                string ProviderKind { get; }
+                Task<GeneratedChatResponse> ChatAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default);
+                Task<object> GenerateAsync(GeneratedModelActionRequest request, CancellationToken cancellationToken = default);
+            }
+
+            public interface IInferenceRunner
+            {
+                string RunnerKind { get; }
+                Task<RunnerCapabilityReport> GetCapabilityAsync(CancellationToken cancellationToken = default);
+                Task<GeneratedChatResponse> InferAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default);
+            }
+
+            public interface IPluginCatalogService
+            {
+                IReadOnlyList<AiHostPluginManifest> GetPlugins();
+            }
+
+            public interface IScriptExecutionService
+            {
+                ScriptExecutionPlan CreatePlan(string scriptKind, string target, bool userApproved);
+            }
+
+            public interface IHardwareBudgetService
+            {
+                HardwareBudgetSnapshot GetBudget();
+            }
+
+            public interface IChatTemplateService
+            {
+                IReadOnlyList<ChatTemplateRule> GetTemplateRules();
+            }
+
+            /// <summary>
+            /// Delegates to an external provider boundary in a real app. This generated lab returns deterministic safe responses.
+            /// </summary>
+            public sealed class ExternalProviderInferenceProvider(
+                GeneratedHealthSummaryService fallback,
+                IOptions<AiHostRuntimeOptions> options) : IInferenceProvider
+            {
+                public string ProviderKind => "External provider adapter boundary";
+
+                public Task<GeneratedChatResponse> ChatAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default)
+                {
+                    return Task.FromResult(fallback.CreateChatResponse(request));
+                }
+
+                public Task<object> GenerateAsync(GeneratedModelActionRequest request, CancellationToken cancellationToken = default)
+                {
+                    var response = options.Value.AllowExternalProviderDelegation
+                        ? fallback.CreateGenerateResponse(request)
+                        : new { error = "External provider delegation is disabled by generated options." };
+                    return Task.FromResult<object>(response);
+                }
+            }
+
+            /// <summary>
+            /// Explicitly reports the missing native runner instead of pretending model inference exists.
+            /// </summary>
+            public sealed class NativeRunnerCapabilityGapRunner : IInferenceRunner
+            {
+                public string RunnerKind => "Native runner capability gap";
+
+                public Task<RunnerCapabilityReport> GetCapabilityAsync(CancellationToken cancellationToken = default)
+                {
+                    return Task.FromResult(new RunnerCapabilityReport(
+                        NativeInferenceImplemented: false,
+                        SupportedFormats: ["external-provider", "planned-gguf", "planned-onnx", "planned-pythonnet"],
+                        MissingCapability: "No native GGUF/GPU/tokenizer runner is attached in this generated milestone.",
+                        NextMilestone: "Add a user-approved ExternalProviderInferenceProvider or ProcessInferenceRunner, then point LocalGPT DXAiChat at this host URL."));
+                }
+
+                public Task<GeneratedChatResponse> InferAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default)
+                {
+                    return Task.FromResult(new GeneratedChatResponse(
+                        string.IsNullOrWhiteSpace(request.Model) ? "dotnet-lab-stub:latest" : request.Model,
+                        DateTimeOffset.UtcNow,
+                        new GeneratedChatMessage("assistant", "Native inference is not implemented. This runner reports the capability gap honestly."),
+                        true));
+                }
+            }
+
+            public sealed class GeneratedPluginCatalogService : IPluginCatalogService
+            {
+                public IReadOnlyList<AiHostPluginManifest> GetPlugins()
+                {
+                    return
+                    [
+                        new("external-http-provider", "External HTTP Provider Adapter", "1.0.0", "IInferenceProvider", true, "Delegates to Ollama, LM Studio, or OpenAI-compatible endpoints."),
+                        new("pythonnet-runner", "Python.NET Runner Boundary", "planned", "IInferenceRunner", false, "Requires approved Python runtime, PYTHONNET_PYDLL, package list, and GIL-safe service code."),
+                        new("powershell-runner", "PowerShell Script Boundary", "planned", "IScriptExecutionService", false, "Requires explicit script files, safe directories, constrained runspace policy, and user approval."),
+                        new("native-process-runner", "Native Process Runner Boundary", "planned", "IInferenceRunner", false, "Requires approved executable, arguments, stdout/stderr streaming, cancellation, and hardware policy."),
+                        new("onnx-runtime-runner", "ONNX Runtime Runner Boundary", "planned", "IInferenceRunner", false, "Only for compatible ONNX models; not a universal LLM replacement.")
+                    ];
+                }
+            }
+
+            public sealed class PermissionGatedScriptExecutionService(IOptions<AiHostRuntimeOptions> options) : IScriptExecutionService
+            {
+                public ScriptExecutionPlan CreatePlan(string scriptKind, string target, bool userApproved)
+                {
+                    var allowed = userApproved && (scriptKind.Equals("powershell", StringComparison.OrdinalIgnoreCase)
+                        ? options.Value.AllowPowerShellScripts
+                        : options.Value.AllowPythonNet);
+
+                    return new ScriptExecutionPlan(
+                        scriptKind,
+                        target,
+                        allowed,
+                        allowed
+                            ? "Approved script boundary. A real implementation must execute in a safe working directory with logs and cancellation."
+                            : "Not approved. The generated host must not execute scripts until the user enables this path.");
+                }
+            }
+
+            public sealed class GeneratedHardwareBudgetService(IOptions<AiHostRuntimeOptions> options) : IHardwareBudgetService
+            {
+                public HardwareBudgetSnapshot GetBudget()
+                {
+                    return new HardwareBudgetSnapshot(
+                        TargetGpuLoadPercent: 85,
+                        GpuLayers: options.Value.GpuLayers,
+                        ContextTokens: options.Value.ContextTokens,
+                        MaxParallelModels: 1,
+                        Notes: "Sequential local-model runs are the default until profiling proves heavier concurrency is stable.");
+                }
+            }
+
+            public sealed class GeneratedChatTemplateService : IChatTemplateService
+            {
+                public IReadOnlyList<ChatTemplateRule> GetTemplateRules()
+                {
+                    return
+                    [
+                        new("Harmony", "Separate analysis/commentary/final markers and always surface final visible text."),
+                        new("ChatML", "Map role markers, stop sequences, and system/user/assistant boundaries per model."),
+                        new("Plain prompt", "Use only for /api/generate style requests, not multi-turn chat without conversion."),
+                        new("Tools", "Keep tool schemas typed and require user approval before native commands or downloads.")
+                    ];
+                }
+            }
+
+            public sealed record RunnerCapabilityReport(
+                bool NativeInferenceImplemented,
+                IReadOnlyList<string> SupportedFormats,
+                string MissingCapability,
+                string NextMilestone);
+
+            public sealed record AiHostPluginManifest(
+                string Id,
+                string DisplayName,
+                string Version,
+                string Contract,
+                bool Approved,
+                string Notes);
+
+            public sealed record ScriptExecutionPlan(
+                string ScriptKind,
+                string Target,
+                bool AllowedToRun,
+                string SafetyNote);
+
+            public sealed record GeneratedScriptPlanRequest(
+                string ScriptKind,
+                string Target,
+                bool UserApproved);
+
+            public sealed record HardwareBudgetSnapshot(
+                int TargetGpuLoadPercent,
+                int GpuLayers,
+                int ContextTokens,
+                int MaxParallelModels,
+                string Notes);
+
+            public sealed record ChatTemplateRule(string Name, string Rule);
+            """;
 
         private static string GenerateSolutionModel(string projectName) =>
             $$"""
@@ -2421,6 +2768,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
                 "src/{{projectName}}/Components/Pages/Templates.razor",
                 "src/{{projectName}}/Components/Pages/Hardware.razor",
+                "src/{{projectName}}/Components/Pages/RunnerPlugins.razor",
                 "src/{{projectName}}/Components/Pages/Logs.razor",
                 "src/{{projectName}}/Components/Pages/Settings.razor"
                 """
@@ -2432,6 +2780,7 @@ namespace LocalGPT.Services
             - `src/{{projectName}}/Components/Pages/ModelDownloads.razor` - DevExpress model pull planning page.
             - `src/{{projectName}}/Components/Pages/Templates.razor` - chat template and thinking-format guidance.
             - `src/{{projectName}}/Components/Pages/Hardware.razor` - GPU/VRAM/context policy page.
+            - `src/{{projectName}}/Components/Pages/RunnerPlugins.razor` - native-runner, plugin, script, and adapter boundary page.
             - `src/{{projectName}}/Components/Pages/Logs.razor` - runtime-boundary diagnostics page.
             - `src/{{projectName}}/Components/Pages/Settings.razor` - AI host settings and runner-boundary page.
             """
@@ -2443,8 +2792,10 @@ namespace LocalGPT.Services
             | `src/{{projectName}}/Components/Pages/ModelDownloads.razor` | DevExpress UI for provider-style pull planning and download guidance. |
             | `src/{{projectName}}/Components/Pages/Templates.razor` | Chat template, Harmony, and thinking-format compatibility page. |
             | `src/{{projectName}}/Components/Pages/Hardware.razor` | GPU/VRAM/context budget and queue-policy page. |
+            | `src/{{projectName}}/Components/Pages/RunnerPlugins.razor` | Runner/plugin/script adapter surface so native inference is not hidden. |
             | `src/{{projectName}}/Components/Pages/Logs.razor` | Runtime-boundary diagnostic log page. |
             | `src/{{projectName}}/Components/Pages/Settings.razor` | DevExpress settings page for external AI host URI, context, and native-runner boundaries. |
+            | `src/{{projectName}}/Services/GeneratedAiHostArchitectureServices.cs` | Provider, runner, plugin, script, hardware, and template contracts wired through DI. |
             """
                 : string.Empty;
 
@@ -2554,6 +2905,7 @@ namespace LocalGPT.Services
             - Provide health/status views and build instructions so the artifact can be reviewed line by line.
             - Use Bootstrap v5 for responsive page structure and DevExpress controls for real application interactions.
             - Include paired line/solid SVG navigation icons so default and active states are visually distinct.
+            - For AI-host labs, generate interface-driven provider, model catalog, download, native-runner, plugin, script, template, and hardware-budget services. A dashboard without these contracts is incomplete.
 
             ## Files To Review First
 
@@ -2562,13 +2914,14 @@ namespace LocalGPT.Services
             3. `src/{{projectName}}/Program.cs`
             4. `src/{{projectName}}/Components/Pages/Index.razor`
             5. `src/{{projectName}}/Services/GeneratedHealthSummaryService.cs`
+            {{(isAiHostLab ? $"6. `src/{projectName}/Services/GeneratedAiHostArchitectureServices.cs`" : string.Empty)}}
             """;
         }
 
         private static string GenerateSolutionBuildAndRunDoc(string projectName, bool isAiHostLab)
         {
             var smokeRoute = isAiHostLab
-                ? "Open `/api-console`, `/model-downloads`, and `/settings`; then call `/api/version`, `/api/tags`, and `/api/chat` to verify the control-plane routes."
+                ? "Open `/api-console`, `/model-downloads`, `/runner-plugins`, and `/settings`; then call `/api/version`, `/api/tags`, and `/api/chat` to verify the control-plane routes."
                 : "Open `/implementation-plan` and verify implementation steps are visible.";
             return $$"""
             # Build And Run
@@ -2612,7 +2965,7 @@ namespace LocalGPT.Services
                 : "dotnet10_aspnetcore_devexpress_blazor_localgpt_feature";
             var detailPage = isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
             var validationNotes = isAiHostLab
-                ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, chat, running-models, model-download, templates, hardware, logs, and settings files were present before zipping."
+                ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, chat, running-models, model-download, templates, hardware, runner-plugin, logs, settings, and AI-host architecture service files were present before zipping."
                 : "Required docs, manifest, navigation, paired nav icons, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
             var aiHostExpectedEntryPoints = isAiHostLab
                 ? $$"""
@@ -2622,6 +2975,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
                 "src/{{projectName}}/Components/Pages/Templates.razor",
                 "src/{{projectName}}/Components/Pages/Hardware.razor",
+                "src/{{projectName}}/Components/Pages/RunnerPlugins.razor",
                 "src/{{projectName}}/Components/Pages/Logs.razor",
                 "src/{{projectName}}/Components/Pages/Settings.razor"
                 """
@@ -2634,8 +2988,10 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
                 "src/{{projectName}}/Components/Pages/Templates.razor",
                 "src/{{projectName}}/Components/Pages/Hardware.razor",
+                "src/{{projectName}}/Components/Pages/RunnerPlugins.razor",
                 "src/{{projectName}}/Components/Pages/Logs.razor",
-                "src/{{projectName}}/Components/Pages/Settings.razor"
+                "src/{{projectName}}/Components/Pages/Settings.razor",
+                "src/{{projectName}}/Services/GeneratedAiHostArchitectureServices.cs"
                 """
                 : string.Empty;
 
@@ -2704,7 +3060,7 @@ namespace LocalGPT.Services
             bool isAiHostLab)
         {
             var sourceGoal = isAiHostLab
-                ? ".NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab with native inference stubbed"
+                ? ".NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab with explicit provider, plugin, script, and native-runner adapter boundaries"
                 : "LocalGPT/TacosPortalOpen-style .NET 10 Blazor and DevExpress generation";
 
             return
@@ -3215,8 +3571,10 @@ namespace LocalGPT.Services
                 requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "ModelDownloads.razor"));
                 requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Templates.razor"));
                 requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Hardware.razor"));
+                requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "RunnerPlugins.razor"));
                 requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Logs.razor"));
                 requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Settings.razor"));
+                requiredFiles.Add(Path.Combine("src", projectName, "Services", "GeneratedAiHostArchitectureServices.cs"));
             }
 
             var missing = requiredFiles

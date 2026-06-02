@@ -254,6 +254,57 @@ namespace LocalGPT.Services
                 },
                 new CouncilKnowledgeEntry
                 {
+                    Id = Guid.Parse("58d6b4d7-c8e3-450a-a31a-57f0e9fc0b1a"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Compiled frontend design pattern library",
+                    Scope = "Frontend generation / Blazor / DevExpress / Bootstrap",
+                    Source = seedSource,
+                    Content = "Use LocalGPT's compiled frontend design pattern library directly when generating UI. " +
+                        "Do not tell the user or model to use external galleries as runtime guidance; the relevant design concepts are already distilled into reusable archetypes, component mappings, service wiring, and accessibility checks. " +
+                        "First classify the app as commerce, social/community, AI host/developer tool, SaaS/admin, media workbench, or another product archetype, then identify the primary task and information architecture. " +
+                        "Use Bootstrap for responsive macro layout and DevExpress for application-grade interaction; create custom Razor components when the selected stack lacks a visual shell. " +
+                        "Apply Microsoft Windows/Fluent design foundations: color hierarchy, commanding, elevation, geometry, iconography, layout, materials, motion, navigation, typography, usability, widgets, and writing. " +
+                        "Generated frontends must include real pages, navigation, service boundaries, loading/empty/error/success states, accessible labels, and safe artifact/download routes when files are generated.",
+                    HelpfulSources = "- Local guide: docs/FRONTEND_DESIGN_PATTERN_LIBRARY.md.\n" +
+                        "- Local route: GET /__diag/frontend-design-guidance.\n" +
+                        "- Microsoft Windows app design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/guidelines-overview.\n" +
+                        "- DevExpress Blazor components: https://docs.devexpress.com/Blazor/400725/blazor-components.\n" +
+                        "- Bootstrap v5 docs: https://getbootstrap.com/docs/5.3/layout/grid/.",
+                    Tags = "seed; frontend-design; blazor; devexpress; bootstrap; windows-design; fluent; accessibility; archetypes",
+                    Confidence = 94,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("31f7cfa5-8b68-47be-9c32-9d046f88cc85"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = ".NET AI host architecture and native-runner adapter rules",
+                    Scope = "AI host generation / .NET architecture",
+                    Source = seedSource,
+                    Content = "When generating an AI-host-shaped .NET application, produce more than pages. " +
+                        "Generate provider-neutral ASP.NET Core routes, typed options, DI registrations, EF/SQLite state, model catalog/download/session services, chat/template services, logs, settings, hardware budget policy, and downloadable artifact routes when useful. " +
+                        "Use interface-driven boundaries: IModelCatalogService, IModelTransferService, IInferenceProvider, IInferenceRunner, IPluginCatalogService, IScriptExecutionService, IHardwareBudgetService, and IChatTemplateService. " +
+                        "External hosts such as Ollama, LM Studio, OpenAI, HuggingFace downloads, Python.NET, PowerShell, ONNX, ML.NET, or native executables are adapters behind interfaces, not the product identity. " +
+                        "Use .NET DI/IoC, the options pattern, hosted/background services for queued work, typed HttpClient for provider calls, AssemblyLoadContext/AssemblyDependencyResolver only for trusted plugins, and permission-gated Python.NET/PowerShell/native process execution with safe directories, cancellation, and logs. " +
+                        "If real native inference is not implemented, say so in the generated UI and produce a visible runner/plugin capability page instead of hiding the gap. " +
+                        "Generated AI-host solutions must include recognizable navigation for dashboard, model catalog, API console, chat, running models, downloads, templates, hardware, runner/plugins, logs, and settings.",
+                    HelpfulSources = "- Local guide: docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md.\n" +
+                        "- Local route: GET /__diag/ai-host-rebuild-guidance.\n" +
+                        "- .NET dependency injection: https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/overview.\n" +
+                        "- .NET options pattern: https://learn.microsoft.com/en-us/dotnet/core/extensions/options.\n" +
+                        "- ASP.NET Core hosted services: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services.\n" +
+                        "- .NET plugin support: https://learn.microsoft.com/en-us/dotnet/core/tutorials/creating-app-with-plugin-support.\n" +
+                        "- PowerShell runspaces: https://learn.microsoft.com/en-us/powershell/scripting/developer/hosting/creating-runspaces.",
+                    Tags = "seed; ai-host; dotnet; architecture; dependency-injection; options; hosted-services; plugins; pythonnet; powershell; native-runner; adapters",
+                    Confidence = 95,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
                     Id = Guid.Parse("f1127721-1bc8-46a3-9d77-f0a89c92db37"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,

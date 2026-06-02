@@ -63,6 +63,10 @@ and loaded assemblies when available. Use `GET /__diag/devexpress` to inspect it
 Use `GET /__diag/blazor-devexpress-guidance` before asking the council to generate Blazor pages;
 it summarizes LocalGPT/TacosPortalOpen server-interactive Razor patterns plus Bootstrap v5
 layout, DevExpress template starting points, and navigation SVG icon style rules.
+Use `GET /__diag/frontend-design-guidance` before generating a frontend from screenshots,
+goal applications, or broad app-design prompts. It returns LocalGPT's compiled frontend
+pattern library: archetypes, Windows/Fluent design principles, Bootstrap layout,
+DevExpress/custom Razor components, services, and accessibility states.
 When a user asks for DevExpress Office document generation, report generation, PDF export,
 RichEdit/PdfViewer/Pivot integration, or generated downloadable files, place generation work in
 ASP.NET Core/Blazor server backend services and expose safe download endpoints.
@@ -73,6 +77,9 @@ Use `GET /__diag/dotnet-sample-curriculum` before whole-solution generation,
 backend service generation, CI/release advice, or .NET technician help. It
 summarizes official `dotnet/samples`, Microsoft Learn paths, ASP.NET Core,
 Blazor, EF Core, DevOps/testing/deployment, and architecture/Aspire boundaries.
+Use `GET /__diag/ai-host-rebuild-guidance` before AI-host/control-plane generation.
+That route includes the required .NET DI/options/hosted-service/plugin/native-runner
+patterns, Python.NET/PowerShell adapter boundaries, and capability-gap rules.
 
 ## AI configuration model
 

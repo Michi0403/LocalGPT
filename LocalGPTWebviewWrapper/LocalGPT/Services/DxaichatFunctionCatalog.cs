@@ -111,6 +111,13 @@ public static class DxaichatFunctionCatalog
             "No parameters.",
             "Read-only. Use this before generating Razor pages or blaming missing DevExpress/.NET context."),
         new(
+            "localgpt.frontend_design_guidance",
+            "GET",
+            "/__diag/frontend-design-guidance",
+            "Return LocalGPT's compiled frontend design pattern library for social, commerce, admin, AI-tool, media, Bootstrap, DevExpress/custom Razor components, Windows/Fluent principles, services, and accessibility checks.",
+            "No parameters.",
+            "Read-only. Use this before generating a frontend from a screenshot, goal app, broad UI request, or product archetype."),
+        new(
             "localgpt.dotnet_sample_curriculum",
             "GET",
             "/__diag/dotnet-sample-curriculum",
@@ -121,7 +128,7 @@ public static class DxaichatFunctionCatalog
             "localgpt.ai_host_rebuild_guidance",
             "GET",
             "/__diag/ai-host-rebuild-guidance",
-            "Return source-backed guidance for generating a local AI host .NET/ASP.NET Core/DevExpress Blazor control-plane app with left navigation, model catalog, chat, downloads, API route stubs, settings, logs, and provider/runtime extension points.",
+            "Return source-backed guidance for generating a local AI host .NET/ASP.NET Core/DevExpress Blazor control-plane app with routes, model catalog, chat, downloads, settings, logs, provider adapters, plugin/native-runner interfaces, Python.NET/PowerShell boundaries, and capability gaps.",
             "No parameters.",
             "Read-only. Use this before saying a local AI host .NET rebuild is too large or before producing a generic dashboard."),
         new(
