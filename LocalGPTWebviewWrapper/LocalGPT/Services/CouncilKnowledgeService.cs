@@ -418,8 +418,16 @@ namespace LocalGPT.Services
             await db.Database.ExecuteSqlRawAsync(
                 """
                 UPDATE "CouncilKnowledgeEntries"
-                SET "VerificationStatus" = 'SourceBacked'
-                WHERE "Source" = 'LocalGPT SQL seed'
+                SET "VerificationStatus" =
+                    CASE
+                        WHEN "Source" = 'User-approved generation advice' THEN 'UserVerified'
+                        ELSE 'SourceBacked'
+                    END
+                WHERE "Source" IN (
+                    'LocalGPT SQL seed',
+                    'Microsoft Learn source-backed seed',
+                    'User-approved generation advice'
+                )
                   AND ("VerificationStatus" IS NULL OR trim("VerificationStatus") = '' OR "VerificationStatus" = 'NeedsVerification');
                 """,
                 cancellationToken);

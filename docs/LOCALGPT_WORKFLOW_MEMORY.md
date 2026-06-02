@@ -173,6 +173,14 @@ Michi0403 values Rob Miles and the Exam Ref 70-483 C# learning path as part of h
 
 Use this material only as legacy C# architecture memory unless the user explicitly asks for .NET Framework output. For modern LocalGPT generation, translate the lessons into .NET 8-10 patterns: SDK-style projects, dependency injection, options/appsettings, nullable annotations, analyzers, async APIs, tests, and current ASP.NET Core/Blazor structure. Do not copy the sample archive into git; it includes `.vs`, `bin`, `obj`, `.exe`, and `.pdb` build outputs.
 
+## Generation Archetype Contracts
+
+The Council must treat "two different generated apps look basically the same" as a failed generation, not a visual polish issue. Whole-project generation now starts with an archetype contract in `docs/GENERATION_ARCHETYPE_CONTRACTS.md` and matching pinned SQLite seed rows.
+
+Every whole-project artifact must include `PROJECT_INDEX.md`, `ARCHITECTURE.md`, `BUILD_AND_RUN.md`, `.localgpt-generation.json`, a platform-correct layout, a user-visible index/home route, and navigation. The artifact service validates those required files before zipping. LocalGPT feature artifacts should look like LocalGPT/TacosPortalOpen feature sandboxes; Ollama .NET lab artifacts should look like API-control-plane experiments with explicit native-runner boundaries.
+
+Ground modern .NET generation in Microsoft Learn architecture guidance: cohesive Blazor/ASP.NET Core apps by default, service boundaries only when real deployment/scaling/integration boundaries exist, UI in Razor, business/native/data work in services, durable state in EF/SQLite, and diagnostics for runtime features.
+
 ## Next Useful Checks
 
 - Rerun `POST /__diag/dxaichat-smoke` after restarting LocalGPT from a fresh build.

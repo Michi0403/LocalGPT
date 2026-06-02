@@ -22,7 +22,8 @@ namespace LocalGPT.Services
             Path.Combine("docs", "MINECRAFT_SOURCE_KNOWLEDGE.md"),
             Path.Combine("docs", "OLLAMA_DOTNET_EXPERIMENT.md"),
             Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md"),
-            Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md")
+            Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
+            Path.Combine("docs", "GENERATION_ARCHETYPE_CONTRACTS.md")
         ];
 
         public async Task<string> BuildBootstrapPromptAsync(CancellationToken cancellationToken = default)

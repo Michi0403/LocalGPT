@@ -261,4 +261,41 @@ VALUES
   1,
   1,
   0
+),
+(
+  '3f615c30-8f60-48b0-b904-1968f43745c0',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Generated project archetype contract',
+  'AI Council Generation',
+  'Whole-project generation must classify the archetype before writing files. The supported project_kind values include fabric_mod, neoforge_mod, paper_plugin, datapack, localgpt_feature, and dotnet_service. ' ||
+  'Every whole project must include PROJECT_INDEX.md, ARCHITECTURE.md, BUILD_AND_RUN.md, .localgpt-generation.json, and a platform-correct source/resource layout. ' ||
+  'PROJECT_INDEX.md must explain purpose, entry points, generated files, build/run commands, and validation status. Reject generic folder soup, missing index/home routes, string-builder fake Razor pages, wrong platform metadata, and any claim of build success without command output.',
+  'User-approved generation advice',
+  'Local doc: docs/GENERATION_ARCHETYPE_CONTRACTS.md; user advice attachment: C:/Users/micha/.codex/attachments/e23e6bf9-52e7-4f3d-97f8-4e9a005efb5a/pasted-text.txt',
+  'seed; generation; archetype; project-index; manifest; validation; localgpt; minecraft; dotnet',
+  98,
+  1,
+  1,
+  0
+),
+(
+  '49c3f0d6-a359-47b4-a32e-35e6309ef68d',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Microsoft Learn modern .NET architecture rules for generation',
+  '.NET Architecture',
+  'Use Microsoft .NET architecture guidance to decide shape before code. Prefer a cohesive Blazor/ASP.NET Core app when a feature does not need independent deployment. ' ||
+  'Introduce service-oriented separation only around real boundaries such as independent scaling, external runner adapters, background work, downloads, reporting/document generation, or integrations. ' ||
+  'Keep UI interaction in Razor components and business/native/data work in injected services. Use appsettings for bootstrap/runtime configuration and EF/SQLite for durable user/application state. ' ||
+  'Include diagnostics or health checks for runtime features. Design APIs and models with clear naming, stable contracts, debuggability, and future evolution in mind.',
+  'Microsoft Learn source-backed seed',
+  'Architecture overview: https://learn.microsoft.com/en-us/dotnet/architecture/; Modern ASP.NET Core web apps: https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/; ' ||
+  'Modern Web App pattern: https://learn.microsoft.com/en-us/azure/architecture/web-apps/guides/enterprise-app-patterns/modern-web-app/dotnet/guidance; ' ||
+  'Blazor architecture guide: https://learn.microsoft.com/en-us/dotnet/architecture/blazor-for-web-forms-developers/; Framework design guidelines: https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/; Library guidance: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/',
+  'seed; microsoft; dotnet; architecture; blazor; aspnetcore; library-guidance; generation',
+  97,
+  1,
+  1,
+  0
 );

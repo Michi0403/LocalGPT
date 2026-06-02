@@ -48,6 +48,7 @@
 		<Content Include="..\..\docs\OLLAMA_DOTNET_EXPERIMENT.md" Link="docs\OLLAMA_DOTNET_EXPERIMENT.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\LOCALGPT_WORKFLOW_MEMORY.md" Link="docs\LOCALGPT_WORKFLOW_MEMORY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" Link="docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\GENERATION_ARCHETYPE_CONTRACTS.md" Link="docs\GENERATION_ARCHETYPE_CONTRACTS.md" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>

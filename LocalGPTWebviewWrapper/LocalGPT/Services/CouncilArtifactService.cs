@@ -116,13 +116,24 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), "{\n  \"Logging\": {\n    \"LogLevel\": {\n      \"Default\": \"Information\"\n    }\n  }\n}\n", cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), GenerateSolutionAppRazor(), cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), GenerateSolutionRoutesRazor(), cancellationToken);
+            await WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), GenerateSolutionNavigationRazor(isOllamaLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), GenerateSolutionIndexRazor(request, result, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), GenerateSolutionDashboardRazor(request, result, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), GenerateSolutionKnowledgeTableRazor(isOllamaLab), cancellationToken);
+            await WriteTextAsync(
+                Path.Combine(pagesRoot, isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
+                GenerateSolutionDetailRazor(request, result, isOllamaLab),
+                cancellationToken);
             await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), GenerateSolutionService(projectName, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), GenerateSolutionModel(projectName), cancellationToken);
             await WriteTextAsync(Path.Combine(wwwroot, "app.css"), GenerateSolutionCss(), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "README.md"), GenerateSolutionReadme(projectName, request, result, isOllamaLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), GenerateSolutionProjectIndex(projectName, request, result, isOllamaLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), GenerateSolutionArchitectureDoc(projectName, isOllamaLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), GenerateSolutionBuildAndRunDoc(projectName, isOllamaLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), GenerateLocalGptGenerationJson(projectName, request, result, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), GenerateSolutionManifest(projectName, solutionGuid, request, result, isOllamaLab), cancellationToken);
+            ValidateSolutionArtifactContract(solutionRoot, projectName, isOllamaLab);
 
             var zipName = $"{projectName}-{runSuffix}.zip";
             var zipPath = Path.Combine(ArtifactRoot, zipName);
@@ -322,6 +333,7 @@ namespace LocalGPT.Services
         private static string GenerateSolutionImports(string projectName) =>
             $$"""
             @using System.Net.Http
+            @using Microsoft.AspNetCore.Components
             @using Microsoft.AspNetCore.Components.Forms
             @using Microsoft.AspNetCore.Components.Routing
             @using Microsoft.AspNetCore.Components.Web
@@ -330,6 +342,8 @@ namespace LocalGPT.Services
             @using Microsoft.JSInterop
             @using DevExpress.Blazor
             @using {{projectName}}
+            @using {{projectName}}.Components
+            @using {{projectName}}.Components.Pages
             @using {{projectName}}.Models
             @using {{projectName}}.Services
             """;
@@ -367,25 +381,131 @@ namespace LocalGPT.Services
             </Router>
             """;
 
+        private static string GenerateSolutionNavigationRazor(bool isOllamaLab)
+        {
+            var labName = isOllamaLab ? "Ollama .NET Lab" : "LocalGPT Generation Lab";
+            var catalogHref = isOllamaLab ? "/models" : "/knowledge";
+            var catalogText = isOllamaLab ? "Model Catalog" : "Knowledge";
+            var detailHref = isOllamaLab ? "/api-console" : "/implementation-plan";
+            var detailText = isOllamaLab ? "API Console" : "Implementation Plan";
+
+            return $$"""
+                <nav class="generated-nav" aria-label="{{labName}} navigation">
+                    <a class="generated-brand" href="/">{{labName}}</a>
+                    <a href="/dashboard">Dashboard</a>
+                    <a href="{{catalogHref}}">{{catalogText}}</a>
+                    <a href="{{detailHref}}">{{detailText}}</a>
+                </nav>
+
+                @code {
+                    [Parameter]
+                    public bool IsOllamaLab { get; set; }
+                }
+                """;
+        }
+
+        private static string GenerateSolutionIndexRazor(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            bool isOllamaLab)
+        {
+            var isOllamaLiteral = isOllamaLab ? "true" : "false";
+            var title = isOllamaLab ? "Ollama-Compatible .NET Control Plane" : "LocalGPT Feature Generation Lab";
+            var subtitle = isOllamaLab
+                ? "A DevExpress Blazor shell for Ollama-style API routes, model cataloging, endpoint checks, and external runner boundaries."
+                : "A LocalGPT/TacosPortalOpen-style sandbox for AI Council feature requests, implementation planning, knowledge-backed generation, and artifact review.";
+            var primaryHref = isOllamaLab ? "/api-console" : "/implementation-plan";
+            var primaryLabel = isOllamaLab ? "Open API console" : "Open implementation plan";
+            var secondaryHref = isOllamaLab ? "/models" : "/knowledge";
+            var secondaryLabel = isOllamaLab ? "Review model catalog" : "Review knowledge table";
+            var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500));
+            var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 700));
+
+            return $$"""
+                @page "/"
+                @rendermode InteractiveServer
+                @inject GeneratedHealthSummaryService HealthService
+
+                <PageTitle>{{title}}</PageTitle>
+
+                <main class="generated-shell">
+                    <GeneratedNavigation IsOllamaLab="{{isOllamaLiteral}}" />
+
+                    <section class="generated-hero">
+                        <div>
+                            <p class="generated-kicker">{{(isOllamaLab ? "Ollama lab" : "LocalGPT lab")}}</p>
+                            <h1>{{title}}</h1>
+                            <p>{{subtitle}}</p>
+                        </div>
+                        <div class="generated-actions">
+                            <DxButton Text="{{primaryLabel}}"
+                                      NavigateUrl="{{primaryHref}}"
+                                      RenderStyle="ButtonRenderStyle.Primary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Contained" />
+                            <DxButton Text="{{secondaryLabel}}"
+                                      NavigateUrl="{{secondaryHref}}"
+                                      RenderStyle="ButtonRenderStyle.Secondary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Outline" />
+                        </div>
+                    </section>
+
+                    <section class="generated-split">
+                        <div>
+                            <h2>What This Artifact Is</h2>
+                            <DxGrid Data="@HealthService.GetCards()"
+                                    KeyFieldName="@nameof(GeneratedHealthCard.Area)"
+                                    CssClass="generated-grid compact"
+                                    TextWrapEnabled="true">
+                                <Columns>
+                                    <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.Area)" Caption="Area" />
+                                    <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.Status)" Caption="Status" />
+                                    <DxGridDataColumn FieldName="@nameof(GeneratedHealthCard.NextAction)" Caption="Next Action" />
+                                </Columns>
+                            </DxGrid>
+                        </div>
+                        <div>
+                            <h2>Original Council Context</h2>
+                            <DxFormLayout CssClass="generated-form">
+                                <DxFormLayoutItem Caption="Request" ColSpanMd="12">
+                                    <DxMemo Text="@RequestSummary" Rows="5" ReadOnly="true" />
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem Caption="Consensus" ColSpanMd="12">
+                                    <DxMemo Text="@CouncilSummary" Rows="6" ReadOnly="true" />
+                                </DxFormLayoutItem>
+                            </DxFormLayout>
+                        </div>
+                    </section>
+                </main>
+
+                @code {
+                    string RequestSummary { get; } = "{{requestSummary}}";
+                    string CouncilSummary { get; } = "{{consensusSummary}}";
+                }
+                """;
+        }
+
         private static string GenerateSolutionDashboardRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
             bool isOllamaLab)
         {
+            var isOllamaLiteral = isOllamaLab ? "true" : "false";
             var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700));
             var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900));
-            var title = isOllamaLab ? "Ollama .NET Lab" : "Generated LocalGPT Workbench";
+            var title = isOllamaLab ? "Ollama Runtime Dashboard" : "LocalGPT Generation Dashboard";
             var subtitle = isOllamaLab
-                ? "A DevExpress Blazor control-plane prototype for selected Ollama API ideas. Native inference is intentionally stubbed."
-                : "Whole-solution artifact generated by the LocalGPT AI Council sandbox.";
+                ? "Track API compatibility, model catalog readiness, runner adapter boundaries, and endpoint-test status."
+                : "Track AI Council feature-generation readiness, knowledge grounding, artifact review, and integration safety.";
             return $$"""
-            @page "/"
+            @page "/dashboard"
             @rendermode InteractiveServer
             @inject GeneratedHealthSummaryService HealthService
 
             <PageTitle>{{title}}</PageTitle>
 
             <main class="generated-shell">
+                <GeneratedNavigation IsOllamaLab="{{isOllamaLiteral}}" />
+
                 <section class="generated-header">
                     <div>
                         <h1>{{title}}</h1>
@@ -444,13 +564,15 @@ namespace LocalGPT.Services
             if (isOllamaLab)
             {
                 return """
-                @page "/knowledge"
+                @page "/models"
                 @rendermode InteractiveServer
                 @inject GeneratedHealthSummaryService HealthService
 
                 <PageTitle>Ollama .NET Lab Catalog</PageTitle>
 
                 <main class="generated-shell">
+                    <GeneratedNavigation IsOllamaLab="true" />
+
                     <h1>Ollama .NET Lab Catalog</h1>
                     <p class="generated-muted">Model rows are compatibility records for the .NET control-plane lab. They are not proof of native inference.</p>
 
@@ -476,8 +598,10 @@ namespace LocalGPT.Services
             <PageTitle>Generation Knowledge</PageTitle>
 
             <main class="generated-shell">
+                <GeneratedNavigation IsOllamaLab="false" />
+
                 <h1>Generation Knowledge</h1>
-                <p class="generated-muted">This page demonstrates a second routable Razor file in the generated solution.</p>
+                <p class="generated-muted">This page demonstrates the knowledge-first path the LocalGPT AI Council should use before proposing integration.</p>
 
                 <DxGrid Data="@HealthService.GetCards()"
                         ShowSearchBox="true"
@@ -492,6 +616,110 @@ namespace LocalGPT.Services
             """;
         }
 
+        private static string GenerateSolutionDetailRazor(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            bool isOllamaLab)
+        {
+            if (isOllamaLab)
+            {
+                return """
+                @page "/api-console"
+                @rendermode InteractiveServer
+                @inject GeneratedHealthSummaryService HealthService
+
+                <PageTitle>Ollama API Console</PageTitle>
+
+                <main class="generated-shell">
+                    <GeneratedNavigation IsOllamaLab="true" />
+
+                    <section class="generated-header">
+                        <div>
+                            <h1>Ollama API Console</h1>
+                            <p>Selected Ollama-style endpoints are shown as .NET route stubs. Native model execution still belongs behind an approved runner adapter.</p>
+                        </div>
+                    </section>
+
+                    <DxGrid Data="@HealthService.GetEndpointCatalog()"
+                            CssClass="generated-grid"
+                            ShowSearchBox="true"
+                            TextWrapEnabled="true">
+                        <Columns>
+                            <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Method)" Caption="Method" />
+                            <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Route)" Caption="Route" />
+                            <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Purpose)" Caption="Purpose" />
+                            <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Boundary)" Caption="Boundary" />
+                        </Columns>
+                    </DxGrid>
+
+                    <section class="generated-note">
+                        <h2>Non-Inference Generate Stub</h2>
+                        <pre class="generated-code">POST /api/generate
+                {
+                  "model": "dotnet-lab-stub",
+                  "prompt": "Hello"
+                }
+
+                Response:
+                {
+                  "response": "This .NET lab does not implement native inference.",
+                  "done": true
+                }</pre>
+                    </section>
+                </main>
+                """;
+            }
+
+            var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 650));
+            var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 800));
+            return $$"""
+                @page "/implementation-plan"
+                @rendermode InteractiveServer
+                @inject GeneratedHealthSummaryService HealthService
+
+                <PageTitle>Implementation Plan</PageTitle>
+
+                <main class="generated-shell">
+                    <GeneratedNavigation IsOllamaLab="false" />
+
+                    <section class="generated-header">
+                        <div>
+                            <h1>Implementation Plan</h1>
+                            <p>A LocalGPT-style generated plan keeps code sandboxed, separates backend/frontend ownership, and makes review steps visible before integration.</p>
+                        </div>
+                    </section>
+
+                    <DxGrid Data="@HealthService.GetEndpointCatalog()"
+                            CssClass="generated-grid"
+                            ShowSearchBox="true"
+                            TextWrapEnabled="true">
+                        <Columns>
+                            <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Method)" Caption="Step" />
+                            <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Route)" Caption="Owner" />
+                            <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Purpose)" Caption="Purpose" />
+                            <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Boundary)" Caption="Review Gate" />
+                        </Columns>
+                    </DxGrid>
+
+                    <DxFormLayout CssClass="generated-form">
+                        <DxFormLayoutGroup Caption="Council Grounding" ColSpanMd="12">
+                            <DxFormLayoutItem Caption="Request" ColSpanMd="12">
+                                <DxMemo Text="@RequestSummary" Rows="5" ReadOnly="true" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Consensus" ColSpanMd="12">
+                                <DxMemo Text="@CouncilSummary" Rows="6" ReadOnly="true" />
+                            </DxFormLayoutItem>
+                        </DxFormLayoutGroup>
+                    </DxFormLayout>
+                </main>
+
+                @code {
+                    string RequestSummary { get; } = "{{requestSummary}}";
+                    string CouncilSummary { get; } = "{{consensusSummary}}";
+                }
+                """;
+        }
+
         private static string GenerateSolutionService(string projectName, bool isOllamaLab)
         {
             var cards = isOllamaLab
@@ -499,12 +727,30 @@ namespace LocalGPT.Services
                           new("REST API Shell", "Prototype", "Map /api/version, /api/tags, and a non-inference /api/generate stub.", "This mirrors selected Ollama API shapes without claiming native inference."),
                           new("Model Catalog", "SourceBacked", "Represent model names, tags, sizes, and runner status in .NET models.", "The inspected Ollama source has api/model/manifest concerns that should become typed C# models."),
                           new("Native Runner", "Not Implemented", "Attach or build a real inference backend before claiming Ollama replacement behavior.", "Ollama relies on native GGML/GPU runner paths, CMake payloads, and hardware-specific backends."),
+                          new("Endpoint Console", "Ready", "Expose API compatibility docs, request examples, and adapter status in the UI.", "This makes the lab recognizably Ollama-shaped without pretending to run models."),
                           new("DevExpress UI", "Ready", "Use grids/forms for model inventory, compatibility notes, logs, and endpoint tests.", "This is the realistic Blazor/DevExpress value of the experiment.")
                   """
                 : """
-                          new("Blazor", "Ready", "Open the generated solution in Visual Studio or run dotnet build.", "Uses .NET 10 Blazor Web App patterns with Interactive Server rendering."),
-                          new("DevExpress", "SourceBacked", "Verify package restore against the installed DevExpress 25.1 feed.", "Uses DxGrid, DxFormLayout, DxButton, and DxMemo."),
-                          new("Sandbox", "Required", "Review generated code before copying into LocalGPT or TacosPortalOpen.", "Generated solutions are downloadable prototypes, not automatic self-expansion.")
+                          new("AI Council Request", "Ready", "Capture the feature idea, council consensus, and implementation poll result.", "This mirrors the LocalGPT workflow for user-approved feature development."),
+                          new("Knowledge Grounding", "SourceBacked", "Read verified council knowledge before generating code.", "Use SQLite knowledge entries instead of bloated prompt context."),
+                          new("Blazor/DevExpress UI", "Ready", "Generate real routable Razor pages with navigation, grids, forms, and review notes.", "Do not return string-builder fake pages for frontend work."),
+                          new("Artifact Pipeline", "Ready", "Produce downloadable .razor, .cs, .dll, and solution zip artifacts.", "Artifacts stay sandboxed until Michi approves integration."),
+                          new("Integration Review", "Required", "Build, inspect, and review generated code before copying into LocalGPT or TacosPortalOpen.", "Generated solutions are prototypes, not automatic self-expansion.")
+                  """;
+
+            var endpoints = isOllamaLab
+                ? """
+                          new("GET", "/api/version", "Return a compact Ollama-style version document.", "Safe pure .NET response."),
+                          new("GET", "/api/tags", "Return model catalog rows shaped like Ollama tags.", "Catalog only; no model file ownership implied."),
+                          new("POST", "/api/generate", "Return a deterministic non-inference response for UI/API plumbing tests.", "Must attach a real runner before claiming generation."),
+                          new("POST", "/api/show", "Future route for model metadata and manifest details.", "Needs verified model manifest adapter.")
+                  """
+                : """
+                          new("1", "Backend service", "Create the durable service and data model first.", "Build and test before UI integration."),
+                          new("2", "Blazor page", "Add a routable Razor page with DevExpress controls and navigation.", "Review against LocalGPT/TacosPortalOpen patterns."),
+                          new("3", "SQLite knowledge", "Persist decisions, logs, and generated artifacts as approved or unverified.", "User approval decides trust state."),
+                          new("4", "Artifact download", "Expose generated files through safe HTTP download routes.", "No binary blobs inside chat messages."),
+                          new("5", "Frontend smoke", "Exercise the generated workflow like a user in WebView2.", "Do not rely only on backend APIs.")
                   """;
 
             return $$"""
@@ -535,8 +781,21 @@ namespace LocalGPT.Services
                 {
                     return
                     [
+                        new("gpt-oss:20b", "External Ollama model candidate", 0, false),
+                        new("qwen3-coder:30b", "External Ollama model candidate", 0, false),
                         new("dotnet-lab-stub:latest", "API shell only", 0, false),
                         new("external-runner-adapter:planned", "Requires real native or external inference backend", 0, false)
+                    ];
+                }
+
+                /// <summary>
+                /// Returns routes, steps, or boundaries shown by the generated detail page.
+                /// </summary>
+                public IReadOnlyList<GeneratedEndpointCard> GetEndpointCatalog()
+                {
+                    return
+                    [
+                {{endpoints}}
                     ];
                 }
             }
@@ -620,6 +879,43 @@ namespace LocalGPT.Services
                 /// </summary>
                 public bool SupportsNativeInference { get; }
             }
+
+            /// <summary>
+            /// Describes an API endpoint or implementation step in the generated solution.
+            /// </summary>
+            public sealed class GeneratedEndpointCard
+            {
+                /// <summary>
+                /// Creates a generated endpoint or workflow row.
+                /// </summary>
+                public GeneratedEndpointCard(string method, string route, string purpose, string boundary)
+                {
+                    Method = method;
+                    Route = route;
+                    Purpose = purpose;
+                    Boundary = boundary;
+                }
+
+                /// <summary>
+                /// Gets the HTTP method or ordered workflow step.
+                /// </summary>
+                public string Method { get; }
+
+                /// <summary>
+                /// Gets the route, owner, or target area.
+                /// </summary>
+                public string Route { get; }
+
+                /// <summary>
+                /// Gets the row purpose.
+                /// </summary>
+                public string Purpose { get; }
+
+                /// <summary>
+                /// Gets the safety or implementation boundary.
+                /// </summary>
+                public string Boundary { get; }
+            }
             """;
 
         private static string GenerateSolutionCss() =>
@@ -639,6 +935,68 @@ namespace LocalGPT.Services
                 max-width: 1180px;
                 margin: 0 auto;
                 padding: 32px;
+            }
+
+            .generated-nav {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                margin-bottom: 24px;
+                padding-bottom: 14px;
+                border-bottom: 1px solid #d9dee7;
+            }
+
+            .generated-nav a {
+                color: #384252;
+                text-decoration: none;
+                font-weight: 600;
+            }
+
+            .generated-nav .generated-brand {
+                margin-right: auto;
+                color: #172033;
+                font-weight: 700;
+            }
+
+            .generated-hero {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 20px;
+                align-items: end;
+                padding: 28px 0 24px;
+            }
+
+            .generated-hero h1 {
+                margin: 0;
+                font-size: 34px;
+                line-height: 1.1;
+            }
+
+            .generated-hero p {
+                max-width: 760px;
+                color: #536173;
+            }
+
+            .generated-kicker {
+                margin: 0 0 8px;
+                color: #0f766e;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0;
+            }
+
+            .generated-actions {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+
+            .generated-split {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+                gap: 24px;
+                align-items: start;
             }
 
             .generated-header {
@@ -663,6 +1021,33 @@ namespace LocalGPT.Services
             .generated-grid,
             .generated-form {
                 margin-top: 18px;
+            }
+
+            .generated-note {
+                margin-top: 22px;
+            }
+
+            .generated-code {
+                overflow: auto;
+                padding: 16px;
+                border: 1px solid #d9dee7;
+                background: #ffffff;
+                border-radius: 6px;
+            }
+
+            @media (max-width: 860px) {
+                .generated-shell {
+                    padding: 20px;
+                }
+
+                .generated-hero,
+                .generated-split {
+                    grid-template-columns: 1fr;
+                }
+
+                .generated-actions {
+                    justify-content: flex-start;
+                }
             }
             """;
 
@@ -706,6 +1091,10 @@ namespace LocalGPT.Services
             - Routable Razor pages under `Components/Pages`
             - Service/model code under `Services` and `Models`
             - `wwwroot/app.css`
+            - `PROJECT_INDEX.md`
+            - `ARCHITECTURE.md`
+            - `BUILD_AND_RUN.md`
+            - `.localgpt-generation.json`
             - `LocalGPT.GenerationManifest.json`
 
             {{notes}}
@@ -724,6 +1113,223 @@ namespace LocalGPT.Services
             ## Council Output Summary
 
             {{TrimForCodeComment(result.FinalAnswer, 1200)}}
+            """;
+        }
+
+        private static string GenerateSolutionProjectIndex(
+            string projectName,
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            bool isOllamaLab)
+        {
+            var projectKind = isOllamaLab ? "dotnet_service" : "localgpt_feature";
+            var purpose = isOllamaLab
+                ? "Prototype an Ollama-shaped .NET/Blazor control plane without claiming native model inference."
+                : "Prototype a LocalGPT/TacosPortalOpen-style AI Council feature workspace with reviewable Blazor pages.";
+            var catalogPage = isOllamaLab ? "GeneratedKnowledgeTable.razor route `/models`" : "GeneratedKnowledgeTable.razor route `/knowledge`";
+            var detailPage = isOllamaLab ? "ApiConsole.razor route `/api-console`" : "ImplementationPlan.razor route `/implementation-plan`";
+
+            return $$"""
+            # Project Index
+
+            ## Purpose
+
+            {{purpose}}
+
+            ## Archetype
+
+            ```json
+            {
+              "project_kind": "{{projectKind}}",
+              "complexity": "normal",
+              "needs_datagen": false,
+              "needs_tests": true,
+              "needs_native_commands": {{(isOllamaLab ? "true" : "false")}},
+              "needs_index": true,
+              "needs_version_resolver": false,
+              "expected_entrypoints": [
+                "src/{{projectName}}/Program.cs",
+                "src/{{projectName}}/Components/Pages/Index.razor",
+                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor"
+              ]
+            }
+            ```
+
+            ## Entry Points
+
+            - `src/{{projectName}}/Program.cs` - ASP.NET Core service registration, DevExpress setup, and app pipeline.
+            - `src/{{projectName}}/Components/App.razor` - document shell and static asset links.
+            - `src/{{projectName}}/Components/Routes.razor` - Blazor route discovery.
+            - `src/{{projectName}}/Components/GeneratedNavigation.razor` - generated app navigation.
+            - `src/{{projectName}}/Components/Pages/Index.razor` - first viewport and page hub.
+            - `src/{{projectName}}/Components/Pages/GeneratedDashboard.razor` - health/status grid.
+            - `src/{{projectName}}/Components/Pages/{{catalogPage}}` - archetype catalog page.
+            - `src/{{projectName}}/Components/Pages/{{detailPage}}` - archetype-specific detail page.
+
+            ## Generated Files
+
+            | File | Why it exists |
+            | --- | --- |
+            | `{{projectName}}.sln` | Visual Studio and CLI solution entry point. |
+            | `src/{{projectName}}/{{projectName}}.csproj` | .NET 10 Blazor Web App project with DevExpress dependency. |
+            | `src/{{projectName}}/Services/GeneratedHealthSummaryService.cs` | Typed demo service instead of Razor-only fake data. |
+            | `src/{{projectName}}/Models/GeneratedHealthCard.cs` | Shared model records for grids/catalog rows. |
+            | `src/{{projectName}}/wwwroot/app.css` | Local styling for the generated shell. |
+            | `PROJECT_INDEX.md` | Required generated-project map and archetype declaration. |
+            | `ARCHITECTURE.md` | Explains why this artifact differs from other project types. |
+            | `BUILD_AND_RUN.md` | Exact restore/build/run commands and expected checks. |
+            | `.localgpt-generation.json` | Machine-readable generation contract. |
+            | `LocalGPT.GenerationManifest.json` | LocalGPT artifact metadata and safety notes. |
+
+            ## Validation Status
+
+            Generated only. The LocalGPT artifact service validated the required file contract before zipping. Run `dotnet build` before treating this as build-passed.
+
+            ## Original Request
+
+            {{TrimForCodeComment(request.Prompt, 900)}}
+
+            ## Council Summary
+
+            {{TrimForCodeComment(result.FinalAnswer, 900)}}
+            """;
+        }
+
+        private static string GenerateSolutionArchitectureDoc(string projectName, bool isOllamaLab)
+        {
+            var title = isOllamaLab ? "Ollama .NET Lab Architecture" : "LocalGPT Feature Lab Architecture";
+            var contrast = isOllamaLab
+                ? "This is not a LocalGPT feature page clone. It is an API-control-plane lab with endpoint cataloging, model rows, and explicit runner boundaries."
+                : "This is not an Ollama replacement lab. It is a LocalGPT/TacosPortalOpen-style feature sandbox with council grounding, implementation steps, and approval gates.";
+            var backendBoundary = isOllamaLab
+                ? "Native inference, GGML/GPU scheduling, model loading, and tokenizer/runtime ownership stay outside this prototype until a real runner adapter is approved."
+                : "EF/SQLite writes, native commands, report generation, and artifact creation belong in backend services and routes, not in Razor-only snippets.";
+
+            return $$"""
+            # {{title}}
+
+            ## Why This Shape
+
+            {{contrast}}
+
+            The solution uses a .NET 10 Blazor Web App with Interactive Server rendering because LocalGPT's desktop wrapper and debugging flow already favor server-side ownership for diagnostics, downloads, SQLite, and native-command boundaries.
+
+            ## Boundaries
+
+            - Blazor pages own user interaction and DevExpress presentation.
+            - Services own generated data and route-test state.
+            - Models are plain, typed C# objects consumed by DevExpress grids/forms.
+            - {{backendBoundary}}
+            - Generated code remains sandboxed until the user explicitly approves integration.
+
+            ## Microsoft Architecture Rules Applied
+
+            - Prefer a single cohesive web app when the feature does not need independent deployment.
+            - Introduce service-oriented separation only around real boundaries, such as independent scaling, external runner adapters, background work, or downloadable artifacts.
+            - Keep configuration/bootstrap data in appsettings and durable user/application state in EF/SQLite.
+            - Keep APIs and services testable through DI rather than embedding logic in markup strings.
+            - Provide health/status views and build instructions so the artifact can be reviewed line by line.
+
+            ## Files To Review First
+
+            1. `PROJECT_INDEX.md`
+            2. `.localgpt-generation.json`
+            3. `src/{{projectName}}/Program.cs`
+            4. `src/{{projectName}}/Components/Pages/Index.razor`
+            5. `src/{{projectName}}/Services/GeneratedHealthSummaryService.cs`
+            """;
+        }
+
+        private static string GenerateSolutionBuildAndRunDoc(string projectName, bool isOllamaLab)
+        {
+            var smokeRoute = isOllamaLab ? "Open `/api-console` and verify endpoint rows are visible." : "Open `/implementation-plan` and verify implementation steps are visible.";
+            return $$"""
+            # Build And Run
+
+            ## Requirements
+
+            - .NET 10 SDK
+            - DevExpress Blazor 25.1 package feed/license access
+            - Visual Studio 2026 or `dotnet` CLI
+
+            ## Commands
+
+            ```powershell
+            dotnet restore
+            dotnet build
+            dotnet run --project .\src\{{projectName}}\{{projectName}}.csproj
+            ```
+
+            ## Expected Checks
+
+            - `/` shows the generated index page with navigation.
+            - `/dashboard` shows the generated health/status grid.
+            - {{smokeRoute}}
+            - `PROJECT_INDEX.md` and `.localgpt-generation.json` describe the selected archetype.
+
+            ## Validation Honesty
+
+            Do not claim build success unless `dotnet build` completed and the command output is available. Do not claim production readiness; this zip is a sandbox artifact.
+            """;
+        }
+
+        private static string GenerateLocalGptGenerationJson(
+            string projectName,
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            bool isOllamaLab)
+        {
+            var projectKind = isOllamaLab ? "dotnet_service" : "localgpt_feature";
+            var detailPage = isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
+            var validationNotes = isOllamaLab
+                ? "Required docs, manifest, navigation, index, dashboard, model catalog, and API console files were present before zipping."
+                : "Required docs, manifest, navigation, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
+
+            return $$"""
+            {
+              "schema": "localgpt-generation-contract/v1",
+              "project_kind": "{{projectKind}}",
+              "project_name": "{{EscapeJsonString(projectName)}}",
+              "generated_at_utc": "{{DateTime.UtcNow:O}}",
+              "complexity": "normal",
+              "needs_datagen": false,
+              "needs_tests": true,
+              "needs_native_commands": {{(isOllamaLab ? "true" : "false")}},
+              "needs_index": true,
+              "needs_version_resolver": false,
+              "model_names": "{{EscapeJsonString(string.Join(", ", result.ModelNames))}}",
+              "requested_features": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 900))}}",
+              "validation_status": "GeneratedOnlyContractValidated",
+              "validation_notes": "{{EscapeJsonString(validationNotes)}}",
+              "expected_entrypoints": [
+                "src/{{projectName}}/Program.cs",
+                "src/{{projectName}}/Components/GeneratedNavigation.razor",
+                "src/{{projectName}}/Components/Pages/Index.razor",
+                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
+                "src/{{projectName}}/Components/Pages/{{detailPage}}"
+              ],
+              "generated_files": [
+                "{{projectName}}.sln",
+                "README.md",
+                "PROJECT_INDEX.md",
+                "ARCHITECTURE.md",
+                "BUILD_AND_RUN.md",
+                ".localgpt-generation.json",
+                "LocalGPT.GenerationManifest.json",
+                "src/{{projectName}}/{{projectName}}.csproj",
+                "src/{{projectName}}/Program.cs",
+                "src/{{projectName}}/Components/App.razor",
+                "src/{{projectName}}/Components/Routes.razor",
+                "src/{{projectName}}/Components/GeneratedNavigation.razor",
+                "src/{{projectName}}/Components/Pages/Index.razor",
+                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
+                "src/{{projectName}}/Components/Pages/{{detailPage}}",
+                "src/{{projectName}}/Services/GeneratedHealthSummaryService.cs",
+                "src/{{projectName}}/Models/GeneratedHealthCard.cs",
+                "src/{{projectName}}/wwwroot/app.css"
+              ],
+              "safety": "Sandbox artifact only. Integration requires explicit user approval."
+            }
             """;
         }
 
@@ -1035,6 +1641,37 @@ namespace LocalGPT.Services
         private static string EscapeJsonString(string text)
         {
             return EscapeCSharpString(text);
+        }
+
+        private static void ValidateSolutionArtifactContract(string solutionRoot, string projectName, bool isOllamaLab)
+        {
+            var requiredFiles = new[]
+            {
+                $"{projectName}.sln",
+                "README.md",
+                "PROJECT_INDEX.md",
+                "ARCHITECTURE.md",
+                "BUILD_AND_RUN.md",
+                ".localgpt-generation.json",
+                "LocalGPT.GenerationManifest.json",
+                Path.Combine("src", projectName, $"{projectName}.csproj"),
+                Path.Combine("src", projectName, "Program.cs"),
+                Path.Combine("src", projectName, "Components", "GeneratedNavigation.razor"),
+                Path.Combine("src", projectName, "Components", "Pages", "Index.razor"),
+                Path.Combine("src", projectName, "Components", "Pages", "GeneratedDashboard.razor"),
+                Path.Combine("src", projectName, "Components", "Pages", "GeneratedKnowledgeTable.razor"),
+                Path.Combine("src", projectName, "Components", "Pages", isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
+                Path.Combine("src", projectName, "Services", "GeneratedHealthSummaryService.cs"),
+                Path.Combine("src", projectName, "Models", "GeneratedHealthCard.cs"),
+                Path.Combine("src", projectName, "wwwroot", "app.css")
+            };
+
+            var missing = requiredFiles
+                .Where(relativePath => !File.Exists(Path.Combine(solutionRoot, relativePath)))
+                .ToArray();
+
+            if (missing.Length > 0)
+                throw new InvalidOperationException($"Generated solution artifact is missing required files: {string.Join(", ", missing)}");
         }
 
         [GeneratedRegex("(devexpress|richedit|pdfviewer|pivot|report|xtrareport|office|docx|xlsx|pdf export|spreadsheet|document generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
