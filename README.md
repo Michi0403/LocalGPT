@@ -98,6 +98,7 @@ Use **Feature Request Chat** for implementation ideas; it enables a CodeDOM-gene
 
 Open **SQLite Database** in the navigation to edit council knowledge with DevExpress controls and inspect live SQLite tables. The generic editor protects primary-key columns in the form, but it still edits the live local database, so use it as an administrative tool.
 Native Minecraft builder commands are restricted to the LocalGPT Minecraft workspace, checked against an executable policy, and written to the `NativeCommandLogs` table with stdout/stderr artifact paths.
+The ledger records a `CommandProfile` such as `GradleBuildOnly`, `GradleRunClient`, `JavaVersionOnly`, or `PowerShellWorkspaceScript` so diagnostics can distinguish build, run, setup, and script paths.
 
 For DevExpress-related feature requests, use `GET /__diag/devexpress` to inspect referenced package versions, imported namespaces, registered services, and loaded assemblies. DevExpress Office/report/PDF generation should be implemented in backend services with safe download links, while the Blazor frontend handles controls, status, and navigation.
 

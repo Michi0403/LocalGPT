@@ -57,10 +57,11 @@ namespace LocalGPT.Services
 
             using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
             logger.LogInformation(
-                "Running native command: {FileName} {Arguments} in {WorkingDirectory}. Policy: {PolicyReason}",
+                "Running native command: {FileName} {Arguments} in {WorkingDirectory}. Profile: {CommandProfile}. Policy: {PolicyReason}",
                 fileName,
                 arguments,
                 workingDirectory,
+                policy.Profile,
                 policy.Reason);
 
             process.Start();
@@ -103,6 +104,7 @@ namespace LocalGPT.Services
                 Duration = completedAt - startedAt,
                 StdoutPath = stdoutPath,
                 StderrPath = stderrPath,
+                CommandProfile = policy.Profile,
                 PolicyDecision = policy.Decision,
                 PolicyReason = policy.Reason
             };
@@ -112,25 +114,31 @@ namespace LocalGPT.Services
         {
             var executable = Path.GetFileName(fileName.Trim());
             if (!AllowedExecutables.Contains(executable))
-                return CommandPolicyDecision.Denied($"Executable '{executable}' is not allowed by LocalGPT native command policy.");
+                return CommandPolicyDecision.Denied(
+                    $"Executable '{executable}' is not allowed by LocalGPT native command policy.");
 
             if (ContainsPathSegment(fileName))
             {
                 var executablePath = Path.GetFullPath(Path.Combine(workingDirectory, fileName));
                 if (!workspaceService.IsPathInsideWorkspaceRoot(executablePath))
-                    return CommandPolicyDecision.Denied("Executable paths must stay inside the LocalGPT Minecraft workspace root.");
+                    return CommandPolicyDecision.Denied(
+                        "Executable paths must stay inside the LocalGPT Minecraft workspace root.");
             }
 
             if (IsPowerShell(executable))
                 return ValidatePowerShellPolicy(arguments, workingDirectory);
 
-            return CommandPolicyDecision.Allow($"Executable '{executable}' is allowlisted.");
+            var profile = ClassifyCommandProfile(executable, arguments);
+            return CommandPolicyDecision.Allow(
+                profile,
+                $"Profile '{profile}' selected for allowlisted executable '{executable}'.");
         }
 
         private CommandPolicyDecision ValidatePowerShellPolicy(string arguments, string workingDirectory)
         {
             if (Regex.IsMatch(arguments, @"(?i)(^|\s)-EncodedCommand(\s|$)|(^|\s)-Command(\s|$)|(^|\s)-c(\s|$)"))
-                return CommandPolicyDecision.Denied("PowerShell inline commands are blocked; use -File with a workspace script.");
+                return CommandPolicyDecision.Denied(
+                    "PowerShell inline commands are blocked; use -File with a workspace script.");
 
             var match = Regex.Match(arguments, @"(?i)(^|\s)-File\s+(?:""(?<path>[^""]+)""|'(?<path>[^']+)'|(?<path>\S+))");
             if (!match.Success)
@@ -147,7 +155,9 @@ namespace LocalGPT.Services
             if (!File.Exists(fullScriptPath))
                 return CommandPolicyDecision.Denied($"PowerShell script does not exist: {fullScriptPath}");
 
-            return CommandPolicyDecision.Allow("PowerShell -File script is inside the LocalGPT Minecraft workspace root.");
+            return CommandPolicyDecision.Allow(
+                "PowerShellWorkspaceScript",
+                "PowerShell -File script is inside the LocalGPT Minecraft workspace root.");
         }
 
         private async Task<(string StdoutPath, string StderrPath)> WriteCommandOutputAsync(
@@ -192,6 +202,7 @@ namespace LocalGPT.Services
                     StartedAtUtc = startedAt,
                     CompletedAtUtc = completedAt,
                     Executable = Path.GetFileName(fileName.Trim()),
+                    CommandProfile = policy.Profile,
                     Arguments = arguments,
                     WorkingDirectory = workingDirectory,
                     ExitCode = exitCode,
@@ -215,6 +226,36 @@ namespace LocalGPT.Services
                 executable.Equals("pwsh.exe", StringComparison.OrdinalIgnoreCase);
         }
 
+        private static bool IsGradle(string executable)
+        {
+            return executable.Equals("gradle", StringComparison.OrdinalIgnoreCase) ||
+                executable.Equals("gradle.bat", StringComparison.OrdinalIgnoreCase) ||
+                executable.Equals("gradlew", StringComparison.OrdinalIgnoreCase) ||
+                executable.Equals("gradlew.bat", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string ClassifyCommandProfile(string executable, string arguments)
+        {
+            if (IsGradle(executable))
+            {
+                return arguments.Contains("runClient", StringComparison.OrdinalIgnoreCase)
+                    ? "GradleRunClient"
+                    : "GradleBuildOnly";
+            }
+
+            if (executable.Equals("java", StringComparison.OrdinalIgnoreCase) ||
+                executable.Equals("java.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                var normalized = arguments.Trim();
+                return normalized.Equals("-version", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("--version", StringComparison.OrdinalIgnoreCase)
+                    ? "JavaVersionOnly"
+                    : "JavaAllowlistedCommand";
+            }
+
+            return "CustomAllowlistedCommand";
+        }
+
         private static bool ContainsPathSegment(string fileName)
         {
             return fileName.Contains(Path.DirectorySeparatorChar) ||
@@ -228,11 +269,13 @@ namespace LocalGPT.Services
             return string.IsNullOrWhiteSpace(safe) ? "command" : safe;
         }
 
-        private sealed record CommandPolicyDecision(bool Allowed, string Decision, string Reason)
+        private sealed record CommandPolicyDecision(bool Allowed, string Decision, string Reason, string Profile)
         {
-            public static CommandPolicyDecision Allow(string reason) => new(true, "Allowed", reason);
+            public static CommandPolicyDecision Allow(string profile, string reason) =>
+                new(true, "Allowed", reason, profile);
 
-            public static CommandPolicyDecision Denied(string reason) => new(false, "Denied", reason);
+            public static CommandPolicyDecision Denied(string reason) =>
+                new(false, "Denied", reason, "Denied");
         }
     }
 }

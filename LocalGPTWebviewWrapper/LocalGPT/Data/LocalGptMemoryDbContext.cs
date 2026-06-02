@@ -74,6 +74,7 @@ namespace LocalGPT.Data
                 entity.HasKey(entry => entry.Id);
                 entity.Property(entry => entry.FeatureName).HasMaxLength(120).IsRequired();
                 entity.Property(entry => entry.RequestedBy).HasMaxLength(120).IsRequired();
+                entity.Property(entry => entry.CommandProfile).HasMaxLength(120).IsRequired();
                 entity.Property(entry => entry.Executable).HasMaxLength(260).IsRequired();
                 entity.Property(entry => entry.Arguments).IsRequired();
                 entity.Property(entry => entry.WorkingDirectory).HasMaxLength(1024).IsRequired();

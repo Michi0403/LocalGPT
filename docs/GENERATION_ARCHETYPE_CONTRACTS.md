@@ -11,6 +11,7 @@ Every whole-project or whole-solution generation must start from this classifica
 ```json
 {
   "project_kind": "fabric_mod | neoforge_mod | paper_plugin | datapack | localgpt_feature | dotnet_service",
+  "target_platform": "minecraft_java | dotnet10_aspnetcore_blazor | winui_webview2 | backend_service",
   "complexity": "minimal | normal | advanced",
   "needs_datagen": true,
   "needs_tests": true,
@@ -35,7 +36,7 @@ Every generated whole project must include:
 
 `PROJECT_INDEX.md` must list the purpose, entry points, generated files table, build/run commands, and validation status. It should be generated first because it forces the model to account for every folder and route.
 
-`.localgpt-generation.json` must include the selected archetype, requested features, important versions, expected entry points, generated files, validation status, and safety notes.
+`.localgpt-generation.json` must include the selected archetype, target platform, requested features, important versions, expected entry points, generated files, validation status, build/test result provenance, and safety notes.
 
 ## Validation Honesty
 

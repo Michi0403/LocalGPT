@@ -13,6 +13,7 @@ namespace LocalGPT.BusinessObjects
         public TimeSpan Duration { get; set; }
         public string StdoutPath { get; set; } = string.Empty;
         public string StderrPath { get; set; } = string.Empty;
+        public string CommandProfile { get; set; } = "CustomAllowlistedCommand";
         public string PolicyDecision { get; set; } = "Allowed";
         public string PolicyReason { get; set; } = string.Empty;
         public bool Succeeded => ExitCode == 0;

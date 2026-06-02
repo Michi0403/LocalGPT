@@ -2173,6 +2173,9 @@ namespace LocalGPT.Services
             bool isOllamaLab)
         {
             var projectKind = isOllamaLab ? "dotnet_service" : "localgpt_feature";
+            var targetPlatform = isOllamaLab
+                ? "dotnet10_aspnetcore_devexpress_blazor_ollama_control_plane"
+                : "dotnet10_aspnetcore_devexpress_blazor_localgpt_feature";
             var detailPage = isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
             var validationNotes = isOllamaLab
                 ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, model-download, and settings files were present before zipping."
@@ -2196,6 +2199,7 @@ namespace LocalGPT.Services
             {
               "schema": "localgpt-generation-contract/v1",
               "project_kind": "{{projectKind}}",
+              "target_platform": "{{targetPlatform}}",
               "project_name": "{{EscapeJsonString(projectName)}}",
               "generated_at_utc": "{{DateTime.UtcNow:O}}",
               "complexity": "normal",
@@ -2208,6 +2212,7 @@ namespace LocalGPT.Services
               "requested_features": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 900))}}",
               "validation_status": "GeneratedOnlyContractValidated",
               "validation_notes": "{{EscapeJsonString(validationNotes)}}",
+              "build_test_result_provenance": "LocalGPT validated required files and contract JSON before zipping. dotnet build was not run for this sandbox artifact, so no build success is claimed.",
               "expected_entrypoints": [
                 "src/{{projectName}}/Program.cs",
                 "src/{{projectName}}/Components/GeneratedNavigation.razor",
@@ -2241,7 +2246,8 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/wwwroot/icons/nav/detail-line.svg",
                 "src/{{projectName}}/wwwroot/icons/nav/detail-solid.svg"
               ],
-              "safety": "Sandbox artifact only. Integration requires explicit user approval."
+              "safety": "Sandbox artifact only. Integration requires explicit user approval.",
+              "archetype_difference": "{{(isOllamaLab ? "Ollama lab includes API route stubs, model catalog, downloads, and settings; native inference remains explicitly out of scope." : "LocalGPT feature sandbox includes implementation-plan and knowledge-table pages rather than Ollama API compatibility workflows.")}}"
             }
             """;
         }
@@ -2267,6 +2273,8 @@ namespace LocalGPT.Services
               "artifactKind": "WholeSolutionZip",
               "sourceGoal": "{{EscapeJsonString(sourceGoal)}}",
               "designContract": "Bootstrap v5 layout, DevExpress Blazor controls, and paired line/solid SVG navigation icons.",
+              "validationStatus": "GeneratedOnlyContractValidated",
+              "buildTestResultProvenance": "Required files and contract metadata were validated before zipping. No generated-project build success is claimed.",
               "request": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 1400))}}",
               "finalAnswer": "{{EscapeJsonString(TrimForCodeComment(result.FinalAnswer, 1400))}}",
               "safety": "Sandbox artifact only. Integration requires explicit user approval."
@@ -2672,6 +2680,64 @@ namespace LocalGPT.Services
 
             if (missing.Length > 0)
                 throw new InvalidOperationException($"Generated solution artifact is missing required files: {string.Join(", ", missing)}");
+
+            ValidateGenerationContractJson(Path.Combine(solutionRoot, ".localgpt-generation.json"));
+            ValidateGenerationManifestJson(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"));
+        }
+
+        private static void ValidateGenerationContractJson(string path)
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            var root = document.RootElement;
+            var requiredProperties = new[]
+            {
+                "schema",
+                "project_kind",
+                "target_platform",
+                "complexity",
+                "needs_datagen",
+                "needs_tests",
+                "needs_native_commands",
+                "needs_index",
+                "needs_version_resolver",
+                "expected_entrypoints",
+                "generated_files",
+                "validation_status",
+                "build_test_result_provenance"
+            };
+
+            foreach (var property in requiredProperties)
+                RequireJsonProperty(root, property, path);
+
+            RequireNonEmptyJsonArray(root, "expected_entrypoints", path);
+            RequireNonEmptyJsonArray(root, "generated_files", path);
+        }
+
+        private static void ValidateGenerationManifestJson(string path)
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            var root = document.RootElement;
+            RequireJsonProperty(root, "artifactKind", path);
+            RequireJsonProperty(root, "sourceGoal", path);
+            RequireJsonProperty(root, "validationStatus", path);
+            RequireJsonProperty(root, "buildTestResultProvenance", path);
+        }
+
+        private static void RequireJsonProperty(JsonElement root, string propertyName, string path)
+        {
+            if (!root.TryGetProperty(propertyName, out _))
+                throw new InvalidOperationException($"Generated contract {Path.GetFileName(path)} is missing {propertyName}.");
+        }
+
+        private static void RequireNonEmptyJsonArray(JsonElement root, string propertyName, string path)
+        {
+            RequireJsonProperty(root, propertyName, path);
+            var property = root.GetProperty(propertyName);
+            if (property.ValueKind != JsonValueKind.Array || property.GetArrayLength() == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Generated contract {Path.GetFileName(path)} must include a non-empty {propertyName} array.");
+            }
         }
 
         [GeneratedRegex("(devexpress|richedit|pdfviewer|pivot|report|xtrareport|office|docx|xlsx|pdf export|spreadsheet|document generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

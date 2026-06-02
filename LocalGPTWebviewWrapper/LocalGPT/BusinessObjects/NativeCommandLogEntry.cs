@@ -7,6 +7,7 @@ namespace LocalGPT.BusinessObjects
         public DateTime CompletedAtUtc { get; set; } = DateTime.UtcNow;
         public string FeatureName { get; set; } = "Minecraft Builder";
         public string RequestedBy { get; set; } = "LocalGPT user";
+        public string CommandProfile { get; set; } = "CustomAllowlistedCommand";
         public string Executable { get; set; } = string.Empty;
         public string Arguments { get; set; } = string.Empty;
         public string WorkingDirectory { get; set; } = string.Empty;
