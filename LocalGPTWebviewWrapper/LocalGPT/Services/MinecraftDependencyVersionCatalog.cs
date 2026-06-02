@@ -10,7 +10,7 @@ public sealed record MinecraftDependencyVersionInfo(
     string? FabricApiVersion,
     string? NeoForgeVersion,
     string? PaperApiVersion,
-    int? DatapackPackFormat,
+    string? DatapackPackFormat,
     bool IsExactMatch,
     bool NeedsVerification,
     string Notes,
@@ -18,23 +18,60 @@ public sealed record MinecraftDependencyVersionInfo(
 
 public static class MinecraftDependencyVersionCatalog
 {
-    private const string DefaultJavaVersion = "21";
+    private const string DefaultJavaVersion = "25";
     private const string DefaultGradleVersion = "8.14.2";
     private const string FabricLoaderVersion = "0.16.9";
 
     private static readonly CatalogEntry[] KnownVersions =
     [
         new(
+            MinecraftVersion: "26.1.2",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT datapack-first mapping for the Minecraft Java 26.1 stable family. Java mods/plugins need official Fabric, NeoForge, or Paper version checks before release."),
+        new(
+            MinecraftVersion: "26.1.1",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT datapack-first mapping for the Minecraft Java 26.1 stable family. Java mods/plugins need official Fabric, NeoForge, or Paper version checks before release."),
+        new(
+            MinecraftVersion: "26.1",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT datapack-first mapping for Minecraft Java 26.1. Java mods/plugins need official Fabric, NeoForge, or Paper version checks before release."),
+        new(
+            MinecraftVersion: "26.2-snapshot-6",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT snapshot datapack mapping for Minecraft Java 26.2 Snapshot 6. Use only for snapshot worlds and verify loader APIs before Java mod/plugin release."),
+        new(
+            MinecraftVersion: "26.2",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT snapshot datapack mapping for Minecraft Java 26.2. Use only for snapshot worlds and verify loader APIs before Java mod/plugin release."),
+        new(
             MinecraftVersion: "1.21.4",
             FabricApiVersion: "0.116.9+1.21.4",
             NeoForgeVersion: "21.1.231",
             PaperApiVersion: "1.21.4-R0.1-SNAPSHOT",
+            JavaVersion: "21",
             Notes: "Curated LocalGPT 1.21.4 mapping; NeoForge value is a cautious 1.21.x fallback and should be source-checked before release."),
         new(
             MinecraftVersion: "1.21.1",
             FabricApiVersion: "0.116.9+1.21.1",
             NeoForgeVersion: "21.1.231",
             PaperApiVersion: "1.21.1-R0.1-SNAPSHOT",
+            JavaVersion: "21",
             Notes: "Curated LocalGPT 1.21.1 mapping used by Java workspace smoke tests.")
     ];
 
@@ -46,11 +83,8 @@ public static class MinecraftDependencyVersionCatalog
     {
         var normalizedLoader = NormalizeLoader(loader);
         var requestedMinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion)
-            ? "1.21.4"
+            ? MinecraftDatapackVersionCatalog.DefaultMinecraftVersion
             : minecraftVersion.Trim();
-        var requestedJavaVersion = string.IsNullOrWhiteSpace(javaVersion)
-            ? DefaultJavaVersion
-            : javaVersion.Trim();
         var requestedGradleVersion = string.IsNullOrWhiteSpace(gradleVersion)
             ? DefaultGradleVersion
             : gradleVersion.Trim();
@@ -62,13 +96,21 @@ public static class MinecraftDependencyVersionCatalog
             .Where(item => requestedMinecraftVersion.StartsWith(item.MinecraftVersion, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(item => item.MinecraftVersion.Length)
             .FirstOrDefault();
-        entry ??= requestedMinecraftVersion.StartsWith("1.21", StringComparison.OrdinalIgnoreCase)
+        entry ??= requestedMinecraftVersion.StartsWith("26.", StringComparison.OrdinalIgnoreCase)
+            ? KnownVersions.First(item => item.MinecraftVersion == "26.1")
+            : requestedMinecraftVersion.StartsWith("1.21", StringComparison.OrdinalIgnoreCase)
             ? KnownVersions.First(item => item.MinecraftVersion == "1.21.4")
-            : KnownVersions.First(item => item.MinecraftVersion == "1.21.1");
+            : KnownVersions.First(item => item.MinecraftVersion == "26.1");
+
+        var requestedJavaVersion = string.IsNullOrWhiteSpace(javaVersion)
+            ? entry.JavaVersion ?? DefaultJavaVersion
+            : javaVersion.Trim();
 
         var datapack = MinecraftDatapackVersionCatalog.Resolve(requestedMinecraftVersion);
         var needsVerification = !exact ||
             datapack.NeedsVerification ||
+            (normalizedLoader is "Fabric" or "NeoForge" or "Paper") &&
+            (entry.FabricApiVersion is null || entry.NeoForgeVersion is null || entry.PaperApiVersion is null) ||
             normalizedLoader.Equals("NeoForge", StringComparison.OrdinalIgnoreCase) && !requestedMinecraftVersion.Equals("1.21.1", StringComparison.OrdinalIgnoreCase);
 
         var notes = exact
@@ -107,8 +149,9 @@ public static class MinecraftDependencyVersionCatalog
 
     private sealed record CatalogEntry(
         string MinecraftVersion,
-        string FabricApiVersion,
-        string NeoForgeVersion,
-        string PaperApiVersion,
+        string? FabricApiVersion,
+        string? NeoForgeVersion,
+        string? PaperApiVersion,
+        string? JavaVersion,
         string Notes);
 }

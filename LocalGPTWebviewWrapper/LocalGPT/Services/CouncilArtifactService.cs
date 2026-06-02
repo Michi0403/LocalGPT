@@ -111,7 +111,7 @@ namespace LocalGPT.Services
                 PackageName = identity.PackageName,
                 MinecraftVersion = minecraftVersion,
                 Loader = "Datapack",
-                JavaVersion = "21",
+                JavaVersion = minecraftVersion.StartsWith("26.", StringComparison.OrdinalIgnoreCase) ? "25" : "21",
                 GradleVersion = "8.14.2",
                 Ide = "Eclipse",
                 IncludeLivingCitiesStarter = false,
@@ -176,12 +176,12 @@ namespace LocalGPT.Services
             {
                 var workspace = await minecraftWorkspaceService.CreateWorkspaceAsync(new MinecraftModBuildRequest
                 {
-                    ProjectName = $"{loader.Item1}LoaderMatrix{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}",
+                    ProjectName = $"{loader.Item1}Matrix{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)[..8]}",
                     ModId = loader.Item2,
                     PackageName = $"com.localgpt.matrix.{loader.Item1.ToLowerInvariant()}",
                     MinecraftVersion = minecraftVersion,
                     Loader = loader.Item1,
-                    JavaVersion = "21",
+                    JavaVersion = minecraftVersion.StartsWith("26.", StringComparison.OrdinalIgnoreCase) ? "25" : "21",
                     GradleVersion = "8.14.2",
                     Ide = "Eclipse",
                     IncludeLivingCitiesStarter = false,
@@ -2966,7 +2966,9 @@ namespace LocalGPT.Services
         private static string ExtractMinecraftVersion(string text)
         {
             var match = MinecraftVersionPattern().Match(text);
-            return match.Success ? match.Groups["version"].Value : "1.21.4";
+            return match.Success
+                ? match.Groups["version"].Value
+                : MinecraftDatapackVersionCatalog.DefaultMinecraftVersion;
         }
 
         private static MinecraftDatapackArtifactIdentity BuildMinecraftDatapackArtifactIdentity(string text, string timestamp)
@@ -3076,6 +3078,8 @@ namespace LocalGPT.Services
                     throw new InvalidOperationException($"Generated function contains a leading slash command: {Path.GetRelativePath(rootPath, functionFile)}");
                 if (RootStorageRemovePattern().IsMatch(content))
                     throw new InvalidOperationException($"Generated function uses data remove storage root syntax: {Path.GetRelativePath(rootPath, functionFile)}");
+                if (MalformedStorageTargetPattern().IsMatch(content))
+                    throw new InvalidOperationException($"Generated function appears to put an NBT path into the storage id instead of after it: {Path.GetRelativePath(rootPath, functionFile)}");
             }
         }
 
@@ -3299,7 +3303,7 @@ namespace LocalGPT.Services
         [GeneratedRegex("(fabric.*paper.*neoforge|neoforge.*paper.*fabric|loader.*matrix|skeleton.*distinction|project skeleton distinction)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex MinecraftSkeletonMatrixPattern();
 
-        [GeneratedRegex("(?<!\\d)(?<version>1\\.\\d{1,2}(?:\\.\\d{1,2})?)(?!\\d)", RegexOptions.CultureInvariant)]
+        [GeneratedRegex("(?<!\\d)(?<version>(?:1\\.\\d{1,2}|26\\.\\d)(?:\\.\\d{1,2})?(?:-snapshot-\\d+)?)(?!\\d)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex MinecraftVersionPattern();
 
         [GeneratedRegex("(?m)^\\s*/", RegexOptions.CultureInvariant)]
@@ -3307,6 +3311,9 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("\\bdata\\s+remove\\s+storage\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex RootStorageRemovePattern();
+
+        [GeneratedRegex("\\bstore\\s+result\\s+storage\\s+[a-z0-9_.-]+:[a-z0-9_/-]+\\.[a-z0-9_.-]+\\s+(?:byte|short|int|long|float|double)\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex MalformedStorageTargetPattern();
 
         [GeneratedRegex("(frontend|razor|devexpress|dxaichat|css|javascript)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex FrontendPattern();

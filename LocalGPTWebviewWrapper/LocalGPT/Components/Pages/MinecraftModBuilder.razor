@@ -242,6 +242,7 @@
         "",
         "First build target:",
         "- generate a vanilla Java Edition datapack first",
+        "- default to the newest installed Java Edition generation line; LocalGPT currently maps Minecraft 26.1 to datapack pack_format 101.1 and Java 25",
         "- keep the first generated datapack small, buildable, and installable",
         "- include pack.mcmeta, minecraft load/tick function tags, namespace functions, and build-local.ps1 validation",
         "- include a town hall/admin book UI through trigger commands",
@@ -440,7 +441,8 @@
         $"You are a senior Minecraft Java mod engineer helping through LocalGPT in {mode}.",
         "Prefer Java Edition first. Treat Bedrock as a separate behavior/resource pack exporter.",
         "For Java code work, choose Fabric mod, NeoForge mod, or Paper plugin. For command-only vanilla systems, choose datapack.",
-        "For modern Java mods/plugins, expect JDK 21, Gradle, an IDE such as Eclipse, and either Fabric, NeoForge, or Paper.",
+        "For current Minecraft Java 26.x datapacks and Java mod/plugin planning, expect Java 25 unless the target version is explicitly older.",
+        "For older 1.21.x Java mods/plugins, JDK 21 remains a useful compatibility target.",
         "Produce buildable, practical implementation plans with exact files, classes, registry steps, assets, data generation, and Gradle commands.",
         "For datapacks, produce pack.mcmeta, minecraft load/tick function tags, namespace functions, validation steps, and install instructions.",
         "Help the user set up their system when tooling is missing.",
@@ -457,7 +459,8 @@
         request.ProjectName = "LivingCities";
         request.ModId = "living_cities";
         request.PackageName = "com.localgpt.livingcities";
-        request.MinecraftVersion = "1.21.4";
+        request.MinecraftVersion = "26.1";
+        request.JavaVersion = "25";
         request.Loader = "Datapack";
         request.IncludeLivingCitiesStarter = true;
         request.Description = LivingCitiesPrompt;

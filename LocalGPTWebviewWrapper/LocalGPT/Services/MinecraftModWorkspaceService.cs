@@ -908,14 +908,19 @@ namespace LocalGPT.Services
             $$"""
             {
               "pack": {
-                "pack_format": {{GetPackFormat(request.MinecraftVersion)}},
+                "pack_format": {{GetPackFormatJsonValue(request.MinecraftVersion)}},
                 "description": "{{EscapeJson(context.ProjectName)}} - LocalGPT generated Living Cities datapack"
               }
             }
             """;
 
-        private static int GetPackFormat(string minecraftVersion) =>
-            MinecraftDatapackVersionCatalog.Resolve(minecraftVersion).PackFormat;
+        private static string GetPackFormatJsonValue(string minecraftVersion)
+        {
+            var packFormat = MinecraftDatapackVersionCatalog.Resolve(minecraftVersion).PackFormat;
+            return packFormat.Contains('.', StringComparison.Ordinal)
+                ? $"\"{packFormat}\""
+                : packFormat;
+        }
 
         private static string CreateFunctionTag(string modId, string functionName) =>
             $$"""
@@ -968,6 +973,7 @@ namespace LocalGPT.Services
             data merge storage {{{context.ModId}}}:personalities {notables:[]}
 
             function {{{context.ModId}}}:buildings/init
+            function {{{context.ModId}}}:city/register_banner
             tellraw @a [{"text":"[Living Cities] ","color":"green"},{"text":"Datapack loaded. Use /function {{{context.ModId}}}:ui/townhall or the admin book."}]
             """;
 
@@ -1018,11 +1024,11 @@ namespace LocalGPT.Services
 
         private static string CreateDatapackCityCreateNewFunction(WorkspaceContext context) =>
             $$$"""
-            data merge storage {{{context.ModId}}}:city {founded:1b,population:0,food:100,security:100,prestige:0,houses:0,workplaces:0}
-            execute store result storage {{{context.ModId}}}:city.year int 1 run scoreboard players get #year lc_year
-            execute store result storage {{{context.ModId}}}:city.founder_x int 1 run data get entity @s Pos[0] 1
-            execute store result storage {{{context.ModId}}}:city.founder_y int 1 run data get entity @s Pos[1] 1
-            execute store result storage {{{context.ModId}}}:city.founder_z int 1 run data get entity @s Pos[2] 1
+            data merge storage {{{context.ModId}}}:city {founded:1b,year:1,population:0,food:100,security:100,prestige:0,houses:0,workplaces:0,founder:{x:0,y:0,z:0},banner:{x:0,y:0,z:0}}
+            execute store result storage {{{context.ModId}}}:city year int 1 run scoreboard players get #year lc_year
+            execute store result storage {{{context.ModId}}}:city founder.x int 1 run data get entity @s Pos[0] 1
+            execute store result storage {{{context.ModId}}}:city founder.y int 1 run data get entity @s Pos[1] 1
+            execute store result storage {{{context.ModId}}}:city founder.z int 1 run data get entity @s Pos[2] 1
             scoreboard players set #food lc_food 100
             scoreboard players set #security lc_security 100
             scoreboard players set #prestige lc_prestige 0
@@ -1040,17 +1046,17 @@ namespace LocalGPT.Services
         private static string CreateDatapackRegisterBannerFunction(WorkspaceContext context) =>
             $$$"""
             say LC register_banner loaded
-            execute store result storage {{{context.ModId}}}:city.banner.x int 1 run data get entity @s Pos[0] 1
-            execute store result storage {{{context.ModId}}}:city.banner.y int 1 run data get entity @s Pos[1] 1
-            execute store result storage {{{context.ModId}}}:city.banner.z int 1 run data get entity @s Pos[2] 1
-            tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Town banner position registered at your current location."}]
+            execute if entity @s[type=minecraft:player] store result storage {{{context.ModId}}}:city banner.x int 1 run data get entity @s Pos[0] 1
+            execute if entity @s[type=minecraft:player] store result storage {{{context.ModId}}}:city banner.y int 1 run data get entity @s Pos[1] 1
+            execute if entity @s[type=minecraft:player] store result storage {{{context.ModId}}}:city banner.z int 1 run data get entity @s Pos[2] 1
+            execute if entity @s[type=minecraft:player] run tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Town banner position registered at your current location."}]
             """;
 
         private static string CreateDatapackUpdatePopulationFunction(WorkspaceContext context) =>
             $$$"""
             scoreboard players set #population lc_population 0
             execute store result score #population lc_population if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96]
-            execute store result storage {{{context.ModId}}}:city.population int 1 run scoreboard players get #population lc_population
+            execute store result storage {{{context.ModId}}}:city population int 1 run scoreboard players get #population lc_population
             """;
 
         private static string CreateDatapackCitizenRegisterFunction(WorkspaceContext context) =>
@@ -1094,7 +1100,7 @@ namespace LocalGPT.Services
             scoreboard players operation #food lc_food += #food_production lc_tmp
             scoreboard players operation #food lc_food -= #food_consumption lc_tmp
             execute if score #food lc_food matches ..0 run tellraw @a [{"text":"[Living Cities] ","color":"red"},{"text":"Food stores are empty. Growth and migration should pause in the next milestone."}]
-            execute store result storage {{{context.ModId}}}:city.food int 1 run scoreboard players get #food lc_food
+            execute store result storage {{{context.ModId}}}:city food int 1 run scoreboard players get #food lc_food
             """;
 
         private static string CreateDatapackFoodProductionFunction() =>
@@ -1120,7 +1126,7 @@ namespace LocalGPT.Services
             $$$"""
             function {{{context.ModId}}}:security/golems
             function {{{context.ModId}}}:security/nightwatch
-            execute store result storage {{{context.ModId}}}:city.security int 1 run scoreboard players get #security lc_security
+            execute store result storage {{{context.ModId}}}:city security int 1 run scoreboard players get #security lc_security
             """;
 
         private static string CreateDatapackSecurityGolemsFunction() =>
@@ -1215,7 +1221,7 @@ namespace LocalGPT.Services
             $$$"""
             execute unless data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"[Living Cities] ","color":"red"},{"text":"Found a city before registering houses."}]
             execute if data storage {{{context.ModId}}}:city {founded:1b} run scoreboard players add #houses lc_buildings 1
-            execute if data storage {{{context.ModId}}}:city {founded:1b} store result storage {{{context.ModId}}}:city.houses int 1 run scoreboard players get #houses lc_buildings
+            execute if data storage {{{context.ModId}}}:city {founded:1b} store result storage {{{context.ModId}}}:city houses int 1 run scoreboard players get #houses lc_buildings
             execute if data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"House registered for the current city."}]
             """;
 
@@ -1347,6 +1353,11 @@ namespace LocalGPT.Services
                 if ($content -match "\bdata\s+remove\s+storage\b") {
                     $relativePath = Get-LocalRelativePath -BasePath $root -Path $file.FullName
                     throw "Function $relativePath uses 'data remove storage'. Use 'data modify storage <id> set value ...' for root storage reset."
+                }
+
+                if ($content -match "\bstore\s+result\s+storage\s+[a-z0-9_.-]+:[a-z0-9_/-]+\.[a-z0-9_.-]+\s+(byte|short|int|long|float|double)\b") {
+                    $relativePath = Get-LocalRelativePath -BasePath $root -Path $file.FullName
+                    throw "Function $relativePath appears to put an NBT path into the storage id. Use 'storage namespace:id path int 1', for example 'storage living_cities:city year int 1'."
                 }
 
                 foreach ($match in $referencePattern.Matches($content)) {

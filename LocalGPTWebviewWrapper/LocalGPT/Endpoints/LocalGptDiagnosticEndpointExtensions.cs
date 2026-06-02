@@ -568,9 +568,9 @@ namespace LocalGPT.Endpoints
                 var request = new MultiModelCouncilRequest
                 {
                     Prompt = isDatapack
-                        ? "implementation-request smoke: generate a downloadable Minecraft Java 1.21.4 vanilla datapack zip named Benchmark Borough. The zip root must contain pack.mcmeta and data/ directly. Include load/tick tags, singular function folders, storage/scoreboard setup, city/register_banner, and validation notes."
+                        ? "implementation-request smoke: generate a downloadable Minecraft Java 26.1 vanilla datapack zip named Benchmark Borough. The zip root must contain pack.mcmeta and data/ directly. Include load/tick tags, singular function folders, storage/scoreboard setup, city/register_banner, and validation notes."
                         : isLoaderMatrix
-                        ? "implementation-request smoke: generate a downloadable Minecraft Java project skeleton distinction zip with separate Fabric, Paper, and NeoForge workspaces for Minecraft 1.21.4. Each loader must use its own metadata and Gradle conventions."
+                        ? "implementation-request smoke: generate a downloadable Minecraft Java project skeleton distinction zip with separate Fabric, Paper, and NeoForge workspaces for Minecraft 26.1. Each loader must use its own metadata and Gradle conventions."
                         : isAiHostLab
                         ? "implementation-request smoke: generate a whole local AI host .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Include a left navigation shell, model catalog, chat, downloads, running models, API console, settings, logs, and selected provider-compatible API routes such as /api/version, /api/tags, /api/ps, /api/chat, and a safe non-inference /api/generate stub. Do not use Go and do not claim native GGML/GPU inference is implemented."
                         : isSolution
@@ -589,7 +589,7 @@ namespace LocalGPT.Endpoints
                     Prompt = request.Prompt,
                     ModelNames = ["artifact-smoke"],
                     FinalAnswer = isDatapack
-                        ? "Create a validated downloadable Benchmark Borough datapack. It must use Minecraft 1.21.4 pack_format 61, singular function folders, no wrapper zip folder, no .mcfunction.txt placeholders, and a visible register_banner debug line."
+                        ? "Create a validated downloadable Benchmark Borough datapack. It must use Minecraft 26.1 pack_format 101.1, singular function folders, no wrapper zip folder, no .mcfunction.txt placeholders, and a visible register_banner debug line."
                         : isLoaderMatrix
                         ? "Create a loader matrix artifact with distinct Fabric, Paper, and NeoForge skeletons. Do not reuse Fabric metadata for Paper or NeoForge."
                         : isAiHostLab
