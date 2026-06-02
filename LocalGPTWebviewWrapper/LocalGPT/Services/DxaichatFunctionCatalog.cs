@@ -55,6 +55,13 @@ public static class DxaichatFunctionCatalog
             "No parameters.",
             "Read-only. Use this before generating Razor pages or blaming missing DevExpress/.NET context."),
         new(
+            "localgpt.dotnet_sample_curriculum",
+            "GET",
+            "/__diag/dotnet-sample-curriculum",
+            "Return official Microsoft/dotnet sample and Learn curriculum guidance for C#, .NET, ASP.NET Core, Blazor, EF, DevOps, architecture, and technician troubleshooting.",
+            "No parameters.",
+            "Read-only. Use this before generating whole .NET solutions, training plans, backend services, or CI/release advice."),
+        new(
             "council.artifact_smoke",
             "GET",
             "/__diag/council/artifact-smoke?target=blazor",

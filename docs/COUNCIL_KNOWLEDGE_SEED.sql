@@ -378,4 +378,52 @@ VALUES
   1,
   1,
   0
+),
+(
+  '54b06025-8c24-454e-a13e-c34ec49a6ab7',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Microsoft dotnet/samples map for code generation',
+  '.NET Samples',
+  'Treat dotnet/samples as official sample code referenced by .NET documentation. Use its focused sample families as evidence for project/API shape: csharp for language features, async/async-and-await for task/cancellation patterns, core for SDK-style .NET structure, standard/data/sqlite for SQLite basics, github-actions/DotNet.GitHubAction for CI/action shape, msbuild for project customization, and azure/orleans/machine-learning/iot/windowsforms/wpf/framework only when the generated archetype really needs that platform. ' ||
+  'Do not copy sample snippets blindly into LocalGPT; combine focused sample evidence with Microsoft Learn architecture and the LocalGPT archetype contract.',
+  'Official dotnet GitHub source',
+  'dotnet/samples: https://github.com/dotnet/samples; local doc: docs/MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md',
+  'seed; microsoft; dotnet; samples; csharp; async; sqlite; msbuild; github-actions; generation',
+  96,
+  1,
+  1,
+  0
+),
+(
+  '4906f9a5-802b-4f85-a52b-f8b56a39d5e1',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Microsoft Learn .NET developer and technician curriculum',
+  '.NET Curriculum',
+  'Use Microsoft Learn as the learning baseline for good .NET developers and technicians: .NET fundamentals, C# syntax/thinking, Blazor web apps, ASP.NET Core services and APIs, EF Core data access, desktop/mobile when needed, cloud-native/microservices when there are real boundaries, generative AI with .NET for model/tool workflows, and DevOps/testing/deployment for build honesty. ' ||
+  'For technician support, teach SDK/runtime/workload verification, NuGet restore, dotnet restore/build/test/publish, static web asset checks, logs, launch profiles, ports, environment variables, WebView2 separation, CI/CD, and release artifact evidence.',
+  'Microsoft Learn source-backed seed',
+  'Microsoft Learn .NET: https://learn.microsoft.com/en-ca/training/dotnet/; C# path: https://learn.microsoft.com/en-us/training/paths/get-started-c-sharp-part-1/; Blazor path: https://learn.microsoft.com/en-us/training/paths/build-web-apps-with-blazor/; ASP.NET Core fundamentals: https://learn.microsoft.com/en-us/training/paths/aspnet-core-fundamentals/; Web API module: https://learn.microsoft.com/en-us/training/modules/build-web-api-aspnet-core/; EF Core for Beginners: https://learn.microsoft.com/en-us/shows/entity-framework-core-for-beginners/; .NET DevOps docs: https://learn.microsoft.com/en-us/dotnet/navigate/devops-testing/; GitHub Actions and .NET: https://learn.microsoft.com/en-us/dotnet/devops/github-actions-overview',
+  'seed; microsoft-learn; dotnet; csharp; blazor; aspnetcore; efcore; devops; technician',
+  96,
+  1,
+  1,
+  0
+),
+(
+  '9d4654b4-0d6d-424a-9285-cfe307bb83d4',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Microsoft architecture and Aspire generation boundaries',
+  '.NET Architecture',
+  'Use Microsoft architecture guidance to select the smallest honest shape: cohesive ASP.NET Core/Blazor app by default, service boundaries only for independent deployment, scaling, integration, background work, downloads, or external runners. Use .NET Aspire concepts for distributed/cloud-native prototypes that need orchestration, service discovery, health, telemetry, resiliency, or local multi-service coordination. ' ||
+  'Do not add Aspire, Orleans, microservices, Azure, Docker, or CI complexity to a LocalGPT feature unless the archetype contract explains the real boundary.',
+  'Microsoft Learn source-backed seed',
+  'Architecture overview: https://learn.microsoft.com/en-us/dotnet/architecture/; .NET Aspire quickstart: https://learn.microsoft.com/en-us/training/modules/create-aspire-applications/; ASP.NET Core docs: https://learn.microsoft.com/en-us/aspnet/core/',
+  'seed; microsoft; architecture; aspire; cloud-native; service-boundaries; localgpt',
+  95,
+  1,
+  1,
+  0
 );

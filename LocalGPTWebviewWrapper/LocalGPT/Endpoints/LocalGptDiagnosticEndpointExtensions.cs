@@ -370,57 +370,36 @@ namespace LocalGPT.Endpoints
 
             app.MapGet("/__diag/blazor-devexpress-guidance", async (IWebHostEnvironment env, CancellationToken ct) =>
             {
-                var relativePaths = new[]
-                {
-                    Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
-                    Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md")
-                };
+                return await ReadGuidanceDocsAsync(
+                    env,
+                    [
+                        Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
+                        Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md")
+                    ],
+                    """
+                    Generate real .razor files for Blazor UI requests. Use @page, @rendermode InteractiveServer,
+                    @code, dependency injection, Bootstrap v5 layout utilities, and known DevExpress Blazor controls.
+                    Generate line and solid SVG navigation icon variants when nav icons are requested. Check
+                    /__diag/devexpress for package inventory and mark unknown APIs as Needs verification.
+                    """,
+                    ct);
+            });
 
-                var foundFiles = new List<object>();
-                var briefing = new StringBuilder();
-
-                foreach (var relativePath in relativePaths)
-                {
-                    var candidatePaths = new[]
-                    {
-                        Path.Combine(AppContext.BaseDirectory, relativePath),
-                        Path.Combine(env.ContentRootPath, relativePath),
-                        Path.Combine(Directory.GetCurrentDirectory(), relativePath)
-                    }.Distinct(StringComparer.OrdinalIgnoreCase);
-
-                    var path = candidatePaths.FirstOrDefault(File.Exists);
-                    if (path is null)
-                        continue;
-
-                    var text = await File.ReadAllTextAsync(path, ct);
-                    foundFiles.Add(new
-                    {
-                        RelativePath = relativePath.Replace('\\', '/'),
-                        SourcePath = path,
-                    });
-
-                    briefing
-                        .Append("# ")
-                        .AppendLine(Path.GetFileName(relativePath))
-                        .AppendLine()
-                        .AppendLine(text.Trim())
-                        .AppendLine();
-                }
-
-                if (foundFiles.Count > 0)
-                    return Results.Ok(new
-                    {
-                        GuidanceFiles = foundFiles,
-                        Briefing = briefing.ToString().Trim(),
-                        CreatedAt = DateTimeOffset.UtcNow
-                    });
-
-                return Results.Ok(new
-                {
-                    GuidanceFiles = Array.Empty<object>(),
-                    Briefing = "Generate real .razor files for Blazor UI requests. Use @page, @rendermode InteractiveServer, @code, dependency injection, Bootstrap v5 layout utilities, and known DevExpress Blazor controls. Generate line and solid SVG navigation icon variants when nav icons are requested. Check /__diag/devexpress for package inventory and mark unknown APIs as Needs verification.",
-                    CreatedAt = DateTimeOffset.UtcNow
-                });
+            app.MapGet("/__diag/dotnet-sample-curriculum", async (IWebHostEnvironment env, CancellationToken ct) =>
+            {
+                return await ReadGuidanceDocsAsync(
+                    env,
+                    [
+                        Path.Combine("docs", "MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md"),
+                        Path.Combine("docs", "GENERATION_ARCHETYPE_CONTRACTS.md")
+                    ],
+                    """
+                    Use official Microsoft/dotnet samples and Microsoft Learn training as the baseline for .NET
+                    generation. Prefer focused samples, real .NET project structure, C# fundamentals, ASP.NET Core
+                    services, Blazor pages, EF/SQLite persistence, CI/build/test/publish evidence, and explicit
+                    architecture boundaries. Mark unknown package or template details as Needs verification.
+                    """,
+                    ct);
             });
 
             app.MapGet("/__diag/council/artifact-smoke", async (
@@ -480,6 +459,53 @@ namespace LocalGPT.Endpoints
             });
 
             return app;
+        }
+
+        private static async Task<IResult> ReadGuidanceDocsAsync(
+            IWebHostEnvironment env,
+            IReadOnlyList<string> relativePaths,
+            string fallbackBriefing,
+            CancellationToken cancellationToken)
+        {
+            var foundFiles = new List<object>();
+            var briefing = new StringBuilder();
+
+            foreach (var relativePath in relativePaths)
+            {
+                var candidatePaths = new[]
+                {
+                    Path.Combine(AppContext.BaseDirectory, relativePath),
+                    Path.Combine(env.ContentRootPath, relativePath),
+                    Path.Combine(Directory.GetCurrentDirectory(), relativePath)
+                }.Distinct(StringComparer.OrdinalIgnoreCase);
+
+                var path = candidatePaths.FirstOrDefault(File.Exists);
+                if (path is null)
+                    continue;
+
+                var text = await File.ReadAllTextAsync(path, cancellationToken);
+                foundFiles.Add(new
+                {
+                    RelativePath = relativePath.Replace('\\', '/'),
+                    SourcePath = path
+                });
+
+                briefing
+                    .Append("# ")
+                    .AppendLine(Path.GetFileName(relativePath))
+                    .AppendLine()
+                    .AppendLine(text.Trim())
+                    .AppendLine();
+            }
+
+            return Results.Ok(new
+            {
+                GuidanceFiles = foundFiles,
+                Briefing = foundFiles.Count > 0
+                    ? briefing.ToString().Trim()
+                    : fallbackBriefing.Trim(),
+                CreatedAt = DateTimeOffset.UtcNow
+            });
         }
 
         private static string ExtractModelThinking(string content)

@@ -49,6 +49,7 @@
 		<Content Include="..\..\docs\LOCALGPT_WORKFLOW_MEMORY.md" Link="docs\LOCALGPT_WORKFLOW_MEMORY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" Link="docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md" Link="docs\BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md" Link="docs\MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\GENERATION_ARCHETYPE_CONTRACTS.md" Link="docs\GENERATION_ARCHETYPE_CONTRACTS.md" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 

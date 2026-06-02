@@ -4,7 +4,9 @@ Use this compact guide when LocalGPT or the AI Council generates .NET 10 Blazor 
 
 For layout, Bootstrap v5 utility usage, DevExpress template starting points, and
 navigation SVG icon style contracts, also read
-`docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md`.
+`docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md`. For official Microsoft/dotnet
+sample grounding and Learn curriculum, also read
+`docs/MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md`.
 
 ## Core Rule
 
@@ -82,6 +84,6 @@ Generated features must not integrate themselves into the real project. Ask the 
 If the council needs current .NET, DevExpress, GitHub, or package information and LocalGPT diagnostics do not provide it:
 
 - Ask for or request the specific source.
-- Use `/__diag/devexpress`, `/__diag/dxaichat-functions`, `/__diag/build-debug-files`, and SQLite knowledge before large context dumps.
+- Use `/__diag/devexpress`, `/__diag/dotnet-sample-curriculum`, `/__diag/dxaichat-functions`, `/__diag/build-debug-files`, and SQLite knowledge before large context dumps.
 - Put unknown claims under `Needs verification`.
 - Do not invent DevExpress APIs or blame the user for missing context.

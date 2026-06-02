@@ -67,6 +67,10 @@ ASP.NET Core/Blazor server backend services and expose safe download endpoints.
 The frontend should call backend services and display status/download links.
 Do not invent DevExpress APIs beyond the referenced package/version family;
 mark uncertain APIs as `Needs verification`.
+Use `GET /__diag/dotnet-sample-curriculum` before whole-solution generation,
+backend service generation, CI/release advice, or .NET technician help. It
+summarizes official `dotnet/samples`, Microsoft Learn paths, ASP.NET Core,
+Blazor, EF Core, DevOps/testing/deployment, and architecture/Aspire boundaries.
 
 ## AI configuration model
 
