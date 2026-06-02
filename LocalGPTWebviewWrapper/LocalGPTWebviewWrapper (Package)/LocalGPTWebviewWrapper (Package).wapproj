@@ -117,6 +117,69 @@
           SkipUnchangedFiles="true"
           Condition="'$(LayoutDir)' != ''" />
   </Target>
+  <Target Name="PublishLocalGptWebAssetsForPackaging"
+          BeforeTargets="_ConvertItems">
+    <PropertyGroup>
+      <LocalGptWebPublishDir>..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\</LocalGptWebPublishDir>
+    </PropertyGroup>
+    <MSBuild Projects="..\LocalGPT\LocalGPT.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);RuntimeIdentifier=win-$(Platform);SelfContained=false;UseSharedCompilation=false"
+             BuildInParallel="false" />
+    <ItemGroup>
+      <Content Remove="..\LocalGPT\wwwroot\**\*" />
+      <Content Remove="..\LocalGPT\bin\$(Configuration)\net10.0\LocalGPT.staticwebassets.runtime.json" />
+      <Content Remove="..\LocalGPT\bin\$(Configuration)\net10.0\*.styles.css" />
+      <_PublishedLocalGptWebRoot Include="$(LocalGptWebPublishDir)wwwroot\**\*.*" />
+      <_PublishedLocalGptRootAsset Include="$(LocalGptWebPublishDir)LocalGPT.staticwebassets.*.json" />
+      <_PublishedLocalGptRootAsset Include="$(LocalGptWebPublishDir)LocalGPT.deps.json" />
+      <Content Include="@(_PublishedLocalGptWebRoot)">
+        <Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      </Content>
+      <Content Include="@(_PublishedLocalGptRootAsset)">
+        <Link>LocalGPTWebviewWrapper\%(Filename)%(Extension)</Link>
+      </Content>
+    </ItemGroup>
+  </Target>
+  <Target Name="AddPublishedLocalGptWebAssetsToPackagePayload"
+          BeforeTargets="_WritePayloadFiles">
+    <PropertyGroup>
+      <LocalGptWebPublishDir>..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\</LocalGptWebPublishDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_PublishedLocalGptPayloadWebRoot Include="$(LocalGptWebPublishDir)wwwroot\**\*.*" />
+      <_PublishedLocalGptPayloadRootAsset Include="$(LocalGptWebPublishDir)LocalGPT.staticwebassets.*.json" />
+      <_PublishedLocalGptPayloadRootAsset Include="$(LocalGptWebPublishDir)LocalGPT.deps.json" />
+      <AppxPackagePayload Include="@(_PublishedLocalGptPayloadWebRoot)">
+        <TargetPath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      </AppxPackagePayload>
+      <AppxPackagePayload Include="@(_PublishedLocalGptPayloadRootAsset)">
+        <TargetPath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</TargetPath>
+      </AppxPackagePayload>
+    </ItemGroup>
+  </Target>
+  <Target Name="OverlayLocalGptWebPublishOutput"
+          BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage"
+          Condition="Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\LocalGPT.dll')">
+    <ItemGroup>
+      <_PublishedLocalGptFile Include="..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PublishedLocalGptFile)"
+          DestinationFiles="@(_PublishedLocalGptFile->'$(OutputPath)LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_PublishedLocalGptFile)"
+          DestinationFiles="@(_PublishedLocalGptFile->'$(LayoutDir)\LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'$(LayoutDir)' != ''" />
+    <Copy SourceFiles="@(_PublishedLocalGptFile)"
+          DestinationFiles="@(_PublishedLocalGptFile->'$(AppxLayoutDir)\LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'$(AppxLayoutDir)' != ''" />
+    <Copy SourceFiles="@(_PublishedLocalGptFile)"
+          DestinationFiles="@(_PublishedLocalGptFile->'$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'$(AppxPackageLayoutDir)' != ''" />
+  </Target>
   <Target Name="CopyLocalGptStaticWebAssetsManifest"
           BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage">
     <ItemGroup>

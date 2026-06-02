@@ -3,6 +3,7 @@ param(
     [string]$FriendlyName = "LocalGPT Local Dev Package Signing",
     [string]$PfxFileName = "LocalGPTWebviewWrapper.LocalDevKey.pfx",
     [switch]$ExportPfx,
+    [switch]$TrustLocalMachine,
     [switch]$RemoveOldPushedCertificate
 )
 
@@ -43,6 +44,18 @@ if ($ExportPfx) {
 Export-Certificate -Cert $cert -FilePath $cerPath -Force | Out-Null
 Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\CurrentUser\TrustedPeople" | Out-Null
 Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\CurrentUser\Root" | Out-Null
+
+if ($TrustLocalMachine) {
+    try {
+        Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\LocalMachine\TrustedPeople" | Out-Null
+        Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\LocalMachine\Root" | Out-Null
+    }
+    catch {
+        Write-Warning "Machine certificate trust requires an elevated PowerShell session."
+        throw
+    }
+}
+
 Remove-Item -LiteralPath $cerPath -Force
 
 $props = @"
@@ -62,6 +75,9 @@ Write-Host "Created local package certificate:"
 Write-Host "  Thumbprint: $($cert.Thumbprint)"
 Write-Host "  MSBuild:    $localPropsPath"
 Write-Host "  Trusted:    CurrentUser\TrustedPeople and CurrentUser\Root"
+if ($TrustLocalMachine) {
+    Write-Host "  Trusted:    LocalMachine\TrustedPeople and LocalMachine\Root"
+}
 if ($ExportPfx) {
     Write-Host "  PFX:        $pfxPath"
 }

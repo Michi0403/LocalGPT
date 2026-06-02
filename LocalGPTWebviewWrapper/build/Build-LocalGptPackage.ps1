@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $solutionPath = Join-Path $repoRoot "LocalGPTWebviewWrapper.sln"
+$localGptProjectPath = Join-Path $repoRoot "LocalGPT\LocalGPT.csproj"
 
 $msbuildCandidates = @(
     "$env:ProgramFiles\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe",
@@ -37,6 +38,13 @@ $runtimeIdentifier = switch ($Platform) {
     "x64" { "win-x64" }
     "arm64" { "win-arm64" }
 }
+
+dotnet publish $localGptProjectPath `
+    -c $Configuration `
+    -r $runtimeIdentifier `
+    --self-contained false `
+    "-p:Platform=$Platform" `
+    -p:UseSharedCompilation=false
 
 & $msbuild $solutionPath `
     /t:Restore `
