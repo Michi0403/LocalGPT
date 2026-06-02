@@ -525,6 +525,23 @@ namespace LocalGPT.Endpoints
                     ct);
             });
 
+            app.MapGet("/__diag/capability-gap-contract", async (IWebHostEnvironment env, CancellationToken ct) =>
+            {
+                return await ReadGuidanceDocsAsync(
+                    env,
+                    [
+                        Path.Combine("docs", "CAPABILITY_GAP_CONTRACT.md"),
+                        Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md")
+                    ],
+                    """
+                    If LocalGPT, DXAiChat, or the AI Council lacks a function, source, version map, or domain
+                    knowledge needed for a user request, emit a structured capability gap instead of refusing.
+                    Classify requested language/framework/version/domain knowledge, local sources, external
+                    official sources, missing LocalGPT functions, safe workflow, and downloadable artifact plan.
+                    """,
+                    ct);
+            });
+
             app.MapPost("/__diag/learn-base/import", async (
                 [FromBody] LearnBaseImportRequest request,
                 ILearnBaseKnowledgeImporterService importer,

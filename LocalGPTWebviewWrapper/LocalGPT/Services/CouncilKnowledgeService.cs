@@ -326,7 +326,13 @@ namespace LocalGPT.Services
                         "Paper is the server-side plugin path for users who do not want a modded client; include plugin.yml and use Paper's plugin project setup guidance. " +
                         "Use Gradle Java toolchains or explicit IDE Gradle JVM settings to avoid inconsistent JDK behavior. Java syntax should be grounded in the Java Language Specification/JDK docs; " +
                         "Microsoft OpenJDK is a supported JDK distribution, not a separate Java syntax.",
-                    HelpfulSources = "- Forge getting started: https://docs.minecraftforge.net/en/latest/gettingstarted/\n- NeoForge getting started: https://docs.neoforged.net/docs/gettingstarted/\n- Fabric building a mod: https://docs.fabricmc.net/develop/getting-started/building-a-mod\n- Paper getting started: https://docs.papermc.io/paper/dev/getting-started/\n- Gradle JVM toolchains: https://docs.gradle.org/current/userguide/toolchains.html\n- Oracle JDK 25 documentation for current Minecraft Java 26.x: https://docs.oracle.com/en/java/javase/25/\n- Oracle JDK 21 documentation for 1.21.x legacy targets: https://docs.oracle.com/en/java/javase/21/",
+                    HelpfulSources = "- Forge getting started: https://docs.minecraftforge.net/en/latest/gettingstarted/\n" +
+                        "- NeoForge getting started: https://docs.neoforged.net/docs/gettingstarted/\n" +
+                        "- Fabric building a mod: https://docs.fabricmc.net/develop/getting-started/building-a-mod\n" +
+                        "- Paper getting started: https://docs.papermc.io/paper/dev/getting-started/\n" +
+                        "- Gradle JVM toolchains: https://docs.gradle.org/current/userguide/toolchains.html\n" +
+                        "- Oracle JDK 25 documentation for current Minecraft Java 26.x: https://docs.oracle.com/en/java/javase/25/\n" +
+                        "- Oracle JDK 21 documentation for 1.21.x legacy targets: https://docs.oracle.com/en/java/javase/21/",
                     Tags = "seed; minecraft; forge; fabric; neoforge; paper; gradle; java; sources",
                     Confidence = 92,
                     IsUserApproved = true,
@@ -497,6 +503,25 @@ namespace LocalGPT.Services
                     HelpfulSources = "- Local service: MultiModelCouncilService poll/artifact gate.\n- Local service: CouncilArtifactService artifact generators and /__artifacts/council route.\n- Local route: /__diag/dxaichat-functions for available function catalog.",
                     Tags = "seed; dxaichat; council; artifacts; generation; confidence; downloads; polls",
                     Confidence = 95,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("0f5b9966-fcc6-4c3f-a86b-e80bfb3af3f0"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Capability gap reports for faster artifact generation",
+                    Scope = "DXAiChat / AI Council / LocalGPT improvement loop",
+                    Source = seedSource,
+                    Content = "If Michi0403 says LocalGPT, DXAiChat, the AI Council, or a model lacks a capability, refuses too quickly, misses source knowledge, or generates the wrong artifact shape, treat that as approved product feedback and investigate. " +
+                        "Do not stop at a vague apology or refusal. Produce the safest useful downloadable milestone when the user already gave concrete scope, then add a structured Capability gap report and <localgpt-capability-gap> block. " +
+                        "The gap must classify requested languages, frameworks, versions, domain knowledge, local knowledge sources, external official sources, missing LocalGPT functions/routes/pages/services, safe workflow, artifact plan, and next LocalGPT improvement. " +
+                        "Local sources should be tried first: DXAiFunctions, SQLite knowledge/logs/memory, local docs, learn-base imports, generated artifacts, build logs, and Test Lab/WebView2 evidence. External sources should be official docs, official GitHub repos, package/version docs, version manifests, or user-approved source imports. " +
+                        "For AI-host generation requests, the expected result is a provider-neutral .NET/ASP.NET Core/DevExpress Blazor control-plane solution with recognisable navigation, model catalog, chat/API console, settings, logs, downloads, provider-compatible routes, SQLite/appsettings state, and honest native-inference boundaries.",
+                    HelpfulSources = "- Local doc: docs/CAPABILITY_GAP_CONTRACT.md.\n- Local route: GET /__diag/capability-gap-contract.\n- Local routes: /__diag/dxaichat-functions, /__diag/knowledge, /__diag/logs, /__diag/learn-base/import, /__diag/ai-host-rebuild-guidance, /__diag/council/artifact-smoke?target=ai-host.\n- User-tested expectations from prior DXAiChat prompts: faster downloadable .cs/.razor/.dll/solution/datapack artifacts, non-generic AI-host control-plane shape, and no refusal when a buildable milestone is possible.",
+                    Tags = "seed; capability-gap; source-request; ai-host; artifacts; dxaichat; council; user-approved",
+                    Confidence = 96,
                     IsUserApproved = true,
                     IsPinned = true
                 },

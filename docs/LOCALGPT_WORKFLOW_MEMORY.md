@@ -154,7 +154,9 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - Missing-feature reports under `%LOCALAPPDATA%\LocalGPT\AIReports\` now include helpful source requests. AI participants should ask for official docs, examples, specs, package references, or sample repositories when needed, without pretending those sources were verified.
 - The `/database` page is the live database editor. It has a friendly Council Knowledge panel plus a generic SQLite table preview/editor. Primary-key columns are displayed but protected in the generic form; edits are still applied to the live local database.
 - Do not treat raw model output as verified facts. The council should mark uncertain claims as `Needs verification`.
-- Some models, especially reasoning models, may return thinking-only output when the token budget is too small. LocalGPT separates thinking from visible text and must close the model-thinking `<details><pre>` block before it surfaces the "no final answer" notice; otherwise the fallback looks like more hidden/thinking text instead of a stopped visible answer.
+- Some models, especially reasoning models, may return thinking-only output when the token budget is too small.
+  LocalGPT separates thinking from visible text and must close the model-thinking `<details><pre>` block before it surfaces the "no final answer" notice.
+  Otherwise the fallback looks like more hidden/thinking text instead of a stopped visible answer.
 - Keep the council database-first: use pinned `CouncilKnowledgeEntries`, selected saved conversations, and route outputs as concise grounding. Avoid huge prompt blobs unless a model explicitly needs one targeted excerpt.
 - Official DevExpress/Microsoft source knowledge is backed by `docs/COUNCIL_KNOWLEDGE_SEED.sql`. LocalGPT imports this file with `INSERT OR IGNORE`, so it restores missing source-backed rows into SQLite without overwriting user edits or approval flags.
 - Knowledge trust is explicit. Use `VerificationStatus` (`SourceBacked`, `UserVerified`, `ModelSuggested`, `NeedsVerification`, `Archived`) together with confidence and approval flags. Current user decisions and runtime diagnostics outrank workflow memory and model suggestions.
@@ -162,11 +164,20 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   The ledger includes `CommandProfile` values such as `GradleBuildOnly`, `GradleRunClient`, `JavaVersionOnly`, `PowerShellWorkspaceScript`, and `CustomAllowlistedCommand`.
 - Formatting hardening is not about editor soft-wrap. Audit raw newline characters and physical line length. `build/Assert-SourceFormatting.ps1` checks tracked `.cs`, `.razor`, `.md`, `.ps1`, and `.json` files for physical lines over 600 characters and verifies key files such as `Program.cs`, `NativeCommandRunner.cs`, `AiContextBootstrapService.cs`, and `README.md` cannot collapse back into tiny raw-line counts. `.github/workflows/source-hygiene.yml` runs this guard on push and pull request.
 - Whole-solution artifact generation is a first-class council test path. Use `/__diag/council/artifact-smoke?target=solution` to create a downloadable .NET 10 Blazor/DevExpress solution zip with `.sln`, `.csproj`, `.razor`, CSS, service/model code, README, and manifest, without loading Ollama.
-- Minecraft datapack generation through DXAiChat/council artifacts is also a first-class test path. Use `/__diag/council/artifact-smoke?target=datapack` to create a downloadable zip via `/__artifacts/council/`. The current default target is Minecraft Java 26.1 with Java 25 and datapack pack format `101.1`; 26.2 snapshot uses `105.0`. The zip root must contain `pack.mcmeta` and `data/` directly. For Minecraft 1.21+ and 26.x use singular `data/<namespace>/function` and `data/minecraft/tags/function`; reject wrapper folders, `.mcfunction.txt`, invalid JSON tags, broken function references, leading slash commands, root `data remove storage` reset syntax, and malformed `execute store result storage namespace:id.path int 1` syntax.
+- Minecraft datapack generation through DXAiChat/council artifacts is also a first-class test path.
+  Use `/__diag/council/artifact-smoke?target=datapack` to create a downloadable zip via `/__artifacts/council/`.
+  The current default target is Minecraft Java 26.1 with Java 25 and datapack pack format `101.1`;
+  26.2 snapshot uses `105.0`. The zip root must contain `pack.mcmeta` and `data/` directly.
+  For Minecraft 1.21+ and 26.x use singular `data/<namespace>/function` and `data/minecraft/tags/function`;
+  reject wrapper folders, `.mcfunction.txt`, invalid JSON tags, broken function references, leading slash commands,
+  root `data remove storage` reset syntax, and malformed `execute store result storage namespace:id.path int 1` syntax.
 - Living Cities is a useful named datapack benchmark, not a hidden default for all datapack requests. Use `/__diag/minecraft/datapack-benchmark` for that comparison path; use DXAiChat/council artifact requests for prompt-driven datapacks.
 - DXAiChat now has a visible upload-context panel for text-like files and zip files. Decode uploads into a bounded Markdown context message before asking for code review, datapacks, or solution generation; do not dump huge zip contents directly into a model prompt.
 - When generating a provider-compatible local AI host, produce an easy-testable ASP.NET Core + DevExpress Blazor control-plane milestone with `/api/version`, `/api/tags`, `/api/ps`, `/api/chat`, `/api/generate`, model catalog, downloads, settings, logs, SQLite state, and provider-adapter interfaces. A real native tensor backend is optional and must be stated honestly.
-- The selected local learn-base importer lives at `/__diag/learn-base/import`. It stores compact architecture fingerprints from `C:\tmpselectedcodexlearnbaseforlocalgpt` into CouncilKnowledgeEntries, focusing on functionality, architecture, protocols, host wiring, libraries, Python.NET interop, DevExpress Web API/security, bot/microservice patterns, and solution topology rather than names.
+- The selected local learn-base importer lives at `/__diag/learn-base/import`. It stores compact architecture
+  fingerprints from `C:\tmpselectedcodexlearnbaseforlocalgpt` into CouncilKnowledgeEntries, focusing on
+  functionality, architecture, protocols, host wiring, libraries, Python.NET interop, DevExpress Web API/security,
+  bot/microservice patterns, and solution topology rather than names.
 - Use `/__diag/benchmark/engineering` for the five-task personal engineering benchmark. LocalGPT artifact lanes can be tested without GPU; raw Ollama and cloud lanes must remain `NotRun` until real transcripts are supplied.
 - DevExpress/Bootstrap design generation has a dedicated guide in `docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md`. Use Bootstrap v5 for containers, grids, responsive gutters, spacing, and flex utility layout. Use DevExpress controls for grids, forms, navigation, toolbars, dialogs, upload, charts, reports, AI chat, and other real app interactions. Generated navigation should include two SVG styles per concept: line icons for the default state and solid icons for hover/active states.
 - Official Microsoft sample/curriculum generation has a dedicated guide in `docs/MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md`. Use `dotnet/samples` as focused sample evidence and Microsoft Learn as the developer/technician curriculum baseline before asking the council to generate .NET solutions, services, Blazor pages, EF data access, CI workflows, or release guidance.
@@ -188,6 +199,17 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - `/test-lab` is the preferred in-app frontend/API smoke helper. Use it for `/health`, `/__diag`, DXAiFunction catalog, Minecraft datapack version checks, deterministic council artifact zips, AI host solution zips, datapack benchmarks, and learn-base imports. It renders JSON and extracts `/__artifacts/...` download links so source, DLL, solution, and datapack artifacts are verified like a user would download them.
 - WebView2 automation should follow Microsoft Edge WebDriver guidance. Launch mode uses Selenium `EdgeOptions.UseWebView = true` plus `BinaryLocation`; attach mode starts the app with a WebView2 remote debugging port and uses `EdgeOptions.DebuggerAddress`. Use this for real wrapper automation after the Test Lab and backend routes pass.
 - Python browser automation examples such as `C:\tmpselectedcodexlearnbaseforlocalgpt\AutomatedDiscordLogin-master` should be imported as compact architecture fingerprints through `/__diag/learn-base/import`. A future Python.NET workbench must be permission-gated, logged, confined to safe working directories, and user-visible before it executes generated or external scripts.
+- Capability gap reports are now the standard improvement loop. If a model lacks a function, refuses a concrete
+  generation request, misses framework/version knowledge, or the user says LocalGPT needs improvement in a field,
+  the model should still generate the safest downloadable milestone when scope is concrete and append a
+  `<localgpt-capability-gap>` block. Include requested languages, frameworks, versions, domain knowledge,
+  local sources, external official sources, missing LocalGPT functions, safe workflow, artifact plan, and next
+  LocalGPT improvement. LocalGPT saves those blocks as unapproved SQLite knowledge and report files.
+- For AI-host generation, the user's expected shape is not a generic sample dashboard.
+  Generate a provider-neutral .NET/ASP.NET Core/DevExpress Blazor control-plane solution with left navigation,
+  model catalog, chat/API console, settings, logs, downloads, provider-compatible routes, SQLite/appsettings state,
+  and honest native-inference boundaries.
+  If knowledge is missing, report the gap and sources, then produce a buildable milestone zip when possible.
 
 ## Collaboration Notes
 

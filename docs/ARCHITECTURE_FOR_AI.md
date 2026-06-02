@@ -193,6 +193,16 @@ AI bootstrap includes a short warning/error briefing. Treat it as a health signa
 
 When AI output identifies a missing LocalGPT capability, LocalGPT writes a report under `%LOCALAPPDATA%\LocalGPT\AIReports\`. Reports should include a `Helpful sources requested` section when the model would benefit from official docs, examples, versioned package references, specs, tutorials, or sample repositories. Source requests are not verification; models must say `Needs verification` until those sources are actually supplied or inspected.
 
+Capability gaps are stronger than ordinary missing-feature notes. When the user says a model refused,
+lacked knowledge, missed a framework/version, produced the wrong artifact shape, or needs better functions,
+treat that as approved product feedback. Emit a `Capability gap report` and a `<localgpt-capability-gap>`
+block that names requested languages, frameworks, versions, domain knowledge, local sources, external sources,
+missing LocalGPT functions, safe workflow, and artifact plan.
+LocalGPT stores these blocks as unapproved SQLite knowledge entries and also writes report files,
+so later council runs can improve instead of rediscovering the same gap.
+
+Local sources come first: DXAiFunctions, SQLite knowledge/logs/memory, local docs, learn-base imports, generated artifacts, build logs, Test Lab output, and WebView2 diagnostics. External sources are separate work: official docs, official GitHub repositories, package/version docs, provider API docs, version manifests, or user-approved source imports. Do not silently download or trust external material.
+
 ## Build debug symbols
 
 LocalGPT exposes a build symbol inventory at `GET /__diag/build-debug-files`. It lists `.pdb`, `.pdg`, and `.appxsym` files from current output paths. Add `copy=true` to copy the current symbols under `%LOCALAPPDATA%\LocalGPT\BuildDebugFiles\` for council diagnostics. These files are not committed to git. Treat them as build/debug evidence only; symbol presence, generated references, or component imports are not proof that source code uses a feature.

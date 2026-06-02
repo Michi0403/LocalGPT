@@ -132,6 +132,13 @@ public static class DxaichatFunctionCatalog
             "No parameters.",
             "Read-only. Use this before claiming DXAiChat, WebView2, or artifact download behavior was tested."),
         new(
+            "localgpt.capability_gap_contract",
+            "GET",
+            "/__diag/capability-gap-contract",
+            "Return the structured contract for reporting missing LocalGPT functions, source knowledge, language/framework/version needs, local/external source requests, and the next downloadable artifact plan.",
+            "No parameters.",
+            "Read-only. Use this whenever the user says the council lacks capability or when a model needs investigation before reliable generation."),
+        new(
             "council.artifact_smoke",
             "GET",
             "/__diag/council/artifact-smoke?target=blazor",

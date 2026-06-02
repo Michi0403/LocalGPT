@@ -753,6 +753,25 @@ INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
 ("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
 VALUES
 (
+  '0f5b9966-fcc6-4c3f-a86b-e80bfb3af3f0',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Capability gap reports for faster artifact generation',
+  'DXAiChat / AI Council / LocalGPT improvement loop',
+  'If Michi0403 says LocalGPT, DXAiChat, the AI Council, or a model lacks a capability, refuses too quickly, misses source knowledge, or generates the wrong artifact shape, treat that as approved product feedback and investigate. Do not stop at a vague apology or refusal. Produce the safest useful downloadable milestone when the user already gave concrete scope, then add a structured Capability gap report and <localgpt-capability-gap> block. The gap must classify requested languages, frameworks, versions, domain knowledge, local knowledge sources, external official sources, missing LocalGPT functions/routes/pages/services, safe workflow, artifact plan, and next LocalGPT improvement. Local sources should be tried first: DXAiFunctions, SQLite knowledge/logs/memory, local docs, learn-base imports, generated artifacts, build logs, and Test Lab/WebView2 evidence. External sources should be official docs, official GitHub repos, package/version docs, version manifests, or user-approved source imports. For AI-host generation requests, the expected result is a provider-neutral .NET/ASP.NET Core/DevExpress Blazor control-plane solution with recognisable navigation, model catalog, chat/API console, settings, logs, downloads, provider-compatible routes, SQLite/appsettings state, and honest native-inference boundaries.',
+  'LocalGPT SQL seed',
+  'Local doc: docs/CAPABILITY_GAP_CONTRACT.md. Local route: GET /__diag/capability-gap-contract. Local routes: /__diag/dxaichat-functions, /__diag/knowledge, /__diag/logs, /__diag/learn-base/import, /__diag/ai-host-rebuild-guidance, /__diag/council/artifact-smoke?target=ai-host. User-tested expectations from prior DXAiChat prompts: faster downloadable .cs/.razor/.dll/solution/datapack artifacts, non-generic AI-host control-plane shape, and no refusal when a buildable milestone is possible.',
+  'seed; capability-gap; source-request; ai-host; artifacts; dxaichat; council; user-approved',
+  96,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
   'bf53476f-8f3c-48db-9519-2b353811f74c',
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),

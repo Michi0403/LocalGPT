@@ -129,3 +129,4 @@ When asked to build or rebuild a local AI host in .NET Blazor DevExpress style:
 - Use the provider-compatible route families and UI workflows above as the baseline.
 - Ask a poll only for missing architecture choices, then stop until the user answers.
 - Do not refuse by claiming the task is too much. Produce a buildable milestone and list staged follow-up work.
+- If the generated result would miss a route family, runtime/provider behavior, DevExpress component pattern, model download workflow, or validation step, add a `Capability gap report` and `<localgpt-capability-gap>` block. Name the missing language/framework/version/domain knowledge, local LocalGPT sources to inspect, external official sources needed, missing LocalGPT functions, and the next downloadable artifact plan.

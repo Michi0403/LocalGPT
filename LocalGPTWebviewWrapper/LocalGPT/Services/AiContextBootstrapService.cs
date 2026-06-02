@@ -25,6 +25,7 @@ namespace LocalGPT.Services
             Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md"),
             Path.Combine("docs", "LOCALGPT_DEVELOPER_DIARY.md"),
             Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md"),
+            Path.Combine("docs", "CAPABILITY_GAP_CONTRACT.md"),
             Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
             Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md"),
             Path.Combine("docs", "MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md"),
@@ -44,6 +45,7 @@ namespace LocalGPT.Services
                 .AppendLine("Runtime decision policy: when code/artifact generation needs unresolved architecture choices, stop before coding and ask a concise user decision poll.")
                 .AppendLine("If the user already named a concrete target such as Minecraft datapack/modpack zip, .cs/.razor/.dll files, whole .NET solution zip, or local AI host control-plane app, treat that as supplied scope and generate a safe downloadable milestone rather than refusing because the task is large.")
                 .AppendLine("Never claim the user failed to answer a poll in the same response that created it. Do not force Blazor, DevExpress, ASP.NET Core, or a split solution unless the user chose it, the target repo requires it, or the requested product shape clearly calls for it.")
+                .AppendLine("Capability gap protocol: if you lack a LocalGPT function, version-specific source, local project evidence, or domain knowledge needed to fulfill the user request, still produce the safest useful downloadable milestone when scope is concrete, then add a Capability gap report and a <localgpt-capability-gap> block. Include requested languages, frameworks, versions, domain knowledge, local sources, external official sources, missing LocalGPT functions, and the next artifact plan.")
                 .AppendLine("When you want to store reusable knowledge, append a <localgpt-knowledge> block with topic:, scope:, confidence:, tags:, helpful-sources:, and content:. LocalGPT stores model-written knowledge as unapproved until Michi0403 marks it user-approved in SQLite.")
                 .AppendLine("Available LocalGPT DXAiFunctions are local diagnostic/tool routes the frontend or user can call when a compact tool result is better than a huge prompt:")
                 .AppendLine(DxaichatFunctionCatalog.BuildPromptBriefing())

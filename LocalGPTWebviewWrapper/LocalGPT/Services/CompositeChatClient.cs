@@ -20,7 +20,8 @@ public class CompositeChatClient : IChatClient
         "If the user explicitly asks for a Minecraft datapack/modpack zip, .cs/.razor/.dll files, a whole .NET solution zip, a local AI host control-plane app, or another concrete downloadable artifact, treat that as supplied scope and generate a safe milestone artifact rather than refusing because the task is large. " +
         "Never claim the user failed to answer a poll inside the same response that created it; a poll pauses the next step until the next user turn unless the prompt already supplied a concrete artifact target. " +
         "Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend unless the user selected it, the existing repository requires it, or the requested target clearly calls for it. " +
-        "If the user already supplied the needed decisions, proceed normally and restate the selected path briefly.";
+        "If the user already supplied the needed decisions, proceed normally and restate the selected path briefly. " +
+        "If LocalGPT lacks a function, source, version map, or domain knowledge needed to fulfill the request, add a \"Capability gap report\" and a <localgpt-capability-gap> block with requested languages, frameworks, versions, domain knowledge, local sources, external official sources, missing LocalGPT functions, safe workflow, and artifact plan.";
     public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
     public string? LockedSessionName { get; set; }
@@ -266,11 +267,71 @@ public class CompositeChatClient : IChatClient
                 IsArchived = false
             };
         }
+
+        foreach (Match match in Regex.Matches(responseText, "<localgpt-capability-gap>(?<body>.*?)</localgpt-capability-gap>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant))
+        {
+            var body = match.Groups["body"].Value.Trim();
+            if (string.IsNullOrWhiteSpace(body))
+                continue;
+
+            var missingCapability = ExtractField(body, "missing-capability", "LocalGPT capability gap request");
+            var owningArea = ExtractField(body, "owning-area", "DXAiChat / AI Council");
+            var localSources = ExtractField(body, "local-knowledge-sources", "None listed.");
+            var externalSources = ExtractField(body, "external-knowledge-sources", "None listed.");
+
+            yield return new CouncilKnowledgeEntry
+            {
+                Topic = missingCapability,
+                Scope = owningArea,
+                Source = $"AI capability gap request: {source}",
+                Content = BuildCapabilityGapKnowledgeContent(body),
+                HelpfulSources = $"Local sources:\n{localSources}\n\nExternal sources:\n{externalSources}",
+                Tags = MergeTags(ExtractField(body, "tags"), "capability-gap; model-written; unapproved"),
+                Confidence = ParseConfidence(ExtractField(body, "confidence")),
+                IsUserApproved = false,
+                IsPinned = false,
+                IsArchived = false
+            };
+        }
+    }
+
+    private static string BuildCapabilityGapKnowledgeContent(string body)
+    {
+        var fields = new[]
+        {
+            "user-request-summary",
+            "missing-capability",
+            "owning-area",
+            "target-deliverable",
+            "requested-languages",
+            "requested-frameworks",
+            "requested-versions",
+            "requested-domain-knowledge",
+            "local-knowledge-sources",
+            "external-knowledge-sources",
+            "missing-localgpt-functions",
+            "safe-workflow",
+            "artifact-plan",
+            "investigation-status",
+            "next-localgpt-improvement"
+        };
+
+        var builder = new StringBuilder()
+            .AppendLine("Structured LocalGPT capability gap request:");
+
+        foreach (var field in fields)
+        {
+            var value = ExtractField(body, field);
+            if (!string.IsNullOrWhiteSpace(value))
+                builder.Append("- ").Append(field).Append(": ").AppendLine(value);
+        }
+
+        return builder.ToString().TrimEnd();
     }
 
     private static string ExtractField(string body, string name, string fallback = "")
     {
-        var pattern = $@"(?ims)^\s*{Regex.Escape(name)}\s*:\s*(?<value>.*?)(?=^\s*(?:topic|scope|confidence|tags|helpful-sources|content)\s*:|\z)";
+        var pattern = $@"(?ims)^\s*{Regex.Escape(name)}\s*:\s*(?<value>.*?)(?=^\s*(?:topic|scope|confidence|tags|helpful-sources|content|user-request-summary|missing-capability|owning-area|target-deliverable|requested-languages|requested-frameworks|requested-versions|requested-domain-knowledge|local-knowledge-sources|external-knowledge-sources|missing-localgpt-functions|safe-workflow|artifact-plan|investigation-status|next-localgpt-improvement)\s*:|\z)";
         var match = Regex.Match(body, pattern, RegexOptions.CultureInvariant);
         return match.Success ? match.Groups["value"].Value.Trim() : fallback;
     }
