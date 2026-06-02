@@ -147,7 +147,7 @@ Use LocalGPT's own diagnostic routes instead of direct Ollama calls when validat
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generates a smoke workspace through `IMinecraftModWorkspaceService`.
 - `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4`: generates and validates the Living Cities datapack benchmark, packages a zip, and writes a compact pinned council knowledge entry. Use this route before asking large local models to review Living Cities, then reference the database entry instead of pasting the full design.
 
-For low-resource model review after GPU pressure or a black screen, run the council with one model at a time:
+For low-resource model review after confirmed GPU pressure, a driver reset, or a black screen correlated with heavy model load, run the council with one model at a time. If the only symptom is display sleep, screen saver, or power-saving wake behavior, verify Windows/display settings and recent logs before treating it as a GPU crash:
 
 ```json
 {

@@ -45,7 +45,7 @@ Check the model host:
 .\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1 -NumPredict 1024 -TimeoutSeconds 300
 ```
 
-For big council models on consumer GPUs, prefer the **Low GPU Preset** on the AI Council page after any driver reset, black screen, or high VRAM pressure. It runs one small proposal pass, caps context/output, sets `keep_alive=0s`, and can force Ollama `num_gpu=0` so the test is slower but less likely to stress the GPU.
+For big council models on consumer GPUs, prefer the **Low GPU Preset** on the AI Council page after any confirmed driver reset, sustained high VRAM/GPU pressure, or model stall. A black screen alone can also be display sleep, screen saver, or power-saving behavior; treat it as a clue, not proof of GPU failure. The preset runs one small proposal pass, caps context/output, sets `keep_alive=0s`, and can force Ollama `num_gpu=0` so the test is slower but less likely to stress the GPU.
 
 ## Minecraft Builder
 

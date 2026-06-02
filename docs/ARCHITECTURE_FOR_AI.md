@@ -136,9 +136,22 @@ Current behavior:
 
 Performance rule: default council scheduling runs one model inference at a time (`MaxParallelModels = 1`), keeps default prompts smaller (`MaxContextTokens = 4096` and `MaxOutputTokens = 1024` on new requests), applies a per-model timeout, and uses a short Ollama keep-alive when several large local models are selected. This avoids trying to keep multiple 20B/30B models resident in VRAM at once on machines like a 7900 XTX with 24 GB VRAM. Users can raise the parallelism or context in the UI when they know the loaded models fit together.
 
-AMD 7900 XTX heavy-model guardrail: qwen/gwen/gemma-class 27B/30B models caused driver black-screen instability when run too long at full 96%-100% GPU load. Treat these as limited-layer models by default. The backend council now applies a `num_gpu=20` guardrail for those model names when the caller did not explicitly set `OllamaNumGpu`; helper scripts should also default to balanced GPU layers. Full auto GPU for those models is an explicit user-risk override, not the default.
+AMD 7900 XTX heavy-model guardrail: qwen/gwen/gemma-class 27B/30B models caused confirmed driver instability
+during some long full-load runs, especially near 96%-100% GPU load. Some observed black screens were later traced
+to display sleep, screen saver, or power-saving settings after system repair, so do not diagnose every black screen
+as a GPU crash. Treat heavy 27B/30B models as limited-layer models by default, and escalate only when there is
+supporting evidence such as driver reset, full-load timing, Ollama stall, logs, or user confirmation.
+The backend council now applies a `num_gpu=20` guardrail for those model names when the caller did not explicitly set
+`OllamaNumGpu`; helper scripts should also default to balanced GPU layers. Full auto GPU for those models is an
+explicit user-risk override, not the default.
 
-Low-resource rule: after a black screen, driver reset, high VRAM pressure, or long 20B/30B stalls, run with `MaxRounds = 0`, `MaxOutputTokens = 1024`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`. LocalGPT forwards `num_gpu=0` to Ollama and sends an unload request after zero-keepalive participant calls. This path is slower, but it keeps council tests alive without forcing another large GPU residency cycle. Use 256 or 512 output tokens only for plumbing checks; reasoning models can spend that entire budget before producing visible text.
+Low-resource rule: after a confirmed driver reset, high VRAM pressure, long 20B/30B stall, or black screen that
+correlates with heavy model load, run with `MaxRounds = 0`, `MaxOutputTokens = 1024`, `MaxContextTokens = 2048`,
+`OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`. If the only symptom is a monitor sleep or power-saving wake issue,
+first verify Windows/display power settings and recent logs before assuming GPU failure. LocalGPT forwards `num_gpu=0`
+to Ollama and sends an unload request after zero-keepalive participant calls. This path is slower, but it keeps council
+tests alive without forcing another large GPU residency cycle. Use 256 or 512 output tokens only for plumbing checks;
+reasoning models can spend that entire budget before producing visible text.
 
 Database-first rule: council bootstrap should prefer pinned `CouncilKnowledgeEntries`, selected saved council conversations, recent log health summaries, and deterministic diagnostic route output over huge pasted source/design contexts. If more detail is needed, ask for a targeted excerpt or create a smaller knowledge entry first.
 
