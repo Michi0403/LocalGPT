@@ -12,9 +12,24 @@ try {
         throw "git ls-files failed with exit code $LASTEXITCODE."
     }
 
-    $extensions = @(".cs", ".razor", ".md", ".ps1", ".json")
+    $extensions = @(
+        ".cs",
+        ".razor",
+        ".md",
+        ".ps1",
+        ".json",
+        ".yml",
+        ".yaml",
+        ".csproj",
+        ".wapproj"
+    )
+
     $excludedPrefixes = @(
         "artifacts/",
+        ".git/",
+        ".vs/",
+        ".idea/",
+        "node_modules/",
         "LocalGPTWebviewWrapper/LocalGPT/bin/",
         "LocalGPTWebviewWrapper/LocalGPT/obj/",
         "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper/bin/",
@@ -25,9 +40,14 @@ try {
 
     $criticalMinimumLines = @{
         "README.md" = 80
+        "AGENTS.md" = 120
+        "llms.txt" = 30
+        ".github/workflows/source-hygiene.yml" = 15
         "LocalGPTWebviewWrapper/LocalGPT/Program.cs" = 120
         "LocalGPTWebviewWrapper/LocalGPT/Services/NativeCommandRunner.cs" = 120
         "LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs" = 100
+        "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj" = 100
+        "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package)/LocalGPTWebviewWrapper (Package).wapproj" = 180
     }
 
     $violations = New-Object System.Collections.Generic.List[string]
@@ -68,7 +88,7 @@ try {
         Write-Error ("Source formatting guard failed:`n" + ($violations -join "`n"))
     }
 
-    Write-Host "Source formatting guard passed for tracked .cs/.razor/.md/.ps1/.json files."
+    Write-Host "Source formatting guard passed for tracked human-maintained source, project, workflow, and docs files."
 }
 finally {
     Pop-Location

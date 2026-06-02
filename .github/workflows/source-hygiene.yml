@@ -19,4 +19,4 @@ jobs:
 
       - name: Check source formatting
         shell: pwsh
-        run: ./build/Assert-SourceFormatting.ps1
+        run: ./build/Assert-SourceFormatting.ps1 -MaxLineLength 600
