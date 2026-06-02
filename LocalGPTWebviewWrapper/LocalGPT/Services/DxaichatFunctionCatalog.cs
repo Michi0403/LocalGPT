@@ -15,14 +15,14 @@ public static class DxaichatFunctionCatalog
         new(
             "minecraft.datapack_version",
             "GET",
-            "/__diag/minecraft/datapack-version?minecraftVersion=1.21.4",
+            "/__diag/minecraft/datapack-version?minecraftVersion=26.1",
             "Resolve the datapack pack_format and singular/plural function folder convention for a Minecraft Java version.",
-            "minecraftVersion: optional, defaults to 1.21.4.",
+            "minecraftVersion: optional, defaults to current LocalGPT Java target 26.1.",
             "Read-only. Unknown versions are marked NeedsVerification instead of guessed as fact."),
         new(
             "minecraft.dependency_version",
             "GET",
-            "/__diag/minecraft/dependency-version?loader=fabric&minecraftVersion=1.21.4",
+            "/__diag/minecraft/dependency-version?loader=datapack&minecraftVersion=26.1",
             "Resolve curated Fabric, NeoForge, Paper, Java, Gradle, or datapack dependency versions before generating a workspace.",
             "loader: fabric, neoforge, paper, datapack, or bedrock. minecraftVersion/javaVersion/gradleVersion are optional.",
             "Read-only. Fallback mappings are marked NeedsVerification and should be checked against official sources before release."),
@@ -36,9 +36,9 @@ public static class DxaichatFunctionCatalog
         new(
             "minecraft.datapack_benchmark",
             "GET",
-            "/__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4",
-            "Generate, validate, zip, and save a compact council-knowledge entry for the Living Cities datapack benchmark.",
-            "minecraftVersion: optional, defaults to 1.21.4.",
+            "/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1",
+            "Generate, validate, zip, and save a compact council-knowledge entry for a current Java datapack benchmark.",
+            "minecraftVersion: optional, defaults to current LocalGPT Java target 26.1. Use 1.21.4 only for legacy comparison.",
             "Runs the generated local build-local.ps1 validator; does not copy into a game world or run /reload."),
         new(
             "council.models",

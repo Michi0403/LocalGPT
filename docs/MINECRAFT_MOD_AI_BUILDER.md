@@ -6,7 +6,7 @@ LocalGPT should treat Minecraft Java Edition as the first-class mod target.
 
 Reasons:
 
-- Java mods can be generated, compiled, inspected, and tested with JDK 21 and Gradle.
+- Java mods can be generated, compiled, inspected, and tested with the JDK required by the target Minecraft version and Gradle.
 - Fabric and NeoForge support normal Java source projects.
 - Eclipse, IntelliJ IDEA, and VS Code can import generated Gradle projects.
 - Bedrock content uses behavior/resource packs instead of Java mods and should be a separate exporter.
@@ -31,7 +31,7 @@ There is no separate "Microsoft Java syntax". Microsoft provides supported OpenJ
 Required for Java mod/plugin builds:
 
 - Minecraft Java Edition installed and launched at least once for the target version.
-- JDK 21 for the generated LocalGPT 1.21.x starter projects, preferably Microsoft OpenJDK 21 on this Windows setup.
+- JDK 25 for current Minecraft Java 26.x datapack/mod planning; JDK 21 remains useful for generated LocalGPT 1.21.x starter projects.
 - LocalGPT Gradle tool folder under `%LOCALAPPDATA%\LocalGPT\Tools\gradle-8.14.2`, or another working `gradle` on PATH.
 - Eclipse IDE for Java Developers or another Gradle-aware IDE.
 - Ollama running when AI planning, review, or council workflows are needed.
@@ -50,7 +50,7 @@ The generated mod workspaces include:
 .\build-local.ps1
 ```
 
-That script finds `JAVA_HOME`, falls back to the Microsoft OpenJDK 21 install path, then uses LocalGPT's local Gradle install when available.
+That script finds `JAVA_HOME`, prefers the target-version JDK, then uses LocalGPT's local Gradle install when available.
 
 ## Loader Policy
 
@@ -86,7 +86,7 @@ If any setup is missing, the council should produce a short technical recovery p
 
 Example poll options:
 
-- Install toolchain first: JDK 21, Gradle, Eclipse, Minecraft launcher.
+- Install toolchain first: Java 25 for current Java 26.x targets, Java 21 for 1.21.x legacy targets, Gradle, Eclipse, Minecraft launcher.
 - Generate workspace first: create files and defer game launch.
 - Ask council to choose target: compare Fabric, NeoForge, Paper, datapack, and Bedrock tradeoffs.
 - Reduce scope: make a buildable starter item/command before simulation systems.
@@ -145,12 +145,12 @@ Use LocalGPT's own diagnostic routes instead of direct Ollama calls when validat
 - `POST /__diag/council`: runs the multi-model council with logging and memory.
 - `GET /__diag/council/models`: lists configured and installed Ollama models visible to LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generates a smoke workspace through `IMinecraftModWorkspaceService`.
-- `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4`: generates and validates the Living Cities datapack benchmark, packages a zip, and writes a compact pinned council knowledge entry. Use this route before asking large local models to review Living Cities, then reference the database entry instead of pasting the full design.
+- `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=26.1`: generates and validates the Living Cities or prompt-style datapack benchmark for the current Java 26.1 default, packages a zip, and writes a compact pinned council knowledge entry. Use `minecraftVersion=1.21.4` only for legacy comparison.
 - `GET /__diag/council/artifact-smoke?target=datapack`: exercises the DXAiChat/council artifact path and returns a downloadable `/__artifacts/council/` datapack zip without loading Ollama.
 - `GET /__diag/council/artifact-smoke?target=datapack` is prompt-driven. Do not assume Living Cities unless the prompt explicitly asks for it.
 - `GET /__diag/minecraft/datapack-benchmark`: keeps Living Cities as a named benchmark/comparison route.
 
-For generated datapack downloads, verify the zip root contains `pack.mcmeta` and `data/` directly. For Minecraft 1.21+ use singular `data/<namespace>/function` and `data/minecraft/tags/function`. Reject wrapper folders, `.mcfunction.txt` files, invalid tag JSON, broken function references, leading slash commands inside `.mcfunction` files, and root `data remove storage` reset commands.
+For generated datapack downloads, verify the zip root contains `pack.mcmeta` and `data/` directly. For Minecraft 1.21+ and 26.x use singular `data/<namespace>/function` and `data/minecraft/tags/function`. Reject wrapper folders, `.mcfunction.txt` files, invalid tag JSON, broken function references, leading slash commands inside `.mcfunction` files, root `data remove storage` reset commands, and malformed storage commands where the NBT path was accidentally appended to the storage id.
 
 For low-resource model review after confirmed GPU pressure, a driver reset, or a black screen correlated with heavy model load, run the council with one model at a time. If the only symptom is display sleep, screen saver, or power-saving wake behavior, verify Windows/display settings and recent logs before treating it as a GPU crash:
 

@@ -326,7 +326,7 @@ namespace LocalGPT.Services
                         "Paper is the server-side plugin path for users who do not want a modded client; include plugin.yml and use Paper's plugin project setup guidance. " +
                         "Use Gradle Java toolchains or explicit IDE Gradle JVM settings to avoid inconsistent JDK behavior. Java syntax should be grounded in the Java Language Specification/JDK docs; " +
                         "Microsoft OpenJDK is a supported JDK distribution, not a separate Java syntax.",
-                    HelpfulSources = "- Forge getting started: https://docs.minecraftforge.net/en/latest/gettingstarted/\n- NeoForge getting started: https://docs.neoforged.net/docs/gettingstarted/\n- Fabric building a mod: https://docs.fabricmc.net/develop/getting-started/building-a-mod\n- Paper getting started: https://docs.papermc.io/paper/dev/getting-started/\n- Gradle JVM toolchains: https://docs.gradle.org/current/userguide/toolchains.html\n- Oracle JDK 21 documentation: https://docs.oracle.com/en/java/javase/21/",
+                    HelpfulSources = "- Forge getting started: https://docs.minecraftforge.net/en/latest/gettingstarted/\n- NeoForge getting started: https://docs.neoforged.net/docs/gettingstarted/\n- Fabric building a mod: https://docs.fabricmc.net/develop/getting-started/building-a-mod\n- Paper getting started: https://docs.papermc.io/paper/dev/getting-started/\n- Gradle JVM toolchains: https://docs.gradle.org/current/userguide/toolchains.html\n- Oracle JDK 25 documentation for current Minecraft Java 26.x: https://docs.oracle.com/en/java/javase/25/\n- Oracle JDK 21 documentation for 1.21.x legacy targets: https://docs.oracle.com/en/java/javase/21/",
                     Tags = "seed; minecraft; forge; fabric; neoforge; paper; gradle; java; sources",
                     Confidence = 92,
                     IsUserApproved = true,
@@ -359,12 +359,12 @@ namespace LocalGPT.Services
                     Topic = "Living Cities datapack benchmark acceptance",
                     Scope = "Minecraft Builder",
                     Source = seedSource,
-                    Content = "Use /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4 as the low-context Living Cities datapack benchmark. " +
+                    Content = "Use /__diag/minecraft/datapack-benchmark?minecraftVersion=26.1 as the low-context current-Java datapack benchmark; use minecraftVersion=1.21.4 only for legacy comparison. " +
                         "A useful result must generate real .mcfunction files, no .mcfunction.txt placeholders, pack.mcmeta, minecraft load/tick function tags, namespace functions, " +
                         "JSON validation, function-reference validation, and a zip under build/. Compare against the friend's early living_cities.zip for preserved traits: namespace living_cities, " +
                         "core/load and core/tick entry points, scoreboards for year/population/food/security/prestige/birth year, storage areas for city/chronicle/personalities, " +
                         "and a town hall/admin workflow. Do not tell the user it was game-tested until /reload and in-game commands were actually run in Minecraft.",
-                    HelpfulSources = "- Local route: GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4\n- User-provided benchmark: C:/Users/micha/Downloads/living_cities.zip\n- User-provided design prompt: C:/Users/micha/Downloads/message (1).txt",
+                    HelpfulSources = "- Local route: GET /__diag/minecraft/datapack-benchmark?minecraftVersion=26.1\n- Legacy comparison route: GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4\n- User-provided benchmark: local living_cities.zip\n- User-provided design prompt: local message text",
                     Tags = "seed; minecraft; datapack; living-cities; benchmark; validation",
                     Confidence = 90,
                     IsUserApproved = true,

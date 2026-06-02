@@ -324,7 +324,7 @@ VALUES
   'Before generating Fabric, NeoForge, Paper, or datapack workspaces, call /__diag/minecraft/dependency-version or use MinecraftDependencyVersionCatalog. It returns requested/matched Minecraft versions, Java/Gradle versions, Fabric loader/API, NeoForge, Paper API, datapack pack_format, exact-match flags, and NeedsVerification. ' ||
   'Fallback mappings are allowed for smoke tests but must be source-checked against official Fabric, NeoForge, Paper, Gradle, and Minecraft documentation before release or friend testing.',
   'LocalGPT workflow memory',
-  'Route: /__diag/minecraft/dependency-version?loader=fabric&minecraftVersion=1.21.4; source: LocalGPTWebviewWrapper/LocalGPT/Services/MinecraftDependencyVersionCatalog.cs',
+  'Route: /__diag/minecraft/dependency-version?loader=datapack&minecraftVersion=26.1; legacy comparison route: /__diag/minecraft/dependency-version?loader=fabric&minecraftVersion=1.21.4; source: LocalGPTWebviewWrapper/LocalGPT/Services/MinecraftDependencyVersionCatalog.cs',
   'seed; minecraft; dependency-resolver; fabric; neoforge; paper; datapack; gradle; java',
   92,
   1,
@@ -438,6 +438,70 @@ VALUES
   'Local docs: docs/AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md, docs/AI_HOST_CONTROL_PLANE_ARCHITECTURE.md, and docs/GENERATION_ARCHETYPE_CONTRACTS.md',
   'seed; ai-host; dotnet; aspnetcore; devexpress; api; model-downloads; settings; generation',
   96,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  '20efbf3a-e6e4-4bf3-9b94-10b8017de0d1',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Minecraft Java 26 datapack generation rules',
+  'Minecraft Builder / datapack',
+  'Current LocalGPT datapack generation defaults to Minecraft Java 26.1 unless the user requests an older target. Minecraft Java 26.1 requires Java 25 and uses datapack pack_format 101.1. Minecraft Java 26.2 snapshot builds use datapack pack_format 105.0 and should be treated as snapshot-only unless the user chooses it. For Java 26.x pack.mcmeta should write decimal pack formats as strings, for example "pack_format": "101.1". Keep 1.21.x pack_format 61 knowledge only as legacy comparison. Use singular function folders data/<namespace>/function and data/minecraft/tags/function. Validate zip root, JSON tags, function references, no leading slash commands, no .mcfunction.txt placeholders, and no root data remove storage reset commands.',
+  'LocalGPT SQL seed from official Minecraft 26.x source check',
+  'Official Minecraft 26.1 notes: https://www.minecraft.net/en-us/article/minecraft-java-edition-26-1; official Minecraft 26.2 Snapshot 6 notes: https://www.minecraft.net/en-us/article/minecraft-26-2-snapshot-6; local catalog: LocalGPTWebviewWrapper/LocalGPT/Services/MinecraftDatapackVersionCatalog.cs.',
+  'seed; minecraft; datapack; java-26; java-25; pack_format; source-backed',
+  96,
+  1,
+  1,
+  0
+),
+(
+  '7403613b-3c37-44a6-982f-5a77a5d12ad5',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Minecraft datapack storage command syntax and smoke discovery',
+  'Minecraft Builder / validation',
+  'When generating mcfunction storage writes, keep the storage id and NBT path separate: execute store result storage <namespace>:<storage_id> <nbt_path> int 1 run ... . Do not generate storage living_cities:city.year int 1 because the dot becomes part of the storage id and the command loses its NBT path. For city data use storage living_cities:city year int 1, founder.x, banner.x, population, food, security, and houses. If a tester says register_banner is not loaded, first prove discovery: load.json must call core/load, core/load should emit a visible load message and reference a harmless city/register_banner smoke path, and build-local.ps1 should validate every function namespace:path reference before zipping.',
+  'LocalGPT SQL seed from friend datapack feedback',
+  'Local docs: docs/MINECRAFT_SOURCE_KNOWLEDGE.md and docs/MINECRAFT_MOD_AI_BUILDER.md; local service: MinecraftModWorkspaceService; deterministic route: /__diag/council/artifact-smoke?target=datapack.',
+  'seed; minecraft; mcfunction; storage; register_banner; validation; friend-feedback',
+  95,
+  1,
+  1,
+  0
+),
+(
+  'd03d0994-cb15-4b96-858a-6d8a0cf3e2db',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'DXAiChat upload context and artifact delivery rules',
+  'DXAiChat/frontend acceptance',
+  'DXAiChat is expected to accept local context and return downloadable artifacts. Text-like uploads and zip files should be decoded into a bounded visible context message before asking for code, datapacks, or review; do not flood the model with an entire archive. If the user asks for .cs, .razor, .dll, solution zips, datapacks, or modpacks, return HTTP download links through /__artifacts/council/ or another safe GET route, not raw zip/binary text. Markdown/Harmony formatting must render final visible content as normal Markdown, especially top-level lists after model-thinking blocks.',
+  'LocalGPT SQL seed from DXAiChat upload implementation',
+  'Local page: LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor; local artifact service: CouncilArtifactService; local route: /__artifacts/council/{fileName}.',
+  'seed; dxaichat; upload; zip; artifacts; markdown; harmony; downloads',
+  96,
+  1,
+  1,
+  0
+),
+(
+  '2db8489d-df7c-453a-90f7-c21e9f753d89',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Whisper Harmony and agent framework lessons for .NET generation',
+  'Agents / speech / chat templates',
+  'Selected learn-base folders for Whisper, Harmony, and OpenAI agents teach patterns that can be translated into C# and .NET. Whisper-style apps need audio input, model choice, transcription jobs, timestamps, language options, batching, progress, cancellation, and artifacts, wrapped behind user-approved backend services with SQLite job logs. Harmony/chat-template handling needs channel parsing, final-answer extraction, thinking display, and marker cleanup so final Markdown is visible. Agent frameworks teach model clients, typed tools, handoffs, guardrails, tracing, memory, and streaming events; in .NET translate them into interfaces such as IAgentRunner, IAgentTool, IAgentTraceStore, and IAgentMemoryService. Tool calls are not permission to self-expand or run native commands without user approval.',
+  'LocalGPT SQL seed from selected learn-base source request',
+  'Local source roots: selected learn-base harmony-main, whisper-main, and openai-agents-js-main; local guide: docs/AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md.',
+  'seed; whisper; harmony; agents; dotnet; csharp; tool-calling; tracing; speech',
+  94,
   1,
   1,
   0

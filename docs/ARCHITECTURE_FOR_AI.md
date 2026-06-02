@@ -210,7 +210,7 @@ Recommended architecture:
 - store logs and generated files where users can inspect them
 - make build steps repeatable through scripts or service methods
 - keep frontend JavaScript limited to client-side helper behavior
-- have the AI Council help with user setup as well as mod code: JDK 21, Gradle, Eclipse/IDE import, Minecraft launcher, Ollama models, and generated workspace build steps
+- have the AI Council help with user setup as well as mod code: Java 25 for current Minecraft Java 26.x, Java 21 for 1.21.x legacy targets, Gradle, Eclipse/IDE import, Minecraft launcher, Ollama models, and generated workspace build steps
 
 Feature wishlist gathered from the local `gpt-oss:20b` debug model:
 
@@ -236,7 +236,7 @@ Use `POST /__diag/council` to exercise the AI Council through LocalGPT. Keep `Ma
 
 Use `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge` to generate a buildable workspace through the app service, then run the generated `build-local.ps1`.
 
-Use `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4` for the Living Cities datapack benchmark. It does not load Ollama; it creates the datapack workspace, runs the local validator/zip script, and saves a compact council knowledge entry for later model review.
+Use `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=26.1` for the current datapack benchmark. It does not load Ollama; it creates the datapack workspace, runs the local validator/zip script, and saves a compact council knowledge entry for later model review. Use `minecraftVersion=1.21.4` only when intentionally comparing against legacy 1.21.x behavior.
 
 Use `GET /__diag/logs?minimumLevel=Warning&take=30` to inspect persisted app health before asking the AI Council for setup advice.
 

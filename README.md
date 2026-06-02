@@ -72,7 +72,13 @@ $server = Get-Content "$env:LOCALAPPDATA\LocalGPT\runtime\server.json" | Convert
 Invoke-RestMethod "$($server.BaseUrl)/__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4"
 ```
 
-That route validates the datapack, creates a zip, and stores a compact council knowledge entry so later AI Council reviews can use database memory instead of a huge pasted prompt.
+For current Minecraft Java, prefer:
+
+```powershell
+Invoke-RestMethod "$($server.BaseUrl)/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1"
+```
+
+That route validates the datapack, creates a zip, and stores a compact council knowledge entry so later AI Council reviews can use database memory instead of a huge pasted prompt. The 1.21.4 route remains useful for legacy comparison only.
 
 AI guidance for this feature lives in [docs/MINECRAFT_MOD_AI_BUILDER.md](docs/MINECRAFT_MOD_AI_BUILDER.md).
 
@@ -83,7 +89,7 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `POST /__diag/dxaichat-smoke`: configured DXAiChat backend smoke test with visible/thinking split and optional SQLite memory save.
 - `POST /__diag/council`: multi-model council run through LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generated workspace smoke test.
-- `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4`: focused Living Cities datapack generation, validation, zip packaging, and council knowledge capture.
+- `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=26.1`: focused current-Java datapack generation, validation, zip packaging, and council knowledge capture. Use `1.21.4` only for legacy comparison.
 - `GET /__diag/logs?minimumLevel=Warning&take=30`: recent SQLite application logs and the AI briefing built from them. Add `writeSmoke=true` to write a harmless warning and verify the async database logger.
 - `GET /__diag/knowledge`: editable council knowledge notes saved from council runs and manual user edits.
 - `GET /__diag/sqlite/tables`: live SQLite table inventory for chat memory, thoughts, logs, and council knowledge.

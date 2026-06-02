@@ -41,6 +41,18 @@ Translate those into .NET patterns:
 
 Native tensor execution is a separate backend. A generated first milestone can be a real control plane with an Ollama, LM Studio, OpenAI-compatible, or custom provider adapter, plus explicit extension points for native inference.
 
+## Provider-Compatible Local Model Host Milestone
+
+When the user asks for a .NET local AI host that LocalGPT can test as a replacement provider URL, generate an easy-testable compatibility milestone:
+
+- ASP.NET Core routes for `/api/version`, `/api/tags`, `/api/ps`, `/api/chat`, `/api/generate`, `/api/show`, `/api/pull`, `/api/delete`, and `/v1/chat/completions` where selected.
+- A model catalog backed by SQLite for installed models, downloadable model plans, provider endpoints, local file paths, hashes, friendly names, context defaults, and approval state.
+- Appsettings only for bootstrap values: database path, default listen URL, first provider URL, logging, and safe storage root.
+- A provider adapter interface that can delegate to an existing Ollama/LM Studio/OpenAI-compatible backend first, so LocalGPT can point DXAiChat at the generated host without requiring native tensor runtime immediately.
+- DevExpress Blazor pages for chat, model catalog, downloads, running sessions, settings, logs, API console, templates, and hardware budget.
+- Download plans from Hugging Face or GitHub must be user-approved. Do not download model binaries just because a catalog row exists.
+- Keep native inference honest: if GGUF/GPU execution is not implemented, return clear route metadata or delegate to an approved provider instead of pretending a model ran.
+
 ## DevExpress Blazor Demo Lessons
 
 The local DevExpress 25.2 Blazor demo teaches component usage and service wiring:
@@ -67,6 +79,15 @@ The local `videocutter` source is useful for optional Python/media tool integrat
 - Use progress UI for long media tasks, and never block the Blazor UI thread.
 
 For .NET generation, translate this into `IMediaJobService`, queued jobs, safe working directories, log capture, and DevExpress grids/forms for job history and settings.
+
+## Whisper, Harmony, And Agents Source Lessons
+
+The selected learn-base can include Whisper, Harmony, and OpenAI agents source folders. Teach the council these as architecture patterns, not as direct dependencies that must be copied:
+
+- Whisper-style speech pipelines: audio input, model selection, transcription jobs, timestamps, language options, batching, progress, cancellation, and artifacts. In .NET, wrap them behind approved backend services and store job state/logs in SQLite.
+- Harmony/chat-template handling: parse channels and final-answer boundaries defensively. UI must display user-visible final text, show permitted model-thinking summaries in a separate block, and never let channel markers leak into Markdown.
+- Agent frameworks: model clients, tool/function registration, typed tool schemas, handoffs, guardrails, tracing, memory/state, and streaming events. In C#, translate these into interfaces such as `IAgentRunner`, `IAgentTool`, `IAgentTraceStore`, and `IAgentMemoryService`.
+- Tool calls are not permission to self-expand. Generated agents must ask the user before running native commands, downloading model files, editing the real project, or integrating generated code.
 
 ## Jezzifa-Style Source Lessons
 
