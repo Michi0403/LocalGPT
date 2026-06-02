@@ -1,0 +1,223 @@
+@page "/test-lab"
+@using System.Text.RegularExpressions
+@inject NavigationManager NavigationManager
+@inject ILogger<TestLab> Logger
+@rendermode InteractiveServer
+
+<PageTitle>Test Lab</PageTitle>
+
+<main class="test-lab-page">
+    <section class="help-hero">
+        <h1>Test Lab</h1>
+        <p>Run LocalGPT diagnostics, artifact generators, and learn-base imports from inside the frontend.</p>
+    </section>
+
+    <section class="test-lab-grid">
+        <article class="help-panel test-lab-panel">
+            <h2>Frontend API Smoke</h2>
+            <p>These checks stay on the local loopback server and are useful before loading a heavy model.</p>
+            <div class="test-lab-actions">
+                @foreach (var route in Routes)
+                {
+                    <DxButton Text="@route.Label"
+                              RenderStyle="@route.Style"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Enabled="@(!isBusy)"
+                              Click="@(() => RunRouteAsync(route.Path))" />
+                }
+            </div>
+        </article>
+
+        <article class="help-panel test-lab-panel">
+            <h2>Learn-Base Import</h2>
+            <p>Import compact source fingerprints into the council knowledge database without pasting huge contexts into a model.</p>
+            <label class="test-lab-field">
+                <span>Root path</span>
+                <input @bind="learnBaseRoot" />
+            </label>
+            <label class="test-lab-field">
+                <span>Max projects</span>
+                <input type="number" min="1" max="80" @bind="maxProjects" />
+            </label>
+            <DxButton Text="Import Learn-Base"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Enabled="@(!isBusy)"
+                      Click="RunLearnBaseImportAsync" />
+        </article>
+    </section>
+
+    <section class="help-panel help-wide">
+        <h2>Custom Local Route</h2>
+        <p>Allowed routes are constrained to local diagnostics and artifact paths.</p>
+        <div class="test-lab-custom">
+            <input @bind="customRoute" />
+            <DxButton Text="Run"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Enabled="@(!isBusy)"
+                      Click="RunCustomRouteAsync" />
+        </div>
+    </section>
+
+    <section class="help-panel help-wide">
+        <h2>Result</h2>
+        @if (!string.IsNullOrWhiteSpace(statusText))
+        {
+            <p class="memory-status">@statusText</p>
+        }
+        @if (downloadLinks.Count > 0)
+        {
+            <div class="test-lab-downloads">
+                <strong>Downloads</strong>
+                @foreach (var link in downloadLinks)
+                {
+                    <a href="@link.AbsoluteUrl" target="_blank">@link.Label</a>
+                }
+            </div>
+        }
+        <textarea class="test-lab-output" readonly>@resultText</textarea>
+    </section>
+</main>
+
+@code {
+    private readonly List<TestLabRoute> Routes =
+    [
+        new("Health", "/health", ButtonRenderStyle.Secondary),
+        new("Diagnostics", "/__diag", ButtonRenderStyle.Secondary),
+        new("DXAiFunctions", "/__diag/dxaichat-functions", ButtonRenderStyle.Secondary),
+        new("Minecraft 26.1", "/__diag/minecraft/datapack-version?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
+        new("Datapack ZIP", "/__diag/council/artifact-smoke?target=datapack", ButtonRenderStyle.Primary),
+        new("AI Host ZIP", "/__diag/council/artifact-smoke?target=ai-host", ButtonRenderStyle.Primary),
+        new("Benchmark", "/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1", ButtonRenderStyle.Secondary)
+    ];
+
+    private bool isBusy;
+    private string statusText = "Ready.";
+    private string resultText = "Run a local diagnostic route to see JSON here.";
+    private string customRoute = "/__diag/council/artifact-smoke?target=solution";
+    private string learnBaseRoot = @"C:\tmpselectedcodexlearnbaseforlocalgpt\AutomatedDiscordLogin-master";
+    private int maxProjects = 30;
+    private List<TestLabDownloadLink> downloadLinks = [];
+    private static readonly Regex DownloadUrlPattern =
+        new("\"downloadUrl\"\\s*:\\s*\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private Task RunCustomRouteAsync()
+    {
+        var route = string.IsNullOrWhiteSpace(customRoute) ? "/__diag" : customRoute.Trim();
+        if (!route.StartsWith('/'))
+        {
+            route = "/" + route;
+        }
+
+        return IsAllowedLocalRoute(route)
+            ? RunRouteAsync(route)
+            : ShowBlockedRouteAsync(route);
+    }
+
+    private Task RunLearnBaseImportAsync()
+    {
+        var encodedRoot = Uri.EscapeDataString(learnBaseRoot.Trim());
+        var route = $"/__diag/learn-base/import?rootPath={encodedRoot}&saveToKnowledge=true&maxProjects={Math.Clamp(maxProjects, 1, 80)}";
+        return RunRouteAsync(route);
+    }
+
+    private async Task RunRouteAsync(string route)
+    {
+        if (!IsAllowedLocalRoute(route))
+        {
+            await ShowBlockedRouteAsync(route);
+            return;
+        }
+
+        isBusy = true;
+        statusText = $"Running GET {route} ...";
+        resultText = string.Empty;
+        downloadLinks = [];
+
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            var url = NavigationManager.ToAbsoluteUri(route);
+            var response = await http.GetAsync(url);
+            var text = await response.Content.ReadAsStringAsync();
+            statusText = $"GET {route} -> {(int)response.StatusCode} {response.ReasonPhrase}";
+            resultText = PrettyPrintJson(text);
+            downloadLinks = ExtractDownloadLinks(text);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            Logger.LogWarning(ex, "Test Lab route {Route} failed.", route);
+            statusText = $"GET {route} failed: {ex.Message}";
+            resultText = ex.ToString();
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private Task ShowBlockedRouteAsync(string route)
+    {
+        statusText = "Route blocked by Test Lab local safety policy.";
+        resultText = $"Blocked route: {route}{Environment.NewLine}Allowed prefixes: /__diag, /__artifacts, /health.";
+        downloadLinks = [];
+        return Task.CompletedTask;
+    }
+
+    private static bool IsAllowedLocalRoute(string route)
+    {
+        return route.StartsWith("/__diag", StringComparison.OrdinalIgnoreCase)
+            || route.StartsWith("/__artifacts", StringComparison.OrdinalIgnoreCase)
+            || route.StartsWith("/health", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string PrettyPrintJson(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(text);
+            return System.Text.Json.JsonSerializer.Serialize(
+                json.RootElement,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return text;
+        }
+    }
+
+    private List<TestLabDownloadLink> ExtractDownloadLinks(string text)
+    {
+        var links = new List<TestLabDownloadLink>();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return links;
+        }
+
+        foreach (Match match in DownloadUrlPattern.Matches(text))
+        {
+            var relativeUrl = match.Groups["url"].Value.Replace("\\/", "/", StringComparison.Ordinal);
+            if (!relativeUrl.StartsWith("/__artifacts", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var absoluteUrl = NavigationManager.ToAbsoluteUri(relativeUrl).ToString();
+            var label = relativeUrl.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? relativeUrl;
+            links.Add(new TestLabDownloadLink(label, absoluteUrl));
+        }
+
+        return links
+            .DistinctBy(link => link.AbsoluteUrl)
+            .ToList();
+    }
+
+    private sealed record TestLabRoute(string Label, string Path, ButtonRenderStyle Style);
+    private sealed record TestLabDownloadLink(string Label, string AbsoluteUrl);
+}

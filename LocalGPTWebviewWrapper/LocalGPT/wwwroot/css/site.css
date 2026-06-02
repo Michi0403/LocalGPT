@@ -204,10 +204,99 @@ html, body {
     white-space: pre-wrap;
 }
 
+.inline-dx-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2rem;
+    margin: 0;
+    color: #2f3033;
+    white-space: nowrap;
+}
+
+.inline-dx-check span {
+    line-height: 1.2;
+}
+
 .demo-chat-content ul,
 .demo-chat-content ol {
     margin-top: 0.4rem;
     padding-left: 1.35rem;
+}
+
+.test-lab-page {
+    padding: 1rem;
+}
+
+.test-lab-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.test-lab-panel {
+    display: grid;
+    align-content: start;
+    gap: 0.75rem;
+}
+
+.test-lab-actions,
+.test-lab-custom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.test-lab-field {
+    display: grid;
+    gap: 0.25rem;
+    color: #2f3033;
+}
+
+.test-lab-field span {
+    font-weight: 600;
+}
+
+.test-lab-field input,
+.test-lab-custom input {
+    min-height: 2.25rem;
+    border: 1px solid #cfd6df;
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    background: #fff;
+}
+
+.test-lab-custom input {
+    flex: 1 1 24rem;
+}
+
+.test-lab-downloads {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    margin-bottom: 0.65rem;
+}
+
+.test-lab-downloads a {
+    padding: 0.35rem 0.55rem;
+    border: 1px solid #dfe3ea;
+    border-radius: 4px;
+    background: #f8fafc;
+}
+
+.test-lab-output {
+    width: 100%;
+    min-height: 24rem;
+    border: 1px solid #dfe3ea;
+    border-radius: 4px;
+    padding: 0.75rem;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.85rem;
+    white-space: pre;
+    overflow: auto;
+    resize: vertical;
 }
 
 :root {

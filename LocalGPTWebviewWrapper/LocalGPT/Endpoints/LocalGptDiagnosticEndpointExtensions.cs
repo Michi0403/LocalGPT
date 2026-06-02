@@ -507,6 +507,24 @@ namespace LocalGPT.Endpoints
                     ct);
             });
 
+            app.MapGet("/__diag/frontend-test-guidance", async (IWebHostEnvironment env, CancellationToken ct) =>
+            {
+                return await ReadGuidanceDocsAsync(
+                    env,
+                    [
+                        Path.Combine("docs", "FRONTEND_TEST_AUTOMATION.md"),
+                        Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md")
+                    ],
+                    """
+                    Prefer LocalGPT Test Lab and deterministic local HTTP diagnostic routes before loading heavy
+                    models. For the real WinUI/WebView2 shell, use Microsoft Edge WebDriver with Selenium and either
+                    launch the WebView2 app or attach to a running WebView2 instance through a remote debugging port.
+                    Optional Python/browser automation belongs behind explicit user permission gates and should be
+                    learned as source fingerprints rather than pasted as huge prompt context.
+                    """,
+                    ct);
+            });
+
             app.MapPost("/__diag/learn-base/import", async (
                 [FromBody] LearnBaseImportRequest request,
                 ILearnBaseKnowledgeImporterService importer,

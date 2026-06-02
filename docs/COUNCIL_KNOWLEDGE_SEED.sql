@@ -748,3 +748,22 @@ VALUES
   1,
   0
 );
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  'bf53476f-8f3c-48db-9519-2b353811f74c',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT Test Lab and WebView2 automation',
+  'Frontend diagnostics / browser automation',
+  'Use the LocalGPT Test Lab page for fast frontend-facing HTTP checks before loading heavy local models. It can call /health, /__diag, /__diag/dxaichat-functions, Minecraft 26.x datapack version checks, deterministic council artifact smoke routes, and learn-base imports, then show JSON and extracted /__artifacts download links. For the actual WinUI WebView2 wrapper, Microsoft documents two Selenium/Microsoft Edge WebDriver approaches: launch the WebView2 app with EdgeOptions.UseWebView and BinaryLocation, or attach to a running WebView2 instance with a remote debugging port and EdgeOptions.DebuggerAddress. Browser automation source such as AutomatedDiscordLogin should be imported as compact architecture fingerprints, not pasted wholesale into prompts. Optional Python.NET/Python browser automation can be added as a workbench only behind explicit user permission gates, safe working directories, typed options, logging, and visible run controls.',
+  'LocalGPT SQL seed from official Microsoft WebView2 WebDriver guidance',
+  'Microsoft Learn: https://learn.microsoft.com/microsoft-edge/webview2/how-to/webdriver; local page: Components/Pages/TestLab.razor; local route: /__diag/frontend-test-guidance; local learn-base request: C:\tmpselectedcodexlearnbaseforlocalgpt\AutomatedDiscordLogin-master.',
+  'seed; frontend; test-lab; webview2; selenium; webdriver; pythonnet; browser-automation; diagnostics',
+  90,
+  1,
+  1,
+  0
+);

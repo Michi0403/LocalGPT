@@ -45,6 +45,10 @@
     background-image: url("images/minecraft-mod-builder.svg");
 }
 
+::deep .testlab-icon {
+    background-image: url("images/Information.svg");
+}
+
 ::deep .help-icon {
     background-image: url("images/help.svg");
 }

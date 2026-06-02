@@ -35,14 +35,14 @@
                             TextFieldName="@nameof(ChatClientSession.Name)"
                             ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
             </span>
-            <span title="Keeps the current chat visible when switching to another configured AI.">
-                <DxCheckBox @bind-Checked="ReuseContextWhenSwitching"
-                            Text="Reuse context when switching AI" />
-            </span>
-            <span title="Loads the most recent saved memory thread automatically when the Chat page opens. Leave off for a clean local-model context.">
-                <DxCheckBox @bind-Checked="AutoLoadLatestConversation"
-                            Text="Auto-load latest memory" />
-            </span>
+            <label class="inline-dx-check" title="Keeps the current chat visible when switching to another configured AI.">
+                <DxCheckBox @bind-Checked="ReuseContextWhenSwitching" />
+                <span>Reuse context when switching AI</span>
+            </label>
+            <label class="inline-dx-check" title="Loads the most recent saved memory thread automatically when the Chat page opens. Leave off for a clean local-model context.">
+                <DxCheckBox @bind-Checked="AutoLoadLatestConversation" />
+                <span>Auto-load latest memory</span>
+            </label>
         </div>
         <div class="model-toolbar" aria-label="DXAiChat model and council controls">
             <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
@@ -71,14 +71,14 @@
                            @bind="LimitedGpuLayers" />
                 </label>
             }
-            <span title="When the AI Council session is selected, it can generate downloadable code, DLL, solution, or datapack artifacts for implementation requests.">
-                <DxCheckBox @bind-Checked="GenerateCouncilArtifacts"
-                            Text="Council downloadable artifacts" />
-            </span>
-            <span title="Adds saved chat memory, logs, and local project guidance to AI Council prompts. Turn off for small frontend smoke tests or narrow reviews.">
-                <DxCheckBox @bind-Checked="IncludeCouncilMemory"
-                            Text="Council uses memory" />
-            </span>
+            <label class="inline-dx-check" title="When the AI Council session is selected, it can generate downloadable code, DLL, solution, or datapack artifacts for implementation requests.">
+                <DxCheckBox @bind-Checked="GenerateCouncilArtifacts" />
+                <span>Council downloadable artifacts</span>
+            </label>
+            <label class="inline-dx-check" title="Adds saved chat memory, logs, and local project guidance to AI Council prompts. Turn off for small frontend smoke tests or narrow reviews.">
+                <DxCheckBox @bind-Checked="IncludeCouncilMemory" />
+                <span>Council uses memory</span>
+            </label>
             <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Use 32768+ for source generation; lower it for quick checks.">
                 <span>Council answer tokens</span>
                 <input type="number"

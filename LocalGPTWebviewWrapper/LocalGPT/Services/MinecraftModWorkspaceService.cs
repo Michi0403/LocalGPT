@@ -1084,7 +1084,7 @@ namespace LocalGPT.Services
         private static string CreateDatapackCitizenPersonalitiesFunction(WorkspaceContext context) =>
             $$$"""
             execute if score #population lc_population matches 5.. as @e[type=minecraft:villager,tag=lc_citizen,tag=!lc_personality,limit=1,sort=random] run tag @s add lc_personality
-            execute store result storage {{{context.ModId}}}:personalities.count int 1 if entity @e[type=minecraft:villager,tag=lc_personality]
+            execute store result storage {{{context.ModId}}}:personalities count int 1 if entity @e[type=minecraft:villager,tag=lc_personality]
             """;
 
         private static string CreateDatapackCitizenStatusFunction(WorkspaceContext context) =>

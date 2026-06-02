@@ -125,6 +125,13 @@ public static class DxaichatFunctionCatalog
             "No parameters.",
             "Read-only. Use this before saying a local AI host .NET rebuild is too large or before producing a generic dashboard."),
         new(
+            "localgpt.frontend_test_guidance",
+            "GET",
+            "/__diag/frontend-test-guidance",
+            "Return source-backed guidance for LocalGPT Test Lab, deterministic frontend/API smoke tests, Selenium WebView2 automation, and optional Python.NET browser automation.",
+            "No parameters.",
+            "Read-only. Use this before claiming DXAiChat, WebView2, or artifact download behavior was tested."),
+        new(
             "council.artifact_smoke",
             "GET",
             "/__diag/council/artifact-smoke?target=blazor",

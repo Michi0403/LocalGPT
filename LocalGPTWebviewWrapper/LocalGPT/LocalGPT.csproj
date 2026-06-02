@@ -50,6 +50,7 @@
 		<Content Include="..\..\docs\AI_HOST_CONTROL_PLANE_ARCHITECTURE.md" Link="docs\AI_HOST_CONTROL_PLANE_ARCHITECTURE.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\LOCALGPT_DEVELOPER_DIARY.md" Link="docs\LOCALGPT_DEVELOPER_DIARY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\LOCALGPT_WORKFLOW_MEMORY.md" Link="docs\LOCALGPT_WORKFLOW_MEMORY.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\FRONTEND_TEST_AUTOMATION.md" Link="docs\FRONTEND_TEST_AUTOMATION.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" Link="docs\BLAZOR_DEVEXPRESS_AI_GENERATION.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md" Link="docs\BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md" Link="docs\MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md" CopyToOutputDirectory="PreserveNewest" />
