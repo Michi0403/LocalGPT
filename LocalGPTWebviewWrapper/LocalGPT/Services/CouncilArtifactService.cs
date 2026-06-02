@@ -126,6 +126,12 @@ namespace LocalGPT.Services
                 Path.Combine(pagesRoot, isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
                 GenerateSolutionDetailRazor(request, result, isOllamaLab),
                 cancellationToken);
+            if (isOllamaLab)
+            {
+                await WriteTextAsync(Path.Combine(pagesRoot, "ModelDownloads.razor"), GenerateOllamaModelDownloadsRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "Settings.razor"), GenerateOllamaSettingsRazor(), cancellationToken);
+            }
+
             await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), GenerateSolutionService(projectName, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), GenerateSolutionModel(projectName), cancellationToken);
             await WriteTextAsync(Path.Combine(wwwroot, "app.css"), GenerateSolutionCss(), cancellationToken);
@@ -298,21 +304,31 @@ namespace LocalGPT.Services
         {
             var ollamaRoutes = isOllamaLab
                 ? """
-                  app.MapGet("/api/version", () => new { version = "dotnet-lab-0.1", source = "LocalGPT generated sandbox" });
-                  app.MapGet("/api/tags", (GeneratedHealthSummaryService service) => new { models = service.GetModelCatalog() });
-                  app.MapPost("/api/generate", () => Results.Json(new
+                  app.MapGet("/api/version", () => new
                   {
-                      model = "dotnet-lab-stub",
-                      created_at = DateTimeOffset.UtcNow,
-                      response = "This .NET lab does not implement native inference. Attach a real runner before claiming Ollama replacement behavior.",
-                      done = true
-                  }));
+                      version = "dotnet-lab-0.2",
+                      source = "LocalGPT generated sandbox",
+                      native_inference = false
+                  });
+                  app.MapGet("/api/tags", ([FromServices] GeneratedHealthSummaryService service) => new { models = service.GetOllamaTags() });
+                  app.MapGet("/api/ps", ([FromServices] GeneratedHealthSummaryService service) => new { models = service.GetRunningModels() });
+                  app.MapPost("/api/show", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.GetModelDetails(request));
+                  app.MapPost("/api/pull", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreatePullPlan(request));
+                  app.MapPost("/api/push", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateOperation("push", request.Model));
+                  app.MapPost("/api/create", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateOperation("create", request.Model));
+                  app.MapPost("/api/copy", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelCopyRequest request) => service.CreateCopyPlan(request));
+                  app.MapDelete("/api/delete", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateOperation("delete", request.Model));
+                  app.MapPost("/api/generate", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateGenerateResponse(request));
+                  app.MapPost("/api/chat", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedChatRequest request) => service.CreateChatResponse(request));
+                  app.MapPost("/api/embed", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   """
                 : string.Empty;
 
             return $$"""
             using DevExpress.Blazor;
+            using Microsoft.AspNetCore.Mvc;
             using {{projectName}}.Components;
+            using {{projectName}}.Models;
             using {{projectName}}.Services;
 
             var builder = WebApplication.CreateBuilder(args);
@@ -393,6 +409,20 @@ namespace LocalGPT.Services
             var catalogText = isOllamaLab ? "Model Catalog" : "Knowledge";
             var detailHref = isOllamaLab ? "/api-console" : "/implementation-plan";
             var detailText = isOllamaLab ? "API Console" : "Implementation Plan";
+            var ollamaLinks = isOllamaLab
+                ? """
+                    <a href="/model-downloads">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
+                        <span>Downloads</span>
+                    </a>
+                    <a href="/settings">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>Settings</span>
+                    </a>
+                """
+                : string.Empty;
 
             return $$"""
                 <nav class="generated-nav" aria-label="{{labName}} navigation">
@@ -412,6 +442,7 @@ namespace LocalGPT.Services
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
                         <span>{{detailText}}</span>
                     </a>
+                    {{ollamaLinks}}
                 </nav>
 
                 @code {
@@ -737,15 +768,144 @@ namespace LocalGPT.Services
                 """;
         }
 
+        private static string GenerateOllamaModelDownloadsRazor() =>
+            """
+            @page "/model-downloads"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>Model Downloads</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation IsOllamaLab="true" />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>Model Downloads</h1>
+                        <p>Plan Ollama-style pull operations without claiming ownership of model binaries or native runner behavior.</p>
+                    </div>
+                    <DxButton Text="Create pull plan"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Click="CreatePullPlan" />
+                </section>
+
+                <DxGrid Data="@HealthService.GetDownloadCandidates()"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.Name)" Caption="Model" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.RecommendedFor)" Caption="Recommended For" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.DownloadRoute)" Caption="Route" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.SafetyNote)" Caption="Safety Note" />
+                    </Columns>
+                </DxGrid>
+
+                <DxFormLayout CssClass="generated-form">
+                    <DxFormLayoutGroup Caption="Selected pull request" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Model" ColSpanMd="6">
+                            <DxTextBox Text="@SelectedModel" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Streaming" ColSpanMd="6">
+                            <DxCheckBox @bind-Checked="StreamProgress" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Generated plan" ColSpanMd="12">
+                            <DxMemo Text="@PullPlanText" Rows="5" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                    </DxFormLayoutGroup>
+                </DxFormLayout>
+            </main>
+
+            @code {
+                string SelectedModel { get; set; } = "gpt-oss:20b";
+                bool StreamProgress { get; set; }
+                string PullPlanText { get; set; } = "Click Create pull plan to preview a safe /api/pull response.";
+
+                void CreatePullPlan()
+                {
+                    var plan = HealthService.CreatePullPlan(new GeneratedModelActionRequest
+                    {
+                        Model = SelectedModel,
+                        Stream = StreamProgress
+                    });
+                    PullPlanText = $"{plan.Route} for {plan.Model}: {plan.Status}. {plan.Detail}";
+                }
+            }
+            """;
+
+        private static string GenerateOllamaSettingsRazor() =>
+            """
+            @page "/settings"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>Ollama Lab Settings</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation IsOllamaLab="true" />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>Ollama Lab Settings</h1>
+                        <p>Configuration is shown as safe generated defaults. Real persistence should be added through backend services and EF/SQLite after user approval.</p>
+                    </div>
+                </section>
+
+                <DxFormLayout CssClass="generated-form">
+                    <DxFormLayoutGroup Caption="Generated Runtime Profile" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Base URI" ColSpanMd="6">
+                            <DxTextBox Text="@LabSettings.BaseUri" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Default Model" ColSpanMd="6">
+                            <DxTextBox Text="@LabSettings.DefaultModel" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Keep Alive" ColSpanMd="4">
+                            <DxTextBox Text="@LabSettings.KeepAlive" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Context Tokens" ColSpanMd="4">
+                            <DxTextBox Text="@LabSettings.ContextTokens.ToString()" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="GPU Layers" ColSpanMd="4">
+                            <DxTextBox Text="@LabSettings.GpuLayers.ToString()" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Native Runner Attached" ColSpanMd="6">
+                            <DxCheckBox @bind-Checked="NativeRunnerAttached" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Pull Planning Enabled" ColSpanMd="6">
+                            <DxCheckBox @bind-Checked="AllowPullPlanning" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Settings Summary" ColSpanMd="12">
+                            <DxMemo Text="@HealthService.BuildSettingsSummary()" Rows="5" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                    </DxFormLayoutGroup>
+                </DxFormLayout>
+            </main>
+
+            @code {
+                GeneratedOllamaSettings LabSettings { get; set; } = new();
+                bool NativeRunnerAttached { get; set; }
+                bool AllowPullPlanning { get; set; }
+
+                protected override void OnInitialized()
+                {
+                    LabSettings = HealthService.GetSettings();
+                    NativeRunnerAttached = LabSettings.NativeRunnerAttached;
+                    AllowPullPlanning = LabSettings.AllowPullPlanning;
+                }
+            }
+            """;
+
         private static string GenerateSolutionService(string projectName, bool isOllamaLab)
         {
             var cards = isOllamaLab
                 ? """
-                          new("REST API Shell", "Prototype", "Map /api/version, /api/tags, and a non-inference /api/generate stub.", "This mirrors selected Ollama API shapes without claiming native inference."),
-                          new("Model Catalog", "SourceBacked", "Represent model names, tags, sizes, and runner status in .NET models.", "The inspected Ollama source has api/model/manifest concerns that should become typed C# models."),
+                          new("REST API Shell", "Prototype", "Map version, tags, ps, show, pull, push, create, copy, delete, generate, chat, and embed stubs.", "This mirrors Ollama API route families without claiming native inference."),
+                          new("Model Catalog", "SourceBacked", "Represent model names, tags, details, download candidates, and runner status in .NET models.", "Model file ownership stays outside the lab until a real backend is approved."),
                           new("Native Runner", "Not Implemented", "Attach or build a real inference backend before claiming Ollama replacement behavior.", "Ollama relies on native GGML/GPU runner paths, CMake payloads, and hardware-specific backends."),
-                          new("Endpoint Console", "Ready", "Expose API compatibility docs, request examples, and adapter status in the UI.", "This makes the lab recognizably Ollama-shaped without pretending to run models."),
-                          new("DevExpress UI", "Ready", "Use grids/forms for model inventory, compatibility notes, logs, and endpoint tests.", "This is the realistic Blazor/DevExpress value of the experiment.")
+                          new("Model Downloads", "Ready", "Expose a /model-downloads page and /api/pull planning response.", "Pull planning is safe and explicit; it does not download binaries by itself."),
+                          new("Settings", "Ready", "Expose generated runtime settings for base URI, default model, context, GPU layers, and pull policy.", "Persist real settings through EF/SQLite only after user approval."),
+                          new("DevExpress UI", "Ready", "Use grids/forms for model inventory, compatibility notes, settings, downloads, and endpoint tests.", "This is the realistic Blazor/DevExpress value of the experiment.")
                   """
                 : """
                           new("AI Council Request", "Ready", "Capture the feature idea, council consensus, and implementation poll result.", "This mirrors the LocalGPT workflow for user-approved feature development."),
@@ -759,8 +919,16 @@ namespace LocalGPT.Services
                 ? """
                           new("GET", "/api/version", "Return a compact Ollama-style version document.", "Safe pure .NET response."),
                           new("GET", "/api/tags", "Return model catalog rows shaped like Ollama tags.", "Catalog only; no model file ownership implied."),
+                          new("GET", "/api/ps", "Return currently loaded model rows for runner-status UI.", "Stubbed; no native runner session is owned."),
+                          new("POST", "/api/show", "Return model metadata, parameters, template, and details.", "Source-shaped but generated data only."),
+                          new("POST", "/api/pull", "Return a safe model-download plan.", "Does not download model binaries without a real adapter."),
+                          new("POST", "/api/push", "Return a registry-upload plan.", "No registry credentials or upload path included."),
+                          new("POST", "/api/create", "Return a model-create plan.", "No Modelfile build happens in this sandbox."),
+                          new("POST", "/api/copy", "Return a model-copy plan.", "No local blob mutation happens."),
+                          new("DELETE", "/api/delete", "Return a model-delete plan.", "No file deletion happens."),
                           new("POST", "/api/generate", "Return a deterministic non-inference response for UI/API plumbing tests.", "Must attach a real runner before claiming generation."),
-                          new("POST", "/api/show", "Future route for model metadata and manifest details.", "Needs verified model manifest adapter.")
+                          new("POST", "/api/chat", "Return a deterministic chat response.", "No token generation or context cache is implemented."),
+                          new("POST", "/api/embed", "Return a tiny deterministic vector.", "Not a real embedding model.")
                   """
                 : """
                           new("1", "Backend service", "Create the durable service and data model first.", "Build and test before UI integration."),
@@ -806,6 +974,48 @@ namespace LocalGPT.Services
                 }
 
                 /// <summary>
+                /// Returns Ollama-style local model rows for the /api/tags route.
+                /// </summary>
+                public IReadOnlyList<GeneratedOllamaModelTag> GetOllamaTags()
+                {
+                    return
+                    [
+                        new("gpt-oss:20b", "gpt-oss", "20B", "Q4_K_M", 0),
+                        new("qwen3-coder:30b", "qwen", "30B", "Q4_K_M", 0),
+                        new("dotnet-lab-stub:latest", "generated", "0B", "none", 0)
+                    ];
+                }
+
+                /// <summary>
+                /// Returns the model rows shown as currently loaded by the generated /api/ps route.
+                /// </summary>
+                public IReadOnlyList<GeneratedOllamaModelTag> GetRunningModels()
+                {
+                    return [new("dotnet-lab-stub:latest", "generated", "0B", "none", 0)];
+                }
+
+                /// <summary>
+                /// Returns model metadata shaped like Ollama's show route.
+                /// </summary>
+                public object GetModelDetails(GeneratedModelActionRequest request)
+                {
+                    var model = NormalizeModel(request.Model);
+                    return new
+                    {
+                        license = "Generated LocalGPT lab metadata. Needs verification before production use.",
+                        modelfile = $"FROM {model}\nPARAMETER num_ctx 2048",
+                        parameters = "num_ctx 2048\nnum_predict 512",
+                        template = "{" + "{ .Prompt }" + "}",
+                        details = new GeneratedOllamaModelDetails("gguf", "generated", "0B", "none"),
+                        model_info = new
+                        {
+                            architecture = "generated-dotnet-control-plane",
+                            native_runner_attached = false
+                        }
+                    };
+                }
+
+                /// <summary>
                 /// Returns routes, steps, or boundaries shown by the generated detail page.
                 /// </summary>
                 public IReadOnlyList<GeneratedEndpointCard> GetEndpointCatalog()
@@ -815,12 +1025,145 @@ namespace LocalGPT.Services
                 {{endpoints}}
                     ];
                 }
+
+                /// <summary>
+                /// Returns candidate model downloads displayed on the generated download page.
+                /// </summary>
+                public IReadOnlyList<GeneratedModelDownloadCandidate> GetDownloadCandidates()
+                {
+                    return
+                    [
+                        new("gpt-oss:20b", "LocalGPT debugging and balanced reasoning", "/api/pull", "Pull only when GPU/VRAM policy allows it."),
+                        new("gemma3:27b", "Longer general review and writing", "/api/pull", "Use one model at a time on 24 GB VRAM."),
+                        new("qwen3-coder:30b", "Code review and larger code-generation tests", "/api/pull", "Prefer CPU or reduced GPU layers after driver instability."),
+                        new("deepseek-r1:8b", "Small reasoning checks", "/api/pull", "May spend short budgets on thinking.")
+                    ];
+                }
+
+                /// <summary>
+                /// Returns generated runtime settings for the settings page.
+                /// </summary>
+                public GeneratedOllamaSettings GetSettings()
+                {
+                    return new GeneratedOllamaSettings
+                    {
+                        BaseUri = "http://127.0.0.1:11434",
+                        DefaultModel = "gpt-oss:20b",
+                        KeepAlive = "0s",
+                        ContextTokens = 2048,
+                        GpuLayers = 20,
+                        NativeRunnerAttached = false,
+                        AllowPullPlanning = true
+                    };
+                }
+
+                /// <summary>
+                /// Builds the settings summary shown in the generated settings page.
+                /// </summary>
+                public string BuildSettingsSummary()
+                {
+                    var settings = GetSettings();
+                    return $"Base URI: {settings.BaseUri}\nDefault model: {settings.DefaultModel}\n" +
+                        $"Context tokens: {settings.ContextTokens}\nGPU layers: {settings.GpuLayers}\n" +
+                        "Native inference is not implemented in this generated lab.";
+                }
+
+                /// <summary>
+                /// Creates a safe model-pull plan without downloading model files.
+                /// </summary>
+                public GeneratedOllamaOperation CreatePullPlan(GeneratedModelActionRequest request)
+                {
+                    return new GeneratedOllamaOperation(
+                        "planned",
+                        NormalizeModel(request.Model),
+                        "/api/pull",
+                        true,
+                        "This response mirrors Ollama pull progress shape but does not download model binaries.");
+                }
+
+                /// <summary>
+                /// Creates a safe non-mutating operation response for registry and model-management routes.
+                /// </summary>
+                public GeneratedOllamaOperation CreateOperation(string operation, string? model)
+                {
+                    return new GeneratedOllamaOperation(
+                        "planned",
+                        NormalizeModel(model),
+                        $"/api/{operation}",
+                        true,
+                        $"The generated lab records a {operation} plan but does not mutate model storage.");
+                }
+
+                /// <summary>
+                /// Creates a safe copy plan for the /api/copy route.
+                /// </summary>
+                public GeneratedOllamaOperation CreateCopyPlan(GeneratedModelCopyRequest request)
+                {
+                    var from = NormalizeModel(request.Source);
+                    var to = NormalizeModel(request.Destination);
+                    return new GeneratedOllamaOperation(
+                        "planned",
+                        $"{from} -> {to}",
+                        "/api/copy",
+                        true,
+                        "The generated lab records copy intent but does not mutate model storage.");
+                }
+
+                /// <summary>
+                /// Creates a deterministic non-inference generate response.
+                /// </summary>
+                public object CreateGenerateResponse(GeneratedModelActionRequest request)
+                {
+                    return new
+                    {
+                        model = NormalizeModel(request.Model),
+                        created_at = DateTimeOffset.UtcNow,
+                        response = "This .NET lab does not implement native inference. Attach a real runner before claiming Ollama replacement behavior.",
+                        done = true
+                    };
+                }
+
+                /// <summary>
+                /// Creates a deterministic non-inference chat response.
+                /// </summary>
+                public object CreateChatResponse(GeneratedChatRequest request)
+                {
+                    return new
+                    {
+                        model = NormalizeModel(request.Model),
+                        created_at = DateTimeOffset.UtcNow,
+                        message = new GeneratedChatMessage("assistant", "Generated lab response only. No native Ollama runner is attached."),
+                        done = true
+                    };
+                }
+
+                /// <summary>
+                /// Creates a deterministic tiny embedding response for plumbing tests.
+                /// </summary>
+                public object CreateEmbeddingResponse(GeneratedModelActionRequest request)
+                {
+                    return new
+                    {
+                        model = NormalizeModel(request.Model),
+                        embeddings = new[] { new[] { 0.0, 0.25, 0.5, 0.75 } },
+                        done = true
+                    };
+                }
+
+                private static string NormalizeModel(string? model)
+                {
+                    return string.IsNullOrWhiteSpace(model)
+                        ? "dotnet-lab-stub:latest"
+                        : model.Trim();
+                }
             }
             """;
         }
 
         private static string GenerateSolutionModel(string projectName) =>
             $$"""
+            using System.Text.Json.Serialization;
+
             namespace {{projectName}}.Models;
 
             /// <summary>
@@ -932,6 +1275,353 @@ namespace LocalGPT.Services
                 /// Gets the safety or implementation boundary.
                 /// </summary>
                 public string Boundary { get; }
+            }
+
+            /// <summary>
+            /// Describes one Ollama-style model row returned by generated catalog routes.
+            /// </summary>
+            public sealed class GeneratedOllamaModelTag
+            {
+                /// <summary>
+                /// Creates a generated Ollama-style model row.
+                /// </summary>
+                public GeneratedOllamaModelTag(
+                    string name,
+                    string family,
+                    string parameterSize,
+                    string quantizationLevel,
+                    long size)
+                {
+                    Name = name;
+                    Model = name;
+                    ModifiedAt = DateTimeOffset.UtcNow;
+                    Size = size;
+                    Digest = $"generated-{Math.Abs(name.GetHashCode(StringComparison.Ordinal)):x}";
+                    Details = new GeneratedOllamaModelDetails("gguf", family, parameterSize, quantizationLevel);
+                }
+
+                /// <summary>
+                /// Gets the legacy Ollama model name field.
+                /// </summary>
+                [JsonPropertyName("name")]
+                public string Name { get; }
+
+                /// <summary>
+                /// Gets the model identifier.
+                /// </summary>
+                [JsonPropertyName("model")]
+                public string Model { get; }
+
+                /// <summary>
+                /// Gets the generated modification timestamp.
+                /// </summary>
+                [JsonPropertyName("modified_at")]
+                public DateTimeOffset ModifiedAt { get; }
+
+                /// <summary>
+                /// Gets the generated model size in bytes.
+                /// </summary>
+                [JsonPropertyName("size")]
+                public long Size { get; }
+
+                /// <summary>
+                /// Gets a deterministic generated digest placeholder.
+                /// </summary>
+                [JsonPropertyName("digest")]
+                public string Digest { get; }
+
+                /// <summary>
+                /// Gets model detail metadata.
+                /// </summary>
+                [JsonPropertyName("details")]
+                public GeneratedOllamaModelDetails Details { get; }
+            }
+
+            /// <summary>
+            /// Describes generated Ollama-style model details.
+            /// </summary>
+            public sealed class GeneratedOllamaModelDetails
+            {
+                /// <summary>
+                /// Creates generated model details.
+                /// </summary>
+                public GeneratedOllamaModelDetails(
+                    string format,
+                    string family,
+                    string parameterSize,
+                    string quantizationLevel)
+                {
+                    Format = format;
+                    Family = family;
+                    Families = [family];
+                    ParameterSize = parameterSize;
+                    QuantizationLevel = quantizationLevel;
+                }
+
+                /// <summary>
+                /// Gets the generated model file format.
+                /// </summary>
+                [JsonPropertyName("format")]
+                public string Format { get; }
+
+                /// <summary>
+                /// Gets the generated primary model family.
+                /// </summary>
+                [JsonPropertyName("family")]
+                public string Family { get; }
+
+                /// <summary>
+                /// Gets generated model families.
+                /// </summary>
+                [JsonPropertyName("families")]
+                public IReadOnlyList<string> Families { get; }
+
+                /// <summary>
+                /// Gets the generated parameter size label.
+                /// </summary>
+                [JsonPropertyName("parameter_size")]
+                public string ParameterSize { get; }
+
+                /// <summary>
+                /// Gets the generated quantization label.
+                /// </summary>
+                [JsonPropertyName("quantization_level")]
+                public string QuantizationLevel { get; }
+            }
+
+            /// <summary>
+            /// Represents a generated Ollama action request.
+            /// </summary>
+            public sealed class GeneratedModelActionRequest
+            {
+                /// <summary>
+                /// Gets or sets the model name.
+                /// </summary>
+                [JsonPropertyName("model")]
+                public string? Model { get; set; }
+
+                /// <summary>
+                /// Gets or sets the prompt for generate/embed-style routes.
+                /// </summary>
+                [JsonPropertyName("prompt")]
+                public string? Prompt { get; set; }
+
+                /// <summary>
+                /// Gets or sets whether the caller requested streaming.
+                /// </summary>
+                [JsonPropertyName("stream")]
+                public bool Stream { get; set; }
+            }
+
+            /// <summary>
+            /// Represents a generated Ollama copy request.
+            /// </summary>
+            public sealed class GeneratedModelCopyRequest
+            {
+                /// <summary>
+                /// Gets or sets the source model.
+                /// </summary>
+                [JsonPropertyName("source")]
+                public string? Source { get; set; }
+
+                /// <summary>
+                /// Gets or sets the destination model.
+                /// </summary>
+                [JsonPropertyName("destination")]
+                public string? Destination { get; set; }
+            }
+
+            /// <summary>
+            /// Represents a generated Ollama chat request.
+            /// </summary>
+            public sealed class GeneratedChatRequest
+            {
+                /// <summary>
+                /// Gets or sets the requested model.
+                /// </summary>
+                [JsonPropertyName("model")]
+                public string? Model { get; set; }
+
+                /// <summary>
+                /// Gets or sets the chat messages.
+                /// </summary>
+                [JsonPropertyName("messages")]
+                public List<GeneratedChatMessage> Messages { get; set; } = [];
+
+                /// <summary>
+                /// Gets or sets whether the caller requested streaming.
+                /// </summary>
+                [JsonPropertyName("stream")]
+                public bool Stream { get; set; }
+            }
+
+            /// <summary>
+            /// Represents a generated Ollama chat message.
+            /// </summary>
+            public sealed class GeneratedChatMessage
+            {
+                /// <summary>
+                /// Creates an empty generated chat message.
+                /// </summary>
+                public GeneratedChatMessage()
+                {
+                }
+
+                /// <summary>
+                /// Creates a generated chat message.
+                /// </summary>
+                public GeneratedChatMessage(string role, string content)
+                {
+                    Role = role;
+                    Content = content;
+                }
+
+                /// <summary>
+                /// Gets or sets the chat role.
+                /// </summary>
+                [JsonPropertyName("role")]
+                public string Role { get; set; } = string.Empty;
+
+                /// <summary>
+                /// Gets or sets the chat content.
+                /// </summary>
+                [JsonPropertyName("content")]
+                public string Content { get; set; } = string.Empty;
+            }
+
+            /// <summary>
+            /// Describes a generated model download planning row.
+            /// </summary>
+            public sealed class GeneratedModelDownloadCandidate
+            {
+                /// <summary>
+                /// Creates a generated download candidate.
+                /// </summary>
+                public GeneratedModelDownloadCandidate(
+                    string name,
+                    string recommendedFor,
+                    string downloadRoute,
+                    string safetyNote)
+                {
+                    Name = name;
+                    RecommendedFor = recommendedFor;
+                    DownloadRoute = downloadRoute;
+                    SafetyNote = safetyNote;
+                }
+
+                /// <summary>
+                /// Gets the candidate model name.
+                /// </summary>
+                public string Name { get; }
+
+                /// <summary>
+                /// Gets the recommended use case.
+                /// </summary>
+                public string RecommendedFor { get; }
+
+                /// <summary>
+                /// Gets the route used to plan the download.
+                /// </summary>
+                public string DownloadRoute { get; }
+
+                /// <summary>
+                /// Gets the safety note for the generated lab.
+                /// </summary>
+                public string SafetyNote { get; }
+            }
+
+            /// <summary>
+            /// Holds generated Ollama lab settings shown in the DevExpress form.
+            /// </summary>
+            public sealed class GeneratedOllamaSettings
+            {
+                /// <summary>
+                /// Gets or sets the external Ollama base URI.
+                /// </summary>
+                public string BaseUri { get; set; } = "http://localhost:11434";
+
+                /// <summary>
+                /// Gets or sets the default model for generated request examples.
+                /// </summary>
+                public string DefaultModel { get; set; } = "gpt-oss:20b";
+
+                /// <summary>
+                /// Gets or sets the generated keep-alive value.
+                /// </summary>
+                public string KeepAlive { get; set; } = "5m";
+
+                /// <summary>
+                /// Gets or sets the generated context token budget.
+                /// </summary>
+                public int ContextTokens { get; set; } = 2048;
+
+                /// <summary>
+                /// Gets or sets the generated GPU layer budget.
+                /// </summary>
+                public int GpuLayers { get; set; } = 0;
+
+                /// <summary>
+                /// Gets or sets whether a native runner is attached.
+                /// </summary>
+                public bool NativeRunnerAttached { get; set; }
+
+                /// <summary>
+                /// Gets or sets whether pull planning is enabled.
+                /// </summary>
+                public bool AllowPullPlanning { get; set; } = true;
+            }
+
+            /// <summary>
+            /// Describes a generated Ollama-compatible operation result.
+            /// </summary>
+            public sealed class GeneratedOllamaOperation
+            {
+                /// <summary>
+                /// Creates a generated operation result.
+                /// </summary>
+                public GeneratedOllamaOperation(
+                    string status,
+                    string model,
+                    string route,
+                    bool done,
+                    string detail)
+                {
+                    Status = status;
+                    Model = model;
+                    Route = route;
+                    Done = done;
+                    Detail = detail;
+                }
+
+                /// <summary>
+                /// Gets the generated operation status.
+                /// </summary>
+                [JsonPropertyName("status")]
+                public string Status { get; }
+
+                /// <summary>
+                /// Gets the affected model or model mapping.
+                /// </summary>
+                [JsonPropertyName("model")]
+                public string Model { get; }
+
+                /// <summary>
+                /// Gets the route that produced the result.
+                /// </summary>
+                [JsonPropertyName("route")]
+                public string Route { get; }
+
+                /// <summary>
+                /// Gets whether the generated operation is complete.
+                /// </summary>
+                [JsonPropertyName("done")]
+                public bool Done { get; }
+
+                /// <summary>
+                /// Gets the generated explanation.
+                /// </summary>
+                [JsonPropertyName("detail")]
+                public string Detail { get; }
             }
             """;
 
@@ -1241,6 +1931,25 @@ namespace LocalGPT.Services
                 : "Prototype a LocalGPT/TacosPortalOpen-style AI Council feature workspace with reviewable Blazor pages.";
             var catalogPage = isOllamaLab ? "GeneratedKnowledgeTable.razor route `/models`" : "GeneratedKnowledgeTable.razor route `/knowledge`";
             var detailPage = isOllamaLab ? "ApiConsole.razor route `/api-console`" : "ImplementationPlan.razor route `/implementation-plan`";
+            var ollamaExpectedEntryPoints = isOllamaLab
+                ? $$"""
+                ,
+                "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
+                "src/{{projectName}}/Components/Pages/Settings.razor"
+                """
+                : string.Empty;
+            var ollamaEntryPoints = isOllamaLab
+                ? $$"""
+            - `src/{{projectName}}/Components/Pages/ModelDownloads.razor` - DevExpress model pull planning page.
+            - `src/{{projectName}}/Components/Pages/Settings.razor` - Ollama lab settings and runner-boundary page.
+            """
+                : string.Empty;
+            var ollamaGeneratedFiles = isOllamaLab
+                ? $$"""
+            | `src/{{projectName}}/Components/Pages/ModelDownloads.razor` | DevExpress UI for Ollama-style pull planning and download guidance. |
+            | `src/{{projectName}}/Components/Pages/Settings.razor` | DevExpress settings page for external Ollama URI, context, and native-runner boundaries. |
+            """
+                : string.Empty;
 
             return $$"""
             # Project Index
@@ -1263,7 +1972,7 @@ namespace LocalGPT.Services
               "expected_entrypoints": [
                 "src/{{projectName}}/Program.cs",
                 "src/{{projectName}}/Components/Pages/Index.razor",
-                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor"
+                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor"{{ollamaExpectedEntryPoints}}
               ]
             }
             ```
@@ -1278,6 +1987,7 @@ namespace LocalGPT.Services
             - `src/{{projectName}}/Components/Pages/GeneratedDashboard.razor` - health/status grid.
             - `src/{{projectName}}/Components/Pages/{{catalogPage}}` - archetype catalog page.
             - `src/{{projectName}}/Components/Pages/{{detailPage}}` - archetype-specific detail page.
+            {{ollamaEntryPoints}}
 
             ## Generated Files
 
@@ -1287,6 +1997,7 @@ namespace LocalGPT.Services
             | `src/{{projectName}}/{{projectName}}.csproj` | .NET 10 Blazor Web App project with DevExpress dependency. |
             | `src/{{projectName}}/Services/GeneratedHealthSummaryService.cs` | Typed demo service instead of Razor-only fake data. |
             | `src/{{projectName}}/Models/GeneratedHealthCard.cs` | Shared model records for grids/catalog rows. |
+            {{ollamaGeneratedFiles}}
             | `src/{{projectName}}/wwwroot/app.css` | Local styling for the generated shell. |
             | `src/{{projectName}}/wwwroot/icons/nav/*-line.svg` | Default navigation icon style. |
             | `src/{{projectName}}/wwwroot/icons/nav/*-solid.svg` | Hover/focus navigation icon style. |
@@ -1359,7 +2070,9 @@ namespace LocalGPT.Services
 
         private static string GenerateSolutionBuildAndRunDoc(string projectName, bool isOllamaLab)
         {
-            var smokeRoute = isOllamaLab ? "Open `/api-console` and verify endpoint rows are visible." : "Open `/implementation-plan` and verify implementation steps are visible.";
+            var smokeRoute = isOllamaLab
+                ? "Open `/api-console`, `/model-downloads`, and `/settings`; then call `/api/version`, `/api/tags`, and `/api/chat` to verify the control-plane routes."
+                : "Open `/implementation-plan` and verify implementation steps are visible.";
             return $$"""
             # Build And Run
 
@@ -1399,8 +2112,22 @@ namespace LocalGPT.Services
             var projectKind = isOllamaLab ? "dotnet_service" : "localgpt_feature";
             var detailPage = isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
             var validationNotes = isOllamaLab
-                ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, and API console files were present before zipping."
+                ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, model-download, and settings files were present before zipping."
                 : "Required docs, manifest, navigation, paired nav icons, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
+            var ollamaExpectedEntryPoints = isOllamaLab
+                ? $$"""
+                ,
+                "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
+                "src/{{projectName}}/Components/Pages/Settings.razor"
+                """
+                : string.Empty;
+            var ollamaGeneratedFiles = isOllamaLab
+                ? $$"""
+                ,
+                "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
+                "src/{{projectName}}/Components/Pages/Settings.razor"
+                """
+                : string.Empty;
 
             return $$"""
             {
@@ -1423,7 +2150,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/GeneratedNavigation.razor",
                 "src/{{projectName}}/Components/Pages/Index.razor",
                 "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
-                "src/{{projectName}}/Components/Pages/{{detailPage}}"
+                "src/{{projectName}}/Components/Pages/{{detailPage}}"{{ollamaExpectedEntryPoints}}
               ],
               "generated_files": [
                 "{{projectName}}.sln",
@@ -1440,7 +2167,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/GeneratedNavigation.razor",
                 "src/{{projectName}}/Components/Pages/Index.razor",
                 "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
-                "src/{{projectName}}/Components/Pages/{{detailPage}}",
+                "src/{{projectName}}/Components/Pages/{{detailPage}}"{{ollamaGeneratedFiles}},
                 "src/{{projectName}}/Services/GeneratedHealthSummaryService.cs",
                 "src/{{projectName}}/Models/GeneratedHealthCard.cs",
                 "src/{{projectName}}/wwwroot/app.css",
@@ -1769,7 +2496,7 @@ namespace LocalGPT.Services
 
         private static void ValidateSolutionArtifactContract(string solutionRoot, string projectName, bool isOllamaLab)
         {
-            var requiredFiles = new[]
+            var requiredFiles = new List<string>
             {
                 $"{projectName}.sln",
                 "README.md",
@@ -1795,6 +2522,12 @@ namespace LocalGPT.Services
                 Path.Combine("src", projectName, "wwwroot", "icons", "nav", "detail-line.svg"),
                 Path.Combine("src", projectName, "wwwroot", "icons", "nav", "detail-solid.svg")
             };
+
+            if (isOllamaLab)
+            {
+                requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "ModelDownloads.razor"));
+                requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Settings.razor"));
+            }
 
             var missing = requiredFiles
                 .Where(relativePath => !File.Exists(Path.Combine(solutionRoot, relativePath)))

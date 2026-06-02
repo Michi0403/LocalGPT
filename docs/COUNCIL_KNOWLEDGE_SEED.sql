@@ -426,4 +426,19 @@ VALUES
   1,
   1,
   0
+),
+(
+  '64a7e3fa-10ab-4c0e-95d6-442db7ee3772',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Ollama .NET lab API and UI contract',
+  'Ollama .NET Lab',
+  'An Ollama-inspired .NET/DevExpress generation must not be only a few web pages. It should include an ASP.NET Core control-plane API with representative Ollama-style route stubs for version, tags/list models, running models, show, pull, push, create, copy, delete, generate, chat, and embed. It should include DevExpress pages for API console, model catalog, model download planning, and settings. It must clearly say native GGML/GPU inference, model loading, and real binary downloads are not implemented unless an approved backend exists.',
+  'Official Ollama API docs and LocalGPT artifact contract',
+  'Ollama API docs: https://docs.ollama.com/api; Local docs: docs/OLLAMA_DOTNET_EXPERIMENT.md and docs/GENERATION_ARCHETYPE_CONTRACTS.md',
+  'seed; ollama; dotnet; aspnetcore; devexpress; api; model-downloads; settings; generation',
+  96,
+  1,
+  1,
+  0
 );

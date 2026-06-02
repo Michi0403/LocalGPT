@@ -70,7 +70,17 @@ Generate a downloadable .NET 10 Blazor/DevExpress solution zip with:
 - model/service classes
 - README
 - manifest
-- minimal API stubs for `/api/version`, `/api/tags`, and a non-inference `/api/generate` placeholder
-- DevExpress grids/forms for endpoint compatibility and model catalog status
+- minimal API stubs for the Ollama-style route families:
+  `/api/version`, `/api/tags`, `/api/ps`, `/api/show`, `/api/pull`,
+  `/api/push`, `/api/create`, `/api/copy`, `/api/delete`, `/api/generate`,
+  `/api/chat`, and `/api/embed`
+- DevExpress grids/forms for endpoint compatibility, model catalog status,
+  model download planning, and settings
+- separate pages for API console, model catalog, download planning, and settings
 
 The generated project must build before it is presented as successful.
+
+The generated lab should be compared with a real Ollama instance through
+lightweight checks such as `/api/version` and `/api/tags`. Avoid loading large
+models for routine release checks. If the lab returns deterministic non-inference
+responses, say that clearly instead of calling it a full Ollama replacement.

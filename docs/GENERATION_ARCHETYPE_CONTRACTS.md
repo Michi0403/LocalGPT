@@ -70,7 +70,13 @@ NeoForge uses NeoForge-specific Gradle setup, metadata, event bus conventions, a
 
 A LocalGPT feature artifact should look like a LocalGPT/TacosPortalOpen feature sandbox: real `.razor` pages, DevExpress controls, backend services/routes, EF/SQLite when durable state is needed, artifact downloads, diagnostics, and user approval gates.
 
-An Ollama .NET lab should look like an API-control-plane experiment: Ollama-shaped route cataloging, model inventory, compatibility notes, endpoint tests, and explicit native-runner boundaries. It must not pretend to replace Ollama's GGML/GPU runner unless a real approved backend exists.
+An Ollama .NET lab should look like an API-control-plane experiment:
+Ollama-shaped route cataloging, model inventory, model download planning,
+settings, compatibility notes, endpoint tests, and explicit native-runner
+boundaries. It should expose representative route stubs for version, tags,
+running models, show, pull, push, create, copy, delete, generate, chat, and
+embed. It must not pretend to replace Ollama's GGML/GPU runner unless a real
+approved backend exists.
 
 ## Platform Skeletons
 
