@@ -414,7 +414,7 @@ namespace LocalGPT.Services
             if (string.IsNullOrWhiteSpace(sql))
                 return;
 
-            await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+            await db.Database.ExecuteSqlRawAsync(EscapeSqlFormatBraces(sql), cancellationToken);
             await db.Database.ExecuteSqlRawAsync(
                 """
                 UPDATE "CouncilKnowledgeEntries"
@@ -423,6 +423,12 @@ namespace LocalGPT.Services
                   AND ("VerificationStatus" IS NULL OR trim("VerificationStatus") = '' OR "VerificationStatus" = 'NeedsVerification');
                 """,
                 cancellationToken);
+        }
+
+        private static string EscapeSqlFormatBraces(string sql)
+        {
+            return sql.Replace("{", "{{", StringComparison.Ordinal)
+                .Replace("}", "}}", StringComparison.Ordinal);
         }
 
         private static string? FindSqlSeedPath()

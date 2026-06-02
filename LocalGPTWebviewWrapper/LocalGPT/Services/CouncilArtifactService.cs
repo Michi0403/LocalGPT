@@ -87,9 +87,10 @@ namespace LocalGPT.Services
             CancellationToken cancellationToken)
         {
             var isOllamaLab = IsOllamaDotNetExperimentTarget(request.Prompt, result.FinalAnswer);
-            var projectPrefix = isOllamaLab ? "GeneratedOllamaDotNetLab" : "GeneratedLocalGptSolution";
+            var projectPrefix = isOllamaLab ? "OllamaDotNetLab" : "LocalGptLab";
+            var runSuffix = result.RunId.ToString("N")[..8];
             var projectName = $"{projectPrefix}{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}";
-            var solutionRoot = Path.Combine(ArtifactRoot, $"{projectName}-{result.RunId:N}");
+            var solutionRoot = Path.Combine(ArtifactRoot, $"{projectName}-{runSuffix}");
             var projectRoot = Path.Combine(solutionRoot, "src", projectName);
             var componentsRoot = Path.Combine(projectRoot, "Components");
             var pagesRoot = Path.Combine(componentsRoot, "Pages");
@@ -123,7 +124,7 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(solutionRoot, "README.md"), GenerateSolutionReadme(projectName, request, result, isOllamaLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), GenerateSolutionManifest(projectName, solutionGuid, request, result, isOllamaLab), cancellationToken);
 
-            var zipName = $"{projectName}-{result.RunId:N}.zip";
+            var zipName = $"{projectName}-{runSuffix}.zip";
             var zipPath = Path.Combine(ArtifactRoot, zipName);
             if (File.Exists(zipPath))
                 File.Delete(zipPath);
