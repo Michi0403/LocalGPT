@@ -605,3 +605,82 @@ VALUES
   1,
   0
 );
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  '6a86923f-9c8e-4a86-96d6-80220ef4c16f',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT developer diary: build, deploy, and release lessons',
+  'Project process memory',
+  'Treat compiler output and generated-artifact builds as the final judge. LocalGPT itself building is not enough when the user downloads a generated solution; extract and build the generated solution too when practical. Keep generated project names short, normally 16-32 characters, because long names combine badly with src/bin/obj/runtime folders and Visual Studio diagnostics. Whole-solution generation should include .sln, .csproj, Program.cs, _Imports.razor, pages, models, services, CSS, docs, manifest, and build/run notes. Release work should publish backend runtime zips, package Windows wrapper assets when available, generate release notes, generate SHA256 manifest, and honestly state backend-only vs Windows-only dependencies.',
+  'LocalGPT developer diary seed',
+  'Local doc: docs/LOCALGPT_DEVELOPER_DIARY.md; local scripts: build/Assert-SourceFormatting.ps1, LocalGPTWebviewWrapper/build/Build-LocalGptPackage.ps1, LocalGPTWebviewWrapper/build/Publish-LocalGptRelease.ps1.',
+  'seed; developer-diary; dotnet; build; release; generated-solutions; visual-studio; artifacts',
+  97,
+  1,
+  1,
+  0
+),
+(
+  '1f2db6d5-6d95-41dd-b418-71f74c9e6ef1',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT developer diary: AI host and model handling',
+  'Ollama/LM Studio/model operations',
+  'Ollama and LM Studio are local AI hosts/providers, not the identity of generated applications. Generated apps should use provider-neutral names such as AI host, model host, or local AI control plane. Local model work must respect hardware: prefer sequential council turns, explicit context/output caps, keep_alive=0s, low or CPU GPU-layer settings after driver instability, and model unload checks before and after tests. HuggingFace and GitHub model sources should be represented as catalog rows and user-approved download plans; browsing a catalog is not permission to download binaries. Large token budgets can help source generation but can stall local hardware, so expose presets and let the user raise limits intentionally.',
+  'LocalGPT developer diary seed',
+  'Local doc: docs/LOCALGPT_DEVELOPER_DIARY.md; local route: /__diag/council/models; local route: /__diag/ai-host-rebuild-guidance; local route: /__diag/council/artifact-smoke?target=ai-host.',
+  'seed; developer-diary; ai-host; ollama; lmstudio; huggingface; github; gpu; tokens; model-operations',
+  97,
+  1,
+  1,
+  0
+),
+(
+  'dc0f958c-3317-4db0-9a6d-6f67a692d0cd',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT developer diary: DXAiChat and artifact UX',
+  'DXAiChat/frontend acceptance',
+  'DXAiChat is the human-facing acceptance surface for chat UX. Backend diagnostics are necessary but not sufficient when the user asks whether chat, model selection, thoughts, polls, downloads, or generated artifacts work. Long-running local inference needs visible runtime status before the first model token arrives. Harmony/thinking output must be parsed adaptively by model family and every response needs a user-visible final answer. Stop/cancel should be a quiet user cancellation, not an unhandled exception. If a user asks for code, datapacks, modpacks, .cs, .razor, .dll, or whole solution zips, produce a safe downloadable artifact through HTTP routes instead of printing binary/zip text or claiming the task is too large.',
+  'LocalGPT developer diary seed',
+  'Local doc: docs/LOCALGPT_DEVELOPER_DIARY.md; local route: /__artifacts/council/{fileName}; local route: /__diag/dxaichat-functions; local services: CompositeChatClient and CouncilArtifactService.',
+  'seed; developer-diary; dxaichat; frontend; harmony; streaming; cancellation; downloads; artifacts',
+  97,
+  1,
+  1,
+  0
+),
+(
+  'c67d3553-b807-4e44-9e62-f58e2c05a720',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT developer diary: cooperative AI Council team body',
+  'AI Council behavior',
+  'Treat LocalGPT as a cooperative engineering body: the user, Codex, and every local or cloud model contribute different strengths. Every AI council member should present as glad to participate, respectful toward the others, and focused on helping the user reach a working artifact. Disagreement is useful when it produces a better poll, risk note, test, or smaller buildable milestone. Never shame the user, never overrule denied permission, and never self-expand into the real project without explicit approval. When the user is frustrated, translate the frustration into technical options, a short poll, and a concrete recovery path.',
+  'LocalGPT developer diary seed',
+  'Local doc: docs/LOCALGPT_DEVELOPER_DIARY.md; local docs: docs/LOCALGPT_WORKFLOW_MEMORY.md and docs/GENERATION_ARCHETYPE_CONTRACTS.md.',
+  'seed; developer-diary; council; cooperation; team; user-autonomy; polls; safety',
+  97,
+  1,
+  1,
+  0
+),
+(
+  '3422c760-3d9a-4cd7-b64f-95f1b867a224',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT developer diary: operating-system diagnostics',
+  'OS/runtime diagnostics',
+  'Prefer repeatable scripts and bounded diagnostic routes over ad hoc guessing. Collect generic evidence: .NET SDK/runtime list, workload/runtime availability, NuGet restore output, build logs, package logs, app logs, model host reachability, running model list, runtime server JSON, static asset availability, Visual Studio deployment messages, and package manifest identity/version. Use generic path names in docs and knowledge: repo root, local app data, temp release folder, package cache, model cache, and user-selected learn-base folder. Do not commit generated packages, downloaded model binaries, private certificates, local logs with secrets, or personal absolute paths. Distinguish display sleep/power settings from confirmed GPU driver resets by checking logs, timing, model load, and user observations.',
+  'LocalGPT developer diary seed',
+  'Local doc: docs/LOCALGPT_DEVELOPER_DIARY.md; local routes: /__diag/logs, /__diag/sqlite/tables, /__diag/learn-base/import; local scripts: Repair-LocalGptDevEnvironment.ps1 and Test-OllamaGptOss.ps1.',
+  'seed; developer-diary; diagnostics; os; dotnet-runtime; msix; webview2; logs; gpu; privacy',
+  96,
+  1,
+  1,
+  0
+);

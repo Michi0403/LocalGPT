@@ -23,6 +23,7 @@ namespace LocalGPT.Services
             Path.Combine("docs", "AI_HOST_DOTNET_EXPERIMENT.md"),
             Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
             Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md"),
+            Path.Combine("docs", "LOCALGPT_DEVELOPER_DIARY.md"),
             Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md"),
             Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
             Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md"),

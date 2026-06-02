@@ -52,7 +52,9 @@ Verified before this memory note:
 - Packaged WebView2 smoke passed after the MSIX payload included published Blazor/DevExpress static assets.
 - Deterministic council artifact routes generated downloadable `.cs`, `.dll`, `.razor`, and whole-solution zip artifacts through `/__artifacts/council/`.
 - The generated .NET 10 DevExpress solution zip and the AI host control-plane solution zip built with `dotnet build` at the time of the release smoke.
-- Earlier AI host generation check used a provider-named alias that is now deprecated. The advertised target is `/__diag/council/artifact-smoke?target=ai-host`, and generated apps should be named as AI host/control-plane artifacts, not as provider-branded apps. The extracted generated solution built with `dotnet build`, served `/`, `/api-console`, `/model-downloads`, and `/settings`, and answered `/api/version`, `/api/tags`, `/api/pull`, and `/api/chat`. A real local provider comparison showed provider version `0.24.0`, four installed model tags, and zero running models without loading a model.
+- Earlier AI host generation check used a provider-named alias that is now deprecated. The advertised target is `/__diag/council/artifact-smoke?target=ai-host`.
+  Generated apps should be named as AI host/control-plane artifacts, not as provider-branded apps. The extracted generated solution built with `dotnet build`, served `/`, `/api-console`, `/model-downloads`, and `/settings`.
+  It answered `/api/version`, `/api/tags`, `/api/pull`, and `/api/chat`. A real local provider comparison showed provider version `0.24.0`, four installed model tags, and zero running models without loading a model.
 - A CPU-only live DXAiChat council feature-artifact smoke with `deepseek-r1:8b` timed out or produced too little final text. Treat that as model-output health, not as proof that deterministic backend artifact generation failed.
 
 Expected warning: Gradle 8.14.2 may report deprecated Gradle features for some generated Java builds. The starter builds still completed successfully.
