@@ -1,10 +1,10 @@
-# Ollama Replacement Architecture Notes
+# AI Host Control Plane Architecture Notes
 
-These notes teach the AI Council how to reason about an Ollama-inspired .NET replacement without treating it as black magic or pretending the hard parts are already solved.
+These notes teach the AI Council how to reason about a local AI host .NET control plane without treating provider implementations as black magic or pretending the hard parts are already solved.
 
 ## Split the Problem
 
-An Ollama-like system has at least four separable layers:
+A local AI host system has at least four separable layers:
 
 - API/control plane: HTTP routes, streaming responses, model catalog, running-model list, settings, logs, downloads, health, and request validation.
 - Model storage and lifecycle: local model registry, manifests, download/pull state, file integrity, disk layout, loading/unloading, keep-alive, and concurrency limits.
@@ -25,13 +25,13 @@ A serious .NET version should start as an API-compatible control plane with prov
 - `IHardwareBudgetService`: CPU/GPU/VRAM policy and safe defaults.
 - `IChatTemplateService`: model-specific prompt templates, harmony/thinking parsing, and role formatting.
 
-The first backend can call existing Ollama/LM Studio/OpenAI-compatible providers.
+The first backend can call existing Ollama, LM Studio, OpenAI-compatible, or custom providers.
 A later native backend can wrap an approved inference engine or library.
 Do not start by reimplementing tensor kernels inside Razor pages.
 
 ## API Routes to Emulate
 
-An Ollama-inspired .NET lab should include representative route families:
+A local AI host .NET lab should include representative route families:
 
 - `GET /api/version`
 - `GET /api/tags`
@@ -50,7 +50,7 @@ Routes may be stubs in a lab artifact, but each stub must say what is implemente
 
 ## Generation Rules
 
-When the user asks for an Ollama replacement:
+When the user asks for a local AI host or provider-compatible control plane:
 
 - Ask whether they want API compatibility, a UI/control plane, a provider facade, or native inference.
 - Generate an ASP.NET Core API plus DevExpress Blazor UI when the request is LocalGPT-style.

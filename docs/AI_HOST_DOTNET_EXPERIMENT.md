@@ -1,4 +1,4 @@
-# Ollama .NET/Blazor Experiment Notes
+# AI Host .NET/Blazor Experiment Notes
 
 This note is source-backed by the user-provided local archive:
 
@@ -29,7 +29,7 @@ PowerShell scripts, and native/runtime build metadata.
 
 ## Architecture Observations
 
-Ollama is not only a web UI. The source archive points to several separable concerns:
+The source archive for a local AI host is not only a web UI. It points to several separable concerns:
 
 - REST API types and endpoints, including generate, chat, model creation, tags/list, model show/copy/delete,
   pull/push, embeddings, running model list, and version.
@@ -45,13 +45,13 @@ Ollama is not only a web UI. The source archive points to several separable conc
 
 A pure .NET/Blazor/DevExpress replacement is not a realistic single-step generation target. The feasible experiment is:
 
-- Build a .NET 10 ASP.NET Core control plane that mimics selected Ollama REST routes.
+- Build a .NET 10 ASP.NET Core control plane that mimics selected provider-compatible REST routes.
 - Build a DevExpress Blazor admin UI for models, endpoint compatibility, runner health, logs, and request testing.
 - Persist model metadata and compatibility notes in EF/SQLite.
 - Keep inference as a stub, adapter, or externally hosted runner unless a real .NET/native inference backend is supplied.
 - Generate the work as a sandbox solution zip, not as automatic LocalGPT self-expansion.
 
-Do not claim the generated prototype replaces Ollama. Call it an API-compatible .NET lab, shim, or control-plane prototype.
+Do not claim the generated prototype replaces a native AI host. Call it an API-compatible .NET lab, shim, or control-plane prototype.
 
 Generated project constraint: keep the generated stack in .NET, C#, ASP.NET Core, Razor, EF/SQLite, and DevExpress
 Blazor. Do not propose generated Go or Python projects for this lab. If inference is discussed, describe it as a
@@ -70,7 +70,7 @@ Generate a downloadable .NET 10 Blazor/DevExpress solution zip with:
 - model/service classes
 - README
 - manifest
-- minimal API stubs for the Ollama-style route families:
+- minimal API stubs for provider-compatible route families:
   `/api/version`, `/api/tags`, `/api/ps`, `/api/show`, `/api/pull`,
   `/api/push`, `/api/create`, `/api/copy`, `/api/delete`, `/api/generate`,
   `/api/chat`, and `/api/embed`
@@ -80,7 +80,7 @@ Generate a downloadable .NET 10 Blazor/DevExpress solution zip with:
 
 The generated project must build before it is presented as successful.
 
-The generated lab should be compared with a real Ollama instance through
+The generated lab should be compared with a real local AI host instance through
 lightweight checks such as `/api/version` and `/api/tags`. Avoid loading large
 models for routine release checks. If the lab returns deterministic non-inference
-responses, say that clearly instead of calling it a full Ollama replacement.
+responses, say that clearly instead of calling it a full native AI host replacement.

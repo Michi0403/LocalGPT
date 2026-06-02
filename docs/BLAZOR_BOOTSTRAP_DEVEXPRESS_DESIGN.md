@@ -103,7 +103,7 @@ Use official project templates as starting points for generated solutions:
   diagnostics, and artifact downloads.
 
 Before generating a whole project, write a short archetype contract that states
-the target: LocalGPT feature app, Ollama .NET lab, Blazor WASM client, ASP.NET
+the target: LocalGPT feature app, AI host control plane, Blazor WASM client, ASP.NET
 Core backend, Minecraft datapack, Fabric mod, NeoForge mod, or Paper plugin.
 Different archetypes must produce visibly different navigation, pages, services,
 and docs.

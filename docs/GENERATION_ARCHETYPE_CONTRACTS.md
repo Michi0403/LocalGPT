@@ -67,16 +67,16 @@ Fabric uses Java and Gradle. Datapacks use `pack.mcmeta`, `data/<namespace>/func
 
 NeoForge uses NeoForge-specific Gradle setup, metadata, event bus conventions, and registration patterns. Do not reuse Fabric loader metadata.
 
-### LocalGPT Feature vs Ollama .NET Lab
+### LocalGPT Feature vs AI Host Control Plane
 
 A LocalGPT feature artifact should look like a LocalGPT/TacosPortalOpen feature sandbox: real `.razor` pages, DevExpress controls, backend services/routes, EF/SQLite when durable state is needed, artifact downloads, diagnostics, and user approval gates.
 
-An Ollama .NET lab should look like an API-control-plane experiment:
-Ollama-shaped route cataloging, model inventory, model download planning,
+A local AI host control-plane artifact should look like an API-control-plane experiment:
+provider-compatible route cataloging, model inventory, model download planning,
 settings, compatibility notes, endpoint tests, and explicit native-runner
 boundaries. It should expose representative route stubs for version, tags,
 running models, show, pull, push, create, copy, delete, generate, chat, and
-embed. It must not pretend to replace Ollama's GGML/GPU runner unless a real
+embed. It must not pretend to own native GGML/GPU runner behavior unless a real
 approved backend exists.
 
 ## Platform Skeletons
@@ -164,7 +164,7 @@ Translate those sources into these generation rules:
 Reject or regenerate output when:
 
 - Two different project kinds have the same folder structure.
-- Fabric, Paper, datapack, LocalGPT, and Ollama lab outputs reuse each other's metadata.
+- Fabric, Paper, datapack, LocalGPT, and AI host control-plane outputs reuse each other's metadata.
 - `PROJECT_INDEX.md` is missing or vague.
 - There is no index/home route for a generated app.
 - The generated Blazor page is only a C# class that returns markup as a string.

@@ -19,6 +19,12 @@ namespace LocalGPT.Services
             "obj",
             "node_modules",
             "packages",
+            ".venv",
+            "__pycache__",
+            ".gradle",
+            ".mypy_cache",
+            ".pytest_cache",
+            "build",
             "dist",
             "publish",
             "AppPackages"
@@ -65,7 +71,20 @@ namespace LocalGPT.Services
             ".props",
             ".targets",
             ".config",
-            ".resx"
+            ".resx",
+            ".mdx",
+            ".go",
+            ".mod",
+            ".sum",
+            ".proto",
+            ".toml",
+            ".ini",
+            ".cmake",
+            ".sh",
+            ".bat",
+            ".cmd",
+            ".gotmpl",
+            ".tmpl"
         };
 
         public async Task<LearnBaseImportResult> ImportAsync(
@@ -85,9 +104,7 @@ namespace LocalGPT.Services
 
             await knowledgeService.EnsureCreatedAsync(cancellationToken);
 
-            var projectDirectories = Directory.EnumerateDirectories(rootPath)
-                .Order(StringComparer.OrdinalIgnoreCase)
-                .Take(Math.Clamp(request.MaxProjects, 1, 100))
+            var projectDirectories = BuildImportDirectories(rootPath, Math.Clamp(request.MaxProjects, 1, 120))
                 .ToArray();
 
             foreach (var projectDirectory in projectDirectories)
@@ -130,7 +147,10 @@ namespace LocalGPT.Services
                 .Select(ReadSmallText)
                 .Where(text => !string.IsNullOrWhiteSpace(text))
                 .ToArray();
-            var combined = string.Join("\n", textSamples);
+            var pathSamples = sourceFiles
+                .Take(700)
+                .Select(file => Path.GetRelativePath(projectDirectory, file.FullName).Replace('\\', '/'));
+            var combined = string.Join("\n", textSamples.Concat(pathSamples));
 
             var summary = new LearnBaseProjectSummary
             {
@@ -187,9 +207,12 @@ namespace LocalGPT.Services
 
         private static CouncilKnowledgeEntry ToKnowledgeEntry(LearnBaseProjectSummary summary)
         {
+            var sanitizedSourcePath = RedactSensitiveName(summary.SourcePath);
             var content = new StringBuilder()
                 .AppendLine("This entry is about reusable architecture and wiring patterns, not about copying names or branding.")
+                .AppendLine("Learn the functionality, protocols, service boundaries, host wiring, and component usage. Treat source labels as evidence labels, not as target product names.")
                 .AppendLine($"Architecture fingerprint source label: {summary.Name}")
+                .AppendLine($"Sanitized source path label: {sanitizedSourcePath}")
                 .AppendLine($"Architecture signals: {summary.Architecture}")
                 .AppendLine($"Protocols/components: {summary.ProtocolsAndComponents}")
                 .AppendLine($"Target frameworks: {Fallback(summary.TargetFrameworks, "none detected")}")
@@ -198,6 +221,7 @@ namespace LocalGPT.Services
                 .AppendLine($"Source files counted: {summary.SourceFileCount}; binary/build artifacts counted but not stored: {summary.BinaryFileCount}.")
                 .AppendLine("Generation guidance: learn host shapes, protocols, libraries, service boundaries, and solution setup. Do not preserve project names unless the user explicitly asks.")
                 .AppendLine("Ask for a poll when the user has not selected monolith vs microservice, Blazor vs non-Blazor frontend, DevExpress Web API/security, Python interop, or data persistence style.")
+                .AppendLine("Legacy offensive names are sanitized in knowledge records; preserve the technical pattern, not the wording.")
                 .ToString();
 
             return new CouncilKnowledgeEntry
@@ -205,9 +229,9 @@ namespace LocalGPT.Services
                 Id = CreateStableGuid($"learn-base|{summary.SourcePath}"),
                 Topic = $"Selected learn-base architecture fingerprint: {summary.Architecture}",
                 Scope = "Selected local project learn-base",
-                Source = $"Local learn-base scan: {summary.SourcePath}",
+                Source = $"Local learn-base scan: {sanitizedSourcePath}",
                 Content = content,
-                HelpfulSources = "Local user-selected source folder C:\\tmpselectedcodexlearnbaseforlocalgpt. Import stores compact fingerprints only; inspect source directly before copying exact code.",
+                HelpfulSources = "Local user-selected source folder C:\\tmpselectedcodexlearnbaseforlocalgpt. Import stores compact fingerprints only; inspect source directly before copying exact code. Legacy offensive names are sanitized before teaching.",
                 Tags = BuildTags(summary),
                 Confidence = 78,
                 VerificationStatus = "SourceBacked",
@@ -262,6 +286,36 @@ namespace LocalGPT.Services
                 signals.Add("WebAssembly frontend");
             if (combined.Contains("IHostedService", StringComparison.OrdinalIgnoreCase) || combined.Contains("ServiceBase", StringComparison.OrdinalIgnoreCase))
                 signals.Add("service/background worker");
+            if (files.Any(file => file.Extension.Equals(".go", StringComparison.OrdinalIgnoreCase)) ||
+                files.Any(file => file.Name.Equals("go.mod", StringComparison.OrdinalIgnoreCase)))
+                signals.Add("Go API/runtime source to translate into .NET control-plane patterns");
+            if (combined.Contains("/api/generate", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("/api/chat", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("/api/tags", StringComparison.OrdinalIgnoreCase))
+                signals.Add("AI-host-compatible API route surface");
+            if (combined.Contains("OpenAI", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("anthropic", StringComparison.OrdinalIgnoreCase))
+                signals.Add("AI provider compatibility adapters");
+            if (combined.Contains("manifest", StringComparison.OrdinalIgnoreCase) &&
+                combined.Contains("model", StringComparison.OrdinalIgnoreCase))
+                signals.Add("model registry and manifest lifecycle");
+            if (combined.Contains("llama", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("runner", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("kvcache", StringComparison.OrdinalIgnoreCase))
+                signals.Add("inference runner/runtime orchestration");
+            if (combined.Contains("tokenizer", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("template", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("harmony", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("thinking", StringComparison.OrdinalIgnoreCase))
+                signals.Add("chat template tokenizer and thinking-format handling");
+            if (combined.Contains("ffmpeg", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("moviepy", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("pydub", StringComparison.OrdinalIgnoreCase))
+                signals.Add("media processing pipeline");
+            if (combined.Contains("midi", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("wave", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("audio", StringComparison.OrdinalIgnoreCase))
+                signals.Add("audio/MIDI processing");
 
             return signals.Count == 0
                 ? $"Mixed or legacy project under {RedactSensitiveName(Path.GetFileName(projectDirectory))}"
@@ -284,6 +338,16 @@ namespace LocalGPT.Services
             AddIf(combined, signals, "MSIX/DesktopBridge", "wapproj", "AppxPackage", "DesktopBridge");
             AddIf(combined, signals, "Authentication/authorization", "AuthorizeView", "AddAuthentication", "Identity");
             AddIf(combined, signals, "multi-host ASP.NET/Blazor", "MapRazorComponents", "MapControllers", "AddRazorPages", "AddServerSideBlazor");
+            AddIf(combined, signals, "AI host API", "/api/generate", "/api/chat", "/api/tags", "/api/pull", "/api/embed");
+            AddIf(combined, signals, "OpenAI/Anthropic compatibility", "OpenAI", "anthropic", "/v1/chat/completions", "/v1/models");
+            AddIf(combined, signals, "model manifest/download lifecycle", "manifest", "digest", "download", "transfer", "progress");
+            AddIf(combined, signals, "inference runtime", "llama", "runner", "kvcache", "tokenizer", "sampling");
+            AddIf(combined, signals, "chat format parsing", "template", "gotmpl", "harmony", "thinking");
+            AddIf(combined, signals, "WebView/desktop tray shell", "WebView2", "wintray", "notifyicon");
+            AddIf(combined, signals, "DevExpress AI Chat/function calling", "DxAIChat", "AI-Chat-FunctionCalling", "AI-Chat-GridFunctionCalling");
+            AddIf(combined, signals, "DevExpress upload/file workflow", "DxUpload", "DxFileInput", "ChunkUpload");
+            AddIf(combined, signals, "DevExpress reporting/document workflow", "AddDevExpressBlazorReporting", "RichEdit", "PdfViewer", "Spreadsheet");
+            AddIf(combined, signals, "Python media tooling", "ffmpeg", "moviepy", "pydub", "youtube", "midi", "wave");
             if (files.Any(file => file.Name.Equals("app.py", StringComparison.OrdinalIgnoreCase)))
                 signals.Add("Flask/Python web app");
             if (files.Any(file => file.Name.Equals("package.json", StringComparison.OrdinalIgnoreCase)))
@@ -311,13 +375,135 @@ namespace LocalGPT.Services
             return string.Join("; ", important);
         }
 
+        private static IEnumerable<string> BuildImportDirectories(string rootPath, int maxProjects)
+        {
+            var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var directory in EnumerateImportDirectoryCandidates(rootPath))
+            {
+                if (emitted.Count >= maxProjects)
+                    yield break;
+
+                var directoryName = Path.GetFileName(directory);
+                if (ExcludedDirectoryNames.Contains(directoryName) || !emitted.Add(directory))
+                    continue;
+
+                yield return directory;
+            }
+        }
+
+        private static IEnumerable<string> EnumerateImportDirectoryCandidates(string rootPath)
+        {
+            if (LooksLikeArchitectureRoot(rootPath))
+                yield return rootPath;
+
+            foreach (var directory in SafeEnumerateDirectories(rootPath))
+                yield return directory;
+
+            foreach (var directory in EnumerateNestedArchitectureRoots(rootPath))
+                yield return directory;
+        }
+
+        private static IEnumerable<string> EnumerateNestedArchitectureRoots(string rootPath)
+        {
+            var stack = new Stack<DirectoryInfo>(SafeEnumerateDirectoryInfos(rootPath).Reverse());
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+                if (ExcludedDirectoryNames.Contains(current.Name))
+                    continue;
+
+                if (LooksLikeArchitectureRoot(current.FullName))
+                    yield return current.FullName;
+
+                foreach (var child in SafeEnumerateDirectoryInfos(current.FullName).Reverse())
+                    stack.Push(child);
+            }
+        }
+
+        private static IEnumerable<string> SafeEnumerateDirectories(string rootPath)
+        {
+            try
+            {
+                return Directory.EnumerateDirectories(rootPath).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return [];
+            }
+        }
+
+        private static IEnumerable<DirectoryInfo> SafeEnumerateDirectoryInfos(string rootPath)
+        {
+            try
+            {
+                return new DirectoryInfo(rootPath)
+                    .EnumerateDirectories()
+                    .Where(directory => !ExcludedDirectoryNames.Contains(directory.Name))
+                    .OrderBy(directory => directory.FullName, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return [];
+            }
+        }
+
+        private static bool LooksLikeArchitectureRoot(string rootPath)
+        {
+            var directory = new DirectoryInfo(rootPath);
+            if (!directory.Exists)
+                return false;
+
+            try
+            {
+                if (directory.GetFiles().Any(file => IsProjectRootFile(file.Name, file.Extension)))
+                    return true;
+
+                var childNames = directory.GetDirectories()
+                    .Select(child => child.Name)
+                    .ToArray();
+                var distinctiveChildren = childNames.Count(name =>
+                    name.Equals("api", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("server", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("cmd", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("llm", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("runner", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("manifest", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("BlazorDemo.ServerSide", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("BlazorDemo.Wasm", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("VideoShredGUI", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("python-midi", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("JessiferBlazorWASM", StringComparison.OrdinalIgnoreCase));
+                return distinctiveChildren >= 2;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
         private static bool IsImportantFile(string fileName, string extension)
         {
-            return extension is ".sln" or ".csproj" or ".razor" or ".xaml" or ".py" or ".json" or ".sql" or ".md" ||
+            return IsProjectRootFile(fileName, extension) ||
+                extension is ".razor" or ".xaml" or ".py" or ".json" or ".sql" or ".md" or ".mdx" or ".go" or ".gotmpl" ||
                 fileName.Equals("Program.cs", StringComparison.OrdinalIgnoreCase) ||
+                fileName.StartsWith("Startup.", StringComparison.OrdinalIgnoreCase) ||
                 fileName.Equals("Startup.cs", StringComparison.OrdinalIgnoreCase) ||
                 fileName.Equals("App.razor", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals("_Imports.razor", StringComparison.OrdinalIgnoreCase) ||
                 fileName.Equals("Routes.razor", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals("package.json", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsProjectRootFile(string fileName, string extension)
+        {
+            return extension is ".sln" or ".csproj" or ".fsproj" or ".vbproj" ||
+                fileName.Equals("go.mod", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals("go.sum", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals("Directory.Packages.props", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals("Dockerfile", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals("CMakeLists.txt", StringComparison.OrdinalIgnoreCase) ||
                 fileName.Equals("package.json", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -375,7 +561,7 @@ namespace LocalGPT.Services
         [GeneratedRegex("<PackageReference\\s+Include=\"(?<value>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex PackageReferencePattern();
 
-        [GeneratedRegex("(?i)\\b(fuck|shit|bitch|cunt|dick|pussy|whore|slut)\\b")]
+        [GeneratedRegex("(?i)(fuck|shit|bitch|cunt|dick|pussy|whore|slut|porn|xxx)")]
         private static partial Regex SensitiveNamePattern();
     }
 }

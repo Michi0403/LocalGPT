@@ -118,11 +118,18 @@ public static class DxaichatFunctionCatalog
             "No parameters.",
             "Read-only. Use this before generating whole .NET solutions, training plans, backend services, or CI/release advice."),
         new(
+            "localgpt.ai_host_rebuild_guidance",
+            "GET",
+            "/__diag/ai-host-rebuild-guidance",
+            "Return source-backed guidance for generating a local AI host .NET/ASP.NET Core/DevExpress Blazor control-plane app with left navigation, model catalog, chat, downloads, API route stubs, settings, logs, and provider/runtime extension points.",
+            "No parameters.",
+            "Read-only. Use this before saying a local AI host .NET rebuild is too large or before producing a generic dashboard."),
+        new(
             "council.artifact_smoke",
             "GET",
             "/__diag/council/artifact-smoke?target=blazor",
             "Generate a deterministic sandbox artifact bundle without calling Ollama, useful for testing .razor/.cs/.dll and whole-solution zip downloads.",
-            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution, target=datapack for a prompt-driven Minecraft datapack zip, target=loader-matrix for distinct Fabric/Paper/NeoForge skeletons, or target=ollama for an Ollama-inspired .NET/DevExpress control-plane lab.",
+            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution, target=datapack for a prompt-driven Minecraft datapack zip, target=loader-matrix for distinct Fabric/Paper/NeoForge skeletons, or target=ai-host for a local AI host .NET/DevExpress control-plane lab. target=ollama is only a backwards-compatible alias.",
             "Writes files under LocalAppData/LocalGPT/CouncilArtifacts; does not integrate generated code into the project."),
         new(
             "council.run",

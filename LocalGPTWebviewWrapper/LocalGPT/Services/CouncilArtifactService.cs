@@ -235,10 +235,11 @@ namespace LocalGPT.Services
             string timestamp,
             CancellationToken cancellationToken)
         {
-            var isOllamaLab = IsOllamaDotNetExperimentTarget(request.Prompt, result.FinalAnswer);
-            var projectPrefix = isOllamaLab ? "OllamaDotNetLab" : "LocalGptLab";
+            var isAiHostLab = IsAiHostExperimentTarget(request.Prompt, result.FinalAnswer);
+            var projectPrefix = isAiHostLab ? "AiHostLab" : "LocalGptLab";
             var runSuffix = result.RunId.ToString("N")[..8];
-            var projectName = $"{projectPrefix}{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}";
+            var compactTimestamp = timestamp.Replace("-", string.Empty, StringComparison.Ordinal);
+            var projectName = $"{projectPrefix}{compactTimestamp[^6..]}";
             var solutionRoot = Path.Combine(ArtifactRoot, $"{projectName}-{runSuffix}");
             var projectRoot = Path.Combine(solutionRoot, "src", projectName);
             var componentsRoot = Path.Combine(projectRoot, "Components");
@@ -262,38 +263,43 @@ namespace LocalGPT.Services
 
             await WriteTextAsync(Path.Combine(solutionRoot, $"{projectName}.sln"), GenerateSolutionFile(projectName, projectGuid), cancellationToken);
             await WriteTextAsync(Path.Combine(projectRoot, $"{projectName}.csproj"), GenerateSolutionProjectFile(), cancellationToken);
-            await WriteTextAsync(Path.Combine(projectRoot, "Program.cs"), GenerateSolutionProgram(projectName, isOllamaLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(projectRoot, "Program.cs"), GenerateSolutionProgram(projectName, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(projectRoot, "_Imports.razor"), GenerateSolutionImports(projectName), cancellationToken);
             await WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), "{\n  \"Logging\": {\n    \"LogLevel\": {\n      \"Default\": \"Information\"\n    }\n  }\n}\n", cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), GenerateSolutionAppRazor(), cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), GenerateSolutionRoutesRazor(), cancellationToken);
-            await WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), GenerateSolutionNavigationRazor(isOllamaLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), GenerateSolutionIndexRazor(request, result, isOllamaLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), GenerateSolutionDashboardRazor(request, result, isOllamaLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), GenerateSolutionKnowledgeTableRazor(isOllamaLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), GenerateSolutionNavigationRazor(isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), GenerateSolutionIndexRazor(request, result, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), GenerateSolutionDashboardRazor(request, result, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), GenerateSolutionKnowledgeTableRazor(isAiHostLab), cancellationToken);
             await WriteTextAsync(
-                Path.Combine(pagesRoot, isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
-                GenerateSolutionDetailRazor(request, result, isOllamaLab),
+                Path.Combine(pagesRoot, isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
+                GenerateSolutionDetailRazor(request, result, isAiHostLab),
                 cancellationToken);
-            if (isOllamaLab)
+            if (isAiHostLab)
             {
-                await WriteTextAsync(Path.Combine(pagesRoot, "ModelDownloads.razor"), GenerateOllamaModelDownloadsRazor(), cancellationToken);
-                await WriteTextAsync(Path.Combine(pagesRoot, "Settings.razor"), GenerateOllamaSettingsRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "Chat.razor"), GenerateAiHostChatRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "RunningModels.razor"), GenerateAiHostRunningModelsRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "ModelDownloads.razor"), GenerateAiHostModelDownloadsRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "Templates.razor"), GenerateAiHostTemplatesRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "Hardware.razor"), GenerateAiHostHardwareRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "Logs.razor"), GenerateAiHostLogsRazor(), cancellationToken);
+                await WriteTextAsync(Path.Combine(pagesRoot, "Settings.razor"), GenerateAiHostSettingsRazor(), cancellationToken);
             }
 
-            await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), GenerateSolutionService(projectName, isOllamaLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), GenerateSolutionService(projectName, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), GenerateSolutionModel(projectName), cancellationToken);
             await WriteTextAsync(Path.Combine(wwwroot, "app.css"), GenerateSolutionCss(), cancellationToken);
             foreach (var icon in GenerateNavigationIconSvgs())
                 await WriteTextAsync(Path.Combine(navIconsRoot, icon.FileName), icon.Svg, cancellationToken);
 
-            await WriteTextAsync(Path.Combine(solutionRoot, "README.md"), GenerateSolutionReadme(projectName, request, result, isOllamaLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), GenerateSolutionProjectIndex(projectName, request, result, isOllamaLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), GenerateSolutionArchitectureDoc(projectName, isOllamaLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), GenerateSolutionBuildAndRunDoc(projectName, isOllamaLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), GenerateLocalGptGenerationJson(projectName, request, result, isOllamaLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), GenerateSolutionManifest(projectName, solutionGuid, request, result, isOllamaLab), cancellationToken);
-            ValidateSolutionArtifactContract(solutionRoot, projectName, isOllamaLab);
+            await WriteTextAsync(Path.Combine(solutionRoot, "README.md"), GenerateSolutionReadme(projectName, request, result, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), GenerateSolutionProjectIndex(projectName, request, result, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), GenerateSolutionArchitectureDoc(projectName, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab), cancellationToken);
+            ValidateSolutionArtifactContract(solutionRoot, projectName, isAiHostLab);
 
             var zipName = $"{projectName}-{runSuffix}.zip";
             var zipPath = Path.Combine(ArtifactRoot, zipName);
@@ -449,9 +455,9 @@ namespace LocalGPT.Services
             </Project>
             """;
 
-        private static string GenerateSolutionProgram(string projectName, bool isOllamaLab)
+        private static string GenerateSolutionProgram(string projectName, bool isAiHostLab)
         {
-            var ollamaRoutes = isOllamaLab
+            var aiHostRoutes = isAiHostLab
                 ? """
                   app.MapGet("/api/version", () => new
                   {
@@ -459,7 +465,7 @@ namespace LocalGPT.Services
                       source = "LocalGPT generated sandbox",
                       native_inference = false
                   });
-                  app.MapGet("/api/tags", ([FromServices] GeneratedHealthSummaryService service) => new { models = service.GetOllamaTags() });
+                  app.MapGet("/api/tags", ([FromServices] GeneratedHealthSummaryService service) => new { models = service.GetAiHostTags() });
                   app.MapGet("/api/ps", ([FromServices] GeneratedHealthSummaryService service) => new { models = service.GetRunningModels() });
                   app.MapPost("/api/show", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.GetModelDetails(request));
                   app.MapPost("/api/pull", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreatePullPlan(request));
@@ -470,6 +476,11 @@ namespace LocalGPT.Services
                   app.MapPost("/api/generate", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateGenerateResponse(request));
                   app.MapPost("/api/chat", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedChatRequest request) => service.CreateChatResponse(request));
                   app.MapPost("/api/embed", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
+                  app.MapPost("/api/embeddings", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
+                  app.MapGet("/api/blobs/{digest}", (string digest) => Results.Json(new { digest, status = "planned", boundary = "Blob storage is represented as metadata only in this generated lab." }));
+                  app.MapGet("/v1/models", ([FromServices] GeneratedHealthSummaryService service) => new { data = service.GetAiHostTags() });
+                  app.MapPost("/v1/chat/completions", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedChatRequest request) => service.CreateChatResponse(request));
+                  app.MapPost("/v1/embeddings", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   """
                 : string.Empty;
 
@@ -492,7 +503,7 @@ namespace LocalGPT.Services
             app.UseStaticFiles();
             app.UseAntiforgery();
             app.MapGet("/__generated/health", (GeneratedHealthSummaryService service) => service.GetCards());
-            {{ollamaRoutes}}
+            {{aiHostRoutes}}
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 
@@ -551,19 +562,44 @@ namespace LocalGPT.Services
             </Router>
             """;
 
-        private static string GenerateSolutionNavigationRazor(bool isOllamaLab)
+        private static string GenerateSolutionNavigationRazor(bool isAiHostLab)
         {
-            var labName = isOllamaLab ? "Ollama .NET Lab" : "LocalGPT Generation Lab";
-            var catalogHref = isOllamaLab ? "/models" : "/knowledge";
-            var catalogText = isOllamaLab ? "Model Catalog" : "Knowledge";
-            var detailHref = isOllamaLab ? "/api-console" : "/implementation-plan";
-            var detailText = isOllamaLab ? "API Console" : "Implementation Plan";
-            var ollamaLinks = isOllamaLab
+            var labName = isAiHostLab ? "AI Host Control Plane" : "LocalGPT Generation Lab";
+            var catalogHref = isAiHostLab ? "/models" : "/knowledge";
+            var catalogText = isAiHostLab ? "Model Catalog" : "Knowledge";
+            var detailHref = isAiHostLab ? "/api-console" : "/implementation-plan";
+            var detailText = isAiHostLab ? "API Console" : "Implementation Plan";
+            var aiHostLinks = isAiHostLab
                 ? """
+                    <a href="/chat">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>Chat</span>
+                    </a>
+                    <a href="/running-models">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
+                        <span>Running</span>
+                    </a>
                     <a href="/model-downloads">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/catalog-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/catalog-solid.svg" alt="" aria-hidden="true" />
                         <span>Downloads</span>
+                    </a>
+                    <a href="/templates">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>Templates</span>
+                    </a>
+                    <a href="/hardware">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
+                        <span>Hardware</span>
+                    </a>
+                    <a href="/logs">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
+                        <span>Logs</span>
                     </a>
                     <a href="/settings">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
@@ -591,12 +627,12 @@ namespace LocalGPT.Services
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
                         <span>{{detailText}}</span>
                     </a>
-                    {{ollamaLinks}}
+                    {{aiHostLinks}}
                 </nav>
 
                 @code {
                     [Parameter]
-                    public bool IsOllamaLab { get; set; }
+                    public bool IsAiHostLab { get; set; }
                 }
                 """;
         }
@@ -604,17 +640,17 @@ namespace LocalGPT.Services
         private static string GenerateSolutionIndexRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isOllamaLab)
+            bool isAiHostLab)
         {
-            var isOllamaLiteral = isOllamaLab ? "true" : "false";
-            var title = isOllamaLab ? "Ollama-Compatible .NET Control Plane" : "LocalGPT Feature Generation Lab";
-            var subtitle = isOllamaLab
-                ? "A DevExpress Blazor shell for Ollama-style API routes, model cataloging, endpoint checks, and external runner boundaries."
+            var isAiHostLiteral = isAiHostLab ? "true" : "false";
+            var title = isAiHostLab ? "AI Host Control Plane" : "LocalGPT Feature Generation Lab";
+            var subtitle = isAiHostLab
+                ? "A DevExpress Blazor shell for provider-compatible API routes, model cataloging, endpoint checks, and external runner boundaries."
                 : "A LocalGPT/TacosPortalOpen-style sandbox for AI Council feature requests, implementation planning, knowledge-backed generation, and artifact review.";
-            var primaryHref = isOllamaLab ? "/api-console" : "/implementation-plan";
-            var primaryLabel = isOllamaLab ? "Open API console" : "Open implementation plan";
-            var secondaryHref = isOllamaLab ? "/models" : "/knowledge";
-            var secondaryLabel = isOllamaLab ? "Review model catalog" : "Review knowledge table";
+            var primaryHref = isAiHostLab ? "/api-console" : "/implementation-plan";
+            var primaryLabel = isAiHostLab ? "Open API console" : "Open implementation plan";
+            var secondaryHref = isAiHostLab ? "/models" : "/knowledge";
+            var secondaryLabel = isAiHostLab ? "Review model catalog" : "Review knowledge table";
             var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500));
             var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 700));
 
@@ -626,11 +662,11 @@ namespace LocalGPT.Services
                 <PageTitle>{{title}}</PageTitle>
 
                 <main class="generated-shell">
-                    <GeneratedNavigation IsOllamaLab="{{isOllamaLiteral}}" />
+                    <GeneratedNavigation IsAiHostLab="{{isAiHostLiteral}}" />
 
                     <section class="generated-hero">
                         <div>
-                            <p class="generated-kicker">{{(isOllamaLab ? "Ollama lab" : "LocalGPT lab")}}</p>
+                            <p class="generated-kicker">{{(isAiHostLab ? "AI host lab" : "LocalGPT lab")}}</p>
                             <h1>{{title}}</h1>
                             <p>{{subtitle}}</p>
                         </div>
@@ -684,13 +720,13 @@ namespace LocalGPT.Services
         private static string GenerateSolutionDashboardRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isOllamaLab)
+            bool isAiHostLab)
         {
-            var isOllamaLiteral = isOllamaLab ? "true" : "false";
+            var isAiHostLiteral = isAiHostLab ? "true" : "false";
             var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700));
             var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900));
-            var title = isOllamaLab ? "Ollama Runtime Dashboard" : "LocalGPT Generation Dashboard";
-            var subtitle = isOllamaLab
+            var title = isAiHostLab ? "AI Host Dashboard" : "LocalGPT Generation Dashboard";
+            var subtitle = isAiHostLab
                 ? "Track API compatibility, model catalog readiness, runner adapter boundaries, and endpoint-test status."
                 : "Track AI Council feature-generation readiness, knowledge grounding, artifact review, and integration safety.";
             return $$"""
@@ -701,7 +737,7 @@ namespace LocalGPT.Services
             <PageTitle>{{title}}</PageTitle>
 
             <main class="generated-shell">
-                <GeneratedNavigation IsOllamaLab="{{isOllamaLiteral}}" />
+                <GeneratedNavigation IsAiHostLab="{{isAiHostLiteral}}" />
 
                 <section class="generated-header">
                     <div>
@@ -756,21 +792,21 @@ namespace LocalGPT.Services
             """;
         }
 
-        private static string GenerateSolutionKnowledgeTableRazor(bool isOllamaLab)
+        private static string GenerateSolutionKnowledgeTableRazor(bool isAiHostLab)
         {
-            if (isOllamaLab)
+            if (isAiHostLab)
             {
                 return """
                 @page "/models"
                 @rendermode InteractiveServer
                 @inject GeneratedHealthSummaryService HealthService
 
-                <PageTitle>Ollama .NET Lab Catalog</PageTitle>
+                <PageTitle>AI Host Model Catalog</PageTitle>
 
                 <main class="generated-shell">
-                    <GeneratedNavigation IsOllamaLab="true" />
+                    <GeneratedNavigation IsAiHostLab="true" />
 
-                    <h1>Ollama .NET Lab Catalog</h1>
+                    <h1>AI Host Model Catalog</h1>
                     <p class="generated-muted">Model rows are compatibility records for the .NET control-plane lab. They are not proof of native inference.</p>
 
                     <DxGrid Data="@HealthService.GetModelCatalog()"
@@ -795,7 +831,7 @@ namespace LocalGPT.Services
             <PageTitle>Generation Knowledge</PageTitle>
 
             <main class="generated-shell">
-                <GeneratedNavigation IsOllamaLab="false" />
+                <GeneratedNavigation IsAiHostLab="false" />
 
                 <h1>Generation Knowledge</h1>
                 <p class="generated-muted">This page demonstrates the knowledge-first path the LocalGPT AI Council should use before proposing integration.</p>
@@ -816,24 +852,24 @@ namespace LocalGPT.Services
         private static string GenerateSolutionDetailRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isOllamaLab)
+            bool isAiHostLab)
         {
-            if (isOllamaLab)
+            if (isAiHostLab)
             {
                 return """
                 @page "/api-console"
                 @rendermode InteractiveServer
                 @inject GeneratedHealthSummaryService HealthService
 
-                <PageTitle>Ollama API Console</PageTitle>
+                <PageTitle>AI Host API Console</PageTitle>
 
                 <main class="generated-shell">
-                    <GeneratedNavigation IsOllamaLab="true" />
+                    <GeneratedNavigation IsAiHostLab="true" />
 
                     <section class="generated-header">
                         <div>
-                            <h1>Ollama API Console</h1>
-                            <p>Selected Ollama-style endpoints are shown as .NET route stubs. Native model execution still belongs behind an approved runner adapter.</p>
+                            <h1>AI Host API Console</h1>
+                            <p>Selected provider-compatible endpoints are shown as .NET route stubs. Native model execution still belongs behind an approved runner adapter.</p>
                         </div>
                     </section>
 
@@ -877,7 +913,7 @@ namespace LocalGPT.Services
                 <PageTitle>Implementation Plan</PageTitle>
 
                 <main class="generated-shell">
-                    <GeneratedNavigation IsOllamaLab="false" />
+                    <GeneratedNavigation IsAiHostLab="false" />
 
                     <section class="generated-header">
                         <div>
@@ -917,7 +953,88 @@ namespace LocalGPT.Services
                 """;
         }
 
-        private static string GenerateOllamaModelDownloadsRazor() =>
+        private static string GenerateAiHostChatRazor() =>
+            """
+            @page "/chat"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>AI Host Chat</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation IsAiHostLab="true" />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>AI Host Chat</h1>
+                        <p>Exercise the chat route shape and provider boundary without pretending native inference is attached.</p>
+                    </div>
+                    <DxButton Text="Send stub chat"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Click="SendStubChat" />
+                </section>
+
+                <DxFormLayout CssClass="generated-form">
+                    <DxFormLayoutGroup Caption="Chat request" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Model" ColSpanMd="4">
+                            <DxTextBox @bind-Text="Model" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Prompt" ColSpanMd="8">
+                            <DxMemo @bind-Text="Prompt" Rows="3" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Transcript" ColSpanMd="12">
+                            <DxMemo Text="@Transcript" Rows="8" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                    </DxFormLayoutGroup>
+                </DxFormLayout>
+            </main>
+
+            @code {
+                string Model { get; set; } = "gpt-oss:20b";
+                string Prompt { get; set; } = "Explain the generated AI host control-plane route boundaries.";
+                string Transcript { get; set; } = "Click Send stub chat to preview a safe /api/chat response.";
+
+                void SendStubChat()
+                {
+                    Transcript = HealthService.CreateChatTranscript(Model, Prompt);
+                }
+            }
+            """;
+
+        private static string GenerateAiHostRunningModelsRazor() =>
+            """
+            @page "/running-models"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>Running Models</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation IsAiHostLab="true" />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>Running Models</h1>
+                        <p>Mirror a local AI host's running-model view as a control-plane status page.</p>
+                    </div>
+                </section>
+
+                <DxGrid Data="@HealthService.GetRunningModels()"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedAiHostModelTag.Name)" Caption="Model" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedAiHostModelTag.ModifiedAt)" Caption="Started" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedAiHostModelTag.Size)" Caption="Size" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedAiHostModelTag.Digest)" Caption="Digest" />
+                    </Columns>
+                </DxGrid>
+            </main>
+            """;
+
+        private static string GenerateAiHostModelDownloadsRazor() =>
             """
             @page "/model-downloads"
             @rendermode InteractiveServer
@@ -926,12 +1043,12 @@ namespace LocalGPT.Services
             <PageTitle>Model Downloads</PageTitle>
 
             <main class="generated-shell">
-                <GeneratedNavigation IsOllamaLab="true" />
+                <GeneratedNavigation IsAiHostLab="true" />
 
                 <section class="generated-header">
                     <div>
                         <h1>Model Downloads</h1>
-                        <p>Plan Ollama-style pull operations without claiming ownership of model binaries or native runner behavior.</p>
+                        <p>Plan provider-style pull operations without claiming ownership of model binaries or native runner behavior.</p>
                     </div>
                     <DxButton Text="Create pull plan"
                               RenderStyle="ButtonRenderStyle.Primary"
@@ -945,6 +1062,8 @@ namespace LocalGPT.Services
                         TextWrapEnabled="true">
                     <Columns>
                         <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.Name)" Caption="Model" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.SourceType)" Caption="Source" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.SourceUrl)" Caption="Catalog URL" />
                         <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.RecommendedFor)" Caption="Recommended For" />
                         <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.DownloadRoute)" Caption="Route" />
                         <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.SafetyNote)" Caption="Safety Note" />
@@ -983,20 +1102,116 @@ namespace LocalGPT.Services
             }
             """;
 
-        private static string GenerateOllamaSettingsRazor() =>
+        private static string GenerateAiHostTemplatesRazor() =>
+            """
+            @page "/templates"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>Chat Templates</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation IsAiHostLab="true" />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>Chat Templates</h1>
+                        <p>Track model-specific prompt templates, thinking markers, and compatibility adapters as first-class control-plane data.</p>
+                    </div>
+                </section>
+
+                <DxGrid Data="@HealthService.GetTemplateRows()"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Method)" Caption="Format" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Route)" Caption="Detector" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Purpose)" Caption="Purpose" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Boundary)" Caption="Boundary" />
+                    </Columns>
+                </DxGrid>
+            </main>
+            """;
+
+        private static string GenerateAiHostHardwareRazor() =>
+            """
+            @page "/hardware"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>Hardware Budget</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation IsAiHostLab="true" />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>Hardware Budget</h1>
+                        <p>Represent GPU, CPU, context, queue, and throttling rules before a real native runner is attached.</p>
+                    </div>
+                </section>
+
+                <DxGrid Data="@HealthService.GetHardwareBudgetRows()"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Method)" Caption="Area" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Route)" Caption="Budget" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Purpose)" Caption="Policy" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Boundary)" Caption="Reason" />
+                    </Columns>
+                </DxGrid>
+            </main>
+            """;
+
+        private static string GenerateAiHostLogsRazor() =>
+            """
+            @page "/logs"
+            @rendermode InteractiveServer
+            @inject GeneratedHealthSummaryService HealthService
+
+            <PageTitle>AI Host Logs</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation IsAiHostLab="true" />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>AI Host Logs</h1>
+                        <p>Surface control-plane diagnostics and runtime-boundary notes where users can inspect them.</p>
+                    </div>
+                </section>
+
+                <DxGrid Data="@HealthService.GetRuntimeLogRows()"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Method)" Caption="Level" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Route)" Caption="Area" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Purpose)" Caption="Message" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Boundary)" Caption="Action" />
+                    </Columns>
+                </DxGrid>
+            </main>
+            """;
+
+        private static string GenerateAiHostSettingsRazor() =>
             """
             @page "/settings"
             @rendermode InteractiveServer
             @inject GeneratedHealthSummaryService HealthService
 
-            <PageTitle>Ollama Lab Settings</PageTitle>
+            <PageTitle>AI Host Settings</PageTitle>
 
             <main class="generated-shell">
-                <GeneratedNavigation IsOllamaLab="true" />
+                <GeneratedNavigation IsAiHostLab="true" />
 
                 <section class="generated-header">
                     <div>
-                        <h1>Ollama Lab Settings</h1>
+                        <h1>AI Host Settings</h1>
                         <p>Configuration is shown as safe generated defaults. Real persistence should be added through backend services and EF/SQLite after user approval.</p>
                     </div>
                 </section>
@@ -1032,7 +1247,7 @@ namespace LocalGPT.Services
             </main>
 
             @code {
-                GeneratedOllamaSettings LabSettings { get; set; } = new();
+                GeneratedAiHostSettings LabSettings { get; set; } = new();
                 bool NativeRunnerAttached { get; set; }
                 bool AllowPullPlanning { get; set; }
 
@@ -1045,13 +1260,13 @@ namespace LocalGPT.Services
             }
             """;
 
-        private static string GenerateSolutionService(string projectName, bool isOllamaLab)
+        private static string GenerateSolutionService(string projectName, bool isAiHostLab)
         {
-            var cards = isOllamaLab
+            var cards = isAiHostLab
                 ? """
-                          new("REST API Shell", "Prototype", "Map version, tags, ps, show, pull, push, create, copy, delete, generate, chat, and embed stubs.", "This mirrors Ollama API route families without claiming native inference."),
+                          new("REST API Shell", "Prototype", "Map version, tags, ps, show, pull, push, create, copy, delete, generate, chat, and embed stubs.", "This mirrors local AI host API route families without claiming native inference."),
                           new("Model Catalog", "SourceBacked", "Represent model names, tags, details, download candidates, and runner status in .NET models.", "Model file ownership stays outside the lab until a real backend is approved."),
-                          new("Native Runner", "Not Implemented", "Attach or build a real inference backend before claiming Ollama replacement behavior.", "Ollama relies on native GGML/GPU runner paths, CMake payloads, and hardware-specific backends."),
+                          new("Native Runner", "Not Implemented", "Attach or build a real inference backend before claiming full AI host behavior.", "Native AI hosts rely on model loaders, runner paths, native payloads, and hardware-specific backends."),
                           new("Model Downloads", "Ready", "Expose a /model-downloads page and /api/pull planning response.", "Pull planning is safe and explicit; it does not download binaries by itself."),
                           new("Settings", "Ready", "Expose generated runtime settings for base URI, default model, context, GPU layers, and pull policy.", "Persist real settings through EF/SQLite only after user approval."),
                           new("DevExpress UI", "Ready", "Use grids/forms for model inventory, compatibility notes, settings, downloads, and endpoint tests.", "This is the realistic Blazor/DevExpress value of the experiment.")
@@ -1064,10 +1279,10 @@ namespace LocalGPT.Services
                           new("Integration Review", "Required", "Build, inspect, and review generated code before copying into LocalGPT or TacosPortalOpen.", "Generated solutions are prototypes, not automatic self-expansion.")
                   """;
 
-            var endpoints = isOllamaLab
+            var endpoints = isAiHostLab
                 ? """
-                          new("GET", "/api/version", "Return a compact Ollama-style version document.", "Safe pure .NET response."),
-                          new("GET", "/api/tags", "Return model catalog rows shaped like Ollama tags.", "Catalog only; no model file ownership implied."),
+                          new("GET", "/api/version", "Return a compact provider-compatible version document.", "Safe pure .NET response."),
+                          new("GET", "/api/tags", "Return model catalog rows shaped like local AI host tags.", "Catalog only; no model file ownership implied."),
                           new("GET", "/api/ps", "Return currently loaded model rows for runner-status UI.", "Stubbed; no native runner session is owned."),
                           new("POST", "/api/show", "Return model metadata, parameters, template, and details.", "Source-shaped but generated data only."),
                           new("POST", "/api/pull", "Return a safe model-download plan.", "Does not download model binaries without a real adapter."),
@@ -1115,17 +1330,17 @@ namespace LocalGPT.Services
                 {
                     return
                     [
-                        new("gpt-oss:20b", "External Ollama model candidate", 0, false),
-                        new("qwen3-coder:30b", "External Ollama model candidate", 0, false),
+                        new("gpt-oss:20b", "External local AI host model candidate", 0, false),
+                        new("qwen3-coder:30b", "External local AI host model candidate", 0, false),
                         new("dotnet-lab-stub:latest", "API shell only", 0, false),
                         new("external-runner-adapter:planned", "Requires real native or external inference backend", 0, false)
                     ];
                 }
 
                 /// <summary>
-                /// Returns Ollama-style local model rows for the /api/tags route.
+                /// Returns AI-host-compatible local model rows for the /api/tags route.
                 /// </summary>
-                public IReadOnlyList<GeneratedOllamaModelTag> GetOllamaTags()
+                public IReadOnlyList<GeneratedAiHostModelTag> GetAiHostTags()
                 {
                     return
                     [
@@ -1138,13 +1353,27 @@ namespace LocalGPT.Services
                 /// <summary>
                 /// Returns the model rows shown as currently loaded by the generated /api/ps route.
                 /// </summary>
-                public IReadOnlyList<GeneratedOllamaModelTag> GetRunningModels()
+                public IReadOnlyList<GeneratedAiHostModelTag> GetRunningModels()
                 {
                     return [new("dotnet-lab-stub:latest", "generated", "0B", "none", 0)];
                 }
 
                 /// <summary>
-                /// Returns model metadata shaped like Ollama's show route.
+                /// Returns visible runtime log rows for the generated AI host control-plane logs page.
+                /// </summary>
+                public IReadOnlyList<GeneratedEndpointCard> GetRuntimeLogRows()
+                {
+                    return
+                    [
+                        new("Info", "Provider", "External provider adapter is configured as a boundary, not as native inference.", "Wire IInferenceProvider to the selected local or cloud AI host."),
+                        new("Info", "Downloads", "Pull requests currently create safe plans and progress shapes.", "Attach IModelTransferService before downloading model binaries."),
+                        new("Warning", "Hardware", "Generated lab does not own GPU scheduling or VRAM planning.", "Implement IHardwareBudgetService before heavy local runs."),
+                        new("Info", "Templates", "Harmony/thinking parsing belongs in IChatTemplateService.", "Keep model formatting adaptive per model.")
+                    ];
+                }
+
+                /// <summary>
+                /// Returns model metadata shaped like a provider-compatible show route.
                 /// </summary>
                 public object GetModelDetails(GeneratedModelActionRequest request)
                 {
@@ -1155,7 +1384,7 @@ namespace LocalGPT.Services
                         modelfile = $"FROM {model}\nPARAMETER num_ctx 2048",
                         parameters = "num_ctx 2048\nnum_predict 512",
                         template = "{" + "{ .Prompt }" + "}",
-                        details = new GeneratedOllamaModelDetails("gguf", "generated", "0B", "none"),
+                        details = new GeneratedAiHostModelDetails("gguf", "generated", "0B", "none"),
                         model_info = new
                         {
                             architecture = "generated-dotnet-control-plane",
@@ -1182,19 +1411,49 @@ namespace LocalGPT.Services
                 {
                     return
                     [
-                        new("gpt-oss:20b", "LocalGPT debugging and balanced reasoning", "/api/pull", "Pull only when GPU/VRAM policy allows it."),
-                        new("gemma3:27b", "Longer general review and writing", "/api/pull", "Use one model at a time on 24 GB VRAM."),
-                        new("qwen3-coder:30b", "Code review and larger code-generation tests", "/api/pull", "Prefer CPU or reduced GPU layers after driver instability."),
-                        new("deepseek-r1:8b", "Small reasoning checks", "/api/pull", "May spend short budgets on thinking.")
+                        new("gpt-oss:20b", "Local provider", "http://localhost:11434", "LocalGPT debugging and balanced reasoning", "/api/pull", "Pull only when GPU/VRAM policy allows it."),
+                        new("gemma3:27b", "Local provider", "http://localhost:11434", "Longer general review and writing", "/api/pull", "Use one model at a time on 24 GB VRAM."),
+                        new("qwen3-coder:30b", "Local provider", "http://localhost:11434", "Code review and larger code-generation tests", "/api/pull", "Prefer CPU or reduced GPU layers after driver instability."),
+                        new("deepseek-r1:8b", "Local provider", "http://localhost:11434", "Small reasoning checks", "/api/pull", "May spend short budgets on thinking."),
+                        new("hf://models", "HuggingFace catalog", "https://huggingface.co/models", "Browse user-selected model cards and map compatible files into an approved download plan.", "/api/pull", "Never auto-download. Ask the user to approve license, file size, quantization, and target path."),
+                        new("github://model-releases", "GitHub Releases", "https://github.com", "Represent model or runner release URLs selected by the user.", "/api/pull", "Only download from explicit user-selected release assets.")
+                    ];
+                }
+
+                /// <summary>
+                /// Returns chat template and thinking-format rows that a real provider adapter would use.
+                /// </summary>
+                public IReadOnlyList<GeneratedEndpointCard> GetTemplateRows()
+                {
+                    return
+                    [
+                        new("Harmony", "model family metadata", "Parse final/user-visible text separately from hidden thinking markers.", "Show visible thinking summaries only when policy and model output permit it."),
+                        new("ChatML", "template field", "Adapt role markers and stop sequences per model.", "Never assume all models share one prompt format."),
+                        new("OpenAI-compatible", "/v1/chat/completions", "Map local provider output to common client contracts.", "Keep provider-specific options behind typed adapter settings."),
+                        new("Plain prompt", "/api/generate", "Support simple generation requests for scripting and smoke tests.", "Warn when a chat request is being downgraded to plain prompt completion.")
+                    ];
+                }
+
+                /// <summary>
+                /// Returns hardware and scheduling rows for a safe generated control-plane prototype.
+                /// </summary>
+                public IReadOnlyList<GeneratedEndpointCard> GetHardwareBudgetRows()
+                {
+                    return
+                    [
+                        new("GPU", "80-90% target", "Throttle heavy runs and avoid sustained full-load peaks.", "Driver stability is a user-facing reliability requirement."),
+                        new("VRAM", "24 GB class", "Queue large models one at a time unless profiling proves a safe combination.", "Council runs should favor sequential turns over concurrent large models."),
+                        new("Context", "model/profile-based", "Expose context and output token budgets in settings.", "Huge defaults can stall local hardware; make presets explicit."),
+                        new("Downloads", "user approved", "Require explicit user selection for HuggingFace/GitHub/provider downloads.", "Catalog browsing is not permission to mutate the machine.")
                     ];
                 }
 
                 /// <summary>
                 /// Returns generated runtime settings for the settings page.
                 /// </summary>
-                public GeneratedOllamaSettings GetSettings()
+                public GeneratedAiHostSettings GetSettings()
                 {
-                    return new GeneratedOllamaSettings
+                    return new GeneratedAiHostSettings
                     {
                         BaseUri = "http://127.0.0.1:11434",
                         DefaultModel = "gpt-oss:20b",
@@ -1218,24 +1477,41 @@ namespace LocalGPT.Services
                 }
 
                 /// <summary>
+                /// Creates a visible chat transcript for the generated chat page without native inference.
+                /// </summary>
+                public string CreateChatTranscript(string model, string prompt)
+                {
+                    var request = new GeneratedChatRequest
+                    {
+                        Model = NormalizeModel(model),
+                        Messages =
+                        [
+                            new GeneratedChatMessage("user", string.IsNullOrWhiteSpace(prompt) ? "Hello" : prompt)
+                        ]
+                    };
+                    var response = CreateChatResponse(request);
+                    return $"POST /api/chat\nModel: {request.Model}\nUser: {request.Messages[0].Content}\nAssistant: {response.Message.Content}\nDone: {response.Done}";
+                }
+
+                /// <summary>
                 /// Creates a safe model-pull plan without downloading model files.
                 /// </summary>
-                public GeneratedOllamaOperation CreatePullPlan(GeneratedModelActionRequest request)
+                public GeneratedAiHostOperation CreatePullPlan(GeneratedModelActionRequest request)
                 {
-                    return new GeneratedOllamaOperation(
+                    return new GeneratedAiHostOperation(
                         "planned",
                         NormalizeModel(request.Model),
                         "/api/pull",
                         true,
-                        "This response mirrors Ollama pull progress shape but does not download model binaries.");
+                        "This response mirrors provider pull progress shape but does not download model binaries.");
                 }
 
                 /// <summary>
                 /// Creates a safe non-mutating operation response for registry and model-management routes.
                 /// </summary>
-                public GeneratedOllamaOperation CreateOperation(string operation, string? model)
+                public GeneratedAiHostOperation CreateOperation(string operation, string? model)
                 {
-                    return new GeneratedOllamaOperation(
+                    return new GeneratedAiHostOperation(
                         "planned",
                         NormalizeModel(model),
                         $"/api/{operation}",
@@ -1246,11 +1522,11 @@ namespace LocalGPT.Services
                 /// <summary>
                 /// Creates a safe copy plan for the /api/copy route.
                 /// </summary>
-                public GeneratedOllamaOperation CreateCopyPlan(GeneratedModelCopyRequest request)
+                public GeneratedAiHostOperation CreateCopyPlan(GeneratedModelCopyRequest request)
                 {
                     var from = NormalizeModel(request.Source);
                     var to = NormalizeModel(request.Destination);
-                    return new GeneratedOllamaOperation(
+                    return new GeneratedAiHostOperation(
                         "planned",
                         $"{from} -> {to}",
                         "/api/copy",
@@ -1267,7 +1543,7 @@ namespace LocalGPT.Services
                     {
                         model = NormalizeModel(request.Model),
                         created_at = DateTimeOffset.UtcNow,
-                        response = "This .NET lab does not implement native inference. Attach a real runner before claiming Ollama replacement behavior.",
+                        response = "This .NET lab does not implement native inference. Attach a real runner before claiming full AI-host behavior.",
                         done = true
                     };
                 }
@@ -1275,15 +1551,13 @@ namespace LocalGPT.Services
                 /// <summary>
                 /// Creates a deterministic non-inference chat response.
                 /// </summary>
-                public object CreateChatResponse(GeneratedChatRequest request)
+                public GeneratedChatResponse CreateChatResponse(GeneratedChatRequest request)
                 {
-                    return new
-                    {
-                        model = NormalizeModel(request.Model),
-                        created_at = DateTimeOffset.UtcNow,
-                        message = new GeneratedChatMessage("assistant", "Generated lab response only. No native Ollama runner is attached."),
-                        done = true
-                    };
+                    return new GeneratedChatResponse(
+                        NormalizeModel(request.Model),
+                        DateTimeOffset.UtcNow,
+                        new GeneratedChatMessage("assistant", "Generated lab response only. No native AI runner is attached."),
+                        true);
                 }
 
                 /// <summary>
@@ -1353,7 +1627,7 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Describes one model or adapter row in the generated Ollama .NET lab.
+            /// Describes one model or adapter row in the generated AI host control-plane lab.
             /// </summary>
             public sealed class GeneratedModelCard
             {
@@ -1427,14 +1701,14 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Describes one Ollama-style model row returned by generated catalog routes.
+            /// Describes one AI-host-compatible model row returned by generated catalog routes.
             /// </summary>
-            public sealed class GeneratedOllamaModelTag
+            public sealed class GeneratedAiHostModelTag
             {
                 /// <summary>
-                /// Creates a generated Ollama-style model row.
+                /// Creates a generated AI-host-compatible model row.
                 /// </summary>
-                public GeneratedOllamaModelTag(
+                public GeneratedAiHostModelTag(
                     string name,
                     string family,
                     string parameterSize,
@@ -1446,11 +1720,11 @@ namespace LocalGPT.Services
                     ModifiedAt = DateTimeOffset.UtcNow;
                     Size = size;
                     Digest = $"generated-{Math.Abs(name.GetHashCode(StringComparison.Ordinal)):x}";
-                    Details = new GeneratedOllamaModelDetails("gguf", family, parameterSize, quantizationLevel);
+                    Details = new GeneratedAiHostModelDetails("gguf", family, parameterSize, quantizationLevel);
                 }
 
                 /// <summary>
-                /// Gets the legacy Ollama model name field.
+                /// Gets the provider-compatible model name field.
                 /// </summary>
                 [JsonPropertyName("name")]
                 public string Name { get; }
@@ -1483,18 +1757,18 @@ namespace LocalGPT.Services
                 /// Gets model detail metadata.
                 /// </summary>
                 [JsonPropertyName("details")]
-                public GeneratedOllamaModelDetails Details { get; }
+                public GeneratedAiHostModelDetails Details { get; }
             }
 
             /// <summary>
-            /// Describes generated Ollama-style model details.
+            /// Describes generated AI-host-compatible model details.
             /// </summary>
-            public sealed class GeneratedOllamaModelDetails
+            public sealed class GeneratedAiHostModelDetails
             {
                 /// <summary>
                 /// Creates generated model details.
                 /// </summary>
-                public GeneratedOllamaModelDetails(
+                public GeneratedAiHostModelDetails(
                     string format,
                     string family,
                     string parameterSize,
@@ -1539,7 +1813,7 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Represents a generated Ollama action request.
+            /// Represents a generated AI host action request.
             /// </summary>
             public sealed class GeneratedModelActionRequest
             {
@@ -1563,7 +1837,7 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Represents a generated Ollama copy request.
+            /// Represents a generated AI host copy request.
             /// </summary>
             public sealed class GeneratedModelCopyRequest
             {
@@ -1581,7 +1855,7 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Represents a generated Ollama chat request.
+            /// Represents a generated AI host chat request.
             /// </summary>
             public sealed class GeneratedChatRequest
             {
@@ -1605,7 +1879,7 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Represents a generated Ollama chat message.
+            /// Represents a generated AI host chat message.
             /// </summary>
             public sealed class GeneratedChatMessage
             {
@@ -1639,6 +1913,51 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
+            /// Represents a generated AI host chat response with typed properties for Razor and service code.
+            /// </summary>
+            public sealed class GeneratedChatResponse
+            {
+                /// <summary>
+                /// Creates a generated chat response.
+                /// </summary>
+                public GeneratedChatResponse(
+                    string model,
+                    DateTimeOffset createdAt,
+                    GeneratedChatMessage message,
+                    bool done)
+                {
+                    Model = model;
+                    CreatedAt = createdAt;
+                    Message = message;
+                    Done = done;
+                }
+
+                /// <summary>
+                /// Gets the model name used by the generated response.
+                /// </summary>
+                [JsonPropertyName("model")]
+                public string Model { get; }
+
+                /// <summary>
+                /// Gets the generated response timestamp.
+                /// </summary>
+                [JsonPropertyName("created_at")]
+                public DateTimeOffset CreatedAt { get; }
+
+                /// <summary>
+                /// Gets the generated assistant message.
+                /// </summary>
+                [JsonPropertyName("message")]
+                public GeneratedChatMessage Message { get; }
+
+                /// <summary>
+                /// Gets whether the generated response is complete.
+                /// </summary>
+                [JsonPropertyName("done")]
+                public bool Done { get; }
+            }
+
+            /// <summary>
             /// Describes a generated model download planning row.
             /// </summary>
             public sealed class GeneratedModelDownloadCandidate
@@ -1648,11 +1967,15 @@ namespace LocalGPT.Services
                 /// </summary>
                 public GeneratedModelDownloadCandidate(
                     string name,
+                    string sourceType,
+                    string sourceUrl,
                     string recommendedFor,
                     string downloadRoute,
                     string safetyNote)
                 {
                     Name = name;
+                    SourceType = sourceType;
+                    SourceUrl = sourceUrl;
                     RecommendedFor = recommendedFor;
                     DownloadRoute = downloadRoute;
                     SafetyNote = safetyNote;
@@ -1662,6 +1985,16 @@ namespace LocalGPT.Services
                 /// Gets the candidate model name.
                 /// </summary>
                 public string Name { get; }
+
+                /// <summary>
+                /// Gets the catalog or provider type.
+                /// </summary>
+                public string SourceType { get; }
+
+                /// <summary>
+                /// Gets the catalog URL or provider base URI.
+                /// </summary>
+                public string SourceUrl { get; }
 
                 /// <summary>
                 /// Gets the recommended use case.
@@ -1680,12 +2013,12 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Holds generated Ollama lab settings shown in the DevExpress form.
+            /// Holds generated AI host lab settings shown in the DevExpress form.
             /// </summary>
-            public sealed class GeneratedOllamaSettings
+            public sealed class GeneratedAiHostSettings
             {
                 /// <summary>
-                /// Gets or sets the external Ollama base URI.
+                /// Gets or sets the external AI host base URI.
                 /// </summary>
                 public string BaseUri { get; set; } = "http://localhost:11434";
 
@@ -1721,14 +2054,14 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Describes a generated Ollama-compatible operation result.
+            /// Describes a generated AI-host-compatible operation result.
             /// </summary>
-            public sealed class GeneratedOllamaOperation
+            public sealed class GeneratedAiHostOperation
             {
                 /// <summary>
                 /// Creates a generated operation result.
                 /// </summary>
-                public GeneratedOllamaOperation(
+                public GeneratedAiHostOperation(
                     string status,
                     string model,
                     string route,
@@ -2002,19 +2335,19 @@ namespace LocalGPT.Services
             string projectName,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isOllamaLab)
+            bool isAiHostLab)
         {
-            var description = isOllamaLab
-                ? "Generated by LocalGPT as an Ollama-inspired .NET 10 ASP.NET Core and DevExpress Blazor control-plane lab. Native inference is intentionally stubbed."
+            var description = isAiHostLab
+                ? "Generated by LocalGPT as a .NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab. Native inference is intentionally stubbed."
                 : "Generated by LocalGPT as a whole-solution AI Council artifact.";
 
-            var notes = isOllamaLab
+            var notes = isAiHostLab
                 ? """
-                  ## Ollama .NET Lab Scope
+                  ## AI Host Control-Plane Lab Scope
 
-                  This prototype can demonstrate selected Ollama-style HTTP routes, model catalog UX, health cards, and endpoint testing in .NET/Blazor.
+                  This prototype can demonstrate selected provider-compatible HTTP routes, model catalog UX, health cards, and endpoint testing in .NET/Blazor.
 
-                  It does not replace Ollama's native runner, GGML/GPU backend, model loader, CMake/native build stack, or hardware-specific inference paths. Attach a real backend before calling it an Ollama replacement.
+                  It does not replace any native runner, GGML/GPU backend, model loader, native build stack, or hardware-specific inference path. Attach a real backend before calling it a complete AI host.
                   """
                 : """
                   ## Scope
@@ -2072,31 +2405,46 @@ namespace LocalGPT.Services
             string projectName,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isOllamaLab)
+            bool isAiHostLab)
         {
-            var projectKind = isOllamaLab ? "dotnet_service" : "localgpt_feature";
-            var purpose = isOllamaLab
-                ? "Prototype an Ollama-shaped .NET/Blazor control plane without claiming native model inference."
+            var projectKind = isAiHostLab ? "dotnet_service" : "localgpt_feature";
+            var purpose = isAiHostLab
+                ? "Prototype an AI-host-shaped .NET/Blazor control plane without claiming native model inference."
                 : "Prototype a LocalGPT/TacosPortalOpen-style AI Council feature workspace with reviewable Blazor pages.";
-            var catalogPage = isOllamaLab ? "GeneratedKnowledgeTable.razor route `/models`" : "GeneratedKnowledgeTable.razor route `/knowledge`";
-            var detailPage = isOllamaLab ? "ApiConsole.razor route `/api-console`" : "ImplementationPlan.razor route `/implementation-plan`";
-            var ollamaExpectedEntryPoints = isOllamaLab
+            var catalogPage = isAiHostLab ? "GeneratedKnowledgeTable.razor route `/models`" : "GeneratedKnowledgeTable.razor route `/knowledge`";
+            var detailPage = isAiHostLab ? "ApiConsole.razor route `/api-console`" : "ImplementationPlan.razor route `/implementation-plan`";
+            var aiHostExpectedEntryPoints = isAiHostLab
                 ? $$"""
                 ,
+                "src/{{projectName}}/Components/Pages/Chat.razor",
+                "src/{{projectName}}/Components/Pages/RunningModels.razor",
                 "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
+                "src/{{projectName}}/Components/Pages/Templates.razor",
+                "src/{{projectName}}/Components/Pages/Hardware.razor",
+                "src/{{projectName}}/Components/Pages/Logs.razor",
                 "src/{{projectName}}/Components/Pages/Settings.razor"
                 """
                 : string.Empty;
-            var ollamaEntryPoints = isOllamaLab
+            var aiHostEntryPoints = isAiHostLab
                 ? $$"""
+            - `src/{{projectName}}/Components/Pages/Chat.razor` - safe chat route preview with typed response data.
+            - `src/{{projectName}}/Components/Pages/RunningModels.razor` - running-model status grid.
             - `src/{{projectName}}/Components/Pages/ModelDownloads.razor` - DevExpress model pull planning page.
-            - `src/{{projectName}}/Components/Pages/Settings.razor` - Ollama lab settings and runner-boundary page.
+            - `src/{{projectName}}/Components/Pages/Templates.razor` - chat template and thinking-format guidance.
+            - `src/{{projectName}}/Components/Pages/Hardware.razor` - GPU/VRAM/context policy page.
+            - `src/{{projectName}}/Components/Pages/Logs.razor` - runtime-boundary diagnostics page.
+            - `src/{{projectName}}/Components/Pages/Settings.razor` - AI host settings and runner-boundary page.
             """
                 : string.Empty;
-            var ollamaGeneratedFiles = isOllamaLab
+            var aiHostGeneratedFiles = isAiHostLab
                 ? $$"""
-            | `src/{{projectName}}/Components/Pages/ModelDownloads.razor` | DevExpress UI for Ollama-style pull planning and download guidance. |
-            | `src/{{projectName}}/Components/Pages/Settings.razor` | DevExpress settings page for external Ollama URI, context, and native-runner boundaries. |
+            | `src/{{projectName}}/Components/Pages/Chat.razor` | DevExpress chat page with safe typed `/api/chat` preview. |
+            | `src/{{projectName}}/Components/Pages/RunningModels.razor` | Running model status grid for `/api/ps`-style state. |
+            | `src/{{projectName}}/Components/Pages/ModelDownloads.razor` | DevExpress UI for provider-style pull planning and download guidance. |
+            | `src/{{projectName}}/Components/Pages/Templates.razor` | Chat template, Harmony, and thinking-format compatibility page. |
+            | `src/{{projectName}}/Components/Pages/Hardware.razor` | GPU/VRAM/context budget and queue-policy page. |
+            | `src/{{projectName}}/Components/Pages/Logs.razor` | Runtime-boundary diagnostic log page. |
+            | `src/{{projectName}}/Components/Pages/Settings.razor` | DevExpress settings page for external AI host URI, context, and native-runner boundaries. |
             """
                 : string.Empty;
 
@@ -2115,13 +2463,13 @@ namespace LocalGPT.Services
               "complexity": "normal",
               "needs_datagen": false,
               "needs_tests": true,
-              "needs_native_commands": {{(isOllamaLab ? "true" : "false")}},
+              "needs_native_commands": {{(isAiHostLab ? "true" : "false")}},
               "needs_index": true,
               "needs_version_resolver": false,
               "expected_entrypoints": [
                 "src/{{projectName}}/Program.cs",
                 "src/{{projectName}}/Components/Pages/Index.razor",
-                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor"{{ollamaExpectedEntryPoints}}
+                "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor"{{aiHostExpectedEntryPoints}}
               ]
             }
             ```
@@ -2136,7 +2484,7 @@ namespace LocalGPT.Services
             - `src/{{projectName}}/Components/Pages/GeneratedDashboard.razor` - health/status grid.
             - `src/{{projectName}}/Components/Pages/{{catalogPage}}` - archetype catalog page.
             - `src/{{projectName}}/Components/Pages/{{detailPage}}` - archetype-specific detail page.
-            {{ollamaEntryPoints}}
+            {{aiHostEntryPoints}}
 
             ## Generated Files
 
@@ -2146,7 +2494,7 @@ namespace LocalGPT.Services
             | `src/{{projectName}}/{{projectName}}.csproj` | .NET 10 Blazor Web App project with DevExpress dependency. |
             | `src/{{projectName}}/Services/GeneratedHealthSummaryService.cs` | Typed demo service instead of Razor-only fake data. |
             | `src/{{projectName}}/Models/GeneratedHealthCard.cs` | Shared model records for grids/catalog rows. |
-            {{ollamaGeneratedFiles}}
+            {{aiHostGeneratedFiles}}
             | `src/{{projectName}}/wwwroot/app.css` | Local styling for the generated shell. |
             | `src/{{projectName}}/wwwroot/icons/nav/*-line.svg` | Default navigation icon style. |
             | `src/{{projectName}}/wwwroot/icons/nav/*-solid.svg` | Hover/focus navigation icon style. |
@@ -2170,13 +2518,13 @@ namespace LocalGPT.Services
             """;
         }
 
-        private static string GenerateSolutionArchitectureDoc(string projectName, bool isOllamaLab)
+        private static string GenerateSolutionArchitectureDoc(string projectName, bool isAiHostLab)
         {
-            var title = isOllamaLab ? "Ollama .NET Lab Architecture" : "LocalGPT Feature Lab Architecture";
-            var contrast = isOllamaLab
+            var title = isAiHostLab ? "AI Host Control-Plane Architecture" : "LocalGPT Feature Lab Architecture";
+            var contrast = isAiHostLab
                 ? "This is not a LocalGPT feature page clone. It is an API-control-plane lab with endpoint cataloging, model rows, and explicit runner boundaries."
-                : "This is not an Ollama replacement lab. It is a LocalGPT/TacosPortalOpen-style feature sandbox with council grounding, implementation steps, and approval gates.";
-            var backendBoundary = isOllamaLab
+                : "This is not an AI host control-plane lab. It is a LocalGPT/TacosPortalOpen-style feature sandbox with council grounding, implementation steps, and approval gates.";
+            var backendBoundary = isAiHostLab
                 ? "Native inference, GGML/GPU scheduling, model loading, and tokenizer/runtime ownership stay outside this prototype until a real runner adapter is approved."
                 : "EF/SQLite writes, native commands, report generation, and artifact creation belong in backend services and routes, not in Razor-only snippets.";
 
@@ -2217,9 +2565,9 @@ namespace LocalGPT.Services
             """;
         }
 
-        private static string GenerateSolutionBuildAndRunDoc(string projectName, bool isOllamaLab)
+        private static string GenerateSolutionBuildAndRunDoc(string projectName, bool isAiHostLab)
         {
-            var smokeRoute = isOllamaLab
+            var smokeRoute = isAiHostLab
                 ? "Open `/api-console`, `/model-downloads`, and `/settings`; then call `/api/version`, `/api/tags`, and `/api/chat` to verify the control-plane routes."
                 : "Open `/implementation-plan` and verify implementation steps are visible.";
             return $$"""
@@ -2256,27 +2604,37 @@ namespace LocalGPT.Services
             string projectName,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isOllamaLab)
+            bool isAiHostLab)
         {
-            var projectKind = isOllamaLab ? "dotnet_service" : "localgpt_feature";
-            var targetPlatform = isOllamaLab
-                ? "dotnet10_aspnetcore_devexpress_blazor_ollama_control_plane"
+            var projectKind = isAiHostLab ? "dotnet_service" : "localgpt_feature";
+            var targetPlatform = isAiHostLab
+                ? "dotnet10_aspnetcore_devexpress_blazor_ai_host_control_plane"
                 : "dotnet10_aspnetcore_devexpress_blazor_localgpt_feature";
-            var detailPage = isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
-            var validationNotes = isOllamaLab
-                ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, model-download, and settings files were present before zipping."
+            var detailPage = isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
+            var validationNotes = isAiHostLab
+                ? "Required docs, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, chat, running-models, model-download, templates, hardware, logs, and settings files were present before zipping."
                 : "Required docs, manifest, navigation, paired nav icons, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
-            var ollamaExpectedEntryPoints = isOllamaLab
+            var aiHostExpectedEntryPoints = isAiHostLab
                 ? $$"""
                 ,
+                "src/{{projectName}}/Components/Pages/Chat.razor",
+                "src/{{projectName}}/Components/Pages/RunningModels.razor",
                 "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
+                "src/{{projectName}}/Components/Pages/Templates.razor",
+                "src/{{projectName}}/Components/Pages/Hardware.razor",
+                "src/{{projectName}}/Components/Pages/Logs.razor",
                 "src/{{projectName}}/Components/Pages/Settings.razor"
                 """
                 : string.Empty;
-            var ollamaGeneratedFiles = isOllamaLab
+            var aiHostGeneratedFiles = isAiHostLab
                 ? $$"""
                 ,
+                "src/{{projectName}}/Components/Pages/Chat.razor",
+                "src/{{projectName}}/Components/Pages/RunningModels.razor",
                 "src/{{projectName}}/Components/Pages/ModelDownloads.razor",
+                "src/{{projectName}}/Components/Pages/Templates.razor",
+                "src/{{projectName}}/Components/Pages/Hardware.razor",
+                "src/{{projectName}}/Components/Pages/Logs.razor",
                 "src/{{projectName}}/Components/Pages/Settings.razor"
                 """
                 : string.Empty;
@@ -2291,7 +2649,7 @@ namespace LocalGPT.Services
               "complexity": "normal",
               "needs_datagen": false,
               "needs_tests": true,
-              "needs_native_commands": {{(isOllamaLab ? "true" : "false")}},
+              "needs_native_commands": {{(isAiHostLab ? "true" : "false")}},
               "needs_index": true,
               "needs_version_resolver": false,
               "model_names": "{{EscapeJsonString(string.Join(", ", result.ModelNames))}}",
@@ -2304,7 +2662,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/GeneratedNavigation.razor",
                 "src/{{projectName}}/Components/Pages/Index.razor",
                 "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
-                "src/{{projectName}}/Components/Pages/{{detailPage}}"{{ollamaExpectedEntryPoints}}
+                "src/{{projectName}}/Components/Pages/{{detailPage}}"{{aiHostExpectedEntryPoints}}
               ],
               "generated_files": [
                 "{{projectName}}.sln",
@@ -2321,7 +2679,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/Components/GeneratedNavigation.razor",
                 "src/{{projectName}}/Components/Pages/Index.razor",
                 "src/{{projectName}}/Components/Pages/GeneratedDashboard.razor",
-                "src/{{projectName}}/Components/Pages/{{detailPage}}"{{ollamaGeneratedFiles}},
+                "src/{{projectName}}/Components/Pages/{{detailPage}}"{{aiHostGeneratedFiles}},
                 "src/{{projectName}}/Services/GeneratedHealthSummaryService.cs",
                 "src/{{projectName}}/Models/GeneratedHealthCard.cs",
                 "src/{{projectName}}/wwwroot/app.css",
@@ -2333,7 +2691,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/wwwroot/icons/nav/detail-solid.svg"
               ],
               "safety": "Sandbox artifact only. Integration requires explicit user approval.",
-              "archetype_difference": "{{(isOllamaLab ? "Ollama lab includes API route stubs, model catalog, downloads, and settings; native inference remains explicitly out of scope." : "LocalGPT feature sandbox includes implementation-plan and knowledge-table pages rather than Ollama API compatibility workflows.")}}"
+              "archetype_difference": "{{(isAiHostLab ? "AI host lab includes API route stubs, model catalog, downloads, and settings; native inference remains explicitly out of scope." : "LocalGPT feature sandbox includes implementation-plan and knowledge-table pages rather than AI host compatibility workflows.")}}"
             }
             """;
         }
@@ -2343,10 +2701,10 @@ namespace LocalGPT.Services
             string solutionGuid,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isOllamaLab)
+            bool isAiHostLab)
         {
-            var sourceGoal = isOllamaLab
-                ? "Ollama-inspired .NET 10 ASP.NET Core and DevExpress Blazor control-plane lab with native inference stubbed"
+            var sourceGoal = isAiHostLab
+                ? ".NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab with native inference stubbed"
                 : "LocalGPT/TacosPortalOpen-style .NET 10 Blazor and DevExpress generation";
 
             return
@@ -2787,12 +3145,12 @@ namespace LocalGPT.Services
         private static bool IsWholeSolutionTarget(string prompt, string finalAnswer)
         {
             var text = $"{prompt} {finalAnswer}";
-            return WholeSolutionPattern().IsMatch(text) || IsOllamaDotNetExperimentTarget(prompt, finalAnswer);
+            return WholeSolutionPattern().IsMatch(text) || IsAiHostExperimentTarget(prompt, finalAnswer);
         }
 
-        private static bool IsOllamaDotNetExperimentTarget(string prompt, string finalAnswer)
+        private static bool IsAiHostExperimentTarget(string prompt, string finalAnswer)
         {
-            return OllamaDotNetExperimentPattern().IsMatch($"{prompt} {finalAnswer}");
+            return AiHostExperimentPattern().IsMatch($"{prompt} {finalAnswer}");
         }
 
         private static string TrimForCodeComment(string text, int maxLength)
@@ -2817,7 +3175,7 @@ namespace LocalGPT.Services
             return EscapeCSharpString(text);
         }
 
-        private static void ValidateSolutionArtifactContract(string solutionRoot, string projectName, bool isOllamaLab)
+        private static void ValidateSolutionArtifactContract(string solutionRoot, string projectName, bool isAiHostLab)
         {
             var requiredFiles = new List<string>
             {
@@ -2834,7 +3192,7 @@ namespace LocalGPT.Services
                 Path.Combine("src", projectName, "Components", "Pages", "Index.razor"),
                 Path.Combine("src", projectName, "Components", "Pages", "GeneratedDashboard.razor"),
                 Path.Combine("src", projectName, "Components", "Pages", "GeneratedKnowledgeTable.razor"),
-                Path.Combine("src", projectName, "Components", "Pages", isOllamaLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
+                Path.Combine("src", projectName, "Components", "Pages", isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
                 Path.Combine("src", projectName, "Services", "GeneratedHealthSummaryService.cs"),
                 Path.Combine("src", projectName, "Models", "GeneratedHealthCard.cs"),
                 Path.Combine("src", projectName, "wwwroot", "app.css"),
@@ -2846,9 +3204,14 @@ namespace LocalGPT.Services
                 Path.Combine("src", projectName, "wwwroot", "icons", "nav", "detail-solid.svg")
             };
 
-            if (isOllamaLab)
+            if (isAiHostLab)
             {
+                requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Chat.razor"));
+                requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "RunningModels.razor"));
                 requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "ModelDownloads.razor"));
+                requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Templates.razor"));
+                requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Hardware.razor"));
+                requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Logs.razor"));
                 requiredFiles.Add(Path.Combine("src", projectName, "Components", "Pages", "Settings.razor"));
             }
 
@@ -2948,11 +3311,11 @@ namespace LocalGPT.Services
         [GeneratedRegex("(frontend|razor|devexpress|dxaichat|css|javascript)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex FrontendPattern();
 
-        [GeneratedRegex("(whole solution|full solution|entire solution|solution zip|project zip|\\.sln|\\.csproj|all source files|tacosportalopen|localgpt|whole ollama|ollama dotnet|ollama \\.net)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        [GeneratedRegex("(whole solution|full solution|entire solution|solution zip|project zip|\\.sln|\\.csproj|all source files|tacosportalopen|localgpt|whole ai host|ai host dotnet|local ai host|whole ollama|ollama dotnet|ollama \\.net)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex WholeSolutionPattern();
 
-        [GeneratedRegex("(ollama).*(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net)|(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net).*(ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex OllamaDotNetExperimentPattern();
+        [GeneratedRegex("(ai host|local ai host|model host|chat host|ollama).*(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net)|(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net).*(ai host|local ai host|model host|chat host|ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex AiHostExperimentPattern();
 
         [GeneratedRegex("(log|logger|diagnostic|error|warning|telemetry)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex LoggingPattern();

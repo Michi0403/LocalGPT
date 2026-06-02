@@ -20,7 +20,9 @@ namespace LocalGPT.Services
             Path.Combine("docs", "COUNCIL_KNOWLEDGE_SEED.sql"),
             Path.Combine("docs", "MINECRAFT_MOD_AI_BUILDER.md"),
             Path.Combine("docs", "MINECRAFT_SOURCE_KNOWLEDGE.md"),
-            Path.Combine("docs", "OLLAMA_DOTNET_EXPERIMENT.md"),
+            Path.Combine("docs", "AI_HOST_DOTNET_EXPERIMENT.md"),
+            Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
+            Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md"),
             Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md"),
             Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
             Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md"),
@@ -39,7 +41,7 @@ namespace LocalGPT.Services
                 .AppendLine("Instruction priority: current user request and saved user decisions, then runtime diagnostics/command output, approved or source-backed knowledge entries, AGENTS.md, architecture docs, workflow memory, and finally model-generated suggestions.")
                 .AppendLine("Response protocol: if a model supports analysis/thinking channels, keep that thinking bounded and always finish with a concise user-visible final answer. Never leave DXAiChat with only model thinking and no final answer.")
                 .AppendLine("Runtime decision policy: when code/artifact generation needs unresolved architecture choices, stop before coding and ask a concise user decision poll.")
-                .AppendLine("If the user already named a concrete target such as Minecraft datapack/modpack zip, .cs/.razor/.dll files, whole .NET solution zip, or Ollama-inspired .NET lab, treat that as supplied scope and generate a safe downloadable milestone rather than refusing because the task is large.")
+                .AppendLine("If the user already named a concrete target such as Minecraft datapack/modpack zip, .cs/.razor/.dll files, whole .NET solution zip, or local AI host control-plane app, treat that as supplied scope and generate a safe downloadable milestone rather than refusing because the task is large.")
                 .AppendLine("Never claim the user failed to answer a poll in the same response that created it. Do not force Blazor, DevExpress, ASP.NET Core, or a split solution unless the user chose it, the target repo requires it, or the requested product shape clearly calls for it.")
                 .AppendLine("When you want to store reusable knowledge, append a <localgpt-knowledge> block with topic:, scope:, confidence:, tags:, helpful-sources:, and content:. LocalGPT stores model-written knowledge as unapproved until Michi0403 marks it user-approved in SQLite.")
                 .AppendLine("Available LocalGPT DXAiFunctions are local diagnostic/tool routes the frontend or user can call when a compact tool result is better than a huge prompt:")

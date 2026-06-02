@@ -490,6 +490,23 @@ namespace LocalGPT.Endpoints
                     ct);
             });
 
+            app.MapGet("/__diag/ai-host-rebuild-guidance", async (IWebHostEnvironment env, CancellationToken ct) =>
+            {
+                return await ReadGuidanceDocsAsync(
+                    env,
+                    [
+                        Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
+                        Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md")
+                    ],
+                    """
+                    Generate a local AI host .NET/ASP.NET Core/DevExpress Blazor control-plane app with a
+                    recognizable left navigation shell, model catalog, chat, downloads, running models, API console,
+                    templates, hardware, logs, diagnostics, settings, and representative provider-compatible API routes.
+                    Generate a buildable milestone instead of refusing as too large.
+                    """,
+                    ct);
+            });
+
             app.MapPost("/__diag/learn-base/import", async (
                 [FromBody] LearnBaseImportRequest request,
                 ILearnBaseKnowledgeImporterService importer,
@@ -543,7 +560,8 @@ namespace LocalGPT.Endpoints
             {
                 var isBlazor = string.IsNullOrWhiteSpace(target) || target.Equals("blazor", StringComparison.OrdinalIgnoreCase);
                 var isSolution = target?.Equals("solution", StringComparison.OrdinalIgnoreCase) == true;
-                var isOllamaLab = target?.Equals("ollama", StringComparison.OrdinalIgnoreCase) == true;
+                var isAiHostLab = target?.Equals("ai-host", StringComparison.OrdinalIgnoreCase) == true ||
+                    target?.Equals("ollama", StringComparison.OrdinalIgnoreCase) == true;
                 var isDatapack = target?.Equals("datapack", StringComparison.OrdinalIgnoreCase) == true;
                 var isLoaderMatrix = target?.Equals("loader-matrix", StringComparison.OrdinalIgnoreCase) == true ||
                     target?.Equals("skeletons", StringComparison.OrdinalIgnoreCase) == true;
@@ -553,8 +571,8 @@ namespace LocalGPT.Endpoints
                         ? "implementation-request smoke: generate a downloadable Minecraft Java 1.21.4 vanilla datapack zip named Benchmark Borough. The zip root must contain pack.mcmeta and data/ directly. Include load/tick tags, singular function folders, storage/scoreboard setup, city/register_banner, and validation notes."
                         : isLoaderMatrix
                         ? "implementation-request smoke: generate a downloadable Minecraft Java project skeleton distinction zip with separate Fabric, Paper, and NeoForge workspaces for Minecraft 1.21.4. Each loader must use its own metadata and Gradle conventions."
-                        : isOllamaLab
-                        ? "implementation-request smoke: generate a whole Ollama-inspired .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Provide selected Ollama-style API routes such as /api/version, /api/tags, and a safe non-inference /api/generate stub. Do not use Go and do not claim native GGML/GPU inference is implemented."
+                        : isAiHostLab
+                        ? "implementation-request smoke: generate a whole local AI host .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Include a left navigation shell, model catalog, chat, downloads, running models, API console, settings, logs, and selected provider-compatible API routes such as /api/version, /api/tags, /api/ps, /api/chat, and a safe non-inference /api/generate stub. Do not use Go and do not claim native GGML/GPU inference is implemented."
                         : isSolution
                         ? "implementation-request smoke: generate a whole LocalGPT/TacosPortalOpen-style .NET 10 Blazor DevExpress solution zip with .sln, .csproj, real .razor pages, css, service/model code, README, and manifest. The zip must be downloadable through /__artifacts/council/."
                         : isBlazor
@@ -574,8 +592,8 @@ namespace LocalGPT.Endpoints
                         ? "Create a validated downloadable Benchmark Borough datapack. It must use Minecraft 1.21.4 pack_format 61, singular function folders, no wrapper zip folder, no .mcfunction.txt placeholders, and a visible register_banner debug line."
                         : isLoaderMatrix
                         ? "Create a loader matrix artifact with distinct Fabric, Paper, and NeoForge skeletons. Do not reuse Fabric metadata for Paper or NeoForge."
-                        : isOllamaLab
-                        ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor Ollama compatibility lab. Include typed model catalog records, endpoint/health UI, selected REST route stubs, README, manifest, and a prominent note that native inference is not implemented without a real backend."
+                        : isAiHostLab
+                        ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab. Include a left navigation app shell, typed model catalog records, chat/download/running-model/API-console/settings/log pages, selected REST route stubs, README, manifest, and a prominent note that native inference is not implemented without a real backend."
                         : isSolution
                         ? "Create a whole downloadable .NET 10 Blazor/DevExpress solution artifact with project files, routable Razor pages, CSS, service/model code, README, manifest, and safe sandbox guidance. Do not self-integrate generated files into LocalGPT without user approval."
                         : isBlazor
@@ -587,7 +605,7 @@ namespace LocalGPT.Endpoints
                 var generated = await artifacts.CreateImplementationArtifactsAsync(request, result, ct);
                 return Results.Ok(new
                 {
-                    Target = isDatapack ? "datapack" : isLoaderMatrix ? "loader-matrix" : isOllamaLab ? "ollama" : isSolution ? "solution" : isBlazor ? "blazor" : target,
+                    Target = isDatapack ? "datapack" : isLoaderMatrix ? "loader-matrix" : isAiHostLab ? "ai-host" : isSolution ? "solution" : isBlazor ? "blazor" : target,
                     artifacts.ArtifactRoot,
                     Count = generated.Count,
                     Artifacts = generated,
