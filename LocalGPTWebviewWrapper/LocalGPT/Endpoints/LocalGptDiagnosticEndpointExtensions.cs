@@ -410,9 +410,12 @@ namespace LocalGPT.Endpoints
                 var isBlazor = string.IsNullOrWhiteSpace(target) || target.Equals("blazor", StringComparison.OrdinalIgnoreCase);
                 var isSolution = target?.Equals("solution", StringComparison.OrdinalIgnoreCase) == true;
                 var isOllamaLab = target?.Equals("ollama", StringComparison.OrdinalIgnoreCase) == true;
+                var isDatapack = target?.Equals("datapack", StringComparison.OrdinalIgnoreCase) == true;
                 var request = new MultiModelCouncilRequest
                 {
-                    Prompt = isOllamaLab
+                    Prompt = isDatapack
+                        ? "implementation-request smoke: generate a downloadable Minecraft Java 1.21.4 vanilla datapack zip for Living Cities 0.1. The zip root must contain pack.mcmeta and data/ directly. Include load/tick tags, singular function folders, storage/scoreboard setup, city/register_banner, and validation notes."
+                        : isOllamaLab
                         ? "implementation-request smoke: generate a whole Ollama-inspired .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Provide selected Ollama-style API routes such as /api/version, /api/tags, and a safe non-inference /api/generate stub. Do not use Go and do not claim native GGML/GPU inference is implemented."
                         : isSolution
                         ? "implementation-request smoke: generate a whole LocalGPT/TacosPortalOpen-style .NET 10 Blazor DevExpress solution zip with .sln, .csproj, real .razor pages, css, service/model code, README, and manifest. The zip must be downloadable through /__artifacts/council/."
@@ -429,7 +432,9 @@ namespace LocalGPT.Endpoints
                 {
                     Prompt = request.Prompt,
                     ModelNames = ["artifact-smoke"],
-                    FinalAnswer = isOllamaLab
+                    FinalAnswer = isDatapack
+                        ? "Create a validated downloadable Living Cities datapack. It must use Minecraft 1.21.4 pack_format 61, singular function folders, no wrapper zip folder, no .mcfunction.txt placeholders, and a visible register_banner debug line."
+                        : isOllamaLab
                         ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor Ollama compatibility lab. Include typed model catalog records, endpoint/health UI, selected REST route stubs, README, manifest, and a prominent note that native inference is not implemented without a real backend."
                         : isSolution
                         ? "Create a whole downloadable .NET 10 Blazor/DevExpress solution artifact with project files, routable Razor pages, CSS, service/model code, README, manifest, and safe sandbox guidance. Do not self-integrate generated files into LocalGPT without user approval."
@@ -442,7 +447,7 @@ namespace LocalGPT.Endpoints
                 var generated = await artifacts.CreateImplementationArtifactsAsync(request, result, ct);
                 return Results.Ok(new
                 {
-                    Target = isOllamaLab ? "ollama" : isSolution ? "solution" : isBlazor ? "blazor" : target,
+                    Target = isDatapack ? "datapack" : isOllamaLab ? "ollama" : isSolution ? "solution" : isBlazor ? "blazor" : target,
                     artifacts.ArtifactRoot,
                     Count = generated.Count,
                     Artifacts = generated,

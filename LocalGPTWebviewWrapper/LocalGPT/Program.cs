@@ -68,6 +68,7 @@ namespace LocalGPT
                 builder.AddConsole();
             });
             var logger = loggerFactory.CreateLogger("Startup");
+            EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
             var builder = WebApplication.CreateBuilder(options);
             var configuration = builder.Configuration;
             configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -201,7 +202,8 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 {
                     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
                 });
-            app.UseHttpsRedirection();
+            // The bundled desktop/WebView host binds to a random HTTP loopback port.
+            // HTTPS redirection has no target port there and only produces noisy startup warnings.
             _ = app.UseRequestLocalization();
             app.UseStaticFiles();
             app.UseRouting();
@@ -218,6 +220,65 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
 
             WriteRuntimeEndpointFile();
             return app;                           // ⬅️ no Run() here
+        }
+
+        private static void EnsureGeneratedStaticWebAssetContentRoots(string exeDir, ILogger logger)
+        {
+            var assemblyName = typeof(Program).Assembly.GetName().Name;
+            var manifestPath = Path.Combine(exeDir, $"{assemblyName}.staticwebassets.runtime.json");
+            if (!File.Exists(manifestPath))
+            {
+                return;
+            }
+
+            try
+            {
+                using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
+                if (!manifest.RootElement.TryGetProperty("ContentRoots", out var contentRoots)
+                    || contentRoots.ValueKind != JsonValueKind.Array)
+                {
+                    return;
+                }
+
+                foreach (var contentRoot in contentRoots.EnumerateArray())
+                {
+                    if (contentRoot.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    var path = contentRoot.GetString();
+                    if (string.IsNullOrWhiteSpace(path)
+                        || Directory.Exists(path)
+                        || !IsGeneratedStaticWebAssetRoot(path))
+                    {
+                        continue;
+                    }
+
+                    Directory.CreateDirectory(path);
+                    logger.LogInformation("Recreated missing generated static web asset root {Path}.", path);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                logger.LogWarning(ex, "Could not inspect static web asset manifest {ManifestPath}.", manifestPath);
+            }
+        }
+
+        private static bool IsGeneratedStaticWebAssetRoot(string path)
+        {
+            var normalized = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            var objSegment = $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}";
+            if (!normalized.Contains(objSegment, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var trimmed = normalized.TrimEnd(Path.DirectorySeparatorChar);
+            return trimmed.EndsWith($"{Path.DirectorySeparatorChar}compressed", StringComparison.OrdinalIgnoreCase)
+                || trimmed.EndsWith(
+                    $"{Path.DirectorySeparatorChar}scopedcss{Path.DirectorySeparatorChar}bundle",
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         private static void WriteRuntimeEndpointFile()

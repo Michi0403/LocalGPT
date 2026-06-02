@@ -3,6 +3,7 @@ using System.CodeDom.Compiler;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
@@ -10,7 +11,9 @@ using Microsoft.CSharp;
 
 namespace LocalGPT.Services
 {
-    public partial class CouncilArtifactService(ILogger<CouncilArtifactService> logger) : ICouncilArtifactService
+    public partial class CouncilArtifactService(
+        ILogger<CouncilArtifactService> logger,
+        IMinecraftModWorkspaceService minecraftWorkspaceService) : ICouncilArtifactService
     {
         public string ArtifactRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -30,6 +33,12 @@ namespace LocalGPT.Services
             var targetArea = DetectTargetArea(request.Prompt, result.FinalAnswer);
             var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
             var artifacts = new List<CouncilArtifact>();
+
+            if (IsMinecraftDatapackArtifactTarget(request.Prompt, result.FinalAnswer))
+            {
+                artifacts.AddRange(await CreateMinecraftDatapackArtifactsAsync(request, result, timestamp, cancellationToken));
+                return artifacts;
+            }
 
             if (IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea))
             {
@@ -78,6 +87,60 @@ namespace LocalGPT.Services
                 artifacts.Add(await CreateSolutionZipArtifactAsync(request, result, timestamp, cancellationToken));
 
             return artifacts;
+        }
+
+        private async Task<IReadOnlyList<CouncilArtifact>> CreateMinecraftDatapackArtifactsAsync(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            string timestamp,
+            CancellationToken cancellationToken)
+        {
+            var text = $"{request.Prompt} {result.FinalAnswer}";
+            var minecraftVersion = ExtractMinecraftVersion(text);
+            var requestModel = new MinecraftModBuildRequest
+            {
+                ProjectName = $"LivingCitiesCouncil{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}",
+                ModId = "living_cities",
+                PackageName = "com.localgpt.livingcities",
+                MinecraftVersion = minecraftVersion,
+                Loader = "Datapack",
+                JavaVersion = "21",
+                GradleVersion = "8.14.2",
+                Ide = "Eclipse",
+                IncludeLivingCitiesStarter = true,
+                Description = TrimForCodeComment(request.Prompt, 1800)
+            };
+
+            var workspace = await minecraftWorkspaceService.CreateWorkspaceAsync(requestModel, cancellationToken);
+            ValidateGeneratedDatapackWorkspace(workspace.RootPath);
+
+            var runSuffix = result.RunId.ToString("N")[..8];
+            var zipName = $"living-cities-datapack-{timestamp}-{runSuffix}.zip";
+            var zipPath = Path.Combine(ArtifactRoot, zipName);
+            if (File.Exists(zipPath))
+                File.Delete(zipPath);
+
+            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                AddFileToZip(archive, Path.Combine(workspace.RootPath, "pack.mcmeta"), "pack.mcmeta");
+                AddDirectoryToZip(archive, workspace.RootPath, Path.Combine(workspace.RootPath, "data"));
+                AddDirectoryToZip(archive, workspace.RootPath, Path.Combine(workspace.RootPath, "docs"));
+                AddFileToZip(archive, workspace.ReadmePath, Path.GetFileName(workspace.ReadmePath));
+            }
+
+            logger.LogInformation("Wrote council Minecraft datapack artifact to {Path}", zipPath);
+
+            return
+            [
+                new CouncilArtifact
+                {
+                    Name = zipName,
+                    Kind = "Minecraft Java datapack zip",
+                    FilePath = zipPath,
+                    DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(zipName)}",
+                    Summary = $"Generated Living Cities datapack for Minecraft {minecraftVersion}. Zip root contains pack.mcmeta and data/ directly."
+                }
+            ];
         }
 
         private async Task<CouncilArtifact> CreateSolutionZipArtifactAsync(
@@ -2436,6 +2499,80 @@ namespace LocalGPT.Services
                 new CodePrimitiveExpression(line)));
         }
 
+        private static bool IsMinecraftDatapackArtifactTarget(string prompt, string finalAnswer)
+        {
+            var text = $"{prompt} {finalAnswer}";
+            return MinecraftPattern().IsMatch(text) && DatapackPattern().IsMatch(text);
+        }
+
+        private static string ExtractMinecraftVersion(string text)
+        {
+            var match = MinecraftVersionPattern().Match(text);
+            return match.Success ? match.Groups["version"].Value : "1.21.4";
+        }
+
+        private static void ValidateGeneratedDatapackWorkspace(string rootPath)
+        {
+            var packPath = Path.Combine(rootPath, "pack.mcmeta");
+            var dataPath = Path.Combine(rootPath, "data");
+            if (!File.Exists(packPath))
+                throw new InvalidOperationException("Generated datapack is missing root pack.mcmeta.");
+            if (!Directory.Exists(dataPath))
+                throw new InvalidOperationException("Generated datapack is missing root data folder.");
+
+            JsonDocument.Parse(File.ReadAllText(packPath));
+            foreach (var tagPath in Directory.GetFiles(Path.Combine(dataPath, "minecraft", "tags", "function"), "*.json"))
+                JsonDocument.Parse(File.ReadAllText(tagPath));
+
+            var nestedPack = Directory
+                .EnumerateDirectories(rootPath)
+                .Select(directory => Path.Combine(directory, "pack.mcmeta"))
+                .FirstOrDefault(File.Exists);
+            if (nestedPack is not null)
+                throw new InvalidOperationException("Generated datapack has a nested wrapper folder containing pack.mcmeta.");
+
+            var pluralFunctionsFolder = Directory
+                .EnumerateDirectories(dataPath, "functions", SearchOption.AllDirectories)
+                .FirstOrDefault();
+            if (pluralFunctionsFolder is not null)
+                throw new InvalidOperationException("Generated datapack contains legacy plural functions folder; Minecraft 1.21+ uses function.");
+
+            var txtPlaceholder = Directory
+                .EnumerateFiles(dataPath, "*.mcfunction.txt", SearchOption.AllDirectories)
+                .FirstOrDefault();
+            if (txtPlaceholder is not null)
+                throw new InvalidOperationException("Generated datapack contains .mcfunction.txt placeholder files.");
+
+            foreach (var functionFile in Directory.EnumerateFiles(dataPath, "*.mcfunction", SearchOption.AllDirectories))
+            {
+                var content = File.ReadAllText(functionFile);
+                if (LeadingSlashCommandPattern().IsMatch(content))
+                    throw new InvalidOperationException($"Generated function contains a leading slash command: {Path.GetRelativePath(rootPath, functionFile)}");
+                if (RootStorageRemovePattern().IsMatch(content))
+                    throw new InvalidOperationException($"Generated function uses data remove storage root syntax: {Path.GetRelativePath(rootPath, functionFile)}");
+            }
+        }
+
+        private static void AddDirectoryToZip(ZipArchive archive, string rootPath, string directoryPath)
+        {
+            if (!Directory.Exists(directoryPath))
+                return;
+
+            foreach (var filePath in Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
+            {
+                var entryName = Path.GetRelativePath(rootPath, filePath).Replace('\\', '/');
+                AddFileToZip(archive, filePath, entryName);
+            }
+        }
+
+        private static void AddFileToZip(ZipArchive archive, string filePath, string entryName)
+        {
+            if (!File.Exists(filePath))
+                return;
+
+            archive.CreateEntryFromFile(filePath, entryName.Replace('\\', '/'), CompressionLevel.SmallestSize);
+        }
+
         private static string DetectTargetArea(string prompt, string finalAnswer)
         {
             var text = $"{prompt} {finalAnswer}";
@@ -2548,6 +2685,18 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("(minecraft|fabric|neoforge|paper|datapack|gradle|java)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex MinecraftPattern();
+
+        [GeneratedRegex("(datapack|data pack|pack\\.mcmeta|mcfunction|living cities)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex DatapackPattern();
+
+        [GeneratedRegex("(?<!\\d)(?<version>1\\.\\d{1,2}(?:\\.\\d{1,2})?)(?!\\d)", RegexOptions.CultureInvariant)]
+        private static partial Regex MinecraftVersionPattern();
+
+        [GeneratedRegex("(?m)^\\s*/", RegexOptions.CultureInvariant)]
+        private static partial Regex LeadingSlashCommandPattern();
+
+        [GeneratedRegex("\\bdata\\s+remove\\s+storage\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex RootStorageRemovePattern();
 
         [GeneratedRegex("(frontend|razor|devexpress|dxaichat|css|javascript)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex FrontendPattern();

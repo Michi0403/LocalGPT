@@ -1039,6 +1039,7 @@ namespace LocalGPT.Services
 
         private static string CreateDatapackRegisterBannerFunction(WorkspaceContext context) =>
             $$$"""
+            say LC register_banner loaded
             execute store result storage {{{context.ModId}}}:city.banner.x int 1 run data get entity @s Pos[0] 1
             execute store result storage {{{context.ModId}}}:city.banner.y int 1 run data get entity @s Pos[1] 1
             execute store result storage {{{context.ModId}}}:city.banner.z int 1 run data get entity @s Pos[2] 1
@@ -1226,9 +1227,9 @@ namespace LocalGPT.Services
 
         private static string CreateDatapackResetCityFunction(WorkspaceContext context) =>
             $$$"""
-            data remove storage {{{context.ModId}}}:city
-            data remove storage {{{context.ModId}}}:chronicle
-            data remove storage {{{context.ModId}}}:personalities
+            data modify storage {{{context.ModId}}}:city set value {}
+            data modify storage {{{context.ModId}}}:chronicle set value {events:[]}
+            data modify storage {{{context.ModId}}}:personalities set value {notables:[]}
             tag @e[type=minecraft:villager,tag=lc_citizen] remove lc_citizen
             tag @e[type=minecraft:villager,tag=lc_personality] remove lc_personality
             scoreboard players set #population lc_population 0
@@ -1290,6 +1291,16 @@ namespace LocalGPT.Services
                 }
             }
 
+            $wrapperMcmeta = Get-ChildItem $root -Directory | ForEach-Object { Join-Path $_.FullName "pack.mcmeta" } | Where-Object { Test-Path $_ }
+            if ($wrapperMcmeta.Count -gt 0) {
+                throw "Datapack wrapper folder detected. The zip root must contain pack.mcmeta directly, not a nested project folder."
+            }
+
+            $legacyFunctions = Get-ChildItem (Join-Path $root "data") -Recurse -Directory -Filter "functions"
+            if ($legacyFunctions.Count -gt 0) {
+                throw "Found legacy plural 'functions' folder. Minecraft 1.21+ datapacks use singular 'function'."
+            }
+
             Get-Content (Join-Path $root "pack.mcmeta") -Raw | ConvertFrom-Json | Out-Null
             Get-Content (Join-Path $root "data\minecraft\tags\function\load.json") -Raw | ConvertFrom-Json | Out-Null
             Get-Content (Join-Path $root "data\minecraft\tags\function\tick.json") -Raw | ConvertFrom-Json | Out-Null
@@ -1328,6 +1339,16 @@ namespace LocalGPT.Services
             $referencePattern = [regex]'(?<![#/])\bfunction\s+([a-z0-9_.-]+:[a-z0-9_./-]+)'
             foreach ($file in $functionFiles) {
                 $content = Get-Content $file.FullName -Raw
+                if ($content -match "(?m)^\s*/") {
+                    $relativePath = Get-LocalRelativePath -BasePath $root -Path $file.FullName
+                    throw "Function $relativePath contains a leading slash command. Remove leading / inside .mcfunction files."
+                }
+
+                if ($content -match "\bdata\s+remove\s+storage\b") {
+                    $relativePath = Get-LocalRelativePath -BasePath $root -Path $file.FullName
+                    throw "Function $relativePath uses 'data remove storage'. Use 'data modify storage <id> set value ...' for root storage reset."
+                }
+
                 foreach ($match in $referencePattern.Matches($content)) {
                     $id = $match.Groups[1].Value
                     if (-not $functionIds.ContainsKey($id)) {
@@ -1361,9 +1382,10 @@ namespace LocalGPT.Services
             Improvements over the early reference:
 
             - no `.mcfunction.txt` placeholder files
-            - build helper validates function tags and `function namespace:path` references
+            - build helper validates root zip layout, function tags, singular `function` folders, leading slash mistakes, root storage reset syntax, and `function namespace:path` references
             - generated output includes food, security, chronicle, quests, and building functions as real `.mcfunction` files
             - town hall UI is available through both the admin book and `/function {{context.ModId}}:ui/townhall`
+            - `city/register_banner` includes a visible `say LC register_banner loaded` smoke line so testers can separate discovery problems from command behavior
 
             Remaining needs before your friend tests in a real world:
 
@@ -1394,6 +1416,14 @@ namespace LocalGPT.Services
             /reload
             /function {{context.ModId}}:ui/townhall
             ```
+
+            If `/function {{context.ModId}}:city/register_banner` is not offered by autocomplete, debug discovery before command syntax:
+
+            - unzip the datapack and ensure `pack.mcmeta` is at zip root
+            - for Minecraft 1.21+ ensure folders are `data/<namespace>/function` and `data/minecraft/tags/function`
+            - run `/reload`, `/datapack list`, then `/function {{context.ModId}}:city/register_banner`
+            - ensure no file ends in `.mcfunction.txt`
+            - run `.\build-local.ps1` to validate references before copying the zip
 
             ## Structure
 

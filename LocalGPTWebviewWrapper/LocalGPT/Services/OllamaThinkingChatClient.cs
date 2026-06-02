@@ -17,6 +17,13 @@ namespace LocalGPT.Services
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             PropertyNameCaseInsensitive = true
         };
+        private const string HarmonyResponseProtocol =
+            "Response protocol for Harmony/OpenAI-style local models: keep analysis short, " +
+            "always finish with user-visible final answer text in the final channel, and if the request is too large, " +
+            "say what is missing or what to do next in final instead of spending the whole answer budget on analysis.";
+        private const string MissingFinalAnswerNotice =
+            "**No final answer was emitted.** The model only sent thinking. LocalGPT kept the thinking visible and stopped the spinner; " +
+            "send a short \"continue with the final answer\" request or raise the answer-token budget for this model.";
 
         private readonly HttpClient http;
         private readonly string model;
@@ -69,7 +76,7 @@ namespace LocalGPT.Services
 
             using (response)
             {
-                response.EnsureSuccessStatusCode();
+                await EnsureSuccessOrThrowAsync(response, cancellationToken);
 
                 Stream stream;
                 try
@@ -84,7 +91,7 @@ namespace LocalGPT.Services
                 await using (stream)
                 using (var reader = new StreamReader(stream))
                 {
-                    var formatter = new VisibleThinkingStreamFormatter();
+                    var formatter = new VisibleThinkingStreamFormatter(IsHarmonyModel());
                     while (!reader.EndOfStream)
                     {
                         string? line;
@@ -144,11 +151,23 @@ namespace LocalGPT.Services
         {
             var request = CreateRequest(messages, options, stream);
 
-            using var response = await http.PostAsJsonAsync("/api/chat", request, JsonOptions, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            HttpResponseMessage response;
+            try
+            {
+                response = await http.PostAsJsonAsync("/api/chat", request, JsonOptions, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return new OllamaChatResponse();
+            }
 
-            var ollama = await response.Content.ReadFromJsonAsync<OllamaChatResponse>(JsonOptions, cancellationToken);
-            return ollama ?? new OllamaChatResponse();
+            using (response)
+            {
+                await EnsureSuccessOrThrowAsync(response, cancellationToken);
+
+                var ollama = await response.Content.ReadFromJsonAsync<OllamaChatResponse>(JsonOptions, cancellationToken);
+                return ollama ?? new OllamaChatResponse();
+            }
         }
 
         private OllamaChatRequest CreateRequest(IEnumerable<ChatMessage> messages, ChatOptions? options, bool stream)
@@ -158,10 +177,10 @@ namespace LocalGPT.Services
                 Model = model,
                 Stream = stream,
                 KeepAlive = keepAlive,
-                Messages = messages.Select(ToOllamaMessage).Where(m => !string.IsNullOrWhiteSpace(m.Content)).ToList(),
+                Messages = BuildOllamaMessages(messages),
                 Options = new OllamaRequestOptions
                 {
-                    NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 8192),
+                    NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 131072),
                     NumCtx = contextLength,
                     NumGpu = numGpu,
                     Temperature = options?.Temperature
@@ -169,8 +188,71 @@ namespace LocalGPT.Services
             };
         }
 
+        private static async Task EnsureSuccessOrThrowAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+        {
+            if (response.IsSuccessStatusCode)
+                return;
+
+            var body = await ReadErrorBodyAsync(response, cancellationToken);
+            var message = string.IsNullOrWhiteSpace(body)
+                ? $"Ollama returned {(int)response.StatusCode} {response.StatusCode}."
+                : $"Ollama returned {(int)response.StatusCode} {response.StatusCode}: {body}";
+            throw new HttpRequestException(message, null, response.StatusCode);
+        }
+
+        private static async Task<string> ReadErrorBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                if (string.IsNullOrWhiteSpace(body))
+                    return string.Empty;
+
+                return body.Length <= 4000 ? body.Trim() : body[..4000].Trim() + "...";
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
         private static ChatResponseUpdate CreateStreamingUpdate(string text) =>
             new(ChatRole.Assistant, [new TextContent(text)]);
+
+        private List<OllamaChatMessage> BuildOllamaMessages(IEnumerable<ChatMessage> messages)
+        {
+            var ollamaMessages = messages
+                .Select(ToOllamaMessage)
+                .Where(message => !string.IsNullOrWhiteSpace(message.Content))
+                .ToList();
+
+            if (IsHarmonyModel())
+                AddHarmonyResponseProtocol(ollamaMessages);
+
+            return ollamaMessages;
+        }
+
+        private static void AddHarmonyResponseProtocol(List<OllamaChatMessage> messages)
+        {
+            if (messages.Count > 0 &&
+                messages[0].Role.Equals("system", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!messages[0].Content.Contains(HarmonyResponseProtocol, StringComparison.Ordinal))
+                    messages[0].Content = $"{HarmonyResponseProtocol}\n\n{messages[0].Content}";
+
+                return;
+            }
+
+            messages.Insert(0, new OllamaChatMessage
+            {
+                Role = "system",
+                Content = HarmonyResponseProtocol
+            });
+        }
 
         private static OllamaChatMessage ToOllamaMessage(ChatMessage message)
         {
@@ -280,7 +362,7 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(normalizedContent))
                 builder.AppendLine(normalizedContent.Trim());
             else if (!string.IsNullOrWhiteSpace(normalizedThinking))
-                builder.AppendLine("_The model returned thinking but no final visible answer. Increase the output token budget or ask for a shorter final answer._");
+                builder.AppendLine(MissingFinalAnswerNotice);
 
             return builder.ToString().Trim();
         }
@@ -333,13 +415,19 @@ namespace LocalGPT.Services
             public OllamaChatMessage? Message { get; set; }
         }
 
-        private sealed class VisibleThinkingStreamFormatter
+        private sealed class VisibleThinkingStreamFormatter(bool harmonyModel)
         {
             private const string ThinkStartTag = "<think>";
             private const string ThinkEndTag = "</think>";
             private const int TagLookbehindLength = 16;
             private readonly StringBuilder contentBuffer = new();
+            private readonly StringBuilder harmonyBuffer = new();
+            private int emittedHarmonyThinkingLength;
+            private int emittedHarmonyFinalLength;
             private bool inTaggedThinking;
+            private bool emittedExplicitThinking;
+            private bool emittedVisibleContent;
+            private bool emittedMissingFinalNotice;
             private bool thinkingBlockOpen;
 
             public IEnumerable<string> AppendThinking(string text)
@@ -350,10 +438,27 @@ namespace LocalGPT.Services
                 foreach (var chunk in OpenThinkingBlock())
                     yield return chunk;
 
+                emittedExplicitThinking = true;
                 yield return WebUtility.HtmlEncode(text);
             }
 
             public IEnumerable<string> AppendContent(string text)
+            {
+                if (string.IsNullOrEmpty(text))
+                    yield break;
+
+                if (harmonyModel)
+                {
+                    foreach (var chunk in AppendHarmonyContent(text))
+                        yield return chunk;
+                    yield break;
+                }
+
+                foreach (var chunk in AppendTaggedContent(text))
+                    yield return chunk;
+            }
+
+            private IEnumerable<string> AppendTaggedContent(string text)
             {
                 if (string.IsNullOrEmpty(text))
                     yield break;
@@ -396,6 +501,7 @@ namespace LocalGPT.Services
                             foreach (var chunk in CloseThinkingBlock())
                                 yield return chunk;
 
+                            emittedVisibleContent = true;
                             yield return current[..startIndex];
                         }
 
@@ -414,12 +520,32 @@ namespace LocalGPT.Services
                     foreach (var chunk in CloseThinkingBlock())
                         yield return chunk;
 
+                    emittedVisibleContent = true;
                     yield return current[..flushLength];
                     contentBuffer.Remove(0, flushLength);
                 }
             }
 
             public IEnumerable<string> Complete()
+            {
+                if (harmonyModel)
+                {
+                    foreach (var chunk in CompleteHarmonyContent())
+                        yield return chunk;
+                    yield break;
+                }
+
+                foreach (var chunk in CompleteTaggedContent())
+                    yield return chunk;
+
+                if (!emittedVisibleContent && emittedExplicitThinking)
+                {
+                    foreach (var chunk in EmitMissingFinalNotice())
+                        yield return chunk;
+                }
+            }
+
+            private IEnumerable<string> CompleteTaggedContent()
             {
                 if (contentBuffer.Length > 0)
                 {
@@ -432,6 +558,7 @@ namespace LocalGPT.Services
                         foreach (var chunk in CloseThinkingBlock())
                             yield return chunk;
 
+                        emittedVisibleContent = true;
                         yield return current;
                     }
                 }
@@ -440,6 +567,119 @@ namespace LocalGPT.Services
                     yield return chunk;
 
                 inTaggedThinking = false;
+            }
+
+            private IEnumerable<string> AppendHarmonyContent(string text)
+            {
+                harmonyBuffer.Append(text);
+                var raw = harmonyBuffer.ToString();
+                if (!raw.Contains("<|", StringComparison.Ordinal))
+                {
+                    harmonyBuffer.Clear();
+                    foreach (var chunk in AppendTaggedContent(raw))
+                        yield return chunk;
+                    yield break;
+                }
+
+                foreach (var chunk in EmitHarmonyDeltas(raw))
+                    yield return chunk;
+            }
+
+            private IEnumerable<string> CompleteHarmonyContent()
+            {
+                if (harmonyBuffer.Length > 0)
+                {
+                    var raw = harmonyBuffer.ToString();
+                    harmonyBuffer.Clear();
+                    if (!raw.Contains("<|", StringComparison.Ordinal))
+                    {
+                        foreach (var chunk in AppendTaggedContent(raw))
+                            yield return chunk;
+                        foreach (var chunk in CompleteTaggedContent())
+                            yield return chunk;
+                        yield break;
+                    }
+
+                    foreach (var chunk in EmitHarmonyDeltas(raw))
+                        yield return chunk;
+
+                    if (emittedHarmonyFinalLength == 0 && emittedHarmonyThinkingLength > 0)
+                    {
+                        foreach (var chunk in CloseThinkingBlock())
+                            yield return chunk;
+
+                        foreach (var chunk in EmitMissingFinalNotice())
+                            yield return chunk;
+                    }
+                }
+
+                foreach (var chunk in CloseThinkingBlock())
+                    yield return chunk;
+
+                if (!emittedVisibleContent && emittedExplicitThinking)
+                {
+                    foreach (var chunk in EmitMissingFinalNotice())
+                        yield return chunk;
+                }
+            }
+
+            private IEnumerable<string> EmitHarmonyDeltas(string raw)
+            {
+                var thinking = ExtractHarmonyThinkingText(raw);
+                if (thinking.Length > emittedHarmonyThinkingLength)
+                {
+                    foreach (var chunk in OpenThinkingBlock())
+                        yield return chunk;
+
+                    yield return WebUtility.HtmlEncode(thinking[emittedHarmonyThinkingLength..]);
+                    emittedHarmonyThinkingLength = thinking.Length;
+                }
+
+                var final = ExtractHarmonyFinalText(raw);
+                if (final.Length <= emittedHarmonyFinalLength)
+                    yield break;
+
+                foreach (var chunk in CloseThinkingBlock())
+                    yield return chunk;
+
+                emittedVisibleContent = true;
+                yield return final[emittedHarmonyFinalLength..];
+                emittedHarmonyFinalLength = final.Length;
+            }
+
+            private static string ExtractHarmonyThinkingText(string raw)
+            {
+                var matches = HarmonyThinkingPattern().Matches(raw);
+                if (matches.Count == 0)
+                    return string.Empty;
+
+                return string.Join(
+                    Environment.NewLine,
+                    matches
+                        .Select(match => CleanHarmonyText(match.Groups["content"].Value))
+                        .Where(text => !string.IsNullOrWhiteSpace(text)));
+            }
+
+            private static string ExtractHarmonyFinalText(string raw)
+            {
+                var matches = HarmonyFinalPattern().Matches(raw);
+                if (matches.Count == 0)
+                    return string.Empty;
+
+                return CleanHarmonyText(matches[^1].Groups["content"].Value);
+            }
+
+            private static string CleanHarmonyText(string text)
+            {
+                var cleaned = HarmonyMarkerPattern().Replace(text, string.Empty);
+                var partialMarkerIndex = cleaned.LastIndexOf("<|", StringComparison.Ordinal);
+                if (partialMarkerIndex >= 0 &&
+                    cleaned.IndexOf("|>", partialMarkerIndex, StringComparison.Ordinal) < 0)
+                {
+                    cleaned = cleaned[..partialMarkerIndex];
+                }
+
+                return cleaned;
             }
 
             private IEnumerable<string> OpenThinkingBlock()
@@ -458,6 +698,15 @@ namespace LocalGPT.Services
 
                 thinkingBlockOpen = false;
                 yield return "</pre></details>\n\n";
+            }
+
+            private IEnumerable<string> EmitMissingFinalNotice()
+            {
+                if (emittedMissingFinalNotice)
+                    yield break;
+
+                emittedMissingFinalNotice = true;
+                yield return MissingFinalAnswerNotice;
             }
 
             private static int GetSafeFlushLength(string current)

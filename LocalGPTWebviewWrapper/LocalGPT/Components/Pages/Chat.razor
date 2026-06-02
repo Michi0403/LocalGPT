@@ -68,21 +68,29 @@
                            @bind="LimitedGpuLayers" />
                 </label>
             }
-            <span title="When the AI Council session is selected, it can generate downloadable code/DLL examples for implementation requests.">
+            <span title="When the AI Council session is selected, it can generate downloadable code, DLL, solution, or datapack artifacts for implementation requests.">
                 <DxCheckBox @bind-Checked="GenerateCouncilArtifacts"
-                            Text="Council code/DLL artifacts" />
+                            Text="Council downloadable artifacts" />
             </span>
             <span title="Adds saved chat memory, logs, and local project guidance to AI Council prompts. Turn off for small frontend smoke tests or narrow reviews.">
                 <DxCheckBox @bind-Checked="IncludeCouncilMemory"
                             Text="Council uses memory" />
             </span>
-            <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Raise this for reviews; lower it for quick checks.">
+            <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Use 32768+ for source generation; lower it for quick checks.">
                 <span>Council answer tokens</span>
                 <input type="number"
                        min="256"
-                       max="4096"
-                       step="128"
+                       max="131072"
+                       step="1024"
                        @bind="CouncilMaxOutputTokens" />
+            </label>
+            <label class="council-token-setting" title="Maximum Ollama context window requested for council and detected model sessions. Lower this if Ollama reports context or VRAM errors.">
+                <span>Council context tokens</span>
+                <input type="number"
+                       min="2048"
+                       max="131072"
+                       step="2048"
+                       @bind="CouncilMaxContextTokens" />
             </label>
             @if (!string.IsNullOrWhiteSpace(modelStatus))
             {
@@ -192,18 +200,26 @@
     string toastName = "ChatToasts";
     const string DetectedOllamaSessionPrefix = "Ollama detected — ";
     const string CouncilSessionName = "AI Council — selected Ollama models";
+    const string DefaultOllamaEndpoint = "http://127.0.0.1:11434";
     bool ReuseContextWhenSwitching { get; set; } = true;
     bool AutoLoadLatestConversation { get; set; }
     bool UseFreshDiagnosticChat { get; set; }
     const string OllamaModeAutoGpu = "auto-gpu";
     const string OllamaModeSafeCpu = "safe-cpu";
     const string OllamaModeLimitedGpu = "limited-gpu";
+    const int MinCouncilOutputTokens = 256;
+    const int DefaultCouncilOutputTokens = 32768;
+    const int MaxCouncilOutputTokens = 131072;
+    const int MinCouncilContextTokens = 2048;
+    const int DefaultCouncilContextTokens = 32768;
+    const int MaxCouncilContextTokens = 131072;
     string OllamaAccelerationMode { get; set; } = OllamaModeAutoGpu;
     int LimitedGpuLayers { get; set; } = 20;
-    bool GenerateCouncilArtifacts { get; set; }
+    bool GenerateCouncilArtifacts { get; set; } = true;
     bool IncludeCouncilMemory { get; set; } = true;
-    int CouncilMaxOutputTokens { get; set; } = 2048;
-    int CouncilMaxContextTokens { get; set; } = 4096;
+    string? DiagnosticRequestedSessionName { get; set; }
+    int CouncilMaxOutputTokens { get; set; } = DefaultCouncilOutputTokens;
+    int CouncilMaxContextTokens { get; set; } = DefaultCouncilContextTokens;
     List<PromptSuggestion> PromptSuggestions { get; set; } = new();
     List<ChatMemoryConversationSummary> SavedConversations { get; set; } = new();
     List<ChatMemoryThought> RecentThoughts { get; set; } = new();
@@ -243,6 +259,7 @@
 
     void ChatInitialized()
     {
+        ApplyDiagnosticQueryOptions(selectSession: true);
         LoadSelectedSessionMessages();
         StartAutoSaveLoop();
     }
@@ -253,8 +270,9 @@
         new PromptSuggestion("Recall memory", "Use saved chats and former thoughts", "Review your saved LocalGPT memory and former model thoughts, then summarize what you remember about this project and continue from that context."),
         new PromptSuggestion("Minecraft target choice", "Pick Fabric, NeoForge, Paper, or datapack", "Act as a LocalGPT AI Council member. Compare Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, and future Bedrock add-on for my request. Recommend one target, explain setup, and create a short poll if a decision or missing tool blocks progress."),
         new PromptSuggestion("Minecraft mod plan", "Plan a buildable Java mod or plugin", "Act as a senior Minecraft Java engineer. Create a buildable Fabric, NeoForge, or Paper plan with exact classes, registry or command steps, assets/data files, Gradle commands, and risks. If LocalGPT is missing a needed feature, include a 'Missing feature report' section."),
-        new PromptSuggestion("Minecraft datapack", "Generate vanilla datapack files", "Generate a vanilla Minecraft Java datapack plan with pack.mcmeta, load/tick function tags, namespace functions, scoreboard/storage design, validation steps, install commands, and performance notes. If Java is needed instead, say why."),
-        new PromptSuggestion("Living Cities datapack", "Generate a phased Living Cities datapack", "Use the Living Cities 0.1 technical plan as the target. Produce buildable datapack and optional Java follow-up steps, file paths, commands, scoreboard/storage design, and performance notes for 1000+ citizens."),
+        new PromptSuggestion("Minecraft datapack", "Generate vanilla datapack files", "Generate a vanilla Minecraft Java datapack. Include pack.mcmeta, load/tick function tags, namespace functions, scoreboard/storage design, validation steps, install commands, and performance notes. If AI Council downloadable artifacts are enabled, create a download-ready datapack zip."),
+        new PromptSuggestion("Datapack debug", "Find why /function cannot see files", "Debug a Minecraft Java datapack whose function is not visible in /function. Check zip root layout, pack.mcmeta, pack_format, singular/plural function folders for the target version, load/tick tags, namespace/path casing, .mcfunction.txt mistakes, storage syntax, and provide exact file tree fixes."),
+        new PromptSuggestion("Living Cities datapack", "Generate a phased Living Cities datapack", "Use the Living Cities 0.1 technical plan as the target. Produce a buildable, download-ready datapack zip plus optional Java follow-up steps, file paths, commands, scoreboard/storage design, and performance notes for 1000+ citizens."),
         new PromptSuggestion("Missing features", "Write gaps to report file", "Review LocalGPT as a Minecraft mod builder. List missing features, blocked workflows, and required backend/frontend capabilities under a 'Missing feature report' heading."),
         new PromptSuggestion("Write an email", "Make your text look and sound professional", "Format text as a formal email to a client:"),
         new PromptSuggestion("Brainstorm ideas", "Get creative input for your tasks", "Help me brainstorm ideas for:"),
@@ -291,6 +309,20 @@
         {
             if (ChatClientProvider is null || DxAiChat is null || value is null)
                 return;
+
+            if (!string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName) &&
+                !MatchesRequestedDiagnosticSession(value, DiagnosticRequestedSessionName))
+            {
+                var diagnosticSession = FindRequestedDiagnosticSession(DiagnosticRequestedSessionName);
+                if (diagnosticSession is not null)
+                {
+                    ChatClientProvider.SelectedSession = diagnosticSession;
+                    DxAiChat.LoadMessages(diagnosticSession.Messages);
+                    modelStatus = $"Diagnostic session locked to {diagnosticSession.Name}.";
+                }
+
+                return;
+            }
 
             var currentMessages = DxAiChat.SaveMessages().ToList();
             SaveMessagesForSelectedSession(currentMessages);
@@ -386,14 +418,14 @@
 
         foreach (var candidate in OllamaCandidates)
         {
-            if (HasConfiguredSessionForModel(candidate.ModelName))
+            if (HasConfiguredSessionForModel(candidate.ModelName) && !ShouldAddRuntimeProfileSession())
                 continue;
 
             var session = new ChatClientSession(
                 new OllamaThinkingChatClient(
                     new OllamaCoreOptions { Uri = candidate.Endpoint, ModelName = candidate.ModelName },
                     keepAlive: "0s",
-                    contextLength: 2048,
+                    contextLength: ResolveCouncilContextTokens(),
                     timeout: TimeSpan.FromMinutes(10),
                     numGpu: ResolveOllamaNumGpu()),
                 $"{DetectedOllamaSessionPrefix}{candidate.ModelName}");
@@ -403,6 +435,8 @@
 
             ChatClientProvider.AvailableChatClients.Add(session);
         }
+
+        EnsureDiagnosticOllamaSession(previousMessages);
 
         var councilSession = new ChatClientSession(
             new CouncilChatClient(CouncilService, CreateCouncilRequest),
@@ -415,6 +449,36 @@
             ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name == previousSelection)
             ?? ChatClientProvider.SelectedSession
             ?? ChatClientProvider.AvailableChatClients.FirstOrDefault();
+    }
+
+    private void EnsureDiagnosticOllamaSession(IReadOnlyDictionary<string, List<BlazorChatMessage>> previousMessages)
+    {
+        if (ChatClientProvider is null ||
+            string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName) ||
+            DiagnosticRequestedSessionName.Equals("council", StringComparison.OrdinalIgnoreCase) ||
+            FindRequestedDiagnosticSession(DiagnosticRequestedSessionName) is not null)
+        {
+            return;
+        }
+
+        var endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
+        if (string.IsNullOrWhiteSpace(endpoint))
+            endpoint = DefaultOllamaEndpoint;
+
+        var session = new ChatClientSession(
+            new OllamaThinkingChatClient(
+                new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
+                keepAlive: "0s",
+                contextLength: ResolveCouncilContextTokens(),
+                timeout: TimeSpan.FromMinutes(10),
+                numGpu: ResolveOllamaNumGpu()),
+            $"{DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName}");
+
+        if (previousMessages.TryGetValue(session.Name, out var messages))
+            session.Messages.AddRange(messages);
+
+        ChatClientProvider.AvailableChatClients.Add(session);
+        modelStatus = $"Diagnostic Ollama session created for {DiagnosticRequestedSessionName} at {endpoint}.";
     }
 
     private MultiModelCouncilRequest CreateCouncilRequest()
@@ -431,10 +495,10 @@
             ModelNames = OrderCouncilModelsForLoad(selectedModels).ToList(),
             BaseUri = selectedEndpoint,
             MaxRounds = 0,
-            MaxOutputTokens = Math.Clamp(CouncilMaxOutputTokens, 256, 4096),
+            MaxOutputTokens = ResolveCouncilOutputTokens(),
             MaxParallelModels = 1,
-            MaxContextTokens = Math.Clamp(CouncilMaxContextTokens, 2048, 8192),
-            ModelTimeoutSeconds = 360,
+            MaxContextTokens = ResolveCouncilContextTokens(),
+            ModelTimeoutSeconds = 900,
             OllamaKeepAlive = "0s",
             OllamaNumGpu = ResolveOllamaNumGpu(),
             IncludeMemory = IncludeCouncilMemory,
@@ -453,13 +517,13 @@
         if (query.TryGetValue("diagCouncilMaxOutputTokens", out var maxTokens) &&
             int.TryParse(maxTokens.ToString(), out var parsedMaxTokens))
         {
-            CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, 256, 4096);
+            CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, MinCouncilOutputTokens, MaxCouncilOutputTokens);
         }
 
         if (query.TryGetValue("diagCouncilMaxContextTokens", out var maxContext) &&
             int.TryParse(maxContext.ToString(), out var parsedMaxContext))
         {
-            CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, 2048, 8192);
+            CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, MinCouncilContextTokens, MaxCouncilContextTokens);
         }
 
         if (query.TryGetValue("diagOllamaMode", out var ollamaMode))
@@ -512,20 +576,51 @@
                 AutoLoadLatestConversation = false;
         }
 
-        if (!selectSession || !query.TryGetValue("diagSession", out var sessionValue))
+        if (query.TryGetValue("diagSession", out var sessionValue))
+            DiagnosticRequestedSessionName = sessionValue.ToString();
+
+        if (!selectSession || string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName))
             return;
 
-        var requestedSession = sessionValue.ToString();
-        var selectedSession = requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
-            ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(CouncilSessionName, StringComparison.OrdinalIgnoreCase))
-            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => IsDynamicSession(session) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
-                ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
+        var requestedSession = DiagnosticRequestedSessionName;
+        var selectedSession = FindRequestedDiagnosticSession(requestedSession);
 
         if (selectedSession is not null)
+        {
             ChatClientProvider.SelectedSession = selectedSession;
+            modelStatus = $"Diagnostic session locked to {selectedSession.Name}.";
+        }
 
         if (DiagnosticCouncilModelNames.Count > 0)
             modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
+    }
+
+    private ChatClientSession? FindRequestedDiagnosticSession(string requestedSession)
+    {
+        if (ChatClientProvider is null)
+            return null;
+
+        return requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
+            ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => IsDynamicSession(session) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
+                ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool MatchesRequestedDiagnosticSession(ChatClientSession session, string requestedSession)
+    {
+        if (requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase))
+            return session.Name.Equals(CouncilSessionName, StringComparison.OrdinalIgnoreCase);
+
+        return session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool ShouldAddRuntimeProfileSession()
+    {
+        if (!OllamaAccelerationMode.Equals(OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var query = QueryHelpers.ParseQuery(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query);
+        return query.ContainsKey("diagCpuOnly") || query.ContainsKey("diagOllamaMode");
     }
 
     private void ClearSelectedSessionForFreshStart()
@@ -557,6 +652,12 @@
             _ => null
         };
     }
+
+    private int ResolveCouncilOutputTokens() =>
+        Math.Clamp(CouncilMaxOutputTokens, MinCouncilOutputTokens, MaxCouncilOutputTokens);
+
+    private int ResolveCouncilContextTokens() =>
+        Math.Clamp(CouncilMaxContextTokens, MinCouncilContextTokens, MaxCouncilContextTokens);
 
     private static bool IsSupportedOllamaMode(string mode) =>
         mode.Equals(OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase) ||
@@ -592,13 +693,13 @@
 
     private static int GetCouncilModelLoadPriority(string modelName)
     {
-        if (modelName.Contains("deepseek-r1:8b", StringComparison.OrdinalIgnoreCase))
+        if (modelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
             return 0;
 
-        if (modelName.Contains("gemma", StringComparison.OrdinalIgnoreCase))
+        if (modelName.Contains("deepseek-r1:8b", StringComparison.OrdinalIgnoreCase))
             return 1;
 
-        if (modelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
+        if (modelName.Contains("gemma", StringComparison.OrdinalIgnoreCase))
             return 2;
 
         if (modelName.Contains("qwen", StringComparison.OrdinalIgnoreCase))

@@ -146,6 +146,9 @@ Use LocalGPT's own diagnostic routes instead of direct Ollama calls when validat
 - `GET /__diag/council/models`: lists configured and installed Ollama models visible to LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`: generates a smoke workspace through `IMinecraftModWorkspaceService`.
 - `GET /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4`: generates and validates the Living Cities datapack benchmark, packages a zip, and writes a compact pinned council knowledge entry. Use this route before asking large local models to review Living Cities, then reference the database entry instead of pasting the full design.
+- `GET /__diag/council/artifact-smoke?target=datapack`: exercises the DXAiChat/council artifact path and returns a downloadable `/__artifacts/council/` datapack zip without loading Ollama.
+
+For generated datapack downloads, verify the zip root contains `pack.mcmeta` and `data/` directly. For Minecraft 1.21+ use singular `data/<namespace>/function` and `data/minecraft/tags/function`. Reject wrapper folders, `.mcfunction.txt` files, invalid tag JSON, broken function references, leading slash commands inside `.mcfunction` files, and root `data remove storage` reset commands.
 
 For low-resource model review after confirmed GPU pressure, a driver reset, or a black screen correlated with heavy model load, run the council with one model at a time. If the only symptom is display sleep, screen saver, or power-saving wake behavior, verify Windows/display settings and recent logs before treating it as a GPU crash:
 

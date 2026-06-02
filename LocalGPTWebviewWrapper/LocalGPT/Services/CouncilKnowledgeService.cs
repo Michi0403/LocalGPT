@@ -254,6 +254,27 @@ namespace LocalGPT.Services
                 },
                 new CouncilKnowledgeEntry
                 {
+                    Id = Guid.Parse("f1127721-1bc8-46a3-9d77-f0a89c92db37"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "EF Core and DevExpress business object generation",
+                    Scope = "Entity Framework / DevExpress Web API",
+                    Source = seedSource,
+                    Content = "When generating EF Core business objects, first identify whether the user wants DevExpress Web API/XAF/OData-compatible business objects or a plain ASP.NET Core EF backend. " +
+                        "For DevExpress Web API/XAF/OData, prefer explicit keys, scalar foreign keys, navigation properties, inverse relationships, attribute-visible validation/display/security metadata, and stable public properties for OData/model discovery. " +
+                        "For plain EF backends, do not force the heavier DevExpress/XAF shape when services plus DTOs are simpler. " +
+                        "Ask about snapshot/audit style, field-aware changes, backing fields, lazy loading, delete behavior, security system requirements, naming constraints, and migration nullability before emitting entities. " +
+                        "Avoid accidental shadow properties by using consistent names, explicit FK scalar properties, [ForeignKey], [InverseProperty], and targeted ModelBuilder configuration. " +
+                        "For reverse-engineered databases such as the user-supplied Telegram schema, preserve exact relationship semantics and naming; if field/property names may differ only by first-letter casing, do not casually rename them. " +
+                        "When adding columns to populated databases, prefer nullable first migrations, semantic defaults, or backfill/multi-step migrations instead of blindly adding NOT NULL columns.",
+                    HelpfulSources = "- Local guide: docs/EF_DEVEXPRESS_BUSINESS_OBJECTS.md.\n- DevExpress XAF Data Annotation Attributes: https://docs.devexpress.com/eXpressAppFramework/112701/business-model-design-orm/data-annotations-in-data-model.\n- DevExpress Backend Web API Service: https://docs.devexpress.com/eXpressAppFramework/403394/backend-web-api-service.\n- EF Core shadow properties: https://learn.microsoft.com/ef/core/modeling/shadow-properties.\n- EF Core relationship mapping attributes: https://learn.microsoft.com/ef/core/modeling/relationships/mapping-attributes.",
+                    Tags = "seed; efcore; devexpress-web-api; xaf; odata; business-objects; shadow-properties; migrations; reverse-engineering",
+                    Confidence = 94,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
                     Id = Guid.Parse("243e82e1-9f6d-4b8c-abd8-75e7cda0c776"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,
@@ -380,6 +401,118 @@ namespace LocalGPT.Services
                     Confidence = 92,
                     IsUserApproved = true,
                     IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("a6c530d8-844f-4df6-a6bf-bb96c85b4af2"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "DXAiChat council runtime budget and GPU safety",
+                    Scope = "DXAiChat AI Council",
+                    Source = seedSource,
+                    Content = "For Michi0403's 7900 XTX/14700K machine, prefer one active Ollama model at a time for council phases and order lightweight/known-stable models first. " +
+                        "gpt-oss:20b has been the preferred first test model; deepseek-r1:8b can be useful but may be slow to produce final visible text; qwen/gwen/gemma should not be auto-selected for GPU-heavy smoke tests. " +
+                        "Use limited GPU layers and compact prompts for diagnostics, but allow large user-configurable answer/context budgets for code generation. " +
+                        "Defaults should not clamp source generation to tiny 2K/8K answers; LocalGPT now allows up to 131K answer/context tokens while still warning for large requests. " +
+                        "If a council request stalls, stream visible phase/status updates and ask for a user poll instead of silently spinning.",
+                    HelpfulSources = "- Local UI: Components/Pages/Chat.razor council token and model controls.\n- Local service: MultiModelCouncilService model ordering, max output/context, timeout, and warnings.\n- Local diagnostics: /__diag/council/artifact-smoke and /__diag/dxaichat-smoke.",
+                    Tags = "seed; dxaichat; council; ollama; gpu-safety; gpt-oss; tokens; performance",
+                    Confidence = 90,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("e82329d7-c8f9-47d4-9c7b-63a0fc338663"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Harmony and model thinking display",
+                    Scope = "DXAiChat AI Council",
+                    Source = seedSource,
+                    Content = "Some Ollama-hosted OpenAI-style models stream Harmony channel markers such as analysis/commentary/final instead of plain Markdown or <think> tags. " +
+                        "LocalGPT should adapt by model name and render model-supplied analysis/commentary in a visible Model thinking block while keeping final text readable. " +
+                        "If a model returns thinking but no final answer, close the model-thinking details/pre block before rendering the incomplete-answer notice so DXAiChat never looks like it is still only thinking. " +
+                        "Prompt Harmony models to keep analysis bounded and always emit user-visible final-channel text. " +
+                        "Do not expose hidden chain-of-thought invented by the application; only display text actually supplied by the local model stream. " +
+                        "When the user presses Stop, treat cancellation as a quiet user action and avoid unhandled TaskCanceledException in DXAiChat.",
+                    HelpfulSources = "- Local service: OllamaThinkingChatClient VisibleThinkingStreamFormatter.\n- Local CSS: wwwroot/css/site.css model-thinking styles.\n- User observation: Harmony formatting sometimes broke in DXAiChat until adaptive parsing was added.",
+                    Tags = "seed; harmony; thinking; dxaichat; streaming; cancellation",
+                    Confidence = 90,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("b2af09bb-98a2-4ce1-85d5-f6aa06cc2c6e"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Minecraft datapack download contract",
+                    Scope = "Minecraft Builder",
+                    Source = seedSource,
+                    Content = "When DXAiChat or the council is asked for a Minecraft Java datapack/modpack, LocalGPT should create a downloadable artifact instead of printing zip bytes as text. " +
+                        "For vanilla datapacks the HTTP artifact must be a zip whose root has pack.mcmeta and data/ directly, with no wrapper folder. " +
+                        "For Minecraft 1.21+ use singular data/<namespace>/function and data/minecraft/tags/function folders; use plural functions only for older targets. " +
+                        "Reject .mcfunction.txt, uppercase namespaces, leading slash commands inside mcfunction files, broken function references, invalid tag JSON, and root storage removal syntax. " +
+                        "Prefer data modify storage <id> set value {} for reset/debug operations and include a harmless visible debug command such as say LC register_banner loaded.",
+                    HelpfulSources = "- Local service: MinecraftModWorkspaceService validation rules.\n- Local service: CouncilArtifactService datapack artifact branch.\n- Local route: GET /__diag/council/artifact-smoke?target=datapack.\n- User-provided datapack troubleshooting prompt in Codex attachment 91c5282e.",
+                    Tags = "seed; minecraft; datapack; dxaichat; download; artifact; validation",
+                    Confidence = 92,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("44fd504b-c6de-4a8b-a4e0-aea5a53200d9"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "LocalGPT static web assets direct-debug repair",
+                    Scope = "ASP.NET Core host",
+                    Source = seedSource,
+                    Content = "Direct backend debugging can fail before WebApplication.CreateBuilder when LocalGPT.staticwebassets.runtime.json references generated obj static asset roots that no longer exist, especially obj/.../compressed. " +
+                        "This surfaces as DirectoryNotFoundException from PhysicalFileProvider/StaticWebAssetsLoader and can leave WebView2 showing unstyled fallback HTML if assets are not reachable. " +
+                        "Before CreateBuilder, LocalGPT should inspect its static web asset runtime manifest and recreate only missing generated obj roots such as compressed and scopedcss/bundle. " +
+                        "Do not create missing NuGet/DevExpress package roots, because that would hide real package restore problems.",
+                    HelpfulSources = "- Local code: Program.EnsureGeneratedStaticWebAssetContentRoots.\n- Verified probes: /, /Chat, /_framework/blazor.web.js, /_content/DevExpress.Blazor/dx-blazor.svg returned HTTP 200 after the repair.",
+                    Tags = "seed; static-web-assets; aspnetcore; devexpress; direct-debug; webview2",
+                    Confidence = 90,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("8bbd9161-5406-4d2d-bce5-b92c0fd10216"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "SQLite table editing and diagnostics",
+                    Scope = "SQLite database",
+                    Source = seedSource,
+                    Content = "The SQLite database page lets the frontend user inspect and edit all LocalGPT memory/knowledge/log tables, but generated table editing must respect required columns, primary keys, and SQLite constraints. " +
+                        "Validate insert/update requests before executing SQL, reject nulls for required non-PK columns without defaults, and wrap SqliteException with a user-readable message that names the table and operation. " +
+                        "Application log warnings from HTTP loopback HTTPS redirection are noise for the desktop host and should not be treated as user action items. " +
+                        "Useful runtime errors should be written to the database logger/ApplicationLogs so the council can explain local setup fixes such as missing Java, Ollama not running, or static asset failures.",
+                    HelpfulSources = "- Local service: SqliteTableEditorService validation.\n- Local page: Components/Pages/Database.razor.\n- Local table: ApplicationLogs.",
+                    Tags = "seed; sqlite; database; logs; diagnostics; table-editor",
+                    Confidence = 88,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("1920341b-ae13-438d-a8c2-6d57e588e4a3"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "WebView2 packaged smoke path",
+                    Scope = "WinUI WebView2 wrapper",
+                    Source = seedSource,
+                    Content = "Do not use the loose LocalGPTWebviewWrapper.exe as the primary WebView2 smoke test for WinUI. " +
+                        "Loose launch can fail with REGDB_E_CLASSNOTREG at Microsoft.UI.Xaml.Application.Start when the Windows App SDK package context is missing. " +
+                        "Use the registered MSIX/package activation path or Visual Studio package project for WebView2 frontend smoke tests. " +
+                        "The wrapper should write startup diagnostics and runtime server/snapshot files under LocalGPT runtime folders, including package-local LocalCache paths when running packaged.",
+                    HelpfulSources = "- Local code: LocalGPTWebviewWrapper/App.xaml.cs and MainWindow.xaml.cs runtime flag lookup.\n- Windows Application log showed REGDB_E_CLASSNOTREG for loose WinUI launch.\n- Preferred activation: shell:AppsFolder/<package-family-name>!App.",
+                    Tags = "seed; webview2; winui; package; msix; smoke-test; windowsappsdk",
+                    Confidence = 88,
+                    IsUserApproved = true,
+                    IsPinned = true
                 }
             };
 
@@ -391,7 +524,10 @@ namespace LocalGPT.Services
                 .ToArray();
 
             if (missingEntries.Length == 0)
+            {
+                await MarkApprovedBuiltInSeedsAsVerifiedAsync(db, seedSource, cancellationToken);
                 return;
+            }
 
             try
             {
@@ -402,6 +538,29 @@ namespace LocalGPT.Services
             {
                 // Another startup request may have inserted the same stable seed IDs first.
             }
+
+            await MarkApprovedBuiltInSeedsAsVerifiedAsync(db, seedSource, cancellationToken);
+        }
+
+        private static Task MarkApprovedBuiltInSeedsAsVerifiedAsync(
+            LocalGptMemoryDbContext db,
+            string seedSource,
+            CancellationToken cancellationToken)
+        {
+            return db.Database.ExecuteSqlRawAsync(
+                """
+                UPDATE "CouncilKnowledgeEntries"
+                SET "VerificationStatus" = 'UserVerified'
+                WHERE "Source" = {0}
+                  AND "IsUserApproved" = 1
+                  AND (
+                      "VerificationStatus" IS NULL
+                      OR "VerificationStatus" = ''
+                      OR "VerificationStatus" = 'NeedsVerification'
+                  );
+                """,
+                [seedSource],
+                cancellationToken);
         }
 
         private static async Task SeedSqlKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)

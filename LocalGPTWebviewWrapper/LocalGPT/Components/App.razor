@@ -46,6 +46,10 @@
 </head>
 <body>
     <div id="switcher-container" data-permanent></div>
+    <div id="interactive-startup-overlay" class="interactive-startup-overlay" data-permanent>
+        <strong>LocalGPT UI is connecting</strong>
+        <span>Controls become active after Blazor finishes attaching.</span>
+    </div>
     <Routes></Routes>
     @*     <script src="js/devextreme-license.js" type="module"></script> *@
     <script type="module" src="js/push.js"></script>
@@ -62,7 +66,15 @@
     <script type="module" src="js/webApiCallsInBrowser.js"></script>
     <script type="module" src="switcher-resources/theme-controller.js"></script>
 
-    <script src="_framework/blazor.web.js"></script>
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+    <script>
+        Blazor.start()
+            .then(() => document.documentElement.classList.add('localgpt-interactive-ready'))
+            .catch(error => {
+                console.error(error);
+                document.documentElement.classList.add('localgpt-interactive-error');
+            });
+    </script>
 </body>
 
 </html>

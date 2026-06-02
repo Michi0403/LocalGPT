@@ -12,6 +12,8 @@ public sealed class CouncilChatClient(
     IMultiModelCouncilService councilService,
     Func<MultiModelCouncilRequest> requestFactory) : IChatClient
 {
+    private const int MaxDxAiChatPromptCharacters = 60000;
+
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -129,7 +131,9 @@ public sealed class CouncilChatClient(
         }
 
         var prompt = builder.ToString().Trim();
-        return prompt.Length <= 12000 ? prompt : prompt[^12000..];
+        return prompt.Length <= MaxDxAiChatPromptCharacters
+            ? prompt
+            : prompt[^MaxDxAiChatPromptCharacters..];
     }
 
     private static string FormatResult(MultiModelCouncilResult result, bool includeProcess)

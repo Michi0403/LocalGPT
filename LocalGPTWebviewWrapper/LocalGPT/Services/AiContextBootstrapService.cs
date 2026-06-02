@@ -25,6 +25,7 @@ namespace LocalGPT.Services
             Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
             Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md"),
             Path.Combine("docs", "MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md"),
+            Path.Combine("docs", "EF_DEVEXPRESS_BUSINESS_OBJECTS.md"),
             Path.Combine("docs", "GENERATION_ARCHETYPE_CONTRACTS.md")
         ];
 
@@ -36,6 +37,7 @@ namespace LocalGPT.Services
                 .AppendLine("Primary project mission: help LocalGPT become a reliable local AI workbench for Java Minecraft mod/plugin building, Blazor/WinUI debugging, and safe native build operations.")
                 .AppendLine("Use saved memory as recall context. Treat it as helpful background, not as absolute truth.")
                 .AppendLine("Instruction priority: current user request and saved user decisions, then runtime diagnostics/command output, approved or source-backed knowledge entries, AGENTS.md, architecture docs, workflow memory, and finally model-generated suggestions.")
+                .AppendLine("Response protocol: if a model supports analysis/thinking channels, keep that thinking bounded and always finish with a concise user-visible final answer. Never leave DXAiChat with only model thinking and no final answer.")
                 .AppendLine("When you want to store reusable knowledge, append a <localgpt-knowledge> block with topic:, scope:, confidence:, tags:, helpful-sources:, and content:. LocalGPT stores model-written knowledge as unapproved until Michi0403 marks it user-approved in SQLite.")
                 .AppendLine("Available LocalGPT DXAiFunctions are local diagnostic/tool routes the frontend or user can call when a compact tool result is better than a huge prompt:")
                 .AppendLine(DxaichatFunctionCatalog.BuildPromptBriefing())

@@ -122,6 +122,8 @@ namespace LocalGPT.Services
             if (sanitizedUpdates.Count == 0)
                 return;
 
+            ValidateRequiredColumnUpdates(columns, sanitizedUpdates);
+
             await using var command = connection.CreateCommand();
             var assignments = new List<string>();
             for (var index = 0; index < sanitizedUpdates.Count; index++)
@@ -137,7 +139,14 @@ namespace LocalGPT.Services
                 WHERE rowid = $rowid;
                 """;
             command.Parameters.AddWithValue("$rowid", rowId);
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            try
+            {
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            catch (SqliteException ex)
+            {
+                throw new InvalidOperationException(CreateSqliteEditError("update", tableName, ex), ex);
+            }
         }
 
         public async Task InsertRowAsync(string tableName, IReadOnlyDictionary<string, string?> values, CancellationToken cancellationToken = default)
@@ -161,6 +170,8 @@ namespace LocalGPT.Services
             if (sanitizedValues.Count == 0)
                 throw new InvalidOperationException("Enter at least one editable value before inserting a row.");
 
+            ValidateRequiredInsertColumns(columns, sanitizedValues);
+
             await using var command = connection.CreateCommand();
             var columnNames = new List<string>();
             var parameterNames = new List<string>();
@@ -176,7 +187,14 @@ namespace LocalGPT.Services
                 INSERT INTO {QuoteIdentifier(tableName)} ({string.Join(", ", columnNames)})
                 VALUES ({string.Join(", ", parameterNames)});
                 """;
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            try
+            {
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            catch (SqliteException ex)
+            {
+                throw new InvalidOperationException(CreateSqliteEditError("insert", tableName, ex), ex);
+            }
         }
 
         public async Task DeleteRowAsync(string tableName, long rowId, CancellationToken cancellationToken = default)
@@ -188,7 +206,14 @@ namespace LocalGPT.Services
             await using var command = connection.CreateCommand();
             command.CommandText = $"DELETE FROM {QuoteIdentifier(tableName)} WHERE rowid = $rowid;";
             command.Parameters.AddWithValue("$rowid", rowId);
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            try
+            {
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            catch (SqliteException ex)
+            {
+                throw new InvalidOperationException(CreateSqliteEditError("delete", tableName, ex), ex);
+            }
         }
 
         private async Task EnsureDatabaseFileAsync(CancellationToken cancellationToken)
@@ -267,6 +292,56 @@ namespace LocalGPT.Services
         private static object ToSqliteValue(string? value)
         {
             return value is null ? DBNull.Value : value;
+        }
+
+        private static void ValidateRequiredColumnUpdates(
+            IReadOnlyList<SqliteColumnSummary> columns,
+            IReadOnlyList<SqliteCellUpdate> updates)
+        {
+            var requiredColumns = columns
+                .Where(IsRequiredEditableColumn)
+                .Select(column => column.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var nullAssignments = updates
+                .Where(update => requiredColumns.Contains(update.ColumnName) && update.Value is null)
+                .Select(update => update.ColumnName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (nullAssignments.Count > 0)
+                throw new InvalidOperationException($"SQLite update blocked: required column(s) cannot be set to NULL: {string.Join(", ", nullAssignments)}.");
+        }
+
+        private static void ValidateRequiredInsertColumns(
+            IReadOnlyList<SqliteColumnSummary> columns,
+            IReadOnlyList<KeyValuePair<string, string?>> values)
+        {
+            var providedColumns = values
+                .Where(pair => pair.Value is not null)
+                .Select(pair => pair.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var missingColumns = columns
+                .Where(IsRequiredEditableColumn)
+                .Where(column => !providedColumns.Contains(column.Name))
+                .Select(column => column.Name)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (missingColumns.Count > 0)
+                throw new InvalidOperationException($"SQLite insert blocked: required column(s) need a value first: {string.Join(", ", missingColumns)}.");
+        }
+
+        private static bool IsRequiredEditableColumn(SqliteColumnSummary column) =>
+            column.IsNotNull &&
+            !column.IsPrimaryKey &&
+            string.IsNullOrWhiteSpace(column.DefaultValue);
+
+        private static string CreateSqliteEditError(string operation, string tableName, SqliteException exception)
+        {
+            return $"SQLite {operation} failed for table '{tableName}'. Check required fields, foreign keys, and value types. SQLite said: {exception.SqliteErrorCode} {exception.Message}";
         }
 
         private static string QuoteIdentifier(string identifier)

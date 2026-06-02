@@ -23,6 +23,11 @@ namespace LocalGPT.Services
         private const int MaxParticipants = 4;
         private const int DefaultMaxParallelModels = 1;
         private const int DefaultHeavyModelGpuLayers = 20;
+        private const int MinContextTokens = 2048;
+        private const int DefaultContextTokens = 32768;
+        private const int MaxContextTokens = 131072;
+        private const int MinOutputTokens = 64;
+        private const int MaxOutputTokens = 131072;
 
         public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
         {
@@ -76,8 +81,11 @@ namespace LocalGPT.Services
             var baseUri = NormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri);
             var participants = SelectParticipants(request);
             var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
-            var maxContextTokens = Math.Clamp(request.MaxContextTokens <= 0 ? 8192 : request.MaxContextTokens, 2048, 32768);
-            var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 180 : request.ModelTimeoutSeconds, 30, 900);
+            var maxContextTokens = Math.Clamp(
+                request.MaxContextTokens <= 0 ? DefaultContextTokens : request.MaxContextTokens,
+                MinContextTokens,
+                MaxContextTokens);
+            var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
             var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels);
             var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
             var result = new MultiModelCouncilResult
@@ -99,10 +107,10 @@ namespace LocalGPT.Services
                 result.Warnings.Add("Only one council model is selected. Add another installed Ollama model on Install or type its model name manually for real cross-model negotiation.");
             if (participants.Count > maxParallelModels)
                 result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
-            if (request.MaxOutputTokens > 4096)
-                result.Warnings.Add("Large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
-            if (maxContextTokens < 32768)
-                result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens to keep local 20B/30B model loads manageable.");
+            if (request.MaxOutputTokens > 32768)
+                result.Warnings.Add("Very large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
+            if (maxContextTokens < DefaultContextTokens)
+                result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens. For source generation, 32,768+ tokens is usually safer when the model supports it.");
             if (participants.Count > 1 && maxParallelModels == 1 && keepAlive == "0s")
                 result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
             if (ollamaNumGpu == 0)
@@ -358,7 +366,7 @@ namespace LocalGPT.Services
                     messages,
                     new ChatOptions
                     {
-                        MaxOutputTokens = Math.Clamp(maxOutputTokens, 64, 8192),
+                        MaxOutputTokens = Math.Clamp(maxOutputTokens, MinOutputTokens, MaxOutputTokens),
                         Temperature = 0.2f
                     },
                     participantCts.Token).WithCancellation(participantCts.Token))
@@ -1194,6 +1202,8 @@ namespace LocalGPT.Services
             For Minecraft work, first decide whether the user needs Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, or future Bedrock add-on output.
             For Java mod/plugin work, include concrete file paths, classes, registry steps, Gradle/build commands, and performance risks when relevant.
             For datapack work, include pack.mcmeta, data/minecraft/tags/function load/tick tags, namespace functions, scoreboard/storage design, zip/install steps, and tick-performance risks.
+            When debugging a datapack that is not visible through /function, treat discovery/layout as the first suspect: the zip root must contain pack.mcmeta directly, not an extra wrapper folder; use singular data/<namespace>/function and data/minecraft/tags/function for Minecraft 1.21+, plural functions only for older versions; verify pack_format against the target version; keep namespaces lowercase; reject .mcfunction.txt files; avoid leading slashes inside .mcfunction commands; parse every tag json; and ensure every referenced function id resolves to a real file.
+            For generated datapacks, include at least one harmless visible debug path such as a tellraw/say in a manual debug function, and explain how to run /reload, /datapack list, and /function <namespace>:ui/townhall before blaming command syntax.
             Help users set up the Minecraft Mod AI Builder itself: check JDK 21, LocalGPT Gradle, Eclipse/IDE import, Minecraft Java Edition, Ollama reachability, and selected model availability.
             Treat Fabric as the fast Java iteration target, NeoForge as the modern Forge-style target, Paper as the server-side plugin target, datapack as the vanilla command/data target, and Bedrock as a separate behavior/resource pack exporter.
             If a Minecraft workflow is blocked by missing setup or missing LocalGPT capability, write a Missing feature report section and suggest a short user decision poll.

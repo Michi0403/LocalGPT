@@ -113,7 +113,7 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
 
 The wrapper has a smoke mode for desktop-shell testing. Prefer running it from a registered/package identity or Visual Studio debug launch, because direct unpackaged exe launch can fail with WinUI activation error `REGDB_E_CLASSNOTREG` when the local runtime identity is not available.
 
-For registered/package launches, create this flag before launching the app:
+For registered/package launches, create this flag before launching the app. The wrapper also checks the package-local `LocalCache\Local\LocalGPT\runtime` folder when running under MSIX identity:
 
 ```powershell
 $runtime = "$env:LOCALAPPDATA\LocalGPT\runtime"
@@ -124,9 +124,8 @@ Set-Content -Path "$runtime\webview2-smoke.flag" -Value "exit" -Encoding utf8
 The flag enables smoke mode once and `exit` asks the wrapper to close after writing snapshots.
 
 ```powershell
-$env:LOCALGPT_WEBVIEW2_SMOKE = "1"
-$env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
-.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
+$app = Get-StartApps | Where-Object Name -like 'LocalGPT*' | Select-Object -First 1
+Start-Process "shell:AppsFolder\$($app.AppID)"
 ```
 
 It drives the embedded WebView2 through `/`, `/Chat`, and `/minecraft-mod-builder`, then writes JSON snapshots to:
@@ -153,19 +152,24 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - Missing-feature reports under `%LOCALAPPDATA%\LocalGPT\AIReports\` now include helpful source requests. AI participants should ask for official docs, examples, specs, package references, or sample repositories when needed, without pretending those sources were verified.
 - The `/database` page is the live database editor. It has a friendly Council Knowledge panel plus a generic SQLite table preview/editor. Primary-key columns are displayed but protected in the generic form; edits are still applied to the live local database.
 - Do not treat raw model output as verified facts. The council should mark uncertain claims as `Needs verification`.
-- Some models, especially reasoning models, may return thinking-only output when the token budget is too small. LocalGPT now separates thinking from visible text and should surface a clear placeholder if no final answer appears.
+- Some models, especially reasoning models, may return thinking-only output when the token budget is too small. LocalGPT separates thinking from visible text and must close the model-thinking `<details><pre>` block before it surfaces the "no final answer" notice; otherwise the fallback looks like more hidden/thinking text instead of a stopped visible answer.
 - Keep the council database-first: use pinned `CouncilKnowledgeEntries`, selected saved conversations, and route outputs as concise grounding. Avoid huge prompt blobs unless a model explicitly needs one targeted excerpt.
 - Official DevExpress/Microsoft source knowledge is backed by `docs/COUNCIL_KNOWLEDGE_SEED.sql`. LocalGPT imports this file with `INSERT OR IGNORE`, so it restores missing source-backed rows into SQLite without overwriting user edits or approval flags.
 - Knowledge trust is explicit. Use `VerificationStatus` (`SourceBacked`, `UserVerified`, `ModelSuggested`, `NeedsVerification`, `Archived`) together with confidence and approval flags. Current user decisions and runtime diagnostics outrank workflow memory and model suggestions.
 - Native command execution is intentionally narrow: commands must run under the LocalGPT Minecraft workspace root, executables are allowlisted, PowerShell must use `-File` against a workspace `.ps1`, and attempts/results are logged in the `NativeCommandLogs` SQLite table.
 - Formatting hardening is not about editor soft-wrap. Audit raw newline characters and physical line length. `build/Assert-SourceFormatting.ps1` checks tracked `.cs`, `.razor`, `.md`, `.ps1`, and `.json` files for physical lines over 600 characters and verifies key files such as `Program.cs`, `NativeCommandRunner.cs`, `AiContextBootstrapService.cs`, and `README.md` cannot collapse back into tiny raw-line counts. `.github/workflows/source-hygiene.yml` runs this guard on push and pull request.
 - Whole-solution artifact generation is a first-class council test path. Use `/__diag/council/artifact-smoke?target=solution` to create a downloadable .NET 10 Blazor/DevExpress solution zip with `.sln`, `.csproj`, `.razor`, CSS, service/model code, README, and manifest, without loading Ollama.
+- Minecraft datapack generation through DXAiChat/council artifacts is also a first-class test path. Use `/__diag/council/artifact-smoke?target=datapack` to create a downloadable zip via `/__artifacts/council/`. The zip root must contain `pack.mcmeta` and `data/` directly. For Minecraft 1.21+ use singular `data/<namespace>/function` and `data/minecraft/tags/function`; reject wrapper folders, `.mcfunction.txt`, invalid JSON tags, broken function references, leading slash commands, and root `data remove storage` reset syntax.
 - DevExpress/Bootstrap design generation has a dedicated guide in `docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md`. Use Bootstrap v5 for containers, grids, responsive gutters, spacing, and flex utility layout. Use DevExpress controls for grids, forms, navigation, toolbars, dialogs, upload, charts, reports, AI chat, and other real app interactions. Generated navigation should include two SVG styles per concept: line icons for the default state and solid icons for hover/active states.
 - Official Microsoft sample/curriculum generation has a dedicated guide in `docs/MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md`. Use `dotnet/samples` as focused sample evidence and Microsoft Learn as the developer/technician curriculum baseline before asking the council to generate .NET solutions, services, Blazor pages, EF data access, CI workflows, or release guidance.
 - The Ollama .NET lab artifact is a controlled feasibility path. Use `/__diag/council/artifact-smoke?target=ollama` to create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor zip with Ollama-style route stubs, model catalog UI, model download planning, and settings. Expected route families include version, tags, running models, show, pull, push, create, copy, delete, generate, chat, and embed. It must say native GGML/GPU inference is not implemented unless a real backend is attached and approved by the user.
 - Thinking-only/non-substantive council runs still remain in logs/chat memory, but they are archived or skipped for active council knowledge briefings. Duplicate benchmark knowledge entries are deduplicated by topic/scope/source before entering the bootstrap prompt.
 - Diagnostic and artifact routes now live outside startup code. `Program.cs` maps normal middleware and calls `MapLocalGptDiagnosticEndpoints()` plus `MapMinecraftDiagnosticEndpoints()`, while route details live in `Endpoints/LocalGptDiagnosticEndpointExtensions.cs` and `Endpoints/MinecraftDiagnosticEndpointExtensions.cs`.
 - Minecraft Java workspace generation now has `MinecraftDependencyVersionCatalog` and `/__diag/minecraft/dependency-version`. Use this before workspace generation so Fabric/NeoForge/Paper/datapack version decisions are explicit and unknown mappings are marked `NeedsVerification`.
+- Direct backend debugging can fail before `WebApplication.CreateBuilder` when `LocalGPT.staticwebassets.runtime.json` points at missing generated `obj/.../compressed` or `scopedcss/bundle` folders. LocalGPT now recreates only those generated static-web-asset roots before builder creation. Do not create fake NuGet or DevExpress package roots; missing package roots are real restore/install issues.
+- The desktop HTTP host intentionally does not use HTTPS redirection because it binds a random loopback HTTP port for WebView2. `HttpsRedirectionMiddleware` warnings in `ApplicationLogs` are noise for this host, not a user setup failure.
+- The generic SQLite table editor must validate required columns and primary-key rules before insert/update/delete. Wrap `SqliteException` as user-readable table/operation errors so the `/database` page is useful instead of scary.
+- Harmony-format local models can stream channel markers such as analysis/commentary/final. LocalGPT should prompt them to keep analysis bounded and always emit final-channel answer text. Render model-supplied analysis/commentary as a visible model-thinking block and final text as the answer. If only thinking arrives, close the thinking panel first, then render a clear incomplete-answer notice outside it. A Stop action is a normal cancellation and must not surface as an unhandled `TaskCanceledException`.
 
 ## Collaboration Notes
 
@@ -188,6 +192,8 @@ The Council must treat "two different generated apps look basically the same" as
 Every whole-project artifact must include `PROJECT_INDEX.md`, `ARCHITECTURE.md`, `BUILD_AND_RUN.md`, `.localgpt-generation.json`, a platform-correct layout, a user-visible index/home route, and navigation. The artifact service validates those required files before zipping. LocalGPT feature artifacts should look like LocalGPT/TacosPortalOpen feature sandboxes; Ollama .NET lab artifacts should look like API-control-plane experiments with explicit native-runner boundaries.
 
 Ground modern .NET generation in Microsoft Learn architecture guidance: cohesive Blazor/ASP.NET Core apps by default, service boundaries only when real deployment/scaling/integration boundaries exist, UI in Razor, business/native/data work in services, durable state in EF/SQLite, and diagnostics for runtime features.
+
+For EF Core entity generation, use `docs/EF_DEVEXPRESS_BUSINESS_OBJECTS.md` before emitting business objects. Ask whether the target is DevExpress Web API/XAF/OData-compatible or a plain EF backend, then decide attribute metadata versus ModelBuilder, explicit FK/navigations versus shadow properties, lazy/loading/change-tracking style, delete behavior, naming constraints, and nullable-first migration strategy for existing data.
 
 ## Next Useful Checks
 
