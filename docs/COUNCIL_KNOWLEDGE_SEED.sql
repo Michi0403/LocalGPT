@@ -298,4 +298,36 @@ VALUES
   1,
   1,
   0
+),
+(
+  '180eecde-0c08-4c48-94b6-8461293681d3',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Source hygiene guard for public repository quality',
+  'Repository Hygiene',
+  'Physical source formatting is a hard quality gate, not an editor soft-wrap preference. Program.cs, NativeCommandRunner.cs, AiContextBootstrapService.cs, README.md, and other tracked source/docs must keep normal raw newline counts and avoid giant physical lines. ' ||
+  'Run build/Assert-SourceFormatting.ps1 before commits. GitHub Actions workflow .github/workflows/source-hygiene.yml runs the same guard on push and pull request for tracked .cs, .razor, .md, .ps1, and .json files.',
+  'LocalGPT workflow memory',
+  'Script: build/Assert-SourceFormatting.ps1; CI: .github/workflows/source-hygiene.yml; doc: docs/LOCALGPT_WORKFLOW_MEMORY.md',
+  'seed; source-hygiene; formatting; ci; raw-lines; public-repo',
+  98,
+  1,
+  1,
+  0
+),
+(
+  'd0711da3-7c75-4764-9636-bc452cb72453',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Minecraft dependency resolver before workspace generation',
+  'Minecraft Builder',
+  'Before generating Fabric, NeoForge, Paper, or datapack workspaces, call /__diag/minecraft/dependency-version or use MinecraftDependencyVersionCatalog. It returns requested/matched Minecraft versions, Java/Gradle versions, Fabric loader/API, NeoForge, Paper API, datapack pack_format, exact-match flags, and NeedsVerification. ' ||
+  'Fallback mappings are allowed for smoke tests but must be source-checked against official Fabric, NeoForge, Paper, Gradle, and Minecraft documentation before release or friend testing.',
+  'LocalGPT workflow memory',
+  'Route: /__diag/minecraft/dependency-version?loader=fabric&minecraftVersion=1.21.4; source: LocalGPTWebviewWrapper/LocalGPT/Services/MinecraftDependencyVersionCatalog.cs',
+  'seed; minecraft; dependency-resolver; fabric; neoforge; paper; datapack; gradle; java',
+  92,
+  1,
+  1,
+  0
 );

@@ -109,6 +109,14 @@ If package registration/deploy reports `0x80070002` or `DEP1000` for a loose App
 
 ## Build
 
+Check physical source formatting before reviewing or committing:
+
+```powershell
+.\build\Assert-SourceFormatting.ps1
+```
+
+This guard fails if tracked `.cs`, `.razor`, `.md`, `.ps1`, or `.json` files collapse into giant physical lines. The same check runs in GitHub Actions through `.github/workflows/source-hygiene.yml`.
+
 Build the Blazor project:
 
 ```powershell

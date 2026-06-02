@@ -1,0 +1,22 @@
+name: Source Hygiene
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  formatting-guard:
+    name: Physical line formatting
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check source formatting
+        shell: pwsh
+        run: ./build/Assert-SourceFormatting.ps1

@@ -506,13 +506,15 @@ namespace LocalGPT.Services
             }
             """;
 
-        private static string CreatePaperGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context) =>
-            $$"""
+        private static string CreatePaperGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context)
+        {
+            var versions = ResolveDependencyVersions(request, "Paper");
+            return $$"""
             org.gradle.jvmargs=-Xmx2G
             org.gradle.daemon=false
             org.gradle.parallel=false
 
-            paper_api_version={{GetPaperApiVersion(request.MinecraftVersion)}}
+            paper_api_version={{versions.PaperApiVersion}}
             plugin_id={{context.ModId}}
             plugin_name={{context.ProjectName}}
             plugin_version=0.1.0
@@ -521,22 +523,29 @@ namespace LocalGPT.Services
             plugin_description={{NormalizeDescription(request.Description)}}
             maven_group={{context.PackageName}}
             """;
+        }
 
-        private static string GetPaperApiVersion(string minecraftVersion) =>
-            string.IsNullOrWhiteSpace(minecraftVersion) ? "1.21.1-R0.1-SNAPSHOT" : $"{minecraftVersion}-R0.1-SNAPSHOT";
+        private static string CreateCommonGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context)
+        {
+            var versions = ResolveDependencyVersions(request);
+            var fabricApiVersion = versions.FabricApiVersion ?? MinecraftDependencyVersionCatalog
+                .Resolve("Fabric", request.MinecraftVersion, request.JavaVersion, request.GradleVersion)
+                .FabricApiVersion;
+            var neoForgeVersion = versions.NeoForgeVersion ?? MinecraftDependencyVersionCatalog
+                .Resolve("NeoForge", request.MinecraftVersion, request.JavaVersion, request.GradleVersion)
+                .NeoForgeVersion;
 
-        private static string CreateCommonGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context) =>
-            $$"""
+            return $$"""
             org.gradle.jvmargs=-Xmx3G
             org.gradle.daemon=false
             org.gradle.parallel=false
 
-            minecraft_version={{request.MinecraftVersion}}
-            minecraft_version_range=[{{request.MinecraftVersion}},)
-            loader_version=0.16.9
-            fabric_version={{GetFabricApiVersion(request.MinecraftVersion)}}
-            neo_version={{GetNeoForgeVersion(request.MinecraftVersion)}}
-            neo_version_range=[{{GetNeoForgeVersion(request.MinecraftVersion)}},)
+            minecraft_version={{versions.RequestedMinecraftVersion}}
+            minecraft_version_range=[{{versions.RequestedMinecraftVersion}},)
+            loader_version={{versions.FabricLoaderVersion ?? "0.16.9"}}
+            fabric_version={{fabricApiVersion}}
+            neo_version={{neoForgeVersion}}
+            neo_version_range=[{{neoForgeVersion}},)
 
             mod_id={{context.ModId}}
             mod_name={{context.ProjectName}}
@@ -547,12 +556,16 @@ namespace LocalGPT.Services
             mod_authors=LocalGPT, Michi0403
             mod_description={{NormalizeDescription(request.Description)}}
             """;
+        }
 
-        private static string GetFabricApiVersion(string minecraftVersion) =>
-            minecraftVersion == "1.21.1" ? "0.116.9+1.21.1" : $"0.116.9+{minecraftVersion}";
-
-        private static string GetNeoForgeVersion(string minecraftVersion) =>
-            minecraftVersion == "1.21.1" ? "21.1.231" : "21.1.231";
+        private static MinecraftDependencyVersionInfo ResolveDependencyVersions(
+            MinecraftModBuildRequest request,
+            string? loaderOverride = null) =>
+            MinecraftDependencyVersionCatalog.Resolve(
+                loaderOverride ?? request.Loader,
+                request.MinecraftVersion,
+                request.JavaVersion,
+                request.GradleVersion);
 
         private static string NormalizeDescription(string description)
         {
@@ -850,7 +863,8 @@ namespace LocalGPT.Services
 
         private static string CreateBuildLocalScript(MinecraftModBuildRequest request)
         {
-            var gradleVersion = string.IsNullOrWhiteSpace(request.GradleVersion) ? DefaultGradleVersion : request.GradleVersion.Trim();
+            var versions = ResolveDependencyVersions(request);
+            var gradleVersion = versions.GradleVersion;
             return $$"""
             [CmdletBinding()]
             param(

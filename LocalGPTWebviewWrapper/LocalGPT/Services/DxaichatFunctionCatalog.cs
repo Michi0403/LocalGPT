@@ -20,6 +20,13 @@ public static class DxaichatFunctionCatalog
             "minecraftVersion: optional, defaults to 1.21.4.",
             "Read-only. Unknown versions are marked NeedsVerification instead of guessed as fact."),
         new(
+            "minecraft.dependency_version",
+            "GET",
+            "/__diag/minecraft/dependency-version?loader=fabric&minecraftVersion=1.21.4",
+            "Resolve curated Fabric, NeoForge, Paper, Java, Gradle, or datapack dependency versions before generating a workspace.",
+            "loader: fabric, neoforge, paper, datapack, or bedrock. minecraftVersion/javaVersion/gradleVersion are optional.",
+            "Read-only. Fallback mappings are marked NeedsVerification and should be checked against official sources before release."),
+        new(
             "minecraft.workspace_smoke",
             "GET",
             "/__diag/minecraft/workspace-smoke?loader=datapack",
