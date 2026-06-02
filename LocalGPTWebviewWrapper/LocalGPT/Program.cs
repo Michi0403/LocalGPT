@@ -44,50 +44,70 @@ namespace LocalGPT
             app.Run();
         }
         public static int Port { get; private set; } = 0;
+
         public static WebApplication BuildWebApp(string[]? args = null)
         {
-            // Put the content root/web root where the LocalGPT assembly lives.
-            // This is crucial when you start the server from the WinUI process.
             var exeDir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
+            using var loggerFactory = LoggerFactory.Create(logging => logging.AddConsole());
+            var logger = loggerFactory.CreateLogger("Startup");
+            EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
 
-            //var options = new WebApplicationOptions
-            //{
-            //    ContentRootPath = exeDir,
-            //    WebRootPath = Path.Combine(exeDir, "wwwroot"),
-            //    Args = args ?? Array.Empty<string>()
-            //};
-            var options = new WebApplicationOptions
+            var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions(exeDir, args));
+            ConfigureAppConfiguration(builder);
+            ConfigureLogging(builder);
+            ConfigureOptionsAndServices(builder);
+            ConfigureSignalR(builder.Services);
+            ConfigureKestrel(builder);
+            ConfigureResponseCompression(builder.Services);
+            ConfigureBlazorAndMvc(builder);
+            ConfigureJsonOptions(builder.Services);
+            ConfigureForwardedHeaders(builder.Services);
+
+            var app = builder.Build();
+            ConfigureMiddlewareAndEndpoints(app);
+            WriteRuntimeEndpointFile();
+
+            return app;
+        }
+
+        private static WebApplicationOptions CreateWebApplicationOptions(string exeDir, string[]? args)
+        {
+            return new WebApplicationOptions
             {
-                ApplicationName = typeof(Program).Assembly.GetName().Name, // "LocalGPT"
+                ApplicationName = typeof(Program).Assembly.GetName().Name,
                 ContentRootPath = exeDir,
                 WebRootPath = Path.Combine(exeDir, "wwwroot"),
                 Args = args ?? Array.Empty<string>()
             };
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole();
-            });
-            var logger = loggerFactory.CreateLogger("Startup");
-            EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
-            var builder = WebApplication.CreateBuilder(options);
-            var configuration = builder.Configuration;
-            configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                 .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+        }
 
-    .AddEnvironmentVariables();
-            var configRoot = configuration.Get<LocalGPT.BusinessObjects.ConfigurationRoot>();
-            builder.Services.AddLogging(
-               logging => LoggingHelper.ConfigureCustomLoggersWithConsoleAndDebug(
-                   logging,
-                   builder.Services,
-                   configuration));
+        private static void ConfigureAppConfiguration(WebApplicationBuilder builder)
+        {
+            builder.Configuration
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile(
+                    $"appsettings.{builder.Environment.EnvironmentName}.json",
+                    optional: true,
+                    reloadOnChange: true)
+                .AddEnvironmentVariables();
+        }
 
-            // Program.cs (only the AI registration part shown)
+        private static void ConfigureLogging(WebApplicationBuilder builder)
+        {
+            builder.Services.AddLogging(logging =>
+                LoggingHelper.ConfigureCustomLoggersWithConsoleAndDebug(
+                    logging,
+                    builder.Services,
+                    builder.Configuration));
+        }
 
+        private static void ConfigureOptionsAndServices(WebApplicationBuilder builder)
+        {
             builder.Services
                 .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
-                .Bind(configuration);
+                .Bind(builder.Configuration);
             builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
+
             builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
             builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
             builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
@@ -96,102 +116,111 @@ namespace LocalGPT
             builder.Services.AddSingleton<IBuildDebugInventoryService, BuildDebugInventoryService>();
             builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
             builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
+
             var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
             Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
             builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
                 options.UseSqlite($"Data Source={memoryDbPath}"));
+
             builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
             builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
             builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
             builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
             builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
             builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
-
             builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
-            // Build a fresh chat client per request/scope from the latest options
             builder.Services.AddScoped<IChatClient>(sp =>
-            {
-                var factory = sp.GetRequiredService<IChatClientFactory>();
-                return factory.Build(); // returns CompositeChatClient
-            });
-            builder.Services.AddDevExpressAI();
+                sp.GetRequiredService<IChatClientFactory>().Build());
 
+            builder.Services.AddDevExpressAI();
             builder.Services.AddScoped<INotificationService, NotificationService>();
-            builder.Services.Configure<CircuitOptions>(
-            o =>
-o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
-            //var builder = WebApplication.CreateBuilder();
-            StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
+            builder.Services.Configure<CircuitOptions>(options =>
+                options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             builder.Services.AddOptions();
             builder.Services.AddHttpContextAccessor();
-            builder.Services.AddSignalR()
-              .AddMessagePackProtocol(options =>
-              {
-                  options.SerializerOptions = MessagePack.MessagePackSerializerOptions.Standard
-                      .WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance)
-                      .WithSecurity(MessagePack.MessagePackSecurity.UntrustedData);
-              }).AddJsonProtocol(options =>
-              {
-                  options.PayloadSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
-                  options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
-                  options.PayloadSerializerOptions.WriteIndented = true;
-                  options.PayloadSerializerOptions.PropertyNamingPolicy = null;
-                  options.PayloadSerializerOptions.IgnoreReadOnlyFields = false;
-                  options.PayloadSerializerOptions.IgnoreReadOnlyProperties = false;
-                  options.PayloadSerializerOptions.IncludeFields = false;
-                  options.PayloadSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-                  options.PayloadSerializerOptions.AllowTrailingCommas = true;
-                  options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                  options.PayloadSerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString;
+        }
 
+        private static void ConfigureSignalR(IServiceCollection services)
+        {
+            services.AddSignalR()
+                .AddMessagePackProtocol(options =>
+                {
+                    options.SerializerOptions = MessagePack.MessagePackSerializerOptions.Standard
+                        .WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance)
+                        .WithSecurity(MessagePack.MessagePackSecurity.UntrustedData);
+                })
+                .AddJsonProtocol(options =>
+                {
+                    ConfigureSharedJsonSerializerOptions(options.PayloadSerializerOptions);
+                    options.PayloadSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+                });
+        }
 
-              });
+        private static void ConfigureKestrel(WebApplicationBuilder builder)
+        {
             Port = GetFreePort();
             builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{Port}");
-            builder.Services.AddResponseCompression
-               (opts =>
-               {
-                   opts.EnableForHttps = true;
-                   opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] {
-        "application/octet-stream"
-   });
-               });
-            //builder.Host.UseContentRoot(options.ContentRootPath);
-            //builder.WebHost.UseWebRoot(Path.Combine(options.WebRootPath, "wwwroot"));         // ensure /wwwroot is found
+        }
 
-            // 2) Load static web assets for THIS assembly (enables /_content/* and isolated CSS)
-            // Load static web assets (/_content/** and CSS isolation)
+        private static void ConfigureResponseCompression(IServiceCollection services)
+        {
+            services.AddResponseCompression(options =>
+            {
+                options.EnableForHttps = true;
+                options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+                [
+                    "application/octet-stream"
+                ]);
+            });
+        }
+
+        private static void ConfigureBlazorAndMvc(WebApplicationBuilder builder)
+        {
+            StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
             builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddHealthChecks();
-            builder.Services.AddDevExpressBlazor(o => o.SizeMode = DevExpress.Blazor.SizeMode.Small);
+            builder.Services.AddDevExpressBlazor(options => options.SizeMode = DevExpress.Blazor.SizeMode.Small);
             builder.Services.AddMvc();
             builder.Services.AddScoped<ThemeService>();
-
-            builder.Services.Configure<JsonOptions>(options =>
-            {
-                options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-                options.JsonSerializerOptions.WriteIndented = true;
-                options.JsonSerializerOptions.PropertyNamingPolicy = null;
-                options.JsonSerializerOptions.IgnoreReadOnlyFields = false;
-                options.JsonSerializerOptions.IgnoreReadOnlyProperties = false;
-                options.JsonSerializerOptions.IncludeFields = false;
-                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-                options.JsonSerializerOptions.AllowTrailingCommas = true;
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString;
-            });
-            builder.Services.Configure<ForwardedHeadersOptions>(
-                options =>
-                {
-                    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-                    options.KnownIPNetworks.Clear();
-                    options.KnownProxies.Clear();
-                });
             builder.Services.AddDevExpressServerSideBlazorPdfViewer();
+        }
 
-            var app = builder.Build();
+        private static void ConfigureJsonOptions(IServiceCollection services)
+        {
+            services.Configure<JsonOptions>(options =>
+            {
+                ConfigureSharedJsonSerializerOptions(options.JsonSerializerOptions);
+                options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            });
+        }
 
+        private static void ConfigureSharedJsonSerializerOptions(JsonSerializerOptions options)
+        {
+            options.PropertyNameCaseInsensitive = true;
+            options.WriteIndented = true;
+            options.PropertyNamingPolicy = null;
+            options.IgnoreReadOnlyFields = false;
+            options.IgnoreReadOnlyProperties = false;
+            options.IncludeFields = false;
+            options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+            options.AllowTrailingCommas = true;
+            options.Converters.Add(new JsonStringEnumConverter());
+            options.NumberHandling = JsonNumberHandling.AllowReadingFromString |
+                JsonNumberHandling.WriteAsString;
+        }
+
+        private static void ConfigureForwardedHeaders(IServiceCollection services)
+        {
+            services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownIPNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
+        }
+
+        private static void ConfigureMiddlewareAndEndpoints(WebApplication app)
+        {
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -217,9 +246,6 @@ o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
             app.MapRazorComponents<App>()
                .AddInteractiveServerRenderMode()
                .AllowAnonymous();
-
-            WriteRuntimeEndpointFile();
-            return app;                           // ⬅️ no Run() here
         }
 
         private static void EnsureGeneratedStaticWebAssetContentRoots(string exeDir, ILogger logger)
