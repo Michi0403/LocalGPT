@@ -30,6 +30,24 @@
 
         <h2 class="text-xl font-semibold">AI Providers Setup</h2>
 
+        <div class="@ConnectivityAlertCss" role="status">
+            <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
+                <div>
+                    <strong>Local AI Connectivity</strong>
+                    <div>@ConnectivityStatus</div>
+                    @if (LastConnectivityCheck is not null)
+                    {
+                        <small>Last checked @LastConnectivityCheck.Value.ToLocalTime().ToString("HH:mm:ss").</small>
+                    }
+                </div>
+                <DxButton Text="Refresh Connectivity"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!IsConnectivityChecking)"
+                          Click="RefreshConnectivityStatusFromButton" />
+            </div>
+        </div>
+
         <div class="top-container">
             <DxButton Text="Find Local AI Hosts"
                       RenderStyle="ButtonRenderStyle.Secondary"
@@ -200,8 +218,13 @@
     private string _log = "";
     private string toastName = "InstallToasts";
     private bool IsDiscovering;
+    private bool IsConnectivityChecking;
+    private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify Ollama or LM Studio.";
+    private DateTimeOffset? LastConnectivityCheck;
     private IReadOnlyList<LocalAiHostDiscoveryResult> DiscoveredHosts = Array.Empty<LocalAiHostDiscoveryResult>();
     private List<OllamaCoreOptions> AdditionalOllamaModels => Model.OllamaCores;
+    private bool HasReachableAiHost => DiscoveredHosts.Any(host => host.IsReachable);
+    private string ConnectivityAlertCss => HasReachableAiHost ? "alert alert-success" : "alert alert-warning";
 
     protected override void OnInitialized()
     {
@@ -300,6 +323,10 @@
         try
         {
             var (ok, msg) = await Probe.TestOllamaAsync(Model.OllamaCore!, default);
+            LastConnectivityCheck = DateTimeOffset.Now;
+            ConnectivityStatus = ok
+                ? $"Ollama reachable at {Model.OllamaCore?.Uri}. Selected model: {Model.OllamaCore?.ModelName}."
+                : $"Ollama not reachable at {Model.OllamaCore?.Uri}: {msg}";
             await Append((ok ? "OK" : "FAIL") + " Ollama: " + msg);
             if (ok) Notifier.ShowSuccess(toastName, "Ollama reachable.", "Ollama Test OK");
             else    Notifier.ShowWarning(toastName, msg, "Ollama Test Failed");
@@ -310,6 +337,12 @@
             Notifier.ShowError(toastName, ex.ToString(), "Ollama Test Error");
             await Append("(Ollama Test) " + ex.Message);
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await RefreshConnectivityStatusAsync(showToast: false);
     }
 
     private async Task DiscoverLocalAiHosts()
@@ -326,6 +359,8 @@
             var models = DiscoveredHosts.Sum(h => h.Models.Count);
 
             await Append($"Discovery found {reachable} reachable host(s) and {models} model(s).");
+            LastConnectivityCheck = DateTimeOffset.Now;
+            ConnectivityStatus = BuildConnectivityStatus(reachable, models);
 
             if (reachable > 0)
                 Notifier.ShowSuccess(toastName, $"Found {reachable} local AI host(s).", "Discovery Complete");
@@ -342,6 +377,61 @@
         {
             IsDiscovering = false;
         }
+    }
+
+    private Task RefreshConnectivityStatusFromButton()
+    {
+        return RefreshConnectivityStatusAsync(showToast: true);
+    }
+
+    private async Task RefreshConnectivityStatusAsync(bool showToast)
+    {
+        try
+        {
+            IsConnectivityChecking = true;
+            await InvokeAsync(StateHasChanged);
+            DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default);
+            AutoSelectBestDiscoveredModel();
+
+            var reachable = DiscoveredHosts.Count(host => host.IsReachable);
+            var models = DiscoveredHosts.Sum(host => host.Models.Count);
+            LastConnectivityCheck = DateTimeOffset.Now;
+            ConnectivityStatus = BuildConnectivityStatus(reachable, models);
+            await Append($"Connectivity refresh: {ConnectivityStatus}");
+
+            if (!showToast)
+                return;
+
+            if (reachable > 0)
+                Notifier.ShowSuccess(toastName, ConnectivityStatus, "Connectivity OK");
+            else
+                Notifier.ShowWarning(toastName, ConnectivityStatus, "Connectivity Warning");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "RefreshConnectivityStatusAsync failed: {Message}", ex.Message);
+            LastConnectivityCheck = DateTimeOffset.Now;
+            ConnectivityStatus = "Connectivity check failed: " + ex.Message;
+            if (showToast)
+                Notifier.ShowError(toastName, ex.ToString(), "Connectivity Error");
+            await Append("(Connectivity) " + ex.Message);
+        }
+        finally
+        {
+            IsConnectivityChecking = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string BuildConnectivityStatus(int reachable, int models)
+    {
+        if (reachable <= 0)
+            return "No local Ollama or LM Studio host is reachable. Start Ollama or LM Studio, then refresh.";
+
+        var hostSummaries = DiscoveredHosts
+            .Where(host => host.IsReachable)
+            .Select(host => $"{host.Provider} at {host.Endpoint} ({host.Models.Count} model(s))");
+        return $"Reachable: {string.Join("; ", hostSummaries)}. Total detected models: {models}.";
     }
 
     private async Task ApplyDiscoveredModel(LocalAiHostDiscoveryResult host, LocalAiModelInfo model)

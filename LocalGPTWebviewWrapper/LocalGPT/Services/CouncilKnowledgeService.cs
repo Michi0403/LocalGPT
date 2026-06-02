@@ -483,6 +483,25 @@ namespace LocalGPT.Services
                 },
                 new CouncilKnowledgeEntry
                 {
+                    Id = Guid.Parse("68fd046e-b23b-4d7b-ad6c-627c9c3b5f0f"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "DXAiChat artifact delivery and council confidence contract",
+                    Scope = "DXAiChat AI Council",
+                    Source = seedSource,
+                    Content = "When the user asks DXAiChat or the AI Council to generate Minecraft datapacks/modpacks, .NET/Blazor/DevExpress code, .cs/.razor/.dll files, or whole solution zips, treat the council as capable of producing a safe downloadable milestone. " +
+                        "Do not refuse with \"too much\" or \"not capable\" language. If the target is large, reduce it into a buildable sandbox artifact, include file paths/download links through /__artifacts/council/, and list staged follow-up work under Needs verification. " +
+                        "If material architecture choices are genuinely missing, create a concise poll and stop for the next user turn. Never claim the user failed to answer a poll in the same response that created it. " +
+                        "Use DXAiFunctions such as /__diag/sqlite/tables, /__diag/knowledge, /__diag/logs, /__diag/council/artifact-smoke, /__diag/blazor-devexpress-guidance, and /__diag/dotnet-sample-curriculum before guessing. " +
+                        "For direct artifact requests, generate links instead of printing zip/binary payloads as text, and do not self-integrate generated code into LocalGPT without explicit user approval.",
+                    HelpfulSources = "- Local service: MultiModelCouncilService poll/artifact gate.\n- Local service: CouncilArtifactService artifact generators and /__artifacts/council route.\n- Local route: /__diag/dxaichat-functions for available function catalog.",
+                    Tags = "seed; dxaichat; council; artifacts; generation; confidence; downloads; polls",
+                    Confidence = 95,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
                     Id = Guid.Parse("44fd504b-c6de-4a8b-a4e0-aea5a53200d9"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,
@@ -532,6 +551,24 @@ namespace LocalGPT.Services
                     HelpfulSources = "- Local code: LocalGPTWebviewWrapper/App.xaml.cs and MainWindow.xaml.cs runtime flag lookup.\n- Windows Application log showed REGDB_E_CLASSNOTREG for loose WinUI launch.\n- Preferred activation: shell:AppsFolder/<package-family-name>!App.",
                     Tags = "seed; webview2; winui; package; msix; smoke-test; windowsappsdk",
                     Confidence = 88,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("9fe4ce65-16c7-474d-a9b0-a6bb79af6ff0"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Legacy Jezzifa architecture lessons for generation",
+                    Scope = "Enterprise .NET / DevExpress Web API / integrations",
+                    Source = seedSource,
+                    Content = "The user-supplied legacy Jezzifa archive is useful as sanitized architecture evidence, not as a modern code template to copy verbatim. " +
+                        "It shows a larger .NET solution style with separate business-object/core/service/web projects, DevExpress Web API/XAF-style object-space setup, EF contexts, security/JWT/certificate services, custom controllers, database update helpers, Telegram bot service integration, Python configuration hooks, speech-to-text/Whisper-oriented data, and a separate web target. " +
+                        "When generating similar modern systems, ask whether the user wants a monolith, modular monolith, or multi-project solution; whether DevExpress Web API/XAF/OData business objects are required; whether Telegram/Python/Whisper integrations are enabled; and whether optional external code execution is explicitly user-approved. " +
+                        "Sanitize legacy names and do not reproduce obscene folder/class names in generated guidance. Prefer .NET 8-10, explicit DI, typed options, EF migrations/schema update plans, isolated integration services, safe secrets/config handling, and backend-owned native/Python execution behind user permission gates.",
+                    HelpfulSources = "- Local user archive listing: Jezzifa.zip showed Api.WebApi.sln, BusinessObjects/Core projects, DevExpress Web API service setup, TelegramBotService metadata, PythonOptions/find_libpython.py, SpeechToTextValue, security/certificate services, and a separate web target.\n- Local guide: docs/EF_DEVEXPRESS_BUSINESS_OBJECTS.md.",
+                    Tags = "seed; jezzifa; sanitized; devexpress-web-api; xaf; odata; telegram; python; whisper; modular-monolith",
+                    Confidence = 86,
                     IsUserApproved = true,
                     IsPinned = true
                 }

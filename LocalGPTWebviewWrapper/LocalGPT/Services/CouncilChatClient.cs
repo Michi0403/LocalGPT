@@ -193,9 +193,9 @@ public sealed class CouncilChatClient(
 
                 if (!string.IsNullOrWhiteSpace(step.VisibleContent))
                 {
-                    builder.AppendLine("**Visible answer excerpt:**")
+                    builder.AppendLine("**Visible answer:**")
                         .AppendLine()
-                        .AppendLine(TrimForMessage(step.VisibleContent, 1800))
+                        .AppendLine(step.VisibleContent.Trim())
                         .AppendLine();
                 }
 
@@ -205,7 +205,7 @@ public sealed class CouncilChatClient(
                         .AppendLine("<details class=\"model-thinking\" open>")
                         .AppendLine("<summary>Model thinking</summary>")
                         .AppendLine("<pre>")
-                        .AppendLine(WebUtility.HtmlEncode(TrimForMessage(step.Thinking, 1800)))
+                        .AppendLine(WebUtility.HtmlEncode(step.Thinking.Trim()))
                         .AppendLine("</pre>")
                         .AppendLine("</details>")
                         .AppendLine();
@@ -244,7 +244,7 @@ public sealed class CouncilChatClient(
         {
             builder.AppendLine("**Step answer:**")
                 .AppendLine()
-                .AppendLine(TrimForMessage(step.VisibleContent, 1800))
+                .AppendLine(step.VisibleContent.Trim())
                 .AppendLine();
         }
 
@@ -254,7 +254,7 @@ public sealed class CouncilChatClient(
                 .AppendLine("<details class=\"model-thinking\" open>")
                 .AppendLine("<summary>Model thinking</summary>")
                 .AppendLine("<pre>")
-                .AppendLine(WebUtility.HtmlEncode(TrimForMessage(step.Thinking, 1800)))
+                .AppendLine(WebUtility.HtmlEncode(step.Thinking.Trim()))
                 .AppendLine("</pre>")
                 .AppendLine("</details>")
                 .AppendLine();
@@ -265,12 +265,4 @@ public sealed class CouncilChatClient(
 
     private static ChatResponseUpdate CreateUpdate(string text) =>
         new(ChatRole.Assistant, [new TextContent(text)]);
-
-    private static string TrimForMessage(string text, int maxLength)
-    {
-        var normalized = text.Trim();
-        return normalized.Length <= maxLength
-            ? normalized
-            : $"{normalized[..maxLength].TrimEnd()}\n\n_Trimmed in DXAiChat; see the council log/memory for full text._";
-    }
 }

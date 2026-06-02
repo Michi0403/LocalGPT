@@ -285,7 +285,7 @@ namespace LocalGPT.Services
             if (string.IsNullOrWhiteSpace(content))
                 return null;
 
-            var text = content.Trim();
+            var text = WebUtility.HtmlDecode(content).Trim();
             if (IsHarmonyModel())
             {
                 var finalMatches = HarmonyFinalPattern().Matches(text);
@@ -304,6 +304,7 @@ namespace LocalGPT.Services
             if (!IsHarmonyModel() || string.IsNullOrWhiteSpace(content))
                 return null;
 
+            content = WebUtility.HtmlDecode(content);
             var matches = HarmonyThinkingPattern().Matches(content);
             if (matches.Count == 0)
                 return null;
@@ -577,7 +578,7 @@ namespace LocalGPT.Services
 
             private IEnumerable<string> AppendHarmonyContent(string text)
             {
-                harmonyBuffer.Append(text);
+                harmonyBuffer.Append(WebUtility.HtmlDecode(text));
                 var raw = harmonyBuffer.ToString();
                 if (!raw.Contains("<|", StringComparison.Ordinal))
                 {
@@ -677,7 +678,7 @@ namespace LocalGPT.Services
 
             private static string CleanHarmonyText(string text)
             {
-                var cleaned = HarmonyMarkerPattern().Replace(text, string.Empty);
+                var cleaned = HarmonyMarkerPattern().Replace(WebUtility.HtmlDecode(text), string.Empty);
                 var partialMarkerIndex = cleaned.LastIndexOf("<|", StringComparison.Ordinal);
                 if (partialMarkerIndex >= 0 &&
                     cleaned.IndexOf("|>", partialMarkerIndex, StringComparison.Ordinal) < 0)

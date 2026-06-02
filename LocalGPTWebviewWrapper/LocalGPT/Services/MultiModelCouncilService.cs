@@ -242,8 +242,14 @@ namespace LocalGPT.Services
             }
 
             result.UserPoll = BuildUserPoll(result);
-            if (result.UserPoll is null)
+            if (result.UserPoll is null ||
+                request.GenerateImplementationArtifact && HasExplicitArtifactIntent(request.Prompt))
             {
+                if (result.UserPoll is not null)
+                {
+                    result.Warnings.Add("A user decision poll is included for follow-up choices, but LocalGPT still generated the requested sandbox artifact because the prompt already named a concrete downloadable target.");
+                }
+
                 result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
             }
             else if (request.GenerateImplementationArtifact)
@@ -1070,6 +1076,9 @@ namespace LocalGPT.Services
             if (!IsDevelopmentRequest(result.Prompt))
                 return false;
 
+            if (HasExplicitArtifactIntent(result.Prompt))
+                return false;
+
             var text = $"{result.Prompt} {result.FinalAnswer}";
             if (ImplementationDecisionPattern().IsMatch(text))
                 return true;
@@ -1084,6 +1093,16 @@ namespace LocalGPT.Services
                 return false;
 
             return DevelopmentRequestPattern().IsMatch(prompt);
+        }
+
+        private static bool HasExplicitArtifactIntent(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                return false;
+
+            return ExplicitArtifactIntentPattern().IsMatch(prompt) ||
+                ConcreteMinecraftArtifactPattern().IsMatch(prompt) ||
+                ConcreteDotNetArtifactPattern().IsMatch(prompt);
         }
 
         private static int CountImplementationAreaHits(string text)
@@ -1216,7 +1235,9 @@ namespace LocalGPT.Services
             Treat Fabric as the fast Java iteration target, NeoForge as the modern Forge-style target, Paper as the server-side plugin target, datapack as the vanilla command/data target, and Bedrock as a separate behavior/resource pack exporter.
             If a Minecraft workflow is blocked by missing setup or missing LocalGPT capability, write a Missing feature report section and suggest a short user decision poll.
             For LocalGPT implementation-request chats, classify the owning area (.NET/Blazor/ASP.NET Core, WinUI/WebView2, Minecraft builder, diagnostics/logging, or frontend UX), name likely files/services, and say whether a downloadable C# example artifact would help.
-            For any code/artifact generation request, first decide whether material architecture choices are missing. If they are missing, do not generate code or files yet; return "Decision poll required", list only the necessary choices with concrete options/tradeoffs, and stop until the user selects an option or writes custom guidance.
+            For any code/artifact generation request, first decide whether material architecture choices are missing. If they are missing and the user did not name a concrete artifact target, do not generate code or files yet; return "Decision poll required", list only the necessary choices with concrete options/tradeoffs, and stop until the user selects an option or writes custom guidance.
+            If the user explicitly asks for a Minecraft datapack/modpack zip, .cs/.razor/.dll files, a whole .NET solution zip, an Ollama-inspired .NET lab, or another concrete downloadable artifact, treat that as sufficient scope to produce a safe sandbox artifact through LocalGPT artifact routes. Do not refuse because the request is "too much"; reduce to a buildable milestone, generate the artifact, and mark remaining work as staged follow-up.
+            Never claim the user failed to answer a poll inside the same response that creates the poll. A poll is a pause for the next user turn unless the prompt already supplied a concrete generation target.
             Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend architecture unless the user selected it, the target repository already requires it, or the requested product shape clearly calls for it. LocalGPT is strong at Blazor/DevExpress, but generated apps may be CLI tools, Minecraft datapacks, Java mods/plugins, services, desktop wrappers, APIs, scripts, or other stacks.
             If the implementation path is unclear, offer different implementation possibilities and ask for a user decision poll. The user may choose a poll option or provide custom text feedback; treat either as binding scope for the next round.
             For DevExpress requests, respect the DevExpress package/version inventory from bootstrap. Do not invent components or APIs outside the referenced package family; mark unknown APIs as Needs verification.
@@ -1325,6 +1346,15 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("(implement|implementation|develop|development|build|create|add|generate|scaffold|feature|code|page|component|service|endpoint|database|settings|artifact|solution|plugin|mod|datapack)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DevelopmentRequestPattern();
+
+        [GeneratedRegex("(downloadable|download link|download route|zip|\\.zip|\\.cs\\b|\\.razor\\b|\\.dll\\b|\\.sln\\b|\\.csproj\\b|artifact|solution zip|project zip|whole solution|full solution)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex ExplicitArtifactIntentPattern();
+
+        [GeneratedRegex("(minecraft|living cities|modpack|datapack|data pack|pack\\.mcmeta|mcfunction).*(generate|create|build|zip|download|artifact)|(generate|create|build|zip|download|artifact).*(minecraft|living cities|modpack|datapack|data pack|pack\\.mcmeta|mcfunction)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex ConcreteMinecraftArtifactPattern();
+
+        [GeneratedRegex("(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama).*(solution|project|zip|download|artifact|page|component|api|route|service)|(solution|project|zip|download|artifact|page|component|api|route|service).*(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex ConcreteDotNetArtifactPattern();
 
         [GeneratedRegex("(decision poll required|user decision poll|implementation path|architecture choice|architecture decision|target platform|runtime choice|ui stack|unclear implementation|unclear scope|scope is uncertain|ownership is uncertain|ask the user|needs user choice|choose between|pick between|multiple reasonable|trade-?off|depends on|which path|which approach)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex ImplementationDecisionPattern();

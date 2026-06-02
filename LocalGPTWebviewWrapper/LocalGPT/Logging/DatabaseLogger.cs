@@ -31,8 +31,8 @@ namespace LocalGPT.Logging
                 Category = Trim(categoryName, 300),
                 EventId = eventId.Id,
                 EventName = string.IsNullOrWhiteSpace(eventId.Name) ? null : Trim(eventId.Name, 200),
-                Message = Trim(message ?? string.Empty, 8000),
-                Exception = exception is null ? null : Trim(exception.ToString(), 16000),
+                Message = message ?? string.Empty,
+                Exception = exception?.ToString(),
                 MachineName = Trim(Environment.MachineName, 120),
                 ProcessId = Environment.ProcessId,
                 ThreadId = Environment.CurrentManagedThreadId

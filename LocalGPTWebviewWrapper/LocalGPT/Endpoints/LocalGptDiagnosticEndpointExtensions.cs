@@ -363,6 +363,94 @@ namespace LocalGPT.Endpoints
                 return Results.Ok(await council.GetCandidatesAsync(ct));
             });
 
+            app.MapGet("/__diag/council/benchmark-plan", async (IMultiModelCouncilService council, CancellationToken ct) =>
+            {
+                var candidates = await council.GetCandidatesAsync(ct);
+                var available = candidates
+                    .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
+                    .Select(candidate => new
+                    {
+                        candidate.ModelName,
+                        candidate.Provider,
+                        candidate.Endpoint,
+                        candidate.IsInstalled,
+                        candidate.IsConfigured,
+                        candidate.IsLoaded,
+                        candidate.Details
+                    })
+                    .Take(16)
+                    .ToArray();
+
+                var preferredGptOss = candidates.FirstOrDefault(candidate =>
+                    candidate.ModelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase));
+                var preferredDeepseek = candidates.FirstOrDefault(candidate =>
+                    candidate.ModelName.Contains("deepseek", StringComparison.OrdinalIgnoreCase));
+                var preferredQwen = candidates.FirstOrDefault(candidate =>
+                    candidate.ModelName.Contains("qwen", StringComparison.OrdinalIgnoreCase) ||
+                    candidate.ModelName.Contains("gwen", StringComparison.OrdinalIgnoreCase));
+
+                return Results.Ok(new
+                {
+                    HardwareProfile = "Michi0403 local workstation: 7900 XTX 24GB VRAM, i7-14700K, 64GB RAM. Avoid simultaneous heavy 20B/27B/30B GPU loads.",
+                    AvailableModels = available,
+                    RecommendedMatrix = new[]
+                    {
+                        new
+                        {
+                            Name = "Baseline single-model generation",
+                            Members = preferredGptOss is null ? Array.Empty<string>() : new[] { preferredGptOss.ModelName },
+                            MaxParallelModels = 1,
+                            OllamaNumGpu = (int?)null,
+                            MaxContextTokens = 8192,
+                            MaxOutputTokens = 4096,
+                            Purpose = "Verify Harmony formatting, streaming, artifact links, and normal DXAiChat usability."
+                        },
+                        new
+                        {
+                            Name = "CPU-stable reviewer",
+                            Members = preferredDeepseek is null ? Array.Empty<string>() : new[] { preferredDeepseek.ModelName },
+                            MaxParallelModels = 1,
+                            OllamaNumGpu = (int?)0,
+                            MaxContextTokens = 4096,
+                            MaxOutputTokens = 2048,
+                            Purpose = "Slow but GPU-safe review of generated .NET/DevExpress or Minecraft datapack output."
+                        },
+                        new
+                        {
+                            Name = "Two-member safe council",
+                            Members = new[] { preferredGptOss?.ModelName, preferredDeepseek?.ModelName }
+                                .Where(name => !string.IsNullOrWhiteSpace(name))
+                                .Cast<string>()
+                                .ToArray(),
+                            MaxParallelModels = 1,
+                            OllamaNumGpu = (int?)0,
+                            MaxContextTokens = 8192,
+                            MaxOutputTokens = 4096,
+                            Purpose = "Best default cross-check without concurrent VRAM pressure; use keep_alive=0s."
+                        },
+                        new
+                        {
+                            Name = "Heavy coder solo trial",
+                            Members = preferredQwen is null ? Array.Empty<string>() : new[] { preferredQwen.ModelName },
+                            MaxParallelModels = 1,
+                            OllamaNumGpu = (int?)12,
+                            MaxContextTokens = 8192,
+                            MaxOutputTokens = 4096,
+                            Purpose = "Optional qwen/gwen solo code-generation check after Ollama/GPU stability is confirmed. Do not combine with other heavy models."
+                        }
+                    },
+                    BenchmarkPrompt = "DXAiChat benchmark: generate a downloadable .NET 10 DevExpress Blazor solution zip with an Index page, navigation, one API route, one EF/SQLite-backed service, and a README. Then summarize which files were produced and what still needs verification.",
+                    Acceptance = new[]
+                    {
+                        "The answer streams or shows visible status before first token.",
+                        "The final answer includes /__artifacts/council/ download links, not zip text.",
+                        "Generated Razor files are real .razor components, not string-builder fake pages.",
+                        "A poll appears only when a material choice is genuinely missing and generation pauses for the next user turn."
+                    },
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
             app.MapGet("/__diag/dxaichat-functions", () =>
             {
                 return Results.Ok(DxaichatFunctionCatalog.GetFunctions());
