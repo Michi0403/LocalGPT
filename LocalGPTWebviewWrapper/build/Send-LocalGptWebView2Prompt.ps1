@@ -164,11 +164,17 @@ try {
     $commandId++
     Send-CdpCommand -WebSocket $ws -Id $commandId -Method "Page.enable" | Out-Null
 
-    Write-E2ELog "Ensuring the real page is on Chat."
-    $hasHelper = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "!!window.localGptE2e"
-    if (-not $hasHelper) {
+    Write-E2ELog "Ensuring the real visible WebView2 page is on Chat."
+    $isOnChat = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.pathname.toLowerCase() === '/chat'"
+    if (-not $isOnChat) {
+        $currentUrl = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.href"
+        Write-E2ELog "Current visible page is $currentUrl; navigating that same WebView2 host to /Chat."
         Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.href = '/Chat'; true" | Out-Null
     }
+
+    Wait-Until -Description "visible WebView2 Chat route" -Seconds 90 -Condition {
+        Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.pathname.toLowerCase() === '/chat'"
+    } | Out-Null
 
     Wait-Until -Description "LocalGPT E2E helper" -Seconds 90 -Condition {
         Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "!!window.localGptE2e && window.localGptE2e.ping().ready"
@@ -179,14 +185,16 @@ try {
     }
 
     if (-not $isChatReady) {
-        throw "DXAiChat did not become interactive."
+        $notReadyState = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "(() => ({ url: location.href, visibleText: window.localGptE2e ? window.localGptE2e.collectVisibleText().slice(0, 2000) : document.body.innerText.slice(0, 2000) }))()"
+        $notReadyState | ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $artifactRoot "chat-not-ready-state.json") -Encoding utf8
+        throw "DXAiChat did not become interactive on the visible WebView2 Chat route. See chat-not-ready-state.json."
     }
 
     if (-not $CollectOnly) {
         $beforeState = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.chatState()"
         $beforeState | ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $artifactRoot "chat-state-before.json") -Encoding utf8
 
-        Write-E2ELog "Writing the repair prompt into the real DXAiChat input."
+        Write-E2ELog "Writing the prompt into the real DXAiChat input."
         $inputOk = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.setValue('[data-testid=""chat-input""]', $promptJson)"
         if (-not $inputOk) {
             throw "Could not write prompt to DXAiChat input."
@@ -217,7 +225,7 @@ try {
         } | Out-Null
 
         Wait-Until -Description "submitted prompt visible or input cleared" -Seconds 30 -Condition {
-            Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "(() => { const s = window.localGptE2e.chatState(); return s.inputValue.length === 0 || s.visibleText.includes('This is a repair round for the AI Host artifact'); })()"
+            Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "(() => { const s = window.localGptE2e.chatState(); return s.inputValue.length === 0 || s.visibleText.includes($promptJson); })()"
         } | Out-Null
 
         Write-E2ELog "Waiting for council response to make visible progress."

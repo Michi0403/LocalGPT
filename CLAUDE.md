@@ -50,6 +50,11 @@ artifacts work as a product workflow:
 - When the Council asks a question or reports missing knowledge/functions,
   continue the same real DXAiChat conversation and feed verified gaps back into
   LocalGPT. Do not bypass the Council with private-only work.
+- If WebView2 prompt automation attaches while the visible app is still on Home
+  or another non-chat route, treat that as a real WebView2 navigation/state
+  problem. Drive or navigate the attached visible host to `/Chat`, confirm the
+  actual DXAiChat input and send button are interactive, and only then send. Do
+  not escape to an assistant sandbox browser or backend diagnostic route.
 
 ## Important projects
 
