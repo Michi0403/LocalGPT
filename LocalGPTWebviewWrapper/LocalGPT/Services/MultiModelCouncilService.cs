@@ -374,7 +374,7 @@ namespace LocalGPT.Services
                 messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName, councilMembers)));
                 messages.Add(new ChatMessage(ChatRole.User, prompt));
 
-                streamUpdate?.Invoke($"<details class=\"council-step\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
+                streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
                 var builder = new StringBuilder();
                 await foreach (var update in client.GetStreamingResponseAsync(
                     messages,
@@ -496,7 +496,7 @@ namespace LocalGPT.Services
                 """));
 
             var builder = new StringBuilder();
-            streamUpdate?.Invoke($"<details class=\"council-step\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
+            streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
             await foreach (var update in client.GetStreamingResponseAsync(
                 messages,
                 new ChatOptions
@@ -822,14 +822,6 @@ namespace LocalGPT.Services
                     new List<AIChatUploadFileInfo>()));
             }
 
-            if (result.Artifacts.Count > 0)
-            {
-                messages.Add(new BlazorChatMessage(
-                    ChatRole.Assistant,
-                    BuildArtifactsMarkdown(result.Artifacts),
-                    new List<AIChatUploadFileInfo>()));
-            }
-
             if (result.KnowledgeEntryId is Guid knowledgeEntryId)
             {
                 messages.Add(new BlazorChatMessage(
@@ -842,6 +834,14 @@ namespace LocalGPT.Services
                 ChatRole.Assistant,
                 $"## Final council answer{Environment.NewLine}{result.FinalAnswer}",
                 new List<AIChatUploadFileInfo>()));
+
+            if (result.Artifacts.Count > 0)
+            {
+                messages.Add(new BlazorChatMessage(
+                    ChatRole.Assistant,
+                    BuildArtifactsMarkdown(result.Artifacts),
+                    new List<AIChatUploadFileInfo>()));
+            }
 
             return await chatMemory.SaveConversationAsync(
                 $"AI Council - {string.Join(" + ", result.ModelNames)}",
@@ -880,7 +880,7 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(step.Thinking))
             {
                 builder
-                    .AppendLine("<details class=\"model-thinking\" open>")
+                    .AppendLine("<details class=\"model-thinking\">")
                     .AppendLine("<summary>Model thinking</summary>")
                     .AppendLine()
                     .AppendLine(step.Thinking.Trim())
@@ -967,12 +967,13 @@ namespace LocalGPT.Services
                 builder.AppendLine("## User Decision Poll").AppendLine().AppendLine(BuildPollMarkdown(result.UserPoll)).AppendLine();
             }
 
+            builder.AppendLine("## Final Answer").AppendLine().AppendLine(result.FinalAnswer).AppendLine();
+
             if (result.Artifacts.Count > 0)
             {
                 builder.AppendLine("## Artifacts").AppendLine().AppendLine(BuildArtifactsMarkdown(result.Artifacts)).AppendLine();
             }
 
-            builder.AppendLine("## Final Answer").AppendLine().AppendLine(result.FinalAnswer);
             return builder.ToString();
         }
 
@@ -987,13 +988,17 @@ namespace LocalGPT.Services
             var promptLooksFrustrated = IsFrustratedPrompt(result.Prompt);
             var needsVerification = result.FinalAnswer.Contains("Needs verification", StringComparison.OrdinalIgnoreCase) ||
                 result.FinalAnswer.Contains("human review", StringComparison.OrdinalIgnoreCase);
+            var needsAiHostSetupDecision = NeedsAiHostSetupDecision(result);
             var needsImplementationPathDecision = NeedsImplementationPathDecision(result);
 
-            if (failedModels.Count == 0 && !needsVerification && !promptLooksFrustrated && !needsImplementationPathDecision)
+            if (failedModels.Count == 0 && !needsVerification && !promptLooksFrustrated && !needsAiHostSetupDecision && !needsImplementationPathDecision)
                 return null;
 
             if (promptLooksFrustrated)
                 return BuildFrustrationPoll(result, failedModels);
+
+            if (needsAiHostSetupDecision)
+                return BuildAiHostSetupPoll(result, failedModels);
 
             if (needsImplementationPathDecision)
                 return BuildImplementationPathPoll(result, failedModels);
@@ -1071,6 +1076,44 @@ namespace LocalGPT.Services
                     {
                         Label = "Target-specific stack",
                         FollowUpPrompt = "Do not force LocalGPT's Blazor/DevExpress defaults. Choose the stack that matches the requested product: datapack for vanilla Minecraft data/commands, Fabric/NeoForge/Paper for Java mod/plugin work, ASP.NET Core API for service work, WebView2/WinUI for Windows desktop wrapper work, CLI/tooling for automation, or another explicit user-chosen target."
+                    }
+                ]
+            };
+        }
+
+        private static CouncilUserPoll BuildAiHostSetupPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels)
+        {
+            var missingModelNote = failedModels.Count > 0
+                ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
+                : string.Empty;
+
+            return new CouncilUserPoll
+            {
+                Question = "Which native model-runner setup should the AI host artifact use next?",
+                Reason = "The council generated the sandbox AI-host artifact, but local model execution still needs concrete setup choices. " +
+                    "This is not a missing-model problem; it is the runner and model-file contract that must be selected before real inference can be proven." +
+                    missingModelNote,
+                Options =
+                [
+                    new CouncilUserPollOption
+                    {
+                        Label = "Use llama.cpp GGUF",
+                        FollowUpPrompt = "Continue the same generated AI-host workspace using a user-approved llama.cpp style runner executable boundary and GGUF model files. Add settings for NativeRunnerExecutable, ModelSearchRoots, context size, GPU/layer policy, and per-model session scheduling. Keep no upstream AI-host proxy fallback."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Use Python.NET runner",
+                        FollowUpPrompt = "Continue the same generated AI-host workspace with a Python.NET runner boundary. Require user-approved Python runtime path, PYTHONNET_PYDLL, package list, model roots, and a safe backend service contract. Keep the UI in .NET/DevExpress and do not execute unapproved Python code."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Keep setup-needed",
+                        FollowUpPrompt = "Keep the artifact buildable and explicit with Setup Needed banners, no proxy fallback, provider-compatible API routes, SQLite settings, and clear user instructions. Do not pretend native inference works until a runner executable and compatible model-file format are supplied."
+                    },
+                    new CouncilUserPollOption
+                    {
+                        Label = "Custom runner contract",
+                        FollowUpPrompt = "Ask the user for a custom native runner executable, model-file format, arguments, streaming protocol, cancellation behavior, and hardware policy, then continue the generated workspace with those exact choices."
                     }
                 ]
             };
@@ -1157,6 +1200,19 @@ namespace LocalGPT.Services
             return areaHits >= 3 && ImplementationChoicePattern().IsMatch(text);
         }
 
+        private static bool NeedsAiHostSetupDecision(MultiModelCouncilResult result)
+        {
+            var text = $"{result.Prompt} {result.FinalAnswer}";
+            if (!AiHostSetupPattern().IsMatch(text))
+                return false;
+
+            return text.Contains("setup needed", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("native runner executable", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("runner path", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("model-file format", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("model file format", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static bool IsDevelopmentRequest(string prompt)
         {
             if (string.IsNullOrWhiteSpace(prompt))
@@ -1177,7 +1233,7 @@ namespace LocalGPT.Services
 
         private static bool RequiresUserDecisionBeforeArtifacts(MultiModelCouncilResult result)
         {
-            if (UserGrantedSafeSandboxChoice(result.Prompt))
+            if (UserGrantedSafeSandboxChoice(result.Prompt) || ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt))
                 return false;
 
             var text = $"{result.Prompt} {result.FinalAnswer}";
@@ -1190,6 +1246,18 @@ namespace LocalGPT.Services
                 return false;
 
             return SafeSandboxConsentPattern().IsMatch(prompt);
+        }
+
+        private static bool ShouldGenerateSafeSandboxArtifactWithoutBlocking(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                return false;
+
+            if (ExplicitDoNotGenerateUntilUserDecisionPattern().IsMatch(prompt))
+                return false;
+
+            return HasExplicitArtifactIntent(prompt) ||
+                DeveloperExecutionIntentPattern().IsMatch(prompt);
         }
 
         private static int CountImplementationAreaHits(string text)
@@ -1258,7 +1326,9 @@ namespace LocalGPT.Services
         private static string BuildArtifactsMarkdown(IEnumerable<CouncilArtifact> artifacts)
         {
             var builder = new StringBuilder()
-                .AppendLine("## Downloadable council artifacts")
+                .AppendLine("## Authoritative Download Links")
+                .AppendLine()
+                .AppendLine("These links were generated by LocalGPT after the council run and supersede any model-guessed artifact path inside the consensus text.")
                 .AppendLine();
 
             foreach (var artifact in artifacts)
@@ -1326,6 +1396,9 @@ namespace LocalGPT.Services
             If material choices remain missing and the user granted prior consent for safe sandbox details, choose conservative sandbox defaults, name those choices, generate the downloadable artifact, and mark assumptions clearly.
             If material choices remain missing and the user did not grant prior consent, do not generate code or files yet; return "Decision poll required", list only the necessary choices with concrete options/tradeoffs, and stop until the user selects an option or writes custom guidance.
             If the user explicitly asks for a Minecraft datapack/modpack zip, .cs/.razor/.dll files, a whole .NET solution zip, a local AI host control-plane app, or another concrete downloadable artifact, treat that as sufficient scope to produce a safe sandbox artifact only when no blocking user-decision poll remains. Do not refuse because the request is "too much"; reduce to a buildable milestone, generate the artifact, and mark remaining work as staged follow-up.
+            When the user explicitly asks the council to work as developers or to continue until an artifact/useful implementation guidance exists, do not end with generic "confirm scope before proceeding" text. Ask only genuinely blocking architecture or safety questions. Otherwise choose conservative sandbox defaults, generate or update the sandbox artifact/workspace, and clearly state what was generated and what remains unproven.
+            For AI-host replacement/control-plane requests, do not generate a proxy milestone. The minimum safe artifact must physically map /api/version, /api/tags, /api/ps, /api/generate, and /api/chat; include a native/model-file runner boundary; persist runner/model/settings in appsettings bootstrap or EF/SQLite; include chat-first UI, model catalog, running models, downloads, API console, settings, logs; and return setup-needed errors if native inference cannot yet be proven.
+            Never propose ASP.NET controller routes that accidentally double the route segment, such as [Route("api/[controller]")] plus [HttpPost("chat")] for /api/chat. Prefer explicit Minimal API mappings or route attributes that physically resolve to the documented route.
             Never claim the user failed to answer a poll inside the same response that creates it. A poll is a pause for the next user turn unless the prompt supplied the missing decision or prior consent for safe sandbox defaults.
             Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend architecture unless the user selected it, the target repository already requires it, or the requested product shape clearly calls for it. LocalGPT is strong at Blazor/DevExpress, but generated apps may be CLI tools, Minecraft datapacks, Java mods/plugins, services, desktop wrappers, APIs, scripts, or other stacks.
             If the implementation path is unclear, offer different implementation possibilities and ask for a user decision poll. The user may choose a poll option or provide custom text feedback; treat either as binding scope for the next round.
@@ -1454,6 +1527,9 @@ namespace LocalGPT.Services
         [GeneratedRegex("(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama).*(solution|project|zip|download|artifact|page|component|api|route|service)|(solution|project|zip|download|artifact|page|component|api|route|service).*(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex ConcreteDotNetArtifactPattern();
 
+        [GeneratedRegex("(ai host|local ai host|model host|inference host|native runner|model-file runner|model file runner|iinferencerunner|nativemodelfile|llama\\.cpp|gguf)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex AiHostSetupPattern();
+
         [GeneratedRegex("(decision poll required|user decision poll|implementation path|architecture choice|architecture decision|target platform|runtime choice|ui stack|unclear implementation|unclear scope|scope is uncertain|ownership is uncertain|ask the user|needs user choice|choose between|pick between|multiple reasonable|trade-?off|depends on|which path|which approach)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex ImplementationDecisionPattern();
 
@@ -1465,6 +1541,12 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("(prior consent for safe sandbox details:\\s*granted|let council choose safe sandbox details|you may decide safe sandbox details|council may choose safe sandbox defaults|make reasonable sandbox assumptions|decide yourself for the sandbox)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex SafeSandboxConsentPattern();
+
+        [GeneratedRegex("(ask me first|do not generate|don't generate|wait for my decision|stop before coding|stop before generating|no files until|no artifact until)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex ExplicitDoNotGenerateUntilUserDecisionPattern();
+
+        [GeneratedRegex("(work as (?:the )?developers|you are the developers|continue until (?:you )?(?:produce|create|generate)|develop and debug|produce .* artifact|generate .* artifact|create .* artifact)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex DeveloperExecutionIntentPattern();
 
         private sealed class OllamaTagsResponse
         {

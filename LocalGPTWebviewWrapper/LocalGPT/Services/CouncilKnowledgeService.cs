@@ -325,6 +325,11 @@ namespace LocalGPT.Services
             }
             catch (Exception ex) when (ex is DbUpdateException or DbUpdateConcurrencyException or IOException)
             {
+                if (LocalGptDatabaseRecovery.IsSqliteCorruption(ex))
+                {
+                    await LocalGptDatabaseRecovery.RecoverMalformedDatabaseAsync(DatabasePath, logger, cancellationToken);
+                }
+
                 logger.LogWarning(ex, "Could not update LastUsedAtUtc for council knowledge entries. Knowledge briefing will continue with read-only data.");
             }
         }
@@ -787,6 +792,49 @@ namespace LocalGPT.Services
                         "Model downloads from Hugging Face, GitHub, or provider catalogs require user approval, visible target paths, checksums when available, and no autonomous execution.",
                     HelpfulSources = "- Local docs: docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md and docs/AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md.\n- Local route: GET /__diag/ai-host-rebuild-guidance.\n- Local service: CouncilArtifactService AI-host archetype.\n- User-approved product lesson: the generated host should help LocalGPT/Council run several compatible models at the same time when hardware and policy allow it.",
                     Tags = "seed; ai-host; provider-neutral; multi-model; concurrency; scheduler; hardware-budget; dxaichat; user-approved",
+                    Confidence = 96,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("82d00fe4-2a34-4d52-a680-d1e335036f8b"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "AI host generation must wire promised API routes and UX, not placeholders",
+                    Scope = "AI host / Council artifact generation",
+                    Source = seedSource,
+                    Content = "The 2026-06-03 DXAiChat repair round showed a concrete generator failure: a buildable Blazor zip can still be unacceptable if it only contains docs, placeholder services, or a dashboard shell. " +
+                        "For AI-host artifacts, classify prompts mentioning AI host, local model host, native runner, model-file runner, provider-compatible routes, or Ollama-compatible APIs as the AI-host archetype even when they also mention LocalGPT. " +
+                        "The generated Program.cs or endpoint extension must physically map GET /api/version, GET /api/tags, GET /api/ps, POST /api/generate, and POST /api/chat. " +
+                        "Generated services must include an honest native-runner boundary with configured runner path/model paths, clear setup-needed errors when missing, no upstream proxy milestone, and tests or diagnostics that hit each route. " +
+                        "Do not accept route text that appears only in README, comments, or UI snippets as implementation. Validate Program.cs/endpoints, appsettings/bootstrap keys, native-runner service code, and navigation pages before zipping. " +
+                        "The frontend should resemble a modern AI host: left navigation, chat-first center area, model selector, model catalog, running models, downloads, API console, settings, logs, and clear empty/setup states rather than a raw table prototype. " +
+                        "If missing knowledge is detected, ask for or import official sources, but still generate a safe buildable milestone with explicit setup gaps rather than pretending inference works.",
+                    HelpfulSources = "- Official Ollama API docs: https://docs.ollama.com/api and https://docs.ollama.com/api/chat.\n- Ollama GitHub API source docs: https://github.com/ollama/ollama/blob/main/docs/api.md.\n- Microsoft Learn Minimal APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis.\n- Microsoft Learn EF Core SQLite provider: https://learn.microsoft.com/ef/core/providers/sqlite/.\n- DevExpress Blazor component docs: https://docs.devexpress.com/Blazor/400725/blazor-components, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxGrid, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxButton, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxTextBox.\n- Local evidence: real WebView2 DXAiChat repair prompt, generated LocalGPTApp194332-883568bf.zip, Program.cs route inspection, and CouncilArtifactService validation repair.",
+                    Tags = "seed; ai-host; ollama-api; minimal-api; devexpress; artifact-validation; dxaichat; webview2; source-backed; user-approved",
+                    Confidence = 97,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = Guid.Parse("8d8f0e91-6ee6-48ad-ae17-348a0b57108d"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Source-backed AI host route, runner, persistence, and test contracts",
+                    Scope = "AI host / Council artifact generation",
+                    Source = seedSource,
+                    Content = "For AI-host generation, treat route contracts as implementation requirements, not documentation text. " +
+                        "Ollama-compatible minimum routes are GET /api/version, GET /api/tags for installed models, GET /api/ps for loaded/running models, POST /api/generate for prompt completion, and POST /api/chat for message-based chat. " +
+                        "Minimal API generation should physically map those exact paths with app.MapGet/app.MapPost or equivalent explicit route attributes; avoid attribute combinations that create /api/chat/chat. " +
+                        "The CLI knowledge is useful only as a runner adapter reference: ollama run <model> is an interactive command, ollama pull <model> downloads, and ollama ls lists models. A replacement host must not depend on proxying Ollama; if direct native/model-file inference is not configured, return an honest setup-needed result. " +
+                        "Persist runtime settings and chat/session state through EF Core with the Microsoft.EntityFrameworkCore.Sqlite provider, with bootstrap-only values in appsettings and user-editable runtime settings in SQLite. " +
+                        "Generated tests should include route/integration tests using Microsoft.AspNetCore.Mvc.Testing/WebApplicationFactory or an equivalent live route test page. " +
+                        "The chat UI can use DevExpress Blazor/DxAIChat for user interaction and native file uploads; file upload only transfers files, LocalGPT/backend/model code must explicitly process uploaded content. " +
+                        "Python.NET is a valid optional runner boundary when the user approves a Python runtime and package list, but generated code must isolate Python execution behind a safe .NET service contract.",
+                    HelpfulSources = "- Ollama API introduction/base URL/generate: https://docs.ollama.com/api.\n- Ollama chat API: https://docs.ollama.com/api/chat.\n- Ollama list models: https://docs.ollama.com/api/tags.\n- Ollama running models: https://docs.ollama.com/api/ps.\n- Ollama CLI reference: https://docs.ollama.com/cli.\n- Microsoft Learn Minimal APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis.\n- Microsoft Learn EF Core SQLite provider: https://learn.microsoft.com/ef/core/providers/sqlite/.\n- Microsoft Learn ASP.NET Core integration tests: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests.\n- DevExpress DxAIChat docs: https://docs.devexpress.com/Blazor/DevExpress.AIIntegration.Blazor.Chat.DxAIChat.\n- Python.NET embedding docs: https://pythonnet.github.io/pythonnet/dotnet.html.",
+                    Tags = "seed; ai-host; ollama-api; ollama-cli; minimal-api; sqlite; efcore; integration-tests; dxaichat; pythonnet; source-backed",
                     Confidence = 96,
                     IsUserApproved = true,
                     IsPinned = true

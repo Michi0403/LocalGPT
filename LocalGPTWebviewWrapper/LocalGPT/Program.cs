@@ -58,7 +58,7 @@ namespace LocalGPT
             TraceStartup("Configured app configuration.");
             ConfigureLogging(builder);
             TraceStartup("Configured logging.");
-            ConfigureOptionsAndServices(builder);
+            ConfigureOptionsAndServices(builder, logger);
             TraceStartup("Configured options and services.");
             ConfigureSignalR(builder.Services);
             TraceStartup("Configured SignalR.");
@@ -85,6 +85,9 @@ namespace LocalGPT
 
         private static void TraceStartup(string message)
         {
+            var line = $"[{DateTimeOffset.Now:O}] pid={Environment.ProcessId} {message}{Environment.NewLine}";
+            TryAppendStartupTrace(line);
+
             if (!string.Equals(
                 Environment.GetEnvironmentVariable("LOCALGPT_STARTUP_TRACE"),
                 "1",
@@ -93,7 +96,42 @@ namespace LocalGPT
                 return;
             }
 
-            Console.WriteLine($"[LocalGPT startup] {DateTimeOffset.Now:O} {message}");
+            Console.Write($"[LocalGPT startup] {line}");
+        }
+
+        private static void TryAppendStartupTrace(string line)
+        {
+            try
+            {
+                foreach (var directory in GetRuntimeTraceDirectories())
+                {
+                    Directory.CreateDirectory(directory);
+                    File.AppendAllText(Path.Combine(directory, $"startup-trace-{Environment.ProcessId}.log"), line);
+                }
+            }
+            catch
+            {
+                // Startup tracing must never block app launch.
+            }
+        }
+
+        private static IEnumerable<string> GetRuntimeTraceDirectories()
+        {
+            var directories = new[]
+            {
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "runtime"),
+                Path.Combine(
+                    Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? string.Empty,
+                    "LocalGPT",
+                    "runtime")
+            };
+
+            return directories
+                .Where(directory => !string.IsNullOrWhiteSpace(directory))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
         private static WebApplicationOptions CreateWebApplicationOptions(string exeDir, string[]? args)
@@ -120,6 +158,20 @@ namespace LocalGPT
 
         private static void ConfigureLogging(WebApplicationBuilder builder)
         {
+            if (IsCustomLoggerBypassRequested())
+            {
+                builder.Services.AddLogging(logging =>
+                {
+                    logging.AddJsonConsole();
+                    logging.AddConsole();
+#if DEBUG
+                    logging.AddDebug();
+#endif
+                });
+
+                return;
+            }
+
             builder.Services.AddLogging(logging =>
                 LoggingHelper.ConfigureCustomLoggersWithConsoleAndDebug(
                     logging,
@@ -127,7 +179,21 @@ namespace LocalGPT
                     builder.Configuration));
         }
 
-        private static void ConfigureOptionsAndServices(WebApplicationBuilder builder)
+        private static bool IsCustomLoggerBypassRequested()
+        {
+            return IsEnvironmentFlagEnabled("LOCALGPT_DISABLE_CUSTOM_LOGGERS") ||
+                   IsEnvironmentFlagEnabled("LOCALGPT_E2E");
+        }
+
+        private static bool IsEnvironmentFlagEnabled(string name)
+        {
+            return string.Equals(
+                Environment.GetEnvironmentVariable(name),
+                "1",
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void ConfigureOptionsAndServices(WebApplicationBuilder builder, ILogger logger)
         {
             builder.Services
                 .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
@@ -146,6 +212,12 @@ namespace LocalGPT
 
             var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
             Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
+            TraceStartup($"Checking SQLite database health at {memoryDbPath}.");
+            LocalGptDatabaseRecovery
+                .EnsureHealthyOrRecoverAsync(memoryDbPath, logger)
+                .GetAwaiter()
+                .GetResult();
+            TraceStartup("Finished SQLite database health check.");
             builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
                 options.UseSqlite($"Data Source={memoryDbPath}"));
 

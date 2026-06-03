@@ -38,6 +38,7 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 - Always separate provider discovery from product architecture. Detection can say "Ollama reachable" or "LM Studio reachable"; generated app names should stay independent.
 - Local model work must respect hardware. Prefer sequential council turns, explicit context/output caps, `keep_alive = 0s`, and low/CPU GPU-layer settings after driver instability.
 - Avoid sustained full-load GPU peaks on consumer hardware. A slower sequential council is better than a fast run that destabilizes the machine.
+- Not every council stall is a bad model or GPU crash. In practice, stale keep-alive, loaded-model queueing, diagnostic scripts that reject the selected members, and cancellation/unload gaps can make a healthy model look frozen. Inspect `ollama ps`, frontend-selected members, request flags, and WebView2 diagnostics first.
 - Check running models before and after tests. Unload or stop models after heavy diagnostics when keep-alive is not needed.
 - For HuggingFace or GitHub model sources, LocalGPT should provide catalog rows and user-approved download plans. Catalog browsing is not permission to download binaries.
 - Large token budgets are required for serious local code generation. Treat values below 64K as quick-chat or diagnostics only, not valid code-generation acceptance tests. Use 64K+ as the coding floor and 256K for full solution-generation tests when Ollama, the model, and hardware support it. Expose presets so the user can choose the tradeoff intentionally.
@@ -45,6 +46,7 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 ## DXAiChat And Council Lessons
 
 - DXAiChat is the acceptance surface for chat UX. Backend diagnostics are necessary but not sufficient when the user asks whether chat, model selection, thoughts, polls, downloads, or generated artifacts work.
+- The best LocalGPT debugging loop is focused, not broad. Make one meaningful change, verify it through the real frontend/log/build path, record the evidence, and only then move to the next hypothesis. This avoids token-heavy retry storms and helps the AI Council learn from precise failures.
 - Long-running local inference needs visible runtime status in the chat transcript before the first model token arrives.
 - Model thinking/harmony output must be parsed adaptively by model family. The user-visible answer must not be replaced by hidden thinking-only output.
 - Stop/cancel should be treated as a quiet user cancellation, not an unhandled exception.
@@ -67,6 +69,7 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 - The database page should surface knowledge needing attention first and provide fast actions: mark current, request source refresh, mark review-needed, or expire.
 - Application logs, build logs, native command logs, model thoughts, chats, and generated artifact metadata are useful evidence for later council runs.
 - Tables should be inspectable from the frontend and through diagnostic routes, but bounded previews are safer than dumping whole databases into prompts.
+- A malformed SQLite memory file is a local-store health incident, not a model competence issue. On startup, run an integrity check before EF/database logging use the file. If corruption is detected, preserve the DB and sidecars in a timestamped backup, recreate a clean store, and tell the user where the evidence lives.
 - EF business object generation must ask whether the target is plain EF, DevExpress Web API/XAF/OData, snapshot/audit style, lazy loading, backing fields, delete behavior, and migration nullability.
 - Avoid accidental shadow properties by using consistent scalar foreign keys, navigation properties, inverse attributes, and targeted ModelBuilder configuration.
 

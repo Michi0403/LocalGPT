@@ -11,6 +11,10 @@
     var hlTheme = Themes.GetHighlightJSThemeCssUrl(Themes.ActiveTheme);
 
     string AppendVersion(string path) => FileVersionProvider.AddFileVersionToPath("/", path);
+    var isE2E = string.Equals(
+        Environment.GetEnvironmentVariable("LOCALGPT_E2E"),
+        "1",
+        StringComparison.OrdinalIgnoreCase);
 }
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="@Themes.ActiveTheme.BootstrapThemeMode">
@@ -51,6 +55,7 @@
         <span>Controls become active after Blazor finishes attaching.</span>
     </div>
     <Routes></Routes>
+    <InteractiveStartupMarker />
     @*     <script src="js/devextreme-license.js" type="module"></script> *@
     <script type="module" src="js/push.js"></script>
     <script type="module" src="js/loginToSetCookie.js"></script>
@@ -64,12 +69,20 @@
     <script type="module" src="js/scrollChatToBottom.js"></script>
     <script type="module" src="js/scrollWindowToBottom.js"></script>
     <script type="module" src="js/webApiCallsInBrowser.js"></script>
+    @if (isE2E)
+    {
+        <script type="module" src="@AppendVersion("js/localgpt-e2e.js")"></script>
+    }
     <script type="module" src="switcher-resources/theme-controller.js"></script>
 
     <script src="_framework/blazor.web.js" autostart="false"></script>
     <script>
+        window.localGptReady = {
+            markInteractive: () => document.documentElement.classList.add('localgpt-interactive-ready')
+        };
+
         Blazor.start()
-            .then(() => document.documentElement.classList.add('localgpt-interactive-ready'))
+            .then(() => window.localGptReady.markInteractive())
             .catch(error => {
                 console.error(error);
                 document.documentElement.classList.add('localgpt-interactive-error');

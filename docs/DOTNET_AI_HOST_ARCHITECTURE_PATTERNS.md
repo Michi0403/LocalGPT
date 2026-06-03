@@ -63,6 +63,30 @@ local file metadata, but it must not call the Ollama service for `/api/chat` or
 `/api/generate`. Never claim native inference is working until a real backend
 executable/library is wired and tested.
 
+## Better-Than-A-Constrained-Provider Criteria
+
+For LocalGPT, a generated AI host is valuable only when it improves the local
+workflow rather than recreating the same bottleneck:
+
+- Multiple active model sessions are allowed when the backend and hardware
+  budget support them.
+- Sequential fallback is visible, cancellable, and explained.
+- Per-model and per-phase timers are shown so users can see whether a council
+  member is thinking, waiting, streaming, queued, unloading, or stalled.
+- Model routing is cooperative role assignment, not competition. Persist
+  evidence-based roles and recent health such as "good implementer",
+  "reviewer", "setup helper", "stalled on long source generation", or
+  "requires lower context".
+- Hardware policy is explicit: VRAM target, CPU/GPU placement, context/output
+  budget, keep-alive, and max parallel sessions.
+- The UI exposes model health, queue depth, last error, loaded sessions, and
+  safe unload controls.
+- Downloads and runner configuration are user-approved. A model catalog entry
+  is not permission to download, execute, or integrate anything.
+
+If these are missing, the council should return a capability-gap report and a
+downloadable buildable milestone, not a refusal and not a generic dashboard.
+
 ## Interfaces To Generate
 
 When the user asks for an AI host or provider-compatible app, generate these

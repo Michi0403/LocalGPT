@@ -35,8 +35,11 @@ namespace WebView2_WinUI3_Sample
         private readonly bool _runDxAiChatReviewDiagnostics;
         private readonly bool _runDxAiChatFeatureArtifactsDiagnostics;
         private readonly bool _runDxAiChatAiHostDiagnostics;
+        private readonly bool _isE2E;
+        private readonly string _dxAiChatAiHostFollowupPrompt;
         private readonly Queue<string> _diagnosticRoutes = new();
         private readonly string _diagnosticRunId = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        private const int E2ERemoteDebuggingPort = 9222;
         //public MainWindow()
         //{
         //    this.InitializeComponent();
@@ -70,12 +73,20 @@ namespace WebView2_WinUI3_Sample
         //    SetTitle();
         //}
 
-        public MainWindow(string baseUrl, bool runDiagnostics = false, bool exitAfterDiagnostics = false)
+        public MainWindow(
+            string baseUrl,
+            bool runDiagnostics = false,
+            bool exitAfterDiagnostics = false,
+            bool isE2E = false)
         {
             InitializeComponent();
             _baseUrl = baseUrl;
             _runDiagnostics = runDiagnostics;
             _exitAfterDiagnostics = exitAfterDiagnostics;
+            _isE2E = isE2E || string.Equals(
+                Environment.GetEnvironmentVariable("LOCALGPT_E2E"),
+                "1",
+                StringComparison.OrdinalIgnoreCase);
             _runGpuCouncilDiagnostics = string.Equals(
                 Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_GPU_COUNCIL"),
                 "1",
@@ -112,6 +123,9 @@ namespace WebView2_WinUI3_Sample
                 Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_DXAICHAT_AI_HOST"),
                 "1",
                 StringComparison.OrdinalIgnoreCase) || ConsumeRuntimeFlag("webview2-smoke-dxaichat-ai-host.flag");
+            _dxAiChatAiHostFollowupPrompt = ReadRuntimeTextFlag(
+                "LOCALGPT_WEBVIEW2_SMOKE_DXAICHAT_AI_HOST_FOLLOWUP",
+                "webview2-smoke-dxaichat-ai-host-followup.txt");
             if (_runDxAiChatAiHostDiagnostics)
             {
                 _runDxAiChatCouncilDiagnostics = false;
@@ -124,7 +138,7 @@ namespace WebView2_WinUI3_Sample
             if (_runDiagnostics)
             {
                 if (_runDxAiChatAiHostDiagnostics)
-                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b,deepseek-r1:8b&diagCpuOnly=true&diagCouncilMaxOutputTokens=262144&diagCouncilMaxContextTokens=262144&diagCouncilIncludeMemory=true&diagFreshChat=true&diagGenerateCouncilArtifacts=true&diagMaxParallelModels=1");
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b,qwen3-coder:30b&diagCouncilMaxOutputTokens=131072&diagCouncilMaxContextTokens=131072&diagCouncilIncludeMemory=true&diagFreshChat=true&diagGenerateCouncilArtifacts=true&diagMaxParallelModels=1");
                 else if (_runDxAiChatFeatureArtifactsDiagnostics)
                     _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b&diagCouncilMaxOutputTokens=65536&diagCouncilMaxContextTokens=65536&diagOllamaMode=limited-gpu&diagGpuLayers=12&diagCouncilIncludeMemory=false&diagFreshChat=true&diagGenerateCouncilArtifacts=true");
                 else if (_runDxAiChatCouncilDiagnostics)
@@ -167,9 +181,41 @@ namespace WebView2_WinUI3_Sample
             if (_runDiagnostics)
                 WriteDiagnosticLaunchManifest(initialUrl);
 
-            WebView2.Source = new Uri(initialUrl); // initial navigation
-            StatusUpdate("Ready");
+            _ = InitializeWebViewAsync(initialUrl);
             SetTitle();
+        }
+
+        private async Task InitializeWebViewAsync(string initialUrl)
+        {
+            try
+            {
+                CoreWebView2Environment environment = null;
+                if (_isE2E)
+                {
+                    var profilePath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "LocalGPT",
+                        "e2e-webview2-profile");
+                    Directory.CreateDirectory(profilePath);
+
+                    Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", profilePath);
+                    Environment.SetEnvironmentVariable(
+                        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+                        $"--remote-debugging-port={E2ERemoteDebuggingPort}");
+
+                    WriteE2EManifest(initialUrl, profilePath);
+                    StatusUpdate($"LocalGPT E2E WebView2 remote debugging enabled on 127.0.0.1:{E2ERemoteDebuggingPort} with profile {profilePath}");
+                }
+
+                await WebView2.EnsureCoreWebView2Async(environment);
+                WebView2.Source = new Uri(initialUrl);
+                StatusUpdate("Ready");
+            }
+            catch (Exception ex)
+            {
+                StatusUpdate($"Error initializing WebView2: {ex.Message}");
+                WriteE2EError(ex, initialUrl);
+            }
         }
 
         private void StatusUpdate(string message)
@@ -249,6 +295,8 @@ namespace WebView2_WinUI3_Sample
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatReview = {(_runDxAiChatReviewDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatFeatureArtifacts = {(_runDxAiChatFeatureArtifactsDiagnostics ? "true" : "false")};");
                     await sender.CoreWebView2.ExecuteScriptAsync($"window.__localGptDiagRunDxAiChatAiHost = {(_runDxAiChatAiHostDiagnostics ? "true" : "false")};");
+                    await sender.CoreWebView2.ExecuteScriptAsync(
+                        $"window.__localGptDiagAiHostFollowupPrompt = {JsonSerializer.Serialize(_dxAiChatAiHostFollowupPrompt)};");
                     await ExecuteScriptWithTimeoutAsync(sender.CoreWebView2, """
                         (async () => {
                             const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -503,27 +551,30 @@ namespace WebView2_WinUI3_Sample
                                         throw new Error(`AI host smoke opened without diagGenerateCouncilArtifacts=true: ${location.href}`);
                                     }
 
-                                    if (url.searchParams.get('diagCpuOnly') !== 'true') {
-                                        throw new Error(`AI host smoke opened without diagCpuOnly=true: ${location.href}`);
+                                    const accelerationMode = labelInput('Ollama acceleration')?.value;
+                                    if (accelerationMode && accelerationMode === 'safe-cpu') {
+                                        throw new Error(`AI host smoke expected GPU-capable Ollama settings but page selected ${accelerationMode}.`);
                                     }
 
-                                    const modelQuery = url.searchParams.get('diagCouncilModels')?.toLowerCase() || '';
-                                    if (!modelQuery.includes('gpt-oss:20b') || !modelQuery.includes('deepseek-r1:8b')) {
+                                    if (url.searchParams.get('diagCpuOnly') === 'true') {
+                                        throw new Error(`AI host smoke opened with diagCpuOnly=true: ${location.href}`);
+                                    }
+
+                                    const requestedModels = (url.searchParams.get('diagCouncilModels') || '')
+                                        .split(',')
+                                        .map(item => item.trim())
+                                        .filter(Boolean);
+                                    const modelQuery = requestedModels.join(',').toLowerCase();
+                                    if (requestedModels.length < 2 || !modelQuery.includes('gpt-oss:20b')) {
                                         throw new Error(`AI host smoke opened without the expected two council models: ${location.href}`);
                                     }
 
-                                    const selected = chooseCouncilMembers(['gpt-oss:20b', 'deepseek-r1:8b'], 2);
-                                    smoke.expectedCouncilMembers = 'gpt-oss:20b, deepseek-r1:8b';
+                                    const selected = chooseCouncilMembers(requestedModels, requestedModels.length);
+                                    smoke.expectedCouncilMembers = requestedModels.join(', ');
                                     smoke.selectedCouncilMember = selected.join(', ');
                                     const selectedText = selected.join(' ').toLowerCase();
-                                    if (!selectedText.includes('gpt-oss:20b') || !selectedText.includes('deepseek-r1:8b')) {
+                                    if (!requestedModels.every(model => selectedText.includes(model.toLowerCase()))) {
                                         throw new Error(`AI host smoke could not select both required models. Checked: ${checkedCouncilMembers().join(', ') || 'none'}.`);
-                                    }
-
-                                    const unsafe = checkedCouncilMembers()
-                                        .filter(item => /qwen|gwen|gemma/i.test(item));
-                                    if (unsafe.length > 0) {
-                                        throw new Error(`AI host smoke refused to send because unsafe/high-load model(s) are still selected: ${unsafe.join(', ')}.`);
                                     }
                                 };
 
@@ -571,7 +622,7 @@ namespace WebView2_WinUI3_Sample
                                             : window.__localGptDiagRunDxAiChatAiHost
                                                 ? [
                                                     'implementation-request AI-host acceptance test.',
-                                                    'Use exactly these AI Council members: gpt-oss:20b and deepseek-r1:8b. Work politely and summarize a concise consensus.',
+                                                    `Use exactly these AI Council members: ${smoke.expectedCouncilMembers || 'the selected council members'}. Work politely and summarize a concise consensus.`,
                                                     'Generate a downloadable .NET 10 ASP.NET Core + DevExpress Blazor local AI host solution zip.',
                                                     'This is not a proxy milestone: /api/chat and /api/generate must execute local model files through a direct native/local model-file runner boundary such as IInferenceRunner, NativeModelFileInferenceProvider, and NativeModelFileProcessRunner.',
                                                     'Do not forward to upstream Ollama, LM Studio, OpenAI-compatible endpoints, or any cloud service.',
@@ -637,7 +688,6 @@ namespace WebView2_WinUI3_Sample
                                                     : window.__localGptDiagRunDxAiChatAiHost
                                                         ? newest.includes('Downloadable Artifacts')
                                                             || newest.includes('/__artifacts/council/')
-                                                            || newest.includes('Implementation artifact request')
                                                             || (newest.length > 240 && newest.includes('AI Council Result'))
                                                     : newest.length > 400
                                                         && (newest.includes('AI Council Result')
@@ -672,7 +722,8 @@ namespace WebView2_WinUI3_Sample
                                         }
                                         if (window.__localGptDiagRunDxAiChatAiHost && smoke.answerVisible) {
                                             smoke.artifactSectionVisible = await waitFor(
-                                                () => text().includes('Downloadable Artifacts') && !!document.querySelector('a[href*="/__artifacts/council/"][href$=".zip"]'),
+                                                () => (text().includes('Downloadable Artifacts') || text().includes('Authoritative Download Links'))
+                                                    && !!document.querySelector('a[href*="/__artifacts/council/"][href$=".zip"]'),
                                                 120000);
                                             if (!smoke.artifactSectionVisible) {
                                                 smoke.error = `Timed out waiting for DXAiChat AI host solution zip link. Preview: ${smoke.finalMessagePreview}`;
@@ -686,6 +737,58 @@ namespace WebView2_WinUI3_Sample
                                                     .some(item => item.ok && item.bytes > 1024);
                                                 if (!smoke.solutionZipDownloadOk) {
                                                     smoke.error = `DXAiChat AI host artifact downloads did not include a non-empty .zip file. ${JSON.stringify(smoke.artifactDownloads)}`;
+                                                }
+                                                else {
+                                                    smoke.firstSolutionZip = smoke.solutionZipDownloads[smoke.solutionZipDownloads.length - 1] || null;
+                                                    const followupPrompt = (window.__localGptDiagAiHostFollowupPrompt || '').trim();
+                                                    if (!followupPrompt) {
+                                                        smoke.waitingForHumanFollowup = true;
+                                                        smoke.followupSkippedReason = 'No runtime follow-up prompt was supplied after the council asked for setup decisions.';
+                                                        return;
+                                                    }
+
+                                                    const followupTextarea = document.querySelector('textarea');
+                                                    if (!followupTextarea) {
+                                                        throw new Error('DXAiChat textarea not found for AI host follow-up prompt.');
+                                                    }
+
+                                                    smoke.followupInitialMessageCount = messageContents().length;
+                                                    followupTextarea.focus();
+                                                    setTextareaValue(followupTextarea, followupPrompt);
+                                                    await sleep(250);
+                                                    await waitFor(() => isButtonReady(findSendButton()), 600000);
+                                                    const followupSend = findSendButton();
+                                                    if (!isButtonReady(followupSend)) {
+                                                        throw new Error('DXAiChat Send button not ready for AI host follow-up prompt.');
+                                                    }
+
+                                                    followupSend.click();
+                                                    smoke.clickedFollowupSend = true;
+                                                    smoke.followupAnswerVisible = await waitFor(() => {
+                                                        const contents = messageContents();
+                                                        const newest = contents[contents.length - 1] || '';
+                                                        smoke.followupFinalMessagePreview = newest.slice(0, 1400);
+                                                        return contents.length >= smoke.followupInitialMessageCount + 1
+                                                            && (newest.includes('Authoritative Download Links')
+                                                                || newest.includes('Downloadable Artifacts')
+                                                                || newest.includes('/__artifacts/council/')
+                                                                || newest.includes('AI Council Result'));
+                                                    }, 1800000);
+                                                    if (!smoke.followupAnswerVisible) {
+                                                        smoke.error = `Timed out waiting for DXAiChat AI host follow-up answer. Preview: ${smoke.followupFinalMessagePreview || ''}`;
+                                                    }
+                                                    else {
+                                                        smoke.followupArtifactDownloads = await fetchCouncilArtifacts();
+                                                        smoke.followupSolutionZipDownloads = smoke.followupArtifactDownloads
+                                                            .filter(item => (item.href || '').toLowerCase().endsWith('.zip')
+                                                                || (item.name || '').toLowerCase().endsWith('.zip'));
+                                                        smoke.followupSolutionZipDownloadOk = smoke.followupSolutionZipDownloads
+                                                            .some(item => item.ok && item.bytes > 1024
+                                                                && (!smoke.firstSolutionZip || item.href !== smoke.firstSolutionZip.href));
+                                                        if (!smoke.followupSolutionZipDownloadOk) {
+                                                            smoke.error = `DXAiChat AI host follow-up did not produce a fresh non-empty .zip file. ${JSON.stringify(smoke.followupArtifactDownloads)}`;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -826,7 +929,7 @@ namespace WebView2_WinUI3_Sample
                                 const smoke = window.__localGptDiagDxAiChatAiHostSmoke || window.__localGptDiagDxAiChatFeatureArtifactSmoke || window.__localGptDiagDxAiChatCouncilSmoke || window.__localGptDiagDxAiChatGptOssSmoke || window.__localGptDiagDxAiChatQwenSmoke || window.__localGptDiagDxAiChatReviewSmoke;
                                 if (!smoke) return false;
                                 if (window.__localGptDiagRunDxAiChatAiHost) {
-                                    return !!smoke.solutionZipDownloadOk || !!smoke.error;
+                                    return !!smoke.followupSolutionZipDownloadOk || !!smoke.waitingForHumanFollowup || !!smoke.error;
                                 }
                                 if (window.__localGptDiagRunDxAiChatFeatureArtifacts) {
                                     return !!smoke.artifactDownloadOk || !!smoke.error;
@@ -1063,6 +1166,7 @@ namespace WebView2_WinUI3_Sample
                     RunDxAiChatReviewDiagnostics = _runDxAiChatReviewDiagnostics,
                     RunDxAiChatFeatureArtifactsDiagnostics = _runDxAiChatFeatureArtifactsDiagnostics,
                     RunDxAiChatAiHostDiagnostics = _runDxAiChatAiHostDiagnostics,
+                    HasDxAiChatAiHostFollowupPrompt = !string.IsNullOrWhiteSpace(_dxAiChatAiHostFollowupPrompt),
                     RemainingRoutes = _diagnosticRoutes.ToArray()
                 };
 
@@ -1072,6 +1176,58 @@ namespace WebView2_WinUI3_Sample
             catch (Exception ex)
             {
                 StatusUpdate($"Could not write WebView2 diagnostic launch manifest: {ex.Message}");
+            }
+        }
+
+        private void WriteE2EManifest(string initialUrl, string profilePath)
+        {
+            try
+            {
+                foreach (var path in GetRuntimeFlagPaths("e2e.json"))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    File.WriteAllText(path, JsonSerializer.Serialize(new
+                    {
+                        Enabled = true,
+                        ProcessId = Environment.ProcessId,
+                        BaseUrl = _baseUrl,
+                        InitialUrl = initialUrl,
+                        RemoteDebuggingPort = E2ERemoteDebuggingPort,
+                        RemoteDebuggingAddress = $"127.0.0.1:{E2ERemoteDebuggingPort}",
+                        WebView2ProfilePath = profilePath,
+                        CreatedAtUtc = DateTimeOffset.UtcNow,
+                        DiagnosticRunId = _diagnosticRunId
+                    }, new JsonSerializerOptions { WriteIndented = true }));
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusUpdate($"Could not write E2E manifest: {ex.Message}");
+            }
+        }
+
+        private void WriteE2EError(Exception exception, string initialUrl)
+        {
+            try
+            {
+                foreach (var path in GetRuntimeFlagPaths("e2e-error.json"))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    File.WriteAllText(path, JsonSerializer.Serialize(new
+                    {
+                        ProcessId = Environment.ProcessId,
+                        BaseUrl = _baseUrl,
+                        InitialUrl = initialUrl,
+                        Error = exception.Message,
+                        exception.StackTrace,
+                        CreatedAtUtc = DateTimeOffset.UtcNow,
+                        DiagnosticRunId = _diagnosticRunId
+                    }, new JsonSerializerOptions { WriteIndented = true }));
+                }
+            }
+            catch
+            {
+                // E2E diagnostics must never block the visible app.
             }
         }
 
@@ -1092,6 +1248,30 @@ namespace WebView2_WinUI3_Sample
             }
 
             return consumed;
+        }
+
+        private static string ReadRuntimeTextFlag(string environmentVariableName, string fileName)
+        {
+            var value = Environment.GetEnvironmentVariable(environmentVariableName);
+            if (!string.IsNullOrWhiteSpace(value))
+                return value.Trim();
+
+            foreach (var path in GetRuntimeFlagPaths(fileName).Where(File.Exists))
+            {
+                try
+                {
+                    var text = File.ReadAllText(path).Trim();
+                    File.Delete(path);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        return text;
+                }
+                catch
+                {
+                    // A stale follow-up file should not block diagnostics.
+                }
+            }
+
+            return string.Empty;
         }
 
         private static IEnumerable<string> GetRuntimeFlagPaths(string fileName)

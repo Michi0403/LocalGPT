@@ -2,13 +2,14 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 
 namespace LocalGPT.Services;
 
-public sealed class CouncilChatClient(
+public sealed partial class CouncilChatClient(
     IMultiModelCouncilService councilService,
     Func<MultiModelCouncilRequest> requestFactory,
     Func<string, string>? downloadUrlResolver = null) : IChatClient
@@ -37,7 +38,7 @@ public sealed class CouncilChatClient(
             yield break;
         }
 
-        yield return CreateUpdate($"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Local models may take a while; partial progress is shown here so DXAiChat does not look frozen._\n\n");
+        yield return CreateUpdate($"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Local models may take a while; progress/status stays visible, detailed model output is inspectable, and the final result appears in a clean Council result block._\n\n");
 
         var updates = new ConcurrentQueue<string>();
         request.ProgressMessage = message => updates.Enqueue($"_Council status: {message}_\n\n");
@@ -154,7 +155,7 @@ public sealed class CouncilChatClient(
                 .AppendLine()
                 .AppendLine("This is the council prompt reconstructed from the DXAiChat conversation so saved chats and logs remain auditable.")
                 .AppendLine()
-                .AppendLine("<details class=\"council-prompt\" open>")
+                .AppendLine("<details class=\"council-prompt\">")
                 .AppendLine("<summary>Prompt sent to the AI Council</summary>")
                 .AppendLine()
                 .AppendLine("```text")
@@ -164,10 +165,19 @@ public sealed class CouncilChatClient(
                 .AppendLine();
         }
 
-        if (result.Warnings.Count > 0)
+        var warnings = result.Warnings
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var finalAnswer = result.FinalAnswer.Trim();
+        if (LooksLikelyTruncated(finalAnswer))
+        {
+            warnings.Add("The final answer looks like it may have stopped mid-generation. Use the continuation prompt below to resume from the last section instead of starting over.");
+        }
+
+        if (warnings.Count > 0)
         {
             builder.AppendLine("## Warnings");
-            foreach (var warning in result.Warnings)
+            foreach (var warning in warnings)
                 builder.Append("- ").AppendLine(warning);
             builder.AppendLine();
         }
@@ -179,17 +189,6 @@ public sealed class CouncilChatClient(
                 .AppendLine(result.UserPoll.Question);
             foreach (var option in result.UserPoll.Options)
                 builder.Append("- ").Append(option.Label).Append(": ").AppendLine(option.FollowUpPrompt);
-            builder.AppendLine();
-        }
-
-        if (result.Artifacts.Count > 0)
-        {
-            builder.AppendLine("## Downloadable Artifacts");
-            foreach (var artifact in result.Artifacts)
-            {
-                var downloadUrl = ResolveDownloadUrl(artifact.DownloadUrl);
-                builder.Append("- [").Append(artifact.Name).Append("](").Append(downloadUrl).Append(") - ").AppendLine(artifact.Kind);
-            }
             builder.AppendLine();
         }
 
@@ -224,7 +223,7 @@ public sealed class CouncilChatClient(
                 if (!string.IsNullOrWhiteSpace(step.Thinking))
                 {
                     builder
-                        .AppendLine("<details class=\"model-thinking\" open>")
+                        .AppendLine("<details class=\"model-thinking\">")
                         .AppendLine("<summary>Model thinking</summary>")
                         .AppendLine("<pre>")
                         .AppendLine(WebUtility.HtmlEncode(step.Thinking.Trim()))
@@ -239,7 +238,42 @@ public sealed class CouncilChatClient(
 
         builder
             .AppendLine("## Consensus")
-            .AppendLine(result.FinalAnswer);
+            .AppendLine(finalAnswer)
+            .AppendLine();
+
+        if (LooksLikelyTruncated(finalAnswer))
+        {
+            builder
+                .AppendLine("## Continue Action")
+                .AppendLine("The response appears incomplete. Send this follow-up through DXAiChat:")
+                .AppendLine()
+                .AppendLine("> Continue the previous AI Council answer from the exact cutoff. Do not repeat earlier sections. Finish the artifact/debugging plan and include final download or workspace links if generated.")
+                .AppendLine();
+        }
+
+        if (result.Artifacts.Count > 0)
+        {
+            builder
+                .AppendLine("## Authoritative Download Links")
+                .AppendLine("These links were generated by LocalGPT after the council run and supersede any model-guessed artifact path inside the consensus text.")
+                .AppendLine();
+
+            foreach (var artifact in result.Artifacts)
+            {
+                var downloadUrl = ResolveDownloadUrl(artifact.DownloadUrl);
+                builder
+                    .Append("- [")
+                    .Append(artifact.Name)
+                    .Append("](")
+                    .Append(downloadUrl)
+                    .Append(") - ")
+                    .Append(artifact.Kind)
+                    .Append(": ")
+                    .AppendLine(artifact.Summary);
+            }
+
+            builder.AppendLine();
+        }
 
         return builder.ToString();
     }
@@ -259,41 +293,28 @@ public sealed class CouncilChatClient(
     {
         var builder = new StringBuilder()
             .AppendLine()
-            .AppendLine($"<details class=\"council-step\" open>")
-            .Append("<summary>")
-            .Append(WebUtility.HtmlEncode($"{step.ModelName} finished {step.Phase} / {step.Role} ({step.DurationSeconds:n1}s)"))
-            .AppendLine("</summary>")
+            .AppendLine("<p class=\"localgpt-stream-status\"><em>")
+            .Append(WebUtility.HtmlEncode($"{step.ModelName} finished {step.Phase} / {step.Role} in {step.DurationSeconds:n1}s. Step details were streamed above; final consensus appears below."))
+            .AppendLine("</em></p>")
             .AppendLine();
 
         if (!string.IsNullOrWhiteSpace(step.Error))
         {
-            builder.AppendLine("**Error:**")
+            builder
+                .AppendLine($"<details class=\"council-step\" open>")
+                .Append("<summary>")
+                .Append(WebUtility.HtmlEncode($"{step.ModelName} error during {step.Phase}"))
+                .AppendLine("</summary>")
+                .AppendLine()
+                .AppendLine("**Error:**")
                 .AppendLine()
                 .AppendLine(step.Error.Trim())
-                .AppendLine();
-        }
-
-        if (!string.IsNullOrWhiteSpace(step.VisibleContent))
-        {
-            builder.AppendLine("**Step answer:**")
                 .AppendLine()
-                .AppendLine(step.VisibleContent.Trim())
-                .AppendLine();
-        }
-
-        if (!string.IsNullOrWhiteSpace(step.Thinking))
-        {
-            builder
-                .AppendLine("<details class=\"model-thinking\" open>")
-                .AppendLine("<summary>Model thinking</summary>")
-                .AppendLine("<pre>")
-                .AppendLine(WebUtility.HtmlEncode(step.Thinking.Trim()))
-                .AppendLine("</pre>")
                 .AppendLine("</details>")
                 .AppendLine();
         }
 
-        return builder.AppendLine("</details>").AppendLine().ToString();
+        return builder.ToString();
     }
 
     private static string TrimForDisplay(string text, int maxCharacters)
@@ -306,6 +327,35 @@ public sealed class CouncilChatClient(
             ? trimmed
             : $"{trimmed[..maxCharacters].TrimEnd()}{Environment.NewLine}... prompt truncated for display; full prompt is stored in the CouncilLogs markdown file and SQLite user message ...";
     }
+
+    private static bool LooksLikelyTruncated(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        var trimmed = text.TrimEnd();
+        if (trimmed.Length < 1000)
+            return false;
+
+        if (trimmed.EndsWith("...", StringComparison.Ordinal) ||
+            trimmed.EndsWith("…", StringComparison.Ordinal) ||
+            trimmed.EndsWith(".", StringComparison.Ordinal) ||
+            trimmed.EndsWith("!", StringComparison.Ordinal) ||
+            trimmed.EndsWith("?", StringComparison.Ordinal) ||
+            trimmed.EndsWith("]", StringComparison.Ordinal) ||
+            trimmed.EndsWith(")", StringComparison.Ordinal) ||
+            trimmed.EndsWith("}", StringComparison.Ordinal) ||
+            trimmed.EndsWith("```", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return TruncatedTailPattern().IsMatch(trimmed) ||
+            !char.IsPunctuation(trimmed[^1]);
+    }
+
+    [GeneratedRegex(@"\b(?:with|and|or|the|a|an|for|to|in|of|by|as|if|when|once|then|because|from|into|that|this|which|th)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex TruncatedTailPattern();
 
     private static ChatResponseUpdate CreateUpdate(string text) =>
         new(ChatRole.Assistant, [new TextContent(text)]);
