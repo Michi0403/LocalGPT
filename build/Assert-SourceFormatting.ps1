@@ -40,10 +40,12 @@ try {
 
     $criticalMinimumLines = @{
         "README.md" = 80
+        "SECURITY.md" = 60
         "AGENTS.md" = 120
         "llms.txt" = 30
         ".github/workflows/source-hygiene.yml" = 15
         "LocalGPTWebviewWrapper/LocalGPT/Program.cs" = 120
+        "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Database.razor" = 400
         "LocalGPTWebviewWrapper/LocalGPT/Services/NativeCommandRunner.cs" = 120
         "LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs" = 100
         "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj" = 100
