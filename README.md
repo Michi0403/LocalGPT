@@ -265,6 +265,12 @@ over the runtime `BaseUrl`, and run the WebView2 smoke path before publishing.
 
 ## Release Packages
 
+Follow [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for every public
+release. In short: release from `main`, keep the tree clean, run source hygiene,
+use a semantic version higher than every existing public release, build through
+the publish script, attach the generated manifest and notes, and stop if any
+package/static-asset gate fails.
+
 Create zip packages for multiple architectures:
 
 ```powershell

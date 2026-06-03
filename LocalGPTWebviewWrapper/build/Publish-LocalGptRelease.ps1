@@ -25,6 +25,7 @@ $wrapperRoot = Join-Path $repoRoot "LocalGPTWebviewWrapper"
 $buildScript = Join-Path $wrapperRoot "build\Build-LocalGptPackage.ps1"
 $backendProject = Join-Path $wrapperRoot "LocalGPT\LocalGPT.csproj"
 $packageManifest = Join-Path $wrapperRoot "LocalGPTWebviewWrapper (Package)\Package.appxmanifest"
+$sourceHygieneScript = Join-Path $repoRoot "build\Assert-SourceFormatting.ps1"
 $script:originalPackageManifest = $null
 $script:originalPackageManifestBytes = $null
 
@@ -101,6 +102,126 @@ function Invoke-CheckedNative {
     }
 }
 
+function ConvertTo-ReleaseVersionParts {
+    param([string]$ReleaseVersion)
+
+    $match = [regex]::Match($ReleaseVersion, "^(?:v)?(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)")
+    if (-not $match.Success) {
+        throw "Release version must start with semantic major.minor.patch: $ReleaseVersion"
+    }
+
+    return [pscustomobject]@{
+        Original = $ReleaseVersion
+        Major = [int]$match.Groups["major"].Value
+        Minor = [int]$match.Groups["minor"].Value
+        Patch = [int]$match.Groups["patch"].Value
+    }
+}
+
+function Compare-ReleaseVersionParts {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Left,
+
+        [Parameter(Mandatory = $true)]
+        $Right
+    )
+
+    if ($Left.Major -ne $Right.Major) {
+        return $Left.Major.CompareTo($Right.Major)
+    }
+
+    if ($Left.Minor -ne $Right.Minor) {
+        return $Left.Minor.CompareTo($Right.Minor)
+    }
+
+    return $Left.Patch.CompareTo($Right.Patch)
+}
+
+function Resolve-GitHubCli {
+    $gh = Get-Command gh -ErrorAction SilentlyContinue
+    if ($null -ne $gh) {
+        return $gh.Source
+    }
+
+    $ghInstallPath = Join-Path $env:ProgramFiles "GitHub CLI\gh.exe"
+    if (Test-Path $ghInstallPath) {
+        return $ghInstallPath
+    }
+
+    return ""
+}
+
+function Invoke-SourceHygieneGuard {
+    Write-Host ""
+    Write-Host "== Source hygiene guard =="
+
+    if (-not (Test-Path $sourceHygieneScript)) {
+        throw "Source hygiene script not found: $sourceHygieneScript"
+    }
+
+    & $sourceHygieneScript
+    if ($LASTEXITCODE -ne 0) {
+        throw "Source hygiene guard failed. Do not publish this release."
+    }
+}
+
+function Assert-ReleaseVersionIsNewerThanPublished {
+    param([string]$ReleaseVersion)
+
+    $candidate = ConvertTo-ReleaseVersionParts $ReleaseVersion
+    $published = @()
+
+    $localTags = & git -C $repoRoot tag --list "v*" 2>$null
+    foreach ($tag in $localTags) {
+        try {
+            $published += ConvertTo-ReleaseVersionParts $tag
+        }
+        catch {
+            Write-Warning "Ignoring non-semantic local tag $tag"
+        }
+    }
+
+    if ($CreateGitHubRelease) {
+        $ghCommand = Resolve-GitHubCli
+        if ([string]::IsNullOrWhiteSpace($ghCommand)) {
+            throw "GitHub CLI 'gh' was not found. Cannot prove release version ordering."
+        }
+
+        $releaseLines = & $ghCommand release list --limit 100 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not list GitHub releases. Cannot prove release version ordering."
+        }
+
+        foreach ($line in $releaseLines) {
+            $match = [regex]::Match($line, "v(?<version>\d+\.\d+\.\d+[^\s]*)")
+            if ($match.Success) {
+                try {
+                    $published += ConvertTo-ReleaseVersionParts $match.Groups["version"].Value
+                }
+                catch {
+                    Write-Warning "Ignoring non-semantic GitHub release entry: $line"
+                }
+            }
+        }
+    }
+
+    $highest = $null
+    foreach ($publishedVersion in $published) {
+        if ($null -eq $highest -or (Compare-ReleaseVersionParts $publishedVersion $highest) -gt 0) {
+            $highest = $publishedVersion
+        }
+    }
+
+    if ($null -ne $highest -and (Compare-ReleaseVersionParts $candidate $highest) -le 0) {
+        throw "Release version $ReleaseVersion must be higher than existing public release $($highest.Original)."
+    }
+
+    if ($null -ne $highest) {
+        Write-Host "Release version $ReleaseVersion is higher than existing release $($highest.Original)."
+    }
+}
+
 trap {
     Restore-PackageManifestVersion
     throw $_
@@ -118,6 +239,9 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
     $PackageVersion = Resolve-AppxPackageVersion $Version
 }
+
+Assert-ReleaseVersionIsNewerThanPublished $Version
+Invoke-SourceHygieneGuard
 
 $releaseRoot = Join-Path $repoRoot "artifacts\releases\$Version"
 New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
@@ -310,21 +434,13 @@ Write-Host "Release manifest: $manifestPath"
 Write-Host "Release notes: $releaseNotesPath"
 
 if ($CreateGitHubRelease) {
-    $gh = Get-Command gh -ErrorAction SilentlyContinue
-    $ghCommand = if ($null -ne $gh) { $gh.Source } else { "" }
-    if ([string]::IsNullOrWhiteSpace($ghCommand)) {
-        $ghInstallPath = Join-Path $env:ProgramFiles "GitHub CLI\gh.exe"
-        if (Test-Path $ghInstallPath) {
-            $ghCommand = $ghInstallPath
-        }
-    }
-
+    $ghCommand = Resolve-GitHubCli
     if ([string]::IsNullOrWhiteSpace($ghCommand)) {
         throw "GitHub CLI 'gh' was not found. Install it or upload the zip files from $releaseRoot manually."
     }
 
     $tag = "v$Version"
-    $ghArgs = @("release", "create", $tag)
+    $ghArgs = @("release", "create", $tag, "--latest")
     if ($Draft) {
         $ghArgs += "--draft"
     }

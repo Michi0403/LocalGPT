@@ -26,6 +26,9 @@ publishes, and release notes.
 - Use the wrapper's WebView2 smoke diagnostics as the frontend fallback for LocalGPT UI tests. An assistant's built-in browser is not proof that the WinUI/WebView2 packaged shell works.
 - Treat council knowledge problems as repairable. Import local source/docs through `/__diag/learn-base/import`, review SQLite knowledge entries, add source-backed docs/routes where needed, and ask models to emit `<localgpt-capability-gap>` blocks instead of refusing concrete artifact requests.
 - Remember LocalGPT is useful for more than code generation: Windows deployment diagnostics, WebView2/MSIX repair, DevExpress/Bootstrap design work, EF/SQLite schema decisions, Minecraft tooling, and local AI-host architecture discussion are all first-class.
+- Release work must follow `docs/RELEASE_PROCESS.md`: run source hygiene, use
+  the publish script, choose a semantic version higher than every public release,
+  attach the generated manifest/notes/assets, and stop on any failed gate.
 
 ## Mandatory LocalGPT Council test gate
 

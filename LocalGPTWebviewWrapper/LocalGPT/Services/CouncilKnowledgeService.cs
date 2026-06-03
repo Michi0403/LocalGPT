@@ -833,7 +833,13 @@ namespace LocalGPT.Services
                         "Do not accept route text that appears only in README, comments, or UI snippets as implementation. Validate Program.cs/endpoints, appsettings/bootstrap keys, native-runner service code, and navigation pages before zipping. " +
                         "The frontend should resemble a modern AI host: left navigation, chat-first center area, model selector, model catalog, running models, downloads, API console, settings, logs, and clear empty/setup states rather than a raw table prototype. " +
                         "If missing knowledge is detected, ask for or import official sources, but still generate a safe buildable milestone with explicit setup gaps rather than pretending inference works.",
-                    HelpfulSources = "- Official Ollama API docs: https://docs.ollama.com/api and https://docs.ollama.com/api/chat.\n- Ollama GitHub API source docs: https://github.com/ollama/ollama/blob/main/docs/api.md.\n- Microsoft Learn Minimal APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis.\n- Microsoft Learn EF Core SQLite provider: https://learn.microsoft.com/ef/core/providers/sqlite/.\n- DevExpress Blazor component docs: https://docs.devexpress.com/Blazor/400725/blazor-components, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxGrid, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxButton, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxTextBox.\n- Local evidence: real WebView2 DXAiChat repair prompt, generated LocalGPTApp194332-883568bf.zip, Program.cs route inspection, and CouncilArtifactService validation repair.",
+                    HelpfulSources =
+                        "- Official Ollama API docs: https://docs.ollama.com/api and https://docs.ollama.com/api/chat.\n" +
+                        "- Ollama GitHub API source docs: https://github.com/ollama/ollama/blob/main/docs/api.md.\n" +
+                        "- Microsoft Learn Minimal APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis.\n" +
+                        "- Microsoft Learn EF Core SQLite provider: https://learn.microsoft.com/ef/core/providers/sqlite/.\n" +
+                        "- DevExpress Blazor component docs: https://docs.devexpress.com/Blazor/400725/blazor-components, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxGrid, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxButton, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxTextBox.\n" +
+                        "- Local evidence: real WebView2 DXAiChat repair prompt, generated LocalGPTApp194332-883568bf.zip, Program.cs route inspection, and CouncilArtifactService validation repair.",
                     Tags = "seed; ai-host; ollama-api; minimal-api; devexpress; artifact-validation; dxaichat; webview2; source-backed; user-approved",
                     Confidence = 97,
                     IsUserApproved = true,
@@ -855,7 +861,17 @@ namespace LocalGPT.Services
                         "Generated tests should include route/integration tests using Microsoft.AspNetCore.Mvc.Testing/WebApplicationFactory or an equivalent live route test page. " +
                         "The chat UI can use DevExpress Blazor/DxAIChat for user interaction and native file uploads; file upload only transfers files, LocalGPT/backend/model code must explicitly process uploaded content. " +
                         "Python.NET is a valid optional runner boundary when the user approves a Python runtime and package list, but generated code must isolate Python execution behind a safe .NET service contract.",
-                    HelpfulSources = "- Ollama API introduction/base URL/generate: https://docs.ollama.com/api.\n- Ollama chat API: https://docs.ollama.com/api/chat.\n- Ollama list models: https://docs.ollama.com/api/tags.\n- Ollama running models: https://docs.ollama.com/api/ps.\n- Ollama CLI reference: https://docs.ollama.com/cli.\n- Microsoft Learn Minimal APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis.\n- Microsoft Learn EF Core SQLite provider: https://learn.microsoft.com/ef/core/providers/sqlite/.\n- Microsoft Learn ASP.NET Core integration tests: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests.\n- DevExpress DxAIChat docs: https://docs.devexpress.com/Blazor/DevExpress.AIIntegration.Blazor.Chat.DxAIChat.\n- Python.NET embedding docs: https://pythonnet.github.io/pythonnet/dotnet.html.",
+                    HelpfulSources =
+                        "- Ollama API introduction/base URL/generate: https://docs.ollama.com/api.\n" +
+                        "- Ollama chat API: https://docs.ollama.com/api/chat.\n" +
+                        "- Ollama list models: https://docs.ollama.com/api/tags.\n" +
+                        "- Ollama running models: https://docs.ollama.com/api/ps.\n" +
+                        "- Ollama CLI reference: https://docs.ollama.com/cli.\n" +
+                        "- Microsoft Learn Minimal APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis.\n" +
+                        "- Microsoft Learn EF Core SQLite provider: https://learn.microsoft.com/ef/core/providers/sqlite/.\n" +
+                        "- Microsoft Learn ASP.NET Core integration tests: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests.\n" +
+                        "- DevExpress DxAIChat docs: https://docs.devexpress.com/Blazor/DevExpress.AIIntegration.Blazor.Chat.DxAIChat.\n" +
+                        "- Python.NET embedding docs: https://pythonnet.github.io/pythonnet/dotnet.html.",
                     Tags = "seed; ai-host; ollama-api; ollama-cli; minimal-api; sqlite; efcore; integration-tests; dxaichat; pythonnet; source-backed",
                     Confidence = 96,
                     IsUserApproved = true,

@@ -99,6 +99,10 @@ Important rules:
 
 The package project is not a normal SDK-style project. Use Visual Studio MSBuild, not only `dotnet build`, for full package/debug verification.
 
+Release work must follow `docs/RELEASE_PROCESS.md`. Do not publish by hand,
+skip source hygiene, reuse a tag, or choose a lower semantic version than an
+existing public release. The publish script is the release path.
+
 Important package behavior:
 
 - `LocalGPTWebviewWrapper` publishes framework-dependent for .NET 10; use the repair script to install the .NET 10 Desktop Runtime instead of letting Windows open an Edge runtime prompt
@@ -234,9 +238,26 @@ Agent guidance:
 - use council artifact workspaces for generated source, user edits, HtmlEditor-style file review, compile checks, and refreshed downloadable zips. The AI Council can ask Codex/coding agents to maintain these LocalGPT mechanisms, tests, commits, packages, and releases while Michi0403 remains the human decision owner.
 - no more spray-and-pray. Change one meaningful variable at a time, use the smallest prompt that proves the current hypothesis, inspect DXAiChat/frontend/log evidence, teach the missing knowledge or function, then rerun. Do not start broad retries, giant context dumps, or multiple unrelated fixes when a focused diagnostic can prove the next step.
 - Real frontend proof means the LocalGPT Blazor UI running inside the WinUI WebView2 host. Backend diagnostics, sandbox browser tests, PowerShell probes, and direct Ollama calls are supporting evidence only. Use `LocalGPTWebviewWrapper/build/Test-LocalGptWebView2E2E.ps1` for the primary UI path and report its saved `artifacts/e2e/.../result.json` plus screenshot.
-- For DXAiChat and AI Council product-workflow tests, operate the visible chat inside the real WebView2 host. Use `LocalGPTWebviewWrapper/build/Send-LocalGptWebView2Prompt.ps1` or equivalent WebView2 remote-debugging/Selenium attach automation to write into the actual DXAiChat textarea and click the actual send button. Do not count an agent sandbox browser, backend endpoint call, direct Ollama call, or "typed but not sent" state as proof. If a user asks whether the Council can develop, review, debug, or produce artifacts through DXAiChat, the acceptance evidence must include the real prompt, visible transcript/result, screenshot, logs, and generated download links when applicable.
+- For DXAiChat and AI Council product-workflow tests, operate the visible chat
+  inside the real WebView2 host. Use
+  `LocalGPTWebviewWrapper/build/Send-LocalGptWebView2Prompt.ps1` or equivalent
+  WebView2 remote-debugging/Selenium attach automation to write into the actual
+  DXAiChat textarea and click the actual send button. Do not count an agent
+  sandbox browser, backend endpoint call, direct Ollama call, or
+  "typed but not sent" state as proof. If a user asks whether the Council can
+  develop, review, debug, or produce artifacts through DXAiChat, the acceptance
+  evidence must include the real prompt, visible transcript/result, screenshot,
+  logs, and generated download links when applicable.
 - If `Send-LocalGptWebView2Prompt.ps1` attaches but the visible app is on Home, Install, Test Lab, or any route other than `/Chat`, that is a WebView2 state/navigation issue to fix in the attached real host. Do not switch tools, do not open an assistant sandbox browser, and do not replace the attempt with backend diagnostics. First drive or navigate the existing visible WebView2 page to `/Chat`, then confirm the real DXAiChat input and send button are interactive before sending.
-- Do not use `diagSession` or diagnostic query-string mutation as a way to create, reset, select, or control DXAiChat/AI Council conversation state. Diagnostic URL parameters are narrow diagnostics only and can leave the visible Blazor/WebView2 UI in a transient or stale state. For product-workflow validation, open the visible Chat page normally, use in-app controls such as Start New Chat, model selection, artifact toggle, textbox, and send, and wait until the UI is visibly stable before interacting. If a fresh Council context is required, use the visible UI flow or implement a real in-app feature for that workflow; do not fake it by changing the URL.
+- Do not use `diagSession` or diagnostic query-string mutation as a way to
+  create, reset, select, or control DXAiChat/AI Council conversation state.
+  Diagnostic URL parameters are narrow diagnostics only and can leave the
+  visible Blazor/WebView2 UI in a transient or stale state. For product-workflow
+  validation, open the visible Chat page normally, use in-app controls such as
+  Start New Chat, model selection, artifact toggle, textbox, and send, and wait
+  until the UI is visibly stable before interacting. If a fresh Council context
+  is required, use the visible UI flow or implement a real in-app feature for
+  that workflow; do not fake it by changing the URL.
 - treat model selection as cooperative role routing, not competition. Track evidence-based roles such as implementer, reviewer, architect, UX checker, safety checker, and setup helper; explain role changes to the user and use polls for meaningful exclusions or replacements.
 
 Detailed mod-builder instructions for AI agents are in `docs/MINECRAFT_MOD_AI_BUILDER.md`. Current workflow memory and known-good commands are in `docs/LOCALGPT_WORKFLOW_MEMORY.md`.
