@@ -310,16 +310,23 @@ namespace LocalGPT.Services
             if (ids.Length == 0)
                 return;
 
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            var entries = await db.CouncilKnowledgeEntries
-                .Where(entry => ids.Contains(entry.Id))
-                .ToListAsync(cancellationToken);
-            var now = DateTime.UtcNow;
-            foreach (var entry in entries)
-                entry.LastUsedAtUtc = now;
+            try
+            {
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
+                var entries = await db.CouncilKnowledgeEntries
+                    .Where(entry => ids.Contains(entry.Id))
+                    .ToListAsync(cancellationToken);
+                var now = DateTime.UtcNow;
+                foreach (var entry in entries)
+                    entry.LastUsedAtUtc = now;
 
-            await db.SaveChangesAsync(cancellationToken);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or DbUpdateConcurrencyException or IOException)
+            {
+                logger.LogWarning(ex, "Could not update LastUsedAtUtc for council knowledge entries. Knowledge briefing will continue with read-only data.");
+            }
         }
 
         private static string ComputeSourceHash(CouncilKnowledgeEntry entry)
