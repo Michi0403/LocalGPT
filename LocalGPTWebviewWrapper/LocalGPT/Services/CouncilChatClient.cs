@@ -14,6 +14,7 @@ public sealed class CouncilChatClient(
     Func<string, string>? downloadUrlResolver = null) : IChatClient
 {
     private const int MaxDxAiChatPromptCharacters = 60000;
+    private const int MaxVisiblePromptCharacters = 12000;
 
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
@@ -146,6 +147,23 @@ public sealed class CouncilChatClient(
             .AppendLine(result.ModelNames.Count == 0 ? "none" : string.Join(", ", result.ModelNames))
             .AppendLine();
 
+        if (!string.IsNullOrWhiteSpace(result.Prompt))
+        {
+            builder
+                .AppendLine("## Original request")
+                .AppendLine()
+                .AppendLine("This is the council prompt reconstructed from the DXAiChat conversation so saved chats and logs remain auditable.")
+                .AppendLine()
+                .AppendLine("<details class=\"council-prompt\" open>")
+                .AppendLine("<summary>Prompt sent to the AI Council</summary>")
+                .AppendLine()
+                .AppendLine("```text")
+                .AppendLine(TrimForDisplay(result.Prompt, MaxVisiblePromptCharacters))
+                .AppendLine("```")
+                .AppendLine("</details>")
+                .AppendLine();
+        }
+
         if (result.Warnings.Count > 0)
         {
             builder.AppendLine("## Warnings");
@@ -276,6 +294,17 @@ public sealed class CouncilChatClient(
         }
 
         return builder.AppendLine("</details>").AppendLine().ToString();
+    }
+
+    private static string TrimForDisplay(string text, int maxCharacters)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        var trimmed = text.Trim();
+        return trimmed.Length <= maxCharacters
+            ? trimmed
+            : $"{trimmed[..maxCharacters].TrimEnd()}{Environment.NewLine}... prompt truncated for display; full prompt is stored in the CouncilLogs markdown file and SQLite user message ...";
     }
 
     private static ChatResponseUpdate CreateUpdate(string text) =>

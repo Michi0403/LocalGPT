@@ -919,7 +919,9 @@ namespace LocalGPT.Services
                 .AppendLine($"Models: {string.Join(", ", result.ModelNames)}")
                 .AppendLine(result.KnowledgeEntryId is Guid knowledgeId ? $"Knowledge entry: {knowledgeId}" : "Knowledge entry: not saved")
                 .AppendLine()
-                .AppendLine("## Prompt")
+                .AppendLine("## Original Prompt / User Request Audit")
+                .AppendLine()
+                .AppendLine("This is the exact prompt LocalGPT sent into the AI Council, including the reconstructed DXAiChat conversation when the run came from the chat window.")
                 .AppendLine()
                 .AppendLine(result.Prompt)
                 .AppendLine();

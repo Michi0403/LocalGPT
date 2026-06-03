@@ -301,6 +301,14 @@
         }
 
         <section class="final-panel">
+            <h2>Original Prompt</h2>
+            <details class="council-prompt" open>
+                <summary>Prompt sent to the AI Council</summary>
+                <pre>@TrimForDisplay(LastResult.Prompt, 12000)</pre>
+            </details>
+        </section>
+
+        <section class="final-panel">
             <h2>Consensus Answer</h2>
             <div class="markdown-output">@((MarkupString)Markdown.ToHtml(LastResult.FinalAnswer).Trim())</div>
         </section>
@@ -554,6 +562,17 @@
 
     string GetArtifactUrl(CouncilArtifact artifact) =>
         Navigation.ToAbsoluteUri(artifact.DownloadUrl).ToString();
+
+    static string TrimForDisplay(string value, int maxCharacters)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxCharacters
+            ? trimmed
+            : $"{trimmed[..maxCharacters].TrimEnd()}{Environment.NewLine}... prompt truncated for display; full prompt is stored in the CouncilLogs markdown file and SQLite user message ...";
+    }
 
     void ExcludeModel(string modelName)
     {
