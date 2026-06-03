@@ -266,6 +266,9 @@ public class CompositeChatClient : IChatClient
                 HelpfulSources = ExtractField(body, "helpful-sources", "None explicitly requested."),
                 Tags = MergeTags(ExtractField(body, "tags"), "model-written; unapproved"),
                 Confidence = ParseConfidence(ExtractField(body, "confidence")),
+                VerificationStatus = "ModelSuggested",
+                ReviewStatus = "NeedsUserReview",
+                ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
                 IsUserApproved = false,
                 IsPinned = false,
                 IsArchived = false
@@ -292,6 +295,11 @@ public class CompositeChatClient : IChatClient
                 HelpfulSources = $"Local sources:\n{localSources}\n\nExternal sources:\n{externalSources}",
                 Tags = MergeTags(ExtractField(body, "tags"), "capability-gap; model-written; unapproved"),
                 Confidence = ParseConfidence(ExtractField(body, "confidence")),
+                VerificationStatus = "ModelSuggested",
+                ReviewStatus = "NeedsDiagnosticVerification",
+                ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
+                StalenessReason = "Capability gap request needs human or diagnostic verification before it becomes trusted guidance.",
+                StalenessDetectedBy = "DXAiChat capability-gap parser",
                 IsUserApproved = false,
                 IsPinned = false,
                 IsArchived = false

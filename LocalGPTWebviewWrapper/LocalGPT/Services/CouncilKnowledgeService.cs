@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Data;
 using LocalGPT.Interfaces;
@@ -26,13 +27,21 @@ namespace LocalGPT.Services
             await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
             await SeedKnowledgeAsync(db, cancellationToken);
 
+            var now = DateTime.UtcNow;
             var query = db.CouncilKnowledgeEntries.AsNoTracking();
             if (!includeArchived)
-                query = query.Where(entry => !entry.IsArchived);
+                query = query.Where(entry =>
+                    !entry.IsArchived &&
+                    entry.ReviewStatus != "Archived" &&
+                    entry.ReviewStatus != "Deprecated" &&
+                    entry.ReviewStatus != "Superseded" &&
+                    entry.ReviewStatus != "Expired" &&
+                    (entry.ExpiresAtUtc == null || entry.ExpiresAtUtc > now));
 
             return await query
                 .OrderByDescending(entry => entry.IsPinned)
                 .ThenByDescending(entry => entry.IsUserApproved)
+                .ThenBy(entry => entry.ReviewStatus)
                 .ThenByDescending(entry => entry.UpdatedAtUtc)
                 .Take(Math.Clamp(take, 1, 500))
                 .ToListAsync(cancellationToken);
@@ -63,6 +72,16 @@ namespace LocalGPT.Services
                 existing.Tags = entry.Tags;
                 existing.Confidence = entry.Confidence;
                 existing.VerificationStatus = entry.VerificationStatus;
+                existing.ReviewStatus = entry.ReviewStatus;
+                existing.ExpiresAtUtc = entry.ExpiresAtUtc;
+                existing.LastVerifiedAtUtc = entry.LastVerifiedAtUtc;
+                existing.LastUsedAtUtc = entry.LastUsedAtUtc;
+                existing.SupersededByKnowledgeId = entry.SupersededByKnowledgeId;
+                existing.StalenessReason = entry.StalenessReason;
+                existing.StalenessDetectedAtUtc = entry.StalenessDetectedAtUtc;
+                existing.StalenessDetectedBy = entry.StalenessDetectedBy;
+                existing.SourceHash = entry.SourceHash;
+                existing.SourceDateUtc = entry.SourceDateUtc;
                 existing.IsUserApproved = entry.IsUserApproved;
                 existing.IsPinned = entry.IsPinned;
                 existing.IsArchived = entry.IsArchived;
@@ -101,6 +120,8 @@ namespace LocalGPT.Services
                 Tags = BuildTags(result, nonSubstantive),
                 Confidence = nonSubstantive ? 20 : result.Warnings.Count == 0 ? 75 : 55,
                 VerificationStatus = nonSubstantive ? "Archived" : "ModelSuggested",
+                ReviewStatus = nonSubstantive ? "Archived" : "NeedsUserReview",
+                ExpiresAtUtc = nonSubstantive ? null : DateTime.UtcNow.AddDays(30),
                 IsUserApproved = false,
                 IsPinned = result.UserPoll is not null && !nonSubstantive,
                 IsArchived = nonSubstantive
@@ -122,9 +143,16 @@ namespace LocalGPT.Services
 
             var briefingEntries = entries
                 .Where(entry => !LooksLikeNonSubstantiveContent(entry.Content))
+                .Where(IsUsableForBriefing)
                 .OrderByDescending(entry => entry.IsUserApproved)
                 .GroupBy(entry => $"{entry.Scope}|{entry.Topic}|{entry.Source}", StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First());
+                .Select(group => group.First())
+                .ToList();
+
+            if (briefingEntries.Count == 0)
+                return string.Empty;
+
+            await MarkEntriesUsedAsync(briefingEntries.Select(entry => entry.Id), cancellationToken);
 
             foreach (var entry in briefingEntries)
             {
@@ -156,11 +184,23 @@ namespace LocalGPT.Services
             entry.Tags = Trim(entry.Tags, 400);
             entry.Confidence = Math.Clamp(entry.Confidence, 0, 100);
             entry.VerificationStatus = NormalizeVerificationStatus(entry);
+            entry.ReviewStatus = NormalizeReviewStatus(entry);
+            entry.StalenessReason = Trim(entry.StalenessReason, 500);
+            entry.StalenessDetectedBy = Trim(entry.StalenessDetectedBy, 160);
+            entry.SourceHash = Trim(entry.SourceHash, 128);
+            if (string.IsNullOrWhiteSpace(entry.SourceHash))
+                entry.SourceHash = ComputeSourceHash(entry);
+
+            if (entry.VerificationStatus is "SourceBacked" or "UserVerified" && entry.LastVerifiedAtUtc is null)
+                entry.LastVerifiedAtUtc = DateTime.UtcNow;
+
+            if (entry.ReviewStatus == "Archived")
+                entry.IsArchived = true;
         }
 
         private static string BuildTrustLabel(CouncilKnowledgeEntry entry)
         {
-            return entry.VerificationStatus switch
+            var trust = entry.VerificationStatus switch
             {
                 "SourceBacked" => "source-backed seed",
                 "UserVerified" => "verified by user",
@@ -170,6 +210,21 @@ namespace LocalGPT.Services
                     ? "verified by user"
                     : "needs verification"
             };
+
+            var review = entry.ReviewStatus switch
+            {
+                "Current" => "current",
+                "NeedsUserReview" => "needs user review",
+                "NeedsSourceRefresh" => "needs source refresh",
+                "NeedsDiagnosticVerification" => "needs diagnostic verification",
+                "Expired" => "expired",
+                "Deprecated" => "deprecated",
+                "Superseded" => "superseded",
+                "Archived" => "archived",
+                _ => "needs review"
+            };
+
+            return $"{trust}; review: {review}";
         }
 
         private static string NormalizeVerificationStatus(CouncilKnowledgeEntry entry)
@@ -196,6 +251,81 @@ namespace LocalGPT.Services
         private static bool IsKnownVerificationStatus(string value)
         {
             return value is "SourceBacked" or "UserVerified" or "ModelSuggested" or "NeedsVerification" or "Archived";
+        }
+
+        private static string NormalizeReviewStatus(CouncilKnowledgeEntry entry)
+        {
+            if (entry.IsArchived)
+                return "Archived";
+
+            if (entry.SupersededByKnowledgeId is not null)
+                return "Superseded";
+
+            var now = DateTime.UtcNow;
+            if (entry.ExpiresAtUtc is not null && entry.ExpiresAtUtc.Value <= now)
+            {
+                if (string.IsNullOrWhiteSpace(entry.StalenessReason))
+                    entry.StalenessReason = "Knowledge expiry date passed.";
+                entry.StalenessDetectedAtUtc ??= now;
+                entry.StalenessDetectedBy = TrimOrFallback(entry.StalenessDetectedBy, 160, "LocalGPT knowledge lifecycle");
+                return "Expired";
+            }
+
+            var requested = Trim(entry.ReviewStatus, 80).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
+            if (requested == "NeedsUserReview" &&
+                entry.IsUserApproved &&
+                entry.VerificationStatus is "SourceBacked" or "UserVerified")
+                return "Current";
+
+            if (IsKnownReviewStatus(requested))
+                return requested;
+
+            return entry.VerificationStatus switch
+            {
+                "SourceBacked" or "UserVerified" => "Current",
+                "Archived" => "Archived",
+                _ => "NeedsUserReview"
+            };
+        }
+
+        private static bool IsKnownReviewStatus(string value)
+        {
+            return value is "Current" or "NeedsUserReview" or "NeedsSourceRefresh" or "NeedsDiagnosticVerification" or "Expired" or "Deprecated" or "Superseded" or "Archived";
+        }
+
+        private static bool IsUsableForBriefing(CouncilKnowledgeEntry entry)
+        {
+            if (entry.IsArchived)
+                return false;
+
+            if (entry.ExpiresAtUtc is not null && entry.ExpiresAtUtc.Value <= DateTime.UtcNow)
+                return false;
+
+            return entry.ReviewStatus is not "Archived" and not "Deprecated" and not "Superseded" and not "Expired";
+        }
+
+        private async Task MarkEntriesUsedAsync(IEnumerable<Guid> entryIds, CancellationToken cancellationToken)
+        {
+            var ids = entryIds.Distinct().ToArray();
+            if (ids.Length == 0)
+                return;
+
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+            await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
+            var entries = await db.CouncilKnowledgeEntries
+                .Where(entry => ids.Contains(entry.Id))
+                .ToListAsync(cancellationToken);
+            var now = DateTime.UtcNow;
+            foreach (var entry in entries)
+                entry.LastUsedAtUtc = now;
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        private static string ComputeSourceHash(CouncilKnowledgeEntry entry)
+        {
+            var sourceMaterial = $"{entry.Topic}\n{entry.Scope}\n{entry.Source}\n{entry.HelpfulSources}\n{entry.Content}";
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceMaterial)));
         }
 
         private static async Task SeedKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
@@ -772,13 +902,18 @@ namespace LocalGPT.Services
             return db.Database.ExecuteSqlRawAsync(
                 """
                 UPDATE "CouncilKnowledgeEntries"
-                SET "VerificationStatus" = 'UserVerified'
+                SET "VerificationStatus" = 'UserVerified',
+                    "ReviewStatus" = 'Current',
+                    "LastVerifiedAtUtc" = COALESCE("LastVerifiedAtUtc", strftime('%Y-%m-%dT%H:%M:%fZ','now'))
                 WHERE "Source" = {0}
                   AND "IsUserApproved" = 1
                   AND (
                       "VerificationStatus" IS NULL
                       OR "VerificationStatus" = ''
                       OR "VerificationStatus" = 'NeedsVerification'
+                      OR "ReviewStatus" IS NULL
+                      OR "ReviewStatus" = ''
+                      OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview')
                   );
                 """,
                 [seedSource],
@@ -800,16 +935,31 @@ namespace LocalGPT.Services
                 """
                 UPDATE "CouncilKnowledgeEntries"
                 SET "VerificationStatus" =
-                    CASE
-                        WHEN "Source" = 'User-approved generation advice' THEN 'UserVerified'
-                        ELSE 'SourceBacked'
-                    END
+                        CASE
+                            WHEN "Source" = 'User-approved generation advice' THEN 'UserVerified'
+                            ELSE 'SourceBacked'
+                        END,
+                    "ReviewStatus" = 'Current',
+                    "LastVerifiedAtUtc" = COALESCE("LastVerifiedAtUtc", strftime('%Y-%m-%dT%H:%M:%fZ','now'))
                 WHERE "Source" IN (
                     'LocalGPT SQL seed',
                     'Microsoft Learn source-backed seed',
                     'User-approved generation advice'
                 )
                   AND ("VerificationStatus" IS NULL OR trim("VerificationStatus") = '' OR "VerificationStatus" = 'NeedsVerification');
+                """,
+                cancellationToken);
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                UPDATE "CouncilKnowledgeEntries"
+                SET "ReviewStatus" = 'Current',
+                    "LastVerifiedAtUtc" = COALESCE("LastVerifiedAtUtc", strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+                WHERE "Source" IN (
+                    'LocalGPT SQL seed',
+                    'Microsoft Learn source-backed seed',
+                    'User-approved generation advice'
+                )
+                  AND ("ReviewStatus" IS NULL OR trim("ReviewStatus") = '' OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview'));
                 """,
                 cancellationToken);
         }

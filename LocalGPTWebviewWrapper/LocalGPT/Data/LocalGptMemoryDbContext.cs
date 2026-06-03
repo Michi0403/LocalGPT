@@ -61,10 +61,19 @@ namespace LocalGPT.Data
                 entity.Property(entry => entry.HelpfulSources).IsRequired();
                 entity.Property(entry => entry.Tags).HasMaxLength(400).IsRequired();
                 entity.Property(entry => entry.VerificationStatus).HasMaxLength(80).IsRequired();
+                entity.Property(entry => entry.ReviewStatus).HasMaxLength(80).IsRequired();
+                entity.Property(entry => entry.StalenessReason).HasMaxLength(500).IsRequired();
+                entity.Property(entry => entry.StalenessDetectedBy).HasMaxLength(160).IsRequired();
+                entity.Property(entry => entry.SourceHash).HasMaxLength(128).IsRequired();
                 entity.HasIndex(entry => entry.UpdatedAtUtc);
                 entity.HasIndex(entry => new { entry.IsUserApproved, entry.UpdatedAtUtc });
                 entity.HasIndex(entry => new { entry.IsPinned, entry.UpdatedAtUtc });
                 entity.HasIndex(entry => entry.VerificationStatus);
+                entity.HasIndex(entry => entry.ReviewStatus);
+                entity.HasIndex(entry => entry.ExpiresAtUtc);
+                entity.HasIndex(entry => entry.LastVerifiedAtUtc);
+                entity.HasIndex(entry => entry.LastUsedAtUtc);
+                entity.HasIndex(entry => entry.SupersededByKnowledgeId);
                 entity.HasIndex(entry => entry.Scope);
             });
 

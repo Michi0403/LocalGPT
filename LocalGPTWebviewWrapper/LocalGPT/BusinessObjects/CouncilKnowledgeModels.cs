@@ -13,6 +13,16 @@ namespace LocalGPT.BusinessObjects
         public string Tags { get; set; } = string.Empty;
         public int Confidence { get; set; } = 60;
         public string VerificationStatus { get; set; } = "NeedsVerification";
+        public string ReviewStatus { get; set; } = "NeedsUserReview";
+        public DateTime? ExpiresAtUtc { get; set; }
+        public DateTime? LastVerifiedAtUtc { get; set; }
+        public DateTime? LastUsedAtUtc { get; set; }
+        public Guid? SupersededByKnowledgeId { get; set; }
+        public string StalenessReason { get; set; } = string.Empty;
+        public DateTime? StalenessDetectedAtUtc { get; set; }
+        public string StalenessDetectedBy { get; set; } = string.Empty;
+        public string SourceHash { get; set; } = string.Empty;
+        public DateTime? SourceDateUtc { get; set; }
         public bool IsUserApproved { get; set; }
         public bool IsPinned { get; set; }
         public bool IsArchived { get; set; }

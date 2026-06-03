@@ -244,7 +244,10 @@ namespace LocalGPT.Services
                 .Select(ReadSmallText)
                 .Count(text => text.TrimStart().StartsWith("---", StringComparison.Ordinal));
 
-            return
+            return StampSourceMetadata(
+                rootPath,
+                markdownFiles,
+                now,
             [
                 new CouncilKnowledgeEntry
                 {
@@ -333,7 +336,7 @@ namespace LocalGPT.Services
                     IsUserApproved = true,
                     IsPinned = true
                 }
-            ];
+            ]);
         }
 
         private async Task ImportWindowsDevDocsCorpusAsync(
@@ -390,7 +393,10 @@ namespace LocalGPT.Services
                 .Select(ReadSmallText)
                 .Count(text => text.TrimStart().StartsWith("---", StringComparison.Ordinal));
 
-            return
+            return StampSourceMetadata(
+                rootPath,
+                markdownFiles,
+                now,
             [
                 new CouncilKnowledgeEntry
                 {
@@ -464,7 +470,46 @@ namespace LocalGPT.Services
                     IsUserApproved = true,
                     IsPinned = true
                 }
-            ];
+            ]);
+        }
+
+        private static IReadOnlyList<CouncilKnowledgeEntry> StampSourceMetadata(
+            string rootPath,
+            IReadOnlyList<FileInfo> files,
+            DateTime now,
+            IReadOnlyList<CouncilKnowledgeEntry> entries)
+        {
+            var sourceDateUtc = files.Count == 0
+                ? Directory.GetLastWriteTimeUtc(rootPath)
+                : files.Max(file => file.LastWriteTimeUtc);
+            var corpusHash = ComputeCorpusHash(rootPath, files);
+            foreach (var entry in entries)
+            {
+                entry.ReviewStatus = "Current";
+                entry.LastVerifiedAtUtc = now;
+                entry.SourceDateUtc = sourceDateUtc;
+                entry.SourceHash = corpusHash;
+            }
+
+            return entries;
+        }
+
+        private static string ComputeCorpusHash(string rootPath, IReadOnlyList<FileInfo> files)
+        {
+            var builder = new StringBuilder()
+                .AppendLine(Path.GetFileName(rootPath));
+
+            foreach (var file in files.OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase).Take(2000))
+            {
+                builder
+                    .Append(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/'))
+                    .Append('|')
+                    .Append(file.Length)
+                    .Append('|')
+                    .AppendLine(file.LastWriteTimeUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
         }
 
         private static string BuildWindowsDocsPathSamples(
@@ -580,6 +625,7 @@ namespace LocalGPT.Services
         private static CouncilKnowledgeEntry ToKnowledgeEntry(LearnBaseProjectSummary summary)
         {
             var sanitizedSourcePath = RedactSensitiveName(summary.SourcePath);
+            var now = DateTime.UtcNow;
             var content = new StringBuilder()
                 .AppendLine("This entry is about reusable architecture and wiring patterns, not about copying names or branding.")
                 .AppendLine("Learn the functionality, protocols, service boundaries, host wiring, and component usage. Treat source labels as evidence labels, not as target product names.")
@@ -607,11 +653,47 @@ namespace LocalGPT.Services
                 Tags = BuildTags(summary),
                 Confidence = 78,
                 VerificationStatus = "SourceBacked",
+                ReviewStatus = "NeedsUserReview",
+                ExpiresAtUtc = now.AddDays(180),
+                LastVerifiedAtUtc = now,
+                SourceDateUtc = TryGetLatestSourceDateUtc(summary.SourcePath),
+                SourceHash = ComputeSummaryHash(summary),
+                StalenessReason = "Local project fingerprints should be approved or corrected by the user before being treated as durable generation guidance.",
+                StalenessDetectedBy = "Learn-base importer",
                 IsUserApproved = false,
                 IsPinned = summary.Name.Contains("Tacos", StringComparison.OrdinalIgnoreCase) ||
                     summary.Name.Contains("DevExpress", StringComparison.OrdinalIgnoreCase) ||
                     summary.Name.Contains("Jezzifa", StringComparison.OrdinalIgnoreCase)
             };
+        }
+
+        private static DateTime? TryGetLatestSourceDateUtc(string sourcePath)
+        {
+            try
+            {
+                return Directory.Exists(sourcePath)
+                    ? EnumerateUsefulFiles(sourcePath).Take(2000).DefaultIfEmpty().Max(file => file?.LastWriteTimeUtc)
+                    : null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        private static string ComputeSummaryHash(LearnBaseProjectSummary summary)
+        {
+            var material = string.Join(
+                "\n",
+                summary.Name,
+                summary.SourcePath,
+                summary.Architecture,
+                summary.ProtocolsAndComponents,
+                summary.TargetFrameworks,
+                summary.PackageReferences,
+                summary.ImportantFiles,
+                summary.SourceFileCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(material)));
         }
 
         private static string InferArchitecture(string projectDirectory, IReadOnlyList<FileInfo> files, string combined)
