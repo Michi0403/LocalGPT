@@ -100,6 +100,14 @@ namespace LocalGPT.BusinessObjects
         public string DownloadUrl { get; set; } = string.Empty;
 
         public string Summary { get; set; } = string.Empty;
+
+        public string QualityStatus { get; set; } = "Generated only";
+
+        public string ContractStatus { get; set; } = "Not validated";
+
+        public List<string> ContractChecks { get; set; } = [];
+
+        public List<string> MissingRequirements { get; set; } = [];
     }
 
     public sealed class CouncilUserPoll

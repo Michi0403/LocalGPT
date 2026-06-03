@@ -28,6 +28,12 @@ namespace LocalGPT.Services
             if (!request.GenerateImplementationArtifact)
                 return [];
 
+            if (IsAdviceOnlyPrompt(request.Prompt))
+            {
+                logger.LogInformation("Skipped council artifact generation for advice-only prompt.");
+                return [];
+            }
+
             Directory.CreateDirectory(ArtifactRoot);
 
             var targetArea = DetectTargetArea(request.Prompt, result.FinalAnswer);
@@ -59,7 +65,11 @@ namespace LocalGPT.Services
                     Kind = "Blazor/DevExpress Razor component",
                     FilePath = razorPath,
                     DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(razorFileName)}",
-                    Summary = "Generated server-interactive Razor page using DevExpress controls and LocalGPT/TacosPortal-style patterns."
+                    Summary = "Generated server-interactive Razor page using DevExpress controls and LocalGPT/TacosPortal-style patterns.",
+                    QualityStatus = "Generated source only",
+                    ContractStatus = "Razor file written",
+                    ContractChecks = ["File exists after write"],
+                    MissingRequirements = ["No Razor compile or runtime render proof was produced"]
                 });
 
                 targetArea = "Blazor/DevExpress frontend";
@@ -82,7 +92,11 @@ namespace LocalGPT.Services
                     : "CodeDOM C# example",
                 FilePath = path,
                 DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(fileName)}",
-                Summary = $"Generated starter example for {targetArea} implementation ideas."
+                Summary = $"Generated starter example for {targetArea} implementation ideas.",
+                QualityStatus = "Generated source only",
+                ContractStatus = "C# file written",
+                ContractChecks = ["File exists after write"],
+                MissingRequirements = ["No integration into the requested application was performed"]
             });
 
             var dllArtifact = await TryCreateDllArtifactAsync(fileName, source, targetArea, cancellationToken);
@@ -145,7 +159,11 @@ namespace LocalGPT.Services
                     Kind = "Minecraft Java datapack zip",
                     FilePath = zipPath,
                     DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(zipName)}",
-                    Summary = $"Generated {identity.DisplayName} datapack for Minecraft {minecraftVersion}. Zip root contains pack.mcmeta and data/ directly."
+                    Summary = $"Generated {identity.DisplayName} datapack for Minecraft {minecraftVersion}. Zip root contains pack.mcmeta and data/ directly.",
+                    QualityStatus = "Generated datapack contract checked",
+                    ContractStatus = "Datapack structure validated",
+                    ContractChecks = ["pack.mcmeta exists", "data/minecraft/tags/functions/load.json exists", "data/minecraft/tags/functions/tick.json exists", "referenced mcfunction files exist"],
+                    MissingRequirements = ["Minecraft runtime behavior is not proven by LocalGPT"]
                 }
             ];
         }
@@ -224,7 +242,11 @@ namespace LocalGPT.Services
                     Kind = "Minecraft Fabric/Paper/NeoForge skeleton matrix zip",
                     FilePath = zipPath,
                     DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(zipName)}",
-                    Summary = "Generated separate Fabric, Paper, and NeoForge skeleton workspaces so loader-specific files cannot be mixed silently."
+                    Summary = "Generated separate Fabric, Paper, and NeoForge skeleton workspaces so loader-specific files cannot be mixed silently.",
+                    QualityStatus = "Generated skeletons only",
+                    ContractStatus = "Loader family separation written",
+                    ContractChecks = ["Fabric, Paper, and NeoForge folders were created"],
+                    MissingRequirements = ["No Gradle build or Minecraft launch proof was produced"]
                 }
             ];
         }
@@ -323,7 +345,7 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab), cancellationToken);
-            ValidateSolutionArtifactContract(solutionRoot, projectName, isAiHostLab);
+            var contract = ValidateSolutionArtifactContract(solutionRoot, projectName, archetype);
 
             var zipName = $"{projectName}-{runSuffix}.zip";
             var zipPath = Path.Combine(ArtifactRoot, zipName);
@@ -339,7 +361,11 @@ namespace LocalGPT.Services
                 Kind = "Downloadable .NET 10 Blazor/DevExpress solution zip",
                 FilePath = zipPath,
                 DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(zipName)}",
-                Summary = "Generated whole-solution artifact with .sln, .csproj, Razor pages, CSS, service/model code, README, and manifest."
+                Summary = $"Generated whole-solution artifact with .sln, .csproj, Razor pages, CSS, service/model code, README, and manifest. {contract.Summary}",
+                QualityStatus = contract.QualityStatus,
+                ContractStatus = contract.ContractStatus,
+                ContractChecks = contract.ContractChecks.ToList(),
+                MissingRequirements = contract.MissingRequirements.ToList()
             };
         }
 
@@ -421,7 +447,11 @@ namespace LocalGPT.Services
                     Kind = "Sandbox compiled .NET DLL",
                     FilePath = dllPath,
                     DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(dllName)}",
-                    Summary = $"Compiled sandbox assembly for {targetArea} implementation ideas."
+                    Summary = $"Compiled sandbox assembly for {targetArea} implementation ideas.",
+                    QualityStatus = "Compiled sandbox DLL",
+                    ContractStatus = "dotnet build succeeded for isolated support-code project",
+                    ContractChecks = ["dotnet build exited successfully", "DLL exists after build"],
+                    MissingRequirements = ["No application integration or runtime UI proof was produced"]
                 };
             }
             catch (OperationCanceledException ex)
@@ -4180,7 +4210,7 @@ namespace LocalGPT.Services
               "needs_version_resolver": false,
               "model_names": "{{EscapeJsonString(string.Join(", ", result.ModelNames))}}",
               "requested_features": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 900))}}",
-              "validation_status": "GeneratedOnlyContractValidated",
+              "validation_status": "GeneratedFilesValidatedOnly",
               "validation_notes": "{{EscapeJsonString(validationNotes)}}",
               "build_test_result_provenance": "LocalGPT validated required files and contract JSON before zipping. dotnet build was not run for this sandbox artifact, so no build success is claimed.",
               "expected_entrypoints": [
@@ -4249,7 +4279,7 @@ namespace LocalGPT.Services
               "artifactKind": "WholeSolutionZip",
               "sourceGoal": "{{EscapeJsonString(sourceGoal)}}",
               "designContract": "Bootstrap v5 layout, DevExpress Blazor controls, and paired line/solid SVG navigation icons.",
-              "validationStatus": "GeneratedOnlyContractValidated",
+              "validationStatus": "GeneratedFilesValidatedOnly",
               "buildTestResultProvenance": "Required files and contract metadata were validated before zipping. No generated-project build success is claimed.",
               "request": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 1400))}}",
               "finalAnswer": "{{EscapeJsonString(TrimForCodeComment(result.FinalAnswer, 1400))}}",
@@ -4694,6 +4724,15 @@ namespace LocalGPT.Services
             return AiHostExperimentPattern().IsMatch(prompt);
         }
 
+        private static bool IsAdviceOnlyPrompt(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                return false;
+
+            return AdviceOnlyPromptPattern().IsMatch(prompt) &&
+                !ExplicitArtifactCreationCommandPattern().IsMatch(prompt);
+        }
+
         private static GeneratedSolutionArchetype DetectSolutionArchetype(string prompt, string finalAnswer)
         {
             if (AiHostExperimentPattern().IsMatch(prompt))
@@ -4730,8 +4769,12 @@ namespace LocalGPT.Services
             return EscapeCSharpString(text);
         }
 
-        private static void ValidateSolutionArtifactContract(string solutionRoot, string projectName, bool isAiHostLab)
+        private static ArtifactContractReport ValidateSolutionArtifactContract(
+            string solutionRoot,
+            string projectName,
+            GeneratedSolutionArchetype archetype)
         {
+            var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
             var requiredFiles = new List<string>
             {
                 $"{projectName}.sln",
@@ -4786,7 +4829,50 @@ namespace LocalGPT.Services
             ValidateGenerationManifestJson(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"));
 
             if (isAiHostLab)
+            {
                 ValidateAiHostArtifactContract(solutionRoot, projectName);
+                return new ArtifactContractReport(
+                    "Source-contract prototype",
+                    "AI-host source contract validated",
+                    [
+                        "Required generated file set exists",
+                        "Generation contract JSON is parseable",
+                        "Generation manifest JSON is parseable",
+                        "AI-host endpoint and native-runner source markers exist"
+                    ],
+                    ["No model-file runtime execution proof was produced", "No generated-project build proof was produced"],
+                    "AI-host routes, settings, navigation, and native-runner source markers were checked before zipping; runtime behavior is still unproven.");
+            }
+
+            if (archetype == GeneratedSolutionArchetype.LocalGpt)
+            {
+                return new ArtifactContractReport(
+                    "Static LocalGPT-style prototype",
+                    "Missing LocalGPT runtime contract",
+                    [
+                        "Required generated file set exists",
+                        "Generation contract JSON is parseable",
+                        "Generation manifest JSON is parseable"
+                    ],
+                    [
+                        "DXAiChat runtime wiring is not proven",
+                        "AI Council execution is not proven",
+                        "SQLite memory persistence is not proven",
+                        "Artifact route behavior is not proven"
+                    ],
+                    "LocalGPT-like source files were generated, but the artifact must not be treated as a working LocalGPT replacement.");
+            }
+
+            return new ArtifactContractReport(
+                "Generated solution prototype",
+                "Generated files validated",
+                [
+                    "Required generated file set exists",
+                    "Generation contract JSON is parseable",
+                    "Generation manifest JSON is parseable"
+                ],
+                ["No generated-project build proof was produced", "No runtime UI proof was produced"],
+                "Required files and metadata were checked before zipping; build and runtime behavior are unproven.");
         }
 
         private static void ValidateAiHostArtifactContract(string solutionRoot, string projectName)
@@ -4987,8 +5073,21 @@ namespace LocalGPT.Services
         [GeneratedRegex("(log|logger|diagnostic|error|warning|telemetry)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex LoggingPattern();
 
+        [GeneratedRegex("(review|code review|diagnose|diagnostic|release readiness|readiness|go or no-go|blockers|evidence|what failed|why failed|build/deploy/package/publish|publish cycle|release cycle|maintenance cycle)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex AdviceOnlyPromptPattern();
+
+        [GeneratedRegex("(generate|create|produce|write|implement|make|build)\\b.{0,120}\\b(downloadable|artifact|zip|solution|source code|\\.sln|\\.csproj|\\.cs\\b|\\.razor\\b|ai host|localgpt replacement|application|app|datapack|modpack)\\b|\\b(downloadable|artifact|zip|solution)\\b.{0,120}\\b(generate|create|produce|write|implement|make|build)\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+        private static partial Regex ExplicitArtifactCreationCommandPattern();
+
         [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
         private static partial Regex WhitespacePattern();
+
+        private sealed record ArtifactContractReport(
+            string QualityStatus,
+            string ContractStatus,
+            IReadOnlyList<string> ContractChecks,
+            IReadOnlyList<string> MissingRequirements,
+            string Summary);
 
         private sealed record MinecraftDatapackArtifactIdentity(
             string ProjectName,
