@@ -80,7 +80,7 @@
                 <DxCheckBox @bind-Checked="IncludeCouncilMemory" />
                 <span>Council uses memory</span>
             </label>
-            <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Use 65536+ for large source or solution generation; lower it for quick checks.">
+            <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Use 262144 for full source or solution generation when the model/runtime supports it. Values below 64000 are quick-chat only and are not a valid code-generation acceptance test.">
                 <span>Council answer tokens</span>
                 <input type="number"
                        min="256"
@@ -88,7 +88,7 @@
                        step="1024"
                        @bind="CouncilMaxOutputTokens" />
             </label>
-            <label class="council-token-setting" title="Maximum Ollama context window requested for council and detected model sessions. 32768 is compact, 65536+ is often needed for serious code generation, and 262144 is available when the model/runtime supports it.">
+            <label class="council-token-setting" title="Maximum Ollama context window requested for council and detected model sessions. Use 262144 for full source or solution generation when supported. Values below 64000 are quick-chat only and are not a valid code-generation acceptance test.">
                 <span>Council context tokens</span>
                 <input type="number"
                        min="2048"
@@ -320,10 +320,10 @@
     const string OllamaModeSafeCpu = "safe-cpu";
     const string OllamaModeLimitedGpu = "limited-gpu";
     const int MinCouncilOutputTokens = 256;
-    const int DefaultCouncilOutputTokens = 32768;
+    const int DefaultCouncilOutputTokens = 65536;
     const int MaxCouncilOutputTokens = 262144;
     const int MinCouncilContextTokens = 2048;
-    const int DefaultCouncilContextTokens = 32768;
+    const int DefaultCouncilContextTokens = 65536;
     const int MaxCouncilContextTokens = 262144;
     string OllamaAccelerationMode { get; set; } = OllamaModeAutoGpu;
     int LimitedGpuLayers { get; set; } = 20;

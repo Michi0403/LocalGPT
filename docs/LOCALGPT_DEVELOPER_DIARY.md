@@ -40,7 +40,7 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 - Avoid sustained full-load GPU peaks on consumer hardware. A slower sequential council is better than a fast run that destabilizes the machine.
 - Check running models before and after tests. Unload or stop models after heavy diagnostics when keep-alive is not needed.
 - For HuggingFace or GitHub model sources, LocalGPT should provide catalog rows and user-approved download plans. Catalog browsing is not permission to download binaries.
-- Large default token budgets can help source generation, but they can also stall local models. Expose presets and let the user raise limits intentionally.
+- Large token budgets are required for serious local code generation. Treat values below 64K as quick-chat or diagnostics only, not valid code-generation acceptance tests. Use 64K+ as the coding floor and 256K for full solution-generation tests when Ollama, the model, and hardware support it. Expose presets so the user can choose the tradeoff intentionally.
 
 ## DXAiChat And Council Lessons
 

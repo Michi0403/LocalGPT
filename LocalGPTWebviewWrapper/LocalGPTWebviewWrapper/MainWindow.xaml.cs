@@ -124,9 +124,9 @@ namespace WebView2_WinUI3_Sample
             if (_runDiagnostics)
             {
                 if (_runDxAiChatAiHostDiagnostics)
-                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b,deepseek-r1:8b&diagCpuOnly=true&diagCouncilMaxOutputTokens=2048&diagCouncilMaxContextTokens=32768&diagCouncilIncludeMemory=true&diagFreshChat=true&diagGenerateCouncilArtifacts=true&diagMaxParallelModels=1");
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b,deepseek-r1:8b&diagCpuOnly=true&diagCouncilMaxOutputTokens=262144&diagCouncilMaxContextTokens=262144&diagCouncilIncludeMemory=true&diagFreshChat=true&diagGenerateCouncilArtifacts=true&diagMaxParallelModels=1");
                 else if (_runDxAiChatFeatureArtifactsDiagnostics)
-                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b&diagCouncilMaxOutputTokens=1024&diagCouncilMaxContextTokens=8192&diagOllamaMode=limited-gpu&diagGpuLayers=12&diagCouncilIncludeMemory=false&diagFreshChat=true&diagGenerateCouncilArtifacts=true");
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b&diagCouncilMaxOutputTokens=65536&diagCouncilMaxContextTokens=65536&diagOllamaMode=limited-gpu&diagGpuLayers=12&diagCouncilIncludeMemory=false&diagFreshChat=true&diagGenerateCouncilArtifacts=true");
                 else if (_runDxAiChatCouncilDiagnostics)
                     _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilMaxOutputTokens=2048&diagCouncilMaxContextTokens=2048&diagCpuOnly=true&diagCouncilIncludeMemory=false");
                 else if (_runDxAiChatGptOssDiagnostics)

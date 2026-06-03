@@ -183,7 +183,7 @@ namespace LocalGPT.Services
                 Messages = BuildOllamaMessages(messages),
                 Options = new OllamaRequestOptions
                 {
-                    NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 131072),
+                    NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 262144),
                     NumCtx = contextLength,
                     NumGpu = numGpu,
                     Temperature = options?.Temperature

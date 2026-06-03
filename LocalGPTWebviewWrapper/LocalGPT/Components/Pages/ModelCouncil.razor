@@ -79,15 +79,15 @@
                 </label>
                 <label>
                     Max output tokens
-                    <input type="number" min="64" max="8192" step="64" @bind="Request.MaxOutputTokens" />
+                    <input type="number" min="64" max="262144" step="1024" @bind="Request.MaxOutputTokens" />
                 </label>
                 <label>
                     Context tokens
-                    <input type="number" min="2048" max="32768" step="1024" @bind="Request.MaxContextTokens" />
+                    <input type="number" min="2048" max="262144" step="2048" @bind="Request.MaxContextTokens" />
                 </label>
                 <label>
                     Timeout seconds
-                    <input type="number" min="30" max="900" step="30" @bind="Request.ModelTimeoutSeconds" />
+                    <input type="number" min="30" max="1800" step="30" @bind="Request.ModelTimeoutSeconds" />
                 </label>
                 <label>
                     Ollama keep-alive
@@ -105,8 +105,13 @@
                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                           Enabled="@(!isBusy)"
                           Click="ApplyBalancedPreset" />
+                <DxButton Text="Generation Preset"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isBusy)"
+                          Click="ApplyGenerationPreset" />
             </div>
-            <p class="hint">Default scheduling runs one large model at a time and can unload between models. Use Low GPU Preset after driver resets, black screens, or 20B/30B model pressure; it keeps prompts database-first and intentionally small.</p>
+            <p class="hint">Default scheduling runs one large model at a time and can unload between models. Low GPU Preset is for diagnostics only. Real source or solution generation should use at least 64K output/context, and the Generation Preset uses 256K when the model/runtime supports it.</p>
 
             <div class="check-row">
                 <label title="Passes Ollama num_gpu=0 for this council run. This is slower, but reduces GPU pressure while debugging.">
@@ -513,25 +518,40 @@
         Request.OllamaNumGpu = 0;
         Request.IncludeMemory = true;
         Request.SaveToMemory = true;
-        statusText = "Low GPU preset active: one proposal pass, small context, CPU-only Ollama, and unload after each model.";
+        statusText = "Low GPU preset active: diagnostics only, one proposal pass, small context, CPU-only Ollama, and unload after each model.";
     }
 
     void ApplyBalancedPreset()
     {
         Request.MaxRounds = 1;
-        Request.MaxOutputTokens = 2048;
+        Request.MaxOutputTokens = 65536;
         Request.MaxParallelModels = 1;
-        Request.MaxContextTokens = 8192;
-        Request.ModelTimeoutSeconds = 240;
+        Request.MaxContextTokens = 65536;
+        Request.ModelTimeoutSeconds = 900;
         Request.OllamaKeepAlive = null;
         Request.OllamaNumGpu = null;
         Request.IncludeMemory = true;
         Request.SaveToMemory = true;
-        statusText = "Balanced preset active: sequential models, one review round, normal Ollama GPU scheduling.";
+        statusText = "Balanced preset active: 64K source-generation floor, sequential models, one review round, normal Ollama GPU scheduling.";
+    }
+
+    void ApplyGenerationPreset()
+    {
+        Request.MaxRounds = 1;
+        Request.MaxOutputTokens = 262144;
+        Request.MaxParallelModels = 1;
+        Request.MaxContextTokens = 262144;
+        Request.ModelTimeoutSeconds = 1800;
+        Request.OllamaKeepAlive = "0s";
+        Request.OllamaNumGpu = 0;
+        Request.IncludeMemory = true;
+        Request.SaveToMemory = true;
+        statusText = "Generation preset active: 256K output/context, sequential CPU-only model calls, and unload after each model.";
     }
 
     void StartFeatureRequestChat()
     {
+        ApplyGenerationPreset();
         SelectedCouncilConversation = null;
         Request.ContinueConversationId = null;
         Request.SaveToMemory = true;
@@ -557,7 +577,7 @@
             "- request a downloadable example file when a .NET/Blazor/ASP.NET Core sketch would help",
             "- mark unsupported claims under Needs verification"
         });
-        statusText = "Started a new implementation-request council chat with example file generation enabled.";
+        statusText = "Started a new implementation-request council chat with 256K generation budget and example file generation enabled.";
     }
 
     string GetArtifactUrl(CouncilArtifact artifact) =>

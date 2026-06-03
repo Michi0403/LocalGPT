@@ -665,7 +665,7 @@ namespace LocalGPT.Services
                     Content = "For Michi0403's 7900 XTX/14700K machine, prefer one active Ollama model at a time for council phases and order lightweight/known-stable models first. " +
                         "gpt-oss:20b has been the preferred first test model; deepseek-r1:8b can be useful but may be slow to produce final visible text; qwen/gwen/gemma should not be auto-selected for GPU-heavy smoke tests. " +
                         "Use limited GPU layers and compact prompts for diagnostics, but allow large user-configurable answer/context budgets for code generation. " +
-                        "4K/8K is only a smoke-test budget. Use about 32K context for compact feedback, 64K+ context/output for serious source or solution generation, and allow up to 256K when Ollama, the model, and hardware support it. " +
+                        "4K/8K is only a smoke-test budget. Values below 64K are quick-chat or diagnostics only and are not valid acceptance tests for source or solution generation. Use 64K+ context/output as the floor for real code generation, and use 256K when Ollama, the model, and hardware support it. " +
                         "If a council request stalls, stream visible phase/status updates and ask for a user poll instead of silently spinning.",
                     HelpfulSources = "- Local UI: Components/Pages/Chat.razor council token and model controls.\n- Local service: MultiModelCouncilService model ordering, max output/context, timeout, and warnings.\n- Local diagnostics: /__diag/council/artifact-smoke and /__diag/dxaichat-smoke.",
                     Tags = "seed; dxaichat; council; ollama; gpu-safety; gpt-oss; tokens; performance",
@@ -681,8 +681,11 @@ namespace LocalGPT.Services
                     Topic = "Ollama long-context source generation budgets",
                     Scope = "DXAiChat AI Council",
                     Source = seedSource,
-                    Content = "LocalGPT must not treat 8K context as enough for serious Ollama source generation. 8K is a small smoke-test budget. For Michi0403's local models, start practical coding feedback around 32K context, use 64K or more for larger source files or whole solutions, and keep UI/service clamps open up to 256K for model/runtime combinations that support it. If a 32K answer stops mid-generation, the next repair prompt should increase output tokens rather than assuming the model is incapable.",
-                    HelpfulSources = "- Local UI: Components/Pages/Chat.razor council token controls.\n- Local service: MultiModelCouncilService MaxContextTokens/MaxOutputTokens.\n- User observation: Ollama supported much larger context windows and 32K generation could still stop mid-output.",
+                    Content = "LocalGPT must not treat 8K or 32K context as enough for serious Ollama source generation. " +
+                        "8K is a small smoke-test budget and 32K can stop mid-generation. Values below 64K are quick-chat or diagnostics only and are not valid acceptance tests for source or solution generation. " +
+                        "Use 64K or more as the real coding floor, use 256K for full solution/code-generation tests when the model/runtime supports it, and keep UI/service clamps open up to 256K. " +
+                        "If a generation stops mid-output, the next repair prompt should increase output/context budget rather than assuming the model is incapable.",
+                    HelpfulSources = "- Local UI: Components/Pages/Chat.razor council token controls.\n- Local service: MultiModelCouncilService MaxContextTokens/MaxOutputTokens.\n- User observation: Ollama supported much larger context windows; 32K generation could still stop mid-output, while 262144 worked for earlier successful council/code-generation tests.",
                     Tags = "seed; ollama; long-context; source-generation; tokens; council; dxaichat; user-approved",
                     Confidence = 96,
                     IsUserApproved = true,
