@@ -24,6 +24,8 @@ The local `ollama-main` source is architecture evidence for a .NET control plane
 - Compatibility adapters: OpenAI-compatible and Anthropic-compatible request/response surfaces.
 - Model lifecycle: manifests, layers, digests, local model paths, copy/delete/show metadata, downloads, uploads, and progress.
 - Runtime orchestration: loaded model sessions, keep-alive, runner processes, cancellation, status, and hardware-specific launch choices.
+- Concurrent model orchestration: multiple model sessions where hardware and the
+  selected backend allow it, plus queueing/sequential fallback where they do not.
 - Formatting: chat templates, tokenizer behavior, harmony/thinking content, structured output, tools, and streaming chunks.
 - Platform shell: WebView/tray concepts and OS-specific runtime helpers.
 
@@ -35,6 +37,8 @@ Translate those into .NET patterns:
 - `IInferenceRunner` for native/process/plugin/Python execution with load,
   unload, infer, embed, health, cancellation, and shutdown.
 - `IRuntimeSessionService` for load/unload, keep-alive, and current model state.
+- `IModelScheduler` for per-model queues, concurrent-session limits, fairness,
+  cancellation, and backpressure.
 - `IHardwareBudgetService` for CPU/GPU/VRAM/concurrency settings.
 - `IChatTemplateService` for role formatting, harmony parsing, thinking extraction, and tool calls.
 - `IPluginCatalogService` for runner/provider plugin discovery, manifest
@@ -59,7 +63,8 @@ An AI host generated in .NET should use these Microsoft-supported patterns:
   context/output defaults, plugin roots, Python paths, script policy, and first
   bootstrap URL.
 - Hosted services or worker services for long-running downloads, model unload
-  timers, session cleanup, background indexing, and nonblocking diagnostics.
+  timers, session cleanup, model-work queues, background indexing, and
+  nonblocking diagnostics.
 - `AssemblyLoadContext` plus `AssemblyDependencyResolver` when runner/provider
   plugins need isolated dependencies or native libraries. This is not a security
   sandbox; untrusted code needs process/OS/container isolation.
@@ -77,6 +82,8 @@ The generated app should make native inference achievable instead of hiding it:
 
 - `ExternalProviderInferenceProvider`: delegates to Ollama, LM Studio, or
   OpenAI-compatible endpoints so LocalGPT can test provider URL compatibility.
+- `ModelSchedulerHostedService`: coordinates active model workers, sequential
+  fallback, cancellation, queue depth, and per-model session leases.
 - `ProcessInferenceRunner`: starts an approved executable with safe arguments,
   streams output, handles cancellation, and records logs.
 - `PythonNetInferenceRunner`: embeds Python after user approval, configured
@@ -99,6 +106,9 @@ Milestones:
    model plans and checksums.
 4. Python.NET, PowerShell, ONNX/ML.NET, or native-process runner adapter.
 5. LocalGPT compatibility test by pointing DXAiChat at the generated host URL.
+6. Multi-model worker test with two small/light models or a simulated runner:
+   prove concurrent execution when supported, or prove honest queued execution
+   when the selected provider cannot run more than one model at a time.
 
 Do not present milestone 1 as a complete local AI host. Do present it as a
 serious control-plane foundation with the correct extension points.

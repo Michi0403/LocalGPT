@@ -54,6 +54,7 @@ namespace LocalGPT.Services
                 .OrderBy(message => message.SortOrder)
                 .Select(ToBlazorChatMessage)
                 .ToList();
+            messages = EnsureVisibleCouncilPrompt(conversation, messages);
 
             return new ChatMemoryConversationSnapshot(
                 conversation.Id,
@@ -178,6 +179,97 @@ namespace LocalGPT.Services
             return new BlazorChatMessage(new ChatRole(message.Role), message.Content, new List<AIChatUploadFileInfo>());
         }
 
+        private static List<BlazorChatMessage> EnsureVisibleCouncilPrompt(
+            ChatMemoryConversation conversation,
+            List<BlazorChatMessage> messages)
+        {
+            if (messages.Count == 0 ||
+                messages.Any(message => message.Role == ChatMessageRole.User && !string.IsNullOrWhiteSpace(message.Content)))
+            {
+                return messages;
+            }
+
+            if (!IsCouncilConversation(conversation, messages))
+                return messages;
+
+            var prompt = TryExtractPromptFromAssistantMessages(messages)
+                ?? TryRecoverPromptFromTitle(conversation.Title);
+            if (string.IsNullOrWhiteSpace(prompt))
+                return messages;
+
+            messages.Insert(0, new BlazorChatMessage(
+                ChatRole.User,
+                prompt,
+                new List<AIChatUploadFileInfo>()));
+            return messages;
+        }
+
+        private static bool IsCouncilConversation(
+            ChatMemoryConversation conversation,
+            IReadOnlyList<BlazorChatMessage> messages)
+        {
+            return conversation.ProviderName.Contains("AI Council", StringComparison.OrdinalIgnoreCase) ||
+                conversation.Title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase) ||
+                conversation.Title.Contains("Council members:", StringComparison.OrdinalIgnoreCase) ||
+                messages.Any(message => message.Content.Contains("Council members:", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string? TryExtractPromptFromAssistantMessages(IReadOnlyList<BlazorChatMessage> messages)
+        {
+            foreach (var message in messages)
+            {
+                var content = WebUtility.HtmlDecode(message.Content);
+                var promptSection = TryFindCouncilPromptSection(content);
+                if (!string.IsNullOrWhiteSpace(promptSection))
+                {
+                    var fencedPrompt = CouncilPromptFencePattern().Match(promptSection);
+                    if (fencedPrompt.Success)
+                        return NormalizeRecoveredPrompt(fencedPrompt.Groups["prompt"].Value);
+                }
+
+                var requestBlock = CouncilRequestBlockPattern().Match(content);
+                if (requestBlock.Success)
+                    return NormalizeRecoveredPrompt(requestBlock.Groups["prompt"].Value);
+            }
+
+            return null;
+        }
+
+        private static string? TryFindCouncilPromptSection(string content)
+        {
+            var markerIndex = content.IndexOf("## Original request", StringComparison.OrdinalIgnoreCase);
+            if (markerIndex < 0)
+                markerIndex = content.IndexOf("Prompt sent to the AI Council", StringComparison.OrdinalIgnoreCase);
+            if (markerIndex < 0)
+                return null;
+
+            return content[markerIndex..];
+        }
+
+        private static string? TryRecoverPromptFromTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title) ||
+                !title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return $"""
+                Recovered legacy council prompt:
+                {title}
+
+                LocalGPT recovered this from the saved conversation title because this older memory row did not store a separate user prompt message. New council saves keep the full original prompt visible in DXAiChat and CouncilLogs.
+                """.Trim();
+        }
+
+        private static string NormalizeRecoveredPrompt(string prompt)
+        {
+            var normalized = prompt.Trim();
+            return normalized.Length <= 60000
+                ? normalized
+                : $"{normalized[..60000].TrimEnd()}{Environment.NewLine}... prompt truncated while reconstructing legacy DXAiChat memory ...";
+        }
+
         private static string BuildTitle(IReadOnlyList<BlazorChatMessage> messages)
         {
             var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Content
@@ -234,6 +326,12 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         private static partial Regex ThinkingBlockPattern();
+
+        [GeneratedRegex("```text\\s*(?<prompt>.*?)\\s*```", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        private static partial Regex CouncilPromptFencePattern();
+
+        [GeneratedRegex("AI Council (?:continuation )?request:\\s*(?<prompt>.*?)(?:\\n\\s*##|\\z)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        private static partial Regex CouncilRequestBlockPattern();
 
         [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
         private static partial Regex WhitespacePattern();

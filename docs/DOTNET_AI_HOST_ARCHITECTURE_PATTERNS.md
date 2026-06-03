@@ -49,6 +49,8 @@ A local AI host can be split into layers:
   adapters, chat templates, session state, and hardware policy.
 - Runner orchestration: queueing, load/unload, keep-alive, cancellation,
   streaming, health, and process/plugin lifecycle.
+- Multi-model scheduling: more than one running model session when hardware and
+  policy allow it, with safe fallback to sequential execution.
 - Inference implementation: external provider, native process, ONNX/ML.NET,
   Python.NET bridge, PowerShell/native script, or future plugin.
 - Storage: SQLite for settings, model records, downloads, chats, logs, jobs,
@@ -73,6 +75,8 @@ interfaces before UI pages:
   unload, infer, embed, health, and shutdown.
 - `IRuntimeSessionService`: active sessions, keep-alive, queueing, resource
   budgets, unload idle, and cancellation.
+- `IModelScheduler`: per-model work queues, MaxParallelModels, fairness,
+  cancellation, session lease/release, queue depth, and backpressure.
 - `IHardwareBudgetService`: CPU/GPU layers, VRAM target, concurrency, context,
   driver-safety policy, and model placement.
 - `IChatTemplateService`: ChatML, Harmony, plain prompt, stop sequences, tools,
@@ -155,6 +159,33 @@ Each adapter must report:
 - hardware backend and expected memory budget
 - health and last error
 
+## Concurrent Model Worker Pattern
+
+The generated host should not bake in a single loaded-model assumption. The
+control plane can be better than a constrained provider by supporting multiple
+running model sessions when the user's hardware, VRAM, context size, and safety
+policy allow it.
+
+Generate this shape:
+
+- `ModelSession`: model name, provider/runner id, state, keep-alive deadline,
+  context limit, output limit, GPU/CPU placement, queue depth, and last error.
+- `ModelWorkItem`: request id, route family, prompt/messages, cancellation token,
+  priority, user/session id, created time, and progress sink.
+- `IModelScheduler`: enqueue, cancel, unload, list running, list queued, and
+  reserve/release hardware budget.
+- `IHardwareBudgetService`: estimates whether a model can run concurrently or
+  should wait, based on VRAM target, CPU mode, model size, context budget, and
+  user-selected risk profile.
+- Hosted service loop: drains queues, starts approved runners/providers, streams
+  progress, unloads idle sessions, and writes logs to SQLite.
+
+If the host delegates to an external provider that only supports one active
+model, the generated app should show that as a provider limitation and still
+keep the scheduler/service boundary ready for providers or native runners that
+support concurrency. Do not hide the limitation by pretending parallel inference
+occurred.
+
 ## Python.NET Pattern
 
 Python.NET can be useful when Python libraries or model tooling are the most
@@ -205,6 +236,9 @@ A generated AI host can honestly progress through milestones:
    streaming, cancellation, hardware policy, and model storage.
 6. Benchmark and LocalGPT compatibility: point LocalGPT DXAiChat at the new
    provider URL and verify tags, chat, generate, downloads, settings, and logs.
+7. Multi-model compatibility: verify two small/light models can be queued or run
+   concurrently when the selected backend supports it; otherwise verify the host
+   reports the provider limitation and uses sequential scheduling.
 
 Each milestone should build and expose downloadable source. If the runner is
 missing, the app must show this as a visible capability gap and still provide
@@ -234,4 +268,3 @@ An acceptable milestone includes:
 - clear `NativeInference = NotImplemented` until a real backend exists,
 - a next-step plan to attach external provider, Python.NET, PowerShell, ONNX,
   ML.NET, or native plugin runner.
-

@@ -741,6 +741,26 @@ namespace LocalGPT.Services
                 },
                 new CouncilKnowledgeEntry
                 {
+                    Id = Guid.Parse("e5cf0fe2-09e6-4557-9e5e-4f1f394a8d42"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Provider-neutral local AI host with concurrent model workers",
+                    Scope = "AI host / DXAiChat generation",
+                    Source = seedSource,
+                    Content = "When the user asks the council to generate a local AI host or model-hosting app, do not anchor the generated project on a provider brand. " +
+                        "Prompt and design it by capabilities: left navigation, chat, model catalog, model downloads, running models, API console, templates, hardware budget, logs, settings, provider-compatible routes, and LocalGPT compatibility tests. " +
+                        "A key improvement over constrained provider hosts is multiple running model sessions when hardware allows it. Generate an IRuntimeSessionService/IModelScheduler design with per-model queues, cancellation, keep-alive/unload policy, GPU/VRAM/CPU budget, MaxParallelModels, fairness, and safe fallback to sequential execution. " +
+                        "Use provider-compatible APIs such as /api/chat, /api/generate, /api/tags, /api/ps, /api/show, /api/pull, /api/delete, and optional /v1/chat/completions so LocalGPT can point DXAiChat at the generated host URL. " +
+                        "Native inference can start as an external-provider adapter, Python.NET/process/native plugin boundary, ONNX/ML.NET adapter, or explicit capability gap, but the generated solution must stay buildable and honest. " +
+                        "Model downloads from Hugging Face, GitHub, or provider catalogs require user approval, visible target paths, checksums when available, and no autonomous execution.",
+                    HelpfulSources = "- Local docs: docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md and docs/AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md.\n- Local route: GET /__diag/ai-host-rebuild-guidance.\n- Local service: CouncilArtifactService AI-host archetype.\n- User-approved product lesson: the generated host should help LocalGPT/Council run several compatible models at the same time when hardware and policy allow it.",
+                    Tags = "seed; ai-host; provider-neutral; multi-model; concurrency; scheduler; hardware-budget; dxaichat; user-approved",
+                    Confidence = 96,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
                     Id = Guid.Parse("0e8fb6af-33d2-4a90-aac3-34f3cf7f66c7"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,
