@@ -138,7 +138,7 @@ namespace WebView2_WinUI3_Sample
             if (_runDiagnostics)
             {
                 if (_runDxAiChatAiHostDiagnostics)
-                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b,qwen3-coder:30b&diagCouncilMaxOutputTokens=131072&diagCouncilMaxContextTokens=131072&diagCouncilIncludeMemory=true&diagFreshChat=true&diagGenerateCouncilArtifacts=true&diagMaxParallelModels=1");
+                    _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b,qwen3-coder:30b&diagCouncilMaxOutputTokens=262144&diagCouncilMaxContextTokens=262144&diagCouncilIncludeMemory=true&diagFreshChat=true&diagGenerateCouncilArtifacts=true&diagMaxParallelModels=1");
                 else if (_runDxAiChatFeatureArtifactsDiagnostics)
                     _diagnosticRoutes.Enqueue("/Chat?diagSession=council&diagCouncilModels=gpt-oss:20b&diagCouncilMaxOutputTokens=65536&diagCouncilMaxContextTokens=65536&diagOllamaMode=limited-gpu&diagGpuLayers=12&diagCouncilIncludeMemory=false&diagFreshChat=true&diagGenerateCouncilArtifacts=true");
                 else if (_runDxAiChatCouncilDiagnostics)
@@ -645,7 +645,7 @@ namespace WebView2_WinUI3_Sample
                                                 '- CompositeChatClient treats DXAiChat Stop/request cancellation as a quiet user stop instead of an unhandled exception.',
                                                 '- Chat CSS styles the model-thinking block in the message area.',
                                                 '- DXAiFunctions now list local datapack/council diagnostic routes, including datapack version lookup.',
-                                                '- DXAiChat AI Council now has a visible Council answer tokens setting and the smoke asks for at least two members CPU-only.',
+                                                '- DXAiChat AI Council now has a visible Council answer tokens setting and serious Council tests use at least two GPU-backed members with the 262144-token gate.',
                                                 'Also review how to make Index and every page friendlier for non-technical users with tooltips, guided presets/default sets, and self-explanatory copy without removing advanced features.',
                                                 'Discuss moving most user/default settings from appsettings into Entity Framework database profiles, leaving appsettings for logging/bootstrap only.',
                                                 'Discuss Ollama/LM Studio runtime detection, user notices when not running, and an Install-page model-download flow for Ollama.',
