@@ -242,12 +242,13 @@ namespace LocalGPT.Services
             }
 
             result.UserPoll = BuildUserPoll(result);
-            var requiresPollAnswer = request.GenerateImplementationArtifact && RequiresUserDecisionBeforeArtifacts(result);
+            var shouldGenerateArtifacts = request.GenerateImplementationArtifact && ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt);
+            var requiresPollAnswer = shouldGenerateArtifacts && RequiresUserDecisionBeforeArtifacts(result);
             if (requiresPollAnswer)
             {
                 result.Warnings.Add("Implementation artifacts were not generated because the council itself identified a blocking user decision. Answer the poll or enable safe sandbox auto-choice, then rerun the council.");
             }
-            else if (request.GenerateImplementationArtifact)
+            else if (shouldGenerateArtifacts)
             {
                 if (result.UserPoll is not null)
                 {
@@ -255,6 +256,10 @@ namespace LocalGPT.Services
                 }
 
                 result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
+            }
+            else if (request.GenerateImplementationArtifact)
+            {
+                result.Warnings.Add("Implementation artifacts were not generated because the user prompt did not explicitly ask LocalGPT to generate, create, or continue a downloadable/code artifact. This prevents normal advice, review, or release-readiness chats from producing unrelated zip files.");
             }
 
             result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken);
@@ -986,12 +991,10 @@ namespace LocalGPT.Services
                 .ToList();
 
             var promptLooksFrustrated = IsFrustratedPrompt(result.Prompt);
-            var needsVerification = result.FinalAnswer.Contains("Needs verification", StringComparison.OrdinalIgnoreCase) ||
-                result.FinalAnswer.Contains("human review", StringComparison.OrdinalIgnoreCase);
             var needsAiHostSetupDecision = NeedsAiHostSetupDecision(result);
             var needsImplementationPathDecision = NeedsImplementationPathDecision(result);
 
-            if (failedModels.Count == 0 && !needsVerification && !promptLooksFrustrated && !needsAiHostSetupDecision && !needsImplementationPathDecision)
+            if (failedModels.Count == 0 && !promptLooksFrustrated && !needsAiHostSetupDecision && !needsImplementationPathDecision)
                 return null;
 
             if (promptLooksFrustrated)
@@ -1003,9 +1006,10 @@ namespace LocalGPT.Services
             if (needsImplementationPathDecision)
                 return BuildImplementationPathPoll(result, failedModels);
 
-            var reason = failedModels.Count > 0
-                ? $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}."
-                : "The council marked parts of the answer as needing verification or human review.";
+            if (failedModels.Count == 0)
+                return null;
+
+            var reason = $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}.";
 
             var options = new List<CouncilUserPollOption>();
             if (failedModels.Count > 0)
@@ -1192,7 +1196,7 @@ namespace LocalGPT.Services
             if (HasExplicitArtifactIntent(result.Prompt))
                 return false;
 
-            var text = $"{result.Prompt} {result.FinalAnswer}";
+            var text = result.Prompt;
             if (ImplementationDecisionPattern().IsMatch(text))
                 return true;
 
@@ -1202,7 +1206,7 @@ namespace LocalGPT.Services
 
         private static bool NeedsAiHostSetupDecision(MultiModelCouncilResult result)
         {
-            var text = $"{result.Prompt} {result.FinalAnswer}";
+            var text = result.Prompt;
             if (!AiHostSetupPattern().IsMatch(text))
                 return false;
 

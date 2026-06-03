@@ -4686,25 +4686,23 @@ namespace LocalGPT.Services
 
         private static bool IsWholeSolutionTarget(string prompt, string finalAnswer)
         {
-            var text = $"{prompt} {finalAnswer}";
-            return WholeSolutionPattern().IsMatch(text) || IsAiHostExperimentTarget(prompt, finalAnswer);
+            return WholeSolutionPattern().IsMatch(prompt) || IsAiHostExperimentTarget(prompt, finalAnswer);
         }
 
         private static bool IsAiHostExperimentTarget(string prompt, string finalAnswer)
         {
-            return AiHostExperimentPattern().IsMatch($"{prompt} {finalAnswer}");
+            return AiHostExperimentPattern().IsMatch(prompt);
         }
 
         private static GeneratedSolutionArchetype DetectSolutionArchetype(string prompt, string finalAnswer)
         {
-            var text = $"{prompt} {finalAnswer}";
-            if (AiHostExperimentPattern().IsMatch(text))
+            if (AiHostExperimentPattern().IsMatch(prompt))
                 return GeneratedSolutionArchetype.AiHost;
-            if (LocalGptReplacementPattern().IsMatch(text))
+            if (LocalGptReplacementPattern().IsMatch(prompt))
                 return GeneratedSolutionArchetype.LocalGpt;
-            if (TacosPortalPattern().IsMatch(text))
+            if (TacosPortalPattern().IsMatch(prompt))
                 return GeneratedSolutionArchetype.TacosPortal;
-            if (BotBackendPattern().IsMatch(text))
+            if (BotBackendPattern().IsMatch(prompt))
                 return GeneratedSolutionArchetype.BotBackend;
 
             return GeneratedSolutionArchetype.Generic;
@@ -4971,13 +4969,13 @@ namespace LocalGPT.Services
         [GeneratedRegex("(frontend|razor|devexpress|dxaichat|css|javascript)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex FrontendPattern();
 
-        [GeneratedRegex("(whole solution|full solution|entire solution|solution zip|project zip|\\.sln|\\.csproj|all source files|tacosportalopen|localgpt|whole ai host|ai host dotnet|local ai host|whole ollama|ollama dotnet|ollama \\.net)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        [GeneratedRegex("(whole solution|full solution|entire solution|solution zip|project zip|\\.sln|\\.csproj|all source files|tacosportalopen|localgpt\\s+(?:clone|replacement|workbench|app|application|solution)|(?:clone|replace|rebuild)\\s+localgpt|whole ai host|ai host dotnet|local ai host|whole ollama|ollama dotnet|ollama \\.net)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex WholeSolutionPattern();
 
         [GeneratedRegex("(ai\\s*host|local\\s*model\\s*host|model[- ]file\\s*runner|native\\s*runner|ollama[- ]compatible|/api/(?:chat|generate|tags|ps|version)|host\\s+gpt-oss|provider[- ]compatible).*(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net|api|route|endpoint|sqlite|ollama|model|runner)|(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net|api|route|endpoint|sqlite|model|runner).*(ai\\s*host|local\\s*model\\s*host|model[- ]file\\s*runner|native\\s*runner|ollama[- ]compatible|/api/(?:chat|generate|tags|ps|version)|provider[- ]compatible)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
         private static partial Regex AiHostExperimentPattern();
 
-        [GeneratedRegex("(localgpt|local gpt|dxaichat|ai council|minecraft mod builder|sqlite memory|test lab)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        [GeneratedRegex("(localgpt|local gpt).*(clone|replacement|workbench|app|application|solution|dxaichat|ai council|sqlite memory|test lab)|(clone|replace|rebuild).*(localgpt|local gpt)|(dxaichat|ai council|sqlite memory|test lab).*(localgpt|local gpt)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
         private static partial Regex LocalGptReplacementPattern();
 
         [GeneratedRegex("(tacosportalopen|tacos portal|restaurant portal|orders.*menu|menu.*orders|reservation|kitchen queue)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

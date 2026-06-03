@@ -648,6 +648,28 @@ namespace LocalGPT.Services
                 },
                 new CouncilKnowledgeEntry
                 {
+                    Id = Guid.Parse("6d3d64fa-0ba4-4d30-9f5a-94df935809b9"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Prompt-driven app generation must not collapse into one default app",
+                    Scope = "LocalGPT generation / DXAiChat / Council artifacts",
+                    Source = seedSource,
+                    Content = "LocalGPT should be able to generate many app ideas, not repeatedly produce LocalGPT, AI-host, or generic dashboard shells. " +
+                        "Before creating files, classify the user's actual prompt into the requested app archetype and target platform: console utility, desktop/WebView2 app, Blazor/DevExpress app, backend service, Minecraft datapack/mod/plugin, AI host/control plane, bot, commerce/admin/media/social app, or another explicit domain. " +
+                        "Do not create downloadable artifacts for ordinary advice, release-readiness, review, or troubleshooting conversations just because the Council mentions build, solution, LocalGPT, AI host, or artifact words in its answer. " +
+                        "Generate .cs/.razor/.dll/solution/datapack zip artifacts only when the user explicitly asks to generate/create/build/continue a program or downloadable artifact, or explicitly asks the AI and user to keep developing files until accepted. " +
+                        "If the generated zip is a generic shell, lacks the promised routes/services, or does not match the user's app idea, mark the result as failed, show the artifact and generator code to the Council, inspect knowledge/function gaps, and repair the generator before claiming success.",
+                    HelpfulSources = "- Local artifact evidence: LocalGPTApp220013-177648d2.zip was generated from a release-readiness prompt and compiled only as a generic LocalGPT feature shell.\n" +
+                        "- Local service: CouncilArtifactService artifact gating and archetype detection.\n" +
+                        "- Local service: MultiModelCouncilService GenerateImplementationArtifact gate.\n" +
+                        "- Local docs: docs/GENERATION_ARCHETYPE_CONTRACTS.md and docs/FRONTEND_DESIGN_PATTERN_LIBRARY.md.",
+                    Tags = "seed; generation; archetype; artifacts; dxaichat; council; user-approved; quality-gate",
+                    Confidence = 96,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
                     Id = Guid.Parse("3c0f8c1e-7a27-466d-9f8e-11ff4a3a7a22"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,
