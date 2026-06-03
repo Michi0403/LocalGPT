@@ -15,7 +15,8 @@ param(
     [switch]$SkipWrapper,
     [switch]$SkipBackend,
     [switch]$CreateGitHubRelease,
-    [switch]$Draft
+    [switch]$Draft,
+    [switch]$AllowPartialGitHubRelease
 )
 
 $ErrorActionPreference = "Stop"
@@ -222,6 +223,62 @@ function Assert-ReleaseVersionIsNewerThanPublished {
     }
 }
 
+function Assert-PublicReleasePayloadSelection {
+    if (-not $CreateGitHubRelease -or $AllowPartialGitHubRelease) {
+        return
+    }
+
+    $requiredPlatforms = @("x64", "x86", "arm64")
+    $requiredRuntimeIdentifiers = @(
+        "win-x64",
+        "linux-x64",
+        "osx-x64",
+        "osx-arm64"
+    )
+
+    if ($SkipWrapper -or $SkipBackend) {
+        throw "Public GitHub releases must include wrapper and backend payloads. Use -AllowPartialGitHubRelease only for an explicitly requested diagnostic release."
+    }
+
+    $missingPlatforms = $requiredPlatforms |
+        Where-Object { -not ($Platforms -contains $_) }
+
+    $missingRuntimeIdentifiers = $requiredRuntimeIdentifiers |
+        Where-Object { -not ($BackendRuntimeIdentifiers -contains $_) }
+
+    if ($missingPlatforms.Count -gt 0 -or $missingRuntimeIdentifiers.Count -gt 0) {
+        $missing = @()
+        $missing += $missingPlatforms | ForEach-Object { "windows-$_" }
+        $missing += $missingRuntimeIdentifiers
+        throw "Public GitHub release payload is incomplete. Missing: $($missing -join ', ')."
+    }
+}
+
+function Assert-PublicReleasePayloadArtifacts {
+    if (-not $CreateGitHubRelease -or $AllowPartialGitHubRelease) {
+        return
+    }
+
+    $expectedFiles = @(
+        "LocalGPT-WebView2-$Version-windows-x64.zip",
+        "LocalGPT-WebView2-$Version-windows-x86.zip",
+        "LocalGPT-WebView2-$Version-windows-arm64.zip",
+        "LocalGPT-Backend-$Version-win-x64.zip",
+        "LocalGPT-Backend-$Version-linux-x64.zip",
+        "LocalGPT-Backend-$Version-osx-x64.zip",
+        "LocalGPT-Backend-$Version-osx-arm64.zip",
+        "release-manifest.txt",
+        "release-notes.md"
+    )
+
+    $missing = $expectedFiles |
+        Where-Object { -not (Test-Path (Join-Path $releaseRoot $_)) }
+
+    if ($missing.Count -gt 0) {
+        throw "Public GitHub release payload files are missing: $($missing -join ', ')."
+    }
+}
+
 trap {
     Restore-PackageManifestVersion
     throw $_
@@ -241,6 +298,7 @@ if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
 }
 
 Assert-ReleaseVersionIsNewerThanPublished $Version
+Assert-PublicReleasePayloadSelection
 Invoke-SourceHygieneGuard
 
 $releaseRoot = Join-Path $repoRoot "artifacts\releases\$Version"
@@ -432,6 +490,8 @@ Set-Content -LiteralPath $releaseNotesPath -Value $releaseNotes -Encoding utf8
 Write-Host ""
 Write-Host "Release manifest: $manifestPath"
 Write-Host "Release notes: $releaseNotesPath"
+
+Assert-PublicReleasePayloadArtifacts
 
 if ($CreateGitHubRelease) {
     $ghCommand = Resolve-GitHubCli

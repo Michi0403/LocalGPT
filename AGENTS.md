@@ -275,6 +275,16 @@ When implementing or editing features:
 7. Verify the packaged frontend visually when DevExpress UI behavior changes.
 8. Never publish a release whose MSIX archive lacks Blazor/DevExpress static assets.
 
+## Git safety
+
+Uncommitted work is source work, not disposable scratch. Never use
+`git reset --hard`, `git checkout -- <path>`, `git restore <path>`,
+`git clean`, or a destructive `git revert` to erase local changes unless the
+user explicitly asks for that exact destructive operation. If the tree is dirty,
+inspect it and explain it. Commit, stash, copy, or discard only with explicit
+user approval, and never silently lose features, fixes, generated knowledge, or
+release work.
+
 ## Good contribution patterns
 
 Good changes include:

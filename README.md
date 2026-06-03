@@ -271,6 +271,11 @@ use a semantic version higher than every existing public release, build through
 the publish script, attach the generated manifest and notes, and stop if any
 package/static-asset gate fails.
 
+The normal public payload is three Windows WebView2 zips
+(`windows-x64`, `windows-x86`, `windows-arm64`), four backend-only zips
+(`win-x64`, `linux-x64`, `osx-x64`, `osx-arm64`), `release-manifest.txt`, and
+`release-notes.md`. Smaller payloads are diagnostic or partial releases only.
+
 Create zip packages for multiple architectures:
 
 ```powershell

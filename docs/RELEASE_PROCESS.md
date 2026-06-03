@@ -71,6 +71,26 @@ The script must:
 
 ## Required Asset Contract
 
+Every public GitHub release must include this full payload unless the user
+explicitly asks for a partial diagnostic release:
+
+```text
+LocalGPT-WebView2-<version>-windows-x64.zip
+LocalGPT-WebView2-<version>-windows-x86.zip
+LocalGPT-WebView2-<version>-windows-arm64.zip
+LocalGPT-Backend-<version>-win-x64.zip
+LocalGPT-Backend-<version>-linux-x64.zip
+LocalGPT-Backend-<version>-osx-x64.zip
+LocalGPT-Backend-<version>-osx-arm64.zip
+release-manifest.txt
+release-notes.md
+```
+
+This is the known-good payload shape used by
+`v0.1.5-alpha.20260603` and later full releases. A release with only
+`windows-x64` and `win-x64` assets is a partial diagnostic release, not the
+normal public download set.
+
 Every Windows WebView2 release zip must contain an `.msix` that includes:
 
 ```text
@@ -104,3 +124,23 @@ Stop and report honestly if:
 - the working tree becomes dirty unexpectedly during release
 
 Do not continue with a partial or lower-version release.
+
+## Git Safety
+
+Git is a revision ledger for source history, not a license to destroy local
+work. Agents must not run destructive cleanup against uncommitted changes.
+
+Forbidden unless the user explicitly asks for that exact destructive action:
+
+- `git reset --hard`
+- `git checkout -- <path>`
+- `git restore <path>`
+- `git clean`
+- `git revert` when it is used to remove unreviewed work instead of creating a
+  deliberate reviewed reverse commit
+- deleting, overwriting, or regenerating files to erase another worker's
+  uncommitted changes
+
+If the tree is dirty, inspect and explain it. Commit, stash, copy, or discard
+only when the user explicitly approves the chosen handling. Never silently lose
+features, fixes, generated knowledge, or release work.

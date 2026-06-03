@@ -104,6 +104,16 @@ Avoid:
 - replacing DevExpress UI with another component stack
 - assuming `dotnet build` alone validates the package project
 
+Git safety:
+
+- uncommitted changes are source work, not disposable scratch
+- never run `git reset --hard`, `git checkout -- <path>`,
+  `git restore <path>`, `git clean`, or destructive `git revert` to erase local
+  changes unless the user explicitly asks for that exact destructive action
+- if the tree is dirty, inspect and explain it; commit, stash, copy, or discard
+  only with explicit user approval
+- never silently lose features, fixes, generated knowledge, or release work
+
 Loose AppX deploy notes:
 
 - image assets must be present under `bin/<platform>/<configuration>/AppX/Images`
