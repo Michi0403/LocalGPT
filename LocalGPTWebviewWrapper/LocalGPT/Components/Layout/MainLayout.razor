@@ -3,7 +3,7 @@
 @inject NavigationManager NavigationManager
 @inject NavigationManager NavigationManager
 @namespace LocalGPT.Components.Layout
-<div class="page">
+<div class="page" data-testid="main-layout">
 
     <Drawer DrawerHeader="drawerHeader" DrawerFooter="drawerFooter">
         <DrawerBody>
@@ -15,7 +15,7 @@
         </DrawerBody>
         <DrawerTarget>
     
-            <article id="current-main-window" class="p-4 full-height">
+            <article id="current-main-window" class="p-4 full-height" data-testid="main-content">
                 <div class="nav-buttons-container drawer-target">
 
                     <NavLink href="@UrlGenerator.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">

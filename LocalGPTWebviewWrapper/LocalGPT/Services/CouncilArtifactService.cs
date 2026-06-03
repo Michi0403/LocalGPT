@@ -505,14 +505,33 @@ namespace LocalGPT.Services
                 "DefaultModel": "gpt-oss:20b",
                 "SafeStorageRoot": "%LOCALAPPDATA%/GeneratedAiHost",
                 "PluginRoot": "plugins",
+                "ModelsRoot": "%LOCALAPPDATA%/GeneratedAiHost/Models",
                 "NativeRunnerExecutable": "",
+                "EnableRunnerAutoDetect": true,
+                "NativeRunnerInstallUrl": "https://github.com/ggml-org/llama.cpp/releases",
+                "RunnerSearchRoots": [
+                  "%LOCALAPPDATA%/LocalGPT/Runners",
+                  "%LOCALAPPDATA%/Programs/Ollama",
+                  "%PROGRAMFILES%/Ollama",
+                  "%USERPROFILE%/.local/bin"
+                ],
+                "RunnerExecutableNames": [
+                  "llama-cli.exe",
+                  "llama-server.exe",
+                  "ollama.exe",
+                  "llama-cli",
+                  "llama-server",
+                  "ollama"
+                ],
                 "ModelSearchRoots": [
                   "%USERPROFILE%/.ollama/models",
                   "%LOCALAPPDATA%/LocalGPT/ModelFiles",
                   "%LOCALAPPDATA%/GeneratedAiHost/Models"
                 ],
-                "ContextTokens": 32768,
+                "ContextTokens": 262144,
                 "GpuLayers": 20,
+                "MaxParallelModels": 2,
+                "TargetGpuLoadPercent": 85,
                 "AllowNativeRunner": true,
                 "AllowPythonNet": false,
                 "AllowPowerShellScripts": false,
@@ -564,6 +583,14 @@ namespace LocalGPT.Services
                   app.MapGet("/api/localgpt/plugins", ([FromServices] IPluginCatalogService plugins) => plugins.GetPlugins());
                   app.MapGet("/api/localgpt/hardware-budget", ([FromServices] IHardwareBudgetService hardware) => hardware.GetBudget());
                   app.MapGet("/api/localgpt/chat-templates", ([FromServices] IChatTemplateService templates) => templates.GetTemplateRules());
+                  app.MapGet("/api/host/status", async ([FromServices] IInferenceRunner runner, [FromServices] IModelCatalogService catalog, [FromServices] IHardwareBudgetService hardware, CancellationToken cancellationToken) => new
+                  {
+                      runner = await runner.GetCapabilityAsync(cancellationToken),
+                      models = catalog.GetAiHostTags(),
+                      running = catalog.GetRunningModels(),
+                      hardware = hardware.GetBudget(),
+                      upstream_proxy = false
+                  });
                   app.MapPost("/api/localgpt/scripts/plan", ([FromServices] IScriptExecutionService scripts, [FromBody] GeneratedScriptPlanRequest request) => scripts.CreatePlan(request.ScriptKind, request.Target, request.UserApproved));
                   app.MapGet("/v1/models", ([FromServices] IModelCatalogService catalog) => new { data = catalog.GetAiHostTags() });
                   app.MapPost("/v1/chat/completions", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedChatRequest request, CancellationToken cancellationToken) => await provider.ChatAsync(request, cancellationToken));
@@ -4759,6 +4786,98 @@ namespace LocalGPT.Services
 
             ValidateGenerationContractJson(Path.Combine(solutionRoot, ".localgpt-generation.json"));
             ValidateGenerationManifestJson(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"));
+
+            if (isAiHostLab)
+                ValidateAiHostArtifactContract(solutionRoot, projectName);
+        }
+
+        private static void ValidateAiHostArtifactContract(string solutionRoot, string projectName)
+        {
+            var projectRoot = Path.Combine(solutionRoot, "src", projectName);
+            var programPath = Path.Combine(projectRoot, "Program.cs");
+            var architectureServicePath = Path.Combine(projectRoot, "Services", "GeneratedAiHostArchitectureServices.cs");
+            var appSettingsPath = Path.Combine(projectRoot, "appsettings.json");
+            var navigationPath = Path.Combine(projectRoot, "Components", "GeneratedNavigation.razor");
+
+            var program = File.ReadAllText(programPath);
+            var architectureService = File.ReadAllText(architectureServicePath);
+            var appSettings = File.ReadAllText(appSettingsPath);
+            var navigation = File.ReadAllText(navigationPath);
+
+            var requiredRoutes = new[]
+            {
+                "/api/version",
+                "/api/tags",
+                "/api/ps",
+                "/api/generate",
+                "/api/chat"
+            };
+
+            foreach (var route in requiredRoutes)
+            {
+                if (!program.Contains(route, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"AI host artifact Program.cs is missing required route {route}.");
+            }
+
+            var requiredProgramTokens = new[]
+            {
+                "IInferenceProvider",
+                "NativeModelFileInferenceProvider",
+                "IInferenceRunner",
+                "NativeModelFileProcessRunner",
+                "upstream_proxy = false"
+            };
+
+            foreach (var token in requiredProgramTokens)
+            {
+                if (!program.Contains(token, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"AI host artifact Program.cs is missing required implementation token {token}.");
+            }
+
+            var requiredServiceTokens = new[]
+            {
+                "AiHostRuntimeOptions",
+                "NativeModelFileProcessRunner",
+                "NativeRunnerExecutable",
+                "No upstream proxy fallback is used",
+                "ProcessStartInfo"
+            };
+
+            foreach (var token in requiredServiceTokens)
+            {
+                if (!architectureService.Contains(token, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"AI host architecture service is missing required implementation token {token}.");
+            }
+
+            var requiredSettingTokens = new[]
+            {
+                "\"DefaultModel\"",
+                "\"NativeRunnerExecutable\"",
+                "\"ModelSearchRoots\"",
+                "\"ContextTokens\"",
+                "\"GpuLayers\""
+            };
+
+            foreach (var token in requiredSettingTokens)
+            {
+                if (!appSettings.Contains(token, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"AI host appsettings.json is missing required setting {token}.");
+            }
+
+            var requiredNavigationRoutes = new[]
+            {
+                "/chat",
+                "/models",
+                "/api-console",
+                "/downloads",
+                "/settings"
+            };
+
+            foreach (var route in requiredNavigationRoutes)
+            {
+                if (!navigation.Contains(route, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"AI host navigation is missing required route {route}.");
+            }
         }
 
         private static void ValidateGenerationContractJson(string path)
@@ -4855,7 +4974,7 @@ namespace LocalGPT.Services
         [GeneratedRegex("(whole solution|full solution|entire solution|solution zip|project zip|\\.sln|\\.csproj|all source files|tacosportalopen|localgpt|whole ai host|ai host dotnet|local ai host|whole ollama|ollama dotnet|ollama \\.net)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex WholeSolutionPattern();
 
-        [GeneratedRegex("(ai host|local ai host|model host|chat host|ollama).*(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net)|(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net).*(ai host|local ai host|model host|chat host|ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        [GeneratedRegex("(ai\\s*host|local\\s*model\\s*host|model[- ]file\\s*runner|native\\s*runner|ollama[- ]compatible|/api/(?:chat|generate|tags|ps|version)|host\\s+gpt-oss|provider[- ]compatible).*(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net|api|route|endpoint|sqlite|ollama|model|runner)|(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net|api|route|endpoint|sqlite|model|runner).*(ai\\s*host|local\\s*model\\s*host|model[- ]file\\s*runner|native\\s*runner|ollama[- ]compatible|/api/(?:chat|generate|tags|ps|version)|provider[- ]compatible)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
         private static partial Regex AiHostExperimentPattern();
 
         [GeneratedRegex("(localgpt|local gpt|dxaichat|ai council|minecraft mod builder|sqlite memory|test lab)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

@@ -6,6 +6,44 @@ INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
 ("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
 VALUES
 (
+  '8d8f0e91-6ee6-48ad-ae17-348a0b57108d',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Source-backed AI host route, runner, persistence, and test contracts',
+  'AI host / Council artifact generation',
+  'For AI-host generation, treat route contracts as implementation requirements, not documentation text. Ollama-compatible minimum routes are GET /api/version, GET /api/tags for installed models, GET /api/ps for loaded/running models, POST /api/generate for prompt completion, and POST /api/chat for message-based chat. Minimal API generation should physically map those exact paths with app.MapGet/app.MapPost or equivalent explicit route attributes; avoid attribute combinations that create /api/chat/chat. The CLI knowledge is useful only as a runner adapter reference: ollama run <model> is an interactive command, ollama pull <model> downloads, and ollama ls lists models. A replacement host must not depend on proxying Ollama; if direct native/model-file inference is not configured, return an honest setup-needed result. Persist runtime settings and chat/session state through EF Core with the Microsoft.EntityFrameworkCore.Sqlite provider, with bootstrap-only values in appsettings and user-editable runtime settings in SQLite. Generated tests should include route/integration tests using Microsoft.AspNetCore.Mvc.Testing/WebApplicationFactory or an equivalent live route test page. The chat UI can use DevExpress Blazor/DxAIChat for user interaction and native file uploads; file upload only transfers files, LocalGPT/backend/model code must explicitly process uploaded content. Python.NET is a valid optional runner boundary when the user approves a Python runtime and package list, but generated code must isolate Python execution behind a safe .NET service contract.',
+  'LocalGPT SQL seed from official source-backed AI-host repair pass',
+  'Ollama API introduction/base URL/generate: https://docs.ollama.com/api. Ollama chat API: https://docs.ollama.com/api/chat. Ollama list models: https://docs.ollama.com/api/tags. Ollama running models: https://docs.ollama.com/api/ps. Ollama CLI reference: https://docs.ollama.com/cli. Microsoft Learn Minimal APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis. Microsoft Learn EF Core SQLite provider: https://learn.microsoft.com/ef/core/providers/sqlite/. Microsoft Learn ASP.NET Core integration tests: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests. DevExpress DxAIChat docs: https://docs.devexpress.com/Blazor/DevExpress.AIIntegration.Blazor.Chat.DxAIChat. Python.NET embedding docs: https://pythonnet.github.io/pythonnet/dotnet.html.',
+  'seed; ai-host; ollama-api; ollama-cli; minimal-api; sqlite; efcore; integration-tests; dxaichat; pythonnet; source-backed',
+  96,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  '82d00fe4-2a34-4d52-a680-d1e335036f8b',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'AI host generation must wire promised API routes and UX, not placeholders',
+  'AI host / Council artifact generation',
+  'The 2026-06-03 DXAiChat repair round showed a concrete generator failure: a buildable Blazor zip can still be unacceptable if it only contains docs, placeholder services, or a dashboard shell. For AI-host artifacts, classify prompts mentioning AI host, local model host, native runner, model-file runner, provider-compatible routes, or Ollama-compatible APIs as the AI-host archetype even when they also mention LocalGPT. The generated Program.cs or endpoint extension must physically map GET /api/version, GET /api/tags, GET /api/ps, POST /api/generate, and POST /api/chat. Generated services must include an honest native-runner boundary with configured runner path/model paths, clear setup-needed errors when missing, no upstream proxy milestone, and tests or diagnostics that hit each route. Do not accept route text that appears only in README, comments, or UI snippets as implementation. Validate Program.cs/endpoints, appsettings/bootstrap keys, native-runner service code, and navigation pages before zipping. The frontend should resemble a modern AI host: left navigation, chat-first center area, model selector, model catalog, running models, downloads, API console, settings, logs, and clear empty/setup states rather than a raw table prototype. If missing knowledge is detected, ask for or import official sources, but still generate a safe buildable milestone with explicit setup gaps rather than pretending inference works.',
+  'LocalGPT SQL seed from DXAiChat/WebView2 AI-host repair run',
+  'Official Ollama API docs: https://docs.ollama.com/api and https://docs.ollama.com/api/chat. Ollama GitHub API source docs: https://github.com/ollama/ollama/blob/main/docs/api.md. Microsoft Learn Minimal APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis. Microsoft Learn EF Core SQLite provider: https://learn.microsoft.com/ef/core/providers/sqlite/. DevExpress Blazor component docs: https://docs.devexpress.com/Blazor/400725/blazor-components, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxGrid, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxButton, https://docs.devexpress.com/Blazor/DevExpress.Blazor.DxTextBox. Local evidence: real WebView2 DXAiChat repair prompt, generated LocalGPTApp194332-883568bf.zip, Program.cs route inspection, and CouncilArtifactService validation repair.',
+  'seed; ai-host; ollama-api; minimal-api; devexpress; artifact-validation; dxaichat; webview2; source-backed; user-approved',
+  97,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
   '54bc5a58-3a5a-4d6d-9545-13c9813f2ad8',
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
@@ -447,6 +485,82 @@ INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
 ("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
 VALUES
 (
+  'f9ef9b92-97fd-4c01-a3ef-bf570ad20524',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'Council stalls: distinguish model quality, GPU pressure, and Ollama session coordination',
+  'AI Council diagnostics / Ollama / WebView2 frontend smoke',
+  'Do not assume every stuck council run means the model is bad or the GPU/OS is unstable. Recent evidence showed a WebView2 AI-host smoke appeared stuck because the diagnostic JavaScript still required deepseek-r1:8b and rejected qwen/gwen-style models as unsafe, even after the route was changed to gpt-oss:20b plus qwen3-coder:30b. Other false-stall causes include stale Ollama keep-alive, queued loaded models, missing unload, overlapping calls, cancellation not reaching the runner, and stale frontend-selected members. Check ollama ps, selected council roster, request flags, keep-alive, diagnostic URL, frontend progress text, and WebView2 snapshot state before blaming the model or hardware. Sequential scheduling, explicit unload/keep_alive=0s, CPU/limited-GPU controls, and no overlapping model calls are the preferred recovery path.',
+  'LocalGPT debugging lesson from WebView2 AI-host smoke',
+  'Evidence sources: WebView2Diagnostics launch files, MainWindow.xaml.cs diagnostic script, ollama ps, package install with ForceApplicationShutdown, docs/LOCALGPT_WORKFLOW_MEMORY.md.',
+  'seed; council-stall; ollama; keepalive; unload; webview2; model-routing; diagnostics; no-spray-and-pray',
+  96,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  'f8a3acfb-fbf1-4a23-9170-2c9eea99c4f1',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'AI host target: better for LocalGPT than constrained one-model hosting',
+  'AI host generation / DevExpress Blazor / model scheduler / native local-file runners',
+  'When the user asks for a generated local AI host, the goal is not a thin dashboard or provider proxy. Generate a buildable provider-compatible ASP.NET Core + DevExpress Blazor app with direct local model-file runner contracts, model catalog, downloads, running sessions, chat/API console, settings, logs, hardware budget, SQLite state, and LocalGPT-compatible routes. It should be better for LocalGPT than a one-model constrained provider by supporting concurrent model sessions when the selected runner, hardware budget, and user policy allow it; honest visible queueing when not; per-model/per-phase timers; request/model/download cancellation; unload controls; role-aware council scheduling; visible CPU/GPU/context/output policy; and source-backed user-approved model download plans. If native tensor inference is not wired yet, the artifact must still build, expose the runner interfaces, resolve local model-file paths, report the missing backend as a capability gap, and never pretend success by silently proxying chat/generate to another AI host.',
+  'LocalGPT user-approved AI host generation contract',
+  'Docs: docs/AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md, docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md, docs/LOCALGPT_WORKFLOW_MEMORY.md. Test evidence: DXAiChat/WebView2 AI-host smoke, /__diag/council/artifact-smoke?target=ai-host, generated artifact build checks, Ollama ps.',
+  'seed; ai-host; local-model-file-runner; multi-model; scheduler; devexpress; blazor; sqlite; dxaichat; no-proxy; better-than-provider',
+  98,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  'd3c28fd8-30ea-41d4-a846-e6c493e3f01f',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'AI Council cooperative model roles',
+  'AI Council / model routing / human-visible governance',
+  'The AI Council should use cooperative roles rather than toxic competition. Track evidence-based strengths such as implementer, reviewer, architect, UX checker, safety checker, setup helper, or capability-gap scout. A model can be preferred for a task because prior frontend/log/build evidence shows it produces better usable results or avoids stalls, but the council should stay respectful and explain the reason. Faulty or weak members should not be silently excluded; suggest exclusion, replacement, or role changes as user-visible options when it affects the outcome. For large .NET/DevExpress/code-generation tasks, prefer a strong implementer pair such as gpt-oss:20b plus qwen3-coder:30b when available, with sequential execution and explicit hardware limits. Use DeepSeek-style reasoning models as focused critics or lightweight helpers when they stall or spend too much budget on thinking for long code-generation prompts.',
+  'LocalGPT user-approved workflow lesson',
+  'Evidence sources: DXAiChat frontend smoke runs, CouncilLogs, WebView2Diagnostics snapshots, generated artifact build checks, Ollama ps, and user feedback. Related docs: AGENTS.md, docs/LOCALGPT_WORKFLOW_MEMORY.md, docs/AI_COUNCIL_CODE_REVIEW_20260601-224350.md.',
+  'seed; ai-council; cooperative-roles; model-routing; no-toxic-competition; qwen; gpt-oss; deepseek; evidence-based',
+  94,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  '06e20e72-53f3-44f8-9886-8a14a3f498de',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT SQLite integrity and crash recovery',
+  'EF Core / SQLite / diagnostics',
+  'After forced reboots, app kills, or driver/power instability, a local SQLite database can report SQLite Error 11: database disk image is malformed. Treat this as a local-store integrity incident, not as a model or council competence issue. LocalGPT startup should run PRAGMA quick_check before EF services and the database logger use the file. If corruption is detected, preserve the database plus -wal and -shm sidecars in a timestamped CorruptDatabaseBackups folder, remove the broken live files, recreate a clean database, then re-import source-backed seed knowledge. Tell the user where the backup lives so manual salvage remains possible.',
+  'LocalGPT SQL seed',
+  'Local code: LocalGPTWebviewWrapper/LocalGPT/Data/LocalGptDatabaseRecovery.cs; startup hook: Program.ConfigureOptionsAndServices; docs: docs/LOCALGPT_WORKFLOW_MEMORY.md and docs/LOCALGPT_DEVELOPER_DIARY.md; diagnostic symptom: SQLite Error 11 database disk image is malformed in ApplicationLogs/CouncilKnowledge LastUsedAtUtc updates.',
+  'seed; sqlite; efcore; corruption; quick-check; recovery; knowledge-base; diagnostics',
+  97,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
   '20efbf3a-e6e4-4bf3-9b94-10b8017de0d1',
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
@@ -872,6 +986,44 @@ VALUES
   'Related local docs: AGENTS.md and docs/LOCALGPT_WORKFLOW_MEMORY.md.',
   'seed; security; local-first; privacy; webview2; loopback; native-commands; sqlite; cloud-providers; hosting-boundary',
   98,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  '6a85fcf8-6ea3-4df6-8eb0-551f87e6cb8e',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT no more spray-and-pray engineering loop',
+  'AI Council / Codex / frontend diagnostics / model tuning',
+  'No more spray-and-pray is a LocalGPT engineering rule. When tuning the AI Council, debugging DXAiChat, generating artifacts, testing local models, or fixing build/deploy issues, change one meaningful variable at a time. Use the smallest prompt or source edit that proves the current hypothesis, inspect DXAiChat/WebView2/log/build evidence, teach the exact missing knowledge or missing LocalGPT function, then rerun. Do not hide a failure behind giant context dumps, unrelated edits, broad retries, or multiple simultaneous model changes. This protects token budget, GPU stability, user time, and reviewability.',
+  'LocalGPT user-approved workflow lesson',
+  'Docs: AGENTS.md, llms.txt, docs/LOCALGPT_WORKFLOW_MEMORY.md, docs/LOCALGPT_DEVELOPER_DIARY.md. Evidence sources: WebView2Diagnostics snapshots, /__diag/logs, build output, council logs, Ollama ps, generated artifact zip checks.',
+  'seed; workflow; no-spray-and-pray; dxaichat; webview2; diagnostics; council; model-tuning; token-budget',
+  99,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  '5891f5d1-ecbf-4f2d-8794-1a60ff5a4a5c',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'DXAiChat council GPU acceptance profile for code generation',
+  'AI Council / Ollama / DXAiChat diagnostics',
+  'For real frontend code-generation acceptance tests, do not silently switch the AI Council to CPU-only mode. The observed successful DXAiChat profile used gpt-oss:20b plus qwen3-coder:30b, sequential scheduling with MaxParallelModels=1, MaxOutputTokens=131072, MaxContextTokens=131072, GPT-OSS on Ollama auto GPU, and the LocalGPT heavy-model guardrail that caps qwen/gwen/gemma-class 27B/30B models at num_gpu=20 unless explicitly overridden. CPU-only mode is useful for recovery or plumbing checks after confirmed GPU pressure, but it can create false failures and multi-minute waits for real code-generation acceptance.',
+  'LocalGPT user-approved frontend test evidence',
+  'Evidence: %LOCALAPPDATA%/LocalGPT/AIReports/missing-features-20260602-183302.txt showed gpt-oss:20b proposal in 33.0s, qwen3-coder:30b proposal in 78.2s, and GPT-OSS consensus in 30.1s with the qwen guardrail. Related docs: docs/LOCALGPT_WORKFLOW_MEMORY.md and docs/ARCHITECTURE_FOR_AI.md.',
+  'seed; dxaichat; ai-council; ollama; gpu; qwen; gwen; gpt-oss; acceptance-test; no-spray-and-pray',
+  99,
   1,
   1,
   0

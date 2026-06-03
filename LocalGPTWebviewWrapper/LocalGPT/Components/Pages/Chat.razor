@@ -8,16 +8,17 @@
 @inject IChatMemoryService ChatMemory
 @inject IMultiModelCouncilService CouncilService
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 @implements IDisposable
 <PageTitle>AI Chat</PageTitle>
 
-<div class="main-container">
+<div class="main-container" data-testid="chat-page">
     @if (ChatClientProvider is not null)
     {
         <ToastWrapper Name="@toastName" />
 
-        <div class="top-container">
+        <div class="top-container" data-testid="chat-top-controls">
             <span title="Clears the visible chat and starts a fresh memory thread.">
                 <DxButton RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
@@ -43,7 +44,7 @@
                 <span>Auto-load latest memory</span>
             </label>
         </div>
-        <div class="model-toolbar" aria-label="DXAiChat model and council controls">
+        <div class="model-toolbar" aria-label="DXAiChat model and council controls" data-testid="chat-model-toolbar">
             <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
                 <DxButton Text="Refresh Ollama Models"
                           RenderStyle="ButtonRenderStyle.Secondary"
@@ -231,33 +232,35 @@
                 <p class="memory-status">@ArchitecturePollStatus</p>
             }
         </details>
-        <DxAIChat Initialized="ChatInitialized"
-                  ResponseContentFormat="ResponseContentFormat.Markdown"
-                  UseStreaming="true"
-                  FileUploadEnabled="true"
-                  @ref="DxAiChat"
-                  CssClass="demo-chat">
-            <PromptSuggestions>
-                @foreach (var suggestion in PromptSuggestions)
-                {
-                    <DxAIChatPromptSuggestion Title="@suggestion.Title"
-                                              Text="@suggestion.Text"
-                                              PromptMessage="@suggestion.PromptMessage" />
-                }
-            </PromptSuggestions>
-            <MessageContentTemplate>
-                <div class="demo-chat-content">
-                    @(new MarkupString(RenderChatMarkdown(context.Content)))
-                </div>
-            </MessageContentTemplate>
-            <AIChatSettings>
-                <DxAIChatFileUploadSettings MaxFileCount="@MaxUploadFiles"
-                                            MaxFileSize="@MaxUploadBytes"
-                                            AllowedFileExtensions="@AllowedUploadExtensions"
-                                            FileTypeFilter="@AllowedUploadMimeTypes" />
-            </AIChatSettings>
+        <div data-testid="dxaichat-host">
+            <DxAIChat Initialized="ChatInitialized"
+                      ResponseContentFormat="ResponseContentFormat.Markdown"
+                      UseStreaming="true"
+                      FileUploadEnabled="true"
+                      @ref="DxAiChat"
+                      CssClass="demo-chat">
+                <PromptSuggestions>
+                    @foreach (var suggestion in PromptSuggestions)
+                    {
+                        <DxAIChatPromptSuggestion Title="@suggestion.Title"
+                                                  Text="@suggestion.Text"
+                                                  PromptMessage="@suggestion.PromptMessage" />
+                    }
+                </PromptSuggestions>
+                <MessageContentTemplate>
+                    <div class="demo-chat-content">
+                        @(new MarkupString(RenderChatMarkdown(context.Content)))
+                    </div>
+                </MessageContentTemplate>
+                <AIChatSettings>
+                    <DxAIChatFileUploadSettings MaxFileCount="@MaxUploadFiles"
+                                                MaxFileSize="@MaxUploadBytes"
+                                                AllowedFileExtensions="@AllowedUploadExtensions"
+                                                FileTypeFilter="@AllowedUploadMimeTypes" />
+                </AIChatSettings>
 
-        </DxAIChat>
+            </DxAIChat>
+        </div>
     }
     else
     {
@@ -356,6 +359,7 @@
         .UseAdvancedExtensions()
         .Build();
     static readonly Regex HarmonyMarkerCleanupRegex = new("<\\|[^|>]+\\|>", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    static readonly Regex OpenThinkingDetailsRegex = new("(?i)<details\\s+class=\"model-thinking\"\\s+open>", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     static readonly Regex ListAfterHtmlRegex = new("(?i)(</(?:p|details|pre|div)>)\\s*((?:[-*]|\\d+\\.)\\s+)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     const int MaxUploadFiles = 12;
     const int MaxUploadBytes = 32 * 1024 * 1024;
@@ -397,6 +401,21 @@
         else if (SavedConversations.Count > 0)
         {
             memoryStatus = "Saved memory is available. Click Load latest memory when you want to continue an older chat.";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("localGptReady.markInteractive");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not mark the Chat page as interactively attached.");
         }
     }
 
@@ -1191,6 +1210,7 @@
 
         var text = System.Net.WebUtility.HtmlDecode(content);
         text = HarmonyMarkerCleanupRegex.Replace(text, string.Empty);
+        text = OpenThinkingDetailsRegex.Replace(text, "<details class=\"model-thinking\">");
         text = text.Replace("</details>\n", "</details>\n\n", StringComparison.OrdinalIgnoreCase);
         text = ListAfterHtmlRegex.Replace(text, "$1\n\n$2");
         return text.Trim();

@@ -54,6 +54,10 @@ namespace WebView2_WinUI3_Sample
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             WriteStartupDiagnostic(args.Arguments);
+            var runE2E = IsE2ERequested(args.Arguments);
+            if (runE2E)
+                Environment.SetEnvironmentVariable("LOCALGPT_E2E", "1");
+
             _webApp = LocalGPT.Program.BuildWebApp();
             await _webApp.StartAsync();          // non-blocking
             _baseUrl = $"http://127.0.0.1:{LocalGPT.Program.Port}";
@@ -69,7 +73,7 @@ namespace WebView2_WinUI3_Sample
                 string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_EXIT"), "1", StringComparison.OrdinalIgnoreCase) ||
                 IsWebView2SmokeFlagExitRequested();
 
-            _window = new MainWindow(_baseUrl, runWebView2Diagnostics, exitAfterWebView2Diagnostics);
+            _window = new MainWindow(_baseUrl, runWebView2Diagnostics, exitAfterWebView2Diagnostics, runE2E);
             _window.Title = "WebView2 Hosts Blazor Backend";
             // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
             var appWindow = _window.AppWindow;
@@ -137,6 +141,21 @@ namespace WebView2_WinUI3_Sample
             }
 
             return exitRequested;
+        }
+
+        private static bool IsE2ERequested(string arguments)
+        {
+            return (arguments?.Contains("--e2e", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_E2E"), "1", StringComparison.OrdinalIgnoreCase) ||
+                IsE2EFlagPresent();
+        }
+
+        private static bool IsE2EFlagPresent()
+        {
+            return GetRuntimeDirectories()
+                .Select(directory => Path.Combine(directory, "localgpt-e2e.flag"))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Any(File.Exists);
         }
 
         private static string[] GetWebView2SmokeFlagPaths()

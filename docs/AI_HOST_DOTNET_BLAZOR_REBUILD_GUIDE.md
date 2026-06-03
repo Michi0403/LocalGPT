@@ -16,6 +16,32 @@ A local AI host tool needs a recognizable application shell:
 
 For a LocalGPT-style generation, use DevExpress Blazor components for application controls and Bootstrap v5 for macro layout.
 
+## Better-For-LocalGPT Acceptance Target
+
+The generated host should not be a thinner copy of a constrained provider. It
+should be better for LocalGPT's use case:
+
+- Run more than one model session when the selected runner, hardware budget,
+  and user policy allow it.
+- Queue honestly when concurrency is not possible, showing which model is
+  waiting, why it is waiting, and how long the current step has been running.
+- Let a council assign cooperative model roles such as implementer, reviewer,
+  architect, safety checker, setup helper, and UX checker without toxic ranking.
+- Support cancellation per request, per model session, and per download.
+- Expose keep-alive, unload, context, output, CPU/GPU placement, and
+  hardware-risk controls in the UI.
+- Read local model files through approved runner contracts rather than routing
+  chat/generate calls to an upstream host.
+- Keep model download plans user-approved, source-backed, checksum-aware, and
+  visible in SQLite-backed job history.
+- Provide LocalGPT-compatible HTTP routes and a clear way to point DXAiChat at
+  the generated host URL for acceptance testing.
+
+If a generated solution cannot yet perform native tensor inference, it must
+still build and expose the runner contract, model-file resolution path,
+capability-gap report, and safe next setup step. It must not claim success by
+silently proxying to another host.
+
 ## Source Lessons From Local AI Hosts
 
 The local `ollama-main` source is architecture evidence for a .NET control plane. Treat Ollama as one provider/source example, not as the generated application name:

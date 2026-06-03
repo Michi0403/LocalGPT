@@ -96,9 +96,14 @@
     background: rgba(255, 111, 0, 0.06);
 }
 
+.demo-chat ::deep .model-thinking:not([open]) {
+    background: rgba(255, 111, 0, 0.035);
+}
+
 .demo-chat ::deep .model-thinking summary {
     cursor: pointer;
     font-weight: 700;
+    color: var(--bs-secondary-color);
 }
 
 .demo-chat ::deep .model-thinking pre {
@@ -124,7 +129,24 @@
     background: rgba(80, 120, 220, 0.05);
 }
 
+.demo-chat ::deep .council-step:not([open]) {
+    background: rgba(80, 120, 220, 0.03);
+}
+
 .demo-chat ::deep .council-step summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.demo-chat ::deep .council-prompt {
+    border: 1px solid rgba(127, 127, 127, 0.24);
+    border-radius: 6px;
+    margin: 0 0 0.75rem;
+    padding: 0.6rem 0.75rem;
+    background: rgba(127, 127, 127, 0.04);
+}
+
+.demo-chat ::deep .council-prompt summary {
     cursor: pointer;
     font-weight: 700;
 }

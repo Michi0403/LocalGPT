@@ -695,7 +695,7 @@ namespace LocalGPT.Services
                     yield break;
 
                 thinkingBlockOpen = true;
-                yield return "<details class=\"model-thinking\" open><summary>Model thinking</summary><pre>";
+                yield return "<details class=\"model-thinking\"><summary>Model thinking</summary><pre>";
             }
 
             private IEnumerable<string> CloseThinkingBlock()
