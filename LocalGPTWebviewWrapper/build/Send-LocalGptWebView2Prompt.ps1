@@ -173,6 +173,8 @@ try {
         $currentUrl = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.href"
         Write-E2ELog "Current visible page is $currentUrl; navigating that same WebView2 host to $ChatPath."
         Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.href = $chatPathJson; true" | Out-Null
+        Write-E2ELog "Waiting 2 seconds for Blazor route prerendering to settle after navigation."
+        Start-Sleep -Seconds 2
     }
 
     Wait-Until -Description "visible WebView2 Chat route" -Seconds 90 -Condition {
