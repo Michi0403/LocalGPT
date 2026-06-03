@@ -44,6 +44,21 @@ Developer repair and build scripts. Keep these scripts sanitized, small, and sui
 
 Treat the system as a local desktop shell around a real ASP.NET Core application.
 
+Security boundary:
+
+- LocalGPT is local-first and privacy-oriented, but it is not risk-free.
+- In intended use, bind the ASP.NET Core host to loopback and keep it inside the
+  WinUI/WebView2 desktop boundary.
+- Do not expose Kestrel to `0.0.0.0`, coworkers, VPNs, or public networks without
+  normal web-app hardening: auth, authorization, CSRF protection, TLS, rate
+  limits, audit logs, command restrictions, secrets handling, and workspace
+  isolation.
+- Treat native commands, Python interop, generated scripts, generated projects,
+  and imported knowledge as trusted-local capabilities that require user review
+  and explicit permission gates.
+- Treat SQLite chat memory, council knowledge, diagnostics, and logs as sensitive
+  project data.
+
 The WinUI layer should remain thin:
 
 - start/host the server

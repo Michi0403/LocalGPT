@@ -742,7 +742,12 @@ namespace LocalGPT.Endpoints
                     : isLoaderMatrix
                     ? "implementation-request smoke: generate a downloadable Minecraft Java project skeleton distinction zip with separate Fabric, Paper, and NeoForge workspaces for Minecraft 26.1. Each loader must use its own metadata and Gradle conventions."
                     : isAiHostLab
-                    ? "implementation-request smoke: generate a whole local AI host .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Include a left navigation shell, model catalog, chat, downloads, running models, API console, settings, logs, and selected provider-compatible API routes such as /api/version, /api/tags, /api/ps, /api/chat, and /api/generate. The generated host should delegate to an approved external Ollama-compatible provider URL by default, then fall back safely when that provider is unavailable. Do not use Go and do not claim native GGML/GPU inference is implemented."
+                    ? "implementation-request smoke: generate a whole local AI host .NET 10 ASP.NET Core and DevExpress Blazor solution zip. " +
+                        "Use only .NET, C#, Razor, and DevExpress Blazor. Include a left navigation shell, model catalog, chat, downloads, " +
+                        "running models, API console, settings, logs, and selected provider-compatible API routes such as /api/version, " +
+                        "/api/tags, /api/ps, /api/chat, and /api/generate. The generated host should delegate to an approved external " +
+                        "Ollama-compatible provider URL by default, then fall back safely when that provider is unavailable. Do not use Go " +
+                        "and do not claim native GGML/GPU inference is implemented."
                     : isSolution
                     ? "implementation-request smoke: generate a whole LocalGPT/TacosPortalOpen-style .NET 10 Blazor DevExpress solution zip with .sln, .csproj, real .razor pages, css, service/model code, README, and manifest. The zip must be downloadable through /__artifacts/council/."
                     : isBlazor

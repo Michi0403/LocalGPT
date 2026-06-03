@@ -824,3 +824,28 @@ VALUES
   1,
   0
 );
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
+  '3f0f5538-5968-4ec0-953b-8b878869c3e2',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT security model: local-first privacy and local capability risk',
+  'Security / hosting boundary',
+  'LocalGPT is designed for single-user desktop/WebView2 use on loopback. ' ||
+  'This gives a real privacy advantage because prompts, source code, chat memory, generated artifacts, logs, and local model calls can stay on the user machine. ' ||
+  'Do not claim that local means no security concerns. The remaining risk is local capability risk: file access, native commands, generated scripts/projects, sensitive SQLite memory, imported knowledge, and optional cloud endpoints. ' ||
+  'Keep command execution behind policy services, require explicit user permission before integrating generated code into LocalGPT, inspect generated scripts before running them, and mark imported knowledge as verified or unverified. ' ||
+  'If LocalGPT is hosted for coworkers or any untrusted network, treat it as a normal web app and require authentication, authorization, CSRF protection, TLS, rate limits, audit logs, command restrictions, workspace isolation, secrets management, and database retention rules.',
+  'LocalGPT security review seed',
+  'Top-level doc: SECURITY.md. README section: Security Model. ' ||
+  'Local code: Program.cs binds the desktop host to 127.0.0.1 by default. ' ||
+  'Related local docs: AGENTS.md and docs/LOCALGPT_WORKFLOW_MEMORY.md.',
+  'seed; security; local-first; privacy; webview2; loopback; native-commands; sqlite; cloud-providers; hosting-boundary',
+  98,
+  1,
+  1,
+  0
+);

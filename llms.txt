@@ -15,6 +15,7 @@ Key architecture:
 - Blazor/server code owns AI, configuration, and command orchestration
 - DevExpress static assets require LocalGPT.staticwebassets.runtime.json in the packaged executable folder
 - native commands should flow through backend services such as INativeCommandRunner
+- LocalGPT is local-first and privacy-oriented, but local command execution, generated code, SQLite memory, and imported knowledge are powerful trusted-local capabilities
 
 Important assumptions:
 
@@ -40,12 +41,14 @@ Important assumptions:
 - requested features should be prototyped in harmless sandbox artifacts or temporary workspaces before integration into the real project
 - never self-expand LocalGPT or integrate generated features without explicit user permission; never overrule a user decision that denies or limits expansion
 - missing-feature reports should include helpful sources requested by AI participants, without claiming those sources were verified
+- keep the ASP.NET Core host on loopback in desktop mode; do not expose it to coworkers or public networks without authentication, authorization, CSRF protection, TLS, rate limits, audit logs, command restrictions, secrets handling, and workspace isolation
 - use LOCALGPT_WEBVIEW2_SMOKE=1 in the WinUI wrapper to capture WebView2 page snapshots for desktop-shell validation. Prefer this fallback over an agent built-in browser when testing LocalGPT frontend usability, because it exercises the real WinUI/WebView2 wrapper and route flow.
 
 Recommended docs:
 
 - AGENTS.md
 - README.md
+- SECURITY.md
 - CLAUDE.md
 - docs/ARCHITECTURE_FOR_AI.md
 - docs/MINECRAFT_MOD_AI_BUILDER.md

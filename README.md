@@ -10,6 +10,23 @@ LocalGPT is a Windows desktop hosted Blazor and ASP.NET Core app wrapped by WinU
 - `docs`: AI-facing architecture notes, install notes, and Minecraft builder guidance.
 - `AGENTS.md` and `llms.txt`: short context files for AI agents working in this repository.
 
+## Security Model
+
+LocalGPT is local-first, not risk-free. In the intended desktop/WebView2 mode it
+keeps prompts, code, chat memory, logs, generated artifacts, and model calls on
+the user's machine. That is a strong privacy advantage compared with cloud-only
+coding agents.
+
+The remaining risk is local capability risk: the app can generate code, write
+local artifacts, store sensitive SQLite knowledge, and run native commands through
+backend services. Do not expose the ASP.NET Core server to untrusted networks or
+bind it to `0.0.0.0` unless the app is hardened as a normal web application with
+auth, authorization, CSRF protection, rate limits, audit logs, command
+restrictions, and workspace isolation.
+
+Read [SECURITY.md](SECURITY.md) before hosting LocalGPT for coworkers, enabling
+cloud providers, importing unreviewed knowledge, or running generated scripts.
+
 ## Quick Start
 
 Install Visual Studio with .NET desktop, ASP.NET/web, WinUI/Windows app tooling, Windows SDK, WebView2 runtime, and DevExpress Blazor package access.
