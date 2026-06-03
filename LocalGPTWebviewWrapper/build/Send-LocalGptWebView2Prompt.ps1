@@ -207,12 +207,37 @@ try {
         if (-not $sendRect) {
             Write-E2ELog "DXAiChat send is still disabled after DOM value assignment; using WebView2 Input.insertText fallback."
             Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.setValue('[data-testid=""chat-input""]', '')" | Out-Null
-            Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "document.querySelector('[data-testid=""chat-input""]')?.focus(); true" | Out-Null
-            $commandId++
-            Send-CdpCommand -WebSocket $ws -Id $commandId -Method "Input.insertText" -Params @{
-                text = $prompt
-            } | Out-Null
+            $inputRect = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "(() => { const input = document.querySelector('[data-testid=""chat-input""]'); if (!input) return null; input.focus(); const r = input.getBoundingClientRect(); return { centerX: r.x + r.width / 2, centerY: r.y + Math.min(24, Math.max(8, r.height / 2)) }; })()"
+            if ($inputRect) {
+                $commandId++
+                Send-CdpCommand -WebSocket $ws -Id $commandId -Method "Input.dispatchMouseEvent" -Params @{
+                    type = "mousePressed"
+                    x = [double]$inputRect.centerX
+                    y = [double]$inputRect.centerY
+                    button = "left"
+                    clickCount = 1
+                } | Out-Null
+                $commandId++
+                Send-CdpCommand -WebSocket $ws -Id $commandId -Method "Input.dispatchMouseEvent" -Params @{
+                    type = "mouseReleased"
+                    x = [double]$inputRect.centerX
+                    y = [double]$inputRect.centerY
+                    button = "left"
+                    clickCount = 1
+                } | Out-Null
+            }
+
+            $chunkSize = 1200
+            for ($offset = 0; $offset -lt $prompt.Length; $offset += $chunkSize) {
+                $chunk = $prompt.Substring($offset, [Math]::Min($chunkSize, $prompt.Length - $offset))
+                $commandId++
+                Send-CdpCommand -WebSocket $ws -Id $commandId -Method "Input.insertText" -Params @{
+                    text = $chunk
+                } | Out-Null
+            }
             Start-Sleep -Milliseconds 500
+            $fallbackState = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.chatState()"
+            $fallbackState | ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $artifactRoot "chat-state-after-inserttext.json") -Encoding utf8
             $sendRect = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.sendButtonRect()"
         }
         if (-not $sendRect) {
