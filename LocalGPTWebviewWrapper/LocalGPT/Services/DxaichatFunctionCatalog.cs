@@ -171,7 +171,7 @@ public static class DxaichatFunctionCatalog
             "GET",
             "/__diag/council/artifact-smoke?target=blazor",
             "Generate a deterministic sandbox artifact bundle without calling Ollama, useful for testing .razor/.cs/.dll and whole-solution zip downloads.",
-            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution, target=datapack for a prompt-driven Minecraft datapack zip, target=loader-matrix for distinct Fabric/Paper/NeoForge skeletons, or target=ai-host for a local AI host .NET/DevExpress control-plane lab. target=ollama is only a backwards-compatible alias.",
+            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution, target=datapack for a prompt-driven Minecraft datapack zip, target=loader-matrix for distinct Fabric/Paper/NeoForge skeletons, or target=ai-host for a local AI host .NET/DevExpress control-plane lab. Optional prompt/finalAnswer query values replay a council promise so PROMISE_MAP/DESIGN_REVIEW fidelity can be tested without loading Ollama. target=ollama is only a backwards-compatible alias.",
             "Writes files under LocalAppData/LocalGPT/CouncilArtifacts; does not integrate generated code into the project."),
         new(
             "council.run",

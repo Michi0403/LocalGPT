@@ -208,6 +208,10 @@
                 </label>
             </div>
             <div class="architecture-poll-actions">
+                <label class="architecture-consent" title="When checked, the council may choose remaining non-dangerous sandbox defaults if your prompt already describes the intended design well enough. It still may not integrate features into LocalGPT without explicit approval.">
+                    <input type="checkbox" @bind="AllowCouncilToChooseSandboxDetails" />
+                    <span>Let council choose safe sandbox details when my design intent is clear</span>
+                </label>
                 <label title="Optional detail for the next council answer, for example an app to recode or special backend constraints.">
                     <span>Extra direction</span>
                     <input type="text"
@@ -363,6 +367,7 @@
     string ArchitectureRenderMode { get; set; } = ArchitectureRenderModeOptions[0];
     string ArchitectureReferenceLook { get; set; } = ArchitectureReferenceLookOptions[0];
     string ArchitecturePollNotes { get; set; } = string.Empty;
+    bool AllowCouncilToChooseSandboxDetails { get; set; }
     string ArchitecturePollStatus { get; set; } = string.Empty;
     List<PromptSuggestion> PromptSuggestions { get; set; } = new();
     List<ChatMemoryConversationSummary> SavedConversations { get; set; } = new();
@@ -644,18 +649,21 @@
         var builder = new System.Text.StringBuilder()
             .AppendLine("# LocalGPT Architecture Poll Decision")
             .AppendLine()
-            .AppendLine("Treat explicit non-Ask values as my current decision for the next answer. Treat Ask values as unresolved and ask me before implementing:")
+            .AppendLine("Treat explicit non-Ask values as my current decision for the next answer. Treat my normal chat request and extra direction as binding design input too; do not downgrade a user-stated design into an unresolved Ask value.")
             .AppendLine($"- UI stack: {ArchitectureUiStack}")
             .AppendLine($"- Solution shape: {ArchitectureSolutionShape}")
             .AppendLine($"- Runtime/rendering: {ArchitectureRenderMode}")
-            .AppendLine($"- Reference look: {ArchitectureReferenceLook}");
+            .AppendLine($"- Reference look: {ArchitectureReferenceLook}")
+            .AppendLine($"- Prior consent for safe sandbox details: {(AllowCouncilToChooseSandboxDetails ? "granted" : "not granted")}");
 
         if (!string.IsNullOrWhiteSpace(ArchitecturePollNotes))
             builder.AppendLine($"- Extra direction: {ArchitecturePollNotes.Trim()}");
 
         builder
             .AppendLine()
-            .AppendLine("If any selected value says \"Ask me\", stop before generating code or files. Return a concise runtime poll with concrete options and wait for my answer.")
+            .AppendLine("If any selected value says \"Ask me\", first check whether my chat prompt or extra direction already answers it. If yes, treat the stated design as selected.")
+            .AppendLine("If an Ask value remains materially unresolved and prior consent is granted, choose a safe sandbox default, name that choice, and continue with a downloadable artifact.")
+            .AppendLine("If an Ask value remains materially unresolved and prior consent is not granted, stop before generating code or files. Return a concise runtime poll with concrete options and wait for my answer.")
             .AppendLine("Do not assume Blazor or DevExpress unless I chose it, the target repository already requires it, or the requested app type clearly benefits from it.")
             .AppendLine("When recreating a goal application, compare its layout, navigation, data flows, API routes, settings, and user workflows, then recreate the recognizable structure with the selected architecture.");
 
@@ -669,6 +677,7 @@
         ArchitectureRenderMode = ArchitectureRenderModeOptions[0];
         ArchitectureReferenceLook = ArchitectureReferenceLookOptions[0];
         ArchitecturePollNotes = string.Empty;
+        AllowCouncilToChooseSandboxDetails = false;
         ArchitecturePollStatus = "Architecture choices reset to ask-at-runtime defaults.";
     }
 
@@ -812,7 +821,7 @@
         EnsureDiagnosticOllamaSession(previousMessages);
 
         var councilSession = new ChatClientSession(
-            new CouncilChatClient(CouncilService, CreateCouncilRequest),
+            new CouncilChatClient(CouncilService, CreateCouncilRequest, ResolveCouncilDownloadUrl),
             CouncilSessionName);
         if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
             councilSession.Messages.AddRange(councilMessages);
@@ -881,6 +890,18 @@
             GenerateImplementationArtifact = GenerateCouncilArtifacts,
             Title = "DXAiChat AI Council"
         };
+    }
+
+    private string ResolveCouncilDownloadUrl(string downloadUrl)
+    {
+        try
+        {
+            return NavigationManager.ToAbsoluteUri(downloadUrl).ToString();
+        }
+        catch
+        {
+            return downloadUrl;
+        }
     }
 
     private void ApplyDiagnosticQueryOptions(bool selectSession)

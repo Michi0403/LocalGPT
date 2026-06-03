@@ -256,6 +256,7 @@ namespace LocalGPT.Services
             var modelsRoot = Path.Combine(projectRoot, "Models");
             var wwwroot = Path.Combine(projectRoot, "wwwroot");
             var navIconsRoot = Path.Combine(wwwroot, "icons", "nav");
+            var promiseModules = ExtractDynamicPromiseModules(request, result);
 
             if (Directory.Exists(solutionRoot))
                 Directory.Delete(solutionRoot, recursive: true);
@@ -276,7 +277,7 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), GenerateSolutionAppSettings(isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), GenerateSolutionAppRazor(), cancellationToken);
             await WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), GenerateSolutionRoutesRazor(), cancellationToken);
-            await WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), GenerateSolutionNavigationRazor(archetype), cancellationToken);
+            await WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), GenerateSolutionNavigationRazor(archetype, promiseModules), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), GenerateSolutionIndexRazor(request, result, archetype), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), GenerateSolutionDashboardRazor(request, result, archetype), cancellationToken);
             await WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), GenerateSolutionKnowledgeTableRazor(isAiHostLab), cancellationToken);
@@ -288,6 +289,8 @@ namespace LocalGPT.Services
 
             foreach (var page in GenerateArchetypePages(archetype))
                 await WriteTextAsync(Path.Combine(pagesRoot, page.FileName), page.Source, cancellationToken);
+            foreach (var module in promiseModules)
+                await WriteTextAsync(Path.Combine(pagesRoot, module.FileName), GeneratePromiseModuleRazor(module), cancellationToken);
 
             if (isAiHostLab)
             {
@@ -314,7 +317,9 @@ namespace LocalGPT.Services
             await WriteTextAsync(Path.Combine(solutionRoot, "README.md"), GenerateSolutionReadme(projectName, request, result, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), GenerateSolutionProjectIndex(projectName, request, result, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), GenerateSolutionArchitectureDoc(projectName, isAiHostLab), cancellationToken);
-            await WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), GenerateSourceFidelityDoc(projectName, archetype), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), GenerateSourceFidelityDoc(projectName, archetype, promiseModules), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "PROMISE_MAP.md"), GeneratePromiseMapDoc(projectName, request, result, promiseModules), cancellationToken);
+            await WriteTextAsync(Path.Combine(solutionRoot, "DESIGN_REVIEW.md"), GenerateDesignReviewDoc(projectName, archetype, promiseModules), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab), cancellationToken);
             await WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab), cancellationToken);
@@ -642,14 +647,36 @@ namespace LocalGPT.Services
             </Router>
             """;
 
-        private static string GenerateSolutionNavigationRazor(GeneratedSolutionArchetype archetype)
+        private static string GenerateSolutionNavigationRazor(
+            GeneratedSolutionArchetype archetype,
+            IReadOnlyList<GeneratedPromiseModule> promiseModules)
         {
             var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
-            var labName = isAiHostLab ? "AI Host Control Plane" : "LocalGPT Generation Lab";
-            var catalogHref = isAiHostLab ? "/models" : "/knowledge";
-            var catalogText = isAiHostLab ? "Model Catalog" : "Knowledge";
-            var detailHref = isAiHostLab ? "/api-console" : "/implementation-plan";
-            var detailText = isAiHostLab ? "API Console" : "Implementation Plan";
+            var labName = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
+                _ => "LocalGPT Generation Lab"
+            };
+            var catalogHref = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "/models",
+                _ => "/knowledge"
+            };
+            var catalogText = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "Model Catalog",
+                _ => "Knowledge"
+            };
+            var detailHref = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "/api-console",
+                _ => "/implementation-plan"
+            };
+            var detailText = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "API Console",
+                _ => "Implementation Plan"
+            };
             var aiHostLinks = isAiHostLab
                 ? """
                     <a href="/chat">
@@ -774,6 +801,7 @@ namespace LocalGPT.Services
                 """,
                 _ => string.Empty
             };
+            var promiseLinks = BuildPromiseNavigationLinks(promiseModules);
 
             return $$"""
                 <nav class="generated-nav" aria-label="{{labName}} navigation">
@@ -800,6 +828,7 @@ namespace LocalGPT.Services
                     </a>
                     {{aiHostLinks}}
                     {{archetypeLinks}}
+                    {{promiseLinks}}
                 </nav>
 
                 @code {
@@ -807,6 +836,26 @@ namespace LocalGPT.Services
                     public bool IsAiHostLab { get; set; }
                 }
                 """;
+        }
+
+        private static string BuildPromiseNavigationLinks(IReadOnlyList<GeneratedPromiseModule> promiseModules)
+        {
+            if (promiseModules.Count == 0)
+                return string.Empty;
+
+            var builder = new StringBuilder();
+            foreach (var module in promiseModules.Take(6))
+            {
+                builder.AppendLine($$"""
+                    <a href="{{module.Route}}">
+                        <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
+                        <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
+                        <span>{{module.Title}}</span>
+                    </a>
+                """);
+            }
+
+            return builder.ToString().TrimEnd();
         }
 
         private static string GenerateSolutionIndexRazor(
@@ -864,6 +913,11 @@ namespace LocalGPT.Services
                 GeneratedSolutionArchetype.BotBackend => "Review conversations",
                 _ => "Review knowledge table"
             };
+            var kicker = archetype switch
+            {
+                GeneratedSolutionArchetype.AiHost => "AI host lab",
+                _ => "LocalGPT lab"
+            };
             var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500));
             var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 700));
 
@@ -879,7 +933,7 @@ namespace LocalGPT.Services
 
                     <section class="generated-hero">
                         <div>
-                            <p class="generated-kicker">{{(isAiHostLab ? "AI host lab" : "LocalGPT lab")}}</p>
+                            <p class="generated-kicker">{{kicker}}</p>
                             <h1>{{title}}</h1>
                             <p>{{subtitle}}</p>
                         </div>
@@ -1159,6 +1213,83 @@ namespace LocalGPT.Services
                 _ => []
             };
         }
+
+        private static IReadOnlyList<GeneratedPromiseModule> ExtractDynamicPromiseModules(
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result)
+        {
+            var text = $"{request.Prompt} {result.FinalAnswer}";
+            var modules = new List<GeneratedPromiseModule>();
+
+            void AddIf(bool condition, string title, string summary, IReadOnlyList<string> areas)
+            {
+                if (!condition || modules.Any(module => module.Title.Equals(title, StringComparison.OrdinalIgnoreCase)))
+                    return;
+
+                var route = "/" + ToKebabRoute(title);
+                var fileName = $"{ToPascalIdentifier(title)}.razor";
+                modules.Add(new GeneratedPromiseModule(fileName, route, title, summary, areas));
+            }
+
+            AddIf(
+                DevExpressDocumentPattern().IsMatch(text) || ExportFormatPattern().IsMatch(text),
+                "Document Exports",
+                "Promise-derived surface for report, Office, PDF, spreadsheet, presentation, and document export work owned by backend services.",
+                ["Report template", "Format mapping", "Backend service", "Download route"]);
+            AddIf(
+                text.Contains("FileDownloadController", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("download link", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("download route", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("safe download", StringComparison.OrdinalIgnoreCase),
+                "Download Center",
+                "Promise-derived surface for generated files, MIME types, safe HTTP GET links, checksums, expiry, and user-visible artifact status.",
+                ["Generated files", "HTTP GET", "Checksum", "Expiry"]);
+            AddIf(
+                text.Contains("DxAiFunctions", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("IAIInferenceProvider", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("/api/inference", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("AI prompt", StringComparison.OrdinalIgnoreCase),
+                "AI Prompt Flow",
+                "Promise-derived surface for prompt-to-plan workflows, model/provider calls, generated briefs, and Needs verification notes.",
+                ["Prompt", "Provider call", "Generated brief", "Verification"]);
+            AddIf(
+                text.Contains("IModelCatalogService", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("model catalog", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("Ollama", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("LM Studio", StringComparison.OrdinalIgnoreCase),
+                "Model Host Status",
+                "Promise-derived surface for local model/provider inventory, host reachability, selected model, and runtime status.",
+                ["Provider", "Model catalog", "Reachability", "Runtime status"]);
+            AddIf(
+                text.Contains("SQLite", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("EntityFramework", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("EF/", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("DbContext", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("persist", StringComparison.OrdinalIgnoreCase),
+                "Persistence",
+                "Promise-derived surface for database state, DTO projection, migration safety, audit records, and user-approved knowledge.",
+                ["EF/SQLite", "DTOs", "Migration safety", "Audit"]);
+            AddIf(
+                text.Contains("DevExpress", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("DxGrid", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("DxFormLayout", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("Blazor", StringComparison.OrdinalIgnoreCase),
+                "DevExpress UI",
+                "Promise-derived surface for DevExpress Blazor controls, layout, navigation, forms, grids, and frontend verification.",
+                ["Navigation", "Grid", "Form", "Frontend smoke"]);
+            AddIf(
+                text.Contains("API endpoint", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("controller", StringComparison.OrdinalIgnoreCase) ||
+                text.Contains("/api/", StringComparison.OrdinalIgnoreCase),
+                "API Contracts",
+                "Promise-derived surface for backend routes, request/response DTOs, validation, errors, and smoke-test calls.",
+                ["Routes", "DTOs", "Validation", "Smoke tests"]);
+
+            return modules.Take(8).ToList();
+        }
+
+        private static string GeneratePromiseModuleRazor(GeneratedPromiseModule module) =>
+            GenerateArchetypePageRazor(module.Route, module.Title, module.Summary, module.Areas);
 
         private static GeneratedArchetypePage ArchetypePage(
             string fileName,
@@ -3614,6 +3745,8 @@ namespace LocalGPT.Services
             | `PROJECT_INDEX.md` | Required generated-project map and archetype declaration. |
             | `ARCHITECTURE.md` | Explains why this artifact differs from other project types. |
             | `SOURCE_FIDELITY.md` | Explains why a compiling artifact still needs architectural fidelity review. |
+            | `PROMISE_MAP.md` | Maps the council's promised workflows into generated modules and review surfaces. |
+            | `DESIGN_REVIEW.md` | Explains layout choices, DevExpress components, mocked pieces, and follow-up wiring. |
             | `BUILD_AND_RUN.md` | Exact restore/build/run commands and expected checks. |
             | `.localgpt-generation.json` | Machine-readable generation contract. |
             | `LocalGPT.GenerationManifest.json` | LocalGPT artifact metadata and safety notes. |
@@ -3683,7 +3816,10 @@ namespace LocalGPT.Services
             """;
         }
 
-        private static string GenerateSourceFidelityDoc(string projectName, GeneratedSolutionArchetype archetype)
+        private static string GenerateSourceFidelityDoc(
+            string projectName,
+            GeneratedSolutionArchetype archetype,
+            IReadOnlyList<GeneratedPromiseModule> promiseModules)
         {
             var expectedShape = archetype switch
             {
@@ -3698,6 +3834,11 @@ namespace LocalGPT.Services
                 _ =>
                     "A generic generated solution must still show which source behaviors are represented, stubbed, or out of scope."
             };
+            var promiseReview = promiseModules.Count == 0
+                ? "No dynamic promise modules were detected from the council answer. Review the base archetype files and the original prompt manually."
+                : string.Join(
+                    Environment.NewLine,
+                    promiseModules.Select(module => $"- `{module.Route}` / `{module.FileName}`: {module.Summary}"));
 
             return $$"""
             # Source Fidelity
@@ -3711,6 +3852,10 @@ namespace LocalGPT.Services
             ## Expected Shape
 
             {{expectedShape}}
+
+            ## Dynamic Promise Modules
+
+            {{promiseReview}}
 
             ## Review Files
 
@@ -3727,6 +3872,100 @@ namespace LocalGPT.Services
             ## Integration Rule
 
             This remains a sandbox artifact. Copying generated files into a real repo requires explicit user approval, a build, and a focused smoke test.
+            """;
+        }
+
+        private static string GeneratePromiseMapDoc(
+            string projectName,
+            MultiModelCouncilRequest request,
+            MultiModelCouncilResult result,
+            IReadOnlyList<GeneratedPromiseModule> promiseModules)
+        {
+            var moduleRows = promiseModules.Count == 0
+                ? "| No dynamic modules detected | The generated solution must be reviewed against the request manually. |"
+                : string.Join(
+                    Environment.NewLine,
+                    promiseModules.Select(module =>
+                        $"| `{module.Route}` | `{module.FileName}` | {module.Summary} | {string.Join(", ", module.Areas)} |"));
+
+            return $$"""
+            # Promise Map
+
+            Generated project: `{{projectName}}`
+
+            This file maps the user's request and the council's promised architecture into generated review surfaces. It exists so LocalGPT does not ship a generic shell after the council described a richer application.
+
+            ## Dynamic Modules
+
+            | Route | File | Promise Preserved | Review Areas |
+            | --- | --- | --- | --- |
+            {{moduleRows}}
+
+            ## Artifact Rule
+
+            A concrete downloadable target is not enough by itself. If the council creates a blocking user decision poll, artifact generation must pause until the user answers or grants safe sandbox auto-choice. If no blocking poll remains, the generated artifact should preserve the council's promised workflows in pages, services, docs, and validation notes.
+
+            ## Request Excerpt
+
+            ```text
+            {{TrimForCodeComment(request.Prompt, 1200)}}
+            ```
+
+            ## Council Excerpt
+
+            ```text
+            {{TrimForCodeComment(result.FinalAnswer, 1600)}}
+            ```
+            """;
+        }
+
+        private static string GenerateDesignReviewDoc(
+            string projectName,
+            GeneratedSolutionArchetype archetype,
+            IReadOnlyList<GeneratedPromiseModule> promiseModules)
+        {
+            var moduleList = promiseModules.Count == 0
+                ? "- No dynamic promise modules were detected. The design stays with the base generated shell."
+                : string.Join(Environment.NewLine, promiseModules.Select(module => $"- `{module.Title}` uses DevExpress grid/form patterns to expose {string.Join(", ", module.Areas)}."));
+            var archetypeName = archetype.ToString();
+
+            return $$"""
+            # Design Review
+
+            Generated project: `{{projectName}}`
+
+            ## Layout Choice
+
+            The artifact uses a compact operational layout: top navigation, dashboard/status grid, source-fidelity review, and one page per detected promise module. It avoids a marketing-style landing page because generated LocalGPT artifacts are tools first.
+
+            ## Base Archetype
+
+            `{{archetypeName}}`
+
+            ## Dynamic UI Modules
+
+            {{moduleList}}
+
+            ## Components Used
+
+            - DevExpress Blazor navigation-friendly pages.
+            - `DxGrid` for scan-friendly operational state.
+            - `DxFormLayout`, `DxTextBox`, and `DxMemo` for bounded review and settings surfaces.
+            - Bootstrap-compatible CSS for responsive grid and toolbar layout.
+            - Paired SVG navigation icons with line/solid states.
+
+            ## Mocked Versus Real
+
+            Mocked: generated rows, status values, and sample implementation boundaries.
+
+            Real: routable Razor files, compileable project structure, static CSS/icons, docs, generation manifest, and source-fidelity contract.
+
+            ## Needs Wiring
+
+            - Replace generated sample services with real backend services.
+            - Add EF/SQLite persistence if user-visible state must survive restarts.
+            - Add route smoke tests for every generated endpoint.
+            - Add real DevExpress report/export implementation only after package/API verification and user approval.
             """;
         }
 
@@ -3840,6 +4079,8 @@ namespace LocalGPT.Services
                 "PROJECT_INDEX.md",
                 "ARCHITECTURE.md",
                 "SOURCE_FIDELITY.md",
+                "PROMISE_MAP.md",
+                "DESIGN_REVIEW.md",
                 "BUILD_AND_RUN.md",
                 ".localgpt-generation.json",
                 "LocalGPT.GenerationManifest.json",
@@ -4126,13 +4367,13 @@ namespace LocalGPT.Services
 
         private static bool IsMinecraftDatapackArtifactTarget(string prompt, string finalAnswer)
         {
-            var text = $"{prompt} {finalAnswer}";
+            var text = prompt;
             return MinecraftPattern().IsMatch(text) && DatapackPattern().IsMatch(text);
         }
 
         private static bool IsMinecraftSkeletonMatrixArtifactTarget(string prompt, string finalAnswer)
         {
-            var text = $"{prompt} {finalAnswer}";
+            var text = prompt;
             return MinecraftPattern().IsMatch(text) && MinecraftSkeletonMatrixPattern().IsMatch(text);
         }
 
@@ -4210,6 +4451,12 @@ namespace LocalGPT.Services
                 .Where(word => !string.IsNullOrWhiteSpace(word))
                 .Take(5);
             return string.Concat(words.Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
+        }
+
+        private static string ToKebabRoute(string value)
+        {
+            var normalized = Regex.Replace(value.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+            return string.IsNullOrWhiteSpace(normalized) ? "promise-module" : normalized;
         }
 
         private static void ValidateGeneratedDatapackWorkspace(string rootPath)
@@ -4481,6 +4728,9 @@ namespace LocalGPT.Services
         [GeneratedRegex("(devexpress|richedit|pdfviewer|pivot|report|xtrareport|office|docx|xlsx|pdf export|spreadsheet|document generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DevExpressDocumentPattern();
 
+        [GeneratedRegex("(\\.xlsx|xlsx|excel|\\.pptx|pptx|powerpoint|\\.pdf|pdf|\\.docx|docx|word|export format|file generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex ExportFormatPattern();
+
         [GeneratedRegex("(blazor|razor|component|page|dxgrid|dxformlayout|dxbutton|dxmemo|dxtextbox|dxcombobox|dxaichat|devexpress blazor|interactive(server|webassembly|auto))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex BlazorFrontendPattern();
 
@@ -4548,5 +4798,12 @@ namespace LocalGPT.Services
         }
 
         private sealed record GeneratedArchetypePage(string FileName, string Source);
+
+        private sealed record GeneratedPromiseModule(
+            string FileName,
+            string Route,
+            string Title,
+            string Summary,
+            IReadOnlyList<string> Areas);
     }
 }

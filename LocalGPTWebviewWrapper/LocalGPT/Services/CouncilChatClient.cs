@@ -10,7 +10,8 @@ namespace LocalGPT.Services;
 
 public sealed class CouncilChatClient(
     IMultiModelCouncilService councilService,
-    Func<MultiModelCouncilRequest> requestFactory) : IChatClient
+    Func<MultiModelCouncilRequest> requestFactory,
+    Func<string, string>? downloadUrlResolver = null) : IChatClient
 {
     private const int MaxDxAiChatPromptCharacters = 60000;
 
@@ -136,7 +137,7 @@ public sealed class CouncilChatClient(
             : prompt[^MaxDxAiChatPromptCharacters..];
     }
 
-    private static string FormatResult(MultiModelCouncilResult result, bool includeProcess)
+    private string FormatResult(MultiModelCouncilResult result, bool includeProcess)
     {
         var builder = new StringBuilder()
             .AppendLine("# AI Council Result")
@@ -167,7 +168,10 @@ public sealed class CouncilChatClient(
         {
             builder.AppendLine("## Downloadable Artifacts");
             foreach (var artifact in result.Artifacts)
-                builder.Append("- [").Append(artifact.Name).Append("](").Append(artifact.DownloadUrl).Append(") - ").AppendLine(artifact.Kind);
+            {
+                var downloadUrl = ResolveDownloadUrl(artifact.DownloadUrl);
+                builder.Append("- [").Append(artifact.Name).Append("](").Append(downloadUrl).Append(") - ").AppendLine(artifact.Kind);
+            }
             builder.AppendLine();
         }
 
@@ -220,6 +224,17 @@ public sealed class CouncilChatClient(
             .AppendLine(result.FinalAnswer);
 
         return builder.ToString();
+    }
+
+    private string ResolveDownloadUrl(string downloadUrl)
+    {
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+            return downloadUrl;
+
+        if (Uri.TryCreate(downloadUrl, UriKind.Absolute, out _))
+            return downloadUrl;
+
+        return downloadUrlResolver?.Invoke(downloadUrl) ?? downloadUrl;
     }
 
     private static string FormatStepProgress(MultiModelCouncilStep step)

@@ -725,6 +725,8 @@ namespace LocalGPT.Endpoints
 
             app.MapGet("/__diag/council/artifact-smoke", async (
                 string? target,
+                string? prompt,
+                string? finalAnswer,
                 ICouncilArtifactService artifacts,
                 CancellationToken ct) =>
             {
@@ -735,40 +737,44 @@ namespace LocalGPT.Endpoints
                 var isDatapack = target?.Equals("datapack", StringComparison.OrdinalIgnoreCase) == true;
                 var isLoaderMatrix = target?.Equals("loader-matrix", StringComparison.OrdinalIgnoreCase) == true ||
                     target?.Equals("skeletons", StringComparison.OrdinalIgnoreCase) == true;
+                var smokePrompt = isDatapack
+                    ? "implementation-request smoke: generate a downloadable Minecraft Java 26.1 vanilla datapack zip named Benchmark Borough. The zip root must contain pack.mcmeta and data/ directly. Include load/tick tags, singular function folders, storage/scoreboard setup, city/register_banner, and validation notes."
+                    : isLoaderMatrix
+                    ? "implementation-request smoke: generate a downloadable Minecraft Java project skeleton distinction zip with separate Fabric, Paper, and NeoForge workspaces for Minecraft 26.1. Each loader must use its own metadata and Gradle conventions."
+                    : isAiHostLab
+                    ? "implementation-request smoke: generate a whole local AI host .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Include a left navigation shell, model catalog, chat, downloads, running models, API console, settings, logs, and selected provider-compatible API routes such as /api/version, /api/tags, /api/ps, /api/chat, and /api/generate. The generated host should delegate to an approved external Ollama-compatible provider URL by default, then fall back safely when that provider is unavailable. Do not use Go and do not claim native GGML/GPU inference is implemented."
+                    : isSolution
+                    ? "implementation-request smoke: generate a whole LocalGPT/TacosPortalOpen-style .NET 10 Blazor DevExpress solution zip with .sln, .csproj, real .razor pages, css, service/model code, README, and manifest. The zip must be downloadable through /__artifacts/council/."
+                    : isBlazor
+                    ? "implementation-request smoke: generate a real .NET 10 Blazor server-interactive DevExpress Razor page for a LocalGPT backend health summary card. Include a service method idea, DxGrid, DxFormLayout, DxButton, DxCheckBox, and safe download guidance."
+                    : "implementation-request smoke: generate a LocalGPT backend feature artifact.";
+                var requestPrompt = string.IsNullOrWhiteSpace(prompt) ? smokePrompt : prompt;
                 var request = new MultiModelCouncilRequest
                 {
-                    Prompt = isDatapack
-                        ? "implementation-request smoke: generate a downloadable Minecraft Java 26.1 vanilla datapack zip named Benchmark Borough. The zip root must contain pack.mcmeta and data/ directly. Include load/tick tags, singular function folders, storage/scoreboard setup, city/register_banner, and validation notes."
-                        : isLoaderMatrix
-                        ? "implementation-request smoke: generate a downloadable Minecraft Java project skeleton distinction zip with separate Fabric, Paper, and NeoForge workspaces for Minecraft 26.1. Each loader must use its own metadata and Gradle conventions."
-                        : isAiHostLab
-                        ? "implementation-request smoke: generate a whole local AI host .NET 10 ASP.NET Core and DevExpress Blazor solution zip. Use only .NET, C#, Razor, and DevExpress Blazor. Include a left navigation shell, model catalog, chat, downloads, running models, API console, settings, logs, and selected provider-compatible API routes such as /api/version, /api/tags, /api/ps, /api/chat, and /api/generate. The generated host should delegate to an approved external Ollama-compatible provider URL by default, then fall back safely when that provider is unavailable. Do not use Go and do not claim native GGML/GPU inference is implemented."
-                        : isSolution
-                        ? "implementation-request smoke: generate a whole LocalGPT/TacosPortalOpen-style .NET 10 Blazor DevExpress solution zip with .sln, .csproj, real .razor pages, css, service/model code, README, and manifest. The zip must be downloadable through /__artifacts/council/."
-                        : isBlazor
-                        ? "implementation-request smoke: generate a real .NET 10 Blazor server-interactive DevExpress Razor page for a LocalGPT backend health summary card. Include a service method idea, DxGrid, DxFormLayout, DxButton, DxCheckBox, and safe download guidance."
-                        : "implementation-request smoke: generate a LocalGPT backend feature artifact.",
+                    Prompt = requestPrompt,
                     ModelNames = ["artifact-smoke"],
                     GenerateImplementationArtifact = true,
                     IncludeMemory = false,
                     SaveToMemory = false,
                     Title = "Deterministic council artifact smoke"
                 };
+                var smokeFinalAnswer = isDatapack
+                    ? "Create a validated downloadable Benchmark Borough datapack. It must use Minecraft 26.1 pack_format 101.1, singular function folders, no wrapper zip folder, no .mcfunction.txt placeholders, and a visible register_banner debug line."
+                    : isLoaderMatrix
+                    ? "Create a loader matrix artifact with distinct Fabric, Paper, and NeoForge skeletons. Do not reuse Fabric metadata for Paper or NeoForge."
+                    : isAiHostLab
+                    ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab. Include a left navigation app shell, typed model catalog records, chat/download/running-model/API-console/settings/log pages, selected REST routes, README, manifest, external-provider delegation to an Ollama-compatible URL, and a prominent note that native inference is not implemented without a real backend."
+                    : isSolution
+                    ? "Create a whole downloadable .NET 10 Blazor/DevExpress solution artifact with project files, routable Razor pages, CSS, service/model code, README, manifest, and safe sandbox guidance. Do not self-integrate generated files into LocalGPT without user approval."
+                    : isBlazor
+                    ? "Create a real Razor page artifact using @page, @rendermode InteractiveServer, DevExpress controls, and an @code block. Also include compileable support code. Keep it sandboxed until the user approves integration."
+                    : "Create a compileable backend support code artifact.";
+                var resultAnswer = string.IsNullOrWhiteSpace(finalAnswer) ? smokeFinalAnswer : finalAnswer;
                 var result = new MultiModelCouncilResult
                 {
                     Prompt = request.Prompt,
                     ModelNames = ["artifact-smoke"],
-                    FinalAnswer = isDatapack
-                        ? "Create a validated downloadable Benchmark Borough datapack. It must use Minecraft 26.1 pack_format 101.1, singular function folders, no wrapper zip folder, no .mcfunction.txt placeholders, and a visible register_banner debug line."
-                        : isLoaderMatrix
-                        ? "Create a loader matrix artifact with distinct Fabric, Paper, and NeoForge skeletons. Do not reuse Fabric metadata for Paper or NeoForge."
-                        : isAiHostLab
-                        ? "Create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab. Include a left navigation app shell, typed model catalog records, chat/download/running-model/API-console/settings/log pages, selected REST routes, README, manifest, external-provider delegation to an Ollama-compatible URL, and a prominent note that native inference is not implemented without a real backend."
-                        : isSolution
-                        ? "Create a whole downloadable .NET 10 Blazor/DevExpress solution artifact with project files, routable Razor pages, CSS, service/model code, README, manifest, and safe sandbox guidance. Do not self-integrate generated files into LocalGPT without user approval."
-                        : isBlazor
-                        ? "Create a real Razor page artifact using @page, @rendermode InteractiveServer, DevExpress controls, and an @code block. Also include compileable support code. Keep it sandboxed until the user approves integration."
-                        : "Create a compileable backend support code artifact.",
+                    FinalAnswer = resultAnswer,
                     CompletedAtUtc = DateTime.UtcNow
                 };
 

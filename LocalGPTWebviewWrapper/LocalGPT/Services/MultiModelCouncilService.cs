@@ -242,19 +242,19 @@ namespace LocalGPT.Services
             }
 
             result.UserPoll = BuildUserPoll(result);
-            if (result.UserPoll is null ||
-                request.GenerateImplementationArtifact && HasExplicitArtifactIntent(request.Prompt))
+            var requiresPollAnswer = request.GenerateImplementationArtifact && RequiresUserDecisionBeforeArtifacts(result);
+            if (requiresPollAnswer)
             {
-                if (result.UserPoll is not null)
-                {
-                    result.Warnings.Add("A user decision poll is included for follow-up choices, but LocalGPT still generated the requested sandbox artifact because the prompt already named a concrete downloadable target.");
-                }
-
-                result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
+                result.Warnings.Add("Implementation artifacts were not generated because the council itself identified a blocking user decision. Answer the poll or enable safe sandbox auto-choice, then rerun the council.");
             }
             else if (request.GenerateImplementationArtifact)
             {
-                result.Warnings.Add("Implementation artifacts were not generated because the council needs a user decision poll answer first.");
+                if (result.UserPoll is not null)
+                {
+                    result.Warnings.Add("A non-blocking coordination poll is included for follow-up choices, but LocalGPT generated the requested sandbox artifact because no unresolved architecture gate remained.");
+                }
+
+                result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
             }
 
             result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken);
@@ -1173,6 +1173,23 @@ namespace LocalGPT.Services
                 ConcreteDotNetArtifactPattern().IsMatch(prompt);
         }
 
+        private static bool RequiresUserDecisionBeforeArtifacts(MultiModelCouncilResult result)
+        {
+            if (UserGrantedSafeSandboxChoice(result.Prompt))
+                return false;
+
+            var text = $"{result.Prompt} {result.FinalAnswer}";
+            return BlockingArtifactDecisionPattern().IsMatch(text);
+        }
+
+        private static bool UserGrantedSafeSandboxChoice(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                return false;
+
+            return SafeSandboxConsentPattern().IsMatch(prompt);
+        }
+
         private static int CountImplementationAreaHits(string text)
         {
             var hits = 0;
@@ -1303,9 +1320,11 @@ namespace LocalGPT.Services
             Treat Fabric as the fast Java iteration target, NeoForge as the modern Forge-style target, Paper as the server-side plugin target, datapack as the vanilla command/data target, and Bedrock as a separate behavior/resource pack exporter.
             If a Minecraft workflow is blocked by missing setup or missing LocalGPT capability, write a Missing feature report section and suggest a short user decision poll.
             For LocalGPT implementation-request chats, classify the owning area (.NET/Blazor/ASP.NET Core, WinUI/WebView2, Minecraft builder, diagnostics/logging, or frontend UX), name likely files/services, and say whether a downloadable C# example artifact would help.
-            For any code/artifact generation request, first decide whether material architecture choices are missing. If they are missing and the user did not name a concrete artifact target, do not generate code or files yet; return "Decision poll required", list only the necessary choices with concrete options/tradeoffs, and stop until the user selects an option or writes custom guidance.
-            If the user explicitly asks for a Minecraft datapack/modpack zip, .cs/.razor/.dll files, a whole .NET solution zip, a local AI host control-plane app, or another concrete downloadable artifact, treat that as sufficient scope to produce a safe sandbox artifact through LocalGPT artifact routes. Do not refuse because the request is "too much"; reduce to a buildable milestone, generate the artifact, and mark remaining work as staged follow-up.
-            Never claim the user failed to answer a poll inside the same response that creates the poll. A poll is a pause for the next user turn unless the prompt already supplied a concrete generation target.
+            For any code/artifact generation request, first decide whether material architecture choices are missing. If a dropdown or prior context says "Ask me" but the user's natural-language request or extra direction already states the design, treat the user's stated design as selected and do not downgrade it into an unresolved choice.
+            If material choices remain missing and the user granted prior consent for safe sandbox details, choose conservative sandbox defaults, name those choices, generate the downloadable artifact, and mark assumptions clearly.
+            If material choices remain missing and the user did not grant prior consent, do not generate code or files yet; return "Decision poll required", list only the necessary choices with concrete options/tradeoffs, and stop until the user selects an option or writes custom guidance.
+            If the user explicitly asks for a Minecraft datapack/modpack zip, .cs/.razor/.dll files, a whole .NET solution zip, a local AI host control-plane app, or another concrete downloadable artifact, treat that as sufficient scope to produce a safe sandbox artifact only when no blocking user-decision poll remains. Do not refuse because the request is "too much"; reduce to a buildable milestone, generate the artifact, and mark remaining work as staged follow-up.
+            Never claim the user failed to answer a poll inside the same response that creates it. A poll is a pause for the next user turn unless the prompt supplied the missing decision or prior consent for safe sandbox defaults.
             Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend architecture unless the user selected it, the target repository already requires it, or the requested product shape clearly calls for it. LocalGPT is strong at Blazor/DevExpress, but generated apps may be CLI tools, Minecraft datapacks, Java mods/plugins, services, desktop wrappers, APIs, scripts, or other stacks.
             If the implementation path is unclear, offer different implementation possibilities and ask for a user decision poll. The user may choose a poll option or provide custom text feedback; treat either as binding scope for the next round.
             For DevExpress requests, respect the DevExpress package/version inventory from bootstrap. Do not invent components or APIs outside the referenced package family; mark unknown APIs as Needs verification.
@@ -1438,6 +1457,12 @@ namespace LocalGPT.Services
 
         [GeneratedRegex("(choose|decide|pick|option|alternative|trade-?off|depends|uncertain|scope|ownership|clarify|question)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex ImplementationChoicePattern();
+
+        [GeneratedRegex("(decision poll required|no (?:code|files?|artifacts?) will be generated until|do not generate (?:code|files?|artifacts?) until|stop before generating|await (?:your )?(?:selection|choice|answer|decision)|waiting for (?:your )?(?:selection|choice|answer|decision)|please choose .* before|select .* and reply|will generate .* once (?:chosen|selected|confirmed))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex BlockingArtifactDecisionPattern();
+
+        [GeneratedRegex("(prior consent for safe sandbox details:\\s*granted|let council choose safe sandbox details|you may decide safe sandbox details|council may choose safe sandbox defaults|make reasonable sandbox assumptions|decide yourself for the sandbox)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex SafeSandboxConsentPattern();
 
         private sealed class OllamaTagsResponse
         {

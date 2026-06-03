@@ -247,3 +247,10 @@
     margin: 0.35rem 0 0;
     white-space: pre-wrap;
 }
+
+.architecture-consent {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2rem;
+}
