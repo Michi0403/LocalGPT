@@ -320,6 +320,16 @@ The WinUI wrapper supports a WebView2 smoke mode. Prefer a registered/package id
 
 This WebView2 smoke path is the preferred fallback for human-usability checks of LocalGPT itself. Do not treat an external or assistant-provided browser as enough evidence for desktop-shell behavior; use WebView2 diagnostics when validating the real wrapped UI.
 
+For Council/product-workflow validation, the WebView2 UI must pass a visible
+post-prerender preflight before work starts unless the user explicitly labels the
+task documentation-only. The real window must be visible, the target page must be
+interactive after prerendering, overlays must be gone, the route must stay stable
+after observation, and the needed controls must be visible and enabled. Agents must
+not substitute sandbox browsers, backend routes, direct model calls, diagnostic URL
+state changes, or rapid command bursts. LocalGPT product workflow automation should
+advance at human pace: one visible action, wait for render/control state to settle,
+inspect, then continue.
+
 ```powershell
 $runtime = "$env:LOCALAPPDATA\LocalGPT\runtime"
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null

@@ -146,6 +146,21 @@ For any task that asks whether LocalGPT, DXAiChat, the AI Council, or generated
 coding artifacts work as a product workflow, every coding agent must bind its
 actions to this gate before doing work:
 
+- No Council/product-workflow work may start until the WebView2 visible-UI
+  preflight below passes, unless the user explicitly labels the task as
+  documentation-only.
+- WebView2 visible-UI preflight means the real WinUI WebView2 window is visible,
+  the target page is in its post-prerender interactive state, any startup or
+  loading overlay is gone, the route is stable after observation, and the
+  specific controls needed for the next action are visible and enabled.
+- Frontend pages have different valid states and capabilities. For LocalGPT
+  product workflow testing, only the after-prerender interactive state counts;
+  prerendered markup, transient route changes, disabled controls, stale
+  selectors, and typed-but-not-sent text are invalid states.
+- Use human-paced UI operation: perform one visible action, wait for the UI to
+  settle, inspect the result, then continue. Do not fire batches of navigation,
+  typing, click, or keyboard commands in milliseconds; rapid command bursts are
+  not human behavior and must not be used as product evidence.
 - Use the real WinUI WebView2-hosted LocalGPT UI, not an agent sandbox browser,
   backend-only route, direct Ollama call, or typed-but-not-sent prompt.
 - Operate DXAiChat like a human user: navigate to the visible chat/council

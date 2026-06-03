@@ -39,6 +39,20 @@ Use launch mode for simple one-WebView startup tests. Use attach mode when the a
 already running, when native shell steps are needed first, or when testing a packaged
 Visual Studio/MSIX launch.
 
+For DXAiChat, AI Council, artifact-generation, and other product-workflow checks,
+WebView2 automation has a mandatory visible-UI preflight unless the user explicitly
+labels the task documentation-only. The real WinUI WebView2 window must be visible,
+the target page must be in its post-prerender interactive state, overlays must be
+gone, the route must remain stable after observation, and the exact controls for the
+next action must be visible and enabled.
+
+Do not use an assistant sandbox browser, backend route, direct Ollama call, or
+diagnostic URL mutation as a substitute for this preflight. Do not fire many UI
+commands in a few milliseconds. LocalGPT frontend states have different abilities:
+prerendered markup, transient route changes, disabled controls, stale selectors, and
+typed-but-not-sent text are not valid product states. Operate like a human user:
+one visible action, wait for the UI state to settle, inspect, then continue.
+
 ## Python Workbench Direction
 
 Python browser automation examples, including the local AutomatedDiscordLogin source

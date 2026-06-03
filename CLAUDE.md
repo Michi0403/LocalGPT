@@ -33,6 +33,19 @@ Claude, Codex, and every other coding assistant must obey this gate whenever the
 task asks whether LocalGPT, DXAiChat, the AI Council, or generated coding
 artifacts work as a product workflow:
 
+- No Council/product-workflow work starts until the WebView2 visible-UI
+  preflight passes, unless the user explicitly labels the task as
+  documentation-only.
+- The visible-UI preflight requires the real WinUI WebView2 window, the target
+  page in its post-prerender interactive state, no startup/loading overlay, a
+  route that stays stable after observation, and visible enabled controls for
+  the next action.
+- LocalGPT frontend states are not interchangeable. Prerendered markup,
+  transient route changes, disabled controls, stale selectors, and
+  typed-but-not-sent text are invalid for product-workflow proof.
+- Operate at human pace: one visible action, wait for the page/control state to
+  settle, inspect, then continue. Do not fire navigation, typing, click, or
+  keyboard commands in rapid bursts and call that user-like behavior.
 - Use the real WinUI WebView2-hosted LocalGPT UI as the test surface.
 - Do not substitute an assistant sandbox browser, backend route, direct Ollama
   call, trivial smoke prompt, or typed-but-not-sent state.
