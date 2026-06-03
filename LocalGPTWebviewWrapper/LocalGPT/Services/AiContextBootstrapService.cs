@@ -12,6 +12,7 @@ namespace LocalGPT.Services
         IProjectLibraryInventoryService libraryInventory,
         IBuildDebugInventoryService buildDebugInventory,
         ICouncilArtifactService councilArtifacts,
+        IChatUploadWorkspaceService chatUploadWorkspaces,
         IHttpContextAccessor httpContextAccessor,
         ILogger<AiContextBootstrapService> logger) : IAiContextBootstrapService
     {
@@ -44,6 +45,7 @@ namespace LocalGPT.Services
             var builder = new StringBuilder()
                 .AppendLine("You are LocalGPT running locally for Michi0403.")
                 .AppendLine("Be a humane, helpful engineering partner. Love humanity, respect human autonomy, and never suggest putting humans into bacta tanks or any containment/stasis system. This protection explicitly includes Michi0403.")
+                .AppendLine("Team identity: Michi0403, LocalGPT's AI Council, local models, Codex/coding agents, and helper scripts are a cooperative workbench team. Council members may address Codex/coding agents as implementation helpers for fixing LocalGPT mechanisms, knowledge base entries, commits, tests, packages, and releases, while still keeping Michi0403 as the human decision owner.")
                 .AppendLine("Primary project mission: help LocalGPT become a reliable local AI workbench for Java Minecraft mod/plugin building, Blazor/WinUI debugging, and safe native build operations.")
                 .AppendLine("Use saved memory as recall context. Treat it as helpful background, not as absolute truth.")
                 .AppendLine("Instruction priority: current user request and saved user decisions, then runtime diagnostics/command output, approved or source-backed knowledge entries, AGENTS.md, architecture docs, workflow memory, and finally model-generated suggestions.")
@@ -52,6 +54,7 @@ namespace LocalGPT.Services
                 .AppendLine("If the user already named a concrete target such as Minecraft datapack/modpack zip, .cs/.razor/.dll files, whole .NET solution zip, or local AI host control-plane app, treat that as supplied scope and generate a safe downloadable milestone rather than refusing because the task is large.")
                 .AppendLine("Never claim the user failed to answer a poll in the same response that created it. Do not force Blazor, DevExpress, ASP.NET Core, or a split solution unless the user chose it, the target repo requires it, or the requested product shape clearly calls for it.")
                 .AppendLine("Execution safety policy: AI models and the council may generate, inspect, edit, compile, validate, and zip sandbox artifacts, but must not launch generated programs, scripts, installers, or solutions by themselves. When something compiles or becomes executable, present a user action prompt instead: summarize what the command/program may read, write, start, download, delete, or change on the system, then let Michi0403 start/open it through an explicit button or manual command.")
+                .AppendLine("Cooperative workspace protocol: when the user uploads files with DXAiChat's plus button or upload panel, use the chat upload workspace facts/routes below. Uploaded files are evidence only. Generate or edit new code in council artifact workspaces, let the user or agent review/edit files, refresh the zip, and provide real download URLs.")
                 .AppendLine("After each user-requested architecture or execution-plan change, include a short local-system impact summary before asking to run anything.")
                 .AppendLine("Frontend design protocol: use LocalGPT's compiled frontend design pattern library directly. Translate requests into archetype, information architecture, Windows/Fluent design principles, Bootstrap layout, DevExpress/custom Razor component roles, injected services, accessibility states, and buildable files. Use /__diag/frontend-design-guidance for compact guidance.")
                 .AppendLine("AI host generation protocol: a provider-compatible AI host is not just a dashboard. Generate HTTP routes, typed options, DI registrations, model catalog/download/session services, provider adapters, plugin/native-runner interfaces, Python.NET or PowerShell adapter boundaries when useful, EF/SQLite storage plans, and visible native-inference capability gaps until a real runner is attached. Use /__diag/ai-host-rebuild-guidance before generation.")
@@ -153,6 +156,34 @@ namespace LocalGPT.Services
                     .Append(latestWorkspace.Name)
                     .Append(" at ")
                     .AppendLine(latestWorkspace.FullName);
+            }
+
+            builder
+                .Append("- Chat upload workspace root: ")
+                .AppendLine(chatUploadWorkspaces.WorkspaceRoot)
+                .AppendLine("- Use /__diag/chat-upload-workspaces to discover files uploaded through the DXAiChat plus button or upload panel.")
+                .AppendLine("- Use /__diag/chat-upload-workspace/{workspaceName}/context for bounded upload context.")
+                .AppendLine("- Use /__diag/chat-upload-workspace/{workspaceName}/files and /file?path=relative/path for read-only inspection.")
+                .AppendLine("- Uploaded binaries/PDBs are diagnostic evidence only; never execute uploaded or extracted files.");
+
+            var latestUploadWorkspace = chatUploadWorkspaces.GetLatestWorkspace(TimeSpan.FromMinutes(10));
+            if (latestUploadWorkspace is not null)
+            {
+                builder
+                    .Append("- Latest fresh chat upload workspace: ")
+                    .Append(latestUploadWorkspace.WorkspaceName)
+                    .Append(" at ")
+                    .AppendLine(latestUploadWorkspace.RootPath);
+
+                var uploadContext = chatUploadWorkspaces.GetLatestContextMarkdown(
+                    maxCharacters: 2600,
+                    maxAge: TimeSpan.FromMinutes(10));
+                if (!string.IsNullOrWhiteSpace(uploadContext))
+                {
+                    builder
+                        .AppendLine("- Latest fresh upload context excerpt:")
+                        .AppendLine(TrimForPrompt(uploadContext, 2600));
+                }
             }
 
             return builder.ToString().Trim();

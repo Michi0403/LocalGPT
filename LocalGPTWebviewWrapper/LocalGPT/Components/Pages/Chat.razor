@@ -7,6 +7,7 @@
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
 @inject IChatMemoryService ChatMemory
+@inject IChatUploadWorkspaceService ChatUploads
 @inject IMultiModelCouncilService CouncilService
 @inject NavigationManager NavigationManager
 @rendermode InteractiveServer
@@ -235,7 +236,7 @@
         <details class="chat-file-context" open>
             <summary>
                 <span>Upload text or zip context</span>
-                <small>Decoded content can be added to DXAiChat before asking for code, datapacks, or review.</small>
+                <small>Files are saved into a prompt workspace. The plus button on DXAiChat uses the same safe upload path.</small>
             </summary>
             <div class="chat-file-context-grid">
                 <InputFile OnChange="OnContextFilesSelectedAsync" multiple />
@@ -267,7 +268,12 @@
                 </div>
             }
         </details>
-        <DxAIChat Initialized="ChatInitialized" ResponseContentFormat="ResponseContentFormat.Markdown" UseStreaming="true" FileUploadEnabled="true" @ref="DxAiChat" CssClass="demo-chat">
+        <DxAIChat Initialized="ChatInitialized"
+                  ResponseContentFormat="ResponseContentFormat.Markdown"
+                  UseStreaming="true"
+                  FileUploadEnabled="true"
+                  @ref="DxAiChat"
+                  CssClass="demo-chat">
             <PromptSuggestions>
                 @foreach (var suggestion in PromptSuggestions)
                 {
@@ -282,10 +288,10 @@
                 </div>
             </MessageContentTemplate>
             <AIChatSettings>
-                <DxAIChatFileUploadSettings MaxFileCount="2"
-                                            MaxFileSize="4000000"
-                                            AllowedFileExtensions="@(new List<string> { ".txt", ".md", ".json", ".xml", ".csv", ".cs", ".razor", ".css", ".js", ".ts", ".mcfunction", ".zip" })"
-                                            FileTypeFilter="@(new List<string> { "text/*", "application/json", "application/xml", "application/zip", "application/x-zip-compressed" })" />
+                <DxAIChatFileUploadSettings MaxFileCount="@MaxUploadFiles"
+                                            MaxFileSize="@MaxUploadBytes"
+                                            AllowedFileExtensions="@AllowedUploadExtensions"
+                                            FileTypeFilter="@AllowedUploadMimeTypes" />
             </AIChatSettings>
 
         </DxAIChat>
@@ -391,10 +397,26 @@
         .Build();
     static readonly Regex HarmonyMarkerCleanupRegex = new("<\\|[^|>]+\\|>", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     static readonly Regex ListAfterHtmlRegex = new("(?i)(</(?:p|details|pre|div)>)\\s*((?:[-*]|\\d+\\.)\\s+)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
-    const long MaxUploadBytes = 4 * 1024 * 1024;
-    const int MaxUploadFiles = 5;
-    const int MaxDecodedCharactersPerFile = 40_000;
-    const int MaxDecodedCharactersTotal = 120_000;
+    const int MaxUploadFiles = 12;
+    const int MaxUploadBytes = 32 * 1024 * 1024;
+    static readonly List<string> AllowedUploadExtensions =
+    [
+        ".txt", ".md", ".json", ".xml", ".csv", ".cs", ".razor", ".cshtml", ".css", ".scss",
+        ".js", ".ts", ".tsx", ".html", ".htm", ".xaml", ".sln", ".csproj", ".props",
+        ".targets", ".config", ".editorconfig", ".yml", ".yaml", ".toml", ".sql", ".ps1",
+        ".cmd", ".bat", ".sh", ".java", ".kt", ".gradle", ".mcfunction", ".mcmeta",
+        ".properties", ".zip", ".dll", ".exe", ".pdb", ".appxsym", ".nupkg", ".wasm"
+    ];
+    static readonly List<string> AllowedUploadMimeTypes =
+    [
+        "text/*",
+        "application/json",
+        "application/xml",
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/octet-stream",
+        "application/x-msdownload"
+    ];
 
     protected override async Task OnInitializedAsync()
     {
@@ -492,30 +514,21 @@
         try
         {
             isUploadBusy = true;
-            uploadStatus = "Reading uploaded context...";
-            var decoded = new List<DecodedChatUpload>();
-            var remainingCharacters = MaxDecodedCharactersTotal;
-
-            foreach (var file in e.GetMultipleFiles(MaxUploadFiles))
-            {
-                if (remainingCharacters <= 0)
-                    break;
-
-                var upload = await DecodeUploadAsync(file, remainingCharacters);
-                decoded.Add(upload);
-                remainingCharacters -= upload.Content.Length;
-            }
-
-            UploadedContexts = decoded;
+            uploadStatus = "Saving uploaded files into a LocalGPT prompt workspace...";
+            var inputs = await ReadBrowserUploadFilesAsync(e.GetMultipleFiles(MaxUploadFiles));
+            var result = await ChatUploads.CreateWorkspaceAsync(
+                "Manual upload context staged from the Chat page upload panel.",
+                inputs);
+            UploadedContexts = [BuildDecodedChatUpload(result)];
             uploadStatus = UploadedContexts.Count == 0
-                ? "No supported text context was decoded."
-                : $"Decoded {UploadedContexts.Count} upload(s). Add them to DXAiChat before sending the next request.";
+                ? "No supported upload workspace was created."
+                : $"Created upload workspace {result.WorkspaceName}. Add it to DXAiChat or send the next prompt with the plus button.";
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in OnContextFilesSelectedAsync: {Message}", ex.Message);
-            uploadStatus = $"Upload decode failed: {ex.Message}";
-            Notifier.ShowError(toastName, ex.Message, "Upload decode failed");
+            uploadStatus = $"Upload workspace failed: {ex.Message}";
+            Notifier.ShowError(toastName, ex.Message, "Upload workspace failed");
         }
         finally
         {
@@ -523,73 +536,36 @@
         }
     }
 
-    private async Task<DecodedChatUpload> DecodeUploadAsync(IBrowserFile file, int characterBudget)
+    private async Task<IReadOnlyList<ChatUploadWorkspaceInputFile>> ReadBrowserUploadFilesAsync(
+        IReadOnlyList<IBrowserFile> files)
     {
-        await using var stream = file.OpenReadStream(MaxUploadBytes);
-        using var memory = new MemoryStream();
-        await stream.CopyToAsync(memory);
-        var bytes = memory.ToArray();
-        var extension = Path.GetExtension(file.Name);
-        var decoded = extension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
-            ? DecodeZipText(bytes, characterBudget)
-            : DecodePlainText(bytes, characterBudget);
-
-        return new DecodedChatUpload(
-            file.Name,
-            file.Size,
-            decoded,
-            decoded.Length > 2000 ? decoded[..2000] + Environment.NewLine + "... truncated preview ..." : decoded);
-    }
-
-    private static string DecodePlainText(byte[] bytes, int characterBudget)
-    {
-        var text = Encoding.UTF8.GetString(bytes);
-        return TrimDecodedText(text, characterBudget);
-    }
-
-    private static string DecodeZipText(byte[] bytes, int characterBudget)
-    {
-        using var memory = new MemoryStream(bytes);
-        using var archive = new ZipArchive(memory, ZipArchiveMode.Read);
-        var builder = new System.Text.StringBuilder();
-
-        foreach (var entry in archive.Entries
-            .Where(entry => IsTextLikeZipEntry(entry.FullName))
-            .OrderBy(entry => entry.FullName, StringComparer.OrdinalIgnoreCase)
-            .Take(40))
+        var inputs = new List<ChatUploadWorkspaceInputFile>();
+        foreach (var file in files.Take(MaxUploadFiles))
         {
-            if (builder.Length >= characterBudget)
-                break;
-
-            builder.AppendLine($"## {entry.FullName}");
-            using var stream = entry.Open();
-            using var entryMemory = new MemoryStream();
-            stream.CopyTo(entryMemory);
-            var entryText = Encoding.UTF8.GetString(entryMemory.ToArray());
-            builder.AppendLine(TrimDecodedText(entryText, Math.Min(12_000, characterBudget - builder.Length)));
-            builder.AppendLine();
+            await using var stream = file.OpenReadStream(MaxUploadBytes);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            inputs.Add(new ChatUploadWorkspaceInputFile(
+                file.Name,
+                file.ContentType,
+                file.Size,
+                new ReadOnlyMemory<byte>(memory.ToArray())));
         }
 
-        return builder.Length == 0
-            ? "Zip contained no supported text-like files."
-            : TrimDecodedText(builder.ToString(), characterBudget);
+        return inputs;
     }
 
-    private static bool IsTextLikeZipEntry(string name)
+    private static DecodedChatUpload BuildDecodedChatUpload(ChatUploadWorkspaceResult result)
     {
-        var extension = Path.GetExtension(name);
-        return extension is ".txt" or ".md" or ".json" or ".xml" or ".csv" or ".cs" or ".razor" or ".css" or ".js" or ".ts" or ".mcfunction" or ".yml" or ".yaml" or ".props" or ".targets" or ".csproj" or ".sln" or ".sql";
-    }
-
-    private static string TrimDecodedText(string text, int characterBudget)
-    {
-        if (characterBudget <= 0)
-            return string.Empty;
-
-        text = text.Replace("\0", string.Empty, StringComparison.Ordinal);
-        return text.Length <= characterBudget
-            ? text
-            : text[..characterBudget] + Environment.NewLine + "... truncated by LocalGPT upload context budget ...";
+        var preview = result.ContextMarkdown.Length > 2000
+            ? result.ContextMarkdown[..2000] + Environment.NewLine + "... truncated preview ..."
+            : result.ContextMarkdown;
+        return new DecodedChatUpload(
+            result.WorkspaceName,
+            result.RootPath,
+            result.Files.Sum(file => file.Length),
+            result.ContextMarkdown,
+            preview);
     }
 
     private async Task AddUploadedContextToChatAsync()
@@ -606,7 +582,7 @@
             ChatClientProvider.SelectedSession.Messages.AddRange(messages);
             DxAiChat.LoadMessages(messages);
             await PersistMessagesAsync(messages, force: true, showToast: false);
-            uploadStatus = "Uploaded context was added to DXAiChat. Ask the model to use it in your next message.";
+            uploadStatus = "Upload workspace context was added to DXAiChat. Ask the model to use it in your next message.";
         }
         catch (Exception ex)
         {
@@ -620,14 +596,16 @@
         var builder = new System.Text.StringBuilder()
             .AppendLine("# LocalGPT Uploaded File Context")
             .AppendLine()
-            .AppendLine("Use this decoded local context for the next DXAiChat request. Text and zip contents were truncated to stay within LocalGPT context budgets.")
+            .AppendLine("Use this saved local prompt workspace for the next DXAiChat request. Text, zip contents, and binary strings were bounded by LocalGPT workspace budgets.")
             .AppendLine();
 
         foreach (var upload in UploadedContexts)
         {
             builder
                 .AppendLine($"## {upload.DisplayName}")
-                .AppendLine($"Original size: {upload.SizeBytes} bytes")
+                .AppendLine($"Workspace: {upload.WorkspaceName}")
+                .AppendLine($"Root: {upload.WorkspaceRoot}")
+                .AppendLine($"Captured size: {upload.SizeBytes} bytes")
                 .AppendLine()
                 .AppendLine("```text")
                 .AppendLine(upload.Content)
@@ -931,7 +909,7 @@
         if (query.TryGetValue("diagMaxPromptCharacters", out var maxPromptCharacters) &&
             int.TryParse(maxPromptCharacters.ToString(), out var parsedMaxPromptCharacters))
         {
-            ChatClientProvider.ForcedMaxPromptCharacters = Math.Clamp(parsedMaxPromptCharacters, 512, 12000);
+            ChatClientProvider.ForcedMaxPromptCharacters = Math.Clamp(parsedMaxPromptCharacters, 512, 1_000_000);
         }
 
         if (query.TryGetValue("diagSkipBootstrap", out var skipBootstrap) &&
@@ -1371,8 +1349,14 @@
         return text.Trim();
     }
 
-    private sealed record DecodedChatUpload(string DisplayName, long SizeBytes, string Content, string Preview)
+    private sealed record DecodedChatUpload(
+        string WorkspaceName,
+        string WorkspaceRoot,
+        long SizeBytes,
+        string Content,
+        string Preview)
     {
+        public string DisplayName => WorkspaceName;
         public int CharacterCount => Content.Length;
     }
 

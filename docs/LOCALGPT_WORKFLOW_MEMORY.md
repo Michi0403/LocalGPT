@@ -180,7 +180,11 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   reject wrapper folders, `.mcfunction.txt`, invalid JSON tags, broken function references, leading slash commands,
   root `data remove storage` reset syntax, and malformed `execute store result storage namespace:id.path int 1` syntax.
 - Living Cities is a useful named datapack benchmark, not a hidden default for all datapack requests. Use `/__diag/minecraft/datapack-benchmark` for that comparison path; use DXAiChat/council artifact requests for prompt-driven datapacks.
-- DXAiChat now has a visible upload-context panel for text-like files and zip files. Decode uploads into a bounded Markdown context message before asking for code review, datapacks, or solution generation; do not dump huge zip contents directly into a model prompt.
+- DXAiChat plus-button uploads and the visible upload-context panel both use prompt workspaces under `%LOCALAPPDATA%\LocalGPT\ChatUploadWorkspaces`.
+  Each workspace stores original files, safely extracted zip entries, `manifest.json`, and bounded `context.md`.
+  Use `chat.upload_workspaces`, `chat.upload_workspace_files`, `chat.upload_workspace_context`, and `chat.upload_workspace_file`
+  before asking the user to paste source archives. PDB/DLL/EXE/WASM files are summarized with printable strings only and must never be executed.
+  Generated changes belong in council artifact workspaces, then `/__diag/artifact-workspace/{workspaceName}/zip` refreshes the download.
 - When generating a provider-compatible local AI host, produce an easy-testable ASP.NET Core + DevExpress Blazor control-plane milestone with `/api/version`, `/api/tags`, `/api/ps`, `/api/chat`, `/api/generate`, model catalog, downloads, settings, logs, SQLite state, and provider-adapter interfaces. A real native tensor backend is optional and must be stated honestly.
 - The selected local learn-base importer lives at `/__diag/learn-base/import`. It stores compact architecture
   fingerprints from `C:\tmpselectedcodexlearnbaseforlocalgpt` into CouncilKnowledgeEntries, focusing on

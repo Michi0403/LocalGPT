@@ -11,6 +11,7 @@ public class CompositeChatClient : IChatClient
 {
     private const int DefaultMaxOutputTokens = 2048;
     private const int DefaultMaxPromptCharacters = 12000;
+    private const int MaxPromptCharacters = 1_000_000;
     private const int MaxBootstrapCharacters = 6000;
     private const int MaxSingleConversationMessageCharacters = 5000;
     private const string RuntimeDecisionPolicy =
@@ -32,14 +33,15 @@ public class CompositeChatClient : IChatClient
     private readonly IAiFeatureReportService? _featureReportService;
     private readonly IAiContextBootstrapService? _bootstrapService;
     private readonly ICouncilKnowledgeService? _knowledgeService;
+    private readonly IChatUploadWorkspaceService? _chatUploadWorkspaces;
 
     public CompositeChatClient(ILogger logger, params ChatClientSession[] chatClients)
-        : this(logger, null, null, null, chatClients)
+        : this(logger, null, null, null, null, chatClients)
     {
     }
 
     public CompositeChatClient(ILogger logger, IAiFeatureReportService? featureReportService, params ChatClientSession[] chatClients)
-        : this(logger, featureReportService, null, null, chatClients)
+        : this(logger, featureReportService, null, null, null, chatClients)
     {
     }
 
@@ -48,6 +50,7 @@ public class CompositeChatClient : IChatClient
         IAiFeatureReportService? featureReportService,
         IAiContextBootstrapService? bootstrapService,
         ICouncilKnowledgeService? knowledgeService,
+        IChatUploadWorkspaceService? chatUploadWorkspaces,
         params ChatClientSession[] chatClients)
     {
 
@@ -57,6 +60,7 @@ public class CompositeChatClient : IChatClient
         _featureReportService = featureReportService;
         _bootstrapService = bootstrapService;
         _knowledgeService = knowledgeService;
+        _chatUploadWorkspaces = chatUploadWorkspaces;
     }
 
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
@@ -349,20 +353,157 @@ public class CompositeChatClient : IChatClient
     private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
     {
         var messageList = messages.ToList();
+        var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, cancellationToken);
         var policyMessage = new ChatMessage(ChatRole.System, RuntimeDecisionPolicy);
+
+        var systemMessages = new List<ChatMessage> { policyMessage };
         if (SuppressBootstrapContext || _bootstrapService is null)
-            return LimitPromptSize([policyMessage, .. messageList], ForcedMaxPromptCharacters);
+        {
+            AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+            return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+        }
 
         var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(bootstrapPrompt))
-            return LimitPromptSize([policyMessage, .. messageList], ForcedMaxPromptCharacters);
+        {
+            AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+            return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+        }
 
-        return LimitPromptSize([policyMessage, new ChatMessage(ChatRole.System, bootstrapPrompt), .. messageList], ForcedMaxPromptCharacters);
+        systemMessages.Add(new ChatMessage(ChatRole.System, bootstrapPrompt));
+        AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+        return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+    }
+
+    private static void AddOptionalSystemMessage(List<ChatMessage> messages, string? text)
+    {
+        if (!string.IsNullOrWhiteSpace(text))
+            messages.Add(new ChatMessage(ChatRole.System, text));
+    }
+
+    private async Task<string> SaveUploadedMessageContentAsync(
+        IReadOnlyList<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        if (_chatUploadWorkspaces is null)
+            return string.Empty;
+
+        var latestUserMessage = messages.LastOrDefault(message => message.Role == ChatRole.User);
+        if (latestUserMessage is null)
+            return string.Empty;
+
+        var files = ExtractUploadFiles(latestUserMessage).ToList();
+        if (files.Count == 0)
+            return string.Empty;
+
+        try
+        {
+            var result = await _chatUploadWorkspaces.CreateWorkspaceAsync(
+                latestUserMessage.Text ?? string.Empty,
+                files,
+                cancellationToken);
+            _logger.LogInformation(
+                "Created DXAiChat plus-upload workspace {WorkspaceName} with {FileCount} files.",
+                result.WorkspaceName,
+                result.FileCount);
+
+            return BuildUploadWorkspaceSystemPrompt(result);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not create DXAiChat plus-upload workspace.");
+            return "LocalGPT upload workspace creation failed. Tell the user the uploaded files could not be saved, then continue only with the visible prompt.";
+        }
+    }
+
+    private static IEnumerable<ChatUploadWorkspaceInputFile> ExtractUploadFiles(ChatMessage message)
+    {
+        var index = 1;
+        foreach (var dataContent in message.Contents.OfType<DataContent>())
+        {
+            var data = dataContent.Data;
+            if (data.Length == 0)
+                continue;
+
+            var fileName = TryGetDataContentFileName(dataContent) ??
+                BuildDataContentFileName(index, dataContent.MediaType);
+            index++;
+            yield return new ChatUploadWorkspaceInputFile(
+                fileName,
+                dataContent.MediaType,
+                data.Length,
+                data);
+        }
+    }
+
+    private static string BuildUploadWorkspaceSystemPrompt(ChatUploadWorkspaceResult result)
+    {
+        var builder = new StringBuilder()
+            .AppendLine("LocalGPT DXAiChat plus-upload workspace is available for this prompt.")
+            .AppendLine($"Workspace name: {result.WorkspaceName}")
+            .AppendLine($"Workspace root: {result.RootPath}")
+            .AppendLine($"Context file: {result.ContextPath}")
+            .AppendLine("Use DXAiFunctions:")
+            .AppendLine($"- chat.upload_workspace_context: /__diag/chat-upload-workspace/{result.WorkspaceName}/context")
+            .AppendLine($"- chat.upload_workspace_files: /__diag/chat-upload-workspace/{result.WorkspaceName}/files")
+            .AppendLine($"- chat.upload_workspace_file: /__diag/chat-upload-workspace/{result.WorkspaceName}/file?path=relative/path")
+            .AppendLine("Uploaded files are evidence only. Do not execute uploaded or extracted files.")
+            .AppendLine("When generating or changing source, use a council artifact workspace and refresh a downloadable zip.");
+
+        if (result.Warnings.Count > 0)
+        {
+            builder.AppendLine("Upload warnings:");
+            foreach (var warning in result.Warnings)
+                builder.AppendLine($"- {warning}");
+        }
+
+        return builder.ToString().Trim();
+    }
+
+    private static string? TryGetDataContentFileName(DataContent content)
+    {
+        foreach (var key in new[] { "name", "fileName", "filename", "FileName", "Name" })
+        {
+            if (content.AdditionalProperties?.TryGetValue(key, out var value) == true &&
+                value is not null &&
+                !string.IsNullOrWhiteSpace(value.ToString()))
+            {
+                return value.ToString();
+            }
+        }
+
+        var rawName = content.RawRepresentation?
+            .GetType()
+            .GetProperty("Name")?
+            .GetValue(content.RawRepresentation)?
+            .ToString();
+        return string.IsNullOrWhiteSpace(rawName) ? null : rawName;
+    }
+
+    private static string BuildDataContentFileName(int index, string? mediaType)
+    {
+        var extension = (mediaType ?? string.Empty).ToLowerInvariant() switch
+        {
+            "application/zip" or "application/x-zip-compressed" => ".zip",
+            "application/json" => ".json",
+            "application/xml" or "text/xml" => ".xml",
+            "text/markdown" => ".md",
+            "text/css" => ".css",
+            "text/html" => ".html",
+            "text/javascript" or "application/javascript" => ".js",
+            "application/octet-stream" => ".bin",
+            _ => ".txt"
+        };
+        return $"dxaichat-upload-{index}{extension}";
     }
 
     private static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, int? forcedMaxPromptCharacters = null)
     {
-        var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? DefaultMaxPromptCharacters, 512, DefaultMaxPromptCharacters);
+        var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? DefaultMaxPromptCharacters, 512, MaxPromptCharacters);
         if (messages.Sum(EstimateTextLength) <= maxPromptCharacters)
             return messages;
 

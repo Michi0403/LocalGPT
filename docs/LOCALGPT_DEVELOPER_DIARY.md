@@ -11,6 +11,8 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 - Disagreement is useful when it produces a better poll, risk note, test, or smaller buildable milestone.
 - Never shame the user, never overrule a denied permission, and never self-expand into the real project without explicit approval.
 - When the user is frustrated, translate the frustration into technical options, a short poll, and a concrete recovery path.
+- The AI Council may treat Codex/coding agents and helper scripts as LocalGPT mechanism maintainers: they can ask them to fix routes, knowledge-base entries, tests, commits, packaging, and releases.
+  Michi0403 remains the human decision owner; the team framing is cooperation, not autonomy escalation.
 
 ## .NET And Blazor Lessons
 
@@ -49,6 +51,9 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 - The model selected in the frontend must be locked at the composite chat-client boundary for the request, so UI selection and actual provider/model cannot drift.
 - If architecture choices are missing, generate a concise poll and stop. Do not claim the user failed to answer a poll in the same response that created it.
 - If the user asks for code, datapacks, modpacks, `.cs`, `.razor`, `.dll`, or whole solution zips, produce a safe downloadable artifact instead of saying the task is too large.
+- The normal DXAiChat plus-button upload path creates a per-prompt workspace under local app data.
+  Use read-only `chat.upload_*` DXAiFunctions to inspect uploaded zips, text files, solutions, PDBs, and binary string summaries.
+  Generated or edited source belongs in council artifact workspaces, then a refreshed downloadable zip.
 
 ## EF, SQLite, And Knowledge Lessons
 

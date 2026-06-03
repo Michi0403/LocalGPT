@@ -442,6 +442,136 @@ namespace LocalGPT.Endpoints
                 });
             });
 
+            app.MapGet("/__diag/chat-upload-workspaces", (
+                IChatUploadWorkspaceService uploads,
+                HttpContext httpContext,
+                int? take) =>
+            {
+                var workspaces = uploads.ListWorkspaces(take ?? 20);
+                return Results.Ok(new
+                {
+                    BaseUrl = GetRequestBaseUrl(httpContext),
+                    uploads.WorkspaceRoot,
+                    Count = workspaces.Count,
+                    LatestWorkspace = workspaces.FirstOrDefault(),
+                    Workspaces = workspaces,
+                    Routes = new
+                    {
+                        List = "/__diag/chat-upload-workspaces",
+                        Files = "/__diag/chat-upload-workspace/{workspaceName}/files",
+                        Context = "/__diag/chat-upload-workspace/{workspaceName}/context",
+                        Read = "/__diag/chat-upload-workspace/{workspaceName}/file?path=relative/path",
+                        Smoke = "POST /__diag/chat-upload-workspace/smoke"
+                    },
+                    AiBriefing =
+                        "Chat uploads are saved per prompt under WorkspaceRoot. Zips are safely extracted, " +
+                        "text files are excerpted, and binaries/PDBs are summarized with printable strings only. " +
+                        "Use these read-only routes before asking the user to paste uploaded source or archives.",
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
+            app.MapGet("/__diag/chat-upload-workspace/{workspaceName}/files", (
+                string workspaceName,
+                IChatUploadWorkspaceService uploads,
+                int? take) =>
+            {
+                var workspace = uploads.ResolveWorkspacePath(workspaceName);
+                if (workspace is null)
+                    return Results.NotFound(new { Error = "Chat upload workspace not found." });
+
+                return Results.Ok(new
+                {
+                    WorkspaceName = workspaceName,
+                    RootPath = workspace,
+                    Files = uploads.ListFiles(workspaceName, take ?? 250),
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
+            app.MapGet("/__diag/chat-upload-workspace/{workspaceName}/context", async (
+                string workspaceName,
+                IChatUploadWorkspaceService uploads,
+                int? maxCharacters,
+                CancellationToken ct) =>
+            {
+                var context = await uploads.ReadContextMarkdownAsync(
+                    workspaceName,
+                    Math.Clamp(maxCharacters ?? 80_000, 1_000, 120_000),
+                    ct);
+                if (string.IsNullOrWhiteSpace(context))
+                    return Results.NotFound(new { Error = "Chat upload workspace context not found." });
+
+                return Results.Text(context, "text/markdown; charset=utf-8");
+            });
+
+            app.MapGet("/__diag/chat-upload-workspace/{workspaceName}/file", async (
+                string workspaceName,
+                string path,
+                IChatUploadWorkspaceService uploads,
+                int? maxCharacters,
+                CancellationToken ct) =>
+            {
+                var file = await uploads.ReadFileAsync(
+                    workspaceName,
+                    path,
+                    Math.Clamp(maxCharacters ?? 40_000, 1_000, 120_000),
+                    ct);
+                if (file is null)
+                    return Results.BadRequest(new { Error = "Invalid, unsupported, or missing upload workspace file path." });
+
+                return Results.Ok(file);
+            });
+
+            app.MapPost("/__diag/chat-upload-workspace/smoke", async (
+                IChatUploadWorkspaceService uploads,
+                string? prompt,
+                CancellationToken ct) =>
+            {
+                var zip = CreateChatUploadSmokeZip();
+                var pdb = Encoding.ASCII.GetBytes(
+                    "RSDS LocalGPT smoke WeatherHost.pdb Services/WeatherForecastService.cs Pages/Index.razor");
+                var result = await uploads.CreateWorkspaceAsync(
+                    string.IsNullOrWhiteSpace(prompt)
+                        ? "Frontend smoke upload: generate a small webhost with a weather display and fake data service."
+                        : prompt,
+                    new[]
+                    {
+                        new ChatUploadWorkspaceInputFile(
+                            "WeatherHostUpload.zip",
+                            "application/zip",
+                            zip.Length,
+                            new ReadOnlyMemory<byte>(zip)),
+                        new ChatUploadWorkspaceInputFile(
+                            "WeatherHostUpload.pdb",
+                            "application/octet-stream",
+                            pdb.Length,
+                            new ReadOnlyMemory<byte>(pdb))
+                    },
+                    ct);
+
+                return Results.Ok(new
+                {
+                    uploads.WorkspaceRoot,
+                    result.WorkspaceName,
+                    result.RootPath,
+                    result.ContextPath,
+                    result.ManifestPath,
+                    result.FileCount,
+                    result.Warnings,
+                    ContextPreview = result.ContextMarkdown.Length > 4000
+                        ? result.ContextMarkdown[..4000]
+                        : result.ContextMarkdown,
+                    Routes = new
+                    {
+                        Files = $"/__diag/chat-upload-workspace/{Uri.EscapeDataString(result.WorkspaceName)}/files",
+                        Context = $"/__diag/chat-upload-workspace/{Uri.EscapeDataString(result.WorkspaceName)}/context",
+                        Read = $"/__diag/chat-upload-workspace/{Uri.EscapeDataString(result.WorkspaceName)}/file?path=relative/path"
+                    },
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
             app.MapGet("/__diag/memory-smoke", async (IChatMemoryService memory, IChatClient chatClient, CancellationToken ct) =>
             {
                 await memory.EnsureCreatedAsync(ct);
@@ -977,6 +1107,82 @@ namespace LocalGPT.Endpoints
             ".properties",
             ".java"
         };
+
+        private static byte[] CreateChatUploadSmokeZip()
+        {
+            using var memory = new MemoryStream();
+            using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                WriteZipEntry(archive, "WeatherHost/WeatherHost.sln", """
+                    Microsoft Visual Studio Solution File, Format Version 12.00
+                    # Visual Studio Version 17
+                    Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeatherHost", "src\WeatherHost\WeatherHost.csproj", "{11111111-1111-1111-1111-111111111111}"
+                    EndProject
+                    Global
+                    EndGlobal
+                    """);
+                WriteZipEntry(archive, "WeatherHost/src/WeatherHost/WeatherHost.csproj", """
+                    <Project Sdk="Microsoft.NET.Sdk.Web">
+                      <PropertyGroup>
+                        <TargetFramework>net10.0</TargetFramework>
+                        <Nullable>enable</Nullable>
+                        <ImplicitUsings>enable</ImplicitUsings>
+                      </PropertyGroup>
+                    </Project>
+                    """);
+                WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Program.cs", """
+                    using WeatherHost.Services;
+
+                    var builder = WebApplication.CreateBuilder(args);
+                    builder.Services.AddRazorPages();
+                    builder.Services.AddServerSideBlazor();
+                    builder.Services.AddScoped<WeatherForecastService>();
+
+                    var app = builder.Build();
+                    app.MapGet("/api/weather", (WeatherForecastService service) => service.GetForecasts());
+                    app.MapBlazorHub();
+                    app.MapFallbackToPage("/_Host");
+                    app.Run();
+                    """);
+                WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Services/WeatherForecastService.cs", """
+                    namespace WeatherHost.Services;
+
+                    public sealed class WeatherForecastService
+                    {
+                        public IReadOnlyList<WeatherForecast> GetForecasts() =>
+                        [
+                            new(DateOnly.FromDateTime(DateTime.Today), 21, "Clear"),
+                            new(DateOnly.FromDateTime(DateTime.Today.AddDays(1)), 18, "Rain"),
+                            new(DateOnly.FromDateTime(DateTime.Today.AddDays(2)), 24, "Sunny")
+                        ];
+                    }
+
+                    public sealed record WeatherForecast(DateOnly Date, int TemperatureC, string Summary);
+                    """);
+                WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Pages/Index.razor", """
+                    @page "/"
+                    @inject WeatherHost.Services.WeatherForecastService Weather
+
+                    <h1>Weather Host</h1>
+
+                    <ul>
+                        @foreach (var item in Weather.GetForecasts())
+                        {
+                            <li>@item.Date: @item.TemperatureC C, @item.Summary</li>
+                        }
+                    </ul>
+                    """);
+            }
+
+            return memory.ToArray();
+        }
+
+        private static void WriteZipEntry(ZipArchive archive, string path, string content)
+        {
+            var entry = archive.CreateEntry(path, CompressionLevel.SmallestSize);
+            using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+            writer.Write(content.Replace("                    ", string.Empty, StringComparison.Ordinal));
+        }
 
         private static string GetRequestBaseUrl(HttpContext httpContext)
         {

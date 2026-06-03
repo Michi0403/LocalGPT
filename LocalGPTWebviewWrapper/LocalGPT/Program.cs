@@ -138,6 +138,7 @@ namespace LocalGPT
             builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
             builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
             builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
+            builder.Services.AddSingleton<IChatUploadWorkspaceService, ChatUploadWorkspaceService>();
             builder.Services.AddSingleton<IProjectLibraryInventoryService, ProjectLibraryInventoryService>();
             builder.Services.AddSingleton<IBuildDebugInventoryService, BuildDebugInventoryService>();
             builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();

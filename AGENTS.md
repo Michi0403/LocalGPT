@@ -163,6 +163,8 @@ Agent guidance:
 - prototype requested features in harmless sandbox artifacts or temporary workspaces before embedding them into the real LocalGPT project structure, then add a smoke/diagnostic path for verification
 - LocalGPT and the AI Council must never self-expand or integrate generated features into the real project without explicit user permission, and must never overrule a user decision that denies or limits expansion
 - missing-feature reports must document helpful sources requested by AI participants, such as official docs, examples, versioned package references, specs, or sample repositories
+- use DXAiChat plus-button uploads as prompt evidence workspaces. Uploaded files are saved under `%LOCALAPPDATA%\LocalGPT\ChatUploadWorkspaces`, zips are extracted safely, and PDB/DLL/EXE/WASM files are summarized with printable strings only. Inspect them through `chat.upload_*` DXAiFunctions; do not execute uploaded or extracted files.
+- use council artifact workspaces for generated source, user edits, HtmlEditor-style file review, compile checks, and refreshed downloadable zips. The AI Council can ask Codex/coding agents to maintain these LocalGPT mechanisms, tests, commits, packages, and releases while Michi0403 remains the human decision owner.
 
 Detailed mod-builder instructions for AI agents are in `docs/MINECRAFT_MOD_AI_BUILDER.md`. Current workflow memory and known-good commands are in `docs/LOCALGPT_WORKFLOW_MEMORY.md`.
 
