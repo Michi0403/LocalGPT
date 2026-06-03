@@ -104,6 +104,7 @@ Important package behavior:
 - keep `IncludeLocalGptPublishedPayload` defaulted to `false` for Visual Studio Debug/F5; release/publish scripts may opt in with `true` after the web project is published
 - do not make published Blazor payload inclusion unconditional, because duplicate `LocalGPT.deps.json`, static web asset endpoint JSON, or `wwwroot` entries can trigger APPX1111 package-map failures
 - `LocalGPT.staticwebassets.runtime.json` must exist beside the packaged executable
+- release MSIX packages must include the published `wwwroot/_framework`, `wwwroot/_content`, and `wwwroot/LocalGPT.styles.css` assets; `build/Build-LocalGptPackage.ps1` verifies `blazor.web.js`, `dx-blazor.svg`, `office-white.bs5.min.css`, and scoped CSS inside the actual MSIX archive
 - AppX image assets must exist in the loose `bin\<platform>\<configuration>\AppX\Images` layout; missing manifest images can surface as `0x80070002`, `0x80073CF9`, or `DEP1000`
 - when Windows keeps a stale LocalGPT development registration, use `build\Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`; it removes only the LocalGPT package identity and retries once
 - missing static web assets cause DevExpress module errors and blank/broken UI
@@ -194,7 +195,8 @@ When implementing or editing features:
 4. Preserve DevExpress compatibility.
 5. Keep configuration backward-compatible.
 6. Build the full solution with Visual Studio MSBuild when packaging is touched.
-7. Verify static assets when DevExpress UI behavior changes.
+7. Verify the packaged frontend visually when DevExpress UI behavior changes.
+8. Never publish a release whose MSIX archive lacks Blazor/DevExpress static assets.
 
 ## Good contribution patterns
 

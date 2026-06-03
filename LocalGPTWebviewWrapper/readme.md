@@ -119,6 +119,19 @@ The package project now copies the manifest from the RID-specific build output, 
 LocalGPT\bin\x64\Debug\net10.0\win-x64\LocalGPT.staticwebassets.runtime.json
 ```
 
+Release MSIX packages must use the published LocalGPT webroot, not only the
+source `wwwroot`. Keep `IncludeLocalGptPublishedPayload` defaulted to `false`
+for Visual Studio Debug/F5, but let `build\Build-LocalGptPackage.ps1` and
+`build\Publish-LocalGptRelease.ps1` pass it as `true` after `dotnet publish`.
+The package build fails if the actual `.msix` archive does not contain:
+
+```text
+LocalGPTWebviewWrapper/wwwroot/_framework/blazor.web.js
+LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor/dx-blazor.svg
+LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css
+LocalGPTWebviewWrapper/wwwroot/LocalGPT.styles.css
+```
+
 DevExpress 25 uses this module path:
 
 ```text

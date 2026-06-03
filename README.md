@@ -248,6 +248,21 @@ Release and publish scripts intentionally opt in with `IncludeLocalGptPublishedP
 Do not make that opt-in unconditional; duplicate entries for `LocalGPT.deps.json`, `LocalGPT.staticwebassets.endpoints.json`,
 or published `wwwroot` files can reintroduce APPX1111 package-map failures.
 
+Use `.\LocalGPTWebviewWrapper\build\Build-LocalGptPackage.ps1` for release
+wrapper builds. It verifies the actual generated MSIX contains the published
+Blazor and DevExpress assets:
+
+```text
+LocalGPTWebviewWrapper/wwwroot/_framework/blazor.web.js
+LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor/dx-blazor.svg
+LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css
+LocalGPTWebviewWrapper/wwwroot/LocalGPT.styles.css
+```
+
+A release whose installed frontend shows unstyled HTML, missing DevExpress CSS,
+or broken scoped CSS is not acceptable. Rebuild, reinstall, probe those routes
+over the runtime `BaseUrl`, and run the WebView2 smoke path before publishing.
+
 ## Release Packages
 
 Create zip packages for multiple architectures:

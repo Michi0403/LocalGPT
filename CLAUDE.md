@@ -55,6 +55,7 @@ Loose AppX deploy notes:
 - image assets must be present under `bin/<platform>/<configuration>/AppX/Images`
 - `0x80070002`, `0x80073CF9`, or `DEP1000` can mean missing manifest images or a stale LocalGPT package registration
 - use `LocalGPTWebviewWrapper/build/Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`; it removes only the stale LocalGPT development package identity and retries once
+- release packages must be built through `LocalGPTWebviewWrapper/build/Build-LocalGptPackage.ps1` or `Publish-LocalGptRelease.ps1`, because those scripts opt into the published Blazor payload and fail if the MSIX lacks `_framework`, DevExpress `_content`, or `LocalGPT.styles.css`
 
 ## Static asset mental model
 
@@ -70,6 +71,16 @@ DevExpress 25 serves the main module from:
 
 ```text
 /_content/DevExpress.Blazor/modules/dx-blazor-all.js
+```
+
+For packaged releases, inspect the actual `.msix`, not only the loose `bin` or
+`AppX` layout. A usable package must contain:
+
+```text
+LocalGPTWebviewWrapper/wwwroot/_framework/blazor.web.js
+LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor/dx-blazor.svg
+LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css
+LocalGPTWebviewWrapper/wwwroot/LocalGPT.styles.css
 ```
 
 ## Documentation to improve first

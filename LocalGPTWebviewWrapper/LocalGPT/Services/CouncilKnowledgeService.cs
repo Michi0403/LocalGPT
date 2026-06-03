@@ -801,16 +801,20 @@ namespace LocalGPT.Services
                     Id = Guid.Parse("44fd504b-c6de-4a8b-a4e0-aea5a53200d9"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,
-                    Topic = "LocalGPT static web assets direct-debug repair",
-                    Scope = "ASP.NET Core host",
+                    Topic = "LocalGPT static web assets direct-debug and MSIX release repair",
+                    Scope = "ASP.NET Core host / WinUI package",
                     Source = seedSource,
                     Content = "Direct backend debugging can fail before WebApplication.CreateBuilder when LocalGPT.staticwebassets.runtime.json references generated obj static asset roots that no longer exist, especially obj/.../compressed. " +
                         "This surfaces as DirectoryNotFoundException from PhysicalFileProvider/StaticWebAssetsLoader and can leave WebView2 showing unstyled fallback HTML if assets are not reachable. " +
                         "Before CreateBuilder, LocalGPT should inspect its static web asset runtime manifest and recreate only missing generated obj roots such as compressed and scopedcss/bundle. " +
-                        "Do not create missing NuGet/DevExpress package roots, because that would hide real package restore problems.",
-                    HelpfulSources = "- Local code: Program.EnsureGeneratedStaticWebAssetContentRoots.\n- Verified probes: /, /Chat, /_framework/blazor.web.js, /_content/DevExpress.Blazor/dx-blazor.svg returned HTTP 200 after the repair.",
-                    Tags = "seed; static-web-assets; aspnetcore; devexpress; direct-debug; webview2",
-                    Confidence = 90,
+                        "Do not create missing NuGet/DevExpress package roots, because that would hide real package restore problems. " +
+                        "For MSIX/WebView2 releases, source wwwroot is not enough: the package must include the published webroot with wwwroot/_framework, wwwroot/_content, and LocalGPT.styles.css. " +
+                        "Keep IncludeLocalGptPublishedPayload default false for Visual Studio Debug/F5, but have build/release scripts pass IncludeLocalGptPublishedPayload=true after publishing LocalGPT. " +
+                        "A release package is unacceptable if the actual MSIX archive lacks LocalGPTWebviewWrapper/wwwroot/_framework/blazor.web.js, LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor/dx-blazor.svg, LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css, or LocalGPTWebviewWrapper/wwwroot/LocalGPT.styles.css. " +
+                        "Generated DevExpress/Blazor apps should copy or publish static web assets through their real publish output and smoke-test the visual frontend before claiming success.",
+                    HelpfulSources = "- Local code: Program.EnsureGeneratedStaticWebAssetContentRoots.\n- Local script: build/Build-LocalGptPackage.ps1 Assert-MsixStaticWebAssets.\n- Local package project: LocalGPTWebviewWrapper (Package).wapproj IncludeLocalGptPublishedPayload.\n- Verified probes: /, /Chat, /_framework/blazor.web.js, /_content/DevExpress.Blazor/dx-blazor.svg returned HTTP 200 after the repair.",
+                    Tags = "seed; static-web-assets; aspnetcore; devexpress; direct-debug; webview2; msix; release-guard",
+                    Confidence = 96,
                     IsUserApproved = true,
                     IsPinned = true
                 },
