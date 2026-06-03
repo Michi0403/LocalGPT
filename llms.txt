@@ -5,10 +5,11 @@ LocalGPT is a local-first .NET 10 Blazor/ASP.NET Core AI engineering workbench h
 Capability snapshot:
 
 - DXAiChat supports configured Ollama profiles, visible thinking parsing, memory, and resumable conversations.
-- AI Council runs selected models together, records the roster, saves transcripts, and asks user polls for unclear architecture decisions.
+- AI Council runs selected offline models together, records the roster, saves transcripts, asks user polls for unclear architecture decisions, and can cooperate with coding agents such as Codex as LocalGPT mechanism maintainers.
 - Offline model context is extended by source-backed SQLite knowledge from Microsoft .NET/C# compiler docs, Windows developer docs, DevExpress/Bootstrap guidance, EF/business-object rules, local project learn-base imports, build logs, and setup diagnostics.
 - Artifact routes can generate downloadable `.cs`, `.razor`, `.dll`, whole .NET solution zips, AI-host control-plane zips, and Minecraft datapack zips.
 - Minecraft support covers datapacks, Paper plugins, Fabric mods, and NeoForge mods. Current datapack guidance targets Minecraft Java 26.1; 1.21.x remains a legacy comparison path.
+- LocalGPT is not only for coding: use it for deeper Windows technician work, WebView2/MSIX diagnosis, DevExpress/Bootstrap design discussion, EF/SQLite schema design, Minecraft toolchain planning, and local AI-host architecture reviews.
 
 Main projects:
 
@@ -40,6 +41,8 @@ Important assumptions:
 - use /__diag/dxaichat-smoke for configured DXAiChat backend tests and /__diag/council for council tests before falling back to direct Ollama
 - use /__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4 for the Living Cities datapack benchmark; it creates a validated zip and a compact CouncilKnowledgeEntries record for later model review
 - use /__diag/logs to inspect SQLite application warnings/errors; AI bootstrap includes recent log health signals for DXAiChat and council runs
+- use /__diag/learn-base/import to add compact source-backed knowledge from local docs/projects such as windows-dev-docs-docs; review and approve strong entries in the SQLite Database page
+- when knowledge or functions are missing, emit a structured <localgpt-capability-gap> block instead of refusing; coding agents can use that block to add routes, docs, tests, commits, packages, and releases
 - after black screens or high GPU pressure, use database-first low-resource council settings: one model, MaxRounds 0, MaxOutputTokens 1024 for reasoning models, MaxContextTokens 2048, OllamaKeepAlive "0s", OllamaNumGpu 0, then check ollama ps before/after
 - AI Council conversations saved in SQLite can be continued through ContinueConversationId or the frontend memory selector; every step should show the full council roster
 - faulty council members may be excluded by the user, but models should request that through a poll instead of silently excluding peers

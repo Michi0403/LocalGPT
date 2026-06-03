@@ -6,6 +6,12 @@ This repository is not a generic Blazor sample.
 
 LocalGPT is a .NET 10 Blazor/ASP.NET Core app hosted inside a WinUI 3 WebView2 wrapper, with DevExpress components, Ollama AI configuration, native command services, and Windows MSIX/DesktopBridge packaging.
 
+LocalGPT also acts as a cooperative AI workbench. Several offline Ollama models
+can work as an AI Council, and coding agents such as Claude, Codex, or similar
+assistants can maintain the LocalGPT mechanisms that help the council work:
+DXAiFunctions, SQLite knowledge, upload/artifact workspaces, tests, commits,
+publishes, and release notes.
+
 ## Core rules
 
 - Preserve the WebView2-hosted Blazor architecture unless a redesign is explicitly requested.
@@ -16,6 +22,8 @@ LocalGPT is a .NET 10 Blazor/ASP.NET Core app hosted inside a WinUI 3 WebView2 w
 - Avoid broad framework or package churn unless the build/deploy pipeline is verified afterward.
 - Use Visual Studio MSBuild for full solution/package validation.
 - Use the wrapper's WebView2 smoke diagnostics as the frontend fallback for LocalGPT UI tests. An assistant's built-in browser is not proof that the WinUI/WebView2 packaged shell works.
+- Treat council knowledge problems as repairable. Import local source/docs through `/__diag/learn-base/import`, review SQLite knowledge entries, add source-backed docs/routes where needed, and ask models to emit `<localgpt-capability-gap>` blocks instead of refusing concrete artifact requests.
+- Remember LocalGPT is useful for more than code generation: Windows deployment diagnostics, WebView2/MSIX repair, DevExpress/Bootstrap design work, EF/SQLite schema decisions, Minecraft tooling, and local AI-host architecture discussion are all first-class.
 
 ## Important projects
 

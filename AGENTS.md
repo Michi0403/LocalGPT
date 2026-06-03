@@ -124,6 +124,17 @@ Rules for changes:
 
 The app should be able to save and select multiple Ollama AI profiles and reuse context intelligently.
 
+LocalGPT works best when several local models cooperate instead of one model
+carrying every role. Use the council to split planning, implementation, review,
+and missing-file checks when hardware allows it. Keep model context database-led:
+use pinned/current council knowledge, saved conversations, diagnostics, and
+uploaded workspace summaries before sending huge source blobs.
+
+AI coding agents such as Codex can work with the council. The models can ask for
+missing LocalGPT functions, source imports, benchmark evidence, or product
+repairs; the agent can implement those mechanics, run builds, commit, package,
+and feed verified results back into SQLite knowledge.
+
 The preferred local debug model is `gpt-oss:20b`. Use `LocalGPTWebviewWrapper/build/Test-OllamaGptOss.ps1` before blaming `DxAIChat`, because an empty or failing Ollama response will make the chat UI look broken even when Blazor and DevExpress are working.
 
 When changing AI behavior:
@@ -133,6 +144,11 @@ When changing AI behavior:
 - persist user choices through the configuration writer
 - separate connectivity probing from chat execution
 - keep context reuse bounded and explainable
+- maintain council knowledge lifecycle: source-backed/current entries can guide
+  prompts, model-suggested entries need review, expired/deprecated/superseded
+  entries stay visible to humans but must not be used as trusted bootstrap facts
+- use capability-gap reports when a model lacks functions, sources, versions, or
+  domain knowledge needed to produce a downloadable artifact
 
 ## Minecraft mod building direction
 

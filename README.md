@@ -9,12 +9,35 @@ It is technical, but meant to feel calm: local context, clear tools, safe
 downloads, and a council of models that can work together instead of guessing in
 one giant prompt.
 
+## Why The Council Matters
+
+LocalGPT is strongest when several offline models work together. One model can be
+fast, one can be careful, one can be better at code, and another can be better at
+Windows, design, or long technical discussion. The AI Council turns that into a
+shared conversation with memory, visible roles, user polls, and downloadable
+artifacts.
+
+AI agents such as Codex can also work with the council. A practical flow is:
+
+- a user asks LocalGPT or the AI Council for a feature, diagnosis, design review,
+  Minecraft datapack, or .NET solution
+- the council discusses the path and records missing knowledge or missing
+  LocalGPT functions
+- Codex or another coding agent fixes LocalGPT, imports better knowledge, runs
+  tests, commits, publishes, and documents the result
+- the council uses the improved memory and functions in the next run
+
+This is useful beyond coding. LocalGPT can host deeper technical discussions
+about Windows setup, WebView2/MSIX deployment, DevExpress/Bootstrap design,
+Minecraft tooling, EF/SQLite data models, local AI hosts, and system diagnostics.
+
 ## Current Capabilities
 
 - **Local AI chat:** DXAiChat with Ollama profiles, visible thinking parsing,
   SQLite memory, resumable conversations, and optional cloud providers.
 - **AI Council:** multiple selected models can discuss, correct, log, save
-  memory, and ask for user decisions when architecture choices are unclear.
+  memory, ask for user decisions when architecture choices are unclear, and work
+  with coding agents as implementation helpers.
 - **Offline engineering knowledge:** the council is fed from SQLite knowledge
   entries built from Microsoft .NET/C# compiler docs, Windows developer docs,
   DevExpress/Bootstrap guidance, EF/business-object rules, local learn-base
@@ -145,6 +168,31 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `GET /__diag/council/artifact-smoke?target=datapack`: deterministic prompt-driven Minecraft datapack zip. Living Cities remains a separate named benchmark route, not the hidden default for all datapacks.
 - `GET /__diag/learn-base/import`: import compact architecture fingerprints and documentation source maps from `C:\tmpselectedcodexlearnbaseforlocalgpt` into the council knowledge database.
 - `GET /__diag/benchmark/engineering`: run the five-task personal benchmark for DevExpress/EF, CRUD dashboard, packaging diagnosis, datapack generation, and loader skeleton distinction.
+
+## Helping The Council Learn
+
+LocalGPT improves fastest when missing knowledge is treated as a repairable
+system issue, not as a model failure.
+
+Use these loops:
+
+- **Import source or docs:** place source trees or documentation under
+  `C:\tmpselectedcodexlearnbaseforlocalgpt`, then run `/__diag/learn-base/import`.
+  Known corpora such as Windows developer docs, Microsoft .NET docs,
+  DevExpress samples, and local project examples become compact SQLite knowledge
+  entries instead of huge prompts.
+- **Approve good knowledge:** open **SQLite Database** and review council
+  knowledge rows. Source-backed or user-approved entries should outrank
+  model-suggested notes.
+- **Ask for a capability-gap report:** when the council lacks a function, source,
+  version map, or domain detail, ask it to include a structured
+  `<localgpt-capability-gap>` block. LocalGPT stores that as a fix list for users,
+  agents, and future council runs.
+- **Use agents as maintainers:** Codex or another coding agent can read those
+  gaps, add routes/functions/docs, run tests, commit, publish, and push. The AI
+  Council then sees the new capabilities through bootstrap memory and DXAiFunctions.
+- **Keep evidence small:** prefer `/__diag/...` routes, SQLite rows, build logs,
+  and upload workspaces over pasting whole repositories into chat.
 
 The AI Council stores transcripts in SQLite chat memory and also writes a reusable entry into the editable council knowledge database.
 In the Council page, choose an older council memory to continue the thread, or start a new thread.

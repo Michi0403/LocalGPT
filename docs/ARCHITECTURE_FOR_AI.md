@@ -142,6 +142,20 @@ When the Blazor app is running, `/__diag/process-review` provides the same groun
 
 The AI Council feature lets multiple local Ollama models collaborate on one prompt.
 
+Best results usually come from combining several compatible offline models
+instead of treating one model as the whole team. A smaller fast model can
+summarize context, a code model can draft implementation, a reasoning model can
+review architecture, and a second model can check missing files or build risks.
+Keep GPU pressure realistic and let the database carry shared memory instead of
+stuffing every source file into every turn.
+
+AI coding agents such as Codex are also part of the intended workflow. The
+council can request missing LocalGPT functions, identify weak knowledge, or
+produce benchmark evidence; an agent can implement those mechanics, run builds,
+commit, publish, and feed verified results back into council knowledge. Treat the
+human user as the decision owner and agents as maintainers of the LocalGPT body
+around the models.
+
 Current behavior:
 
 - model candidates are discovered from configured Ollama settings and `/api/tags`
@@ -183,6 +197,21 @@ tests alive without forcing another large GPU residency cycle. Use 256 or 512 ou
 reasoning models can spend that entire budget before producing visible text.
 
 Database-first rule: council bootstrap should prefer pinned `CouncilKnowledgeEntries`, selected saved council conversations, recent log health summaries, and deterministic diagnostic route output over huge pasted source/design contexts. If more detail is needed, ask for a targeted excerpt or create a smaller knowledge entry first.
+
+Knowledge lifecycle rule: council memory is maintained, not merely accumulated.
+Each knowledge entry has a verification status, review status, optional expiry
+date, last verified/used timestamps, optional supersession link, stale reason,
+source hash, and source date. `Current` and user-approved/source-backed entries
+are the strongest prompt evidence. `NeedsUserReview`, `NeedsSourceRefresh`, and
+`NeedsDiagnosticVerification` may be shown with explicit caution. `Expired`,
+`Deprecated`, `Superseded`, and `Archived` entries remain visible in the database
+for humans but must not be injected into bootstrap as trusted facts.
+
+If a model says it cannot complete a task because it lacks information or a
+function, it should not stop at refusal. It should emit a capability-gap block
+that names the missing language/framework/version/domain knowledge, local or
+official sources needed, missing LocalGPT functions, and a safe artifact plan.
+That gap becomes reviewable database knowledge and future product work.
 
 Decision rule: if a participant is unavailable, the council cannot converge, or the final answer still needs human verification, the result should include a user decision poll. The poll is saved into memory and shown in the UI so the next council round can treat the user's choice as binding shared context.
 

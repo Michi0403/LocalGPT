@@ -59,6 +59,11 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 
 - The AI Council should rely on compact SQLite knowledge entries instead of repeatedly loading huge contexts.
 - Knowledge entries need verification state. User-approved/source-backed entries should outrank model-suggested or unverified entries.
+- Knowledge entries also need lifecycle state. `ReviewStatus`, expiry, source hash, source date, last verified, last used, supersession, and stale-reason fields turn memory into maintained engineering knowledge.
+- Do not let old facts rot quietly in prompts. Expired, deprecated, archived, and superseded entries should remain visible to humans in the database page but stay out of active trusted bootstrap briefings.
+- Model-suggested knowledge and capability-gap notes should enter as unapproved, review-needed, temporary entries. The user or a source-backed import can promote them later.
+- Source-backed imports should stamp a source hash and source date. If the docs or source folders change, the council can see that its old knowledge may need refresh instead of assuming yesterday's source map is timeless.
+- The database page should surface knowledge needing attention first and provide fast actions: mark current, request source refresh, mark review-needed, or expire.
 - Application logs, build logs, native command logs, model thoughts, chats, and generated artifact metadata are useful evidence for later council runs.
 - Tables should be inspectable from the frontend and through diagnostic routes, but bounded previews are safer than dumping whole databases into prompts.
 - EF business object generation must ask whether the target is plain EF, DevExpress Web API/XAF/OData, snapshot/audit style, lazy loading, backing fields, delete behavior, and migration nullability.

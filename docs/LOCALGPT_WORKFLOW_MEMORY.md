@@ -17,6 +17,9 @@ The main product direction is a local AI engineering workbench with Ollama:
 
 ## Recent Commits
 
+- `74c0e69` - Add council knowledge lifecycle.
+- `2ff4f45` - Tighten source formatting guard.
+- `e2af849` - Add DXAiChat upload workspaces.
 - `c224ed8` - Restore package manifest bytes after release stamping.
 - `ef097ff` - Keep derived MSIX versions upgrade safe.
 - `05c9570` - Clean wrapper release staging folders.
@@ -96,6 +99,8 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Add `writeSmoke=true` to write and flush a harmless warning entry after logger changes.
 - `GET /__diag/knowledge`
   - Reads editable council knowledge notes. These notes are included in AI bootstrap context as working memory, not absolute truth.
+  - Council knowledge now has lifecycle fields: `ReviewStatus`, `ExpiresAtUtc`, `LastVerifiedAtUtc`, `LastUsedAtUtc`, `SupersededByKnowledgeId`, `StalenessReason`, `StalenessDetectedAtUtc`, `StalenessDetectedBy`, `SourceHash`, and `SourceDateUtc`.
+  - `Expired`, `Deprecated`, `Superseded`, and `Archived` entries remain visible in `/database` but are filtered out of active bootstrap briefings. `NeedsUserReview`, `NeedsSourceRefresh`, and `NeedsDiagnosticVerification` are dashboard attention states, not silent trusted facts.
 - `GET /__diag/sqlite/tables`
   - Lists live SQLite tables and row counts. The `/database` page uses the same table-editor service to let the frontend user inspect and edit local SQLite data with DevExpress controls.
 - `GET /__diag/devexpress`
@@ -167,7 +172,7 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   Otherwise the fallback looks like more hidden/thinking text instead of a stopped visible answer.
 - Keep the council database-first: use pinned `CouncilKnowledgeEntries`, selected saved conversations, and route outputs as concise grounding. Avoid huge prompt blobs unless a model explicitly needs one targeted excerpt.
 - Official DevExpress/Microsoft source knowledge is backed by `docs/COUNCIL_KNOWLEDGE_SEED.sql`. LocalGPT imports this file with `INSERT OR IGNORE`, so it restores missing source-backed rows into SQLite without overwriting user edits or approval flags.
-- Knowledge trust is explicit. Use `VerificationStatus` (`SourceBacked`, `UserVerified`, `ModelSuggested`, `NeedsVerification`, `Archived`) together with confidence and approval flags. Current user decisions and runtime diagnostics outrank workflow memory and model suggestions.
+- Knowledge trust is explicit. Use `VerificationStatus` (`SourceBacked`, `UserVerified`, `ModelSuggested`, `NeedsVerification`, `Archived`) together with `ReviewStatus`, confidence, approval flags, expiry, source hash, and source date. Current user decisions and runtime diagnostics outrank workflow memory and model suggestions. When knowledge becomes wrong, mark it expired/deprecated/superseded instead of deleting the learning trail.
 - Native command execution is intentionally narrow: commands must run under the LocalGPT Minecraft workspace root, executables are allowlisted, PowerShell must use `-File` against a workspace `.ps1`, and attempts/results are logged in the `NativeCommandLogs` SQLite table.
   The ledger includes `CommandProfile` values such as `GradleBuildOnly`, `GradleRunClient`, `JavaVersionOnly`, `PowerShellWorkspaceScript`, and `CustomAllowlistedCommand`.
 - Formatting hardening is not about editor soft-wrap. Audit raw newline characters and physical line length. `build/Assert-SourceFormatting.ps1` checks tracked `.cs`, `.razor`, `.md`, `.ps1`, and `.json` files for physical lines over 600 characters and verifies key files such as `Program.cs`, `NativeCommandRunner.cs`, `AiContextBootstrapService.cs`, and `README.md` cannot collapse back into tiny raw-line counts. `.github/workflows/source-hygiene.yml` runs this guard on push and pull request.
