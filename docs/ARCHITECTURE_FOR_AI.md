@@ -2,7 +2,22 @@
 
 ## Short version
 
-LocalGPT is a Windows desktop app shell around a Blazor/ASP.NET Core server. The server owns the UI, DevExpress components, AI/Ollama configuration, chat behavior, and native command services. The WinUI 3 wrapper exists to launch and display that server through WebView2.
+LocalGPT is a local-first AI engineering workbench. A WinUI 3 WebView2 shell
+hosts a Blazor/ASP.NET Core server that owns the UI, DevExpress components,
+AI/Ollama configuration, SQLite memory, council knowledge, downloadable artifact
+routes, Minecraft generation, diagnostics, and native command services.
+
+Current product shape:
+
+- DXAiChat for local model chat with memory and visible thinking parsing.
+- AI Council for multi-model review, correction, polls, logs, and memory.
+- Test Lab for local diagnostics before loading heavy models.
+- Downloadable `.cs`, `.razor`, `.dll`, solution, AI-host, and datapack artifacts.
+- Minecraft Java support for current 26.1 datapacks plus Fabric, NeoForge, Paper,
+  and 1.21.x legacy comparison/starter paths.
+- Source-backed offline engineering knowledge from Microsoft .NET/C# compiler
+  docs, Windows docs, DevExpress/Bootstrap guidance, EF rules, local learn-base
+  imports, logs, and project workflow memory.
 
 ## Key idea
 

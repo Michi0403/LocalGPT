@@ -6,11 +6,13 @@ This file is a compact handoff for future agents and AI Council runs. Treat it a
 
 LocalGPT is a Windows desktop-hosted Blazor/ASP.NET Core app inside a WinUI 3 WebView2 wrapper. The main app should stay in `LocalGPT`; the wrapper should stay thin and only host, navigate, and run desktop-shell diagnostics.
 
-The main product direction is local AI-assisted Minecraft creation with Ollama:
+The main product direction is a local AI engineering workbench with Ollama:
 
 - DXAiChat for normal single-model chat.
 - AI Council for multiple local models that negotiate, correct each other, log, and save memory.
-- Minecraft Builder for Fabric mods, NeoForge mods, Paper plugins, and vanilla datapacks.
+- SQLite knowledge that makes offline models stronger Windows/.NET/DevExpress/Minecraft engineers.
+- Downloadable `.cs`, `.razor`, `.dll`, whole-solution, AI-host, and datapack artifacts.
+- Minecraft Builder for current Java 26.1 datapacks, Fabric mods, NeoForge mods, Paper plugins, and 1.21.x legacy comparison/starter work.
 - Bedrock add-ons should be a separate future behavior/resource pack exporter.
 
 ## Recent Commits

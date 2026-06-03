@@ -1,6 +1,35 @@
 # LocalGPT
 
-LocalGPT is a Windows desktop hosted Blazor and ASP.NET Core app wrapped by WinUI 3 and WebView2. The goal is to keep the AI workflow local-first with Ollama, make DevExpress/Blazor debugging easier, and expose careful backend services for native tasks such as building Minecraft workspaces.
+LocalGPT is a local-first AI engineering workbench for Windows, .NET, DevExpress,
+and Minecraft creation. It runs as a Blazor/ASP.NET Core app inside a WinUI 3
+WebView2 desktop shell, uses local Ollama models by default, and turns chats into
+memory, diagnostics, and downloadable build artifacts.
+
+It is technical, but meant to feel calm: local context, clear tools, safe
+downloads, and a council of models that can work together instead of guessing in
+one giant prompt.
+
+## Current Capabilities
+
+- **Local AI chat:** DXAiChat with Ollama profiles, visible thinking parsing,
+  SQLite memory, resumable conversations, and optional cloud providers.
+- **AI Council:** multiple selected models can discuss, correct, log, save
+  memory, and ask for user decisions when architecture choices are unclear.
+- **Offline engineering knowledge:** the council is fed from SQLite knowledge
+  entries built from Microsoft .NET/C# compiler docs, Windows developer docs,
+  DevExpress/Bootstrap guidance, EF/business-object rules, local learn-base
+  projects, build logs, and setup diagnostics.
+- **Downloadable generation:** LocalGPT can create safe `.cs`, `.razor`, `.dll`,
+  whole .NET solution zips, AI-host control-plane zips, and Minecraft datapack
+  zips through local HTTP download links.
+- **Minecraft builder:** supports vanilla datapacks, Paper plugins, Fabric mods,
+  and NeoForge mods. Current datapack guidance targets Minecraft Java 26.1;
+  1.21.x/1.21.4 remains available for legacy comparison and starter work.
+- **User-owned data:** chat memory, council knowledge, application logs, and live
+  SQLite tables are inspectable and editable from the frontend.
+
+See [docs/LOCALGPT_CAPABILITY_SNAPSHOT.md](docs/LOCALGPT_CAPABILITY_SNAPSHOT.md)
+for the short capability map.
 
 ## What Is Inside
 
@@ -82,17 +111,18 @@ Install or verify the Java modding toolchain:
 
 Generated Java workspaces include `build-local.ps1` for Gradle builds. Generated datapacks include `build-local.ps1` for JSON validation and zip packaging.
 
-The Living Cities datapack benchmark can be regenerated without loading Ollama:
+The current Minecraft Java datapack benchmark can be regenerated without loading
+Ollama:
 
 ```powershell
 $server = Get-Content "$env:LOCALAPPDATA\LocalGPT\runtime\server.json" | ConvertFrom-Json
-Invoke-RestMethod "$($server.BaseUrl)/__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4"
+Invoke-RestMethod "$($server.BaseUrl)/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1"
 ```
 
-For current Minecraft Java, prefer:
+For legacy comparison only, use:
 
 ```powershell
-Invoke-RestMethod "$($server.BaseUrl)/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1"
+Invoke-RestMethod "$($server.BaseUrl)/__diag/minecraft/datapack-benchmark?minecraftVersion=1.21.4"
 ```
 
 That route validates the datapack, creates a zip, and stores a compact council knowledge entry so later AI Council reviews can use database memory instead of a huge pasted prompt. The 1.21.4 route remains useful for legacy comparison only.

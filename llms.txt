@@ -1,6 +1,14 @@
 # LocalGPT for LLMs
 
-LocalGPT is a .NET 10 Blazor/ASP.NET Core application hosted inside a WinUI 3 WebView2 Windows wrapper. It uses DevExpress Blazor components, Ollama-hosted AI models, configuration-driven AI profile selection, and backend services for native command execution and Minecraft mod workspace automation.
+LocalGPT is a local-first .NET 10 Blazor/ASP.NET Core AI engineering workbench hosted inside a WinUI 3 WebView2 Windows wrapper. It uses DevExpress Blazor components, Ollama-hosted AI models, SQLite memory/knowledge, downloadable artifact routes, backend native-command services, and Minecraft workspace automation.
+
+Capability snapshot:
+
+- DXAiChat supports configured Ollama profiles, visible thinking parsing, memory, and resumable conversations.
+- AI Council runs selected models together, records the roster, saves transcripts, and asks user polls for unclear architecture decisions.
+- Offline model context is extended by source-backed SQLite knowledge from Microsoft .NET/C# compiler docs, Windows developer docs, DevExpress/Bootstrap guidance, EF/business-object rules, local project learn-base imports, build logs, and setup diagnostics.
+- Artifact routes can generate downloadable `.cs`, `.razor`, `.dll`, whole .NET solution zips, AI-host control-plane zips, and Minecraft datapack zips.
+- Minecraft support covers datapacks, Paper plugins, Fabric mods, and NeoForge mods. Current datapack guidance targets Minecraft Java 26.1; 1.21.x remains a legacy comparison path.
 
 Main projects:
 

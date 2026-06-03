@@ -2,12 +2,15 @@
 
 ## Purpose
 
-This repository contains LocalGPT, a Windows desktop-hosted Blazor/ASP.NET Core application for local AI workflows. It combines:
+This repository contains LocalGPT, a local-first AI engineering workbench wrapped
+as a Windows desktop-hosted Blazor/ASP.NET Core application. It combines:
 
 - Blazor Server interactive UI
 - DevExpress Blazor components
 - Ollama-hosted AI model configuration
 - context-aware chat/client services
+- source-backed Windows/.NET/DevExpress/Minecraft council knowledge
+- downloadable `.cs`, `.razor`, `.dll`, whole-solution, AI-host, and datapack artifacts
 - backend native command execution services
 - a WinUI 3/WebView2 desktop wrapper
 - MSIX/DesktopBridge packaging for Windows deploy/debug
@@ -27,6 +30,8 @@ Main ASP.NET Core and Blazor application. This project contains:
 - configuration save/load services
 - Minecraft mod workspace helpers
 - native command execution abstraction
+- SQLite chat memory, council knowledge, application logs, and live table editing
+- Test Lab diagnostics and deterministic artifact-generation routes
 
 ### `LocalGPTWebviewWrapper/LocalGPTWebviewWrapper`
 

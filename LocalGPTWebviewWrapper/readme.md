@@ -1,8 +1,16 @@
 # LocalGPT WebView Wrapper
 
-LocalGPT is a Windows desktop-hosted Blazor/ASP.NET Core application. The UI and AI services live in the `LocalGPT` ASP.NET Core server project, and the `LocalGPTWebviewWrapper` WinUI 3 app starts that server and displays it through WebView2.
+LocalGPT is a Windows desktop-hosted Blazor/ASP.NET Core AI engineering workbench.
+The UI, AI services, SQLite memory, diagnostics, and artifact generation live in
+the `LocalGPT` ASP.NET Core server project. The `LocalGPTWebviewWrapper` WinUI 3
+app starts that server and displays it through WebView2.
 
 The wrapper exists to make the app feel like a native Windows application while keeping the main UI in Blazor, where DevExpress components and browser debugging are easier to work with.
+
+Today the app can run local Ollama-backed DXAiChat, coordinate an AI Council,
+teach offline models from source-backed .NET/Windows/DevExpress/Minecraft
+knowledge, and generate downloadable `.cs`, `.razor`, `.dll`, whole-solution,
+AI-host, and Minecraft datapack artifacts through local HTTP routes.
 
 ## Projects
 
