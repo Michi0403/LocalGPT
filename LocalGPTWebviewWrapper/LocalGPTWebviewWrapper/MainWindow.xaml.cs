@@ -647,7 +647,7 @@ namespace WebView2_WinUI3_Sample
                                             : window.__localGptDiagRunDxAiChatReview ? 180000
                                             : window.__localGptDiagRunDxAiChatQwen ? 150000
                                             : window.__localGptDiagRunDxAiChatFeatureArtifacts ? 240000
-                                            : window.__localGptDiagRunDxAiChatAiHost ? 720000
+                                            : window.__localGptDiagRunDxAiChatAiHost ? 1800000
                                             : 1500000);
                                         if (!smoke.answerVisible) {
                                             smoke.error = window.__localGptDiagRunDxAiChatGptOss || window.__localGptDiagRunDxAiChatQwen || window.__localGptDiagRunDxAiChatReview
@@ -808,7 +808,7 @@ namespace WebView2_WinUI3_Sample
                             : _runDxAiChatReviewDiagnostics ? TimeSpan.FromMinutes(4)
                             : _runDxAiChatQwenDiagnostics ? TimeSpan.FromMinutes(4)
                             : _runDxAiChatFeatureArtifactsDiagnostics ? TimeSpan.FromMinutes(5)
-                            : _runDxAiChatAiHostDiagnostics ? TimeSpan.FromMinutes(14)
+                            : _runDxAiChatAiHostDiagnostics ? TimeSpan.FromMinutes(31)
                             : TimeSpan.FromMinutes(26));
                     var path = sender.Source?.AbsolutePath.ToLowerInvariant() ?? string.Empty;
                     if (path.Contains("/chat", StringComparison.Ordinal)
@@ -838,7 +838,7 @@ namespace WebView2_WinUI3_Sample
                                 : _runDxAiChatReviewDiagnostics ? TimeSpan.FromMinutes(4)
                                 : _runDxAiChatQwenDiagnostics ? TimeSpan.FromMinutes(4)
                                 : _runDxAiChatFeatureArtifactsDiagnostics ? TimeSpan.FromMinutes(6)
-                                : _runDxAiChatAiHostDiagnostics ? TimeSpan.FromMinutes(15)
+                                : _runDxAiChatAiHostDiagnostics ? TimeSpan.FromMinutes(32)
                                 : TimeSpan.FromMinutes(26));
                     }
                     else if (path.Contains("/minecraft-mod-builder", StringComparison.Ordinal))

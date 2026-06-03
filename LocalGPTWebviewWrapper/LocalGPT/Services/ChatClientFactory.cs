@@ -38,8 +38,8 @@ namespace LocalGPT.Services
                     var ollamaChat = new OllamaThinkingChatClient(
                         ollama,
                         keepAlive: "2m",
-                        contextLength: 4096,
-                        timeout: TimeSpan.FromMinutes(10),
+                        contextLength: 65536,
+                        timeout: TimeSpan.FromMinutes(30),
                         numGpu: null);
 
                     sessions.Add(new ChatClientSession(

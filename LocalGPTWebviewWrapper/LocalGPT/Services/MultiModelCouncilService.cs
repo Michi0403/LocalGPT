@@ -109,8 +109,8 @@ namespace LocalGPT.Services
                 result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
             if (request.MaxOutputTokens > 32768)
                 result.Warnings.Add("Very large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
-            if (maxContextTokens < DefaultContextTokens)
-                result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens. For source generation, 32,768+ tokens is usually safer when the model supports it.");
+            if (maxContextTokens < 64000)
+                result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens. Values below 64K are quick-chat/diagnostic budgets, not valid source-generation acceptance tests.");
             if (participants.Count > 1 && maxParallelModels == 1 && keepAlive == "0s")
                 result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
             if (ollamaNumGpu == 0)

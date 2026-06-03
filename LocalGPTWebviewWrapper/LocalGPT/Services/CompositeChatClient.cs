@@ -9,8 +9,8 @@ namespace LocalGPT.Services;
 
 public class CompositeChatClient : IChatClient
 {
-    private const int DefaultMaxOutputTokens = 2048;
-    private const int DefaultMaxPromptCharacters = 12000;
+    private const int DefaultMaxOutputTokens = 65536;
+    private const int DefaultMaxPromptCharacters = 250000;
     private const int MaxPromptCharacters = 1_000_000;
     private const int MaxBootstrapCharacters = 6000;
     private const int MaxSingleConversationMessageCharacters = 5000;

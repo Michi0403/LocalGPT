@@ -786,7 +786,7 @@
                     new OllamaCoreOptions { Uri = candidate.Endpoint, ModelName = candidate.ModelName },
                     keepAlive: "0s",
                     contextLength: ResolveCouncilContextTokens(),
-                    timeout: TimeSpan.FromMinutes(10),
+                    timeout: TimeSpan.FromMinutes(30),
                     numGpu: ResolveOllamaNumGpu()),
                 BuildDynamicSessionName(candidate));
 
@@ -832,7 +832,7 @@
                 new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
                 keepAlive: "0s",
                     contextLength: ResolveCouncilContextTokens(),
-                    timeout: TimeSpan.FromMinutes(10),
+                    timeout: TimeSpan.FromMinutes(30),
                     numGpu: ResolveOllamaNumGpu()),
             $"{DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {TrimEndpoint(endpoint)}");
 
@@ -860,7 +860,7 @@
             MaxOutputTokens = ResolveCouncilOutputTokens(),
             MaxParallelModels = 1,
             MaxContextTokens = ResolveCouncilContextTokens(),
-            ModelTimeoutSeconds = 900,
+            ModelTimeoutSeconds = 1800,
             OllamaKeepAlive = "0s",
             OllamaNumGpu = ResolveOllamaNumGpu(),
             IncludeMemory = IncludeCouncilMemory,
