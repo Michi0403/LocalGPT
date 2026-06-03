@@ -6,6 +6,8 @@ param(
 
     [string]$DebuggerJsonUrl = "http://127.0.0.1:9222/json",
 
+    [string]$ChatPath = "/Chat",
+
     [switch]$CollectOnly
 )
 
@@ -137,6 +139,7 @@ if (-not $CollectOnly -and -not (Test-Path $PromptPath)) {
 
 $prompt = if ($CollectOnly) { "" } else { Get-Content -Path $PromptPath -Raw }
 $promptJson = $prompt | ConvertTo-Json -Compress
+$chatPathJson = $ChatPath | ConvertTo-Json -Compress
 
 Write-E2ELog "Attaching to existing WebView2 debugger endpoint."
 $target = Wait-Until -Description "WebView2 page target" -Seconds 60 -Condition {
@@ -164,16 +167,16 @@ try {
     $commandId++
     Send-CdpCommand -WebSocket $ws -Id $commandId -Method "Page.enable" | Out-Null
 
-    Write-E2ELog "Ensuring the real visible WebView2 page is on Chat."
-    $isOnChat = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.pathname.toLowerCase() === '/chat'"
-    if (-not $isOnChat) {
+    Write-E2ELog "Ensuring the real visible WebView2 page is on $ChatPath."
+    $isOnRequestedChat = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "(() => { const target = new URL($chatPathJson, location.origin); return location.pathname.toLowerCase() === '/chat' && location.search === target.search; })()"
+    if (-not $isOnRequestedChat) {
         $currentUrl = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.href"
-        Write-E2ELog "Current visible page is $currentUrl; navigating that same WebView2 host to /Chat."
-        Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.href = '/Chat'; true" | Out-Null
+        Write-E2ELog "Current visible page is $currentUrl; navigating that same WebView2 host to $ChatPath."
+        Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.href = $chatPathJson; true" | Out-Null
     }
 
     Wait-Until -Description "visible WebView2 Chat route" -Seconds 90 -Condition {
-        Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "location.pathname.toLowerCase() === '/chat'"
+        Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "(() => { const target = new URL($chatPathJson, location.origin); return location.pathname.toLowerCase() === '/chat' && location.search === target.search; })()"
     } | Out-Null
 
     Wait-Until -Description "LocalGPT E2E helper" -Seconds 90 -Condition {
@@ -202,6 +205,19 @@ try {
 
         $sendRect = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.sendButtonRect()"
         if (-not $sendRect) {
+            Write-E2ELog "DXAiChat send is still disabled after DOM value assignment; using WebView2 Input.insertText fallback."
+            Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.setValue('[data-testid=""chat-input""]', '')" | Out-Null
+            Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "document.querySelector('[data-testid=""chat-input""]')?.focus(); true" | Out-Null
+            $commandId++
+            Send-CdpCommand -WebSocket $ws -Id $commandId -Method "Input.insertText" -Params @{
+                text = $prompt
+            } | Out-Null
+            Start-Sleep -Milliseconds 500
+            $sendRect = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.sendButtonRect()"
+        }
+        if (-not $sendRect) {
+            $blockedState = Invoke-CdpEvaluate -WebSocket $ws -CommandId ([ref]$commandId) -Expression "window.localGptE2e.chatState()"
+            $blockedState | ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $artifactRoot "send-disabled-state.json") -Encoding utf8
             throw "DXAiChat send button is unavailable or disabled."
         }
 
