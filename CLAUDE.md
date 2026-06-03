@@ -55,6 +55,13 @@ artifacts work as a product workflow:
   problem. Drive or navigate the attached visible host to `/Chat`, confirm the
   actual DXAiChat input and send button are interactive, and only then send. Do
   not escape to an assistant sandbox browser or backend diagnostic route.
+- Do not use `diagSession` or query-string changes as DXAiChat/AI Council
+  session control. Diagnostic URL parameters are diagnostics, not a normal user
+  workflow, and can race Blazor state. For product validation, use the visible
+  Chat UI: Start New Chat, model/council selection, artifact toggle, textbox,
+  and send. Wait for the visible UI to settle before interacting. If a fresh
+  Council context is needed, use or build an explicit in-app workflow instead of
+  mutating the URL.
 
 ## Important projects
 
