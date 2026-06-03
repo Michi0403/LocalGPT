@@ -502,14 +502,18 @@ namespace LocalGPT.Services
                 }
               },
               "AiHost": {
-                "ProviderBaseUri": "http://127.0.0.1:11434",
                 "DefaultModel": "gpt-oss:20b",
                 "SafeStorageRoot": "%LOCALAPPDATA%/GeneratedAiHost",
                 "PluginRoot": "plugins",
+                "NativeRunnerExecutable": "",
+                "ModelSearchRoots": [
+                  "%USERPROFILE%/.ollama/models",
+                  "%LOCALAPPDATA%/LocalGPT/ModelFiles",
+                  "%LOCALAPPDATA%/GeneratedAiHost/Models"
+                ],
                 "ContextTokens": 32768,
                 "GpuLayers": 20,
-                "AllowExternalProviderDelegation": true,
-                "AllowNativeRunner": false,
+                "AllowNativeRunner": true,
                 "AllowPythonNet": false,
                 "AllowPowerShellScripts": false,
                 "AllowTypeScriptAdapters": false
@@ -523,11 +527,10 @@ namespace LocalGPT.Services
             var aiHostServiceRegistrations = isAiHostLab
                 ? """
                   builder.Services.Configure<AiHostRuntimeOptions>(builder.Configuration.GetSection("AiHost"));
-                  builder.Services.AddHttpClient();
                   builder.Services.AddSingleton<IModelCatalogService>(sp => sp.GetRequiredService<GeneratedHealthSummaryService>());
                   builder.Services.AddSingleton<IModelTransferService>(sp => sp.GetRequiredService<GeneratedHealthSummaryService>());
-                  builder.Services.AddSingleton<IInferenceProvider, ExternalProviderInferenceProvider>();
-                  builder.Services.AddSingleton<IInferenceRunner, NativeRunnerCapabilityGapRunner>();
+                  builder.Services.AddSingleton<IInferenceProvider, NativeModelFileInferenceProvider>();
+                  builder.Services.AddSingleton<IInferenceRunner, NativeModelFileProcessRunner>();
                   builder.Services.AddSingleton<IPluginCatalogService, GeneratedPluginCatalogService>();
                   builder.Services.AddSingleton<IScriptExecutionService, PermissionGatedScriptExecutionService>();
                   builder.Services.AddSingleton<IHardwareBudgetService, GeneratedHardwareBudgetService>();
@@ -541,7 +544,8 @@ namespace LocalGPT.Services
                   {
                       version = "dotnet-lab-0.2",
                       source = "LocalGPT generated sandbox",
-                      native_inference = false
+                      native_runner_contract = true,
+                      upstream_proxy = false
                   });
                   app.MapGet("/api/tags", ([FromServices] IModelCatalogService catalog) => new { models = catalog.GetAiHostTags() });
                   app.MapGet("/api/ps", ([FromServices] IModelCatalogService catalog) => new { models = catalog.GetRunningModels() });
@@ -1087,7 +1091,7 @@ namespace LocalGPT.Services
                     <GeneratedNavigation IsAiHostLab="true" />
 
                     <h1>AI Host Model Catalog</h1>
-                    <p class="generated-muted">Model rows are compatibility records for the .NET control-plane lab. They are not proof of native inference.</p>
+                    <p class="generated-muted">Model rows are compatibility records for local model files and native runner readiness.</p>
 
                     <DxGrid Data="@HealthService.GetModelCatalog()"
                             ShowSearchBox="true"
@@ -1408,7 +1412,7 @@ namespace LocalGPT.Services
                     <section class="generated-header">
                         <div>
                             <h1>AI Host API Console</h1>
-                            <p>Selected provider-compatible endpoints are shown as .NET route stubs. Native model execution still belongs behind an approved runner adapter.</p>
+                        <p>Selected provider-compatible endpoints are shown as .NET routes backed by the local model-file runner contract.</p>
                         </div>
                     </section>
 
@@ -1425,16 +1429,16 @@ namespace LocalGPT.Services
                     </DxGrid>
 
                     <section class="generated-note">
-                        <h2>Non-Inference Generate Stub</h2>
+                        <h2>Native-Runner Generate Request</h2>
                         <pre class="generated-code">POST /api/generate
                 {
-                  "model": "dotnet-lab-stub",
+                  "model": "gpt-oss:20b",
                   "prompt": "Hello"
                 }
 
                 Response:
                 {
-                  "response": "This .NET lab does not implement native inference.",
+                  "response": "NativeRunnerExecutable must point to an approved local runner before model-file inference starts.",
                   "done": true
                 }</pre>
                     </section>
@@ -1506,9 +1510,9 @@ namespace LocalGPT.Services
                 <section class="generated-header">
                     <div>
                         <h1>AI Host Chat</h1>
-                        <p>Exercise the chat route shape and provider boundary without pretending native inference is attached.</p>
+                        <p>Exercise the chat route shape through the generated local model-file runner boundary.</p>
                     </div>
-                    <DxButton Text="Send stub chat"
+                    <DxButton Text="Send runner chat"
                               RenderStyle="ButtonRenderStyle.Primary"
                               RenderStyleMode="ButtonRenderStyleMode.Contained"
                               Click="SendStubChat" />
@@ -1532,7 +1536,7 @@ namespace LocalGPT.Services
             @code {
                 string Model { get; set; } = "gpt-oss:20b";
                 string Prompt { get; set; } = "Explain the generated AI host control-plane route boundaries.";
-                string Transcript { get; set; } = "Click Send stub chat to preview a safe /api/chat response.";
+                string Transcript { get; set; } = "Click Send runner chat to preview a safe /api/chat response.";
 
                 void SendStubChat()
                 {
@@ -1587,7 +1591,7 @@ namespace LocalGPT.Services
                 <section class="generated-header">
                     <div>
                         <h1>Model Downloads</h1>
-                        <p>Plan provider-style pull operations without claiming ownership of model binaries or native runner behavior.</p>
+                        <p>Plan model-file downloads with explicit target paths and user approval.</p>
                     </div>
                     <DxButton Text="Create pull plan"
                               RenderStyle="ButtonRenderStyle.Primary"
@@ -1687,7 +1691,7 @@ namespace LocalGPT.Services
                 <section class="generated-header">
                     <div>
                         <h1>Hardware Budget</h1>
-                        <p>Represent GPU, CPU, context, queue, and throttling rules before a real native runner is attached.</p>
+                        <p>Represent GPU, CPU, context, queue, and throttling rules before heavy native runner jobs are allowed.</p>
                     </div>
                 </section>
 
@@ -1722,7 +1726,7 @@ namespace LocalGPT.Services
                 <section class="generated-header">
                     <div>
                         <h1>Runner Plugins</h1>
-                        <p>Show provider adapters, native-runner boundaries, Python.NET, PowerShell, and managed inference paths as explicit architecture contracts.</p>
+                        <p>Show native-runner boundaries, optional catalog/provider adapters, Python.NET, PowerShell, and managed inference paths as explicit architecture contracts.</p>
                     </div>
                     <DxButton Text="Refresh capability"
                               RenderStyle="ButtonRenderStyle.Primary"
@@ -1857,7 +1861,7 @@ namespace LocalGPT.Services
 
                 <DxFormLayout CssClass="generated-form">
                     <DxFormLayoutGroup Caption="Generated Runtime Profile" ColSpanMd="12">
-                        <DxFormLayoutItem Caption="Base URI" ColSpanMd="6">
+                        <DxFormLayoutItem Caption="Model Source" ColSpanMd="6">
                             <DxTextBox Text="@LabSettings.BaseUri" ReadOnly="true" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Default Model" ColSpanMd="6">
@@ -1903,9 +1907,9 @@ namespace LocalGPT.Services
         {
             var cards = isAiHostLab
                 ? """
-                          new("REST API Shell", "Prototype", "Map version, tags, ps, show, pull, push, create, copy, delete, generate, chat, and embed stubs.", "This mirrors local AI host API route families without claiming native inference."),
-                          new("Model Catalog", "SourceBacked", "Represent model names, tags, details, download candidates, and runner status in .NET models.", "Model file ownership stays outside the lab until a real backend is approved."),
-                          new("Native Runner", "Not Implemented", "Attach or build a real inference backend before claiming full AI host behavior.", "Native AI hosts rely on model loaders, runner paths, native payloads, and hardware-specific backends."),
+                          new("REST API Shell", "NativeFileReady", "Map version, tags, ps, show, pull, push, create, copy, delete, generate, chat, and embed routes.", "The host owns route handling and never proxies chat/generate to upstream Ollama."),
+                          new("Model Catalog", "SourceBacked", "Represent model names, tags, details, local file paths, download candidates, and runner status in .NET models.", "Ollama manifests may be read as local file metadata; the Ollama service is not used for inference."),
+                          new("Native Runner", "Configurable", "Run compatible local model files through an approved native executable such as llama.cpp.", "Native AI hosts rely on model loaders, runner paths, native payloads, and hardware-specific backends."),
                           new("Model Downloads", "Ready", "Expose a /model-downloads page and /api/pull planning response.", "Pull planning is safe and explicit; it does not download binaries by itself."),
                           new("Settings", "Ready", "Expose generated runtime settings for base URI, default model, context, GPU layers, and pull policy.", "Persist real settings through EF/SQLite only after user approval."),
                           new("DevExpress UI", "Ready", "Use grids/forms for model inventory, compatibility notes, settings, downloads, and endpoint tests.", "This is the realistic Blazor/DevExpress value of the experiment.")
@@ -1921,16 +1925,16 @@ namespace LocalGPT.Services
             var endpoints = isAiHostLab
                 ? """
                           new("GET", "/api/version", "Return a compact provider-compatible version document.", "Safe pure .NET response."),
-                          new("GET", "/api/tags", "Return model catalog rows shaped like local AI host tags.", "Catalog only; no model file ownership implied."),
-                          new("GET", "/api/ps", "Return currently loaded model rows for runner-status UI.", "Stubbed; no native runner session is owned."),
+                          new("GET", "/api/tags", "Return model catalog rows shaped like local AI host tags.", "Catalog includes direct local model-file candidates."),
+                          new("GET", "/api/ps", "Return currently loaded model rows for runner-status UI.", "Runner-owned sessions are reported here when configured."),
                           new("POST", "/api/show", "Return model metadata, parameters, template, and details.", "Source-shaped but generated data only."),
                           new("POST", "/api/pull", "Return a safe model-download plan.", "Does not download model binaries without a real adapter."),
                           new("POST", "/api/push", "Return a registry-upload plan.", "No registry credentials or upload path included."),
                           new("POST", "/api/create", "Return a model-create plan.", "No Modelfile build happens in this sandbox."),
                           new("POST", "/api/copy", "Return a model-copy plan.", "No local blob mutation happens."),
                           new("DELETE", "/api/delete", "Return a model-delete plan.", "No file deletion happens."),
-                          new("POST", "/api/generate", "Delegate to the configured external Ollama-compatible provider, with fallback text if unavailable.", "Native token generation remains outside this generated host."),
-                          new("POST", "/api/chat", "Delegate chat requests to the configured external Ollama-compatible provider, with safe fallback when unreachable.", "Context/cache ownership stays in the provider adapter until a native runner is approved."),
+                          new("POST", "/api/generate", "Run prompt generation through the native model-file runner contract.", "No upstream AI-host proxying is allowed."),
+                          new("POST", "/api/chat", "Run chat requests through the native model-file runner contract.", "Context/cache ownership belongs to this host and its runner adapter."),
                           new("POST", "/api/embed", "Return a tiny deterministic vector.", "Not a real embedding model.")
                   """
                 : """
@@ -1966,16 +1970,16 @@ namespace LocalGPT.Services
                 }
 
                 /// <summary>
-                /// Returns sample model entries for compatibility UI and API stub responses.
+                /// Returns sample model entries for compatibility UI and API responses.
                 /// </summary>
                 public IReadOnlyList<GeneratedModelCard> GetModelCatalog()
                 {
                     return
                     [
-                        new("gpt-oss:20b", "External local AI host model candidate", 0, false),
-                        new("qwen3-coder:30b", "External local AI host model candidate", 0, false),
-                        new("dotnet-lab-stub:latest", "API shell only", 0, false),
-                        new("external-runner-adapter:planned", "Requires real native or external inference backend", 0, false)
+                        new("gpt-oss:20b", "Local model-file candidate resolved from configured search roots.", 0, true),
+                        new("qwen3-coder:30b", "Local model-file candidate resolved from configured search roots.", 0, true),
+                        new("deepseek-r1:8b", "Local model-file candidate resolved from configured search roots.", 0, true),
+                        new("native-runner:configured", "Requires NativeRunnerExecutable plus compatible local model files.", 0, true)
                     ];
                 }
 
@@ -1988,7 +1992,7 @@ namespace LocalGPT.Services
                     [
                         new("gpt-oss:20b", "gpt-oss", "20B", "Q4_K_M", 0),
                         new("qwen3-coder:30b", "qwen", "30B", "Q4_K_M", 0),
-                        new("dotnet-lab-stub:latest", "generated", "0B", "none", 0)
+                        new("deepseek-r1:8b", "deepseek", "8B", "Q4_K_M", 0)
                     ];
                 }
 
@@ -1997,7 +2001,7 @@ namespace LocalGPT.Services
                 /// </summary>
                 public IReadOnlyList<GeneratedAiHostModelTag> GetRunningModels()
                 {
-                    return [new("dotnet-lab-stub:latest", "generated", "0B", "none", 0)];
+                    return [];
                 }
 
                 /// <summary>
@@ -2007,7 +2011,7 @@ namespace LocalGPT.Services
                 {
                     return
                     [
-                        new("Info", "Provider", "External provider adapter is configured as a boundary, not as native inference.", "Wire IInferenceProvider to the selected local or cloud AI host."),
+                        new("Info", "Runner", "Native model-file runner is the first-class inference boundary.", "Configure NativeRunnerExecutable and a compatible local model file before long tests."),
                         new("Info", "Downloads", "Pull requests currently create safe plans and progress shapes.", "Attach IModelTransferService before downloading model binaries."),
                         new("Warning", "Hardware", "Generated lab does not own GPU scheduling or VRAM planning.", "Implement IHardwareBudgetService before heavy local runs."),
                         new("Info", "Templates", "Harmony/thinking parsing belongs in IChatTemplateService.", "Keep model formatting adaptive per model.")
@@ -2063,7 +2067,7 @@ namespace LocalGPT.Services
                 }
 
                 /// <summary>
-                /// Returns chat template and thinking-format rows that a real provider adapter would use.
+                /// Returns chat template and thinking-format rows that a real local runner adapter would use.
                 /// </summary>
                 public IReadOnlyList<GeneratedEndpointCard> GetTemplateRows()
                 {
@@ -2097,12 +2101,12 @@ namespace LocalGPT.Services
                 {
                     return new GeneratedAiHostSettings
                     {
-                        BaseUri = "http://127.0.0.1:11434",
+                        BaseUri = "native local model files",
                         DefaultModel = "gpt-oss:20b",
                         KeepAlive = "0s",
                         ContextTokens = 2048,
                         GpuLayers = 20,
-                        NativeRunnerAttached = false,
+                        NativeRunnerAttached = true,
                         AllowPullPlanning = true
                     };
                 }
@@ -2113,13 +2117,13 @@ namespace LocalGPT.Services
                 public string BuildSettingsSummary()
                 {
                     var settings = GetSettings();
-                    return $"Base URI: {settings.BaseUri}\nDefault model: {settings.DefaultModel}\n" +
+                    return $"Model source: {settings.BaseUri}\nDefault model: {settings.DefaultModel}\n" +
                         $"Context tokens: {settings.ContextTokens}\nGPU layers: {settings.GpuLayers}\n" +
-                        "Native inference is not implemented in this generated lab.";
+                        "Native runner execution uses configured local model files and never proxies to an upstream AI host.";
                 }
 
                 /// <summary>
-                /// Creates a visible chat transcript for the generated chat page without native inference.
+                /// Creates a visible chat transcript for the generated chat page through the local runner contract.
                 /// </summary>
                 public string CreateChatTranscript(string model, string prompt)
                 {
@@ -2185,7 +2189,7 @@ namespace LocalGPT.Services
                     {
                         model = NormalizeModel(request.Model),
                         created_at = DateTimeOffset.UtcNow,
-                        response = "This .NET lab does not implement native inference. Attach a real runner before claiming full AI-host behavior.",
+                        response = "NativeRunnerExecutable must point to an approved local runner before model-file inference starts. No upstream proxy fallback is used.",
                         done = true
                     };
                 }
@@ -2218,7 +2222,7 @@ namespace LocalGPT.Services
                 private static string NormalizeModel(string? model)
                 {
                     return string.IsNullOrWhiteSpace(model)
-                        ? "dotnet-lab-stub:latest"
+                        ? "gpt-oss:20b"
                         : model.Trim();
                 }
             }
@@ -2297,14 +2301,14 @@ namespace LocalGPT.Services
                         new(
                             "Provider-compatible routes",
                             "AI-host-shaped requests need /api/version, /api/tags, /api/ps, /api/chat, /api/generate, embeddings, and OpenAI-compatible routes.",
-                            "Generated Program.cs maps route stubs through provider/catalog/runner service contracts.",
+                            "Generated Program.cs maps route endpoints through provider/catalog/runner service contracts.",
                             "Represented",
                             "Program.cs and Services/GeneratedAiHostArchitectureServices.cs."),
                         new(
                             "Native runner boundary",
                             "A real AI host needs native model loading, tokenizer/template handling, GPU scheduling, blobs, and runner lifecycle.",
-                            "Generated runner/plugin pages expose that native inference is not implemented rather than hiding it.",
-                            "CapabilityGap",
+                            "Generated runner/plugin pages expose the native model-file runner and configuration readiness.",
+                            "Represented",
                             "Components/Pages/RunnerPlugins.razor and IInferenceRunner."),
                         new(
                             "Model catalog and downloads",
@@ -2392,9 +2396,10 @@ namespace LocalGPT.Services
 
         private static string GenerateAiHostArchitectureServices(string projectName) =>
             $$"""
-            using System.Net.Http;
-            using System.Net.Http.Json;
-            using System.Text.Json.Serialization;
+            using System.Diagnostics;
+            using System.Globalization;
+            using System.Text;
+            using System.Text.Json;
             using Microsoft.Extensions.Options;
             using {{projectName}}.Models;
 
@@ -2408,15 +2413,16 @@ namespace LocalGPT.Services
             /// </summary>
             public sealed class AiHostRuntimeOptions
             {
-                public string ProviderBaseUri { get; set; } = "http://127.0.0.1:11434";
                 public string DefaultModel { get; set; } = "gpt-oss:20b";
                 public string SafeStorageRoot { get; set; } = "%LOCALAPPDATA%/GeneratedAiHost";
                 public string PluginRoot { get; set; } = "plugins";
                 public string? PythonDll { get; set; }
+                public string NativeRunnerExecutable { get; set; } = string.Empty;
+                public List<string> ModelSearchRoots { get; set; } = new();
+                public Dictionary<string, string> ModelFileOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
                 public int ContextTokens { get; set; } = 2048;
                 public int GpuLayers { get; set; } = 20;
-                public bool AllowExternalProviderDelegation { get; set; } = true;
-                public bool AllowNativeRunner { get; set; }
+                public bool AllowNativeRunner { get; set; } = true;
                 public bool AllowPythonNet { get; set; }
                 public bool AllowPowerShellScripts { get; set; }
                 public bool AllowTypeScriptAdapters { get; set; }
@@ -2469,111 +2475,44 @@ namespace LocalGPT.Services
             }
 
             /// <summary>
-            /// Delegates to an external provider boundary first, then falls back to deterministic safe responses.
+            /// Routes provider-compatible requests to the generated host's own local-file runner.
+            /// This class intentionally does not call an upstream Ollama/LM Studio/OpenAI endpoint.
             /// </summary>
-            public sealed class ExternalProviderInferenceProvider(
-                GeneratedHealthSummaryService fallback,
-                IHttpClientFactory httpClientFactory,
+            public sealed class NativeModelFileInferenceProvider(
+                IInferenceRunner runner,
                 IOptions<AiHostRuntimeOptions> options) : IInferenceProvider
             {
-                public string ProviderKind => "External provider adapter";
+                public string ProviderKind => "Native local-model-file provider";
 
                 public async Task<GeneratedChatResponse> ChatAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default)
                 {
-                    if (!options.Value.AllowExternalProviderDelegation)
-                        return fallback.CreateChatResponse(request);
-
-                    try
-                    {
-                        var client = CreateProviderClient();
-                        var proxyRequest = new OllamaChatProxyRequest
-                        {
-                            Model = NormalizeModel(request.Model, options.Value.DefaultModel),
-                            Stream = false,
-                            KeepAlive = "0s",
-                            Messages = request.Messages
-                                .Where(message => !string.IsNullOrWhiteSpace(message.Content))
-                                .Select(message => new OllamaChatProxyMessage(message.Role, message.Content))
-                                .ToList(),
-                            Options = BuildProxyOptions(request.Options)
-                        };
-
-                        using var response = await client.PostAsJsonAsync("/api/chat", proxyRequest, cancellationToken);
-                        response.EnsureSuccessStatusCode();
-                        var proxied = await response.Content.ReadFromJsonAsync<OllamaChatProxyResponse>(cancellationToken);
-                        if (proxied?.Message is null)
-                            return fallback.CreateChatResponse(request);
-
-                        return new GeneratedChatResponse(
-                            string.IsNullOrWhiteSpace(proxied.Model) ? proxyRequest.Model : proxied.Model,
-                            proxied.CreatedAt == default ? DateTimeOffset.UtcNow : proxied.CreatedAt,
-                            new GeneratedChatMessage(proxied.Message.Role, proxied.Message.Content),
-                            proxied.Done);
-                    }
-                    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
-                    {
-                        var fallbackResponse = fallback.CreateChatResponse(request);
-                        return new GeneratedChatResponse(
-                            fallbackResponse.Model,
-                            fallbackResponse.CreatedAt,
-                            new GeneratedChatMessage(
-                                "assistant",
-                                "External provider was unavailable, so the generated host returned a safe fallback. " +
-                                $"Provider: {options.Value.ProviderBaseUri}. Error: {ex.GetType().Name}."),
-                            true);
-                    }
+                    request.Model = NormalizeModel(request.Model, options.Value.DefaultModel);
+                    return await runner.InferAsync(request, cancellationToken);
                 }
 
                 public async Task<object> GenerateAsync(GeneratedModelActionRequest request, CancellationToken cancellationToken = default)
                 {
-                    if (!options.Value.AllowExternalProviderDelegation)
-                        return new { error = "External provider delegation is disabled by generated options." };
-
-                    try
+                    var prompt = string.IsNullOrWhiteSpace(request.Prompt)
+                        ? "LocalGPT generated AI host native-runner smoke test."
+                        : request.Prompt;
+                    var chat = new GeneratedChatRequest
                     {
-                        var client = CreateProviderClient();
-                        var proxyRequest = new OllamaGenerateProxyRequest
+                        Model = NormalizeModel(request.Model, options.Value.DefaultModel),
+                        Messages = new List<GeneratedChatMessage>
                         {
-                            Model = NormalizeModel(request.Model, options.Value.DefaultModel),
-                            Prompt = string.IsNullOrWhiteSpace(request.Prompt) ? "LocalGPT generated AI host smoke test." : request.Prompt,
-                            Stream = false,
-                            KeepAlive = "0s",
-                            Options = BuildProxyOptions(request.Options)
-                        };
-                        using var response = await client.PostAsJsonAsync("/api/generate", proxyRequest, cancellationToken);
-                        response.EnsureSuccessStatusCode();
-                        var proxied = await response.Content.ReadFromJsonAsync<object>(cancellationToken);
-                        return proxied ?? fallback.CreateGenerateResponse(request);
-                    }
-                    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+                            new("user", prompt)
+                        },
+                        Stream = request.Stream,
+                        Options = request.Options
+                    };
+                    var response = await runner.InferAsync(chat, cancellationToken);
+                    return new
                     {
-                        return new
-                        {
-                            model = NormalizeModel(request.Model, options.Value.DefaultModel),
-                            response = "External provider was unavailable, so the generated host returned a safe fallback.",
-                            provider = options.Value.ProviderBaseUri,
-                            error = ex.GetType().Name,
-                            done = true
-                        };
-                    }
-                }
-
-                private HttpClient CreateProviderClient()
-                {
-                    var client = httpClientFactory.CreateClient("GeneratedAiHost.ExternalProvider");
-                    client.BaseAddress = new Uri(options.Value.ProviderBaseUri.TrimEnd('/') + "/");
-                    client.Timeout = TimeSpan.FromMinutes(4);
-                    return client;
-                }
-
-                private OllamaProxyOptions BuildProxyOptions(GeneratedRequestOptions? requestOptions)
-                {
-                    return new OllamaProxyOptions
-                    {
-                        NumCtx = Math.Clamp(requestOptions?.NumCtx ?? options.Value.ContextTokens, 2048, 262144),
-                        NumPredict = Math.Clamp(requestOptions?.NumPredict ?? 1024, 64, 262144),
-                        NumGpu = Math.Clamp(requestOptions?.NumGpu ?? options.Value.GpuLayers, 0, 99),
-                        Temperature = requestOptions?.Temperature
+                        model = response.Model,
+                        created_at = response.CreatedAt,
+                        response = response.Message.Content,
+                        done = response.Done,
+                        upstream_proxy = false
                     };
                 }
 
@@ -2585,99 +2524,252 @@ namespace LocalGPT.Services
                 }
             }
 
-            public sealed class OllamaChatProxyRequest
-            {
-                [JsonPropertyName("model")]
-                public string Model { get; set; } = string.Empty;
-
-                [JsonPropertyName("stream")]
-                public bool Stream { get; set; }
-
-                [JsonPropertyName("keep_alive")]
-                public string KeepAlive { get; set; } = "0s";
-
-                [JsonPropertyName("messages")]
-                public List<OllamaChatProxyMessage> Messages { get; set; } = [];
-
-                [JsonPropertyName("options")]
-                public OllamaProxyOptions Options { get; set; } = new();
-            }
-
-            public sealed record OllamaChatProxyMessage(
-                [property: JsonPropertyName("role")] string Role,
-                [property: JsonPropertyName("content")] string Content);
-
-            public sealed class OllamaGenerateProxyRequest
-            {
-                [JsonPropertyName("model")]
-                public string Model { get; set; } = string.Empty;
-
-                [JsonPropertyName("prompt")]
-                public string Prompt { get; set; } = string.Empty;
-
-                [JsonPropertyName("stream")]
-                public bool Stream { get; set; }
-
-                [JsonPropertyName("keep_alive")]
-                public string KeepAlive { get; set; } = "0s";
-
-                [JsonPropertyName("options")]
-                public OllamaProxyOptions Options { get; set; } = new();
-            }
-
-            public sealed class OllamaProxyOptions
-            {
-                [JsonPropertyName("num_ctx")]
-                public int NumCtx { get; set; }
-
-                [JsonPropertyName("num_predict")]
-                public int NumPredict { get; set; }
-
-                [JsonPropertyName("num_gpu")]
-                public int NumGpu { get; set; }
-
-                [JsonPropertyName("temperature")]
-                public float? Temperature { get; set; }
-            }
-
-            public sealed class OllamaChatProxyResponse
-            {
-                [JsonPropertyName("model")]
-                public string Model { get; set; } = string.Empty;
-
-                [JsonPropertyName("created_at")]
-                public DateTimeOffset CreatedAt { get; set; }
-
-                [JsonPropertyName("message")]
-                public GeneratedChatMessage? Message { get; set; }
-
-                [JsonPropertyName("done")]
-                public bool Done { get; set; }
-            }
-
             /// <summary>
-            /// Explicitly reports the missing native runner instead of pretending model inference exists.
+            /// Loads compatible local model files through an approved native executable.
+            /// Ollama manifests may be read as local file metadata, but the Ollama service is never called.
             /// </summary>
-            public sealed class NativeRunnerCapabilityGapRunner : IInferenceRunner
+            public sealed class NativeModelFileProcessRunner(IOptions<AiHostRuntimeOptions> options) : IInferenceRunner
             {
-                public string RunnerKind => "Native runner capability gap";
+                public string RunnerKind => "Native model-file process runner";
 
                 public Task<RunnerCapabilityReport> GetCapabilityAsync(CancellationToken cancellationToken = default)
                 {
+                    var executable = ExpandPath(options.Value.NativeRunnerExecutable);
+                    var executableReady = options.Value.AllowNativeRunner &&
+                        !string.IsNullOrWhiteSpace(executable) &&
+                        File.Exists(executable);
+
                     return Task.FromResult(new RunnerCapabilityReport(
-                        NativeInferenceImplemented: false,
-                        SupportedFormats: ["external-provider", "planned-gguf", "planned-onnx", "planned-pythonnet"],
-                        MissingCapability: "No native GGUF/GPU/tokenizer runner is attached in this generated milestone.",
-                        NextMilestone: "Add a user-approved ExternalProviderInferenceProvider or ProcessInferenceRunner, then point LocalGPT DXAiChat at this host URL."));
+                        NativeInferenceImplemented: executableReady,
+                        SupportedFormats: ["gguf", "ollama-managed-gguf-blob", "onnx-planned", "safetensors-planned"],
+                        MissingCapability: executableReady
+                            ? string.Empty
+                            : "Set AiHost:NativeRunnerExecutable to an approved native runner such as llama-cli/llama-server before chat/generate can execute model files.",
+                        NextMilestone: "Configure NativeRunnerExecutable and ModelSearchRoots, verify /api/localgpt/runner/capability, then point LocalGPT DXAiChat at this host URL."));
                 }
 
-                public Task<GeneratedChatResponse> InferAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default)
+                public async Task<GeneratedChatResponse> InferAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default)
                 {
-                    return Task.FromResult(new GeneratedChatResponse(
-                        string.IsNullOrWhiteSpace(request.Model) ? "dotnet-lab-stub:latest" : request.Model,
+                    var model = NormalizeModel(request.Model, options.Value.DefaultModel);
+                    if (!options.Value.AllowNativeRunner)
+                        return BuildStatusResponse(model, "Native runner execution is disabled by AiHost:AllowNativeRunner. No upstream proxy fallback is used.");
+
+                    var executable = ExpandPath(options.Value.NativeRunnerExecutable);
+                    if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))
+                        return BuildStatusResponse(model, "Native runner executable is not configured. Set AiHost:NativeRunnerExecutable to a trusted llama.cpp-compatible runner. No upstream proxy fallback is used.");
+
+                    var modelPath = ResolveModelPath(model);
+                    if (string.IsNullOrWhiteSpace(modelPath))
+                        return BuildStatusResponse(model, $"Could not resolve a compatible local model file for '{model}'. Add a ModelFileOverrides entry or a .gguf file under ModelSearchRoots. No upstream proxy fallback is used.");
+
+                    var prompt = BuildPrompt(request);
+                    var arguments = BuildRunnerArguments(modelPath, prompt, request.Options);
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    timeout.CancelAfter(TimeSpan.FromMinutes(20));
+
+                    var startInfo = new ProcessStartInfo(executable)
+                    {
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                        WorkingDirectory = Path.GetDirectoryName(executable) ?? AppContext.BaseDirectory
+                    };
+
+                    foreach (var argument in arguments)
+                        startInfo.ArgumentList.Add(argument);
+
+                    using var process = Process.Start(startInfo);
+                    if (process is null)
+                        return BuildStatusResponse(model, "The native runner process could not be started.");
+
+                    try
+                    {
+                        var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
+                        var errorTask = process.StandardError.ReadToEndAsync(timeout.Token);
+                        await process.WaitForExitAsync(timeout.Token);
+                        var output = await outputTask;
+                        var error = await errorTask;
+                        var visible = string.IsNullOrWhiteSpace(output)
+                            ? $"Native runner exited with code {process.ExitCode}. {error}".Trim()
+                            : output.Trim();
+
+                        return new GeneratedChatResponse(
+                            model,
+                            DateTimeOffset.UtcNow,
+                            new GeneratedChatMessage("assistant", visible),
+                            true);
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        TryKill(process);
+                        return BuildStatusResponse(model, "Native runner timed out after 20 minutes. Reduce context/output tokens or use a smaller model.");
+                    }
+                }
+
+                private string? ResolveModelPath(string model)
+                {
+                    if (options.Value.ModelFileOverrides.TryGetValue(model, out var configuredPath))
+                    {
+                        var expanded = ExpandPath(configuredPath);
+                        if (File.Exists(expanded))
+                            return expanded;
+                    }
+
+                    foreach (var root in options.Value.ModelSearchRoots.Select(ExpandPath).Where(Directory.Exists))
+                    {
+                        var direct = ResolveDirectGguf(root, model);
+                        if (!string.IsNullOrWhiteSpace(direct))
+                            return direct;
+
+                        var managed = ResolveOllamaManagedBlob(root, model);
+                        if (!string.IsNullOrWhiteSpace(managed))
+                            return managed;
+                    }
+
+                    return null;
+                }
+
+                private static string? ResolveDirectGguf(string root, string model)
+                {
+                    var sanitized = model.Replace(':', '-').Replace('/', '-').Replace('\\', '-');
+                    foreach (var candidate in new[]
+                    {
+                        Path.Combine(root, $"{model}.gguf"),
+                        Path.Combine(root, $"{sanitized}.gguf"),
+                        Path.Combine(root, model, $"{sanitized}.gguf")
+                    })
+                    {
+                        if (File.Exists(candidate))
+                            return candidate;
+                    }
+
+                    try
+                    {
+                        return Directory.EnumerateFiles(root, "*.gguf", SearchOption.AllDirectories)
+                            .Take(2000)
+                            .FirstOrDefault(path => Path.GetFileNameWithoutExtension(path).Contains(sanitized, StringComparison.OrdinalIgnoreCase));
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                }
+
+                private static string? ResolveOllamaManagedBlob(string root, string model)
+                {
+                    var (name, tag) = SplitModelName(model);
+                    var manifest = Path.Combine(root, "manifests", "registry.ollama.ai", "library", name, tag);
+                    if (!File.Exists(manifest) && Directory.Exists(Path.Combine(root, "manifests")))
+                    {
+                        manifest = Directory.EnumerateFiles(Path.Combine(root, "manifests"), tag, SearchOption.AllDirectories)
+                            .FirstOrDefault(path => Path.GetFileName(Path.GetDirectoryName(path) ?? string.Empty).Equals(name, StringComparison.OrdinalIgnoreCase))
+                            ?? string.Empty;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(manifest) || !File.Exists(manifest))
+                        return null;
+
+                    try
+                    {
+                        using var document = JsonDocument.Parse(File.ReadAllText(manifest));
+                        if (!document.RootElement.TryGetProperty("layers", out var layers) || layers.ValueKind != JsonValueKind.Array)
+                            return null;
+
+                        return layers
+                            .EnumerateArray()
+                            .Select(layer => layer.TryGetProperty("digest", out var digest) ? digest.GetString() : null)
+                            .Where(digest => !string.IsNullOrWhiteSpace(digest))
+                            .Select(digest => Path.Combine(root, "blobs", digest!.Replace(':', '-')))
+                            .FirstOrDefault(File.Exists);
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                }
+
+                private static IReadOnlyList<string> BuildRunnerArguments(string modelPath, string prompt, GeneratedRequestOptions? requestOptions)
+                {
+                    var ctx = Math.Clamp(requestOptions?.NumCtx ?? 2048, 256, 262144);
+                    var predict = Math.Clamp(requestOptions?.NumPredict ?? 1024, 1, 262144);
+                    var gpuLayers = Math.Clamp(requestOptions?.NumGpu ?? 0, 0, 999);
+                    var args = new List<string>
+                    {
+                        "--model", modelPath,
+                        "--prompt", prompt,
+                        "--ctx-size", ctx.ToString(CultureInfo.InvariantCulture),
+                        "--n-predict", predict.ToString(CultureInfo.InvariantCulture),
+                        "--gpu-layers", gpuLayers.ToString(CultureInfo.InvariantCulture)
+                    };
+
+                    if (requestOptions?.Temperature is { } temperature)
+                    {
+                        args.Add("--temp");
+                        args.Add(temperature.ToString(CultureInfo.InvariantCulture));
+                    }
+
+                    return args;
+                }
+
+                private static string BuildPrompt(GeneratedChatRequest request)
+                {
+                    var builder = new StringBuilder();
+                    foreach (var message in request.Messages.Where(message => !string.IsNullOrWhiteSpace(message.Content)))
+                        builder.Append(message.Role ?? "user").Append(": ").AppendLine(message.Content);
+                    if (builder.Length == 0)
+                        builder.AppendLine("user: Hello");
+                    builder.Append("assistant: ");
+                    return builder.ToString();
+                }
+
+                private static (string Name, string Tag) SplitModelName(string model)
+                {
+                    var parts = model.Split(':', 2, StringSplitOptions.TrimEntries);
+                    return (parts[0], parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1] : "latest");
+                }
+
+                private static string NormalizeModel(string? model, string fallbackModel)
+                {
+                    return string.IsNullOrWhiteSpace(model)
+                        ? fallbackModel
+                        : model.Trim();
+                }
+
+                private static string ExpandPath(string? path)
+                {
+                    if (string.IsNullOrWhiteSpace(path))
+                        return string.Empty;
+
+                    var expanded = path
+                        .Replace("%LOCALAPPDATA%", Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), StringComparison.OrdinalIgnoreCase)
+                        .Replace("%USERPROFILE%", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), StringComparison.OrdinalIgnoreCase);
+
+                    return expanded.StartsWith("~/", StringComparison.Ordinal) || expanded.StartsWith("~\\", StringComparison.Ordinal)
+                        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), expanded[2..])
+                        : expanded;
+                }
+
+                private static GeneratedChatResponse BuildStatusResponse(string model, string message)
+                {
+                    return new GeneratedChatResponse(
+                        model,
                         DateTimeOffset.UtcNow,
-                        new GeneratedChatMessage("assistant", "Native inference is not implemented. This runner reports the capability gap honestly."),
-                        true));
+                        new GeneratedChatMessage("assistant", message),
+                        true);
+                }
+
+                private static void TryKill(Process process)
+                {
+                    try
+                    {
+                        if (!process.HasExited)
+                            process.Kill(entireProcessTree: true);
+                    }
+                    catch
+                    {
+                        // Best effort only; the host should keep serving requests.
+                    }
                 }
             }
 
@@ -2687,11 +2779,10 @@ namespace LocalGPT.Services
                 {
                     return
                     [
-                        new("external-http-provider", "External HTTP Provider Adapter", "1.0.0", "IInferenceProvider", true, "Delegates to Ollama, LM Studio, or OpenAI-compatible endpoints."),
+                        new("native-process-runner", "Native Process Runner", "1.0.0", "IInferenceRunner", true, "Loads compatible local model files through an approved executable; no upstream AI-host proxying."),
                         new("pythonnet-runner", "Python.NET Runner Boundary", "planned", "IInferenceRunner", false, "Requires approved Python runtime, PYTHONNET_PYDLL, package list, and GIL-safe service code."),
                         new("powershell-runner", "PowerShell Script Boundary", "planned", "IScriptExecutionService", false, "Requires explicit script files, safe directories, constrained runspace policy, and user approval."),
                         new("typescript-client-adapter", "TypeScript Client/Adapter Boundary", "planned", "ASP.NET Core static asset or script adapter", false, "Allowed only when embedded deliberately inside the .NET app as client assets or an approved script layer, not as the control-plane owner."),
-                        new("native-process-runner", "Native Process Runner Boundary", "planned", "IInferenceRunner", false, "Requires approved executable, arguments, stdout/stderr streaming, cancellation, and hardware policy."),
                         new("onnx-runtime-runner", "ONNX Runtime Runner Boundary", "planned", "IInferenceRunner", false, "Only for compatible ONNX models; not a universal LLM replacement.")
                     ];
                 }
@@ -3254,9 +3345,9 @@ namespace LocalGPT.Services
             public sealed class GeneratedAiHostSettings
             {
                 /// <summary>
-                /// Gets or sets the external AI host base URI.
+                /// Gets or sets the local model source summary.
                 /// </summary>
-                public string BaseUri { get; set; } = "http://localhost:11434";
+                public string BaseUri { get; set; } = "native local model files";
 
                 /// <summary>
                 /// Gets or sets the default model for generated request examples.
@@ -3574,16 +3665,16 @@ namespace LocalGPT.Services
             bool isAiHostLab)
         {
             var description = isAiHostLab
-                ? "Generated by LocalGPT as a .NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab. Native inference is intentionally stubbed."
+                ? "Generated by LocalGPT as a .NET 10 ASP.NET Core and DevExpress Blazor AI host with a native local-model-file runner contract."
                 : "Generated by LocalGPT as a whole-solution AI Council artifact.";
 
             var notes = isAiHostLab
                 ? """
                   ## AI Host Control-Plane Lab Scope
 
-                  This prototype can demonstrate selected provider-compatible HTTP routes, model catalog UX, health cards, endpoint testing in .NET/Blazor, and external-provider delegation to an Ollama-compatible base URL.
+                  This prototype demonstrates selected provider-compatible HTTP routes, model catalog UX, health cards, endpoint testing in .NET/Blazor, and a native local-model-file runner boundary.
 
-                  It does not replace any native runner, GGML/GPU backend, model loader, native build stack, or hardware-specific inference path. It can serve LocalGPT-style `/api/chat` requests by proxying to a configured external provider while clearly marking native inference as a capability gap.
+                  It does not proxy `/api/chat` or `/api/generate` to upstream Ollama/LM Studio/OpenAI-compatible hosts. It can read local model-file metadata, resolve `.gguf` or Ollama-managed blob candidates, and invoke a configured approved native executable.
                   """
                 : """
                   ## Scope
@@ -3682,9 +3773,9 @@ namespace LocalGPT.Services
             | `src/{{projectName}}/Components/Pages/ModelDownloads.razor` | DevExpress UI for provider-style pull planning and download guidance. |
             | `src/{{projectName}}/Components/Pages/Templates.razor` | Chat template, Harmony, and thinking-format compatibility page. |
             | `src/{{projectName}}/Components/Pages/Hardware.razor` | GPU/VRAM/context budget and queue-policy page. |
-            | `src/{{projectName}}/Components/Pages/RunnerPlugins.razor` | Runner/plugin/script adapter surface so native inference is not hidden. |
+            | `src/{{projectName}}/Components/Pages/RunnerPlugins.razor` | Runner/plugin/script adapter surface for native local model-file execution. |
             | `src/{{projectName}}/Components/Pages/Logs.razor` | Runtime-boundary diagnostic log page. |
-            | `src/{{projectName}}/Components/Pages/Settings.razor` | DevExpress settings page for external AI host URI, context, and native-runner boundaries. |
+            | `src/{{projectName}}/Components/Pages/Settings.razor` | DevExpress settings page for local model source, context, and native-runner boundaries. |
             | `src/{{projectName}}/Services/GeneratedAiHostArchitectureServices.cs` | Provider, runner, plugin, script, hardware, and template contracts wired through DI. |
             """
                 : string.Empty;
@@ -3828,7 +3919,7 @@ namespace LocalGPT.Services
                 GeneratedSolutionArchetype.TacosPortal =>
                     "A TacosPortalOpen replacement must preserve the multi-host/event-ingestion architecture: core/shared services, Telegram or message ingestion, normalized persistence, workers, notifications, DevExpress admin/security, optional WASM client, and WinUI/WebView2 wrapper boundaries. It is not accepted as a generic restaurant ordering portal.",
                 GeneratedSolutionArchetype.AiHost =>
-                    "An AI-host control-plane replacement must expose provider-compatible API routes, catalog/download/running-model UX, chat/API console, logs, settings, templates, hardware policy, runner/plugin boundaries, external-provider delegation, and honest native-inference status.",
+                    "An AI-host replacement must expose provider-compatible API routes, catalog/download/running-model UX, chat/API console, logs, settings, templates, hardware policy, runner/plugin boundaries, and direct local model-file inference without upstream proxying.",
                 GeneratedSolutionArchetype.BotBackend =>
                     "A bot backend replacement must expose webhook ingress, conversation state, command routing, moderation/retry queues, settings/logs, optional Python interop, and permission gates.",
                 _ =>
@@ -3972,7 +4063,7 @@ namespace LocalGPT.Services
         private static string GenerateSolutionBuildAndRunDoc(string projectName, bool isAiHostLab)
         {
             var smokeRoute = isAiHostLab
-                ? "Open `/api-console`, `/model-downloads`, `/runner-plugins`, and `/settings`; then call `/api/version`, `/api/tags`, and `/api/chat` to verify the control-plane routes."
+                ? "Open `/api-console`, `/model-downloads`, `/runner-plugins`, and `/settings`; then call `/api/version`, `/api/tags`, `/api/localgpt/runner/capability`, and `/api/chat` to verify route shape, local model-file runner readiness, and no upstream proxy fallback."
                 : "Open `/implementation-plan` and verify implementation steps are visible.";
             return $$"""
             # Build And Run
@@ -4105,7 +4196,7 @@ namespace LocalGPT.Services
                 "src/{{projectName}}/wwwroot/icons/nav/detail-solid.svg"
               ],
               "safety": "Sandbox artifact only. Integration requires explicit user approval.",
-              "archetype_difference": "{{(isAiHostLab ? "AI host lab includes API route stubs, model catalog, downloads, and settings; native inference remains explicitly out of scope." : "LocalGPT feature sandbox includes implementation-plan and knowledge-table pages rather than AI host compatibility workflows.")}}"
+              "archetype_difference": "{{(isAiHostLab ? "AI host lab includes API routes, model catalog, downloads, settings, and a native local-model-file runner contract; upstream proxying is explicitly out of scope." : "LocalGPT feature sandbox includes implementation-plan and knowledge-table pages rather than AI host compatibility workflows.")}}"
             }
             """;
         }

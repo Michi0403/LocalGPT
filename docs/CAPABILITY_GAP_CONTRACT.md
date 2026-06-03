@@ -98,7 +98,8 @@ For common Michi0403 test prompts, prefer these outputs:
   optional compiled `.dll`, then whole solution zip when requested.
 - AI host/control plane: .NET/ASP.NET Core/DevExpress Blazor solution zip with
   left navigation, model catalog, chat/API console, settings, logs, downloads,
-  provider-compatible route stubs, and honest native-inference boundary.
+  provider-compatible route endpoints, direct local model-file runner boundary,
+  and explicit no-upstream-proxy status.
 - Frontend verification: Test Lab route output, WebView2/Selenium plan, or
   screenshot/snapshot evidence before claiming the frontend was tested.
 

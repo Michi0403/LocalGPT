@@ -49,15 +49,20 @@ Translate those into .NET patterns:
 - SignalR or server-side streaming for progress and token output.
 - EF/SQLite records for model metadata, settings, chat history, logs, downloads, and knowledge entries.
 
-Native tensor execution is a separate backend. A generated first milestone can be a real control plane with an Ollama, LM Studio, OpenAI-compatible, or custom provider adapter, plus explicit extension points for native inference.
+Native tensor execution is a backend the generated host must own through a
+runner boundary. A generated first accepted milestone cannot be only an
+Ollama/LM Studio/OpenAI-compatible proxy. It must include a native/local-file
+runner contract, model-file resolution, and explicit settings for a trusted
+runner executable or compatible managed/native inference library.
 
 ## .NET Architecture Patterns To Apply
 
 An AI host generated in .NET should use these Microsoft-supported patterns:
 
-- Dependency injection as the composition root. Register provider adapters,
-  catalog/download/session services, hardware budget services, template parsers,
-  plugin catalog services, and runner interfaces in `Program.cs` or an
+- Dependency injection as the composition root. Register native local-file
+  runner services, catalog/download/session services, hardware budget services,
+  template parsers, plugin catalog services, and optional provider/catalog
+  adapters in `Program.cs` or an
   `AddAiHostCore()` extension.
 - Options pattern for provider profiles, safe storage roots, hardware budgets,
   context/output defaults, plugin roots, Python paths, script policy, and first
@@ -68,8 +73,8 @@ An AI host generated in .NET should use these Microsoft-supported patterns:
 - `AssemblyLoadContext` plus `AssemblyDependencyResolver` when runner/provider
   plugins need isolated dependencies or native libraries. This is not a security
   sandbox; untrusted code needs process/OS/container isolation.
-- Interface adapter layers for external providers, native processes, ONNX/ML.NET,
-  Python.NET, and PowerShell scripts.
+- Interface adapter layers for native processes, ONNX/ML.NET, Python.NET,
+  PowerShell scripts, and optional external catalog/provider integrations.
 - EF/SQLite for user-approved settings, model sources, downloads, jobs, logs,
   plugin manifests, and chat history. Appsettings should keep bootstrap/logging.
 - Typed `HttpClient` adapters for HTTP providers and OpenAI-compatible surfaces.
@@ -80,8 +85,8 @@ An AI host generated in .NET should use these Microsoft-supported patterns:
 
 The generated app should make native inference achievable instead of hiding it:
 
-- `ExternalProviderInferenceProvider`: delegates to Ollama, LM Studio, or
-  OpenAI-compatible endpoints so LocalGPT can test provider URL compatibility.
+- `NativeModelFileInferenceProvider`: resolves `.gguf`, ONNX, or
+  Ollama-managed local blob candidates and calls the approved runner directly.
 - `ModelSchedulerHostedService`: coordinates active model workers, sequential
   fallback, cancellation, queue depth, and per-model session leases.
 - `ProcessInferenceRunner`: starts an approved executable with safe arguments,
@@ -98,32 +103,33 @@ The generated app should make native inference achievable instead of hiding it:
 
 Milestones:
 
-1. Buildable control plane with routes, UI, settings, logs, and deterministic
-   non-inference responses.
-2. External provider adapter that delegates chat/generate/embed to a selected
-   provider URL.
+1. Buildable local model-file host with routes, UI, settings, logs, catalog,
+   direct model-file resolution, and native-runner configuration.
+2. Native process runner that executes an approved executable with safe
+   arguments, streaming output, cancellation, and hardware policy.
 3. Download/catalog service with user-approved HuggingFace/GitHub/provider
    model plans and checksums.
 4. Python.NET, PowerShell, ONNX/ML.NET, or native-process runner adapter.
 5. LocalGPT compatibility test by pointing DXAiChat at the generated host URL.
 6. Multi-model worker test with two small/light models or a simulated runner:
    prove concurrent execution when supported, or prove honest queued execution
-   when the selected provider cannot run more than one model at a time.
+   when the selected runner or hardware cannot run more than one model at a time.
 
-Do not present milestone 1 as a complete local AI host. Do present it as a
-serious control-plane foundation with the correct extension points.
+Do not present a provider proxy as a complete or accepted local AI host. Do
+present a local-file runner host as the foundation, and state exactly which
+native executable/library and model formats it needs for real inference.
 
 ## Provider-Compatible Local Model Host Milestone
 
-When the user asks for a .NET local AI host that LocalGPT can test as a replacement provider URL, generate an easy-testable compatibility milestone:
+When the user asks for a .NET local AI host that LocalGPT can test as a replacement host URL, generate an easy-testable compatibility milestone:
 
 - ASP.NET Core routes for `/api/version`, `/api/tags`, `/api/ps`, `/api/chat`, `/api/generate`, `/api/show`, `/api/pull`, `/api/delete`, and `/v1/chat/completions` where selected.
-- A model catalog backed by SQLite for installed models, downloadable model plans, provider endpoints, local file paths, hashes, friendly names, context defaults, and approval state.
-- Appsettings only for bootstrap values: database path, default listen URL, first provider URL, logging, and safe storage root.
-- A provider adapter interface that can delegate to an existing Ollama/LM Studio/OpenAI-compatible backend first, so LocalGPT can point DXAiChat at the generated host without requiring native tensor runtime immediately.
+- A model catalog backed by SQLite for installed models, downloadable model plans, local file paths, hashes, friendly names, context defaults, runner compatibility, and approval state.
+- Appsettings only for bootstrap values: database path, default listen URL, logging, safe storage root, first model search roots, and native runner executable path.
+- A native runner interface that reads local model files directly. Ollama manifests may be parsed as local metadata, but `/api/chat` and `/api/generate` must not forward to the Ollama service.
 - DevExpress Blazor pages for chat, model catalog, downloads, running sessions, settings, logs, API console, templates, and hardware budget.
 - Download plans from Hugging Face or GitHub must be user-approved. Do not download model binaries just because a catalog row exists.
-- Keep native inference honest: if GGUF/GPU execution is not implemented, return clear route metadata or delegate to an approved provider instead of pretending a model ran.
+- Keep native inference honest: if GGUF/GPU execution is not configured, return clear runner/setup metadata and a user-visible next step. Do not delegate to an upstream provider as a fallback.
 
 ## DevExpress Blazor Demo Lessons
 

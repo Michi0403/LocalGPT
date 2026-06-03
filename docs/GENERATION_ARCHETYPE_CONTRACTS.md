@@ -71,13 +71,14 @@ NeoForge uses NeoForge-specific Gradle setup, metadata, event bus conventions, a
 
 A LocalGPT feature artifact should look like a LocalGPT/TacosPortalOpen feature sandbox: real `.razor` pages, DevExpress controls, backend services/routes, EF/SQLite when durable state is needed, artifact downloads, diagnostics, and user approval gates.
 
-A local AI host control-plane artifact should look like an API-control-plane experiment:
-provider-compatible route cataloging, model inventory, model download planning,
-settings, compatibility notes, endpoint tests, and explicit native-runner
-boundaries. It should expose representative route stubs for version, tags,
-running models, show, pull, push, create, copy, delete, generate, chat, and
-embed. It must not pretend to own native GGML/GPU runner behavior unless a real
-approved backend exists.
+A local AI host artifact should look like an API-compatible model-host
+experiment: provider-compatible route cataloging, model inventory, model
+download planning, settings, compatibility notes, endpoint tests, and explicit
+native local-model-file runner boundaries. It should expose representative
+routes for version, tags, running models, show, pull, push, create, copy,
+delete, generate, chat, and embed. It must not proxy `/api/chat` or
+`/api/generate` to upstream Ollama/LM Studio/OpenAI-compatible hosts as an
+accepted milestone.
 
 ## Platform Skeletons
 

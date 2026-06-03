@@ -164,7 +164,7 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `GET /__diag/knowledge`: editable council knowledge notes saved from council runs and manual user edits.
 - `GET /__diag/sqlite/tables`: live SQLite table inventory for chat memory, thoughts, logs, and council knowledge.
 - `GET /__diag/council/artifact-smoke?target=solution`: deterministic whole-solution artifact smoke test that emits a downloadable .NET 10 Blazor/DevExpress zip.
-- `GET /__diag/council/artifact-smoke?target=ollama`: deterministic Ollama-inspired .NET/DevExpress control-plane lab zip. It includes Ollama-style route stubs, model catalog UI, model download planning, settings, and explicit native GGML/GPU non-implementation notes.
+- `GET /__diag/council/artifact-smoke?target=ai-host`: deterministic provider-compatible .NET/DevExpress AI-host zip. It includes route endpoints, model catalog UI, model download planning, settings, and a native local-model-file runner contract. The legacy `target=ollama` alias is accepted, but upstream provider proxying is not an accepted AI-host milestone.
 - `GET /__diag/council/artifact-smoke?target=datapack`: deterministic prompt-driven Minecraft datapack zip. Living Cities remains a separate named benchmark route, not the hidden default for all datapacks.
 - `GET /__diag/learn-base/import`: import compact architecture fingerprints and documentation source maps from `C:\tmpselectedcodexlearnbaseforlocalgpt` into the council knowledge database.
 - `GET /__diag/benchmark/engineering`: run the five-task personal benchmark for DevExpress/EF, CRUD dashboard, packaging diagnosis, datapack generation, and loader skeleton distinction.

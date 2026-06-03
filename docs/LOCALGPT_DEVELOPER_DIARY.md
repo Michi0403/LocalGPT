@@ -73,7 +73,7 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 
 - Never print binary or zip payloads as chat text. Provide HTTP download routes and file metadata.
 - Generated code should be compiled when practical. If compilation was not run, say so explicitly.
-- A generated AI host control-plane app should include API route stubs, chat, model catalog, running models, download planning, templates, hardware policy, logs, diagnostics, and settings.
+- A generated AI host app should include API route endpoints, chat, model catalog, running models, download planning, templates, hardware policy, logs, diagnostics, settings, and a native local-model-file runner contract. It must not count an upstream Ollama/LM Studio/OpenAI-compatible proxy as the accepted inference milestone.
 - A generated Minecraft datapack/modpack should include buildable files, validation commands, zip output, and loader distinction when relevant.
 - A generated "recode this app" solution should preserve the recognizable navigation, first screen, domain workflows, API/service boundaries, settings, logs, and download surfaces of the goal app.
 

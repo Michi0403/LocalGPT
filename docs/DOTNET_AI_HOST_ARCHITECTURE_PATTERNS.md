@@ -5,8 +5,9 @@ local AI host, provider-compatible control plane, model runner, plugin host, or
 application that needs external/native execution.
 
 The important rule: do not confuse a UI dashboard with an AI host. A useful
-generated milestone must show the architecture that could later run or delegate
-model inference.
+generated milestone must show the architecture that can load local model files
+through its own runner boundary. Provider-compatible routes are welcome, but
+runtime proxying to an upstream AI host is not an accepted milestone.
 
 ## Source Baseline
 
@@ -51,14 +52,16 @@ A local AI host can be split into layers:
   streaming, health, and process/plugin lifecycle.
 - Multi-model scheduling: more than one running model session when hardware and
   policy allow it, with safe fallback to sequential execution.
-- Inference implementation: external provider, native process, ONNX/ML.NET,
-  Python.NET bridge, PowerShell/native script, or future plugin.
+- Inference implementation: native local-file process/library runner,
+  ONNX/ML.NET, Python.NET bridge, PowerShell/native script, or future plugin.
 - Storage: SQLite for settings, model records, downloads, chats, logs, jobs,
   and approvals. Appsettings stays for bootstrap and logging.
 
-The first milestone can delegate to an existing provider. A later milestone can
-attach a native or Python-backed runner. Never claim native inference exists
-until a real backend is wired and tested.
+The first accepted milestone must include a native/local-file runner boundary
+and configuration for compatible model files. It may read Ollama manifests as
+local file metadata, but it must not call the Ollama service for `/api/chat` or
+`/api/generate`. Never claim native inference is working until a real backend
+executable/library is wired and tested.
 
 ## Interfaces To Generate
 
@@ -101,7 +104,9 @@ Use .NET DI as the composition root:
 - Use `IServiceScopeFactory` inside hosted services when scoped services such as
   EF DbContexts are needed.
 - Avoid resolving scoped services from singleton constructors.
-- Use typed `HttpClient` or named clients for provider adapters.
+- Use typed `HttpClient` or named clients only for optional catalog/download
+  sources or explicitly selected cloud/provider integrations, not as the
+  primary runtime when the user requested direct local model files.
 
 Settings shape:
 
@@ -136,12 +141,12 @@ Generated plugin manifests should include:
 
 ## Runner Adapter Pattern
 
-Use adapter layers so the control plane can work before native inference exists:
+Use adapter layers so the control plane owns native/local-file inference:
 
-- `ExternalProviderInferenceProvider`: delegates to Ollama, LM Studio,
-  OpenAI-compatible, or another HTTP provider.
 - `ProcessInferenceRunner`: starts a local executable with safe arguments,
   streams stdout/stderr, handles cancellation, and records logs.
+- `NativeModelFileInferenceProvider`: resolves `.gguf`, ONNX, or
+  Ollama-managed local blob candidates and calls the approved runner directly.
 - `PythonNetInferenceRunner`: embeds Python only after user approval and runtime
   configuration.
 - `PowerShellRunner`: uses a constrained runspace or explicit script file path
@@ -180,11 +185,9 @@ Generate this shape:
 - Hosted service loop: drains queues, starts approved runners/providers, streams
   progress, unloads idle sessions, and writes logs to SQLite.
 
-If the host delegates to an external provider that only supports one active
-model, the generated app should show that as a provider limitation and still
-keep the scheduler/service boundary ready for providers or native runners that
-support concurrency. Do not hide the limitation by pretending parallel inference
-occurred.
+If the selected native runner or hardware only supports one active model, the
+generated app should show that as a runner/hardware limitation and queue safely.
+Do not hide the limitation by pretending parallel inference occurred.
 
 ## Python.NET Pattern
 
@@ -223,22 +226,23 @@ Generation rules:
 
 ## Native Inference Runner Milestones
 
-A generated AI host can honestly progress through milestones:
+A generated AI host can honestly progress through accepted milestones:
 
-1. Control-plane shell: UI pages, API routes, settings, logs, model catalog,
-   downloads, and deterministic non-inference responses.
-2. External provider adapter: delegate `/api/chat` and `/api/generate` to
-   Ollama/LM Studio/OpenAI-compatible endpoint selected by the user.
+1. Local model-file host: UI pages, API routes, settings, logs, model catalog,
+   downloads, and a native runner contract that resolves local model files.
+2. Native process runner: execute a user-approved local runner executable with
+   safe arguments, cancellation, stdout/stderr streaming, and hardware policy.
 3. Managed inference adapter: ONNX Runtime/ML.NET for compatible models.
 4. Script/Python adapter: Python.NET or approved process scripts for model
    tooling and inference.
 5. Native runner plugin: executable or library backend with load/unload,
    streaming, cancellation, hardware policy, and model storage.
 6. Benchmark and LocalGPT compatibility: point LocalGPT DXAiChat at the new
-   provider URL and verify tags, chat, generate, downloads, settings, and logs.
+   host URL and verify tags, chat, generate, downloads, settings, logs, and no
+   upstream proxying.
 7. Multi-model compatibility: verify two small/light models can be queued or run
    concurrently when the selected backend supports it; otherwise verify the host
-   reports the provider limitation and uses sequential scheduling.
+   reports the runner/hardware limitation and uses sequential scheduling.
 
 Each milestone should build and expose downloadable source. If the runner is
 missing, the app must show this as a visible capability gap and still provide
@@ -265,6 +269,6 @@ An acceptable milestone includes:
 - typed options and `Program.cs` registrations,
 - README/architecture/build docs,
 - `.localgpt-generation.json` with validation status,
-- clear `NativeInference = NotImplemented` until a real backend exists,
-- a next-step plan to attach external provider, Python.NET, PowerShell, ONNX,
-  ML.NET, or native plugin runner.
+- clear runner capability and local model-file requirements,
+- a next-step plan to attach Python.NET, PowerShell, ONNX, ML.NET, or native
+  plugin/library runners without using an upstream AI-host proxy.

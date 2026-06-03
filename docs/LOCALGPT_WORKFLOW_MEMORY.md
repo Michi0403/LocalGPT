@@ -59,7 +59,7 @@ Verified before this memory note:
 - The generated .NET 10 DevExpress solution zip and the AI host control-plane solution zip built with `dotnet build` at the time of the release smoke.
 - Earlier AI host generation check used a provider-named alias that is now deprecated. The advertised target is `/__diag/council/artifact-smoke?target=ai-host`.
   Generated apps should be named as AI host/control-plane artifacts, not as provider-branded apps. The extracted generated solution built with `dotnet build`, served `/`, `/api-console`, `/model-downloads`, and `/settings`.
-  It answered `/api/version`, `/api/tags`, `/api/pull`, and `/api/chat`. A real local provider comparison showed provider version `0.24.0`, four installed model tags, and zero running models without loading a model.
+  Earlier versions answered `/api/version`, `/api/tags`, `/api/pull`, and `/api/chat` through a provider-compatible shell; this is no longer accepted as the AI-host milestone unless `/api/chat` and `/api/generate` run through the generated host's own local model-file runner path.
 - A CPU-only live DXAiChat council feature-artifact smoke with `deepseek-r1:8b` timed out or produced too little final text. Treat that as model-output health, not as proof that deterministic backend artifact generation failed.
 
 Expected warning: Gradle 8.14.2 may report deprecated Gradle features for some generated Java builds. The starter builds still completed successfully.
@@ -118,7 +118,7 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Returns official Microsoft/dotnet sample and Learn curriculum guidance for C#, .NET, ASP.NET Core, Blazor, EF Core, DevOps, architecture, and technician troubleshooting.
   - Use this before whole-solution generation, backend service generation, CI/release advice, or training/help prompts.
 - `GET /__diag/ai-host-rebuild-guidance`
-  - Returns LocalGPT's AI-host control-plane architecture guide, including .NET DI/options, hosted services, provider adapters, plugin/native-runner interfaces, Python.NET/PowerShell boundaries, EF/SQLite state, and capability gaps.
+  - Returns LocalGPT's AI-host architecture guide, including .NET DI/options, hosted services, native local-model-file runner interfaces, Python.NET/PowerShell boundaries, EF/SQLite state, and capability gaps.
   - Use this before generating provider-compatible AI-host solutions or judging whether an AI-host milestone is complete.
 - `GET /__diag/build-debug-files?copy=true`
   - Lists and optionally copies `.pdb`, `.pdg`, and `.appxsym` build debug files into `%LOCALAPPDATA%\LocalGPT\BuildDebugFiles\`.
@@ -190,8 +190,8 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   Use `chat.upload_workspaces`, `chat.upload_workspace_files`, `chat.upload_workspace_context`, and `chat.upload_workspace_file`
   before asking the user to paste source archives. PDB/DLL/EXE/WASM files are summarized with printable strings only and must never be executed.
   Generated changes belong in council artifact workspaces, then `/__diag/artifact-workspace/{workspaceName}/zip` refreshes the download.
-- When generating a provider-compatible local AI host, produce an easy-testable ASP.NET Core + DevExpress Blazor control-plane milestone with `/api/version`, `/api/tags`, `/api/ps`, `/api/chat`, `/api/generate`, model catalog, downloads, settings, logs, SQLite state, and provider-adapter interfaces. A real native tensor backend is optional and must be stated honestly.
-- Prompt provider-neutral AI-host generation by capability, not by provider name. The goal is a buildable local model-host/control-plane app with left navigation, chat, model catalog, downloads, running models, API console, templates, hardware budget, logs, settings, LocalGPT-compatible routes, and a scheduler that can run multiple model sessions when hardware/backend policy allows it. If the selected backend only supports one active model, the generated app must report that limitation and queue safely instead of pretending parallel inference happened.
+- When generating a provider-compatible local AI host, produce an easy-testable ASP.NET Core + DevExpress Blazor host milestone with `/api/version`, `/api/tags`, `/api/ps`, `/api/chat`, `/api/generate`, model catalog, downloads, settings, logs, SQLite state, and native local-model-file runner interfaces. Upstream Ollama/LM Studio/OpenAI-compatible proxying is not an accepted milestone.
+- Prompt provider-neutral AI-host generation by capability, not by provider name. The goal is a buildable local model-host app with left navigation, chat, model catalog, downloads, running models, API console, templates, hardware budget, logs, settings, LocalGPT-compatible routes, direct local model-file runner paths, and a scheduler that can run multiple model sessions when hardware/backend policy allows it. If the selected backend only supports one active model, the generated app must report that limitation and queue safely instead of pretending parallel inference happened.
 - The selected local learn-base importer lives at `/__diag/learn-base/import`. It stores compact architecture
   fingerprints from `C:\tmpselectedcodexlearnbaseforlocalgpt` into CouncilKnowledgeEntries, focusing on
   functionality, architecture, protocols, host wiring, libraries, Python.NET interop, DevExpress Web API/security,
@@ -205,9 +205,9 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   Use it directly for archetype, information architecture, Windows/Fluent design principles, Bootstrap layout,
   DevExpress/custom Razor component roles, services, accessibility states, and buildable files.
 - Official Microsoft sample/curriculum generation has a dedicated guide in `docs/MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md`. Use `dotnet/samples` as focused sample evidence and Microsoft Learn as the developer/technician curriculum baseline before asking the council to generate .NET solutions, services, Blazor pages, EF data access, CI workflows, or release guidance.
-- The AI host control-plane artifact is a controlled feasibility path. Use `/__diag/council/artifact-smoke?target=ai-host` to create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor zip with provider-compatible route stubs, model catalog UI, chat, model download planning, running models, logs, and settings. Expected route families include version, tags, running models, show, pull, push, create, copy, delete, generate, chat, and embed. It must say native GGML/GPU inference is not implemented unless a real backend is attached and approved by the user.
+- The AI host artifact is a controlled feasibility path. Use `/__diag/council/artifact-smoke?target=ai-host` to create a downloadable .NET 10 ASP.NET Core and DevExpress Blazor zip with provider-compatible route endpoints, model catalog UI, chat, model download planning, running models, logs, settings, and native local-model-file runner contracts. Expected route families include version, tags, running models, show, pull, push, create, copy, delete, generate, chat, and embed. It must not proxy chat/generate to upstream Ollama/LM Studio/OpenAI-compatible hosts.
 - AI-host generation must apply `docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md`.
-  A thin dashboard is a failed milestone. Generate service interfaces, provider adapters, runner/plugin contracts,
+  A thin dashboard is a failed milestone. Generate service interfaces, runner/plugin contracts,
   options, hosted-job boundaries, Python.NET/PowerShell/native-process extension points, model download/catalog storage,
   and a LocalGPT compatibility test plan.
 - Thinking-only/non-substantive council runs still remain in logs/chat memory, but they are archived or skipped for active council knowledge briefings. Duplicate benchmark knowledge entries are deduplicated by topic/scope/source before entering the bootstrap prompt.
@@ -235,9 +235,9 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   local sources, external official sources, missing LocalGPT functions, safe workflow, artifact plan, and next
   LocalGPT improvement. LocalGPT saves those blocks as unapproved SQLite knowledge and report files.
 - For AI-host generation, the user's expected shape is not a generic sample dashboard.
-  Generate a provider-neutral .NET/ASP.NET Core/DevExpress Blazor control-plane solution with left navigation,
+  Generate a provider-neutral .NET/ASP.NET Core/DevExpress Blazor AI-host solution with left navigation,
   model catalog, chat/API console, settings, logs, downloads, provider-compatible routes, SQLite/appsettings state,
-  and honest native-inference boundaries.
+  and direct local model-file runner boundaries.
   If knowledge is missing, report the gap and sources, then produce a buildable milestone zip when possible.
 
 ## Collaboration Notes
@@ -258,7 +258,7 @@ Use this material only as legacy C# architecture memory unless the user explicit
 
 The Council must treat "two different generated apps look basically the same" as a failed generation, not a visual polish issue. Whole-project generation now starts with an archetype contract in `docs/GENERATION_ARCHETYPE_CONTRACTS.md` and matching pinned SQLite seed rows.
 
-Every whole-project artifact must include `PROJECT_INDEX.md`, `ARCHITECTURE.md`, `BUILD_AND_RUN.md`, `.localgpt-generation.json`, a platform-correct layout, a user-visible index/home route, and navigation. The artifact service validates those required files before zipping. LocalGPT feature artifacts should look like LocalGPT/TacosPortalOpen feature sandboxes; AI host control-plane artifacts should look like API-control-plane experiments with explicit native-runner boundaries.
+Every whole-project artifact must include `PROJECT_INDEX.md`, `ARCHITECTURE.md`, `BUILD_AND_RUN.md`, `.localgpt-generation.json`, a platform-correct layout, a user-visible index/home route, and navigation. The artifact service validates those required files before zipping. LocalGPT feature artifacts should look like LocalGPT/TacosPortalOpen feature sandboxes; AI host artifacts should look like API-compatible model-host experiments with explicit native local-model-file runner boundaries.
 
 The artifact service also parses `.localgpt-generation.json` and `LocalGPT.GenerationManifest.json` before zipping. Required contract fields include `project_kind`, `target_platform`, complexity flags, expected entry points, generated files, validation status, and build/test result provenance. A zip may say `GeneratedOnlyContractValidated`, but it must not claim build success unless the command output exists.
 

@@ -72,7 +72,7 @@ public static class DxaichatFunctionCatalog
             "localgpt.replacement_benchmark",
             "GET",
             "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4&saveToKnowledge=true",
-            "Benchmark LocalGPT-style, TacosPortalOpen-style, provider-compatible AI-host, and simple bot-backend replacement solution generation with downloadable artifacts and optional dotnet build checks.",
+            "Benchmark LocalGPT-style, TacosPortalOpen-style, local-model-file AI-host, and simple bot-backend replacement solution generation with downloadable artifacts and optional dotnet build checks.",
             "validateBuildableArtifacts optional, defaults false unless this route sets it true. maxBuildArtifacts limits build checks.",
             "Runs deterministic artifact generation and dotnet build checks for generated .NET solution zips. Does not call local Ollama models."),
         new(
@@ -142,14 +142,14 @@ public static class DxaichatFunctionCatalog
             "localgpt.ai_host_rebuild_guidance",
             "GET",
             "/__diag/ai-host-rebuild-guidance",
-            "Return source-backed guidance for generating a local AI host .NET/ASP.NET Core/DevExpress Blazor control-plane app with routes, model catalog, chat, downloads, settings, logs, provider adapters, plugin/native-runner interfaces, Python.NET/PowerShell boundaries, and capability gaps.",
+            "Return source-backed guidance for generating a local AI host .NET/ASP.NET Core/DevExpress Blazor app with routes, model catalog, chat, downloads, settings, logs, direct local model-file native runner interfaces, Python.NET/PowerShell boundaries, and capability gaps.",
             "No parameters.",
             "Read-only. Use this before saying a local AI host .NET rebuild is too large or before producing a generic dashboard."),
         new(
             "localgpt.ollama_compatible_smoke",
             "GET",
             "/__diag/ollama-compatible-smoke?endpoint=http://127.0.0.1:11434&model=gpt-oss:20b&numGpu=0",
-            "Call an Ollama-compatible endpoint through LocalGPT's own OllamaThinkingChatClient to prove LocalGPT can use a generated .NET AI host exactly like Ollama.",
+            "Call an Ollama-compatible route surface through LocalGPT's own OllamaThinkingChatClient to prove LocalGPT can use a generated .NET AI host URL; acceptance requires the generated host to execute local model files directly, not proxy upstream Ollama.",
             "endpoint/model required for generated-host tests. prompt/maxOutputTokens/numGpu are optional.",
             "Calls a local model endpoint. Use tiny prompts and numGpu=0 or keep_alive=0s-compatible generated hosts for safe first tests."),
         new(
@@ -171,7 +171,7 @@ public static class DxaichatFunctionCatalog
             "GET",
             "/__diag/council/artifact-smoke?target=blazor",
             "Generate a deterministic sandbox artifact bundle without calling Ollama, useful for testing .razor/.cs/.dll and whole-solution zip downloads.",
-            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution, target=datapack for a prompt-driven Minecraft datapack zip, target=loader-matrix for distinct Fabric/Paper/NeoForge skeletons, or target=ai-host for a local AI host .NET/DevExpress control-plane lab. Optional prompt/finalAnswer query values replay a council promise so PROMISE_MAP/DESIGN_REVIEW fidelity can be tested without loading Ollama. target=ollama is only a backwards-compatible alias.",
+            "target: optional, defaults to blazor. Use target=solution for a zipped .NET 10 Blazor/DevExpress solution, target=datapack for a prompt-driven Minecraft datapack zip, target=loader-matrix for distinct Fabric/Paper/NeoForge skeletons, or target=ai-host for a local AI host .NET/DevExpress app with native local-model-file runner contracts. Optional prompt/finalAnswer query values replay a council promise so PROMISE_MAP/DESIGN_REVIEW fidelity can be tested without loading Ollama. target=ollama is only a backwards-compatible alias.",
             "Writes files under LocalAppData/LocalGPT/CouncilArtifacts; does not integrate generated code into the project."),
         new(
             "council.artifact_workspaces",

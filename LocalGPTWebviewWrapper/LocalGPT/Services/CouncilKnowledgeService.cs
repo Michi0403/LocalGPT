@@ -435,10 +435,10 @@ namespace LocalGPT.Services
                     Content = "When generating an AI-host-shaped .NET application, produce more than pages. " +
                         "Generate provider-neutral ASP.NET Core routes, typed options, DI registrations, EF/SQLite state, model catalog/download/session services, chat/template services, logs, settings, hardware budget policy, and downloadable artifact routes when useful. " +
                         "Use interface-driven boundaries: IModelCatalogService, IModelTransferService, IInferenceProvider, IInferenceRunner, IPluginCatalogService, IScriptExecutionService, IHardwareBudgetService, and IChatTemplateService. " +
-                        "External hosts such as Ollama, LM Studio, OpenAI, HuggingFace downloads, Python.NET, PowerShell, ONNX, ML.NET, or native executables are adapters behind interfaces, not the product identity. " +
+                        "External hosts such as Ollama, LM Studio, OpenAI, HuggingFace downloads, Python.NET, PowerShell, ONNX, ML.NET, or native executables are adapters behind interfaces, not the product identity. For Michi0403's accepted AI-host target, /api/chat and /api/generate must use direct local model-file runner paths, not upstream Ollama/LM Studio/OpenAI-compatible proxying. " +
                         "TypeScript is allowed when the requested solution needs client assets, browser automation, or a script adapter inside the ASP.NET Core/.NET application, but it should not accidentally replace the .NET control plane or Python/Python.NET model-runtime architecture. " +
                         "Use .NET DI/IoC, the options pattern, hosted/background services for queued work, typed HttpClient for provider calls, AssemblyLoadContext/AssemblyDependencyResolver only for trusted plugins, and permission-gated Python.NET/PowerShell/native process execution with safe directories, cancellation, and logs. " +
-                        "If real native inference is not implemented, say so in the generated UI and produce a visible runner/plugin capability page instead of hiding the gap. " +
+                        "If real native inference is not configured, say so in the generated UI and produce a visible runner/plugin setup page; do not substitute an upstream provider proxy as a milestone. " +
                         "Generated AI-host solutions must include recognizable navigation for dashboard, model catalog, API console, chat, running models, downloads, templates, hardware, runner/plugins, logs, and settings.",
                     HelpfulSources = "- Local guide: docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md.\n" +
                         "- Local route: GET /__diag/ai-host-rebuild-guidance.\n" +
@@ -622,8 +622,8 @@ namespace LocalGPT.Services
                     Source = seedSource,
                     Content = "The user-provided ollama-main.zip is mostly Go plus native runtime/build layers: about 1,214 source entries, about 722 .go files, and major areas such as app, docs, template, model, server, cmd, convert, discover, llm, api, llama, runner, native C/C++ headers, and CMake. " +
                         "Treat Ollama as a source/provider example, not as the generated app name. Feasible target: generate a .NET 10 ASP.NET Core control plane and DevExpress Blazor UI that mimics selected provider-compatible REST routes, model catalog/status, runner health, logs, and compatibility notes. " +
-                        "Infeasible without deeper work: replacing a native inference/runtime, GGML/GPU backends, CMake payload, CUDA/ROCm/Vulkan/Metal paths, tokenizer/model conversion, and full manifest/model storage semantics. " +
-                        "Generated work must be a sandbox solution zip and must not claim real inference unless an actual .NET/native inference backend is supplied and tested.",
+                        "The generated target must include direct local model-file resolution, native runner configuration, route compatibility, model catalog/status, runner health, logs, settings, and compatibility notes. " +
+                        "Full custom tensor kernels, GPU backends, tokenizer/model conversion, and full manifest/model storage semantics remain deeper work, but an upstream provider proxy is not an acceptable substitute for the local-file runner path.",
                     HelpfulSources = "- User-provided source archive: C:/Users/micha/Downloads/ollama-main.zip\n- Local note: docs/AI_HOST_DOTNET_EXPERIMENT.md\n- Useful generated route: GET /__diag/council/artifact-smoke?target=ai-host",
                     Tags = "seed; ai-host; dotnet; blazor; devexpress; feasibility; whole-solution; artifacts",
                     Confidence = 88,
@@ -639,8 +639,8 @@ namespace LocalGPT.Services
                     Scope = "LocalGPT generation",
                     Source = seedSource,
                     Content = "For the local AI host .NET/Blazor/DevExpress lab, the generated downloadable project must stay in .NET, C#, ASP.NET Core, Razor, EF/SQLite, and DevExpress Blazor. " +
-                        "Do not propose generated Go or Python projects for this lab. If inference is discussed, describe it as a generic external/native backend contract, an existing service adapter, or a future approved .NET/native integration. " +
-                        "The generated solution should include selected provider-compatible route stubs and UI, but must clearly say native model inference is not implemented by the all-.NET lab.",
+                        "Do not propose generated Go or Python projects for this lab. If inference is discussed, implement it as a direct local model-file runner contract, an approved native executable/library boundary, Python.NET bridge, ONNX/ML.NET adapter, or future approved .NET/native integration. " +
+                        "The generated solution should include selected provider-compatible routes and UI, but /api/chat and /api/generate must not forward to upstream Ollama/LM Studio/OpenAI-compatible endpoints.",
                     HelpfulSources = "- Local note: docs/AI_HOST_DOTNET_EXPERIMENT.md\n- Local artifact route: GET /__diag/council/artifact-smoke?target=ai-host",
                     Tags = "seed; ai-host; dotnet-only; blazor; devexpress; constraints; artifacts",
                     Confidence = 92,
@@ -751,7 +751,7 @@ namespace LocalGPT.Services
                         "Prompt and design it by capabilities: left navigation, chat, model catalog, model downloads, running models, API console, templates, hardware budget, logs, settings, provider-compatible routes, and LocalGPT compatibility tests. " +
                         "A key improvement over constrained provider hosts is multiple running model sessions when hardware allows it. Generate an IRuntimeSessionService/IModelScheduler design with per-model queues, cancellation, keep-alive/unload policy, GPU/VRAM/CPU budget, MaxParallelModels, fairness, and safe fallback to sequential execution. " +
                         "Use provider-compatible APIs such as /api/chat, /api/generate, /api/tags, /api/ps, /api/show, /api/pull, /api/delete, and optional /v1/chat/completions so LocalGPT can point DXAiChat at the generated host URL. " +
-                        "Native inference can start as an external-provider adapter, Python.NET/process/native plugin boundary, ONNX/ML.NET adapter, or explicit capability gap, but the generated solution must stay buildable and honest. " +
+                        "Native inference must start with direct local model-file runner contracts, Python.NET/process/native plugin boundaries, ONNX/ML.NET adapters, or explicit setup gaps. An external-provider proxy is not accepted for the AI-host replacement request. " +
                         "Model downloads from Hugging Face, GitHub, or provider catalogs require user approval, visible target paths, checksums when available, and no autonomous execution.",
                     HelpfulSources = "- Local docs: docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md and docs/AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md.\n- Local route: GET /__diag/ai-host-rebuild-guidance.\n- Local service: CouncilArtifactService AI-host archetype.\n- User-approved product lesson: the generated host should help LocalGPT/Council run several compatible models at the same time when hardware and policy allow it.",
                     Tags = "seed; ai-host; provider-neutral; multi-model; concurrency; scheduler; hardware-budget; dxaichat; user-approved",
