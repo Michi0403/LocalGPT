@@ -113,7 +113,7 @@ Use LocalGPT diagnostics before direct Ollama calls:
 - `GET /__diag/council/artifact-smoke?target=solution`: deterministic whole-solution artifact smoke test that emits a downloadable .NET 10 Blazor/DevExpress zip.
 - `GET /__diag/council/artifact-smoke?target=ollama`: deterministic Ollama-inspired .NET/DevExpress control-plane lab zip. It includes Ollama-style route stubs, model catalog UI, model download planning, settings, and explicit native GGML/GPU non-implementation notes.
 - `GET /__diag/council/artifact-smoke?target=datapack`: deterministic prompt-driven Minecraft datapack zip. Living Cities remains a separate named benchmark route, not the hidden default for all datapacks.
-- `GET /__diag/learn-base/import`: import compact architecture fingerprints from `C:\tmpselectedcodexlearnbaseforlocalgpt` into the council knowledge database.
+- `GET /__diag/learn-base/import`: import compact architecture fingerprints and documentation source maps from `C:\tmpselectedcodexlearnbaseforlocalgpt` into the council knowledge database.
 - `GET /__diag/benchmark/engineering`: run the five-task personal benchmark for DevExpress/EF, CRUD dashboard, packaging diagnosis, datapack generation, and loader skeleton distinction.
 
 The AI Council stores transcripts in SQLite chat memory and also writes a reusable entry into the editable council knowledge database.
@@ -201,3 +201,5 @@ Invoke-RestMethod "$($server.BaseUrl)/__diag/benchmark/engineering?importLearnBa
 
 The learn-base importer records architecture fingerprints: host shapes, protocols, libraries, solution topology, DevExpress Web API/security, Python.NET interop, bot/microservice patterns, and Blazor/non-Blazor hosting.
 It deliberately does not teach project names as important facts.
+It reads source/documentation-like files, skips noisy build/cache folders, counts but does not store binaries/installers/certificates/PDFs, and uses stable knowledge-entry IDs so re-importing the same source updates the same SQLite rows instead of creating duplicate knowledge.
+Known documentation corpora get special source-map entries, including Microsoft .NET docs, C# language/compiler diagnostics, C# 12-era language guidance, modern .NET architecture, Windows developer docs, WebView2, MSIX, design, and accessibility.

@@ -258,6 +258,12 @@ html, body {
     font-weight: 600;
 }
 
+.test-lab-field .dxbl-text-edit,
+.test-lab-field .dxbl-combobox,
+.test-lab-field .dxbl-spin-edit {
+    width: 100%;
+}
+
 .test-lab-field input,
 .test-lab-custom input {
     min-height: 2.25rem;
@@ -269,6 +275,21 @@ html, body {
 
 .test-lab-custom input {
     flex: 1 1 24rem;
+}
+
+.test-lab-import-summary {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #dfe3ea;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #4a5565;
+}
+
+.test-lab-import-summary p {
+    margin: 0;
+    line-height: 1.35;
 }
 
 .test-lab-downloads {

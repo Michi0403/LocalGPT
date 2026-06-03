@@ -42,6 +42,7 @@ namespace LocalGPT.Services
             ".jpeg",
             ".gif",
             ".ico",
+            ".pdf",
             ".db",
             ".sqlite",
             ".sqlite3",
@@ -94,7 +95,13 @@ namespace LocalGPT.Services
             var rootPath = string.IsNullOrWhiteSpace(request.RootPath)
                 ? @"C:\tmpselectedcodexlearnbaseforlocalgpt"
                 : request.RootPath.Trim();
-            var result = new LearnBaseImportResult { RootPath = rootPath };
+            var result = new LearnBaseImportResult
+            {
+                RootPath = rootPath,
+                ImportMode = "Compact source-map import; stores architecture fingerprints and documentation corpus summaries, not full file contents.",
+                FilePolicy = BuildFilePolicySummary(),
+                DuplicatePolicy = "Knowledge entries use stable GUIDs derived from source path and corpus section. Re-importing the same folder updates the same row instead of creating duplicate rows."
+            };
 
             if (!Directory.Exists(rootPath))
             {
@@ -103,8 +110,7 @@ namespace LocalGPT.Services
             }
 
             await knowledgeService.EnsureCreatedAsync(cancellationToken);
-            if (LooksLikeWindowsDevDocsRoot(rootPath))
-                await ImportWindowsDevDocsCorpusAsync(rootPath, request, result, cancellationToken);
+            await ImportKnownDocumentationCorporaAsync(rootPath, request, result, cancellationToken);
 
             var projectDirectories = BuildImportDirectories(rootPath, Math.Clamp(request.MaxProjects, 1, 120))
                 .ToArray();
@@ -134,6 +140,200 @@ namespace LocalGPT.Services
 
             result.ProjectCount = result.Projects.Count;
             return result;
+        }
+
+        private async Task ImportKnownDocumentationCorporaAsync(
+            string rootPath,
+            LearnBaseImportRequest request,
+            LearnBaseImportResult result,
+            CancellationToken cancellationToken)
+        {
+            foreach (var candidate in BuildDocumentationCorpusCandidates(rootPath))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (LooksLikeWindowsDevDocsRoot(candidate))
+                    await ImportWindowsDevDocsCorpusAsync(candidate, request, result, cancellationToken);
+
+                if (LooksLikeDotNetDocsRoot(candidate))
+                    await ImportDotNetDocsCorpusAsync(candidate, request, result, cancellationToken);
+            }
+        }
+
+        private static IEnumerable<string> BuildDocumentationCorpusCandidates(string rootPath)
+        {
+            var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var candidate in EnumerateDocumentationCorpusCandidates(rootPath))
+            {
+                if (Directory.Exists(candidate) && emitted.Add(Path.GetFullPath(candidate)))
+                    yield return Path.GetFullPath(candidate);
+            }
+        }
+
+        private static IEnumerable<string> EnumerateDocumentationCorpusCandidates(string rootPath)
+        {
+            yield return rootPath;
+
+            foreach (var child in SafeEnumerateDirectories(rootPath))
+            {
+                yield return child;
+
+                foreach (var grandChild in SafeEnumerateDirectories(child))
+                {
+                    var name = Path.GetFileName(grandChild);
+                    if (name.Contains("docs", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("learn", StringComparison.OrdinalIgnoreCase))
+                    {
+                        yield return grandChild;
+                    }
+                }
+            }
+        }
+
+        private async Task ImportDotNetDocsCorpusAsync(
+            string rootPath,
+            LearnBaseImportRequest request,
+            LearnBaseImportResult result,
+            CancellationToken cancellationToken)
+        {
+            var markdownFiles = EnumerateUsefulFiles(rootPath)
+                .Where(file => file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
+                .Take(8000)
+                .ToArray();
+            if (markdownFiles.Length == 0)
+                return;
+
+            foreach (var entry in BuildDotNetDocsEntries(rootPath, markdownFiles))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Guid? knowledgeEntryId = null;
+                if (request.SaveToKnowledge)
+                {
+                    var saved = await knowledgeService.SaveEntryAsync(entry, cancellationToken);
+                    knowledgeEntryId = saved.Id;
+                    result.SavedKnowledgeCount++;
+                }
+
+                result.Projects.Add(new LearnBaseProjectSummary
+                {
+                    Name = entry.Topic,
+                    SourcePath = rootPath,
+                    Architecture = ".NET docs corpus; Microsoft Learn authoring; C# language/compiler; modern .NET architecture; ASP.NET Core/Blazor source map",
+                    ProtocolsAndComponents = "DocFX; Microsoft Learn markdown; C# compiler diagnostics; C# language reference; .NET architecture; ASP.NET Core; Blazor; EF/data guidance",
+                    TargetFrameworks = "Documentation corpus, not a compiled project",
+                    PackageReferences = "none",
+                    ImportantFiles = entry.HelpfulSources,
+                    SourceFileCount = markdownFiles.Length,
+                    BinaryFileCount = 0,
+                    KnowledgeEntryId = knowledgeEntryId
+                });
+            }
+        }
+
+        private static IReadOnlyList<CouncilKnowledgeEntry> BuildDotNetDocsEntries(
+            string rootPath,
+            IReadOnlyList<FileInfo> markdownFiles)
+        {
+            var now = DateTime.UtcNow;
+            var docfxSamples = BuildDocsPathSamples(rootPath, markdownFiles, "docfx", "toc", "index", "includes", "samples");
+            var architectureSamples = BuildDocsPathSamples(rootPath, markdownFiles, "architecture", "microservices", "cloud-native", "modern-web-apps");
+            var csharpSamples = BuildDocsPathSamples(rootPath, markdownFiles, "csharp", "language-reference", "compiler", "csharp-12", "language-versioning");
+            var webSamples = BuildDocsPathSamples(rootPath, markdownFiles, "aspnet", "blazor", "web-api", "minimal-api", "dependency-injection");
+            var dataSamples = BuildDocsPathSamples(rootPath, markdownFiles, "entity-framework", "ef-core", "linq", "data", "serialization");
+            var frontMatterCount = markdownFiles
+                .Take(1000)
+                .Select(ReadSmallText)
+                .Count(text => text.TrimStart().StartsWith("---", StringComparison.Ordinal));
+
+            return
+            [
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"dotnet-docs|docfx|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Microsoft .NET docs corpus source map",
+                    Scope = ".NET / Microsoft Learn / DocFX",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "The local Microsoft .NET docs corpus is a source-backed map for .NET, C#, compiler diagnostics, architecture, libraries, samples, and Microsoft Learn authoring. " +
+                        "Do not paste the full corpus into model prompts. Store concise source maps in SQLite, retrieve narrow entries, and inspect exact files only when a generation task needs exact syntax or version detail. " +
+                        "Generated docs should preserve front matter, relative links, includes, readable tables/lists, normal physical line breaks, and topic/source metadata. " +
+                        $"Sampled {markdownFiles.Count} markdown files; {frontMatterCount} of the first 1000 looked like front-matter pages.",
+                    HelpfulSources = docfxSamples,
+                    Tags = "learn-base; dotnet-docs; microsoft-learn; docfx; markdown; source-backed",
+                    Confidence = 90,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"dotnet-docs|architecture|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Modern .NET architecture guidance for generated solutions",
+                    Scope = ".NET architecture / application generation",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "Use the Microsoft .NET architecture docs as the source map for generated enterprise solutions: layered or modular monoliths, microservices only when useful, cloud-native boundaries, service ownership, DI/options/logging/configuration, background services, API contracts, resiliency, data access, tests, deployment, and documentation. " +
+                        "When a prompt asks for a whole app, generate projects, services, models, routes/pages, persistence, tests or smoke paths, README, and downloadable artifacts instead of only pages.",
+                    HelpfulSources = architectureSamples,
+                    Tags = "learn-base; dotnet; architecture; microservices; modular-monolith; aspnetcore; source-backed",
+                    Confidence = 90,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"dotnet-docs|csharp-compiler|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "C# language and compiler source map for LocalGPT code generation",
+                    Scope = "C# / compiler diagnostics / language versions",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "Use the C# language reference, language-version docs, compiler options, compiler messages, nullable reference type guidance, pattern matching, records, required members, primary constructors, collection expressions, interceptors where version-supported, generics, LINQ, async, attributes, XML docs, source generators, and analyzers as source-backed input for code generation and repair. " +
+                        "If the requested feature depends on C# 12 or newer syntax, verify the target SDK/langversion and emit buildable code for that version instead of guessing. Compiler diagnostics win over model confidence.",
+                    HelpfulSources = csharpSamples,
+                    Tags = "learn-base; csharp; csharp12; compiler; diagnostics; langversion; roslyn; source-backed",
+                    Confidence = 91,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"dotnet-docs|web-blazor|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "ASP.NET Core and Blazor source map for generated web apps",
+                    Scope = "ASP.NET Core / Blazor",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "Use Microsoft docs as a source map for ASP.NET Core hosting, minimal APIs/controllers, routing, middleware, configuration, DI, authentication/authorization, SignalR where relevant, Blazor component rendering modes, forms, validation, static assets, file uploads/downloads, testing, publishing, and diagnostics. " +
+                        "For LocalGPT-style apps, generate backend services and safe HTTP download routes for generated files; Blazor pages should present state, controls, and validation rather than owning privileged execution.",
+                    HelpfulSources = webSamples,
+                    Tags = "learn-base; aspnetcore; blazor; minimal-api; middleware; static-assets; source-backed",
+                    Confidence = 88,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CreateStableGuid($"dotnet-docs|data|{rootPath}"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = ".NET data, LINQ, serialization, and EF source map",
+                    Scope = ".NET data access / EF / serialization",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "Use Microsoft docs as a source map for LINQ, serialization, configuration binding, EF-style data modeling when present, migrations/schema evolution, nullable columns for populated databases, DTOs, validation, and database-backed application state. " +
+                        "When DevExpress Web API/XAF/OData compatibility is requested, combine this with LocalGPT's DevExpress business-object guidance instead of inventing shadow properties or ambiguous relationships.",
+                    HelpfulSources = dataSamples,
+                    Tags = "learn-base; dotnet-data; linq; serialization; efcore; database; source-backed",
+                    Confidence = 87,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                }
+            ];
         }
 
         private async Task ImportWindowsDevDocsCorpusAsync(
@@ -272,19 +472,9 @@ namespace LocalGPT.Services
             IReadOnlyList<FileInfo> markdownFiles,
             params string[] needles)
         {
-            var matches = markdownFiles
-                .Where(file =>
-                {
-                    var relative = Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/');
-                    return needles.Any(needle => relative.Contains(needle, StringComparison.OrdinalIgnoreCase));
-                })
-                .OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
-                .Take(16)
-                .Select(file => "- " + RedactSensitiveName(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/')))
-                .ToArray();
-
-            if (matches.Length > 0)
-                return string.Join("\n", matches);
+            var samples = BuildDocsPathSamples(rootPath, markdownFiles, needles);
+            if (!samples.StartsWith("No direct sample paths matched", StringComparison.OrdinalIgnoreCase))
+                return samples;
 
             return string.Join(
                 "\n",
@@ -292,6 +482,28 @@ namespace LocalGPT.Services
                     .OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
                     .Take(16)
                     .Select(file => "- " + RedactSensitiveName(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/'))));
+        }
+
+        private static string BuildDocsPathSamples(
+            string rootPath,
+            IReadOnlyList<FileInfo> markdownFiles,
+            params string[] needles)
+        {
+            var matches = markdownFiles
+                .Where(file =>
+                {
+                    var relative = Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/');
+                    return needles.Any(needle => relative.Contains(needle, StringComparison.OrdinalIgnoreCase));
+                })
+                .OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
+                .Take(18)
+                .Select(file => "- " + RedactSensitiveName(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/')))
+                .ToArray();
+
+            if (matches.Length > 0)
+                return string.Join("\n", matches);
+
+            return "No direct sample paths matched: " + string.Join(", ", needles.Take(8));
         }
 
         private static LearnBaseProjectSummary BuildProjectSummary(string rootPath, string projectDirectory)
@@ -634,6 +846,22 @@ namespace LocalGPT.Services
             }
         }
 
+        private static bool LooksLikeDotNetDocsRoot(string rootPath)
+        {
+            var directory = new DirectoryInfo(rootPath);
+            if (!directory.Exists)
+                return false;
+
+            var docsDirectory = Path.Combine(rootPath, "docs");
+            if (!File.Exists(Path.Combine(rootPath, "docfx.json")) || !Directory.Exists(docsDirectory))
+                return false;
+
+            return Directory.Exists(Path.Combine(docsDirectory, "csharp")) ||
+                Directory.Exists(Path.Combine(docsDirectory, "core")) ||
+                Directory.Exists(Path.Combine(docsDirectory, "architecture")) ||
+                Directory.Exists(Path.Combine(docsDirectory, "standard"));
+        }
+
         private static bool LooksLikeArchitectureRoot(string rootPath)
         {
             var directory = new DirectoryInfo(rootPath);
@@ -732,6 +960,16 @@ namespace LocalGPT.Services
         private static string Fallback(string value, string fallback)
         {
             return string.IsNullOrWhiteSpace(value) ? fallback : value;
+        }
+
+        private static string BuildFilePolicySummary()
+        {
+            var sourceExtensions = string.Join(", ", SourceExtensions.Order(StringComparer.OrdinalIgnoreCase));
+            var binaryExtensions = string.Join(", ", BinaryExtensions.Order(StringComparer.OrdinalIgnoreCase));
+            var excludedDirectories = string.Join(", ", ExcludedDirectoryNames.Order(StringComparer.OrdinalIgnoreCase));
+            return "Reads source/documentation-like files: " + sourceExtensions +
+                ". Counts but does not store binary/package files: " + binaryExtensions +
+                ". Skips noisy build/cache directories: " + excludedDirectories + ".";
         }
 
         private static Guid CreateStableGuid(string value)

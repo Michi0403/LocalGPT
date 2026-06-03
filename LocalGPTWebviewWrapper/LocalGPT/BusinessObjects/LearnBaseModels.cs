@@ -13,6 +13,12 @@ namespace LocalGPT.BusinessObjects
     {
         public string RootPath { get; set; } = string.Empty;
 
+        public string ImportMode { get; set; } = string.Empty;
+
+        public string FilePolicy { get; set; } = string.Empty;
+
+        public string DuplicatePolicy { get; set; } = string.Empty;
+
         public int ProjectCount { get; set; }
 
         public int SavedKnowledgeCount { get; set; }

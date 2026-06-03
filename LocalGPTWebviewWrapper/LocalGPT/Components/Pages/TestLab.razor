@@ -30,15 +30,40 @@
 
         <article class="help-panel test-lab-panel">
             <h2>Learn-Base Import</h2>
-            <p>Import compact source fingerprints into the council knowledge database without pasting huge contexts into a model.</p>
+            <p>Import compact source maps into the council knowledge database without pasting huge contexts into a model.</p>
+            <label class="test-lab-field">
+                <span>Knowledge source preset</span>
+                <DxComboBox Data="@LearnBasePresets"
+                            Value="@selectedLearnBasePreset"
+                            TextFieldName="@nameof(LearnBasePreset.Label)"
+                            ValueChanged="@((LearnBasePreset preset) => SelectLearnBasePreset(preset))" />
+            </label>
+            <p class="test-lab-muted">Available presets: @LearnBasePresetList</p>
+            <div class="test-lab-import-summary">
+                <strong>@selectedLearnBasePreset.Label</strong>
+                <p>@selectedLearnBasePreset.Description</p>
+            </div>
             <label class="test-lab-field">
                 <span>Root path</span>
-                <input @bind="learnBaseRoot" />
+                <DxTextBox @bind-Text="learnBaseRoot" />
             </label>
             <label class="test-lab-field">
-                <span>Max projects</span>
-                <input type="number" min="1" max="80" @bind="maxProjects" />
+                <span>Scan scope</span>
+                <DxComboBox Data="@LearnBaseScanProfiles"
+                            Value="@selectedScanProfile"
+                            TextFieldName="@nameof(LearnBaseScanProfile.Label)"
+                            ValueChanged="@((LearnBaseScanProfile profile) => SelectLearnBaseScanProfile(profile))" />
             </label>
+            <div class="test-lab-import-summary">
+                <p>@selectedScanProfile.Description</p>
+                <p>@LearnBaseFilePolicySummary</p>
+                <p>@LearnBaseDuplicatePolicySummary</p>
+            </div>
+            <label class="test-lab-field">
+                <span>Advanced import limit</span>
+                <DxSpinEdit @bind-Value="maxProjects" MinValue="1" MaxValue="120" Increment="5" />
+            </label>
+            <DxCheckBox @bind-Checked="saveToKnowledge" Text="Save or update SQLite council knowledge" />
             <DxButton Text="Import Learn-Base"
                       RenderStyle="ButtonRenderStyle.Primary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
@@ -99,11 +124,59 @@
     private string statusText = "Ready.";
     private string resultText = "Run a local diagnostic route to see JSON here.";
     private string customRoute = "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4";
-    private string learnBaseRoot = @"C:\tmpselectedcodexlearnbaseforlocalgpt\AutomatedDiscordLogin-master";
-    private int maxProjects = 30;
+    private string learnBaseRoot = LearnBasePresets[0].RootPath;
+    private int maxProjects = LearnBasePresets[0].RecommendedMaxProjects;
+    private bool saveToKnowledge = true;
+    private LearnBasePreset selectedLearnBasePreset = LearnBasePresets[0];
+    private LearnBaseScanProfile selectedScanProfile = LearnBaseScanProfiles[1];
     private List<TestLabDownloadLink> downloadLinks = [];
     private static readonly Regex DownloadUrlPattern =
         new("\"downloadUrl\"\\s*:\\s*\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private const string LearnBaseFilePolicySummary =
+        "Reads source and docs such as .cs, .razor, .csproj, .sln, .md, .yml, .json, .xml, .py, .js, .ts, .go, .ps1, and .sql. Skips build/cache folders such as bin, obj, node_modules, packages, .git, build, dist, and publish. Binary files, installers, archives, PDFs, certificates, SQLite files, and images are counted or ignored, not stored as knowledge text.";
+    private const string LearnBaseDuplicatePolicySummary =
+        "Duplicate handling: each project path and known docs-corpus section gets a stable database id. Re-importing the same source updates/upserts the existing knowledge row instead of adding another copy.";
+    private static string LearnBasePresetList => string.Join(", ", LearnBasePresets.Select(preset => preset.Label));
+    private static readonly IReadOnlyList<LearnBasePreset> LearnBasePresets =
+    [
+        new(
+            "All selected local learn-base",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt",
+            "Scans the curated local learn-base root and auto-detects known docs corpora plus project architecture roots.",
+            80),
+        new(
+            "Microsoft .NET docs + C# compiler",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt\docs-main\docs-main",
+            "Teaches source maps for .NET architecture, C# language/compiler diagnostics, C# 12-era syntax, ASP.NET Core, Blazor, data, and DocFX/Microsoft Learn authoring.",
+            30),
+        new(
+            "Windows developer docs",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt\windows-dev-docs-docs",
+            "Teaches source maps for Windows App SDK, WinUI, WebView2, MSIX, Windows setup/support, design, accessibility, and technician workflows.",
+            24),
+        new(
+            "DevExpress Blazor 25.2 samples",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt\Blazor-25.2\Blazor-25.2",
+            "Scans DevExpress Blazor demos and examples so generated pages can choose real components, services, layout patterns, and file/download workflows.",
+            60),
+        new(
+            "DevExpress examples",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt\DevExpress-Examples",
+            "Scans local DevExpress example repositories for reusable component and service wiring patterns.",
+            60),
+        new(
+            "Custom path",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt",
+            "Use this when you want to paste or edit a specific local source/docs folder path.",
+            40)
+    ];
+    private static readonly IReadOnlyList<LearnBaseScanProfile> LearnBaseScanProfiles =
+    [
+        new("Focused scan", 12, "Best for one documentation corpus or one repository. Fast and low noise."),
+        new("Balanced scan", 40, "Best default: enough project roots to teach patterns without importing every nested sample."),
+        new("Broad scan", 100, "Best after adding many repositories or documentation corpora. Slower, but still bounded."),
+        new("Custom limit", 40, "Use the advanced import limit below.")
+    ];
 
     private Task RunCustomRouteAsync()
     {
@@ -121,8 +194,24 @@
     private Task RunLearnBaseImportAsync()
     {
         var encodedRoot = Uri.EscapeDataString(learnBaseRoot.Trim());
-        var route = $"/__diag/learn-base/import?rootPath={encodedRoot}&saveToKnowledge=true&maxProjects={Math.Clamp(maxProjects, 1, 80)}";
+        var route = $"/__diag/learn-base/import?rootPath={encodedRoot}&saveToKnowledge={saveToKnowledge.ToString().ToLowerInvariant()}&maxProjects={Math.Clamp(maxProjects, 1, 120)}";
         return RunRouteAsync(route);
+    }
+
+    private void SelectLearnBasePreset(LearnBasePreset preset)
+    {
+        selectedLearnBasePreset = preset;
+        learnBaseRoot = preset.RootPath;
+        maxProjects = preset.RecommendedMaxProjects;
+        selectedScanProfile = LearnBaseScanProfiles
+            .FirstOrDefault(profile => profile.MaxProjects == preset.RecommendedMaxProjects) ??
+            LearnBaseScanProfiles[^1];
+    }
+
+    private void SelectLearnBaseScanProfile(LearnBaseScanProfile profile)
+    {
+        selectedScanProfile = profile;
+        maxProjects = profile.MaxProjects;
     }
 
     private async Task RunRouteAsync(string route)
@@ -223,4 +312,6 @@
 
     private sealed record TestLabRoute(string Label, string Path, ButtonRenderStyle Style);
     private sealed record TestLabDownloadLink(string Label, string AbsoluteUrl);
+    private sealed record LearnBasePreset(string Label, string RootPath, string Description, int RecommendedMaxProjects);
+    private sealed record LearnBaseScanProfile(string Label, int MaxProjects, string Description);
 }
