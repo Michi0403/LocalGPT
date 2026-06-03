@@ -140,6 +140,39 @@ and feed verified results back into SQLite knowledge.
 
 The preferred local debug model is `gpt-oss:20b`. Use `LocalGPTWebviewWrapper/build/Test-OllamaGptOss.ps1` before blaming `DxAIChat`, because an empty or failing Ollama response will make the chat UI look broken even when Blazor and DevExpress are working.
 
+### Non-negotiable Council acceptance gate
+
+For any task that asks whether LocalGPT, DXAiChat, the AI Council, or generated
+coding artifacts work as a product workflow, every coding agent must bind its
+actions to this gate before doing work:
+
+- Use the real WinUI WebView2-hosted LocalGPT UI, not an agent sandbox browser,
+  backend-only route, direct Ollama call, or typed-but-not-sent prompt.
+- Operate DXAiChat like a human user: navigate to the visible chat/council
+  workflow, enter the prompt in the real textarea, and click the real send
+  button.
+- Use an AI Council with at least two selected members for serious
+  code-generation, review, artifact, AI-host, or Minecraft generation tests.
+- The enforced serious-generation profile is GPU-enabled local Ollama with
+  `MaxContextTokens = 262144` and `MaxOutputTokens = 262144`.
+- Include `gpt-oss:20b` and at least one capable peer such as
+  `deepseek-r1:8b`, `qwen3-coder:30b`, or the closest installed equivalent
+  requested by the user.
+- Do not silently lower token/context values, force CPU mode, swap in a
+  one-model smoke test, or report low-resource plumbing checks as acceptance
+  evidence. If those conditions cannot be met, stop immediately and tell the
+  user before changing code.
+- Keep low-resource, CPU, backend, sandbox-browser, and direct-model tests
+  labeled as diagnostics only. They may help investigate a blocker, but they
+  never prove the requested LocalGPT Council product workflow.
+- If the Council asks questions, gives incomplete output, or exposes a missing
+  capability, continue the same real DXAiChat conversation and feed the verified
+  missing knowledge/function back into LocalGPT. Do not work around the Council
+  silently.
+
+This gate applies to Codex, Claude, and any other assistant or AI agent working
+in this repository. Violating it is a stop-work condition, not a style issue.
+
 When changing AI behavior:
 
 - keep model/provider selection explicit
@@ -168,7 +201,7 @@ Agent guidance:
 - inspect `GET /__diag/logs?minimumLevel=Warning&take=30` when setup behavior is strange; recent SQLite application logs are included in AI bootstrap so DXAiChat and the AI Council can notice missing Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, package registration, or model setup
 - use `GET /__diag/learn-base/import` or the Test Lab Learn-Base presets to import local source/docs into SQLite knowledge as compact source maps. The importer skips build/cache/binary noise, upserts by stable source IDs to avoid duplicate rows, and has special Microsoft .NET docs, C# compiler/language, Windows docs, and DocFX corpus handling.
 - use the WinUI WebView2 smoke mode with `LOCALGPT_WEBVIEW2_SMOKE=1` as the preferred frontend fallback when browser automation is unavailable or misleading. Do not rely on an agent's built-in browser as proof that the packaged desktop shell works; the WebView2 smoke path validates the real wrapper and currently covers `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`.
-- after a black screen, driver reset, or high VRAM pressure, run council tests database-first and low-resource: one model, `MaxRounds = 0`, `MaxOutputTokens = 1024`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`; check `ollama ps` before and after
+- after a black screen, driver reset, or high VRAM pressure, low-resource checks may be used only as explicitly labeled diagnostics to recover the runtime. They are not serious Council/code-generation acceptance tests and must not replace the enforced two-member GPU `262144` profile.
 - keep filesystem and OS command execution in backend services
 - use `INativeCommandRunner` or a similar service boundary for native commands
 - keep frontend JavaScript for client-only helpers, not privileged execution
@@ -184,6 +217,10 @@ Agent guidance:
 - missing-feature reports must document helpful sources requested by AI participants, such as official docs, examples, versioned package references, specs, or sample repositories
 - use DXAiChat native paperclip attachments as prompt evidence workspaces. Uploaded files are saved under `%LOCALAPPDATA%\LocalGPT\ChatUploadWorkspaces`, zips are extracted safely, and PDB/DLL/EXE/WASM files are summarized with printable strings only. Inspect them through `chat.upload_*` DXAiFunctions; do not execute uploaded or extracted files.
 - use council artifact workspaces for generated source, user edits, HtmlEditor-style file review, compile checks, and refreshed downloadable zips. The AI Council can ask Codex/coding agents to maintain these LocalGPT mechanisms, tests, commits, packages, and releases while Michi0403 remains the human decision owner.
+- no more spray-and-pray. Change one meaningful variable at a time, use the smallest prompt that proves the current hypothesis, inspect DXAiChat/frontend/log evidence, teach the missing knowledge or function, then rerun. Do not start broad retries, giant context dumps, or multiple unrelated fixes when a focused diagnostic can prove the next step.
+- Real frontend proof means the LocalGPT Blazor UI running inside the WinUI WebView2 host. Backend diagnostics, sandbox browser tests, PowerShell probes, and direct Ollama calls are supporting evidence only. Use `LocalGPTWebviewWrapper/build/Test-LocalGptWebView2E2E.ps1` for the primary UI path and report its saved `artifacts/e2e/.../result.json` plus screenshot.
+- For DXAiChat and AI Council product-workflow tests, operate the visible chat inside the real WebView2 host. Use `LocalGPTWebviewWrapper/build/Send-LocalGptWebView2Prompt.ps1` or equivalent WebView2 remote-debugging/Selenium attach automation to write into the actual DXAiChat textarea and click the actual send button. Do not count an agent sandbox browser, backend endpoint call, direct Ollama call, or "typed but not sent" state as proof. If a user asks whether the Council can develop, review, debug, or produce artifacts through DXAiChat, the acceptance evidence must include the real prompt, visible transcript/result, screenshot, logs, and generated download links when applicable.
+- treat model selection as cooperative role routing, not competition. Track evidence-based roles such as implementer, reviewer, architect, UX checker, safety checker, and setup helper; explain role changes to the user and use polls for meaningful exclusions or replacements.
 
 Detailed mod-builder instructions for AI agents are in `docs/MINECRAFT_MOD_AI_BUILDER.md`. Current workflow memory and known-good commands are in `docs/LOCALGPT_WORKFLOW_MEMORY.md`.
 

@@ -36,6 +36,9 @@ Important assumptions:
 - Ollama runs outside the app and is selected/configured through setup data
 - preferred Ollama debug model is gpt-oss:20b
 - run LocalGPTWebviewWrapper/build/Test-OllamaGptOss.ps1 before debugging DxAIChat
+- hard stop for serious Council/code-generation tests: use the real WinUI WebView2-hosted LocalGPT DXAiChat UI, operate the visible textarea and send button, select a minimum two-member AI Council, use GPU-backed local Ollama, and keep MaxContextTokens and MaxOutputTokens at 262144 unless the user explicitly changes them in that same run
+- serious Council/code-generation tests must include gpt-oss:20b plus at least one capable peer such as deepseek-r1:8b, qwen3-coder:30b, or the closest installed equivalent requested by the user
+- if an agent cannot satisfy the real WebView2, two-member Council, GPU, and 262144-token gate, it must stop and tell the user before changing code; silently using CPU, one model, a sandbox browser, direct Ollama, backend-only routes, or tiny smoke values is not allowed
 - Minecraft Builder should let the user/council choose Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, or future Bedrock add-on
 - use LocalGPTWebviewWrapper/build/Setup-MinecraftModToolchain.ps1 for JDK, Gradle, Eclipse, and Minecraft builder setup checks
 - use /__diag/dxaichat-smoke for configured DXAiChat backend tests and /__diag/council for council tests before falling back to direct Ollama
@@ -43,7 +46,11 @@ Important assumptions:
 - use /__diag/logs to inspect SQLite application warnings/errors; AI bootstrap includes recent log health signals for DXAiChat and council runs
 - use /__diag/learn-base/import to add compact source-backed knowledge from local docs/projects such as windows-dev-docs-docs; review and approve strong entries in the SQLite Database page
 - when knowledge or functions are missing, emit a structured <localgpt-capability-gap> block instead of refusing; coding agents can use that block to add routes, docs, tests, commits, packages, and releases
-- after black screens or high GPU pressure, use database-first low-resource council settings: one model, MaxRounds 0, MaxOutputTokens 1024 for reasoning models, MaxContextTokens 2048, OllamaKeepAlive "0s", OllamaNumGpu 0, then check ollama ps before/after
+- after black screens or high GPU pressure, low-resource settings may be used only as labeled recovery diagnostics; they are not acceptance evidence for serious Council/code-generation workflows and must not replace the two-member GPU 262144-token gate
+- no more spray-and-pray: make one focused change or prompt adjustment, verify it in DXAiChat/frontend diagnostics/logs, record the evidence, then continue. Avoid giant retries, unrelated fixes, and ungrounded context flooding.
+- real frontend E2E proof must exercise the LocalGPT Blazor UI inside the WinUI WebView2 host. Backend diagnostics, sandbox browser tests, PowerShell probes, and direct Ollama calls are supporting only. Use LocalGPTWebviewWrapper/build/Test-LocalGptWebView2E2E.ps1 and inspect artifacts/e2e result JSON/screenshot before saying WebView2 UI testing passed.
+- DXAiChat/AI Council workflow proof must use the actual visible DXAiChat textarea and send button inside the real WebView2 host. Use LocalGPTWebviewWrapper/build/Send-LocalGptWebView2Prompt.ps1 or equivalent WebView2 attach automation. A sandbox browser, backend route, direct model call, or typed-but-not-sent prompt is not acceptance evidence for council code-generation, review, artifact, upload, poll, or chat behavior.
+- use cooperative model roles rather than toxic competition: implementer, reviewer, architect, UX checker, safety checker, setup helper, and capability-gap scout. Explain evidence-based routing and ask the user before meaningful exclusions.
 - AI Council conversations saved in SQLite can be continued through ContinueConversationId or the frontend memory selector; every step should show the full council roster
 - faulty council members may be excluded by the user, but models should request that through a poll instead of silently excluding peers
 - implementation-request council chats can ask LocalGPT to generate a downloadable CodeDOM C# starter artifact for .NET/Blazor/ASP.NET Core ideas

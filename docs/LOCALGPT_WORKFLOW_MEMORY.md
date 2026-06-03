@@ -72,6 +72,31 @@ Expected warning: Gradle 8.14.2 may report deprecated Gradle features for some g
 
 ## Preferred AI Test Paths
 
+### Mandatory Council acceptance gate
+
+When the task is to prove that LocalGPT, DXAiChat, the AI Council, or generated
+coding artifacts work as a product workflow, agents must use this gate:
+
+- Real WinUI WebView2-hosted LocalGPT UI.
+- Visible DXAiChat textarea and real send button.
+- Minimum two-member AI Council.
+- GPU-backed local Ollama.
+- `MaxContextTokens = 262144` and `MaxOutputTokens = 262144`.
+- `gpt-oss:20b` plus at least one capable peer such as `deepseek-r1:8b`,
+  `qwen3-coder:30b`, or the closest installed equivalent requested by the user.
+
+If any condition cannot be met, stop immediately and tell the user before
+editing code. Backend routes, direct Ollama calls, sandbox-browser automation,
+one-model runs, CPU mode, low-resource profiles, typed-but-not-sent prompts, and
+trivial smoke prompts are supporting diagnostics only. They must not be reported
+as acceptance evidence for Council development, review, artifact, AI-host, or
+Minecraft generation workflows.
+
+If the Council asks a question, exposes a missing capability, or produces
+incomplete output, continue the same real DXAiChat conversation and feed the
+verified gap back into LocalGPT knowledge/functions. Do not work around the
+Council silently.
+
 Prefer LocalGPT diagnostics over direct Ollama calls:
 
 - `POST /__diag/dxaichat-smoke`
@@ -88,9 +113,9 @@ Prefer LocalGPT diagnostics over direct Ollama calls:
   - Development requests with unclear implementation ownership or scope should create an implementation-path poll. Offer concrete options such as sandbox prototype first, backend/data first, frontend UX first, or ask exact scope. The user can choose an option or type custom feedback, and the next council round must treat that decision as binding context.
   - `GenerateImplementationArtifact` creates sandbox artifacts under `%LOCALAPPDATA%\LocalGPT\CouncilArtifacts\` and returns safe `/__artifacts/council/{fileName}` download links. For Blazor/DevExpress frontend requests, it should emit a real `.razor` page artifact plus compileable `.cs` support code and a `.dll` when the support code builds.
   - Generated implementation ideas must stay as sandbox artifacts or temporary workspaces until the user explicitly permits integration. The council must never overrule a user decision that denies or limits self-expansion.
-  - Use `MaxParallelModels = 1` for 20B/30B local models on 24 GB VRAM unless the user asks for heavier runs.
-  - AMD 7900 XTX stability note: avoid full-auto GPU offload for qwen/gwen/gemma-class 27B/30B models after confirmed driver instability during some long 96%-100% load runs. Some black screens were later traced to display sleep, screen saver, or power-saving settings after system repair, so do not treat a black screen alone as proof of GPU failure. Prefer `OllamaNumGpu = 20`, `MaxParallelModels = 1`, `OllamaKeepAlive = "0s"`, short prompts, and short output budgets. Use full auto GPU only when Michi explicitly asks for the risk.
-  - After a confirmed driver reset, high VRAM pressure, long 20B/30B stall, or black screen correlated with heavy model load, use low-resource council mode: `MaxRounds = 0`, `MaxOutputTokens = 1024`, `MaxContextTokens = 2048`, `OllamaKeepAlive = "0s"`, and `OllamaNumGpu = 0`. If the only symptom is a monitor sleep or power-saving wake issue, first check Windows/display power settings and recent logs. Smaller 256/512-token runs are useful for plumbing checks, but DeepSeek-style reasoning models may spend that whole budget on thinking.
+  - Serious Council/code-generation acceptance uses the mandatory gate above. Older lower-token or CPU profiles are recovery diagnostics only and must be labeled that way.
+  - Use `MaxParallelModels = 1` for 20B/30B local models on 24 GB VRAM unless the user asks for heavier parallelism. This preserves sequential GPU loading while keeping the Council at two or more members.
+  - AMD 7900 XTX stability note: use GPU for the mandatory acceptance gate, but avoid unnecessary parallel model pressure. Some black screens were later traced to display sleep, screen saver, or power-saving settings after system repair, so do not treat a black screen alone as proof of GPU failure. If a real driver reset happens, stop the acceptance claim, recover the runtime, and rerun the mandatory gate when stable.
 - `GET /__diag/council/models`
   - Lists configured and installed Ollama models visible to LocalGPT.
 - `GET /__diag/minecraft/workspace-smoke?loader=datapack|paper|fabric|neoforge`
@@ -170,6 +195,7 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - AppX registration can fail with `0x80070002`/`0x80073CF9` when Windows holds a stale LocalGPT development registration or when the loose `AppX` layout misses manifest assets. The package project now copies `Images\*.png` into `bin\<platform>\<configuration>\AppX\Images`, and the repair script retries once after removing only the stale LocalGPT package identity.
 - LocalGPT intentionally chooses a free loopback port at startup to avoid binding issues. Discover the current app URL from `%LOCALAPPDATA%\LocalGPT\runtime\server.json` instead of assuming a fixed port.
 - Application warnings/errors are stored in SQLite table `ApplicationLogs` when `LoggingCore:DatabaseCore:CoreLogLevel` allows them. The database logger is queued/background-flushed and excludes EF categories to avoid recursive logging.
+- After crashes, forced reboots, or driver resets, the local SQLite memory file can become malformed. LocalGPT startup now runs `PRAGMA quick_check`; if the file is corrupt it preserves the database plus `-wal`/`-shm` sidecars under `%LOCALAPPDATA%\LocalGPT\CorruptDatabaseBackups\` and recreates a clean local store. Treat the backup as evidence for manual salvage, and teach the council from the incident instead of letting malformed SQLite errors poison later prompts.
 - Missing-feature reports under `%LOCALAPPDATA%\LocalGPT\AIReports\` now include helpful source requests. AI participants should ask for official docs, examples, specs, package references, or sample repositories when needed, without pretending those sources were verified.
 - The `/database` page is the live database editor. It has a friendly Council Knowledge panel plus a generic SQLite table preview/editor. Primary-key columns are displayed but protected in the generic form; edits are still applied to the live local database.
 - Do not treat raw model output as verified facts. The council should mark uncertain claims as `Needs verification`.
@@ -177,6 +203,7 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   LocalGPT separates thinking from visible text and must close the model-thinking `<details><pre>` block before it surfaces the "no final answer" notice.
   Otherwise the fallback looks like more hidden/thinking text instead of a stopped visible answer.
 - Keep the council database-first: use pinned `CouncilKnowledgeEntries`, selected saved conversations, and route outputs as concise grounding. Avoid huge prompt blobs unless a model explicitly needs one targeted excerpt.
+- No more spray-and-pray is a LocalGPT engineering rule. For AI Council tuning, frontend tests, artifact generation, and model setup, change one meaningful variable at a time, collect the DXAiChat/WebView2/log/build evidence, teach the exact missing knowledge or function, then rerun. Broad retries, unrelated edits, and bloated contexts hide the real failure and waste token, GPU, and user time.
 - Official DevExpress/Microsoft source knowledge is backed by `docs/COUNCIL_KNOWLEDGE_SEED.sql`. LocalGPT imports this file with `INSERT OR IGNORE`, so it restores missing source-backed rows into SQLite without overwriting user edits or approval flags.
 - Knowledge trust is explicit. Use `VerificationStatus` (`SourceBacked`, `UserVerified`, `ModelSuggested`, `NeedsVerification`, `Archived`) together with `ReviewStatus`, confidence, approval flags, expiry, source hash, and source date. Current user decisions and runtime diagnostics outrank workflow memory and model suggestions. When knowledge becomes wrong, mark it expired/deprecated/superseded instead of deleting the learning trail.
 - Native command execution is intentionally narrow: commands must run under the LocalGPT Minecraft workspace root, executables are allowlisted, PowerShell must use `-File` against a workspace `.ps1`, and attempts/results are logged in the `NativeCommandLogs` SQLite table.
@@ -198,6 +225,8 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   Generated changes belong in council artifact workspaces, then `/__diag/artifact-workspace/{workspaceName}/zip` refreshes the download.
 - When generating a provider-compatible local AI host, produce an easy-testable ASP.NET Core + DevExpress Blazor host milestone with `/api/version`, `/api/tags`, `/api/ps`, `/api/chat`, `/api/generate`, model catalog, downloads, settings, logs, SQLite state, and native local-model-file runner interfaces. Upstream Ollama/LM Studio/OpenAI-compatible proxying is not an accepted milestone.
 - Prompt provider-neutral AI-host generation by capability, not by provider name. The goal is a buildable local model-host app with left navigation, chat, model catalog, downloads, running models, API console, templates, hardware budget, logs, settings, LocalGPT-compatible routes, direct local model-file runner paths, and a scheduler that can run multiple model sessions when hardware/backend policy allows it. If the selected backend only supports one active model, the generated app must report that limitation and queue safely instead of pretending parallel inference happened.
+- AI-host generation should aim to be better for LocalGPT than a one-model constrained provider: concurrent sessions when safe, honest queueing when not safe, per-model/per-phase timers, request cancellation, unload controls, role-aware council scheduling, visible hardware policy, source-backed model download plans, and a direct LocalGPT compatibility test URL.
+- Ollama model loading/unloading can add long normal delays between council members, especially with 20B/30B models and 131K-256K context. Treat this as provider/session overhead unless logs show a real error. LocalGPT should display per-model phase state such as loading, generating, unloading, queued, waiting for Ollama slot, and stalled so users can distinguish normal latency from a broken run.
 - The selected local learn-base importer lives at `/__diag/learn-base/import`. It stores compact architecture
   fingerprints from `C:\tmpselectedcodexlearnbaseforlocalgpt` into CouncilKnowledgeEntries, focusing on
   functionality, architecture, protocols, host wiring, libraries, Python.NET interop, DevExpress Web API/security,
@@ -233,6 +262,8 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 - Council auditability is an alpha requirement. The original prompt must be visible when a council result is loaded in DXAiChat or the AI Council page, and CouncilLogs must contain an explicit original-prompt/user-request section before the transcript. Saved SQLite council conversations should start each new round with a user-role request message so old prompts are not hidden behind assistant answers.
 - `/test-lab` is the preferred in-app frontend/API smoke helper. Use it for `/health`, `/__diag`, DXAiFunction catalog, Minecraft datapack version checks, deterministic council artifact zips, AI host solution zips, datapack benchmarks, and learn-base imports. It renders JSON and extracts `/__artifacts/...` download links so source, DLL, solution, and datapack artifacts are verified like a user would download them.
 - WebView2 automation should follow Microsoft Edge WebDriver guidance. Launch mode uses Selenium `EdgeOptions.UseWebView = true` plus `BinaryLocation`; attach mode starts the app with a WebView2 remote debugging port and uses `EdgeOptions.DebuggerAddress`. Use this for real wrapper automation after the Test Lab and backend routes pass.
+- A test only counts as real frontend E2E when it exercises the LocalGPT Blazor UI inside the WinUI WebView2 host. Backend endpoints, sandbox browser tests, PowerShell probes, and direct Ollama calls are supporting diagnostics only. Use `LocalGPTWebviewWrapper/build/Test-LocalGptWebView2E2E.ps1` for the main path: it launches the installed WebView2 host with the E2E runtime flag, attaches to the existing WebView2 remote-debugging port, drives stable `data-testid` selectors in the real page, saves a screenshot/result JSON under `artifacts/e2e`, and checks `/__diag/logs` afterward.
+- For DXAiChat and AI Council product workflows, use the actual visible chat surface. `LocalGPTWebviewWrapper/build/Send-LocalGptWebView2Prompt.ps1` attaches to the existing WebView2 remote-debugging port, writes into the real DXAiChat textarea, clicks the real send button, and captures visible transcript text plus screenshot. This is the required path when evaluating whether the Council can generate, review, debug, answer polls, process uploads, or produce downloadable artifacts. Do not substitute a sandbox browser, backend endpoint, direct Ollama call, or typed-but-not-sent prompt.
 - Python browser automation examples such as `C:\tmpselectedcodexlearnbaseforlocalgpt\AutomatedDiscordLogin-master` should be imported as compact architecture fingerprints through `/__diag/learn-base/import`. A future Python.NET workbench must be permission-gated, logged, confined to safe working directories, and user-visible before it executes generated or external scripts.
 - Capability gap reports are now the standard improvement loop. If a model lacks a function, refuses a concrete
   generation request, misses framework/version knowledge, or the user says LocalGPT needs improvement in a field,
@@ -275,7 +306,7 @@ For EF Core entity generation, use `docs/EF_DEVEXPRESS_BUSINESS_OBJECTS.md` befo
 ## Next Useful Checks
 
 - Rerun `POST /__diag/dxaichat-smoke` after restarting LocalGPT from a fresh build.
-- Rerun a short AI Council feedback prompt only after checking `ollama ps`. If the machine recently showed confirmed GPU pressure, a driver reset, or a black screen correlated with heavy model load, use one model with `OllamaNumGpu = 0`, `OllamaKeepAlive = "0s"`, `MaxRounds = 0`, `MaxContextTokens = 2048`, and `MaxOutputTokens = 1024` for reasoning models.
+- Rerun a short AI Council feedback prompt only after checking `ollama ps`. For real DXAiChat code-generation acceptance, prefer the proven GPU-capable sequential council profile (`gpt-oss:20b` plus `qwen3-coder:30b`, `131072` context/output, qwen/gwen guardrail `num_gpu=20`). Use one-model CPU mode only as a recovery or plumbing diagnostic after confirmed GPU pressure, a driver reset, or a black screen correlated with heavy model load.
 - Check `/__diag/logs?minimumLevel=Warning&take=30` before asking the council for setup advice; recent Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, or package errors should be treated as actionable health signals.
 - Run the WebView2 smoke mode from a registered/package identity or Visual Studio debug launch and inspect `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`. Use this as the preferred frontend fallback for LocalGPT usability checks instead of relying on an assistant built-in browser; it exercises the real wrapper routes, including `/Chat`, `/model-council`, `/database`, and `/minecraft-mod-builder`.
 - Commit and push diagnostic changes in small slices.

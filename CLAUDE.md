@@ -27,6 +27,30 @@ publishes, and release notes.
 - Treat council knowledge problems as repairable. Import local source/docs through `/__diag/learn-base/import`, review SQLite knowledge entries, add source-backed docs/routes where needed, and ask models to emit `<localgpt-capability-gap>` blocks instead of refusing concrete artifact requests.
 - Remember LocalGPT is useful for more than code generation: Windows deployment diagnostics, WebView2/MSIX repair, DevExpress/Bootstrap design work, EF/SQLite schema decisions, Minecraft tooling, and local AI-host architecture discussion are all first-class.
 
+## Mandatory LocalGPT Council test gate
+
+Claude, Codex, and every other coding assistant must obey this gate whenever the
+task asks whether LocalGPT, DXAiChat, the AI Council, or generated coding
+artifacts work as a product workflow:
+
+- Use the real WinUI WebView2-hosted LocalGPT UI as the test surface.
+- Do not substitute an assistant sandbox browser, backend route, direct Ollama
+  call, trivial smoke prompt, or typed-but-not-sent state.
+- Operate the visible DXAiChat/council input and send button like a human user.
+- Use a minimum two-member AI Council for serious code-generation, review,
+  artifact, AI-host, or Minecraft generation tests.
+- Use GPU-backed local Ollama with `MaxContextTokens = 262144` and
+  `MaxOutputTokens = 262144` as the enforced serious-generation default.
+- Include `gpt-oss:20b` and at least one capable peer such as `deepseek-r1:8b`,
+  `qwen3-coder:30b`, or the closest installed equivalent requested by the user.
+- If the assistant cannot meet those conditions, it must stop immediately and
+  tell the user. Silently lowering token/context values, switching to CPU,
+  using one model, or reporting low-resource diagnostics as acceptance evidence
+  is a project-rule violation.
+- When the Council asks a question or reports missing knowledge/functions,
+  continue the same real DXAiChat conversation and feed verified gaps back into
+  LocalGPT. Do not bypass the Council with private-only work.
+
 ## Important projects
 
 - `LocalGPTWebviewWrapper/LocalGPT`: Blazor/ASP.NET Core app, AI services, DevExpress UI.
