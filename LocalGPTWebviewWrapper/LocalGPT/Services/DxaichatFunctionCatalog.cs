@@ -207,7 +207,7 @@ public static class DxaichatFunctionCatalog
             "/__diag/chat-upload-workspaces",
             "List per-prompt DXAiChat upload workspaces, including the latest uploaded files, root path, and read-only routes.",
             "take optional, defaults to 20.",
-            "Read-only. Use this when a user attached files with the DXAiChat plus button or upload panel."),
+            "Read-only. Use this when a user attached files with the DXAiChat native paperclip attachment control."),
         new(
             "chat.upload_workspace_files",
             "GET",

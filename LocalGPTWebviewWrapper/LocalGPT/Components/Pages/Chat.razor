@@ -1,5 +1,4 @@
 @page "/Chat"
-@using System.IO.Compression
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Text
 @using System.Text.RegularExpressions
@@ -7,7 +6,6 @@
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
 @inject IChatMemoryService ChatMemory
-@inject IChatUploadWorkspaceService ChatUploads
 @inject IMultiModelCouncilService CouncilService
 @inject NavigationManager NavigationManager
 @rendermode InteractiveServer
@@ -233,41 +231,6 @@
                 <p class="memory-status">@ArchitecturePollStatus</p>
             }
         </details>
-        <details class="chat-file-context" open>
-            <summary>
-                <span>Upload text or zip context</span>
-                <small>Files are saved into a prompt workspace. The plus button on DXAiChat uses the same safe upload path.</small>
-            </summary>
-            <div class="chat-file-context-grid">
-                <InputFile OnChange="OnContextFilesSelectedAsync" multiple />
-                <DxButton Text="Add Upload Context To Chat"
-                          RenderStyle="ButtonRenderStyle.Secondary"
-                          RenderStyleMode="ButtonRenderStyleMode.Contained"
-                          Enabled="@(!isUploadBusy && UploadedContexts.Count > 0)"
-                          Click="AddUploadedContextToChatAsync" />
-                <DxButton Text="Clear Uploads"
-                          RenderStyle="ButtonRenderStyle.Secondary"
-                          RenderStyleMode="ButtonRenderStyleMode.Outline"
-                          Enabled="@(!isUploadBusy && UploadedContexts.Count > 0)"
-                          Click="ClearUploadedContext" />
-            </div>
-            @if (!string.IsNullOrWhiteSpace(uploadStatus))
-            {
-                <p class="memory-status">@uploadStatus</p>
-            }
-            @if (UploadedContexts.Count > 0)
-            {
-                <div class="upload-context-list">
-                    @foreach (var upload in UploadedContexts)
-                    {
-                        <details>
-                            <summary>@upload.DisplayName (@upload.CharacterCount chars)</summary>
-                            <pre>@upload.Preview</pre>
-                        </details>
-                    }
-                </div>
-            }
-        </details>
         <DxAIChat Initialized="ChatInitialized"
                   ResponseContentFormat="ResponseContentFormat.Markdown"
                   UseStreaming="true"
@@ -385,13 +348,10 @@
     Guid? ActiveConversationId { get; set; }
     string memoryStatus = string.Empty;
     string modelStatus = string.Empty;
-    string uploadStatus = string.Empty;
     bool isMemoryBusy;
     bool isModelRefreshBusy;
-    bool isUploadBusy;
     CancellationTokenSource? autoSaveCts;
     string lastSavedSignature = string.Empty;
-    List<DecodedChatUpload> UploadedContexts { get; set; } = new();
     static readonly MarkdownPipeline ChatMarkdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
         .Build();
@@ -507,119 +467,6 @@
             Logger.LogError(ex, "Exception in AddArchitecturePollToChatAsync: {Message}", ex.Message);
             Notifier.ShowError(toastName, ex.Message, "Architecture poll failed");
         }
-    }
-
-    private async Task OnContextFilesSelectedAsync(InputFileChangeEventArgs e)
-    {
-        try
-        {
-            isUploadBusy = true;
-            uploadStatus = "Saving uploaded files into a LocalGPT prompt workspace...";
-            var inputs = await ReadBrowserUploadFilesAsync(e.GetMultipleFiles(MaxUploadFiles));
-            var result = await ChatUploads.CreateWorkspaceAsync(
-                "Manual upload context staged from the Chat page upload panel.",
-                inputs);
-            UploadedContexts = [BuildDecodedChatUpload(result)];
-            uploadStatus = UploadedContexts.Count == 0
-                ? "No supported upload workspace was created."
-                : $"Created upload workspace {result.WorkspaceName}. Add it to DXAiChat or send the next prompt with the plus button.";
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Exception in OnContextFilesSelectedAsync: {Message}", ex.Message);
-            uploadStatus = $"Upload workspace failed: {ex.Message}";
-            Notifier.ShowError(toastName, ex.Message, "Upload workspace failed");
-        }
-        finally
-        {
-            isUploadBusy = false;
-        }
-    }
-
-    private async Task<IReadOnlyList<ChatUploadWorkspaceInputFile>> ReadBrowserUploadFilesAsync(
-        IReadOnlyList<IBrowserFile> files)
-    {
-        var inputs = new List<ChatUploadWorkspaceInputFile>();
-        foreach (var file in files.Take(MaxUploadFiles))
-        {
-            await using var stream = file.OpenReadStream(MaxUploadBytes);
-            using var memory = new MemoryStream();
-            await stream.CopyToAsync(memory);
-            inputs.Add(new ChatUploadWorkspaceInputFile(
-                file.Name,
-                file.ContentType,
-                file.Size,
-                new ReadOnlyMemory<byte>(memory.ToArray())));
-        }
-
-        return inputs;
-    }
-
-    private static DecodedChatUpload BuildDecodedChatUpload(ChatUploadWorkspaceResult result)
-    {
-        var preview = result.ContextMarkdown.Length > 2000
-            ? result.ContextMarkdown[..2000] + Environment.NewLine + "... truncated preview ..."
-            : result.ContextMarkdown;
-        return new DecodedChatUpload(
-            result.WorkspaceName,
-            result.RootPath,
-            result.Files.Sum(file => file.Length),
-            result.ContextMarkdown,
-            preview);
-    }
-
-    private async Task AddUploadedContextToChatAsync()
-    {
-        try
-        {
-            if (ChatClientProvider?.SelectedSession is null || DxAiChat is null || UploadedContexts.Count == 0)
-                return;
-
-            var messages = DxAiChat.SaveMessages().ToList();
-            var contextMessage = BuildUploadedContextMessage();
-            messages.Add(new BlazorChatMessage(ChatRole.User, contextMessage, new List<AIChatUploadFileInfo>()));
-            ChatClientProvider.SelectedSession.Messages.Clear();
-            ChatClientProvider.SelectedSession.Messages.AddRange(messages);
-            DxAiChat.LoadMessages(messages);
-            await PersistMessagesAsync(messages, force: true, showToast: false);
-            uploadStatus = "Upload workspace context was added to DXAiChat. Ask the model to use it in your next message.";
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Exception in AddUploadedContextToChatAsync: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.Message, "Adding upload context failed");
-        }
-    }
-
-    private string BuildUploadedContextMessage()
-    {
-        var builder = new System.Text.StringBuilder()
-            .AppendLine("# LocalGPT Uploaded File Context")
-            .AppendLine()
-            .AppendLine("Use this saved local prompt workspace for the next DXAiChat request. Text, zip contents, and binary strings were bounded by LocalGPT workspace budgets.")
-            .AppendLine();
-
-        foreach (var upload in UploadedContexts)
-        {
-            builder
-                .AppendLine($"## {upload.DisplayName}")
-                .AppendLine($"Workspace: {upload.WorkspaceName}")
-                .AppendLine($"Root: {upload.WorkspaceRoot}")
-                .AppendLine($"Captured size: {upload.SizeBytes} bytes")
-                .AppendLine()
-                .AppendLine("```text")
-                .AppendLine(upload.Content)
-                .AppendLine("```")
-                .AppendLine();
-        }
-
-        return builder.ToString();
-    }
-
-    private void ClearUploadedContext()
-    {
-        UploadedContexts.Clear();
-        uploadStatus = "Upload context cleared.";
     }
 
     private string BuildArchitecturePollMessage()
@@ -1347,17 +1194,6 @@
         text = text.Replace("</details>\n", "</details>\n\n", StringComparison.OrdinalIgnoreCase);
         text = ListAfterHtmlRegex.Replace(text, "$1\n\n$2");
         return text.Trim();
-    }
-
-    private sealed record DecodedChatUpload(
-        string WorkspaceName,
-        string WorkspaceRoot,
-        long SizeBytes,
-        string Content,
-        string Preview)
-    {
-        public string DisplayName => WorkspaceName;
-        public int CharacterCount => Content.Length;
     }
 
     public void Dispose()

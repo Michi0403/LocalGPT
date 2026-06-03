@@ -18,6 +18,8 @@ publishes, and release notes.
 - Keep the WinUI wrapper thin.
 - Keep AI model/profile configuration durable and backward-compatible.
 - Preserve DevExpress Blazor usage and static asset loading.
+- If the user asks for a built-in DevExpress capability, implement the documented DevExpress component API or state that it is blocked/unclear and ask. Do not add a separate custom control and describe it as the requested built-in feature.
+- For `DxAIChat` uploads, use the component's native paperclip attachment flow (`FileUploadEnabled`, `DxAIChatFileUploadSettings`, `AIChatUploadFileInfo`, and the normal chat-client upload content path). Do not add a `MessageSent` handler unless you intentionally replace automatic AI Chat delivery and implement the full manual response path.
 - Use backend service boundaries for native OS commands.
 - Avoid broad framework or package churn unless the build/deploy pipeline is verified afterward.
 - Use Visual Studio MSBuild for full solution/package validation.

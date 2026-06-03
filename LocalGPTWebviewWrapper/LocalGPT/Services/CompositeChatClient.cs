@@ -411,7 +411,7 @@ public class CompositeChatClient : IChatClient
                 files,
                 cancellationToken);
             _logger.LogInformation(
-                "Created DXAiChat plus-upload workspace {WorkspaceName} with {FileCount} files.",
+                "Created DXAiChat native attachment workspace {WorkspaceName} with {FileCount} files.",
                 result.WorkspaceName,
                 result.FileCount);
 
@@ -423,7 +423,7 @@ public class CompositeChatClient : IChatClient
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not create DXAiChat plus-upload workspace.");
+            _logger.LogWarning(ex, "Could not create DXAiChat native attachment workspace.");
             return "LocalGPT upload workspace creation failed. Tell the user the uploaded files could not be saved, then continue only with the visible prompt.";
         }
     }
@@ -451,7 +451,7 @@ public class CompositeChatClient : IChatClient
     private static string BuildUploadWorkspaceSystemPrompt(ChatUploadWorkspaceResult result)
     {
         var builder = new StringBuilder()
-            .AppendLine("LocalGPT DXAiChat plus-upload workspace is available for this prompt.")
+            .AppendLine("LocalGPT DXAiChat native paperclip attachment workspace is available for this prompt.")
             .AppendLine($"Workspace name: {result.WorkspaceName}")
             .AppendLine($"Workspace root: {result.RootPath}")
             .AppendLine($"Context file: {result.ContextPath}")

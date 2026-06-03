@@ -33,6 +33,12 @@ The main product direction is a local AI engineering workbench with Ollama:
 
 The old remote still accepted pushes but GitHub reported the repository moved to `https://github.com/Michi0403/LocalGPT.git`.
 
+## DevExpress Feature Integrity Lesson
+
+If Michi0403 asks for a built-in DevExpress capability, agents and the AI Council must implement that documented DevExpress capability or say clearly that it is blocked/unclear and ask. Adding a separate custom control while implying it is the requested DevExpress feature is unacceptable.
+
+For `DxAIChat` uploads, the accepted primary route is the native paperclip attachment surface: `FileUploadEnabled`, `DxAIChatFileUploadSettings`, `AIChatUploadFileInfo`, and the normal chat-client upload content path into LocalGPT's safe upload workspaces. A custom upload panel may exist only as an explicitly labeled fallback and must not be represented as the embedded `DxAIChat` upload feature. Do not add a `MessageSent` handler unless intentionally replacing automatic AI Chat delivery with a full manual response path.
+
 ## Verified Builds And Smoke Tests
 
 Verified before this memory note:
@@ -185,7 +191,7 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
   reject wrapper folders, `.mcfunction.txt`, invalid JSON tags, broken function references, leading slash commands,
   root `data remove storage` reset syntax, and malformed `execute store result storage namespace:id.path int 1` syntax.
 - Living Cities is a useful named datapack benchmark, not a hidden default for all datapack requests. Use `/__diag/minecraft/datapack-benchmark` for that comparison path; use DXAiChat/council artifact requests for prompt-driven datapacks.
-- DXAiChat plus-button uploads and the visible upload-context panel both use prompt workspaces under `%LOCALAPPDATA%\LocalGPT\ChatUploadWorkspaces`.
+- DXAiChat native paperclip attachments use prompt workspaces under `%LOCALAPPDATA%\LocalGPT\ChatUploadWorkspaces`.
   Each workspace stores original files, safely extracted zip entries, `manifest.json`, and bounded `context.md`.
   Use `chat.upload_workspaces`, `chat.upload_workspace_files`, `chat.upload_workspace_context`, and `chat.upload_workspace_file`
   before asking the user to paste source archives. PDB/DLL/EXE/WASM files are summarized with printable strings only and must never be executed.

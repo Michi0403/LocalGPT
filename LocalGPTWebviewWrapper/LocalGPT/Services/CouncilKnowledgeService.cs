@@ -503,6 +503,28 @@ namespace LocalGPT.Services
                 },
                 new CouncilKnowledgeEntry
                 {
+                    Id = Guid.Parse("b6e3d0f7-c770-4eb8-a6f4-785b80222111"),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "DXAiChat native attachment and DevExpress feature integrity",
+                    Scope = "DXAiChat / DevExpress Blazor",
+                    Source = seedSource,
+                    Content = "If the user asks for a built-in DevExpress capability, implement the documented DevExpress component API or say that it is blocked/unclear and ask. " +
+                        "Do not add a separate custom control and describe it as the requested built-in feature. " +
+                        "For DxAIChat file uploads, use the native paperclip attachment surface: FileUploadEnabled, DxAIChatFileUploadSettings, AIChatUploadFileInfo, and the normal chat-client upload content path. " +
+                        "Do not add a MessageSent handler unless intentionally replacing automatic AI Chat delivery with a complete manual response path; DevExpress documents that a custom MessageSent handler overrides automatic delivery. " +
+                        "LocalGPT should process attached files in backend upload workspaces: decode text and zip contents within budgets, summarize binaries/PDBs with printable strings, never execute uploaded or extracted files, and expose read-only chat.upload_* DXAiFunctions to the council. " +
+                        "A custom upload panel may exist only as an explicitly labeled fallback and must not be represented as the embedded DxAIChat upload feature.",
+                    HelpfulSources = "- DevExpress DxAIChat docs: https://docs.devexpress.com/Blazor/DevExpress.AIIntegration.Blazor.Chat.DxAIChat.\n" +
+                        "- Local page: LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor.\n" +
+                        "- Local backend: CompositeChatClient and ChatUploadWorkspaceService.",
+                    Tags = "seed; dxaichat; devexpress; attachments; upload; integrity; paperclip; source-backed",
+                    Confidence = 98,
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
                     Id = Guid.Parse("243e82e1-9f6d-4b8c-abd8-75e7cda0c776"),
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,

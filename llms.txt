@@ -48,6 +48,8 @@ Important assumptions:
 - faulty council members may be excluded by the user, but models should request that through a poll instead of silently excluding peers
 - implementation-request council chats can ask LocalGPT to generate a downloadable CodeDOM C# starter artifact for .NET/Blazor/ASP.NET Core ideas
 - use /__diag/devexpress before proposing DevExpress APIs; Office/report/PDF/file generation belongs in ASP.NET Core backend services with safe download endpoints
+- when a user requests a built-in DevExpress feature, implement the documented component feature or say that it is blocked/unclear and ask; do not add a parallel custom UI and describe it as the requested built-in DevExpress feature
+- for DXAiChat uploads, use the native paperclip attachment flow with FileUploadEnabled, DxAIChatFileUploadSettings, AIChatUploadFileInfo, and the chat-client upload content path; do not add MessageSent unless replacing automatic AI Chat delivery with a complete manual response path
 - use /__diag/build-debug-files for .pdb/.pdg/.appxsym symbol inventory, but do not confuse symbol/reference presence with source-level feature usage
 - requested features should be prototyped in harmless sandbox artifacts or temporary workspaces before integration into the real project
 - never self-expand LocalGPT or integrate generated features without explicit user permission; never overrule a user decision that denies or limits expansion

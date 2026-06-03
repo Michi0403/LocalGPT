@@ -42,6 +42,18 @@ Prefer components already present in this codebase unless `/__diag/devexpress` p
 
 For editable data surfaces, prefer `DxGrid` with clear columns and backend services. For forms, prefer `DxFormLayout`. For long generated text, logs, or prompts, prefer `DxMemo`.
 
+## DevExpress Feature Integrity
+
+If the user asks for a DevExpress built-in capability, use the documented DevExpress component API or say that it is blocked/unclear and ask. Do not build a separate custom UI and describe it as the requested built-in component feature.
+
+For `DxAIChat` file attachments, the primary implementation is the native paperclip attachment surface:
+
+- set `FileUploadEnabled="true"`.
+- declare `DxAIChatFileUploadSettings` in `AIChatSettings` for file count, size, extensions, and MIME filters.
+- let attached files flow through `AIChatUploadFileInfo`/chat-client upload content and process them in backend services.
+- store uploaded text, zip contents, and bounded binary/PDB strings in safe upload workspaces; never execute uploaded or extracted files.
+- do not add a `MessageSent` handler unless you intentionally replace automatic AI Chat delivery and implement the full manual response path. DevExpress documents that a custom handler overrides automatic delivery.
+
 ## TacosPortalOpen Pattern Notes
 
 The user-provided TacosPortalOpen sample is useful architecture guidance for Michi0403-style Blazor work.

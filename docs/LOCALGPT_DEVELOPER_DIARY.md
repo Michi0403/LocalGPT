@@ -51,9 +51,10 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 - The model selected in the frontend must be locked at the composite chat-client boundary for the request, so UI selection and actual provider/model cannot drift.
 - If architecture choices are missing, generate a concise poll and stop. Do not claim the user failed to answer a poll in the same response that created it.
 - If the user asks for code, datapacks, modpacks, `.cs`, `.razor`, `.dll`, or whole solution zips, produce a safe downloadable artifact instead of saying the task is too large.
-- The normal DXAiChat plus-button upload path creates a per-prompt workspace under local app data.
+- The normal DXAiChat native paperclip attachment path creates a per-prompt workspace under local app data.
   Use read-only `chat.upload_*` DXAiFunctions to inspect uploaded zips, text files, solutions, PDBs, and binary string summaries.
   Generated or edited source belongs in council artifact workspaces, then a refreshed downloadable zip.
+- If a user asks for a built-in DevExpress component feature, implementing a separate custom control and describing it as the built-in feature is unacceptable. Use the documented DevExpress API, or say what is blocked/unclear and ask.
 
 ## EF, SQLite, And Knowledge Lessons
 

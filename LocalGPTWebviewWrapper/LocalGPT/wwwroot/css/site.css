@@ -155,55 +155,6 @@ html, body {
     }
 }
 
-.chat-file-context {
-    margin: 0.75rem 1rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid #dfe3ea;
-    border-radius: 6px;
-    background: #fff;
-}
-
-.chat-file-context summary {
-    display: flex;
-    gap: 0.75rem;
-    align-items: baseline;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.chat-file-context summary small {
-    color: #62666d;
-    font-weight: 400;
-}
-
-.chat-file-context-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    align-items: center;
-    margin-top: 0.8rem;
-}
-
-.upload-context-list {
-    display: grid;
-    gap: 0.45rem;
-    margin-top: 0.75rem;
-}
-
-.upload-context-list details {
-    border: 1px solid #edf0f4;
-    border-radius: 4px;
-    padding: 0.45rem 0.6rem;
-    background: #f8fafc;
-}
-
-.upload-context-list pre {
-    max-height: 14rem;
-    margin: 0.5rem 0 0;
-    overflow: auto;
-    white-space: pre-wrap;
-}
-
 .inline-dx-check {
     display: inline-flex;
     align-items: center;

@@ -88,6 +88,8 @@ Important rules:
 - do not replace DevExpress with another UI stack unless explicitly requested
 - preserve DevExpress package references and static asset loading
 - check generated static web asset manifests when DevExpress JavaScript or CSS files 404
+- when the user asks for a built-in DevExpress capability, use the documented DevExpress API surface or say clearly that it is blocked/unclear and ask; never add a parallel custom control and describe it as the requested built-in feature
+- for `DxAIChat` attachments, use the native paperclip attachment surface: `FileUploadEnabled`, `DxAIChatFileUploadSettings`, `AIChatUploadFileInfo`, and the normal chat-client upload content path. A custom upload panel may exist only as an explicitly labeled fallback, not as the primary feature. Do not add a `MessageSent` handler unless you intentionally replace automatic AI Chat delivery and implement the full manual response path.
 - DevExpress 25 module assets are under `/_content/DevExpress.Blazor/modules/`
 - use `/__diag/devexpress` or the AI bootstrap inventory before proposing DevExpress APIs; respect the referenced package/version family and mark unknown APIs as `Needs verification`
 - implement DevExpress Office document generation, report generation, PDF export, and downloadable generated files in the ASP.NET Core/Blazor server backend, then expose safe download links to the frontend
@@ -180,7 +182,7 @@ Agent guidance:
 - prototype requested features in harmless sandbox artifacts or temporary workspaces before embedding them into the real LocalGPT project structure, then add a smoke/diagnostic path for verification
 - LocalGPT and the AI Council must never self-expand or integrate generated features into the real project without explicit user permission, and must never overrule a user decision that denies or limits expansion
 - missing-feature reports must document helpful sources requested by AI participants, such as official docs, examples, versioned package references, specs, or sample repositories
-- use DXAiChat plus-button uploads as prompt evidence workspaces. Uploaded files are saved under `%LOCALAPPDATA%\LocalGPT\ChatUploadWorkspaces`, zips are extracted safely, and PDB/DLL/EXE/WASM files are summarized with printable strings only. Inspect them through `chat.upload_*` DXAiFunctions; do not execute uploaded or extracted files.
+- use DXAiChat native paperclip attachments as prompt evidence workspaces. Uploaded files are saved under `%LOCALAPPDATA%\LocalGPT\ChatUploadWorkspaces`, zips are extracted safely, and PDB/DLL/EXE/WASM files are summarized with printable strings only. Inspect them through `chat.upload_*` DXAiFunctions; do not execute uploaded or extracted files.
 - use council artifact workspaces for generated source, user edits, HtmlEditor-style file review, compile checks, and refreshed downloadable zips. The AI Council can ask Codex/coding agents to maintain these LocalGPT mechanisms, tests, commits, packages, and releases while Michi0403 remains the human decision owner.
 
 Detailed mod-builder instructions for AI agents are in `docs/MINECRAFT_MOD_AI_BUILDER.md`. Current workflow memory and known-good commands are in `docs/LOCALGPT_WORKFLOW_MEMORY.md`.
