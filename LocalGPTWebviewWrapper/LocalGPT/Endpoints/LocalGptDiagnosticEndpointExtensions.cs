@@ -4,6 +4,7 @@ using LocalGPT.Interfaces;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.AI;
+using System.IO.Compression;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -298,6 +299,146 @@ namespace LocalGPT.Endpoints
                     Count = result.Files.Count,
                     Files = result.Files,
                     Briefing = await inventory.BuildBriefingAsync(ct)
+                });
+            });
+
+            app.MapGet("/__diag/artifact-workspaces", (
+                ICouncilArtifactService artifacts,
+                HttpContext httpContext,
+                int? take) =>
+            {
+                var workspaces = EnumerateArtifactWorkspaces(artifacts.ArtifactRoot, take ?? 20);
+                var baseUrl = GetRequestBaseUrl(httpContext);
+                return Results.Ok(new
+                {
+                    BaseUrl = baseUrl,
+                    artifacts.ArtifactRoot,
+                    Count = workspaces.Count,
+                    LatestWorkspace = workspaces.FirstOrDefault(),
+                    Workspaces = workspaces,
+                    Routes = new
+                    {
+                        List = "/__diag/artifact-workspaces",
+                        Files = "/__diag/artifact-workspace/{workspaceName}/files",
+                        Read = "/__diag/artifact-workspace/{workspaceName}/file?path=relative/path",
+                        Save = "POST /__diag/artifact-workspace/{workspaceName}/file",
+                        Zip = "/__diag/artifact-workspace/{workspaceName}/zip"
+                    },
+                    AiBriefing =
+                        "Generated solution workspaces stay under ArtifactRoot until the user explicitly downloads or refreshes a zip. " +
+                        "Use BaseUrl + DownloadUrl for absolute links, and use workspaceName plus relative source paths for edits.",
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
+            app.MapGet("/__diag/artifact-workspace/{workspaceName}/files", (
+                string workspaceName,
+                ICouncilArtifactService artifacts,
+                int? take) =>
+            {
+                var workspace = ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName);
+                if (workspace is null)
+                    return Results.NotFound(new { Error = "Artifact workspace not found." });
+
+                return Results.Ok(new
+                {
+                    WorkspaceName = workspaceName,
+                    RootPath = workspace,
+                    Files = EnumerateWorkspaceTextFiles(workspace, take ?? 250),
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
+            app.MapGet("/__diag/artifact-workspace/{workspaceName}/file", async (
+                string workspaceName,
+                string path,
+                ICouncilArtifactService artifacts,
+                CancellationToken ct) =>
+            {
+                var workspace = ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName);
+                if (workspace is null)
+                    return Results.NotFound(new { Error = "Artifact workspace not found." });
+
+                var file = ResolveWorkspaceTextFile(workspace, path, allowMissing: false);
+                if (file is null)
+                    return Results.BadRequest(new { Error = "Invalid, unsupported, or missing source file path." });
+
+                var info = new FileInfo(file);
+                if (info.Length > MaxArtifactTextFileBytes)
+                    return Results.BadRequest(new { Error = "File is too large for inline source editing.", info.Length });
+
+                return Results.Ok(new
+                {
+                    WorkspaceName = workspaceName,
+                    RootPath = workspace,
+                    RelativePath = ToForwardSlash(Path.GetRelativePath(workspace, file)),
+                    FullPath = file,
+                    Length = info.Length,
+                    LastWriteTimeUtc = info.LastWriteTimeUtc,
+                    Content = await File.ReadAllTextAsync(file, ct),
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
+            app.MapPost("/__diag/artifact-workspace/{workspaceName}/file", async (
+                string workspaceName,
+                [FromBody] ArtifactWorkspaceFileSaveRequest request,
+                ICouncilArtifactService artifacts,
+                CancellationToken ct) =>
+            {
+                var workspace = ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName);
+                if (workspace is null)
+                    return Results.NotFound(new { Error = "Artifact workspace not found." });
+
+                var content = request.Content ?? string.Empty;
+                if (Encoding.UTF8.GetByteCount(content) > MaxArtifactTextFileBytes)
+                    return Results.BadRequest(new { Error = "File content is too large for inline source editing." });
+
+                var file = ResolveWorkspaceTextFile(workspace, request.RelativePath, allowMissing: true);
+                if (file is null)
+                    return Results.BadRequest(new { Error = "Invalid or unsupported source file path." });
+
+                Directory.CreateDirectory(Path.GetDirectoryName(file) ?? workspace);
+                await File.WriteAllTextAsync(file, content, ct);
+                var info = new FileInfo(file);
+                return Results.Ok(new
+                {
+                    WorkspaceName = workspaceName,
+                    RootPath = workspace,
+                    RelativePath = ToForwardSlash(Path.GetRelativePath(workspace, file)),
+                    FullPath = file,
+                    Length = info.Length,
+                    LastWriteTimeUtc = info.LastWriteTimeUtc,
+                    Message = "Source file saved. Run the generated project build or refresh the workspace zip before handing it to a user.",
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            });
+
+            app.MapGet("/__diag/artifact-workspace/{workspaceName}/zip", (
+                string workspaceName,
+                ICouncilArtifactService artifacts,
+                HttpContext httpContext) =>
+            {
+                var workspace = ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName);
+                if (workspace is null)
+                    return Results.NotFound(new { Error = "Artifact workspace not found." });
+
+                var zipName = $"{workspaceName}-workspace.zip";
+                var zipPath = Path.Combine(artifacts.ArtifactRoot, zipName);
+                if (File.Exists(zipPath))
+                    File.Delete(zipPath);
+
+                ZipFile.CreateFromDirectory(workspace, zipPath, CompressionLevel.SmallestSize, includeBaseDirectory: true);
+                var downloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(zipName)}";
+                return Results.Ok(new
+                {
+                    WorkspaceName = workspaceName,
+                    RootPath = workspace,
+                    ZipPath = zipPath,
+                    DownloadUrl = downloadUrl,
+                    AbsoluteDownloadUrl = new Uri(new Uri(GetRequestBaseUrl(httpContext)), downloadUrl).ToString(),
+                    Message = "Workspace zip refreshed from the current source directory.",
+                    CreatedAt = DateTimeOffset.UtcNow
                 });
             });
 
@@ -804,6 +945,177 @@ namespace LocalGPT.Endpoints
 
             return app;
         }
+
+        private const long MaxArtifactTextFileBytes = 2 * 1024 * 1024;
+
+        private static readonly HashSet<string> ArtifactTextExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".cs",
+            ".razor",
+            ".cshtml",
+            ".csproj",
+            ".sln",
+            ".props",
+            ".targets",
+            ".md",
+            ".txt",
+            ".json",
+            ".xml",
+            ".css",
+            ".scss",
+            ".js",
+            ".ts",
+            ".yml",
+            ".yaml",
+            ".ps1",
+            ".sql",
+            ".html",
+            ".htm",
+            ".mcfunction",
+            ".mcmeta",
+            ".toml",
+            ".properties",
+            ".java"
+        };
+
+        private static string GetRequestBaseUrl(HttpContext httpContext)
+        {
+            var request = httpContext.Request;
+            return $"{request.Scheme}://{request.Host}";
+        }
+
+        private static IReadOnlyList<ArtifactWorkspaceSummary> EnumerateArtifactWorkspaces(string artifactRoot, int take)
+        {
+            if (!Directory.Exists(artifactRoot))
+                return [];
+
+            return Directory
+                .EnumerateDirectories(artifactRoot)
+                .Select(path => BuildArtifactWorkspaceSummary(artifactRoot, path))
+                .Where(summary => summary is not null)
+                .Cast<ArtifactWorkspaceSummary>()
+                .OrderByDescending(summary => summary.LastWriteTimeUtc)
+                .Take(Math.Clamp(take, 1, 100))
+                .ToList();
+        }
+
+        private static ArtifactWorkspaceSummary? BuildArtifactWorkspaceSummary(string artifactRoot, string workspacePath)
+        {
+            try
+            {
+                var directory = new DirectoryInfo(workspacePath);
+                var files = EnumerateWorkspaceTextFiles(workspacePath, 500);
+                var zipNames = Directory
+                    .EnumerateFiles(artifactRoot, "*.zip", SearchOption.TopDirectoryOnly)
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Where(name => name!.StartsWith(directory.Name, StringComparison.OrdinalIgnoreCase))
+                    .Select(name => name!)
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                return new ArtifactWorkspaceSummary(
+                    directory.Name,
+                    directory.FullName,
+                    directory.LastWriteTimeUtc,
+                    files.Count,
+                    files.Count(file => file.RelativePath.EndsWith(".razor", StringComparison.OrdinalIgnoreCase)),
+                    files.Count(file => file.RelativePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)),
+                    zipNames);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static List<ArtifactWorkspaceFileSummary> EnumerateWorkspaceTextFiles(string workspaceRoot, int take)
+        {
+            if (!Directory.Exists(workspaceRoot))
+                return [];
+
+            return Directory
+                .EnumerateFiles(workspaceRoot, "*", SearchOption.AllDirectories)
+                .Where(IsSupportedArtifactTextFile)
+                .Select(path =>
+                {
+                    var info = new FileInfo(path);
+                    return new ArtifactWorkspaceFileSummary(
+                        ToForwardSlash(Path.GetRelativePath(workspaceRoot, path)),
+                        info.Length,
+                        info.LastWriteTimeUtc);
+                })
+                .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .Take(Math.Clamp(take, 1, 1000))
+                .ToList();
+        }
+
+        private static string? ResolveArtifactWorkspace(string artifactRoot, string workspaceName)
+        {
+            var safeName = Path.GetFileName(workspaceName);
+            if (!string.Equals(workspaceName, safeName, StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(safeName))
+            {
+                return null;
+            }
+
+            var root = Path.GetFullPath(artifactRoot);
+            var path = Path.GetFullPath(Path.Combine(root, safeName));
+            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
+                !Directory.Exists(path))
+            {
+                return null;
+            }
+
+            return path;
+        }
+
+        private static string? ResolveWorkspaceTextFile(string workspaceRoot, string relativePath, bool allowMissing)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+                return null;
+
+            var normalizedRelativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
+            if (Path.IsPathRooted(normalizedRelativePath))
+                return null;
+
+            var root = Path.GetFullPath(workspaceRoot);
+            var path = Path.GetFullPath(Path.Combine(root, normalizedRelativePath));
+            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
+                !IsSupportedArtifactTextFile(path))
+            {
+                return null;
+            }
+
+            return allowMissing || File.Exists(path) ? path : null;
+        }
+
+        private static bool IsSupportedArtifactTextFile(string path)
+        {
+            var extension = Path.GetExtension(path);
+            return ArtifactTextExtensions.Contains(extension);
+        }
+
+        private static string ToForwardSlash(string path) =>
+            path.Replace('\\', '/');
+
+        private sealed record ArtifactWorkspaceSummary(
+            string WorkspaceName,
+            string RootPath,
+            DateTime LastWriteTimeUtc,
+            int SourceFileCount,
+            int RazorFileCount,
+            int CSharpFileCount,
+            IReadOnlyList<string> ZipNames);
+
+        private sealed record ArtifactWorkspaceFileSummary(
+            string RelativePath,
+            long Length,
+            DateTime LastWriteTimeUtc);
+
+        private sealed record ArtifactWorkspaceFileSaveRequest(
+            string RelativePath,
+            string? Content);
 
         private static async Task<IResult> ReadGuidanceDocsAsync(
             IWebHostEnvironment env,

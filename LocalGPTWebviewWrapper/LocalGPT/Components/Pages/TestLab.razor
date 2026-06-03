@@ -1,4 +1,7 @@
 @page "/test-lab"
+@using System.Net.Http.Json
+@using System.Text
+@using System.Text.Json
 @using System.Text.RegularExpressions
 @inject NavigationManager NavigationManager
 @inject ILogger<TestLab> Logger
@@ -86,6 +89,53 @@
     </section>
 
     <section class="help-panel help-wide">
+        <h2>Generated Workspace</h2>
+        <p>Inspect and edit generated source before refreshing the zip. Starting programs or scripts stays a user-approved action.</p>
+        <div class="test-lab-custom">
+            <DxButton Text="Refresh Workspaces"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Enabled="@(!isBusy)"
+                      Click="LoadArtifactWorkspacesAsync" />
+            @if (artifactWorkspaces.Count > 0)
+            {
+                <DxComboBox Data="@artifactWorkspaces"
+                            Value="@selectedArtifactWorkspace"
+                            TextFieldName="@nameof(ArtifactWorkspaceSummary.WorkspaceName)"
+                            ValueChanged="@((ArtifactWorkspaceSummary workspace) => SelectArtifactWorkspaceAsync(workspace))" />
+            }
+            <DxButton Text="Refresh ZIP"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Enabled="@(!isBusy && selectedArtifactWorkspace is not null)"
+                      Click="RefreshWorkspaceZipAsync" />
+        </div>
+        @if (selectedArtifactWorkspace is not null)
+        {
+            <dl class="workspace-facts">
+                <dt>Host</dt>
+                <dd>@artifactBaseUrl</dd>
+                <dt>Workspace</dt>
+                <dd>@selectedArtifactWorkspace.RootPath</dd>
+                <dt>Editable files</dt>
+                <dd>@artifactWorkspaceFiles.Count source/doc file(s)</dd>
+            </dl>
+        }
+        @if (artifactWorkspaceFiles.Count > 0)
+        {
+            <div class="workspace-file-list">
+                @foreach (var file in artifactWorkspaceFiles.Take(80))
+                {
+                    <button type="button" @onclick="@(() => OpenWorkspaceFileAsync(file))">
+                        <span>@file.RelativePath</span>
+                        <small>@file.Length bytes</small>
+                    </button>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="help-panel help-wide">
         <h2>Result</h2>
         @if (!string.IsNullOrWhiteSpace(statusText))
         {
@@ -103,6 +153,46 @@
         }
         <textarea class="test-lab-output" readonly>@resultText</textarea>
     </section>
+
+    <DxPopup @bind-Visible="@sourcePopupVisible"
+             HeaderText="@SourcePopupTitle"
+             Width="min(1180px, 96vw)"
+             MaxHeight="92vh"
+             CloseOnOutsideClick="false">
+        <BodyContentTemplate>
+            <div class="source-popup">
+                <div class="source-popup-toolbar">
+                    <DxButton Text="Save Source"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(openSourceRelativePath))"
+                              Click="SaveWorkspaceFileAsync" />
+                    <DxButton Text="Refresh ZIP"
+                              RenderStyle="ButtonRenderStyle.Secondary"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!isBusy && selectedArtifactWorkspace is not null)"
+                              Click="RefreshWorkspaceZipAsync" />
+                    <span>@openSourceRelativePath</span>
+                </div>
+                <p class="execution-boundary">
+                    LocalGPT may save, compile, validate, and zip sandbox files here. Launching generated programs,
+                    scripts, installers, or solutions needs a separate user-approved action with an impact summary.
+                </p>
+                <div class="source-editor-grid">
+                    <label>
+                        Raw source
+                        <textarea class="source-editor" @bind="openSourceContent"></textarea>
+                    </label>
+                    <div>
+                        <span class="source-preview-title">DevExpress HTML preview</span>
+                        <DxHtmlEditor Markup="@openSourcePreviewMarkup"
+                                      Height="520px"
+                                      ReadOnly="true" />
+                    </div>
+                </div>
+            </div>
+        </BodyContentTemplate>
+    </DxPopup>
 </main>
 
 @code {
@@ -130,6 +220,17 @@
     private LearnBasePreset selectedLearnBasePreset = LearnBasePresets[0];
     private LearnBaseScanProfile selectedScanProfile = LearnBaseScanProfiles[1];
     private List<TestLabDownloadLink> downloadLinks = [];
+    private List<ArtifactWorkspaceSummary> artifactWorkspaces = [];
+    private List<ArtifactWorkspaceFileSummary> artifactWorkspaceFiles = [];
+    private ArtifactWorkspaceSummary? selectedArtifactWorkspace;
+    private string artifactBaseUrl = string.Empty;
+    private bool sourcePopupVisible;
+    private string openSourceRelativePath = string.Empty;
+    private string openSourceContent = string.Empty;
+    private string openSourcePreviewMarkup = string.Empty;
+    private string SourcePopupTitle => string.IsNullOrWhiteSpace(openSourceRelativePath)
+        ? "Generated Source"
+        : $"Generated Source - {openSourceRelativePath}";
     private static readonly Regex DownloadUrlPattern =
         new("\"downloadUrl\"\\s*:\\s*\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private const string LearnBaseFilePolicySummary =
@@ -236,6 +337,7 @@
             statusText = $"GET {route} -> {(int)response.StatusCode} {response.ReasonPhrase}";
             resultText = PrettyPrintJson(text);
             downloadLinks = ExtractDownloadLinks(text);
+            await TryRefreshArtifactWorkspacesAfterRouteAsync(text);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
@@ -246,6 +348,118 @@
         finally
         {
             isBusy = false;
+        }
+    }
+
+    private async Task LoadArtifactWorkspacesAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            var response = await http.GetFromJsonAsync<ArtifactWorkspaceListResponse>(
+                NavigationManager.ToAbsoluteUri("/__diag/artifact-workspaces?take=30"));
+
+            artifactBaseUrl = response?.BaseUrl ?? NavigationManager.BaseUri.TrimEnd('/');
+            artifactWorkspaces = response?.Workspaces ?? [];
+            selectedArtifactWorkspace = response?.LatestWorkspace ?? artifactWorkspaces.FirstOrDefault();
+            await LoadSelectedWorkspaceFilesAsync();
+            statusText = selectedArtifactWorkspace is null
+                ? "No generated artifact workspaces found yet."
+                : $"Loaded workspace {selectedArtifactWorkspace.WorkspaceName}.";
+        }, "LoadArtifactWorkspacesAsync");
+    }
+
+    private async Task SelectArtifactWorkspaceAsync(ArtifactWorkspaceSummary workspace)
+    {
+        selectedArtifactWorkspace = workspace;
+        await LoadSelectedWorkspaceFilesAsync();
+    }
+
+    private async Task LoadSelectedWorkspaceFilesAsync()
+    {
+        artifactWorkspaceFiles = [];
+        if (selectedArtifactWorkspace is null)
+            return;
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/files?take=500";
+        var response = await http.GetFromJsonAsync<ArtifactWorkspaceFilesResponse>(NavigationManager.ToAbsoluteUri(route));
+        artifactWorkspaceFiles = response?.Files ?? [];
+    }
+
+    private async Task OpenWorkspaceFileAsync(ArtifactWorkspaceFileSummary file)
+    {
+        await RunUiActionAsync(async () =>
+        {
+            if (selectedArtifactWorkspace is null)
+                return;
+
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file?path={Uri.EscapeDataString(file.RelativePath)}";
+            var response = await http.GetFromJsonAsync<ArtifactWorkspaceFileResponse>(NavigationManager.ToAbsoluteUri(route));
+            openSourceRelativePath = response?.RelativePath ?? file.RelativePath;
+            openSourceContent = response?.Content ?? string.Empty;
+            openSourcePreviewMarkup = BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent);
+            sourcePopupVisible = true;
+            statusText = $"Opened {openSourceRelativePath}.";
+        }, "OpenWorkspaceFileAsync");
+    }
+
+    private async Task SaveWorkspaceFileAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            if (selectedArtifactWorkspace is null || string.IsNullOrWhiteSpace(openSourceRelativePath))
+                return;
+
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file";
+            var response = await http.PostAsJsonAsync(
+                NavigationManager.ToAbsoluteUri(route),
+                new ArtifactWorkspaceFileSaveRequest(openSourceRelativePath, openSourceContent));
+            var text = await response.Content.ReadAsStringAsync();
+            statusText = response.IsSuccessStatusCode
+                ? $"Saved {openSourceRelativePath}. Refresh the zip when the source is ready."
+                : $"Save failed: {(int)response.StatusCode} {response.ReasonPhrase}";
+            resultText = PrettyPrintJson(text);
+            openSourcePreviewMarkup = BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent);
+            await LoadSelectedWorkspaceFilesAsync();
+        }, "SaveWorkspaceFileAsync");
+    }
+
+    private async Task RefreshWorkspaceZipAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            if (selectedArtifactWorkspace is null)
+                return;
+
+            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/zip";
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            var response = await http.GetAsync(NavigationManager.ToAbsoluteUri(route));
+            var text = await response.Content.ReadAsStringAsync();
+            statusText = response.IsSuccessStatusCode
+                ? $"Workspace zip refreshed for {selectedArtifactWorkspace.WorkspaceName}."
+                : $"Zip refresh failed: {(int)response.StatusCode} {response.ReasonPhrase}";
+            resultText = PrettyPrintJson(text);
+            downloadLinks = ExtractDownloadLinks(text);
+            await LoadArtifactWorkspacesAsync();
+        }, "RefreshWorkspaceZipAsync");
+    }
+
+    private async Task TryRefreshArtifactWorkspacesAfterRouteAsync(string responseText)
+    {
+        if (responseText.Contains("ArtifactRoot", StringComparison.OrdinalIgnoreCase) ||
+            responseText.Contains("\"artifacts\"", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                await LoadArtifactWorkspacesAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Could not refresh generated artifact workspaces after route run.");
+            }
         }
     }
 
@@ -310,8 +524,73 @@
             .ToList();
     }
 
+    private static string BuildSourcePreviewMarkup(string relativePath, string source)
+    {
+        var extension = Path.GetExtension(relativePath);
+        var encodedPath = System.Net.WebUtility.HtmlEncode(relativePath);
+        var encodedSource = System.Net.WebUtility.HtmlEncode(source);
+        return $"""
+            <h3>{encodedPath}</h3>
+            <p>Preview is read-only. Edit the raw source pane, then save and refresh the zip separately.</p>
+            <pre><code>{encodedSource}</code></pre>
+            <p><small>File type: {System.Net.WebUtility.HtmlEncode(extension)}</small></p>
+            """;
+    }
+
+    private async Task RunUiActionAsync(Func<Task> action, string operation)
+    {
+        try
+        {
+            isBusy = true;
+            await action();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Test Lab operation {Operation} failed.", operation);
+            statusText = $"{operation} failed: {ex.Message}";
+            resultText = ex.ToString();
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
     private sealed record TestLabRoute(string Label, string Path, ButtonRenderStyle Style);
     private sealed record TestLabDownloadLink(string Label, string AbsoluteUrl);
     private sealed record LearnBasePreset(string Label, string RootPath, string Description, int RecommendedMaxProjects);
     private sealed record LearnBaseScanProfile(string Label, int MaxProjects, string Description);
+    private sealed record ArtifactWorkspaceListResponse(
+        string BaseUrl,
+        string ArtifactRoot,
+        int Count,
+        ArtifactWorkspaceSummary? LatestWorkspace,
+        List<ArtifactWorkspaceSummary> Workspaces);
+    private sealed record ArtifactWorkspaceFilesResponse(
+        string WorkspaceName,
+        string RootPath,
+        List<ArtifactWorkspaceFileSummary> Files);
+    private sealed record ArtifactWorkspaceFileResponse(
+        string WorkspaceName,
+        string RootPath,
+        string RelativePath,
+        string FullPath,
+        long Length,
+        DateTime LastWriteTimeUtc,
+        string Content);
+    private sealed record ArtifactWorkspaceSummary(
+        string WorkspaceName,
+        string RootPath,
+        DateTime LastWriteTimeUtc,
+        int SourceFileCount,
+        int RazorFileCount,
+        int CSharpFileCount,
+        List<string> ZipNames);
+    private sealed record ArtifactWorkspaceFileSummary(
+        string RelativePath,
+        long Length,
+        DateTime LastWriteTimeUtc);
+    private sealed record ArtifactWorkspaceFileSaveRequest(
+        string RelativePath,
+        string Content);
 }

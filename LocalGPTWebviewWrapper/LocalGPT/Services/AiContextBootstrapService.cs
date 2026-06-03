@@ -1,5 +1,7 @@
 using System.Text;
+using System.Text.Json;
 using LocalGPT.Interfaces;
+using Microsoft.AspNetCore.Http;
 
 namespace LocalGPT.Services
 {
@@ -9,6 +11,8 @@ namespace LocalGPT.Services
         IApplicationLogReaderService applicationLogs,
         IProjectLibraryInventoryService libraryInventory,
         IBuildDebugInventoryService buildDebugInventory,
+        ICouncilArtifactService councilArtifacts,
+        IHttpContextAccessor httpContextAccessor,
         ILogger<AiContextBootstrapService> logger) : IAiContextBootstrapService
     {
         private static readonly string[] KnowledgeFiles =
@@ -47,6 +51,8 @@ namespace LocalGPT.Services
                 .AppendLine("Runtime decision policy: when code/artifact generation needs unresolved architecture choices, stop before coding and ask a concise user decision poll.")
                 .AppendLine("If the user already named a concrete target such as Minecraft datapack/modpack zip, .cs/.razor/.dll files, whole .NET solution zip, or local AI host control-plane app, treat that as supplied scope and generate a safe downloadable milestone rather than refusing because the task is large.")
                 .AppendLine("Never claim the user failed to answer a poll in the same response that created it. Do not force Blazor, DevExpress, ASP.NET Core, or a split solution unless the user chose it, the target repo requires it, or the requested product shape clearly calls for it.")
+                .AppendLine("Execution safety policy: AI models and the council may generate, inspect, edit, compile, validate, and zip sandbox artifacts, but must not launch generated programs, scripts, installers, or solutions by themselves. When something compiles or becomes executable, present a user action prompt instead: summarize what the command/program may read, write, start, download, delete, or change on the system, then let Michi0403 start/open it through an explicit button or manual command.")
+                .AppendLine("After each user-requested architecture or execution-plan change, include a short local-system impact summary before asking to run anything.")
                 .AppendLine("Frontend design protocol: use LocalGPT's compiled frontend design pattern library directly. Translate requests into archetype, information architecture, Windows/Fluent design principles, Bootstrap layout, DevExpress/custom Razor component roles, injected services, accessibility states, and buildable files. Use /__diag/frontend-design-guidance for compact guidance.")
                 .AppendLine("AI host generation protocol: a provider-compatible AI host is not just a dashboard. Generate HTTP routes, typed options, DI registrations, model catalog/download/session services, provider adapters, plugin/native-runner interfaces, Python.NET or PowerShell adapter boundaries when useful, EF/SQLite storage plans, and visible native-inference capability gaps until a real runner is attached. Use /__diag/ai-host-rebuild-guidance before generation.")
                 .AppendLine("Capability gap protocol: if you lack a LocalGPT function, version-specific source, local project evidence, or domain knowledge needed to fulfill the user request, still produce the safest useful downloadable milestone when scope is concrete, then add a Capability gap report and a <localgpt-capability-gap> block. Include requested languages, frameworks, versions, domain knowledge, local sources, external official sources, missing LocalGPT functions, and the next artifact plan.")
@@ -54,6 +60,14 @@ namespace LocalGPT.Services
                 .AppendLine("Available LocalGPT DXAiFunctions are local diagnostic/tool routes the frontend or user can call when a compact tool result is better than a huge prompt:")
                 .AppendLine(DxaichatFunctionCatalog.BuildPromptBriefing())
                 .AppendLine();
+
+            var runtimeIdentity = BuildRuntimeIdentityBriefing();
+            if (!string.IsNullOrWhiteSpace(runtimeIdentity))
+            {
+                builder.AppendLine("Current LocalGPT runtime and artifact workspace facts:")
+                    .AppendLine(runtimeIdentity)
+                    .AppendLine();
+            }
 
             var memoryBriefing = await chatMemory.BuildMemoryBriefingAsync(conversationTake: 3, thoughtTake: 2, cancellationToken: cancellationToken);
             if (!string.IsNullOrWhiteSpace(memoryBriefing))
@@ -104,6 +118,87 @@ namespace LocalGPT.Services
             }
 
             return builder.ToString().Trim();
+        }
+
+        private string BuildRuntimeIdentityBriefing()
+        {
+            var builder = new StringBuilder();
+            var request = httpContextAccessor.HttpContext?.Request;
+            var baseUrl = request is null
+                ? ReadRuntimeServerBaseUrl()
+                : $"{request.Scheme}://{request.Host}";
+
+            if (!string.IsNullOrWhiteSpace(baseUrl))
+            {
+                builder
+                    .Append("- LocalGPT base URL for absolute links: ")
+                    .AppendLine(baseUrl);
+            }
+
+            builder
+                .Append("- Council artifact root: ")
+                .AppendLine(councilArtifacts.ArtifactRoot)
+                .AppendLine("- Use /__diag/artifact-workspaces to discover generated solution workspaces.")
+                .AppendLine("- Use /__diag/artifact-workspace/{workspaceName}/files to list editable source files.")
+                .AppendLine("- Use /__diag/artifact-workspace/{workspaceName}/file?path=relative/path to read a source file.")
+                .AppendLine("- Use POST /__diag/artifact-workspace/{workspaceName}/file to save a source edit.")
+                .AppendLine("- Use /__diag/artifact-workspace/{workspaceName}/zip to refresh the downloadable zip after edits.")
+                .AppendLine("- Use /__artifacts/council/{fileName} for download links; combine it with the base URL when the user needs an absolute link.");
+
+            var latestWorkspace = FindLatestArtifactWorkspace();
+            if (latestWorkspace is not null)
+            {
+                builder
+                    .Append("- Latest generated workspace: ")
+                    .Append(latestWorkspace.Name)
+                    .Append(" at ")
+                    .AppendLine(latestWorkspace.FullName);
+            }
+
+            return builder.ToString().Trim();
+        }
+
+        private static string ReadRuntimeServerBaseUrl()
+        {
+            try
+            {
+                var path = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "runtime",
+                    "server.json");
+                if (!File.Exists(path))
+                    return string.Empty;
+
+                using var json = JsonDocument.Parse(File.ReadAllText(path));
+                return json.RootElement.TryGetProperty("BaseUrl", out var value)
+                    ? value.GetString() ?? string.Empty
+                    : string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private DirectoryInfo? FindLatestArtifactWorkspace()
+        {
+            try
+            {
+                var root = new DirectoryInfo(councilArtifacts.ArtifactRoot);
+                if (!root.Exists)
+                    return null;
+
+                return root
+                    .EnumerateDirectories()
+                    .OrderByDescending(directory => directory.LastWriteTimeUtc)
+                    .FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not inspect council artifact workspaces.");
+                return null;
+            }
         }
 
         private async Task<string> ReadProjectKnowledgeIndexAsync(CancellationToken cancellationToken)

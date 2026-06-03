@@ -829,6 +829,31 @@ INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
 ("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
 VALUES
 (
+  'c0c5e707-ff01-4d35-98c1-9c5e1cb9c7c4',
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+  'LocalGPT generated workspace workflow and execution safety',
+  'DXAiChat / AI Council / Test Lab / generated source editing',
+  'Generated code should be treated as a live sandbox workspace before it becomes a zip. ' ||
+  'The AI Council should discover the current host and workspace with /__diag/artifact-workspaces, list files with /__diag/artifact-workspace/{workspaceName}/files, ' ||
+  'read or save text source files through /__diag/artifact-workspace/{workspaceName}/file, and refresh the zip only through /__diag/artifact-workspace/{workspaceName}/zip. ' ||
+  'The council should cite real /__artifacts/council/ download links and the actual workspace path rather than inventing host names or paths. ' ||
+  'Models may generate, inspect, edit, compile, validate, and package sandbox artifacts, but they must not launch generated programs, scripts, installers, or solutions by themselves. ' ||
+  'When a build produces an executable, script, or solution to open, the model must summarize local system impact such as files read/written, commands run, network/model downloads, deletes, services started, and settings changed, then ask the user to approve or manually start it.',
+  'LocalGPT runtime policy seed',
+  'Routes: /__diag/artifact-workspaces, /__diag/artifact-workspace/{workspaceName}/files, /__diag/artifact-workspace/{workspaceName}/file, ' ||
+  '/__diag/artifact-workspace/{workspaceName}/zip, /__artifacts/council/{fileName}; UI: Test Lab generated workspace panel; service: AiContextBootstrapService runtime identity briefing.',
+  'seed; artifact-workflow; source-editing; execution-safety; test-lab; dxaichat-functions',
+  98,
+  1,
+  1,
+  0
+);
+
+INSERT OR IGNORE INTO "CouncilKnowledgeEntries"
+("Id", "CreatedAtUtc", "UpdatedAtUtc", "Topic", "Scope", "Content", "Source", "HelpfulSources", "Tags", "Confidence", "IsUserApproved", "IsPinned", "IsArchived")
+VALUES
+(
   '3f0f5538-5968-4ec0-953b-8b878869c3e2',
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
   strftime('%Y-%m-%dT%H:%M:%fZ','now'),
