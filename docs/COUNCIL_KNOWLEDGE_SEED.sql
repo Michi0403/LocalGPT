@@ -839,11 +839,13 @@ VALUES
   'read or save text source files through /__diag/artifact-workspace/{workspaceName}/file, and refresh the zip only through /__diag/artifact-workspace/{workspaceName}/zip. ' ||
   'The council should cite real /__artifacts/council/ download links and the actual workspace path rather than inventing host names or paths. ' ||
   'Models may generate, inspect, edit, compile, validate, and package sandbox artifacts, but they must not launch generated programs, scripts, installers, or solutions by themselves. ' ||
-  'When a build produces an executable, script, or solution to open, the model must summarize local system impact such as files read/written, commands run, network/model downloads, deletes, services started, and settings changed, then ask the user to approve or manually start it.',
+  'When a build produces an executable, script, or solution to open, the model must summarize local system impact such as files read/written, commands run, network/model downloads, deletes, services started, and settings changed, then ask the user to approve or manually start it. ' ||
+  'For LocalGPT package/backend smoke tests, discover the active loopback URL from %LOCALAPPDATA%/LocalGPT/runtime/server.json because the app chooses a free port at startup. ' ||
+  'Set LOCALGPT_STARTUP_TRACE=1 only while diagnosing startup; it prints phase markers around configuration, service registration, middleware, and runtime endpoint creation.',
   'LocalGPT runtime policy seed',
   'Routes: /__diag/artifact-workspaces, /__diag/artifact-workspace/{workspaceName}/files, /__diag/artifact-workspace/{workspaceName}/file, ' ||
-  '/__diag/artifact-workspace/{workspaceName}/zip, /__artifacts/council/{fileName}; UI: Test Lab generated workspace panel; service: AiContextBootstrapService runtime identity briefing.',
-  'seed; artifact-workflow; source-editing; execution-safety; test-lab; dxaichat-functions',
+  '/__diag/artifact-workspace/{workspaceName}/zip, /__artifacts/council/{fileName}; UI: Test Lab generated workspace panel; service: AiContextBootstrapService runtime identity briefing. Runtime file: %LOCALAPPDATA%/LocalGPT/runtime/server.json.',
+  'seed; artifact-workflow; source-editing; execution-safety; test-lab; dxaichat-functions; startup-trace; runtime-endpoint',
   98,
   1,
   1,

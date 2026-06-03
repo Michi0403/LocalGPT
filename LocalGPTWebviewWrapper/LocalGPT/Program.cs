@@ -53,21 +53,47 @@ namespace LocalGPT
             EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
 
             var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions(exeDir, args));
+            TraceStartup("Created builder.");
             ConfigureAppConfiguration(builder);
+            TraceStartup("Configured app configuration.");
             ConfigureLogging(builder);
+            TraceStartup("Configured logging.");
             ConfigureOptionsAndServices(builder);
+            TraceStartup("Configured options and services.");
             ConfigureSignalR(builder.Services);
+            TraceStartup("Configured SignalR.");
             ConfigureKestrel(builder);
+            TraceStartup("Configured Kestrel.");
             ConfigureResponseCompression(builder.Services);
+            TraceStartup("Configured response compression.");
             ConfigureBlazorAndMvc(builder);
+            TraceStartup("Configured Blazor and MVC.");
             ConfigureJsonOptions(builder.Services);
+            TraceStartup("Configured JSON options.");
             ConfigureForwardedHeaders(builder.Services);
+            TraceStartup("Configured forwarded headers.");
 
             var app = builder.Build();
+            TraceStartup("Built web application.");
             ConfigureMiddlewareAndEndpoints(app);
+            TraceStartup("Configured middleware and endpoints.");
             WriteRuntimeEndpointFile();
+            TraceStartup("Wrote runtime endpoint file.");
 
             return app;
+        }
+
+        private static void TraceStartup(string message)
+        {
+            if (!string.Equals(
+                Environment.GetEnvironmentVariable("LOCALGPT_STARTUP_TRACE"),
+                "1",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            Console.WriteLine($"[LocalGPT startup] {DateTimeOffset.Now:O} {message}");
         }
 
         private static WebApplicationOptions CreateWebApplicationOptions(string exeDir, string[]? args)

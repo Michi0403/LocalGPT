@@ -162,6 +162,8 @@ LocalGPT intentionally chooses a free loopback port at startup to avoid binding 
 
 For desktop shell validation, run the WinUI wrapper from Visual Studio or a registered package with `LOCALGPT_WEBVIEW2_SMOKE=1`, or create `%LOCALAPPDATA%\LocalGPT\runtime\webview2-smoke.flag` containing `exit` before launching the registered app. This is the preferred frontend fallback for LocalGPT usability tests because it exercises the real WebView2 wrapper. It writes route snapshots for Chat, AI Council, SQLite Database, and Minecraft Builder to `%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\`.
 
+At startup, LocalGPT writes the active loopback endpoint to `%LOCALAPPDATA%\LocalGPT\runtime\server.json`. Set `LOCALGPT_STARTUP_TRACE=1` for opt-in console startup phase traces when diagnosing packaged or published launches.
+
 If package registration/deploy reports `0x80070002` or `DEP1000` for a loose AppX layout, rebuild the package and re-run `Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`. The package project copies AppX image assets into the loose `AppX\Images` layout, and the repair script retries once after removing a stale LocalGPT development registration.
 
 ## Build

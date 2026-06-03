@@ -311,6 +311,14 @@ This drives the embedded WebView2 through `/`, `/Chat`, `/model-council`, `/data
 %LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\
 ```
 
+LocalGPT writes its active loopback endpoint to:
+
+```text
+%LOCALAPPDATA%\LocalGPT\runtime\server.json
+```
+
+Use that file when smoke-testing published backend builds because LocalGPT chooses a free port at startup. Set `LOCALGPT_STARTUP_TRACE=1` only while diagnosing startup; it prints phase markers around configuration, service registration, middleware, and endpoint-file creation.
+
 Use this when validating that the native shell can load the real Blazor app, not just the ASP.NET server endpoint.
 
 ## If you are changing code
