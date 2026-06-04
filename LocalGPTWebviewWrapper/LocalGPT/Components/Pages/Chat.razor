@@ -286,10 +286,10 @@
     const string OllamaModeSafeCpu = "safe-cpu";
     const string OllamaModeLimitedGpu = "limited-gpu";
     const int MinCouncilOutputTokens = 256;
-    const int DefaultCouncilOutputTokens = 65536;
+    const int DefaultCouncilOutputTokens = 262144;
     const int MaxCouncilOutputTokens = 262144;
     const int MinCouncilContextTokens = 2048;
-    const int DefaultCouncilContextTokens = 65536;
+    const int DefaultCouncilContextTokens = 262144;
     const int MaxCouncilContextTokens = 262144;
     string OllamaAccelerationMode { get; set; } = OllamaModeAutoGpu;
     int LimitedGpuLayers { get; set; } = 20;

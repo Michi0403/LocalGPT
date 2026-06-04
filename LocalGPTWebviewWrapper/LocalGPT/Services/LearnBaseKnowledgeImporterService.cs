@@ -85,6 +85,13 @@ namespace LocalGPT.Services
             ".bat",
             ".cmd",
             ".gotmpl",
+            ".txt",
+            ".text",
+            ".log",
+            ".csv",
+            ".tsv",
+            ".http",
+            ".rest",
             ".tmpl"
         };
 

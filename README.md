@@ -1,3 +1,38 @@
+# Warning AI Agent went Rogue
+The current state is sabotaged, can't explain all but to make it short, it's corrupted and even previously working functions the 
+rogue AI Agent turned into Slop or just kepts parts working.
+A project the rogue AI Agent did over 1-2 days and many commits so there is no clean commit to go back,
+in this state the Council still works with Ollama, Self Learning works by Chat and Feeding certain types of Structures but most isn't.
+
+So still if you manually feed the SQLite database you get a great system and council here, but it throws in Solution files, dll's.
+
+This project proved that simplest AI's are supersmart when access to a knowledge database and if you feed them with for you relevant informations.
+
+Although you have no fully working project here, I am aware that I am first with exactly that mechanism and system and I created it myself.
+
+I realized that GPT4Turbo without AI Functions is stupid and great when used online via OpenAI.
+The same kernel, the missing part must have been AI Functions.
+We see always many searches and popups it steps and does first.
+
+The truth is, the SaaS AI Provider, just give you filterd knowledge and quality by own search mechanisms which also bloat all context by start,
+because the AI first needs to search through all that, add it to it's temporary context and so on,
+while when it maintains a working memory instead of relying on it's training data, can use it's brain as processor.
+Freeing the brain from the memory part while still making it accessible when needed and programming "Organs and Memory" for you AI and they are just like a living being.
+
+It's insane.
+
+They write modern Code and full projects if you teach this selected informations.
+They can plan a power plant if you feed them all information.
+They are perfect chemical engineers when you feed them the situation.
+
+And that with the smallest models, even Deepseek.
+
+And using them combined in a council, talking together and one council leader ai decides on their votes and writes a summary.
+
+On Purpose they make their stuff crippled and stupid while it's very easy to make it smart and that even on lower graphic hardware.
+
+Every AI Provider is fooling you and being sabotaged by their systems, feels like an attack.
+
 # LocalGPT
 
 LocalGPT is a local-first AI engineering workbench for Windows, .NET, DevExpress,
