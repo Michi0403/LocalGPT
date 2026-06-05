@@ -69,20 +69,21 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <UseDebugLibraries>true</UseDebugLibraries>
     <TargetedSDKConfiguration>Retail</TargetedSDKConfiguration>
-    <AppxPackageAllowDebugFrameworkReferencesInManifest>false</AppxPackageAllowDebugFrameworkReferencesInManifest>
+    <AppxPackageAllowDebugFrameworkReferencesInManifest>true</AppxPackageAllowDebugFrameworkReferencesInManifest>
     <AppxBundle>Never</AppxBundle>
     <AppxPackageDir>$(Temp)\LocalGPTWebviewWrapper\AppPackages\</AppxPackageDir>
-    <AppxPackageSigningEnabled Condition="'$(AppxPackageSigningEnabled)' == ''">False</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled Condition="'$(AppxPackageSigningEnabled)' == ''">True</AppxPackageSigningEnabled>
     <EntryPointProjectUniqueName>..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj</EntryPointProjectUniqueName>
-    <IncludeLocalGptPublishedPayload Condition="'$(IncludeLocalGptPublishedPayload)' == ''">false</IncludeLocalGptPublishedPayload>
+    <IncludeLocalGptPublishedPayload Condition="'$(IncludeLocalGptPublishedPayload)' == ''">True</IncludeLocalGptPublishedPayload>
     <PackageCertificateThumbprint Condition="'$(PackageCertificateThumbprint)' == '' and '$(LocalGPTPackageCertificateThumbprint)' != ''">$(LocalGPTPackageCertificateThumbprint)</PackageCertificateThumbprint>
     <PackageCertificateKeyFile Condition="'$(PackageCertificateKeyFile)' == '' and '$(LocalGPTPackageCertificateKeyFile)' != ''">$(LocalGPTPackageCertificateKeyFile)</PackageCertificateKeyFile>
-    <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
+    <PackageCertificateThumbprint>0BBAE68BDD940E061988EBC99541E9D73A23C97D</PackageCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <AppxBundle>Always</AppxBundle>
@@ -277,7 +278,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj">
-      <SkipGetTargetFrameworkProperties>True</SkipGetTargetFrameworkProperties>
       <PublishProfile>Properties\PublishProfiles\win10-$(Platform).pubxml</PublishProfile>
     </ProjectReference>
   </ItemGroup>

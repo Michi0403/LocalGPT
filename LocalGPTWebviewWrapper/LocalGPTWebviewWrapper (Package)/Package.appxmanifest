@@ -9,7 +9,7 @@
   <Identity
     Name="a6e38587-f17a-4a2e-8022-248694f372b3"
     Publisher="CN=micha"
-    Version="1.3.20.35" />
+    Version="1.3.23.35" />
 
   <Properties>
     <DisplayName>LocalGPTWebviewWrapper (Package)</DisplayName>
