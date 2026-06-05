@@ -11,33 +11,24 @@
 	  <IsPackable>false</IsPackable>
 	  <CopySatelliteAssemblies>true</CopySatelliteAssemblies>
 	  <Nullable>enable</Nullable>
+	  <SelfContained>false</SelfContained>
+	  <PublishTrimmed>false</PublishTrimmed>
+	  <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'x64'">
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'x86'">
-    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
-    <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'arm64'">
     <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
     <RuntimeIdentifiers>win-arm64</RuntimeIdentifiers>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'AnyCPU' or '$(Platform)' == 'Any CPU' or '$(Platform)' == ''">
-    <RuntimeIdentifiers>win-x64;win-x86;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
   </PropertyGroup>
-	<Target Name="CopyStaticWebAssetsManifest" AfterTargets="Build">
-		<ItemGroup>
-			<_SWA Include="$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json" />
-		</ItemGroup>
-		<Copy SourceFiles="@(_SWA)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
-	</Target>
-
+	
 	<ItemGroup>
-		<Content Include="$(IntermediateOutputPath)**\*.styles.css">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
+		
 		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\CLAUDE.md" Link="CLAUDE.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\llms.txt" Link="llms.txt" CopyToOutputDirectory="PreserveNewest" />
@@ -47,11 +38,12 @@
 	<ItemGroup>
 	  <Compile Remove="obj\**" />
 	  <Content Remove="obj\**" />
-	  <EmbeddedResource Remove="obj\**" />
 	  <None Remove="obj\**" />
+		
+	
 	</ItemGroup>
 	<!-- Ensure the runtime manifest is copied next to LocalGPT.dll -->
-	<!--<Target Name="CopyStaticWebAssetsToOutDir" AfterTargets="Build">
+	<Target Name="CopyStaticWebAssetsToOutDir" AfterTargets="Build">
 		<PropertyGroup>
 			<StaticWebAssetsRuntimeJson>
 				$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json
@@ -62,22 +54,22 @@
 		  DestinationFolder="$(OutDir)"
 		  SkipUnchangedFiles="true"
 		  Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
-	</Target>-->
+	</Target>
 
 	<!-- Also copy wwwroot into the output next to LocalGPT.dll -->
 	<!--<ItemGroup>
 		<Content Include="wwwroot\**\*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
-	</ItemGroup>-->
-	<!-- Ensure all app static files are copied to the output next to LocalGPT.dll --><!--
+	</ItemGroup>
+	--><!-- Ensure all app static files are copied to the output next to LocalGPT.dll --><!--
 	--><!--<ItemGroup>
 		<Content Include="wwwroot\**\*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>-->
 
-	<!--<ItemGroup>
+	<ItemGroup>
 		<WwwrootFiles Include="wwwroot\**\*.*" />
 	</ItemGroup>
 	<Target Name="CopyWwwrootToOutput" AfterTargets="Build">
@@ -97,24 +89,24 @@
 		  DestinationFolder="$(OutDir)"
 		  SkipUnchangedFiles="true"
 		  Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
-	</Target>-->
+	</Target>
   <ItemGroup>
-    <PackageReference Include="DevExpress.Blazor" Version="25.1.*" />
-    <PackageReference Include="DevExpress.Blazor.RichEdit" Version="25.1.*" />
-    <PackageReference Include="DevExpress.Blazor.PivotTable" Version="25.1.*" />
-    <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.1.*" />
-    <PackageReference Include="Markdig" Version="0.43.0" />
+    <PackageReference Include="DevExpress.Blazor" Version="25.2.*" />
+    <PackageReference Include="DevExpress.Blazor.RichEdit" Version="25.2.*" />
+    <PackageReference Include="DevExpress.Blazor.PivotTable" Version="25.2.*" />
+    <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.2.*" />
+    <PackageReference Include="Markdig" Version="1.2.0" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.8" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.8" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.8" />
-	  <PackageReference Include="Microsoft.Extensions.AI" Version="9.10.2" />
+	  <PackageReference Include="Microsoft.Extensions.AI" Version="10.6.0" />
 	  <PackageReference Include="Microsoft.Extensions.AI.Ollama" Version="9.7.0-preview.1.25356.2" />
-	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="9.10.2-preview.1.25552.1" />
-	  <PackageReference Include="System.CodeDom" Version="4.4.0" />
+	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.6.0" />
+	  <PackageReference Include="System.CodeDom" Version="10.0.8" />
 	  <PackageReference Include="Azure.AI.OpenAI" Version="2.5.0-beta.1" />
-	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Chat" Version="25.1.*" />
-	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Common" Version="25.1.*" />
-	  <PackageReference Include="DevExpress.AIIntegration.OpenAI" Version="25.1.*" />
+	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Chat" Version="25.2.*" />
+	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Common" Version="25.2.*" />
+	  <PackageReference Include="DevExpress.AIIntegration.OpenAI" Version="25.2.*" />
   </ItemGroup>
   <ItemGroup>
 	  <Content Update="appsettings.Development.json">

@@ -1,19 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" DefaultTargets="Build" InitialTargets="EnsureWindowsAppSdkPackageRuntimeFolders" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '15.0'">
-    <IsPackable>true</IsPackable>
     <NoWarn>$(NoWarn);NU1701</NoWarn>
     <VisualStudioVersion>15.0</VisualStudioVersion>
+    <SelfContained>true</SelfContained>
+    <PublishSelfContained>true</PublishSelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|x86">
-      <Configuration>Debug</Configuration>
-      <Platform>x86</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x86">
-      <Configuration>Release</Configuration>
-      <Platform>x86</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -32,173 +27,37 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup>
-    <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(MSBuildExtensionsPath)\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(MSBuildExtensionsPath)\Microsoft\DesktopBridge\</WapProjPath>
-    <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(ProgramFiles)\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(ProgramFiles)\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\DesktopBridge\</WapProjPath>
-    <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(ProgramFiles)\Microsoft Visual Studio\18\Professional\MSBuild\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(ProgramFiles)\Microsoft Visual Studio\18\Professional\MSBuild\Microsoft\DesktopBridge\</WapProjPath>
-    <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(ProgramFiles)\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(ProgramFiles)\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\DesktopBridge\</WapProjPath>
-    <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(ProgramFiles)\Microsoft Visual Studio\17\Community\MSBuild\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(ProgramFiles)\Microsoft Visual Studio\17\Community\MSBuild\Microsoft\DesktopBridge\</WapProjPath>
-    <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(ProgramFiles)\Microsoft Visual Studio\17\Professional\MSBuild\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(ProgramFiles)\Microsoft Visual Studio\17\Professional\MSBuild\Microsoft\DesktopBridge\</WapProjPath>
-    <WapProjPath Condition="'$(WapProjPath)'=='' and Exists('$(ProgramFiles)\Microsoft Visual Studio\17\Enterprise\MSBuild\Microsoft\DesktopBridge\Microsoft.DesktopBridge.props')">$(ProgramFiles)\Microsoft Visual Studio\17\Enterprise\MSBuild\Microsoft\DesktopBridge\</WapProjPath>
+    <WapProjPath Condition="'$(WapProjPath)'==''">$(MSBuildExtensionsPath)\Microsoft\DesktopBridge\</WapProjPath>
     <PathToXAMLWinRTImplementations>LocalGPTWebviewWrapper\</PathToXAMLWinRTImplementations>
-    <NoWarn>$(NoWarn);NU1701</NoWarn>
-    <RestoreNoWarn>$(RestoreNoWarn);NU1701</RestoreNoWarn>
-    <WapAlwaysBuildDependentProjects>true</WapAlwaysBuildDependentProjects>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'x64'">
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'x86'">
-    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
-    <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
-    <AppxBundlePlatforms>x86</AppxBundlePlatforms>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'arm64'">
-    <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
-    <RuntimeIdentifiers>win-arm64</RuntimeIdentifiers>
-    <AppxBundlePlatforms>arm64</AppxBundlePlatforms>
   </PropertyGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.props" />
-  <Import Project="LocalGPTWebviewWrapper (Package).local.props" Condition="Exists('LocalGPTWebviewWrapper (Package).local.props')" />
   <PropertyGroup>
     <ProjectGuid>c55695ec-29c1-4544-857c-931372c2e7e6</ProjectGuid>
     <TargetPlatformVersion>10.0.22621.0</TargetPlatformVersion>
     <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
-    <AssetTargetFallback>net10.0-windows$(TargetPlatformVersion);$(AssetTargetFallback)</AssetTargetFallback>
     <DefaultLanguage>en-US</DefaultLanguage>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <TargetedSDKConfiguration>Retail</TargetedSDKConfiguration>
-    <AppxPackageAllowDebugFrameworkReferencesInManifest>true</AppxPackageAllowDebugFrameworkReferencesInManifest>
-    <AppxBundle>Never</AppxBundle>
-    <AppxPackageDir>$(Temp)\LocalGPTWebviewWrapper\AppPackages\</AppxPackageDir>
-    <AppxPackageSigningEnabled Condition="'$(AppxPackageSigningEnabled)' == ''">True</AppxPackageSigningEnabled>
-    <EntryPointProjectUniqueName>..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj</EntryPointProjectUniqueName>
-    <IncludeLocalGptPublishedPayload Condition="'$(IncludeLocalGptPublishedPayload)' == ''">True</IncludeLocalGptPublishedPayload>
-    <PackageCertificateThumbprint Condition="'$(PackageCertificateThumbprint)' == '' and '$(LocalGPTPackageCertificateThumbprint)' != ''">$(LocalGPTPackageCertificateThumbprint)</PackageCertificateThumbprint>
-    <PackageCertificateKeyFile Condition="'$(PackageCertificateKeyFile)' == '' and '$(LocalGPTPackageCertificateKeyFile)' != ''">$(LocalGPTPackageCertificateKeyFile)</PackageCertificateKeyFile>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+    <PackageCertificateThumbprint>0BBAE68BDD940E061988EBC99541E9D73A23C97D</PackageCertificateThumbprint>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
-    <PackageCertificateThumbprint>0BBAE68BDD940E061988EBC99541E9D73A23C97D</PackageCertificateThumbprint>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <AppxBundle>Always</AppxBundle>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|arm64'">
-    <AppxBundle>Always</AppxBundle>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
-    <AppxBundle>Always</AppxBundle>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <AppxBundle>Always</AppxBundle>
+    <EntryPointProjectUniqueName>..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj</EntryPointProjectUniqueName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|arm64'">
-    <AppxBundle>Always</AppxBundle>
+    <AppxBundle>Never</AppxBundle>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
-    <AppxBundle>Always</AppxBundle>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <AppxBundle>Never</AppxBundle>
   </PropertyGroup>
-  <Target Name="EnsureWindowsAppSdkPackageRuntimeFolders" BeforeTargets="Build;_CopyPackageFiles_Core;_CopyUploadPackageFiles_Core;_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage;CopyFilesToOutputDirectory;_CopyFilesToAppxLayout;_CopyPackageFilesToLayout;_CopyPackageFilesToOutputDirectory">
-    <ItemGroup>
-      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x64\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-x86\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(OutputPath)AppX\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(LayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" />
-      <_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
-      <_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
-      <_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
-      <_WindowsAppSdkRuntimeDir Include="$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" Condition="'$(AppxPackageLayoutDir)' != ''" />
-      <_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x64\native" Condition="'$(AppxLayoutDir)' != ''" />
-      <_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-x86\native" Condition="'$(AppxLayoutDir)' != ''" />
-      <_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64\native" Condition="'$(AppxLayoutDir)' != ''" />
-      <_WindowsAppSdkRuntimeDir Include="$(AppxLayoutDir)\LocalGPTWebviewWrapper\runtimes\win-arm64ec\native" Condition="'$(AppxLayoutDir)' != ''" />
-    </ItemGroup>
-    <MakeDir Directories="@(_WindowsAppSdkRuntimeDir)" />
-  </Target>
-  <Target Name="OverlaySelfContainedWrapperPublishOutput" BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage" Condition="Exists('..\LocalGPTWebviewWrapper\bin\win-$(Platform)\publish\LocalGPTWebviewWrapper.exe')">
-    <ItemGroup>
-      <_PublishedWrapperFile Include="..\LocalGPTWebviewWrapper\bin\win-$(Platform)\publish\**\*.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_PublishedWrapperFile)" DestinationFiles="@(_PublishedWrapperFile->'$(OutputPath)LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(_PublishedWrapperFile)" DestinationFiles="@(_PublishedWrapperFile->'$(LayoutDir)\LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'$(LayoutDir)' != ''" />
-  </Target>
-  <Target Name="PublishLocalGptWebAssetsForPackaging" BeforeTargets="_ConvertItems" Condition="'$(IncludeLocalGptPublishedPayload)' == 'true'">
-    <PropertyGroup>
-      <LocalGptWebPublishDir>..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\</LocalGptWebPublishDir>
-    </PropertyGroup>
-    <MSBuild Projects="..\LocalGPT\LocalGPT.csproj" Targets="Publish" Properties="Configuration=$(Configuration);Platform=$(Platform);RuntimeIdentifier=win-$(Platform);SelfContained=false;UseSharedCompilation=false" BuildInParallel="false" />
-    <ItemGroup>
-      <Content Remove="..\LocalGPT\wwwroot\**\*" />
-      <Content Remove="..\LocalGPT\bin\$(Configuration)\net10.0\LocalGPT.staticwebassets.runtime.json" />
-      <Content Remove="..\LocalGPT\bin\$(Configuration)\net10.0\*.styles.css" />
-      <_PublishedLocalGptWebRoot Include="$(LocalGptWebPublishDir)wwwroot\**\*.*" />
-      <_PublishedLocalGptRootAsset Include="$(LocalGptWebPublishDir)LocalGPT.staticwebassets.*.json" />
-      <_PublishedLocalGptRootAsset Include="$(LocalGptWebPublishDir)LocalGPT.deps.json" />
-      <Content Include="@(_PublishedLocalGptWebRoot)">
-        <Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      </Content>
-      <Content Include="@(_PublishedLocalGptRootAsset)">
-        <Link>LocalGPTWebviewWrapper\%(Filename)%(Extension)</Link>
-      </Content>
-    </ItemGroup>
-  </Target>
-  <Target Name="AddPublishedLocalGptWebAssetsToPackagePayload" BeforeTargets="_WritePayloadFiles" Condition="'$(IncludeLocalGptPublishedPayload)' == 'true'">
-    <PropertyGroup>
-      <LocalGptWebPublishDir>..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\</LocalGptWebPublishDir>
-    </PropertyGroup>
-    <ItemGroup>
-      <_PublishedLocalGptPayloadWebRoot Include="$(LocalGptWebPublishDir)wwwroot\**\*.*" />
-      <_PublishedLocalGptPayloadRootAsset Include="$(LocalGptWebPublishDir)LocalGPT.staticwebassets.*.json" />
-      <_PublishedLocalGptPayloadRootAsset Include="$(LocalGptWebPublishDir)LocalGPT.deps.json" />
-      <AppxPackagePayload Include="@(_PublishedLocalGptPayloadWebRoot)">
-        <TargetPath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
-      </AppxPackagePayload>
-      <AppxPackagePayload Include="@(_PublishedLocalGptPayloadRootAsset)">
-        <TargetPath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</TargetPath>
-      </AppxPackagePayload>
-    </ItemGroup>
-  </Target>
-  <Target Name="OverlayLocalGptWebPublishOutput" BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage" Condition="'$(IncludeLocalGptPublishedPayload)' == 'true' and Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\LocalGPT.dll')">
-    <ItemGroup>
-      <_PublishedLocalGptFile Include="..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\publish\**\*.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_PublishedLocalGptFile)" DestinationFiles="@(_PublishedLocalGptFile->'$(OutputPath)LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(_PublishedLocalGptFile)" DestinationFiles="@(_PublishedLocalGptFile->'$(LayoutDir)\LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'$(LayoutDir)' != ''" />
-    <Copy SourceFiles="@(_PublishedLocalGptFile)" DestinationFiles="@(_PublishedLocalGptFile->'$(AppxLayoutDir)\LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'$(AppxLayoutDir)' != ''" />
-    <Copy SourceFiles="@(_PublishedLocalGptFile)" DestinationFiles="@(_PublishedLocalGptFile->'$(AppxPackageLayoutDir)\LocalGPTWebviewWrapper\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'$(AppxPackageLayoutDir)' != ''" />
-  </Target>
-  <Target Name="CopyLocalGptStaticWebAssetsManifest" BeforeTargets="_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage">
-    <ItemGroup>
-      <_LocalGptStaticWebAssetsManifest Include="..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\LocalGPT.staticwebassets.runtime.json" Condition="Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\win-$(Platform)\LocalGPT.staticwebassets.runtime.json')" />
-      <_LocalGptStaticWebAssetsManifest Include="..\LocalGPT\bin\$(Configuration)\net10.0\win-$(Platform)\LocalGPT.staticwebassets.runtime.json" Condition="Exists('..\LocalGPT\bin\$(Configuration)\net10.0\win-$(Platform)\LocalGPT.staticwebassets.runtime.json')" />
-      <_LocalGptStaticWebAssetsManifest Include="..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\LocalGPT.staticwebassets.runtime.json" Condition="Exists('..\LocalGPT\bin\$(Platform)\$(Configuration)\net10.0\LocalGPT.staticwebassets.runtime.json')" />
-      <_LocalGptStaticWebAssetsManifest Include="..\LocalGPT\bin\$(Configuration)\net10.0\LocalGPT.staticwebassets.runtime.json" Condition="Exists('..\LocalGPT\bin\$(Configuration)\net10.0\LocalGPT.staticwebassets.runtime.json')" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_LocalGptStaticWebAssetsManifest)" DestinationFiles="@(_LocalGptStaticWebAssetsManifest->'$(OutputPath)LocalGPTWebviewWrapper\%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_LocalGptStaticWebAssetsManifest)' != ''" />
-    <Copy SourceFiles="@(_LocalGptStaticWebAssetsManifest)" DestinationFiles="@(_LocalGptStaticWebAssetsManifest->'$(LayoutDir)\LocalGPTWebviewWrapper\%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_LocalGptStaticWebAssetsManifest)' != '' and '$(LayoutDir)' != ''" />
-  </Target>
-  <Target Name="CopyPackageImagesToLooseLayout" BeforeTargets="Build;_GenerateAppxPackageRecipeFile;_GenerateAppxPackageFile;_GenerateAppxPackage;_CopyPackageFilesToLayout;_CopyFilesToAppxLayout">
-    <ItemGroup>
-      <_PackageImage Include="Images\**\*.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_PackageImage)" DestinationFiles="@(_PackageImage->'$(OutputPath)Images\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_PackageImage)' != ''" />
-    <Copy SourceFiles="@(_PackageImage)" DestinationFiles="@(_PackageImage->'$(LayoutDir)\Images\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_PackageImage)' != '' and '$(LayoutDir)' != ''" />
-    <Copy SourceFiles="@(_PackageImage)" DestinationFiles="@(_PackageImage->'$(AppxLayoutDir)\Images\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_PackageImage)' != '' and '$(AppxLayoutDir)' != ''" />
-    <Copy SourceFiles="@(_PackageImage)" DestinationFiles="@(_PackageImage->'$(AppxPackageLayoutDir)\Images\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_PackageImage)' != '' and '$(AppxPackageLayoutDir)' != ''" />
-  </Target>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <AppxBundle>Never</AppxBundle>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|arm64'">
+    <AppxBundle>Never</AppxBundle>
+  </PropertyGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
@@ -222,9 +81,6 @@
     <Content Include="Images\Wide310x150Logo.scale-400.png" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="FixedRuntime\95.0.1020.53\\**\*.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="Images\LargeTile.scale-100.png" />
     <Content Include="Images\LargeTile.scale-125.png" />
     <Content Include="Images\LargeTile.scale-150.png" />
@@ -275,14 +131,16 @@
     <Content Include="Images\Wide310x150Logo.scale-125.png" />
     <Content Include="Images\Wide310x150Logo.scale-150.png" />
     <Content Include="Images\Wide310x150Logo.scale-200.png" />
+    <None Include="LocalGPTWebviewWrapper %28Package%29_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj">
-      <PublishProfile>Properties\PublishProfiles\win10-$(Platform).pubxml</PublishProfile>
-    </ProjectReference>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1839" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.1.3">
+      <IncludeAssets>build</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+    <ProjectReference Include="..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj" />
   </ItemGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" />
 </Project>

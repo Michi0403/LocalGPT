@@ -9,19 +9,16 @@
 	  <SupportedOSPlatformVersion>10.0.22621.0</SupportedOSPlatformVersion>
     <RootNamespace>LocalGPTWebviewWrapper</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Platforms>x86;x64;arm64</Platforms>
-    <SelfContained>false</SelfContained>
-    <PublishSelfContained>false</PublishSelfContained>
+	  <PublishTrimmed>false</PublishTrimmed>
+	  <PublishSingleFile>false</PublishSingleFile>
+    <Platforms>x64;arm64</Platforms>
+	  <SelfContained>false</SelfContained>
     <UseWinUI>true</UseWinUI>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'x64'">
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'x86'">
-    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
-    <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'arm64'">
     <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
@@ -32,58 +29,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-	  <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251003001" />
-	  <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+	  <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.1.3" />
+	  <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1839" />
 
 	  <Manifest Include="$(ApplicationManifest)" />
+		  <Content Include="wwwroot\**\*.*"
+				   CopyToOutputDirectory="PreserveNewest"
+				   CopyToPublishDirectory="PreserveNewest" />
+	  
+		  <Content Include="wwwroot\css\**\*.*"
+				   CopyToOutputDirectory="PreserveNewest"
+				   CopyToPublishDirectory="PreserveNewest" />
+
+		  <Content Include="wwwroot\_content\DevExpress.Blazor\**\*.*"
+				   CopyToOutputDirectory="PreserveNewest"
+				   CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
-	<!-- Copy the runtime static-web-assets manifest to bin so the loader can find it -->
-	<Target Name="CopyStaticWebAssetsManifest" AfterTargets="Build">
-		<ItemGroup>
-			<_Swa Include="$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json" />
-		</ItemGroup>
-		<Copy
-		  SourceFiles="@(_Swa)"
-		  DestinationFolder="$(OutputPath)"
-		  SkipUnchangedFiles="true"
-		  Condition="Exists('%(FullPath)')" />
-	</Target>
-	<Target Name="EnsureWindowsAppSdkRuntimeFolders"
-			BeforeTargets="CopyFilesToOutputDirectory;_CopyFilesMarkedCopyLocal">
-		<MakeDir Directories="$(OutDir)runtimes\win-x64\native" />
-		<MakeDir Directories="$(OutDir)runtimes\win-arm64\native" />
-		<MakeDir Directories="$(OutDir)runtimes\win-arm64ec\native" />
-	</Target>
-	<!-- Copy any generated CSS isolation bundles (e.g., LocalGPT.styles.css) to bin -->
-	<ItemGroup>
-
-		<Content Include="$(IntermediateOutputPath)**\*.styles.css">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-	</ItemGroup>
-	<ItemGroup>
-		<!-- Include the server's wwwroot files in the package/output -->
-		<!--<Content Include="..\LocalGPT\wwwroot\**\*">
-			<Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<PackagePath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
-		</Content>
-
-		--><!-- Include the static web assets runtime manifest (maps /_content/** etc.) --><!--
-		<Content Include="..\LocalGPT\obj\$(Configuration)\net10.0\LocalGPT.staticwebassets.runtime.json">
-			<Link>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
-		</Content>
-
-		--><!-- Include CSS isolation bundles if present --><!--
-		<Content Include="..\LocalGPT\obj\$(Configuration)\net10.0\**\*.styles.css">
-			<Link>LocalGPTWebviewWrapper\%(Filename)%(Extension)</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
-		</Content>-->
-
-	</ItemGroup>
 <!--<ItemGroup>
 	
   <Content Include="..\LocalGPT\wwwroot\**\*">

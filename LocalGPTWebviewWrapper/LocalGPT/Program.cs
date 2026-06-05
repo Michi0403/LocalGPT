@@ -50,9 +50,9 @@ namespace LocalGPT
             var exeDir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
             using var loggerFactory = LoggerFactory.Create(logging => logging.AddConsole());
             var logger = loggerFactory.CreateLogger("Startup");
-            EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
+            //EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
 
-            var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions(exeDir, args));
+            var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions( args));
             TraceStartup("Created builder.");
             ConfigureAppConfiguration(builder);
             TraceStartup("Configured app configuration.");
@@ -134,13 +134,13 @@ namespace LocalGPT
                 .Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
-        private static WebApplicationOptions CreateWebApplicationOptions(string exeDir, string[]? args)
+        private static WebApplicationOptions CreateWebApplicationOptions( string[]? args)
         {
             return new WebApplicationOptions
             {
                 ApplicationName = typeof(Program).Assembly.GetName().Name,
-                ContentRootPath = exeDir,
-                WebRootPath = Path.Combine(exeDir, "wwwroot"),
+                ContentRootPath = AppContext.BaseDirectory,
+                WebRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot"),
                 Args = args ?? Array.Empty<string>()
             };
         }
@@ -278,6 +278,7 @@ namespace LocalGPT
         private static void ConfigureBlazorAndMvc(WebApplicationBuilder builder)
         {
             StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
+        
             builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddHealthChecks();
             builder.Services.AddDevExpressBlazor(options => options.SizeMode = DevExpress.Blazor.SizeMode.Small);
@@ -341,6 +342,7 @@ namespace LocalGPT
             app.UseAntiforgery();                 // ✅ after routing, before endpoints
             app.MapControllers();
             _ = app.MapHub<ChatHub>("/chathub");
+            app.MapStaticAssets();
             app.MapHealthChecks("/health");
             app.MapLocalGptDiagnosticEndpoints();
             app.MapMinecraftDiagnosticEndpoints();
@@ -349,48 +351,48 @@ namespace LocalGPT
                .AllowAnonymous();
         }
 
-        private static void EnsureGeneratedStaticWebAssetContentRoots(string exeDir, ILogger logger)
-        {
-            var assemblyName = typeof(Program).Assembly.GetName().Name;
-            var manifestPath = Path.Combine(exeDir, $"{assemblyName}.staticwebassets.runtime.json");
-            if (!File.Exists(manifestPath))
-            {
-                return;
-            }
+        //private static void EnsureGeneratedStaticWebAssetContentRoots(string exeDir, ILogger logger)
+        //{
+        //    var assemblyName = typeof(Program).Assembly.GetName().Name;
+        //    var manifestPath = Path.Combine(exeDir, $"{assemblyName}.staticwebassets.runtime.json");
+        //    if (!File.Exists(manifestPath))
+        //    {
+        //        return;
+        //    }
 
-            try
-            {
-                using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
-                if (!manifest.RootElement.TryGetProperty("ContentRoots", out var contentRoots)
-                    || contentRoots.ValueKind != JsonValueKind.Array)
-                {
-                    return;
-                }
+        //    try
+        //    {
+        //        using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        //        if (!manifest.RootElement.TryGetProperty("ContentRoots", out var contentRoots)
+        //            || contentRoots.ValueKind != JsonValueKind.Array)
+        //        {
+        //            return;
+        //        }
 
-                foreach (var contentRoot in contentRoots.EnumerateArray())
-                {
-                    if (contentRoot.ValueKind != JsonValueKind.String)
-                    {
-                        continue;
-                    }
+        //        foreach (var contentRoot in contentRoots.EnumerateArray())
+        //        {
+        //            if (contentRoot.ValueKind != JsonValueKind.String)
+        //            {
+        //                continue;
+        //            }
 
-                    var path = contentRoot.GetString();
-                    if (string.IsNullOrWhiteSpace(path)
-                        || Directory.Exists(path)
-                        || !IsGeneratedStaticWebAssetRoot(path))
-                    {
-                        continue;
-                    }
+        //            var path = contentRoot.GetString();
+        //            if (string.IsNullOrWhiteSpace(path)
+        //                || Directory.Exists(path)
+        //                || !IsGeneratedStaticWebAssetRoot(path))
+        //            {
+        //                continue;
+        //            }
 
-                    Directory.CreateDirectory(path);
-                    logger.LogInformation("Recreated missing generated static web asset root {Path}.", path);
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-            {
-                logger.LogWarning(ex, "Could not inspect static web asset manifest {ManifestPath}.", manifestPath);
-            }
-        }
+        //            Directory.CreateDirectory(path);
+        //            logger.LogInformation("Recreated missing generated static web asset root {Path}.", path);
+        //        }
+        //    }
+        //    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        //    {
+        //        logger.LogWarning(ex, "Could not inspect static web asset manifest {ManifestPath}.", manifestPath);
+        //    }
+        //}
 
         private static bool IsGeneratedStaticWebAssetRoot(string path)
         {
