@@ -26,6 +26,9 @@
   <PropertyGroup Condition="'$(Platform)' == 'AnyCPU' or '$(Platform)' == 'Any CPU' or '$(Platform)' == ''">
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>False</Optimize>
+  </PropertyGroup>
 	
 	<ItemGroup>
 		
@@ -49,11 +52,7 @@
 				$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json
 			</StaticWebAssetsRuntimeJson>
 		</PropertyGroup>
-		<Copy
-		  SourceFiles="$(StaticWebAssetsRuntimeJson)"
-		  DestinationFolder="$(OutDir)"
-		  SkipUnchangedFiles="true"
-		  Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
+		<Copy SourceFiles="$(StaticWebAssetsRuntimeJson)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
 	</Target>
 
 	<!-- Also copy wwwroot into the output next to LocalGPT.dll -->
@@ -74,21 +73,14 @@
 	</ItemGroup>
 	<Target Name="CopyWwwrootToOutput" AfterTargets="Build">
 		<MakeDir Directories="$(OutDir)wwwroot" />
-		<Copy
-		  SourceFiles="@(WwwrootFiles)"
-		  DestinationFiles="@(WwwrootFiles->'$(OutDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
-		  SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(WwwrootFiles)" DestinationFiles="@(WwwrootFiles->'$(OutDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
 	</Target>
 
 	<Target Name="CopyStaticWebAssetsManifest" AfterTargets="Build">
 		<PropertyGroup>
 			<StaticWebAssetsRuntimeJson>$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json</StaticWebAssetsRuntimeJson>
 		</PropertyGroup>
-		<Copy
-		  SourceFiles="$(StaticWebAssetsRuntimeJson)"
-		  DestinationFolder="$(OutDir)"
-		  SkipUnchangedFiles="true"
-		  Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
+		<Copy SourceFiles="$(StaticWebAssetsRuntimeJson)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
 	</Target>
   <ItemGroup>
     <PackageReference Include="DevExpress.Blazor" Version="25.2.*" />

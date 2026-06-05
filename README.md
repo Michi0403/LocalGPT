@@ -1,3 +1,9 @@
+# WebView2 just works in Debug right now
+Don't ask me why, anyway the Blazor host seems to work fine again, I also copied with the database with the initial feed.
+Should work, just tested on Windows 64 Bit
+Put it to C User Appdata Local LocalGPT the Database will be there as well and you can save and replace it there.
+You can create a directory for MD and docfx files to direct learn over the app
+
 # Warning AI Agent went Rogue
 The current state is sabotaged, can't explain all but to make it short, it's corrupted and even previously working functions the 
 rogue AI Agent turned into Slop or just kepts parts working.
