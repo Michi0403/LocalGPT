@@ -19,7 +19,6 @@
   </ItemGroup>
   <PropertyGroup>
     <WapProjPath Condition="'$(WapProjPath)'==''">$(MSBuildExtensionsPath)\Microsoft\DesktopBridge\</WapProjPath>
-    <PathToXAMLWinRTImplementations>LocalGPTWebviewWrapper\</PathToXAMLWinRTImplementations>
   </PropertyGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.props" />
   <PropertyGroup>
@@ -28,12 +27,9 @@
     <TargetPlatformMinVersion>10.0.22621.0</TargetPlatformMinVersion>
     <DefaultLanguage>en-US</DefaultLanguage>
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
-    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
-    <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
-    <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <EntryPointProjectUniqueName>..\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj</EntryPointProjectUniqueName>
     <PackageCertificateKeyFile>LocalGPTWebviewWrapper %28Package%29_TemporaryKey.pfx</PackageCertificateKeyFile>
   </PropertyGroup>
@@ -44,24 +40,21 @@
     <AppxBundle>Never</AppxBundle>
   </PropertyGroup>
   <ItemGroup>
-    <AppxManifest Include="Package.appxmanifest">
+    <AppxManifest >
       <SubType>Designer</SubType>
     </AppxManifest>
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\LocalGPT\bin\$(Configuration)\net10.0\LocalGPT.staticwebassets.runtime.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <PackagePath>LocalGPTWebviewWrapper\LocalGPT.staticwebassets.runtime.json</PackagePath>
     </Content>
     <Content Include="..\LocalGPT\bin\$(Configuration)\net10.0\*.styles.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <PackagePath>LocalGPTWebviewWrapper\%(Filename)%(Extension)</PackagePath>
     </Content>
     <!-- optional: include wwwroot files explicitly -->
     <Content Include="..\LocalGPT\wwwroot\**\*">
       <Link>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <PackagePath>LocalGPTWebviewWrapper\wwwroot\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
     </Content>
     <Content Include="Images\Wide310x150Logo.scale-400.png" />
   </ItemGroup>

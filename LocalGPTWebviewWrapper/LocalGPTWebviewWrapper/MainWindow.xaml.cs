@@ -6,13 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Web.WebView2.Core;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using WinRT.Interop;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -58,40 +52,23 @@ namespace WebView2_WinUI3_Sample
         //    SetTitle();
         //}
 
-        public MainWindow(
-            string baseUrl,
-            bool runDiagnostics = false,
-            bool exitAfterDiagnostics = false,
-            bool isE2E = false)
+        public MainWindow(string baseUrl)
         {
             InitializeComponent();
             _baseUrl = baseUrl;
+
+            // Let system theme decide (don’t force dark)
+        
             Closed += (_, __) => WebView2?.Close();
 
             //AddressBar.Text = _baseUrl;          // prefill with local server
-            //WebView2.NavigationCompleted += WebView2_NavigationCompleted;
+            WebView2.NavigationCompleted += WebView2_NavigationCompleted;
             WebView2.CoreWebView2Initialized += WebView2_CoreWebView2Initialized;
             WebView2.RequestedTheme = ElementTheme.Default;
-
-            var initialUrl = _baseUrl;
-
-            _ = InitializeWebViewAsync(initialUrl);
+            
+            WebView2.Source = new Uri(_baseUrl); // initial navigation
+            StatusUpdate("Ready");
             SetTitle();
-        }
-
-        private async Task InitializeWebViewAsync(string initialUrl)
-        {
-            try
-            {
-                
-                await WebView2.EnsureCoreWebView2Async(  );
-                WebView2.Source = new Uri(initialUrl);
-                StatusUpdate("Ready");
-            }
-            catch (Exception ex)
-            {
-                StatusUpdate($"Error initializing WebView2: {ex.Message}");
-            }
         }
 
         private void StatusUpdate(string message)
@@ -107,95 +84,16 @@ namespace WebView2_WinUI3_Sample
             }
             else
             {
-                //if (sender.CoreWebView2 is not null)
-                //    sender.CoreWebView2.DownloadStarting += CoreWebView2_DownloadStarting;
-
                 SetTitle(sender);
             }
         }
 
-        private void CoreWebView2_DownloadStarting(object sender, CoreWebView2DownloadStartingEventArgs args)
-        {
-            try
-            {
-                var downloadsDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    "Downloads",
-                    "LocalGPT");
-                Directory.CreateDirectory(downloadsDirectory);
-
-                var fileName = Path.GetFileName(args.ResultFilePath);
-                if (string.IsNullOrWhiteSpace(fileName))
-                    fileName = "LocalGPT-artifact";
-
-                args.ResultFilePath = Path.Combine(downloadsDirectory, fileName);
-                StatusUpdate($"Downloading artifact to {args.ResultFilePath}");
-            }
-            catch (Exception ex)
-            {
-                StatusUpdate($"Could not configure WebView2 download path: {ex.Message}");
-            }
-        }
-
-        private async void WebView2_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+        private void WebView2_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
         {
             StatusUpdate("Navigation complete");
-          
+
             // Update the address bar with the full URL that was navigated to.
             //AddressBar.Text = sender.Source.ToString();
-        }
-
-    
-        
-        private static IEnumerable<string> GetRuntimeFlagPaths(string fileName)
-        {
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var localAppDataEnvironment = Environment.GetEnvironmentVariable("LOCALAPPDATA");
-            foreach (var directory in GetRuntimeDirectories(localAppData, localAppDataEnvironment))
-                yield return Path.Combine(directory, fileName);
-        }
-
-        private static IEnumerable<string> GetRuntimeDirectories(params string[] baseDirectories)
-        {
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var baseDirectory in baseDirectories)
-            {
-                if (string.IsNullOrWhiteSpace(baseDirectory))
-                    continue;
-
-                var runtimeDirectory = Path.Combine(baseDirectory, "LocalGPT", "runtime");
-                if (seen.Add(runtimeDirectory))
-                    yield return runtimeDirectory;
-            }
-
-            var packageFamilyName = GetPackageFamilyName();
-            var localAppDataEnvironment = Environment.GetEnvironmentVariable("LOCALAPPDATA");
-            if (!string.IsNullOrWhiteSpace(packageFamilyName) &&
-                !string.IsNullOrWhiteSpace(localAppDataEnvironment))
-            {
-                var packageRuntimeDirectory = Path.Combine(
-                    localAppDataEnvironment,
-                    "Packages",
-                    packageFamilyName,
-                    "LocalCache",
-                    "Local",
-                    "LocalGPT",
-                    "runtime");
-                if (seen.Add(packageRuntimeDirectory))
-                    yield return packageRuntimeDirectory;
-            }
-        }
-
-        private static string GetPackageFamilyName()
-        {
-            try
-            {
-                return Windows.ApplicationModel.Package.Current.Id.FamilyName;
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         private bool TryCreateUri(String potentialUri, out Uri result)
@@ -217,31 +115,71 @@ namespace WebView2_WinUI3_Sample
             }
         }
 
+        //private void TryNavigate()
+        //{
+        //    StatusUpdate("TryNavigate");
+
+        //    Uri destinationUri;
+        //    if (TryCreateUri(AddressBar.Text, out destinationUri))
+        //    {
+        //        WebView2.Source = destinationUri;
+        //    }
+        //    else
+        //    {
+        //        StatusUpdate("URI couldn't be figured out use it as a bing search term");
+
+        //        //String bingString = $"https://www.bing.com/search?q={Uri.EscapeDataString(AddressBar.Text)}";
+        //        if (TryCreateUri(bingString, out destinationUri))
+        //        {
+        //            //AddressBar.Text = destinationUri.AbsoluteUri;
+        //            WebView2.Source = destinationUri;
+        //        }
+        //        else
+        //        {
+        //            StatusUpdate("URI couldn't be configured as bing search term, giving up");
+        //        }
+        //    }
+        //}
+
+        //private void Go_OnClick(object sender, RoutedEventArgs e)
+        //{
+        //    StatusUpdate("Go_OnClick: " + AddressBar.Text);
+
+        //    TryNavigate();
+        //}
+
+        //private void AddressBar_KeyDown(object sender, KeyRoutedEventArgs e)
+        //{
+        //    if (e.Key == Windows.System.VirtualKey.Enter)
+        //    {
+        //        StatusUpdate("AddressBar_KeyDown [Enter]: " + AddressBar.Text);
+
+        //        e.Handled = true;
+        //        TryNavigate();
+        //    }
+        //}
+
         private void SetTitle(WebView2 webView2 = null)
         {
-            var packageDisplayName = "LocalGPT";
-            try
-            {
-                packageDisplayName = Windows.ApplicationModel.Package.Current.DisplayName;
-            }
-            catch
-            {
-                // Unpackaged/debug launches do not always have package identity.
-            }
-            var webView2Version = (webView2 != null) ? " - " + "LocalGPT by Michi0403" : string.Empty;
+            var packageDisplayName = Windows.ApplicationModel.Package.Current.DisplayName;
+            var webView2Version = (webView2 != null) ? " - " + GetWebView2Version(webView2) : string.Empty;
             Title = $"{packageDisplayName}{webView2Version}";
         }
 
-
-        private sealed class WebView2DiagnosticSnapshot
+        private string GetWebView2Version(WebView2 webView2)
         {
-            public string RunId { get; set; } = string.Empty;
-            public DateTimeOffset CapturedAtUtc { get; set; }
-            public string RequestedUri { get; set; } = string.Empty;
-            public bool IsSuccess { get; set; }
-            public string WebErrorStatus { get; set; } = string.Empty;
-            public string PageJson { get; set; } = string.Empty;
-            public string Error { get; set; } = string.Empty;
+            var runtimeVersion = webView2.CoreWebView2.Environment.BrowserVersionString;
+
+            CoreWebView2EnvironmentOptions options = new CoreWebView2EnvironmentOptions();
+            var targetVersionMajorAndRest = options.TargetCompatibleBrowserVersion;
+            var versionList = targetVersionMajorAndRest.Split('.');
+            if (versionList.Length != 4)
+            {
+                return "Invalid SDK build version";
+            }
+            var sdkVersion = versionList[2] + "." + versionList[3];
+
+            return $"{runtimeVersion}; {sdkVersion}";
         }
     }
 }
