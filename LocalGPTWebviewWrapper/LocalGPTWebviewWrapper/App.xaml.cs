@@ -52,16 +52,14 @@ namespace WebView2_WinUI3_Sample
         {
             _webApp = LocalGPT.Program.BuildWebApp();
             await _webApp.StartAsync();          // non-blocking
-            _baseUrl = $"https://localhost:{LocalGPT.Program.Port}";
+            _baseUrl = $"http://localhost:{LocalGPT.Program.Port}";
 
             // Optionally: wait for /health before showing UI (keeps initial nav smooth)
-            await WaitForHealthAsync(_baseUrl);
 
             _window = new MainWindow(_baseUrl);
             _window.Title = "WebView2 Hosts Blazor Backend";
             // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
             var appWindow = _window.AppWindow;
-
             // Set your icon file (must be an .ico, not .png)
             string iconPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "favicon.ico");
             if (File.Exists(iconPath))
@@ -82,25 +80,5 @@ namespace WebView2_WinUI3_Sample
             //_window.Activate();
         }
 
-        private static async Task WaitForHealthAsync(string baseUrl)
-        {
-            using var http = new HttpClient(new HttpClientHandler
-            {
-                // dev only: trust localhost dev cert
-                ServerCertificateCustomValidationCallback = (_, __, ___, ____) => true
-            });
-
-            var deadline = DateTime.UtcNow.AddSeconds(10);
-            while (DateTime.UtcNow < deadline)
-            {
-                try
-                {
-                    var resp = await http.GetAsync($"{baseUrl}/health");
-                    if (resp.IsSuccessStatusCode) return;
-                }
-                catch { /* retry */ }
-                await Task.Delay(200);
-            }
-        }
     }
 }

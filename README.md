@@ -1,3 +1,9 @@
+# Hardware
+
+Successfully tested on:
+Council Razer Blade Stealth 2016, Intel I7 7500U, 16GB 1866er, RTX 3060 eGPU (2 models only gptoss20b and deepseek8b)
+Council Intel I7 14700K, 64GB DDR5 5600er, RX 7900 XTX (4 models, qwen coder 3, gemma 3.7 (not the newest, to tokenhungry), gptoss20b and deepseek8b
+
 # Terms
 Pretty easy, the part of the code which is not DevExpress is going always under the newest Apache2, I won't copy it extra here, it is what it is.
 

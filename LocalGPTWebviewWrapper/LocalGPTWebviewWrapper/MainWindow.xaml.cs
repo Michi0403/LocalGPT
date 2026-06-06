@@ -67,7 +67,6 @@ namespace WebView2_WinUI3_Sample
             WebView2.RequestedTheme = ElementTheme.Default;
             
             WebView2.Source = new Uri(_baseUrl); // initial navigation
-            StatusUpdate("Ready");
             SetTitle();
         }
 
@@ -161,9 +160,7 @@ namespace WebView2_WinUI3_Sample
 
         private void SetTitle(WebView2 webView2 = null)
         {
-            var packageDisplayName = Windows.ApplicationModel.Package.Current.DisplayName;
-            var webView2Version = (webView2 != null) ? " - " + GetWebView2Version(webView2) : string.Empty;
-            Title = $"{packageDisplayName}{webView2Version}";
+            Title = $"LocalGPT by Michi0403";
         }
 
         private string GetWebView2Version(WebView2 webView2)
