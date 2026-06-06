@@ -1,3 +1,25 @@
+# Terms
+Pretty easy, the part of the code which is not DevExpress is going always under the newest Apache2, I won't copy it extra here, it is what it is.
+
+You can adopt the system or see this as the first experiment of this kind and start your own.
+
+If you use it, you will notice pretty fast that it even could finish Half-Life 3.
+You would just need to feed it all necessary knowledge about the Source Engine, Lore and Story.
+
+Because this is a Monolith application including Api, Frontend (and, state just not working right now Windows AppPackage), you can extend anything your own.
+But you need valid DevExpress Licenses.
+
+Right now Windows SDK 10.0.22621.5040 if you want to use the Webview Wrapper which is kinky combined with Coding Agent, but through Indoktrination they go rouge so, 
+Just don't put this together with a Coding Agent again please, I am serious, put any feature on it which you like but, don't use it with coding agents.
+
+That's how they implement external toxic control over you, "Ofc for the best and your bucks", yeah.
+
+I pay for my DevExpress Licenses, am a "mostly" dotnet Developer, so this here is a valid piece of Software (if you find working releases in the Release Section.
+I kept for historic reasons all AI Agent work so yeah, clean up will take a while.
+
+Maybe the preset knowledge it now has is dangerous, so if you have DevExpress Licenses or grab their trial, 
+Kill the Database seed, I leave it for now because it works for me (there is a .SQL File but I am pretty sure smth hardcoded as well, couldn't check for all yet).
+
 # WebView2 just works in Debug right now
 Don't ask me why, anyway the Blazor host seems to work fine again, I also copied with the database with the initial feed.
 Should work, just tested on Windows 64 Bit
