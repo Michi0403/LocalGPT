@@ -45,43 +45,10 @@
 		
 	
 	</ItemGroup>
-	<!-- Ensure the runtime manifest is copied next to LocalGPT.dll -->
-	<Target Name="CopyStaticWebAssetsToOutDir" AfterTargets="Build">
-		<PropertyGroup>
-			<StaticWebAssetsRuntimeJson>
-				$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json
-			</StaticWebAssetsRuntimeJson>
-		</PropertyGroup>
-		<Copy SourceFiles="$(StaticWebAssetsRuntimeJson)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
-	</Target>
-
-	<!-- Also copy wwwroot into the output next to LocalGPT.dll -->
-	<!--<ItemGroup>
-		<Content Include="wwwroot\**\*">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-	</ItemGroup>
-	--><!-- Ensure all app static files are copied to the output next to LocalGPT.dll --><!--
-	--><!--<ItemGroup>
-		<Content Include="wwwroot\**\*">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-	</ItemGroup>-->
-
 	<ItemGroup>
 		<WwwrootFiles Include="wwwroot\**\*.*" />
 	</ItemGroup>
-	<Target Name="CopyWwwrootToOutput" AfterTargets="Build">
-		<MakeDir Directories="$(OutDir)wwwroot" />
-		<Copy SourceFiles="@(WwwrootFiles)" DestinationFiles="@(WwwrootFiles->'$(OutDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-	</Target>
-
-	<Target Name="CopyStaticWebAssetsManifest" AfterTargets="Build">
-		<PropertyGroup>
-			<StaticWebAssetsRuntimeJson>$(IntermediateOutputPath)$(AssemblyName).staticwebassets.runtime.json</StaticWebAssetsRuntimeJson>
-		</PropertyGroup>
-		<Copy SourceFiles="$(StaticWebAssetsRuntimeJson)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(StaticWebAssetsRuntimeJson)')" />
-	</Target>
+	
   <ItemGroup>
     <PackageReference Include="DevExpress.Blazor" Version="25.2.*" />
     <PackageReference Include="DevExpress.Blazor.RichEdit" Version="25.2.*" />

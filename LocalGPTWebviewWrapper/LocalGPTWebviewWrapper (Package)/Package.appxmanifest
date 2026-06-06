@@ -9,7 +9,7 @@
   <Identity
     Name="a6e38587-f17a-4a2e-8022-248694f372b3"
     Publisher="CN=Michael"
-    Version="5.0.1.0" />
+    Version="5.0.7.0" />
 
   <Properties>
     <DisplayName>LocalGPTWebviewWrapper (Package)</DisplayName>
@@ -36,10 +36,10 @@
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"  ShortName="Taco" Square71x71Logo="Images\SmallTile.png" Square310x310Logo="Images\LargeTile.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"  ShortName="Taco" Square71x71Logo="Images\SmallTile.png"  Square310x310Logo="Images\LargeTile.png">
         </uap:DefaultTile >
         <uap:SplashScreen Image="Images\SplashScreen.png" />
-        <uap:LockScreen BadgeLogo="Images\StoreLogo.png" Notification="badge"/>
+        <uap:LockScreen Notification="badge" BadgeLogo="Images\StoreLogo.png"/>
       </uap:VisualElements>
     </Application>
   </Applications>
