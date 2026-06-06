@@ -3,12 +3,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Windows.Storage;
 using WinRT.Interop;
@@ -53,22 +50,12 @@ namespace WebView2_WinUI3_Sample
         /// <param name="args">Details about the launch request and process.</param>
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            WriteStartupDiagnostic(args.Arguments);
-
             _webApp = LocalGPT.Program.BuildWebApp();
             await _webApp.StartAsync();          // non-blocking
-            _baseUrl = $"http://127.0.0.1:{LocalGPT.Program.Port}";
+            _baseUrl = $"https://localhost:{LocalGPT.Program.Port}";
 
             // Optionally: wait for /health before showing UI (keeps initial nav smooth)
             await WaitForHealthAsync(_baseUrl);
-
-            //var runWebView2Diagnostics =
-            //    (args.Arguments?.Contains("--webview2-smoke", StringComparison.OrdinalIgnoreCase) ?? false) ||
-            //    string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE"), "1", StringComparison.OrdinalIgnoreCase) ||
-            //    IsWebView2SmokeFlagPresent();
-            //var exitAfterWebView2Diagnostics =
-            //    string.Equals(Environment.GetEnvironmentVariable("LOCALGPT_WEBVIEW2_SMOKE_EXIT"), "1", StringComparison.OrdinalIgnoreCase) ||
-            //    IsWebView2SmokeFlagExitRequested();
 
             _window = new MainWindow(_baseUrl);
             _window.Title = "WebView2 Hosts Blazor Backend";
@@ -99,6 +86,7 @@ namespace WebView2_WinUI3_Sample
         {
             using var http = new HttpClient(new HttpClientHandler
             {
+                // dev only: trust localhost dev cert
                 ServerCertificateCustomValidationCallback = (_, __, ___, ____) => true
             });
 
@@ -112,75 +100,6 @@ namespace WebView2_WinUI3_Sample
                 }
                 catch { /* retry */ }
                 await Task.Delay(200);
-            }
-        }
-
-        private static string[] GetRuntimeDirectories()
-        {
-            var directories = new List<string>();
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var localAppDataEnvironment = Environment.GetEnvironmentVariable("LOCALAPPDATA");
-
-            AddRuntimeDirectory(directories, localAppData);
-            AddRuntimeDirectory(directories, localAppDataEnvironment);
-
-            var packageFamilyName = GetPackageFamilyName();
-            if (!string.IsNullOrWhiteSpace(localAppDataEnvironment) &&
-                !string.IsNullOrWhiteSpace(packageFamilyName))
-            {
-                AddRuntimeDirectory(
-                    directories,
-                    Path.Combine(localAppDataEnvironment, "Packages", packageFamilyName, "LocalCache", "Local"));
-            }
-
-            return directories
-                .Where(directory => !string.IsNullOrWhiteSpace(directory))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-        }
-
-        private static void AddRuntimeDirectory(ICollection<string> directories, string baseDirectory)
-        {
-            if (string.IsNullOrWhiteSpace(baseDirectory))
-                return;
-
-            directories.Add(Path.Combine(baseDirectory, "LocalGPT", "runtime"));
-        }
-
-        private static string GetPackageFamilyName()
-        {
-            try
-            {
-                return Windows.ApplicationModel.Package.Current.Id.FamilyName;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static void WriteStartupDiagnostic(string arguments)
-        {
-            try
-            {
-                foreach (var directory in GetRuntimeDirectories())
-                {
-                    Directory.CreateDirectory(directory);
-                    var path = Path.Combine(directory, $"webview2-startup-{Environment.ProcessId}.json");
-                    File.WriteAllText(path, JsonSerializer.Serialize(new
-                    {
-                        Environment.ProcessId,
-                        Arguments = arguments,
-                        LocalApplicationData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        LocalAppDataEnvironment = Environment.GetEnvironmentVariable("LOCALAPPDATA"),
-                        PackageFamilyName = GetPackageFamilyName(),
-                        StartedAtUtc = DateTimeOffset.UtcNow
-                    }, new JsonSerializerOptions { WriteIndented = true }));
-                }
-            }
-            catch
-            {
-                // Startup diagnostics must never block app launch.
             }
         }
     }
