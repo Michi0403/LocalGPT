@@ -1,4 +1,7 @@
 ﻿using DevExpress.AIIntegration.Blazor.Chat;
+using DevExpress.Blazor.Viewer.Internal;
+using DevExpress.Utils.About;
+using DevExpress.XtraCharts;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Services;
@@ -7,8 +10,10 @@ using Microsoft.Extensions.AI;
 using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Globalization;
+using System.Security.AccessControl;
 using System.Text;
 using System.Text.RegularExpressions;
+using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStringFunctions
@@ -18,13 +23,15 @@ namespace LocalGPT.Extensions.PlainStatics
             string route,
             string title,
             string summary,
-            IReadOnlyList<string> areas)
+            IReadOnlyList<string> areas, ILogger logger)
         {
-            var rows = string.Join(
-                "," + Environment.NewLine + "            ",
-                areas.Select((area, index) => $$"""new("{{EscapeCSharpString(area)}}", "{{(index == 0 ? "Ready" : "Planned")}}", "{{EscapeCSharpString(BuildArchetypeNextAction(area))}}")"""));
+            try
+            {
+                var rows = string.Join(
+               "," + Environment.NewLine + "            ",
+               areas.Select((area, index) => $$"""new("{{EscapeCSharpString(area)}}", "{{(index == 0 ? "Ready" : "Planned")}}", "{{EscapeCSharpString(BuildArchetypeNextAction(area))}}")"""));
 
-            return $$"""
+                return $$"""
             @page "{{route}}"
             @rendermode InteractiveServer
 
@@ -84,29 +91,47 @@ namespace LocalGPT.Extensions.PlainStatics
                 public sealed record GeneratedArchetypeRow(string Area, string Status, string NextAction);
             }
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateArchetypePageRazor route:{route} title:{title} summary:{summary} areas:{areas.ToString()}");
+                return string.Empty;
+            }
+           
         }
 
-        public static string BuildArchetypeNextAction(string area)
+        public static string BuildArchetypeNextAction(string area, ILogger logger)
         {
-            return area switch
+            try
             {
-                "Minimum two members" => "Require at least two council members for feedback talks.",
-                "Replacement benchmark" => "Run benchmark task set with build validation.",
-                "Council feedback" => "Capture missing features and source requests in memory.",
-                "Webhook" or "Ingress" => "Add signature validation, idempotency, and retry logs.",
-                "Python.NET" => "Gate runtime loading behind explicit user approval.",
-                _ => $"Wire {area} through a typed service, route, and test."
-            };
+                return area switch
+                {
+                    "Minimum two members" => "Require at least two council members for feedback talks.",
+                    "Replacement benchmark" => "Run benchmark task set with build validation.",
+                    "Council feedback" => "Capture missing features and source requests in memory.",
+                    "Webhook" or "Ingress" => "Add signature validation, idempotency, and retry logs.",
+                    "Python.NET" => "Gate runtime loading behind explicit user approval.",
+                    _ => $"Wire {area} through a typed service, route, and test."
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateArchetypePageRazor area:{area}");
+                return string.Empty;
+            }
+
         }
 
         public static string GenerateSolutionDetailRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isAiHostLab)
+            bool isAiHostLab, ILogger logger)
         {
-            if (isAiHostLab)
+            try
             {
-                return """
+                if (isAiHostLab)
+                {
+                    return """
                 @page "/api-console"
                 @rendermode InteractiveServer
                 @inject GeneratedHealthSummaryService HealthService
@@ -151,11 +176,11 @@ namespace LocalGPT.Extensions.PlainStatics
                     </section>
                 </main>
                 """;
-            }
+                }
 
-            var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 650));
-            var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 800));
-            return $$"""
+                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 650));
+                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 800));
+                return $$"""
                 @page "/implementation-plan"
                 @rendermode InteractiveServer
                 @inject GeneratedHealthSummaryService HealthService
@@ -201,419 +226,22 @@ namespace LocalGPT.Extensions.PlainStatics
                     string CouncilSummary { get; } = "{{consensusSummary}}";
                 }
                 """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionDetailRazor request:{request.ToString()} result:{result.ToString()} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
+         
         }
+        
 
-        public static string GenerateAiHostChatRazor() =>
-            """
-            @page "/chat"
-            @rendermode InteractiveServer
-            @inject GeneratedHealthSummaryService HealthService
-
-            <PageTitle>AI Host Chat</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation IsAiHostLab="true" />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>AI Host Chat</h1>
-                        <p>Exercise the chat route shape through the generated local model-file runner boundary.</p>
-                    </div>
-                    <DxButton Text="Send runner chat"
-                              RenderStyle="ButtonRenderStyle.Primary"
-                              RenderStyleMode="ButtonRenderStyleMode.Contained"
-                              Click="SendStubChat" />
-                </section>
-
-                <DxFormLayout CssClass="generated-form">
-                    <DxFormLayoutGroup Caption="Chat request" ColSpanMd="12">
-                        <DxFormLayoutItem Caption="Model" ColSpanMd="4">
-                            <DxTextBox @bind-Text="Model" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Prompt" ColSpanMd="8">
-                            <DxMemo @bind-Text="Prompt" Rows="3" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Transcript" ColSpanMd="12">
-                            <DxMemo Text="@Transcript" Rows="8" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                    </DxFormLayoutGroup>
-                </DxFormLayout>
-            </main>
-
-            @code {
-                string Model { get; set; } = "gpt-oss:20b";
-                string Prompt { get; set; } = "Explain the generated AI host control-plane route boundaries.";
-                string Transcript { get; set; } = "Click Send runner chat to preview a safe /api/chat response.";
-
-                void SendStubChat()
-                {
-                    Transcript = HealthService.CreateChatTranscript(Model, Prompt);
-                }
-            }
-            """;
-
-        public static string GenerateAiHostRunningModelsRazor() =>
-            """
-            @page "/running-models"
-            @rendermode InteractiveServer
-            @inject GeneratedHealthSummaryService HealthService
-
-            <PageTitle>Running Models</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation IsAiHostLab="true" />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>Running Models</h1>
-                        <p>Mirror a local AI host's running-model view as a control-plane status page.</p>
-                    </div>
-                </section>
-
-                <DxGrid Data="@HealthService.GetRunningModels()"
-                        CssClass="generated-grid"
-                        ShowSearchBox="true"
-                        TextWrapEnabled="true">
-                    <Columns>
-                        <DxGridDataColumn FieldName="@nameof(GeneratedAiHostModelTag.Name)" Caption="Model" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedAiHostModelTag.ModifiedAt)" Caption="Started" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedAiHostModelTag.Size)" Caption="Size" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedAiHostModelTag.Digest)" Caption="Digest" />
-                    </Columns>
-                </DxGrid>
-            </main>
-            """;
-
-        public static string GenerateAiHostModelDownloadsRazor() =>
-            """
-            @page "/model-downloads"
-            @rendermode InteractiveServer
-            @inject GeneratedHealthSummaryService HealthService
-
-            <PageTitle>Model Downloads</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation IsAiHostLab="true" />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>Model Downloads</h1>
-                        <p>Plan model-file downloads with explicit target paths and user approval.</p>
-                    </div>
-                    <DxButton Text="Create pull plan"
-                              RenderStyle="ButtonRenderStyle.Primary"
-                              RenderStyleMode="ButtonRenderStyleMode.Contained"
-                              Click="CreatePullPlan" />
-                </section>
-
-                <DxGrid Data="@HealthService.GetDownloadCandidates()"
-                        CssClass="generated-grid"
-                        ShowSearchBox="true"
-                        TextWrapEnabled="true">
-                    <Columns>
-                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.Name)" Caption="Model" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.SourceType)" Caption="Source" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.SourceUrl)" Caption="Catalog URL" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.RecommendedFor)" Caption="Recommended For" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.DownloadRoute)" Caption="Route" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedModelDownloadCandidate.SafetyNote)" Caption="Safety Note" />
-                    </Columns>
-                </DxGrid>
-
-                <DxFormLayout CssClass="generated-form">
-                    <DxFormLayoutGroup Caption="Selected pull request" ColSpanMd="12">
-                        <DxFormLayoutItem Caption="Model" ColSpanMd="6">
-                            <DxTextBox Text="@SelectedModel" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Streaming" ColSpanMd="6">
-                            <DxCheckBox @bind-Checked="StreamProgress" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Generated plan" ColSpanMd="12">
-                            <DxMemo Text="@PullPlanText" Rows="5" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                    </DxFormLayoutGroup>
-                </DxFormLayout>
-            </main>
-
-            @code {
-                string SelectedModel { get; set; } = "gpt-oss:20b";
-                bool StreamProgress { get; set; }
-                string PullPlanText { get; set; } = "Click Create pull plan to preview a safe /api/pull response.";
-
-                void CreatePullPlan()
-                {
-                    var plan = HealthService.CreatePullPlan(new GeneratedModelActionRequest
-                    {
-                        Model = SelectedModel,
-                        Stream = StreamProgress
-                    });
-                    PullPlanText = $"{plan.Route} for {plan.Model}: {plan.Status}. {plan.Detail}";
-                }
-            }
-            """;
-
-        public static string GenerateAiHostTemplatesRazor() =>
-            """
-            @page "/templates"
-            @rendermode InteractiveServer
-            @inject GeneratedHealthSummaryService HealthService
-
-            <PageTitle>Chat Templates</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation IsAiHostLab="true" />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>Chat Templates</h1>
-                        <p>Track model-specific prompt templates, thinking markers, and compatibility adapters as first-class control-plane data.</p>
-                    </div>
-                </section>
-
-                <DxGrid Data="@HealthService.GetTemplateRows()"
-                        CssClass="generated-grid"
-                        ShowSearchBox="true"
-                        TextWrapEnabled="true">
-                    <Columns>
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Method)" Caption="Format" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Route)" Caption="Detector" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Purpose)" Caption="Purpose" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Boundary)" Caption="Boundary" />
-                    </Columns>
-                </DxGrid>
-            </main>
-            """;
-
-        public static string GenerateAiHostHardwareRazor() =>
-            """
-            @page "/hardware"
-            @rendermode InteractiveServer
-            @inject GeneratedHealthSummaryService HealthService
-
-            <PageTitle>Hardware Budget</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation IsAiHostLab="true" />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>Hardware Budget</h1>
-                        <p>Represent GPU, CPU, context, queue, and throttling rules before heavy native runner jobs are allowed.</p>
-                    </div>
-                </section>
-
-                <DxGrid Data="@HealthService.GetHardwareBudgetRows()"
-                        CssClass="generated-grid"
-                        ShowSearchBox="true"
-                        TextWrapEnabled="true">
-                    <Columns>
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Method)" Caption="Area" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Route)" Caption="Budget" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Purpose)" Caption="Policy" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Boundary)" Caption="Reason" />
-                    </Columns>
-                </DxGrid>
-            </main>
-            """;
-
-        public static string GenerateAiHostRunnerPluginsRazor() =>
-            """
-            @page "/runner-plugins"
-            @rendermode InteractiveServer
-            @inject IPluginCatalogService PluginCatalog
-            @inject IInferenceRunner Runner
-            @inject IHardwareBudgetService HardwareBudget
-            @inject IChatTemplateService ChatTemplates
-
-            <PageTitle>Runner Plugins</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation IsAiHostLab="true" />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>Runner Plugins</h1>
-                        <p>Show native-runner boundaries, optional catalog/provider adapters, Python.NET, PowerShell, and managed inference paths as explicit architecture contracts.</p>
-                    </div>
-                    <DxButton Text="Refresh capability"
-                              RenderStyle="ButtonRenderStyle.Primary"
-                              RenderStyleMode="ButtonRenderStyleMode.Contained"
-                              Click="RefreshCapabilityAsync" />
-                </section>
-
-                <div class="generated-status-strip">
-                    <article>
-                        <strong>Native inference</strong>
-                        <span>@(Capability?.NativeInferenceImplemented == true ? "Implemented" : "Capability gap")</span>
-                    </article>
-                    <article>
-                        <strong>GPU target</strong>
-                        <span>@Budget.TargetGpuLoadPercent% sustained</span>
-                    </article>
-                    <article>
-                        <strong>Parallel models</strong>
-                        <span>@Budget.MaxParallelModels</span>
-                    </article>
-                </div>
-
-                <DxGrid Data="@PluginCatalog.GetPlugins()"
-                        CssClass="generated-grid"
-                        ShowSearchBox="true"
-                        TextWrapEnabled="true">
-                    <Columns>
-                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.Id)" Caption="Plugin Id" />
-                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.DisplayName)" Caption="Name" />
-                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.Contract)" Caption="Contract" />
-                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.Approved)" Caption="Approved" />
-                        <DxGridDataColumn FieldName="@nameof(AiHostPluginManifest.Notes)" Caption="Notes" />
-                    </Columns>
-                </DxGrid>
-
-                <DxFormLayout CssClass="generated-form">
-                    <DxFormLayoutGroup Caption="Runner capability" ColSpanMd="12">
-                        <DxFormLayoutItem Caption="Runner kind" ColSpanMd="4">
-                            <DxTextBox Text="@Runner.RunnerKind" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Supported formats" ColSpanMd="8">
-                            <DxTextBox Text="@SupportedFormatsText" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Missing capability" ColSpanMd="12">
-                            <DxMemo Text="@(Capability?.MissingCapability ?? "Capability not loaded yet.")" Rows="3" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Next milestone" ColSpanMd="12">
-                            <DxMemo Text="@(Capability?.NextMilestone ?? "Click Refresh capability.")" Rows="3" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                    </DxFormLayoutGroup>
-                </DxFormLayout>
-
-                <DxGrid Data="@ChatTemplates.GetTemplateRules()"
-                        CssClass="generated-grid"
-                        ShowSearchBox="true"
-                        TextWrapEnabled="true">
-                    <Columns>
-                        <DxGridDataColumn FieldName="@nameof(ChatTemplateRule.Name)" Caption="Template" />
-                        <DxGridDataColumn FieldName="@nameof(ChatTemplateRule.Rule)" Caption="Rule" />
-                    </Columns>
-                </DxGrid>
-            </main>
-
-            @code {
-                RunnerCapabilityReport? Capability { get; set; }
-                HardwareBudgetSnapshot Budget { get; set; } = new(85, 20, 2048, 1, "Sequential by default.");
-                string SupportedFormatsText => Capability is null ? string.Empty : string.Join(", ", Capability.SupportedFormats);
-
-                protected override async Task OnInitializedAsync()
-                {
-                    Budget = HardwareBudget.GetBudget();
-                    Capability = await Runner.GetCapabilityAsync();
-                }
-
-                async Task RefreshCapabilityAsync()
-                {
-                    Budget = HardwareBudget.GetBudget();
-                    Capability = await Runner.GetCapabilityAsync();
-                }
-            }
-            """;
-
-        public static string GenerateAiHostLogsRazor() =>
-            """
-            @page "/logs"
-            @rendermode InteractiveServer
-            @inject GeneratedHealthSummaryService HealthService
-
-            <PageTitle>AI Host Logs</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation IsAiHostLab="true" />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>AI Host Logs</h1>
-                        <p>Surface control-plane diagnostics and runtime-boundary notes where users can inspect them.</p>
-                    </div>
-                </section>
-
-                <DxGrid Data="@HealthService.GetRuntimeLogRows()"
-                        CssClass="generated-grid"
-                        ShowSearchBox="true"
-                        TextWrapEnabled="true">
-                    <Columns>
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Method)" Caption="Level" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Route)" Caption="Area" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Purpose)" Caption="Message" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedEndpointCard.Boundary)" Caption="Action" />
-                    </Columns>
-                </DxGrid>
-            </main>
-            """;
-
-        public static string GenerateAiHostSettingsRazor() =>
-            """
-            @page "/settings"
-            @rendermode InteractiveServer
-            @inject GeneratedHealthSummaryService HealthService
-
-            <PageTitle>AI Host Settings</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation IsAiHostLab="true" />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>AI Host Settings</h1>
-                        <p>Configuration is shown as safe generated defaults. Real persistence should be added through backend services and EF/SQLite after user approval.</p>
-                    </div>
-                </section>
-
-                <DxFormLayout CssClass="generated-form">
-                    <DxFormLayoutGroup Caption="Generated Runtime Profile" ColSpanMd="12">
-                        <DxFormLayoutItem Caption="Model Source" ColSpanMd="6">
-                            <DxTextBox Text="@LabSettings.BaseUri" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Default Model" ColSpanMd="6">
-                            <DxTextBox Text="@LabSettings.DefaultModel" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Keep Alive" ColSpanMd="4">
-                            <DxTextBox Text="@LabSettings.KeepAlive" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Context Tokens" ColSpanMd="4">
-                            <DxTextBox Text="@LabSettings.ContextTokens.ToString()" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="GPU Layers" ColSpanMd="4">
-                            <DxTextBox Text="@LabSettings.GpuLayers.ToString()" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Native Runner Attached" ColSpanMd="6">
-                            <DxCheckBox @bind-Checked="NativeRunnerAttached" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Pull Planning Enabled" ColSpanMd="6">
-                            <DxCheckBox @bind-Checked="AllowPullPlanning" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Settings Summary" ColSpanMd="12">
-                            <DxMemo Text="@HealthService.BuildSettingsSummary()" Rows="5" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                    </DxFormLayoutGroup>
-                </DxFormLayout>
-            </main>
-
-            @code {
-                GeneratedAiHostSettings LabSettings { get; set; } = new();
-                bool NativeRunnerAttached { get; set; }
-                bool AllowPullPlanning { get; set; }
-
-                protected override void OnInitialized()
-                {
-                    LabSettings = HealthService.GetSettings();
-                    NativeRunnerAttached = LabSettings.NativeRunnerAttached;
-                    AllowPullPlanning = LabSettings.AllowPullPlanning;
-                }
-            }
-            """;
-
-        public static string GenerateSolutionService(string projectName, bool isAiHostLab)
+        public static string GenerateSolutionService(string projectName, bool isAiHostLab, ILogger logger)
         {
-            var cards = isAiHostLab
-                ? """
+            try
+            {
+                var cards = isAiHostLab
+               ? """
                           new("REST API Shell", "NativeFileReady", "Map version, tags, ps, show, pull, push, create, copy, delete, generate, chat, and embed routes.", "The host owns route handling and never proxies chat/generate to upstream Ollama."),
                           new("Model Catalog", "SourceBacked", "Represent model names, tags, details, local file paths, download candidates, and runner status in .NET models.", "Ollama manifests may be read as local file metadata; the Ollama service is not used for inference."),
                           new("Native Runner", "Configurable", "Run compatible local model files through an approved native executable such as llama.cpp.", "Native AI hosts rely on model loaders, runner paths, native payloads, and hardware-specific backends."),
@@ -621,7 +249,7 @@ namespace LocalGPT.Extensions.PlainStatics
                           new("Settings", "Ready", "Expose generated runtime settings for base URI, default model, context, GPU layers, and pull policy.", "Persist real settings through EF/SQLite only after user approval."),
                           new("DevExpress UI", "Ready", "Use grids/forms for model inventory, compatibility notes, settings, downloads, and endpoint tests.", "This is the realistic Blazor/DevExpress value of the experiment.")
                   """
-                : """
+               : """
                           new("AI Council Request", "Ready", "Capture the feature idea, council consensus, and implementation poll result.", "This mirrors the LocalGPT workflow for user-approved feature development."),
                           new("Knowledge Grounding", "SourceBacked", "Read verified council knowledge before generating code.", "Use SQLite knowledge entries instead of bloated prompt context."),
                           new("Blazor/DevExpress UI", "Ready", "Generate real routable Razor pages with navigation, grids, forms, and review notes.", "Do not return string-builder fake pages for frontend work."),
@@ -629,8 +257,8 @@ namespace LocalGPT.Extensions.PlainStatics
                           new("Integration Review", "Required", "Build, inspect, and review generated code before copying into LocalGPT or TacosPortalOpen.", "Generated solutions are prototypes, not automatic self-expansion.")
                   """;
 
-            var endpoints = isAiHostLab
-                ? """
+                var endpoints = isAiHostLab
+                    ? """
                           new("GET", "/api/version", "Return a compact provider-compatible version document.", "Safe pure .NET response."),
                           new("GET", "/api/tags", "Return model catalog rows shaped like local AI host tags.", "Catalog includes direct local model-file candidates."),
                           new("GET", "/api/ps", "Return currently loaded model rows for runner-status UI.", "Runner-owned sessions are reported here when configured."),
@@ -644,18 +272,18 @@ namespace LocalGPT.Extensions.PlainStatics
                           new("POST", "/api/chat", "Run chat requests through the native model-file runner contract.", "Context/cache ownership belongs to this host and its runner adapter."),
                           new("POST", "/api/embed", "Return a tiny deterministic vector.", "Not a real embedding model.")
                   """
-                : """
+                    : """
                           new("1", "Backend service", "Create the durable service and data model first.", "Build and test before UI integration."),
                           new("2", "Blazor page", "Add a routable Razor page with DevExpress controls and navigation.", "Review against LocalGPT/TacosPortalOpen patterns."),
                           new("3", "SQLite knowledge", "Persist decisions, logs, and generated artifacts as approved or unverified.", "User approval decides trust state."),
                           new("4", "Artifact download", "Expose generated files through safe HTTP download routes.", "No binary blobs inside chat messages."),
                           new("5", "Frontend smoke", "Exercise the generated workflow like a user in WebView2.", "Do not rely only on backend APIs.")
                   """;
-            var serviceInterfaces = isAiHostLab
-                ? " : IModelCatalogService, IModelTransferService"
-                : string.Empty;
+                var serviceInterfaces = isAiHostLab
+                    ? " : IModelCatalogService, IModelTransferService"
+                    : string.Empty;
 
-            return $$"""
+                return $$"""
             using {{projectName}}.Models;
 
             namespace {{projectName}}.Services;
@@ -934,13 +562,22 @@ namespace LocalGPT.Extensions.PlainStatics
                 }
             }
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionService projectName:{projectName} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
+           
         }
 
-        public static string GenerateSourceFidelityService(string projectName, GlobalVariableSlopCollectionToRemove. GeneratedSolutionArchetype archetype)
+        public static string GenerateSourceFidelityService(string projectName, GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype archetype, ILogger logger)
         {
-            var rows = archetype switch
+            try
             {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => """
+                var rows = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => """
                         new(
                             "DXAiChat workbench",
                             "Original LocalGPT centers user work in DXAiChat with model selection, council mode, uploads, memory, visible progress, and artifact links.",
@@ -972,7 +609,7 @@ namespace LocalGPT.Extensions.PlainStatics
                             "Represented",
                             "Components/Pages/Install.razor and Components/Pages/TestLab.razor.")
                 """,
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => """
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => """
                         new(
                             "Multi-host topology",
                             "Original TacosPortalOpen is a multi-project .NET/Blazor system with core library, server host, WASM/client option, and WinUI/WebView2 wrapper boundaries.",
@@ -1004,7 +641,7 @@ namespace LocalGPT.Extensions.PlainStatics
                             "Represented",
                             "Components/Pages/Admin.razor.")
                 """,
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => """
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => """
                         new(
                             "Provider-compatible routes",
                             "AI-host-shaped requests need /api/version, /api/tags, /api/ps, /api/chat, /api/generate, embeddings, and OpenAI-compatible routes.",
@@ -1030,7 +667,7 @@ namespace LocalGPT.Extensions.PlainStatics
                             "Represented",
                             "Services/GeneratedAiHostArchitectureServices.cs.")
                 """,
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => """
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => """
                         new(
                             "Webhook ingress",
                             "Bot backend requests need signed/idempotent event intake and retry/dead-letter diagnostics.",
@@ -1050,7 +687,7 @@ namespace LocalGPT.Extensions.PlainStatics
                             "Represented",
                             "Components/Pages/PythonInterop.razor.")
                 """,
-                _ => """
+                    _ => """
                         new(
                             "Generated sandbox",
                             "User requested a downloadable .NET/Blazor/DevExpress artifact.",
@@ -1058,9 +695,9 @@ namespace LocalGPT.Extensions.PlainStatics
                             "Represented",
                             "PROJECT_INDEX.md and .localgpt-generation.json.")
                 """
-            };
+                };
 
-            return $$"""
+                return $$"""
             namespace {{projectName}}.Services;
 
             /// <summary>
@@ -1099,10 +736,18 @@ namespace LocalGPT.Extensions.PlainStatics
                 string Status,
                 string Evidence);
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSourceFidelityService projectName:{projectName} GlobalVariableSlopCollectionToRemove:{archetype.ToString()}", archetype);
+                return string.Empty;
+            }
         }
 
-        public static string GenerateAiHostArchitectureServices(string projectName) =>
-            $$"""
+        public static string GenerateAiHostArchitectureServices(string projectName,ILogger logger) {
+            try
+            {
+                return $$"""
             using System.Diagnostics;
             using System.Globalization;
             using System.Text;
@@ -1574,9 +1219,20 @@ namespace LocalGPT.Extensions.PlainStatics
 
             public sealed record ChatTemplateRule(string Name, string Rule);
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateAiHostArchitectureServices projectName:{projectName}");
+                return string.Empty;
+            }
+            
+        }
 
-        public static string GenerateSolutionModel(string projectName) =>
-            $$"""
+        public static string GenerateSolutionModel(string projectName, ILogger logger)
+        {
+            try
+            {
+                return $$"""
             using System.Text.Json.Serialization;
 
             namespace {{projectName}}.Models;
@@ -2140,170 +1796,19 @@ namespace LocalGPT.Extensions.PlainStatics
                 public string Detail { get; }
             }
             """;
-
-        public static string GenerateSolutionCss() =>
-            """
-            :root {
-                color-scheme: light;
-                font-family: "Segoe UI", Arial, sans-serif;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionModel projectName:{projectName}");
+                return string.Empty;
             }
 
-            body {
-                margin: 0;
-                background: #f7f8fa;
-                color: #1f2937;
-            }
-
-            .generated-shell {
-                max-width: 1180px;
-                margin: 0 auto;
-                padding: 32px;
-            }
-
-            .generated-nav {
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                margin-bottom: 24px;
-                padding-bottom: 14px;
-                border-bottom: 1px solid #d9dee7;
-            }
-
-            .generated-nav a {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                color: #384252;
-                text-decoration: none;
-                font-weight: 600;
-            }
-
-            .generated-nav a:hover,
-            .generated-nav a:focus-visible {
-                color: #0b5cab;
-            }
-
-            .generated-nav .generated-brand {
-                margin-right: auto;
-                color: #172033;
-                font-weight: 700;
-            }
-
-            .generated-nav-icon {
-                width: 18px;
-                height: 18px;
-                flex: 0 0 18px;
-            }
-
-            .generated-nav-icon-solid {
-                display: none;
-            }
-
-            .generated-nav a:hover .generated-nav-icon-line,
-            .generated-nav a:focus-visible .generated-nav-icon-line {
-                display: none;
-            }
-
-            .generated-nav a:hover .generated-nav-icon-solid,
-            .generated-nav a:focus-visible .generated-nav-icon-solid {
-                display: inline-block;
-            }
-
-            .generated-hero {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
-                gap: 20px;
-                align-items: end;
-                padding: 28px 0 24px;
-            }
-
-            .generated-hero h1 {
-                margin: 0;
-                font-size: 34px;
-                line-height: 1.1;
-            }
-
-            .generated-hero p {
-                max-width: 760px;
-                color: #536173;
-            }
-
-            .generated-kicker {
-                margin: 0 0 8px;
-                color: #0f766e;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0;
-            }
-
-            .generated-actions {
-                display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
-                justify-content: flex-end;
-            }
-
-            .generated-split {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
-                gap: 24px;
-                align-items: start;
-            }
-
-            .generated-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 16px;
-                margin-bottom: 20px;
-            }
-
-            .generated-header h1 {
-                margin: 0;
-                font-size: 28px;
-            }
-
-            .generated-header p,
-            .generated-muted {
-                margin: 6px 0 0;
-                color: #5f6b7a;
-            }
-
-            .generated-grid,
-            .generated-form {
-                margin-top: 18px;
-            }
-
-            .generated-note {
-                margin-top: 22px;
-            }
-
-            .generated-code {
-                overflow: auto;
-                padding: 16px;
-                border: 1px solid #d9dee7;
-                background: #ffffff;
-                border-radius: 6px;
-            }
-
-            @media (max-width: 860px) {
-                .generated-shell {
-                    padding: 20px;
-                }
-
-                .generated-hero,
-                .generated-split {
-                    grid-template-columns: 1fr;
-                }
-
-                .generated-actions {
-                    justify-content: flex-start;
-                }
-            }
-            """;
-
-        public static IReadOnlyList<(string FileName, string Svg)> GenerateNavigationIconSvgs() =>
-        [
+        }
+        public static IReadOnlyList<(string FileName, string Svg)>? GenerateNavigationIconSvgs( ILogger logger)
+        {
+            try
+            {
+                return [
             ("dashboard-line.svg", """
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="dashboard-line-title">
                   <title id="dashboard-line-title">Dashboard line icon</title>
@@ -2364,33 +1869,43 @@ namespace LocalGPT.Extensions.PlainStatics
                 </svg>
                 """)
         ];
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateNavigationIconSvgs");
+                return null;
+            }
+
+        }
 
         public static string GenerateSolutionReadme(
             string projectName,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isAiHostLab)
+            bool isAiHostLab, ILogger logger)
         {
-            var description = isAiHostLab
+            try
+            {
+                var description = isAiHostLab
                 ? "Generated by LocalGPT as a .NET 10 ASP.NET Core and DevExpress Blazor AI host with a native local-model-file runner contract."
                 : "Generated by LocalGPT as a whole-solution AI Council artifact.";
 
-            var notes = isAiHostLab
-                ? """
+                var notes = isAiHostLab
+                    ? """
                   ## AI Host Control-Plane Lab Scope
 
                   This prototype demonstrates selected provider-compatible HTTP routes, model catalog UX, health cards, endpoint testing in .NET/Blazor, and a native local-model-file runner boundary.
 
                   It does not proxy `/api/chat` or `/api/generate` to upstream Ollama/LM Studio/OpenAI-compatible hosts. It can read local model-file metadata, resolve `.gguf` or Ollama-managed blob candidates, and invoke a configured approved native executable.
                   """
-                : """
+                    : """
                   ## Scope
 
                   This is a LocalGPT/TacosPortalOpen-style .NET 10 Blazor and DevExpress generation sandbox.
                   """;
 
-            return
-            $$"""
+                return
+                $$"""
             # {{projectName}}
 
             {{description}}
@@ -2434,22 +1949,30 @@ namespace LocalGPT.Extensions.PlainStatics
 
             {{TrimForCodeComment(result.FinalAnswer, 1200)}}
             """;
-        }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionReadme projectName:{projectName} request:{request} result:{result} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
 
+        }
         public static string GenerateSolutionProjectIndex(
             string projectName,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isAiHostLab)
+            bool isAiHostLab, ILogger logger)
         {
-            var projectKind = isAiHostLab ? "dotnet_service" : "localgpt_feature";
-            var purpose = isAiHostLab
-                ? "Prototype an AI-host-shaped .NET/Blazor control plane without claiming native model inference."
-                : "Prototype a LocalGPT/TacosPortalOpen-style AI Council feature workspace with reviewable Blazor pages.";
-            var catalogPage = isAiHostLab ? "GeneratedKnowledgeTable.razor route `/models`" : "GeneratedKnowledgeTable.razor route `/knowledge`";
-            var detailPage = isAiHostLab ? "ApiConsole.razor route `/api-console`" : "ImplementationPlan.razor route `/implementation-plan`";
-            var aiHostExpectedEntryPoints = isAiHostLab
-                ? $$"""
+            try
+            {
+                var projectKind = isAiHostLab ? "dotnet_service" : "localgpt_feature";
+                var purpose = isAiHostLab
+                    ? "Prototype an AI-host-shaped .NET/Blazor control plane without claiming native model inference."
+                    : "Prototype a LocalGPT/TacosPortalOpen-style AI Council feature workspace with reviewable Blazor pages.";
+                var catalogPage = isAiHostLab ? "GeneratedKnowledgeTable.razor route `/models`" : "GeneratedKnowledgeTable.razor route `/knowledge`";
+                var detailPage = isAiHostLab ? "ApiConsole.razor route `/api-console`" : "ImplementationPlan.razor route `/implementation-plan`";
+                var aiHostExpectedEntryPoints = isAiHostLab
+                    ? $$"""
                 ,
                 "src/{{projectName}}/Components/Pages/Chat.razor",
                 "src/{{projectName}}/Components/Pages/RunningModels.razor",
@@ -2460,9 +1983,9 @@ namespace LocalGPT.Extensions.PlainStatics
                 "src/{{projectName}}/Components/Pages/Logs.razor",
                 "src/{{projectName}}/Components/Pages/Settings.razor"
                 """
-                : string.Empty;
-            var aiHostEntryPoints = isAiHostLab
-                ? $$"""
+                    : string.Empty;
+                var aiHostEntryPoints = isAiHostLab
+                    ? $$"""
             - `src/{{projectName}}/Components/Pages/Chat.razor` - safe chat route preview with typed response data.
             - `src/{{projectName}}/Components/Pages/RunningModels.razor` - running-model status grid.
             - `src/{{projectName}}/Components/Pages/ModelDownloads.razor` - DevExpress model pull planning page.
@@ -2472,9 +1995,9 @@ namespace LocalGPT.Extensions.PlainStatics
             - `src/{{projectName}}/Components/Pages/Logs.razor` - runtime-boundary diagnostics page.
             - `src/{{projectName}}/Components/Pages/Settings.razor` - AI host settings and runner-boundary page.
             """
-                : string.Empty;
-            var aiHostGeneratedFiles = isAiHostLab
-                ? $$"""
+                    : string.Empty;
+                var aiHostGeneratedFiles = isAiHostLab
+                    ? $$"""
             | `src/{{projectName}}/Components/Pages/Chat.razor` | DevExpress chat page with safe typed `/api/chat` preview. |
             | `src/{{projectName}}/Components/Pages/RunningModels.razor` | Running model status grid for `/api/ps`-style state. |
             | `src/{{projectName}}/Components/Pages/ModelDownloads.razor` | DevExpress UI for provider-style pull planning and download guidance. |
@@ -2485,9 +2008,9 @@ namespace LocalGPT.Extensions.PlainStatics
             | `src/{{projectName}}/Components/Pages/Settings.razor` | DevExpress settings page for local model source, context, and native-runner boundaries. |
             | `src/{{projectName}}/Services/GeneratedAiHostArchitectureServices.cs` | Provider, runner, plugin, script, hardware, and template contracts wired through DI. |
             """
-                : string.Empty;
+                    : string.Empty;
 
-            return $$"""
+                return $$"""
             # Project Index
 
             ## Purpose
@@ -2561,19 +2084,28 @@ namespace LocalGPT.Extensions.PlainStatics
 
             {{TrimForCodeComment(result.FinalAnswer, 900)}}
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionProjectIndex projectName:{projectName} request:{request} result:{result} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
+
         }
 
-        public static string GenerateSolutionArchitectureDoc(string projectName, bool isAiHostLab)
+        public static string GenerateSolutionArchitectureDoc(string projectName, bool isAiHostLab, ILogger logger)
         {
-            var title = isAiHostLab ? "AI Host Control-Plane Architecture" : "LocalGPT Feature Lab Architecture";
-            var contrast = isAiHostLab
-                ? "This is not a LocalGPT feature page clone. It is an API-control-plane lab with endpoint cataloging, model rows, and explicit runner boundaries."
-                : "This is not an AI host control-plane lab. It is a LocalGPT/TacosPortalOpen-style feature sandbox with council grounding, implementation steps, and approval gates.";
-            var backendBoundary = isAiHostLab
-                ? "Native inference, GGML/GPU scheduling, model loading, and tokenizer/runtime ownership stay outside this prototype until a real runner adapter is approved."
-                : "EF/SQLite writes, native commands, report generation, and artifact creation belong in backend services and routes, not in Razor-only snippets.";
+            try
+            {
+                var title = isAiHostLab ? "AI Host Control-Plane Architecture" : "LocalGPT Feature Lab Architecture";
+                var contrast = isAiHostLab
+                    ? "This is not a LocalGPT feature page clone. It is an API-control-plane lab with endpoint cataloging, model rows, and explicit runner boundaries."
+                    : "This is not an AI host control-plane lab. It is a LocalGPT/TacosPortalOpen-style feature sandbox with council grounding, implementation steps, and approval gates.";
+                var backendBoundary = isAiHostLab
+                    ? "Native inference, GGML/GPU scheduling, model loading, and tokenizer/runtime ownership stay outside this prototype until a real runner adapter is approved."
+                    : "EF/SQLite writes, native commands, report generation, and artifact creation belong in backend services and routes, not in Razor-only snippets.";
 
-            return $$"""
+                return $$"""
             # {{title}}
 
             ## Why This Shape
@@ -2612,33 +2144,41 @@ namespace LocalGPT.Extensions.PlainStatics
             7. `src/{{projectName}}/Services/GeneratedSourceFidelityService.cs`
             {{(isAiHostLab ? $"8. `src/{projectName}/Services/GeneratedAiHostArchitectureServices.cs`" : string.Empty)}}
             """;
-        }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionArchitectureDoc projectName:{projectName} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
 
+        }
         public static string GenerateSourceFidelityDoc(
             string projectName,
             GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype archetype,
-            IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules)
+            IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules, ILogger logger)
         {
-            var expectedShape = archetype switch
+            try
             {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt =>
-                    "A LocalGPT replacement must look and behave like a local-first AI workbench: DXAiChat, AI Council, SQLite memory/knowledge, artifact downloads, Minecraft builder, Install, Test Lab, diagnostics, and visible model/runtime status.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal =>
-                    "A TacosPortalOpen replacement must preserve the multi-host/event-ingestion architecture: core/shared services, Telegram or message ingestion, normalized persistence, workers, notifications, DevExpress admin/security, optional WASM client, and WinUI/WebView2 wrapper boundaries. It is not accepted as a generic restaurant ordering portal.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost =>
-                    "An AI-host replacement must expose provider-compatible API routes, catalog/download/running-model UX, chat/API console, logs, settings, templates, hardware policy, runner/plugin boundaries, and direct local model-file inference without upstream proxying.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend =>
-                    "A bot backend replacement must expose webhook ingress, conversation state, command routing, moderation/retry queues, settings/logs, optional Python interop, and permission gates.",
-                _ =>
-                    "A generic generated solution must still show which source behaviors are represented, stubbed, or out of scope."
-            };
-            var promiseReview = promiseModules.Count == 0
-                ? "No dynamic promise modules were detected from the council answer. Review the base archetype files and the original prompt manually."
-                : string.Join(
-                    Environment.NewLine,
-                    promiseModules.Select(module => $"- `{module.Route}` / `{module.FileName}`: {module.Summary}"));
+                var expectedShape = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt =>
+                        "A LocalGPT replacement must look and behave like a local-first AI workbench: DXAiChat, AI Council, SQLite memory/knowledge, artifact downloads, Minecraft builder, Install, Test Lab, diagnostics, and visible model/runtime status.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal =>
+                        "A TacosPortalOpen replacement must preserve the multi-host/event-ingestion architecture: core/shared services, Telegram or message ingestion, normalized persistence, workers, notifications, DevExpress admin/security, optional WASM client, and WinUI/WebView2 wrapper boundaries. It is not accepted as a generic restaurant ordering portal.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost =>
+                        "An AI-host replacement must expose provider-compatible API routes, catalog/download/running-model UX, chat/API console, logs, settings, templates, hardware policy, runner/plugin boundaries, and direct local model-file inference without upstream proxying.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend =>
+                        "A bot backend replacement must expose webhook ingress, conversation state, command routing, moderation/retry queues, settings/logs, optional Python interop, and permission gates.",
+                    _ =>
+                        "A generic generated solution must still show which source behaviors are represented, stubbed, or out of scope."
+                };
+                var promiseReview = promiseModules.Count == 0
+                    ? "No dynamic promise modules were detected from the council answer. Review the base archetype files and the original prompt manually."
+                    : string.Join(
+                        Environment.NewLine,
+                        promiseModules.Select(module => $"- `{module.Route}` / `{module.FileName}`: {module.Summary}"));
 
-            return $$"""
+                return $$"""
             # Source Fidelity
 
             Generated project: `{{projectName}}`
@@ -2671,22 +2211,30 @@ namespace LocalGPT.Extensions.PlainStatics
 
             This remains a sandbox artifact. Copying generated files into a real repo requires explicit user approval, a build, and a focused smoke test.
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSourceFidelityDoc projectName:{projectName} archetype:{archetype.ToString()} promiseModules:{promiseModules.ToString()}");
+                return string.Empty;
+            }
         }
 
         public static string GeneratePromiseMapDoc(
             string projectName,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules)
+            IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules, ILogger logger)
         {
-            var moduleRows = promiseModules.Count == 0
+            try
+            {
+                var moduleRows = promiseModules.Count == 0
                 ? "| No dynamic modules detected | The generated solution must be reviewed against the request manually. |"
                 : string.Join(
                     Environment.NewLine,
                     promiseModules.Select(module =>
                         $"| `{module.Route}` | `{module.FileName}` | {module.Summary} | {string.Join(", ", module.Areas)} |"));
 
-            return $$"""
+                return $$"""
             # Promise Map
 
             Generated project: `{{projectName}}`
@@ -2715,19 +2263,28 @@ namespace LocalGPT.Extensions.PlainStatics
             {{TrimForCodeComment(result.FinalAnswer, 1600)}}
             ```
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSourceFidelityDoc projectName:{projectName} request:{request.ToString()} result:{result.ToString()} promiseModules:{promiseModules.ToString()}");
+                return string.Empty;
+            }
+            
         }
 
         public static string GenerateDesignReviewDoc(
             string projectName,
              GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype archetype,
-            IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules)
+            IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules, ILogger logger)
         {
-            var moduleList = promiseModules.Count == 0
+            try
+            {
+                var moduleList = promiseModules.Count == 0
                 ? "- No dynamic promise modules were detected. The design stays with the base generated shell."
                 : string.Join(Environment.NewLine, promiseModules.Select(module => $"- `{module.Title}` uses DevExpress grid/form patterns to expose {string.Join(", ", module.Areas)}."));
-            var archetypeName = archetype.ToString();
+                var archetypeName = archetype.ToString();
 
-            return $$"""
+                return $$"""
             # Design Review
 
             Generated project: `{{projectName}}`
@@ -2765,14 +2322,22 @@ namespace LocalGPT.Extensions.PlainStatics
             - Add route smoke tests for every generated endpoint.
             - Add real DevExpress report/export implementation only after package/API verification and user approval.
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateDesignReviewDoc projectName:{projectName} archetype:{archetype.ToString()} promiseModules:{promiseModules.ToString()}");
+                return string.Empty;
+            }
         }
 
-        public static string GenerateSolutionBuildAndRunDoc(string projectName, bool isAiHostLab)
+        public static string GenerateSolutionBuildAndRunDoc(string projectName, bool isAiHostLab, ILogger logger)
         {
-            var smokeRoute = isAiHostLab
+            try
+            {
+                var smokeRoute = isAiHostLab
                 ? "Open `/api-console`, `/model-downloads`, `/runner-plugins`, and `/settings`; then call `/api/version`, `/api/tags`, `/api/localgpt/runner/capability`, and `/api/chat` to verify route shape, local model-file runner readiness, and no upstream proxy fallback."
                 : "Open `/implementation-plan` and verify implementation steps are visible.";
-            return $$"""
+                return $$"""
             # Build And Run
 
             ## Requirements
@@ -2801,24 +2366,33 @@ namespace LocalGPT.Extensions.PlainStatics
 
             Do not claim build success unless `dotnet build` completed and the command output is available. Do not claim production readiness; this zip is a sandbox artifact.
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionBuildAndRunDoc projectName:{projectName} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
+            
         }
 
         public static string GenerateLocalGptGenerationJson(
             string projectName,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isAiHostLab)
+            bool isAiHostLab, ILogger logger)
         {
-            var projectKind = isAiHostLab ? "dotnet_service" : "localgpt_feature";
-            var targetPlatform = isAiHostLab
-                ? "dotnet10_aspnetcore_devexpress_blazor_ai_host_control_plane"
-                : "dotnet10_aspnetcore_devexpress_blazor_localgpt_feature";
-            var detailPage = isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
-            var validationNotes = isAiHostLab
-                ? "Required docs, source-fidelity files, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, chat, running-models, model-download, templates, hardware, runner-plugin, logs, settings, and AI-host architecture service files were present before zipping."
-                : "Required docs, source-fidelity files, manifest, navigation, paired nav icons, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
-            var aiHostExpectedEntryPoints = isAiHostLab
-                ? $$"""
+            try
+            {
+                var projectKind = isAiHostLab ? "dotnet_service" : "localgpt_feature";
+                var targetPlatform = isAiHostLab
+                    ? "dotnet10_aspnetcore_devexpress_blazor_ai_host_control_plane"
+                    : "dotnet10_aspnetcore_devexpress_blazor_localgpt_feature";
+                var detailPage = isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor";
+                var validationNotes = isAiHostLab
+                    ? "Required docs, source-fidelity files, manifest, navigation, paired nav icons, index, dashboard, model catalog, API console, chat, running-models, model-download, templates, hardware, runner-plugin, logs, settings, and AI-host architecture service files were present before zipping."
+                    : "Required docs, source-fidelity files, manifest, navigation, paired nav icons, index, dashboard, knowledge table, and implementation-plan files were present before zipping.";
+                var aiHostExpectedEntryPoints = isAiHostLab
+                    ? $$"""
                 ,
                 "src/{{projectName}}/Components/Pages/Chat.razor",
                 "src/{{projectName}}/Components/Pages/RunningModels.razor",
@@ -2829,9 +2403,9 @@ namespace LocalGPT.Extensions.PlainStatics
                 "src/{{projectName}}/Components/Pages/Logs.razor",
                 "src/{{projectName}}/Components/Pages/Settings.razor"
                 """
-                : string.Empty;
-            var aiHostGeneratedFiles = isAiHostLab
-                ? $$"""
+                    : string.Empty;
+                var aiHostGeneratedFiles = isAiHostLab
+                    ? $$"""
                 ,
                 "src/{{projectName}}/Components/Pages/Chat.razor",
                 "src/{{projectName}}/Components/Pages/RunningModels.razor",
@@ -2843,9 +2417,9 @@ namespace LocalGPT.Extensions.PlainStatics
                 "src/{{projectName}}/Components/Pages/Settings.razor",
                 "src/{{projectName}}/Services/GeneratedAiHostArchitectureServices.cs"
                 """
-                : string.Empty;
+                    : string.Empty;
 
-            return $$"""
+                return $$"""
             {
               "schema": "localgpt-generation-contract/v1",
               "project_kind": "{{projectKind}}",
@@ -2906,6 +2480,13 @@ namespace LocalGPT.Extensions.PlainStatics
               "archetype_difference": "{{(isAiHostLab ? "AI host lab includes API routes, model catalog, downloads, settings, and a native local-model-file runner contract; upstream proxying is explicitly out of scope." : "LocalGPT feature sandbox includes implementation-plan and knowledge-table pages rather than AI host compatibility workflows.")}}"
             }
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateLocalGptGenerationJson projectName:{projectName} request:{request.ToString()} result:{result.ToString()} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
+            
         }
 
         public static string GenerateSolutionManifest(
@@ -2913,14 +2494,16 @@ namespace LocalGPT.Extensions.PlainStatics
             string solutionGuid,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isAiHostLab)
+            bool isAiHostLab, ILogger logger)
         {
-            var sourceGoal = isAiHostLab
+            try
+            {
+                var sourceGoal = isAiHostLab
                 ? ".NET 10 ASP.NET Core and DevExpress Blazor AI host control-plane lab with explicit provider, plugin, script, and native-runner adapter boundaries"
                 : "LocalGPT/TacosPortalOpen-style .NET 10 Blazor and DevExpress generation";
 
-            return
-            $$"""
+                return
+                $$"""
             {
               "projectName": "{{EscapeJsonString(projectName)}}",
               "solutionGuid": "{{EscapeJsonString(solutionGuid)}}",
@@ -2936,15 +2519,23 @@ namespace LocalGPT.Extensions.PlainStatics
               "safety": "Sandbox artifact only. Integration requires explicit user approval."
             }
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateLocalGptGenerationJson projectName:{projectName} solutionGuid:{solutionGuid} request:{request.ToString()} result:{result.ToString()} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
         }
 
         public static string GenerateBlazorDevExpressRazorExample(
             MultiModelCouncilRequest request,
-            MultiModelCouncilResult result)
+            MultiModelCouncilResult result, ILogger logger)
         {
-            var requestSummary = TrimForCodeComment(request.Prompt, 700);
-            var consensusSummary = TrimForCodeComment(result.FinalAnswer, 900);
-            return $$"""
+            try
+            {
+                var requestSummary = TrimForCodeComment(request.Prompt, 700);
+                var consensusSummary = TrimForCodeComment(result.FinalAnswer, 900);
+                return $$"""
                 @page "/generated/localgpt-health-summary"
                 @rendermode InteractiveServer
                 @using DevExpress.Blazor
@@ -3027,14 +2618,22 @@ namespace LocalGPT.Extensions.PlainStatics
                     sealed record HealthCard(string Area, string Status, string NextAction, string Detail);
                 }
                 """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateBlazorDevExpressRazorExample request:{request.ToString()} result:{result.ToString()}");
+                return string.Empty;
+            }
         }
 
         public static string GenerateBlazorSupportCode(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            string targetArea)
+            string targetArea, ILogger logger)
         {
-            return $$"""
+            try
+            {
+                return $$"""
                 // <auto-generated>
                 // LocalGPT AI Council Blazor support example.
                 // </auto-generated>
@@ -3064,102 +2663,136 @@ namespace LocalGPT.Extensions.PlainStatics
                     }
                 }
                 """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateBlazorSupportCode request:{request.ToString()} result:{result.ToString()} targetArea:{targetArea}");
+                return string.Empty;
+            }
+
         }
 
         public static string GenerateCodeDomExample(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            string targetArea)
+            string targetArea, ILogger logger)
         {
-            var unit = new CodeCompileUnit();
-            var namespaceDeclaration = new CodeNamespace("LocalGPT.GeneratedExamples");
-            namespaceDeclaration.Imports.Add(new CodeNamespaceImport("System"));
-            namespaceDeclaration.Imports.Add(new CodeNamespaceImport("System.Text"));
-            unit.Namespaces.Add(namespaceDeclaration);
-
-            var type = new CodeTypeDeclaration("CouncilFeatureRequestExample")
+            try
             {
-                IsClass = true,
-                TypeAttributes = System.Reflection.TypeAttributes.Public | System.Reflection.TypeAttributes.Sealed
-            };
-            type.Comments.Add(new CodeCommentStatement("Generated by LocalGPT AI Council as a downloadable implementation sketch."));
-            type.Comments.Add(new CodeCommentStatement("Treat this as a starter example, not as production code."));
-            namespaceDeclaration.Types.Add(type);
+                var unit = new CodeCompileUnit();
+                var namespaceDeclaration = new CodeNamespace("LocalGPT.GeneratedExamples");
+                namespaceDeclaration.Imports.Add(new CodeNamespaceImport("System"));
+                namespaceDeclaration.Imports.Add(new CodeNamespaceImport("System.Text"));
+                unit.Namespaces.Add(namespaceDeclaration);
 
-            var privateConstructor = new CodeConstructor
+                var type = new CodeTypeDeclaration("CouncilFeatureRequestExample")
+                {
+                    IsClass = true,
+                    TypeAttributes = System.Reflection.TypeAttributes.Public | System.Reflection.TypeAttributes.Sealed
+                };
+                type.Comments.Add(new CodeCommentStatement("Generated by LocalGPT AI Council as a downloadable implementation sketch."));
+                type.Comments.Add(new CodeCommentStatement("Treat this as a starter example, not as production code."));
+                namespaceDeclaration.Types.Add(type);
+
+                var privateConstructor = new CodeConstructor
+                {
+                    Attributes = MemberAttributes.Private
+                };
+                type.Members.Add(privateConstructor);
+
+                type.Members.Add(CreateConstant("TargetArea", targetArea));
+                type.Members.Add(CreateConstant("CouncilMembers", string.Join(", ", result.ModelNames)));
+                type.Members.Add(CreateConstant("OriginalRequest", TrimForCodeComment(request.Prompt, 900)));
+
+                var method = new CodeMemberMethod
+                {
+                    Name = "BuildImplementationRequestMarkdown",
+                    Attributes = MemberAttributes.Public | MemberAttributes.Static,
+                    ReturnType = new CodeTypeReference(typeof(string))
+                };
+                method.Comments.Add(new CodeCommentStatement("This shape can be pasted into DXAiChat or an AI Council continuation round."));
+                method.Statements.Add(new CodeVariableDeclarationStatement(typeof(StringBuilder), "builder", new CodeObjectCreateExpression(typeof(StringBuilder))));
+                AppendLine(method, "# LocalGPT Implementation Request");
+                AppendLine(method, "");
+                AppendLine(method, $"Target area: {targetArea}");
+                AppendLine(method, $"Council members: {string.Join(", ", result.ModelNames)}");
+                AppendLine(method, "");
+                AppendLine(method, "## Requested feature");
+                AppendLine(method, TrimForCodeComment(request.Prompt, 1000));
+                AppendLine(method, "");
+                AppendLine(method, "## Current council consensus");
+                AppendLine(method, TrimForCodeComment(result.FinalAnswer, 1600));
+                AppendLine(method, "");
+                AppendLine(method, "## Implementation checklist");
+                AppendLine(method, "- Identify the owning LocalGPT service/page/project.");
+                AppendLine(method, "- Check /__diag/devexpress before proposing DevExpress APIs or UI components.");
+                AppendLine(method, "- Put DevExpress Office/report/PDF/export generation in ASP.NET Core backend services and expose safe download links.");
+                AppendLine(method, "- Keep native commands in backend services.");
+                AppendLine(method, "- Save user-visible state to EF/SQLite when it affects future chats.");
+                AppendLine(method, "- Prototype requested features in a harmless sandbox artifact or temporary workspace before integrating into the real project.");
+                AppendLine(method, "- Ask the user for explicit permission before integrating any generated expansion into LocalGPT.");
+                AppendLine(method, "- Never overrule a user decision that denies or limits self-expansion.");
+                AppendLine(method, "- List helpful official docs, examples, specs, or source repositories needed before implementation.");
+                AppendLine(method, "- Add a diagnostic endpoint or smoke path before relying on UI behavior.");
+                AppendLine(method, "- Mark unknown dependencies as Needs verification.");
+                method.Statements.Add(new CodeMethodReturnStatement(new CodeMethodInvokeExpression(new CodeVariableReferenceExpression("builder"), "ToString")));
+                type.Members.Add(method);
+
+                using var writer = new StringWriter();
+                writer.WriteLine("// <auto-generated>");
+                writer.WriteLine("// LocalGPT AI Council implementation example.");
+                writer.WriteLine("// </auto-generated>");
+                writer.WriteLine();
+
+                using var provider = new CSharpCodeProvider();
+                provider.GenerateCodeFromCompileUnit(unit, writer, new CodeGeneratorOptions
+                {
+                    BracingStyle = "C",
+                    BlankLinesBetweenMembers = true
+                });
+
+                return writer.ToString();
+            }
+            catch (Exception ex)
             {
-                Attributes = MemberAttributes.Private
-            };
-            type.Members.Add(privateConstructor);
+                logger.LogError(ex, $"Error in GenerateBlazorSupportCode request:{request.ToString()} result:{result.ToString()} targetArea:{targetArea}");
+                return string.Empty;
+            }
 
-            type.Members.Add(CreateConstant("TargetArea", targetArea));
-            type.Members.Add(CreateConstant("CouncilMembers", string.Join(", ", result.ModelNames)));
-            type.Members.Add(CreateConstant("OriginalRequest", TrimForCodeComment(request.Prompt, 900)));
-
-            var method = new CodeMemberMethod
-            {
-                Name = "BuildImplementationRequestMarkdown",
-                Attributes = MemberAttributes.Public | MemberAttributes.Static,
-                ReturnType = new CodeTypeReference(typeof(string))
-            };
-            method.Comments.Add(new CodeCommentStatement("This shape can be pasted into DXAiChat or an AI Council continuation round."));
-            method.Statements.Add(new CodeVariableDeclarationStatement(typeof(StringBuilder), "builder", new CodeObjectCreateExpression(typeof(StringBuilder))));
-            AppendLine(method, "# LocalGPT Implementation Request");
-            AppendLine(method, "");
-            AppendLine(method, $"Target area: {targetArea}");
-            AppendLine(method, $"Council members: {string.Join(", ", result.ModelNames)}");
-            AppendLine(method, "");
-            AppendLine(method, "## Requested feature");
-            AppendLine(method, TrimForCodeComment(request.Prompt, 1000));
-            AppendLine(method, "");
-            AppendLine(method, "## Current council consensus");
-            AppendLine(method, TrimForCodeComment(result.FinalAnswer, 1600));
-            AppendLine(method, "");
-            AppendLine(method, "## Implementation checklist");
-            AppendLine(method, "- Identify the owning LocalGPT service/page/project.");
-            AppendLine(method, "- Check /__diag/devexpress before proposing DevExpress APIs or UI components.");
-            AppendLine(method, "- Put DevExpress Office/report/PDF/export generation in ASP.NET Core backend services and expose safe download links.");
-            AppendLine(method, "- Keep native commands in backend services.");
-            AppendLine(method, "- Save user-visible state to EF/SQLite when it affects future chats.");
-            AppendLine(method, "- Prototype requested features in a harmless sandbox artifact or temporary workspace before integrating into the real project.");
-            AppendLine(method, "- Ask the user for explicit permission before integrating any generated expansion into LocalGPT.");
-            AppendLine(method, "- Never overrule a user decision that denies or limits self-expansion.");
-            AppendLine(method, "- List helpful official docs, examples, specs, or source repositories needed before implementation.");
-            AppendLine(method, "- Add a diagnostic endpoint or smoke path before relying on UI behavior.");
-            AppendLine(method, "- Mark unknown dependencies as Needs verification.");
-            method.Statements.Add(new CodeMethodReturnStatement(new CodeMethodInvokeExpression(new CodeVariableReferenceExpression("builder"), "ToString")));
-            type.Members.Add(method);
-
-            using var writer = new StringWriter();
-            writer.WriteLine("// <auto-generated>");
-            writer.WriteLine("// LocalGPT AI Council implementation example.");
-            writer.WriteLine("// </auto-generated>");
-            writer.WriteLine();
-
-            using var provider = new CSharpCodeProvider();
-            provider.GenerateCodeFromCompileUnit(unit, writer, new CodeGeneratorOptions
-            {
-                BracingStyle = "C",
-                BlankLinesBetweenMembers = true
-            });
-
-            return writer.ToString();
+            
         }
 
-        public static CodeMemberField CreateConstant(string name, string value)
+        public static CodeMemberField? CreateConstant(string name, string value, ILogger logger)
         {
-            return new CodeMemberField(typeof(string), name)
+            try
             {
-                Attributes = MemberAttributes.Public | MemberAttributes.Const,
-                InitExpression = new CodePrimitiveExpression(value)
-            };
+                return new CodeMemberField(typeof(string), name)
+                {
+                    Attributes = MemberAttributes.Public | MemberAttributes.Const,
+                    InitExpression = new CodePrimitiveExpression(value)
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateConstant name:{name} value:{value}");
+                return null;
+            }
         }
-        public static string GetDiscoveredModelButtonText(LocalAiModelInfo model)
+        public static string GetDiscoveredModelButtonText(LocalAiModelInfo model, ILogger logger)
         {
-            var state = model.IsLoaded ? "loaded" : "installed";
-            return string.IsNullOrWhiteSpace(model.Details)
-                ? $"{model.Name} ({state})"
-                : $"{model.Name} ({state}, {model.Details})";
+            try
+            {
+                var state = model.IsLoaded ? "loaded" : "installed";
+                return string.IsNullOrWhiteSpace(model.Details)
+                    ? $"{model.Name} ({state})"
+                    : $"{model.Name} ({state}, {model.Details})";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetDiscoveredModelButtonText model:{model.ToString()}");
+                return string.Empty;
+            }
+
         }
         public static void AppendLine(CodeMemberMethod method, string line)
         {
