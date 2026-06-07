@@ -1,10 +1,14 @@
 param(
     [string]$RepoUrl = "https://github.com/Michi0403/LocalGPT.git",
-    [string]$WorkDir = "$env:TEMP\LocalGPT_repo_export",
-    [string]$OutputFile = "$PWD\LocalGPT_repository_debug_bundle.txt",
     [switch]$KeepClone
 )
+$length = 10
+$env:GIT_REDIRECT_STDERR = '2>&1'
 
+$characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.ToCharArray()
+$randomi = -join ($characters | Get-Random -Count $length)
+
+$randomString = $randomi.ToString()
 $ErrorActionPreference = "Stop"
 
 function Test-CommandExists {
@@ -16,15 +20,16 @@ if (-not (Test-CommandExists git)) {
     throw "git.exe was not found. Install Git for Windows first: https://git-scm.com/download/win"
 }
 
-$RepoDir = Join-Path $WorkDir "LocalGPT"
-
-if (Test-Path $WorkDir) {
-    Remove-Item $WorkDir -Recurse -Force
+$RepoDir = Join-Path $randomString "LocalGPT"
+$WorkDir = (Get-Location).Path
+$OutputDirectory = Join-Path $WorkDir $RepoDir 
+$RepoDirOuter = Join-Path $WorkDir $randomString
+$OutputFile = Join-Path $OutputDirectory "repoastext"
+if (Test-Path $RepoDir) {
+    Remove-Item $RepoDir -Recurse -Force
 }
-New-Item -ItemType Directory -Path $WorkDir | Out-Null
-
 Write-Host "Cloning $RepoUrl ..."
-git clone --depth 1 $RepoUrl $RepoDir
+git clone $RepoUrl $randomString
 
 $IncludeExtensions = @(
     ".cs", ".csproj", ".sln", ".slnx", ".razor", ".cshtml",
@@ -95,27 +100,29 @@ function Looks-Binary {
     }
 }
 
-$files = Get-ChildItem -Path $RepoDir -Recurse -File |
-    Where-Object { Is-TextWanted $_ } |
-    Where-Object { -not (Looks-Binary $_) } |
+$files = Get-ChildItem -Path $RepoDirOuter -Recurse -File |
+#    Where-Object { Is-TextWanted $_ } |
+#    Where-Object { -not (Looks-Binary $_) } |
     Sort-Object FullName
-
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-$writer = New-Object System.IO.StreamWriter($OutputFile, $false, $utf8NoBom)
+$writer = New-Object System.IO.StreamWriter($OutputDirectory, $false, $utf8NoBom)
 
 try {
-    $commit = git -C $RepoDir rev-parse HEAD
-    $branch = git -C $RepoDir rev-parse --abbrev-ref HEAD
+
 
     $writer.WriteLine("# LocalGPT Repository Debug Bundle")
+    Write-Host "# LocalGPT Repository Debug Bundle"
     $writer.WriteLine("Repository: $RepoUrl")
-    $writer.WriteLine("Branch: $branch")
-    $writer.WriteLine("Commit: $commit")
     $writer.WriteLine("Generated: $(Get-Date -Format o)")
+    Write-Host "Generated: $(Get-Date -Format o)"
     $writer.WriteLine("Included files: $($files.Count)")
+    Write-Host "Included files: $($files.Count)"
     $writer.WriteLine("")
+    Write-Host ""
     $writer.WriteLine("This bundle intentionally excludes binaries, build outputs, NuGet packages, caches, databases, certificates, logs, media, and oversized files.")
+    Write-Host "This bundle intentionally excludes binaries, build outputs, NuGet packages, caches, databases, certificates, logs, media, and oversized files."
     $writer.WriteLine("")
+    Write-Host ""
 
     foreach ($file in $files) {
         $rel = $file.FullName.Substring($RepoDir.Length).TrimStart('\','/') -replace '\\','/'
@@ -129,9 +136,11 @@ try {
 
         try {
             $content = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction Stop
+            Write-Host "$content"
             $writer.WriteLine($content)
         }
         catch {
+            Write-Host "[SKIPPED: could not read as text: $($_.Exception.Message)]"
             $writer.WriteLine("[SKIPPED: could not read as text: $($_.Exception.Message)]")
         }
     }
@@ -140,8 +149,4 @@ finally {
     $writer.Dispose()
 }
 
-Write-Host "Done: $OutputFile"
-
-if (-not $KeepClone) {
-    Remove-Item $WorkDir -Recurse -Force -ErrorAction SilentlyContinue
-}
+Write-Host "Done: $RepoDir"
