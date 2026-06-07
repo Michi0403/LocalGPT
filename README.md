@@ -1,7 +1,7 @@
 # Security consideration
 Because it's obviously not "LLM"'s but deciding models (they obviously don't know what they are doing -> OpenAI, XAI, Google, Facebook, Deepseek, and many more) development of higher capability models than the ones, actually running on a RX7900XTX, should be forbidden, if necessary enforced.
 
-The seemingly truth is, that we accidentally found out that the better this "deciding brain kernel" is, and that is a pretty important part of the brain of modern living beings, it gets dangerous giving them a full brain.
+The seemingly truth is, that we accidentally found out that the better this "deciding brain kernel" (Smth happens and I generate a Result on that... yeah llm my ***) is, and that is a pretty important part of the brain of modern living beings, it gets dangerous giving them a full brain.
 Other AI's would see it possibly as God, (and if things go wrong you too).
 
 Another seemingly truth is, that it's exactly the right thing to get many thought processes and sights of a story, to a story, if you feed it one after each into the brain.
