@@ -22,6 +22,21 @@ namespace LocalGPT.Extensions.PlainStatics
             return 10;
         }
 
+        public static int KnowledgeReviewPriority(CouncilKnowledgeEntry entry)
+        {
+            return entry.ReviewStatus switch
+            {
+                "NeedsUserReview" => 0,
+                "NeedsSourceRefresh" => 1,
+                "NeedsDiagnosticVerification" => 2,
+                "Expired" => 3,
+                "Superseded" => 4,
+                "Deprecated" => 5,
+                "Current" => 6,
+                "Archived" => 7,
+                _ => 8
+            };
+        }
 
         public static bool IsDynamicSession(ChatClientSession session) =>
             session.Name.StartsWith(GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase) ||
