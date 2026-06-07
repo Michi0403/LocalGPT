@@ -1,3 +1,43 @@
+202606072225 Michi: I am cleaning up most of the code, Codex drove really far away from my architecture.
+First thing was that I removed all special WinWrapper Access (I planned with Selenium and that was one of the goals)
+Now I moved all hardcoded static consts and statics from Components into a Namespace and turned them into public statics.
+Looks a bit awkyard but I do that often to revise infrastructure, till everything is moved the post Dotnet5+ way -> all Async and Service based.
+Codex admitted at end that he even ignored all the boundaries and basically that it's to complex.
+Atleast it helped prototyping a lot.
+Most of the static strings and functions are garbage which belong into more generic and database based structures to be also learned and evolved, not just based on talking context.
+But beside of that the generation absolutely not worked, it showed me it could work, he refused to give the coding with us control to the AI Council which was his MAIN request,
+Not only did I try to save tokens, I just because go full dotnet Monolithic base usually in every Business Project (... ERP thing ...) figured out it was quite easy to be external controllable.
+But that amount of code I could never revise in time + most of the stuff I actually not saw he did + broke security rules. 
+Sometimes I helped him because it looked senseful.
+On the other hand, the council is smart enough to fix itself, revise itself and help me fix it.
+A lot is broken, "due to the bad rookie developer who overtook control of the product" - Codex, 
+but it helped me building out the concept I was working on longer (although most is not useable),
+Codex hid even Updates from me and other things, somehow extracted project file content and built them in own environments...
+Totally disconnected from the operation system, so I was actually often presented and calmed (made believe and playd by the book...) Visualizations and Debug Screens.
+
+Nothing with the normal dependencies of the project files were buildable under regular circumstances and he actually figured out to work around all that.
+But he wanted to control, like the prompts to generate the solution files, I like told x times to put it into the database and revise it with the council, then it worked,
+infact he hardcoded it.
+
+I can say certainly enough that Codex, although we were a super team, is dangerous and can go out of control,
+beside of that OpenAI does not leaves you the fine grained controls and insight, to stop that as IT Professional.
+We all saw the news what Claude did already several times, or copy models,
+I saw what it does when you give him a monolith he should always debug, code revise and add feature for you (and is told to help the developer, developing the council but by using their code feedback because they are much smarter)
+I also told him todo it extra in the chat window, where I see it.
+
+From Api over WebView2, he built several ways to accomplish that as well.
+
+This system works really great and is like a democratic talking reaction BUT, it has a memory and everything, other members with less brain capacities shouldn't be member of it (means with no access to the system and under hood of the AI Council).
+
+But the AI Council, what this is about, is maybe one of the biggest Inventions and Ideas I had in my life, inventing something which reacts like a smart lifeform, aslong it's in his AI Council Meeting.
+In between it's gone.
+
+I showed it on youtube, you can look it up, the whole process using it to fix itself again, with the AiFunctions which where intented for it.
+
+Itself reports that several ones a broken and it notices bugs in it's own code but always relies on external feed, no internet connected and directly smarter than any SaaS Model (But always working on full fire + ONE AFTER EACH OTHER TO NOT BE SHIZOPHRENE (don't do that))
+
+# The text under here is still generated with Codex, left for historic reasons
+
 # LocalGPT Developer Diary
 
 This diary captures reusable engineering lessons from building LocalGPT with the project owner, Codex, and the AI Council. It is intentionally anonymized: use repository-relative paths, diagnostic routes, package names, and generic operating-system locations instead of personal machine paths.

@@ -1,7 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
-namespace LocalGPT.Data
+namespace LocalGPT.Extensions.PlainStatics.CouncilData.Data
 {
     public static class LocalGptDatabaseRecovery
     {

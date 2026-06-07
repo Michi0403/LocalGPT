@@ -5,7 +5,6 @@ using DevExpress.CodeParser;
 using DevExpress.XtraCharts;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Components;
-using LocalGPT.Data;
 using LocalGPT.Endpoints;
 using LocalGPT.Helper;
 using LocalGPT.Hubs;
@@ -29,6 +28,7 @@ using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
 using TacosPortal.Services;
 using static System.Net.Mime.MediaTypeNames;
+using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 namespace LocalGPT
 {
     public static class Program

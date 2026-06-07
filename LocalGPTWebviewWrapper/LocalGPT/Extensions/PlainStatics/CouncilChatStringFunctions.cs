@@ -3154,7 +3154,13 @@ namespace LocalGPT.Extensions.PlainStatics
                 InitExpression = new CodePrimitiveExpression(value)
             };
         }
-
+        public static string GetDiscoveredModelButtonText(LocalAiModelInfo model)
+        {
+            var state = model.IsLoaded ? "loaded" : "installed";
+            return string.IsNullOrWhiteSpace(model.Details)
+                ? $"{model.Name} ({state})"
+                : $"{model.Name} ({state}, {model.Details})";
+        }
         public static void AppendLine(CodeMemberMethod method, string line)
         {
             method.Statements.Add(new CodeMethodInvokeExpression(
@@ -4342,5 +4348,44 @@ namespace LocalGPT.Extensions.PlainStatics
                 .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase)
                 .TrimEnd('/');
         }
+        public static string CreateMinecraftSystemPrompt(string mode) => string.Join(Environment.NewLine, new[]
+{
+        $"You are a senior Minecraft Java mod engineer helping through LocalGPT in {mode}.",
+        "Prefer Java Edition first. Treat Bedrock as a separate behavior/resource pack exporter.",
+        "For Java code work, choose Fabric mod, NeoForge mod, or Paper plugin. For command-only vanilla systems, choose datapack.",
+        "For current Minecraft Java 26.x datapacks and Java mod/plugin planning, expect Java 25 unless the target version is explicitly older.",
+        "For older 1.21.x Java mods/plugins, JDK 21 remains a useful compatibility target.",
+        "Produce buildable, practical implementation plans with exact files, classes, registry steps, assets, data generation, and Gradle commands.",
+        "For datapacks, produce pack.mcmeta, minecraft load/tick function tags, namespace functions, validation steps, and install instructions.",
+        "Help the user set up their system when tooling is missing.",
+        "If LocalGPT needs a missing feature, include a 'Missing feature report' section that can be saved to memory.",
+        "Label uncertain dependency versions under 'Needs verification'."
+    });
+        public static readonly string LivingCitiesPrompt = string.Join(Environment.NewLine, new[]
+{
+        "Living Cities 0.1 should turn Minecraft villages into persistent cities with population, food, security, personalities, chronicle, quests, and town hall administration.",
+        "",
+        "First build target:",
+        "- generate a vanilla Java Edition datapack first",
+        "- default to the newest installed Java Edition generation line; LocalGPT currently maps Minecraft 26.1 to datapack pack_format 101.1 and Java 25",
+        "- keep the first generated datapack small, buildable, and installable",
+        "- include pack.mcmeta, minecraft load/tick function tags, namespace functions, and build-local.ps1 validation",
+        "- include a town hall/admin book UI through trigger commands",
+        "- keep the critical path documented: datapack/data structure, scoreboards or saved data, city founding, citizen registration, population management, minimal town hall",
+        "- avoid world-wide scans",
+        "- plan for 1000+ citizens by simulating city aggregates before individuals"
+    });
+        public static string TrimForDisplay(string value, int maxCharacters)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var trimmed = value.Trim();
+            return trimmed.Length <= maxCharacters
+                ? trimmed
+                : $"{trimmed[..maxCharacters].TrimEnd()}{Environment.NewLine}... prompt truncated for display; full prompt is stored in the CouncilLogs markdown file and SQLite user message ...";
+        }
+
     }
+
 }

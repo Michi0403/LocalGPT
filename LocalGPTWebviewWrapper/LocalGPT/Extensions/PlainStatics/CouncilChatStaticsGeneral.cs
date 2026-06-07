@@ -8,6 +8,10 @@ namespace LocalGPT.Extensions.PlainStatics
     public static class CouncilChatStaticsGeneral
     {
 
+        public static bool IsSupportedOllamaMode(string mode) =>
+            mode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase) ||
+            mode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu, StringComparison.OrdinalIgnoreCase) ||
+            mode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu, StringComparison.OrdinalIgnoreCase);
         public static bool IsBlazorFrontendTarget(string prompt, string finalAnswer, string targetArea)
         {
             return targetArea.Contains("Blazor/DevExpress frontend", StringComparison.OrdinalIgnoreCase) ||

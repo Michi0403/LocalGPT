@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace LocalGPT.Data
+namespace LocalGPT.Extensions.PlainStatics.CouncilData.Data
 {
     public static class ApplicationLogSchema
     {

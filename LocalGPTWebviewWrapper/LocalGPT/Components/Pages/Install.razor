@@ -74,7 +74,7 @@
                                     <div class="top-container">
                                         @foreach (var model in host.Models)
                                         {
-                                            <DxButton Text="@GetDiscoveredModelButtonText(model)"
+                                            <DxButton Text="@CouncilChatStringFunctions.GetDiscoveredModelButtonText(model)"
                                                       RenderStyle="ButtonRenderStyle.Primary"
                                                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                                                       Click="@(() => ApplyDiscoveredModel(host, model))" />
@@ -505,13 +505,7 @@
         Notifier.ShowSuccess(toastName, "Ollama gpt-oss:20b selected.", "Model Selected");
     }
 
-    private static string GetDiscoveredModelButtonText(LocalAiModelInfo model)
-    {
-        var state = model.IsLoaded ? "loaded" : "installed";
-        return string.IsNullOrWhiteSpace(model.Details)
-            ? $"{model.Name} ({state})"
-            : $"{model.Name} ({state}, {model.Details})";
-    }
+  
 
     private void AddOllamaModel()
     {

@@ -722,7 +722,7 @@
         if (query.TryGetValue("diagOllamaMode", out var ollamaMode))
         {
             var mode = ollamaMode.ToString();
-            if (IsSupportedOllamaMode(mode))
+            if (CouncilChatStaticsGeneral.IsSupportedOllamaMode(mode))
                 OllamaAccelerationMode = mode;
         }
 
@@ -859,15 +859,11 @@
     private int ResolveCouncilContextTokens() =>
         Math.Clamp(CouncilMaxContextTokens, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
 
-    private static bool IsSupportedOllamaMode(string mode) =>
-        mode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase) ||
-        mode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu, StringComparison.OrdinalIgnoreCase) ||
-        mode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu, StringComparison.OrdinalIgnoreCase);
 
     private void OnOllamaAccelerationModeChanged(ChangeEventArgs e)
     {
         var requestedMode = Convert.ToString(e.Value) ?? GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
-        if (!IsSupportedOllamaMode(requestedMode))
+        if (!CouncilChatStaticsGeneral. IsSupportedOllamaMode(requestedMode))
             requestedMode = GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
 
         OllamaAccelerationMode = requestedMode;
