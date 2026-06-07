@@ -20,7 +20,7 @@ namespace LocalGPT.Services
         ILogger<MultiModelCouncilService> logger) : IMultiModelCouncilService
     {
         private const string DefaultOllamaUri = "http://localhost:11434";
-        private const int MaxParticipants = 4;
+        private const int MaxParticipants = 100;
         private const int DefaultMaxParallelModels = 1;
         private const int DefaultHeavyModelGpuLayers = 20;
         private const int MinContextTokens = 2048;
