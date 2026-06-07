@@ -47,7 +47,7 @@ namespace LocalGPT.Logging
             return $"{value[..Math.Max(0, maxLength - 3)]}...";
         }
 
-        private sealed class NullScope : IDisposable
+        public sealed class NullScope : IDisposable
         {
             public static readonly NullScope Instance = new();
             public void Dispose()

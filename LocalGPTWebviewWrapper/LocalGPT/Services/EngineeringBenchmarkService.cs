@@ -517,7 +517,7 @@ namespace LocalGPT.Services
             ];
         }
 
-        private sealed record BenchmarkTaskDefinition(
+        public sealed record BenchmarkTaskDefinition(
             string Id,
             string Name,
             string Prompt,

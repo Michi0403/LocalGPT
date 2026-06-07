@@ -111,11 +111,11 @@
                 <div class="council-member-list">
                     @foreach (var candidate in OllamaCandidates)
                     {
-                        <label title="@CouncelChatStatics.BuildCandidateTitle(candidate)">
+                        <label title="@CouncilChatStaticsGeneral.BuildCandidateTitle(candidate)">
                             <input type="checkbox"
                                    checked="@SelectedCouncilModelNames.Contains(candidate.ModelName)"
                                    @onchange="@((ChangeEventArgs e) => ToggleCouncilModel(candidate.ModelName, e))" />
-                            <span>@CouncelChatStatics.BuildCandidateLabel(candidate)</span>
+                            <span>@CouncilChatStaticsGeneral.BuildCandidateLabel(candidate)</span>
                             @if (candidate.IsLoaded)
                             {
                                 <small>loaded</small>
@@ -250,7 +250,7 @@
                 </PromptSuggestions>
                 <MessageContentTemplate>
                     <div class="demo-chat-content">
-                        @(new MarkupString(ChatAndStringFunctions.RenderChatMarkdown(context.Content)))
+                        @(new MarkupString(CouncilChatStringFunctions.RenderChatMarkdown(context.Content)))
                     </div>
                 </MessageContentTemplate>
                 <AIChatSettings>
@@ -288,8 +288,8 @@
     bool IncludeCouncilMemory { get; set; } = true;
     string? DiagnosticRequestedSessionName { get; set; }
     string? DiagnosticOllamaEndpoint { get; set; }
-    int CouncilMaxOutputTokens { get; set; } = CouncelChatStatics.DefaultCouncilOutputTokens;
-    int CouncilMaxContextTokens { get; set; } = CouncelChatStatics.DefaultCouncilContextTokens;
+    int CouncilMaxOutputTokens { get; set; } = GlobalVariableSlopCollectionToRemove.DefaultCouncilOutputTokens;
+    int CouncilMaxContextTokens { get; set; } = GlobalVariableSlopCollectionToRemove.DefaultCouncilContextTokens;
 
     string ArchitectureUiStack { get; set; } = GlobalVariableSlopCollectionToRemove.ArchitectureUiStackOptions[0];
     string ArchitectureSolutionShape { get; set; } = GlobalVariableSlopCollectionToRemove.ArchitectureSolutionShapeOptions[0];
@@ -568,10 +568,10 @@
 
         var previousSelection = ChatClientProvider.SelectedSession?.Name;
         var previousMessages = ChatClientProvider.AvailableChatClients
-            .Where(CouncelChatStatics. IsDynamicSession)
+            .Where(CouncilChatStaticsGeneral. IsDynamicSession)
             .ToDictionary(session => session.Name, session => session.Messages.ToList(), StringComparer.OrdinalIgnoreCase);
 
-        foreach (var session in ChatClientProvider.AvailableChatClients.Where(CouncelChatStatics.IsDynamicSession).ToList())
+        foreach (var session in ChatClientProvider.AvailableChatClients.Where(CouncilChatStaticsGeneral.IsDynamicSession).ToList())
         {
             ChatClientProvider.AvailableChatClients.Remove(session);
             session.Client.Dispose();
@@ -589,7 +589,7 @@
                     contextLength: ResolveCouncilContextTokens(),
                     timeout: TimeSpan.FromMinutes(30),
                     numGpu: ResolveOllamaNumGpu()),
-                CouncelChatStatics.BuildDynamicSessionName(candidate));
+                CouncilChatStaticsGeneral.BuildDynamicSessionName(candidate));
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
                 session.Messages.AddRange(messages);
@@ -601,7 +601,7 @@
 
         var councilSession = new ChatClientSession(
             new CouncilChatClient(CouncilService, CreateCouncilRequest, ResolveCouncilDownloadUrl),
-            CouncelChatStatics.CouncilSessionName);
+            GlobalVariableSlopCollectionToRemove.CouncilSessionName);
         if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
             councilSession.Messages.AddRange(councilMessages);
         ChatClientProvider.AvailableChatClients.Add(councilSession);
@@ -635,7 +635,7 @@
                     contextLength: ResolveCouncilContextTokens(),
                     timeout: TimeSpan.FromMinutes(30),
                     numGpu: ResolveOllamaNumGpu()),
-            $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {StringExtensions.TrimEndpoint(endpoint)}");
+            $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilChatStringFunctions.TrimEndpoint(endpoint)}");
 
         if (previousMessages.TryGetValue(session.Name, out var messages))
             session.Messages.AddRange(messages);
@@ -655,7 +655,7 @@
 
         return new MultiModelCouncilRequest
         {
-            ModelNames = CouncelChatStatics.OrderCouncilModelsForLoad(selectedModels).ToList(),
+            ModelNames = CouncilChatStaticsGeneral.OrderCouncilModelsForLoad(selectedModels).ToList(),
             BaseUri = selectedEndpoint,
             MaxRounds = 0,
             MaxOutputTokens = ResolveCouncilOutputTokens(),
@@ -692,13 +692,13 @@
         if (query.TryGetValue("diagCouncilMaxOutputTokens", out var maxTokens) &&
             int.TryParse(maxTokens.ToString(), out var parsedMaxTokens))
         {
-            CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, CouncelChatStatics.MinCouncilOutputTokens, CouncelChatStatics.MaxCouncilOutputTokens);
+            CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens);
         }
 
         if (query.TryGetValue("diagCouncilMaxContextTokens", out var maxContext) &&
             int.TryParse(maxContext.ToString(), out var parsedMaxContext))
         {
-            CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, CouncelChatStatics.MinCouncilContextTokens, CouncelChatStatics.MaxCouncilContextTokens);
+            CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
         }
 
         if (query.TryGetValue("diagMaxOutputTokens", out var maxOutputTokens) &&
@@ -802,15 +802,15 @@
             return null;
 
         return requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
-            ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(CouncelChatStatics.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
-            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => CouncelChatStatics.IsDynamicSession(session) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
+            ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => CouncilChatStaticsGeneral.IsDynamicSession(session) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
                 ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
     }
 
     private bool MatchesRequestedDiagnosticSession(ChatClientSession session, string requestedSession)
     {
         if (requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase))
-            return session.Name.Equals(CouncelChatStatics.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
+            return session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
 
         return session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase);
     }
@@ -837,7 +837,7 @@
 
     private bool HasConfiguredSessionForModel(string modelName) =>
         ChatClientProvider?.AvailableChatClients.Any(session =>
-            !CouncelChatStatics.IsDynamicSession(session) &&
+            !CouncilChatStaticsGeneral.IsDynamicSession(session) &&
             session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
 
   
@@ -854,10 +854,10 @@
     }
 
     private int ResolveCouncilOutputTokens() =>
-        Math.Clamp(CouncilMaxOutputTokens, CouncelChatStatics.MinCouncilOutputTokens, CouncelChatStatics.MaxCouncilOutputTokens);
+        Math.Clamp(CouncilMaxOutputTokens, GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens);
 
     private int ResolveCouncilContextTokens() =>
-        Math.Clamp(CouncilMaxContextTokens, CouncelChatStatics.MinCouncilContextTokens, CouncelChatStatics.MaxCouncilContextTokens);
+        Math.Clamp(CouncilMaxContextTokens, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
 
     private static bool IsSupportedOllamaMode(string mode) =>
         mode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase) ||
@@ -973,7 +973,7 @@
             SelectedConversation = conversation;
             ChatClientProvider.SelectedSession.Messages.Clear();
             ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
-            lastSavedSignature = ChatAndStringFunctions.CreateMessageSignature(snapshot.Messages);
+            lastSavedSignature = CouncilChatStringFunctions.CreateMessageSignature(snapshot.Messages);
             memoryStatus = $"Loaded memory: {snapshot.Title}";
 
             if (loadIntoDxChat && DxAiChat is not null)
@@ -1005,7 +1005,7 @@
         if (ChatClientProvider?.SelectedSession is null || messages.Count == 0)
             return;
 
-        var signature = ChatAndStringFunctions.CreateMessageSignature(messages);
+        var signature = CouncilChatStringFunctions.CreateMessageSignature(messages);
         if (!force && signature == lastSavedSignature)
             return;
 

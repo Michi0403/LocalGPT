@@ -1586,19 +1586,19 @@ namespace LocalGPT.Services
         [GeneratedRegex("(work as (?:the )?developers|you are the developers|continue until (?:you )?(?:produce|create|generate)|develop and debug|produce .* artifact|generate .* artifact|create .* artifact)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DeveloperExecutionIntentPattern();
 
-        private sealed class OllamaTagsResponse
+        public sealed class OllamaTagsResponse
         {
             public List<OllamaModelResponse> Models { get; set; } = [];
         }
 
-        private sealed class OllamaModelResponse
+        public sealed class OllamaModelResponse
         {
             public string Name { get; set; } = string.Empty;
             public string Model { get; set; } = string.Empty;
             public OllamaModelDetails? Details { get; set; }
         }
 
-        private sealed class OllamaModelDetails
+        public sealed class OllamaModelDetails
         {
             public string? Family { get; set; }
 
@@ -1609,7 +1609,7 @@ namespace LocalGPT.Services
             public string? QuantizationLevel { get; set; }
         }
 
-        private sealed class OllamaUnloadRequest
+        public sealed class OllamaUnloadRequest
         {
             public string Model { get; set; } = string.Empty;
             public string Prompt { get; set; } = string.Empty;

@@ -147,7 +147,7 @@ public static class MinecraftDependencyVersionCatalog
         };
     }
 
-    private sealed record CatalogEntry(
+    public sealed record CatalogEntry(
         string MinecraftVersion,
         string? FabricApiVersion,
         string? NeoForgeVersion,

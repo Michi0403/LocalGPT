@@ -1305,7 +1305,7 @@ namespace LocalGPT.Endpoints
         private static string ToForwardSlash(string path) =>
             path.Replace('\\', '/');
 
-        private sealed record ArtifactWorkspaceSummary(
+        public sealed record ArtifactWorkspaceSummary(
             string WorkspaceName,
             string RootPath,
             DateTime LastWriteTimeUtc,
@@ -1314,12 +1314,12 @@ namespace LocalGPT.Endpoints
             int CSharpFileCount,
             IReadOnlyList<string> ZipNames);
 
-        private sealed record ArtifactWorkspaceFileSummary(
+        public sealed record ArtifactWorkspaceFileSummary(
             string RelativePath,
             long Length,
             DateTime LastWriteTimeUtc);
 
-        private sealed record ArtifactWorkspaceFileSaveRequest(
+        public sealed record ArtifactWorkspaceFileSaveRequest(
             string RelativePath,
             string? Content);
 

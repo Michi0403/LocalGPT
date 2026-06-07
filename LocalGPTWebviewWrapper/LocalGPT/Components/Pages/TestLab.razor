@@ -556,21 +556,21 @@
         }
     }
 
-    private sealed record TestLabRoute(string Label, string Path, ButtonRenderStyle Style);
-    private sealed record TestLabDownloadLink(string Label, string AbsoluteUrl);
-    private sealed record LearnBasePreset(string Label, string RootPath, string Description, int RecommendedMaxProjects);
-    private sealed record LearnBaseScanProfile(string Label, int MaxProjects, string Description);
-    private sealed record ArtifactWorkspaceListResponse(
+    public sealed record TestLabRoute(string Label, string Path, ButtonRenderStyle Style);
+    public sealed record TestLabDownloadLink(string Label, string AbsoluteUrl);
+    public sealed record LearnBasePreset(string Label, string RootPath, string Description, int RecommendedMaxProjects);
+    public sealed record LearnBaseScanProfile(string Label, int MaxProjects, string Description);
+    public sealed record ArtifactWorkspaceListResponse(
         string BaseUrl,
         string ArtifactRoot,
         int Count,
         ArtifactWorkspaceSummary? LatestWorkspace,
         List<ArtifactWorkspaceSummary> Workspaces);
-    private sealed record ArtifactWorkspaceFilesResponse(
+    public sealed record ArtifactWorkspaceFilesResponse(
         string WorkspaceName,
         string RootPath,
         List<ArtifactWorkspaceFileSummary> Files);
-    private sealed record ArtifactWorkspaceFileResponse(
+    public sealed record ArtifactWorkspaceFileResponse(
         string WorkspaceName,
         string RootPath,
         string RelativePath,
@@ -578,7 +578,7 @@
         long Length,
         DateTime LastWriteTimeUtc,
         string Content);
-    private sealed record ArtifactWorkspaceSummary(
+    public sealed record ArtifactWorkspaceSummary(
         string WorkspaceName,
         string RootPath,
         DateTime LastWriteTimeUtc,
@@ -586,11 +586,11 @@
         int RazorFileCount,
         int CSharpFileCount,
         List<string> ZipNames);
-    private sealed record ArtifactWorkspaceFileSummary(
+    public sealed record ArtifactWorkspaceFileSummary(
         string RelativePath,
         long Length,
         DateTime LastWriteTimeUtc);
-    private sealed record ArtifactWorkspaceFileSaveRequest(
+    public sealed record ArtifactWorkspaceFileSaveRequest(
         string RelativePath,
         string Content);
 }

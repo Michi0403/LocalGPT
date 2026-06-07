@@ -270,31 +270,31 @@ namespace LocalGPT.Services
             return string.IsNullOrWhiteSpace(text) ? null : text;
         }
 
-        private sealed class OllamaTagsResponse
+        public sealed class OllamaTagsResponse
         {
             public List<OllamaModelEntry> Models { get; set; } = new();
         }
 
-        private sealed class OllamaModelEntry
+        public sealed class OllamaModelEntry
         {
             public string? Name { get; set; }
             public string? Model { get; set; }
             public OllamaModelDetails? Details { get; set; }
         }
 
-        private sealed class OllamaModelDetails
+        public sealed class OllamaModelDetails
         {
             public string? Family { get; set; }
             public string? ParameterSize { get; set; }
             public string? QuantizationLevel { get; set; }
         }
 
-        private sealed class OpenAIModelsResponse
+        public sealed class OpenAIModelsResponse
         {
             public List<OpenAIModelEntry> Data { get; set; } = new();
         }
 
-        private sealed class OpenAIModelEntry
+        public sealed class OpenAIModelEntry
         {
             public string Id { get; set; } = string.Empty;
         }

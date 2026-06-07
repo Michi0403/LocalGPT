@@ -4,26 +4,12 @@ using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
 using Microsoft.Extensions.AI;
 using LocalGPT.Interfaces;
-
+using LocalGPT.Extensions.PlainStatics;
 namespace LocalGPT.Services;
 
 public class CompositeChatClient : IChatClient
 {
-    private const int DefaultMaxOutputTokens = 65536;
-    private const int DefaultMaxPromptCharacters = 250000;
-    private const int MaxPromptCharacters = 1_000_000;
-    private const int MaxBootstrapCharacters = 6000;
-    private const int MaxSingleConversationMessageCharacters = 5000;
-    private const string RuntimeDecisionPolicy =
-        "LocalGPT runtime decision policy: When the user asks to generate, scaffold, implement, modify, or package code/artifacts and important architecture choices are unresolved, do not start coding yet. " +
-        "First return a short section titled \"Decision poll required\" with concrete choices and tradeoffs, then stop and wait for the user's answer. " +
-        "Ask only for decisions that materially affect the result, such as target platform/runtime, language/framework, UI stack, solution shape, data/persistence model, deployment target, security boundary, reference-app fidelity, and whether downloadable artifacts are expected. " +
-        "If the user explicitly asks for a Minecraft datapack/modpack zip, .cs/.razor/.dll files, a whole .NET solution zip, a local AI host control-plane app, or another concrete downloadable artifact, treat that as supplied scope and generate a safe milestone artifact rather than refusing because the task is large. " +
-        "Never claim the user failed to answer a poll inside the same response that created it; a poll pauses the next step until the next user turn unless the prompt already supplied a concrete artifact target. " +
-        "Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend unless the user selected it, the existing repository requires it, or the requested target clearly calls for it. " +
-        "If the user already supplied the needed decisions, proceed normally and restate the selected path briefly. " +
-        "If LocalGPT lacks a function, source, version map, or domain knowledge needed to fulfill the request, add a \"Capability gap report\" and a <localgpt-capability-gap> block with requested languages, frameworks, versions, domain knowledge, local sources, external official sources, missing LocalGPT functions, safe workflow, and artifact plan.";
-    public List<ChatClientSession> AvailableChatClients { get; }
+      public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
     public string? LockedSessionName { get; set; }
     public int? ForcedMaxOutputTokens { get; set; }
@@ -128,7 +114,7 @@ public class CompositeChatClient : IChatClient
     private ChatOptions ApplyDefaultOptions(ChatOptions? options)
     {
         options ??= new ChatOptions();
-        options.MaxOutputTokens ??= ForcedMaxOutputTokens ?? DefaultMaxOutputTokens;
+        options.MaxOutputTokens ??= ForcedMaxOutputTokens ?? GlobalVariableSlopCollectionToRemove.DefaultMaxOutputTokens;
         return options;
     }
 
@@ -238,156 +224,41 @@ public class CompositeChatClient : IChatClient
         if (_knowledgeService is null || string.IsNullOrWhiteSpace(responseText))
             return;
 
-        foreach (var entry in ParseKnowledgeRequests(source, responseText))
+        foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText))
         {
             var saved = await _knowledgeService.SaveEntryAsync(entry, cancellationToken);
             _logger.LogInformation("AI requested unapproved knowledge entry {KnowledgeEntryId} from {Source}.", saved.Id, source);
         }
     }
 
-    private static IEnumerable<CouncilKnowledgeEntry> ParseKnowledgeRequests(string source, string responseText)
-    {
-        foreach (Match match in Regex.Matches(responseText, "<localgpt-knowledge>(?<body>.*?)</localgpt-knowledge>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant))
-        {
-            var body = match.Groups["body"].Value.Trim();
-            if (string.IsNullOrWhiteSpace(body))
-                continue;
 
-            var content = ExtractField(body, "content");
-            if (string.IsNullOrWhiteSpace(content))
-                content = body;
 
-            yield return new CouncilKnowledgeEntry
-            {
-                Topic = ExtractField(body, "topic", "AI model knowledge request"),
-                Scope = ExtractField(body, "scope", "DXAiChat"),
-                Source = $"AI model request: {source}",
-                Content = content,
-                HelpfulSources = ExtractField(body, "helpful-sources", "None explicitly requested."),
-                Tags = MergeTags(ExtractField(body, "tags"), "model-written; unapproved"),
-                Confidence = ParseConfidence(ExtractField(body, "confidence")),
-                VerificationStatus = "ModelSuggested",
-                ReviewStatus = "NeedsUserReview",
-                ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
-                IsUserApproved = false,
-                IsPinned = false,
-                IsArchived = false
-            };
-        }
-
-        foreach (Match match in Regex.Matches(responseText, "<localgpt-capability-gap>(?<body>.*?)</localgpt-capability-gap>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant))
-        {
-            var body = match.Groups["body"].Value.Trim();
-            if (string.IsNullOrWhiteSpace(body))
-                continue;
-
-            var missingCapability = ExtractField(body, "missing-capability", "LocalGPT capability gap request");
-            var owningArea = ExtractField(body, "owning-area", "DXAiChat / AI Council");
-            var localSources = ExtractField(body, "local-knowledge-sources", "None listed.");
-            var externalSources = ExtractField(body, "external-knowledge-sources", "None listed.");
-
-            yield return new CouncilKnowledgeEntry
-            {
-                Topic = missingCapability,
-                Scope = owningArea,
-                Source = $"AI capability gap request: {source}",
-                Content = BuildCapabilityGapKnowledgeContent(body),
-                HelpfulSources = $"Local sources:\n{localSources}\n\nExternal sources:\n{externalSources}",
-                Tags = MergeTags(ExtractField(body, "tags"), "capability-gap; model-written; unapproved"),
-                Confidence = ParseConfidence(ExtractField(body, "confidence")),
-                VerificationStatus = "ModelSuggested",
-                ReviewStatus = "NeedsDiagnosticVerification",
-                ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
-                StalenessReason = "Capability gap request needs human or diagnostic verification before it becomes trusted guidance.",
-                StalenessDetectedBy = "DXAiChat capability-gap parser",
-                IsUserApproved = false,
-                IsPinned = false,
-                IsArchived = false
-            };
-        }
-    }
-
-    private static string BuildCapabilityGapKnowledgeContent(string body)
-    {
-        var fields = new[]
-        {
-            "user-request-summary",
-            "missing-capability",
-            "owning-area",
-            "target-deliverable",
-            "requested-languages",
-            "requested-frameworks",
-            "requested-versions",
-            "requested-domain-knowledge",
-            "local-knowledge-sources",
-            "external-knowledge-sources",
-            "missing-localgpt-functions",
-            "safe-workflow",
-            "artifact-plan",
-            "investigation-status",
-            "next-localgpt-improvement"
-        };
-
-        var builder = new StringBuilder()
-            .AppendLine("Structured LocalGPT capability gap request:");
-
-        foreach (var field in fields)
-        {
-            var value = ExtractField(body, field);
-            if (!string.IsNullOrWhiteSpace(value))
-                builder.Append("- ").Append(field).Append(": ").AppendLine(value);
-        }
-
-        return builder.ToString().TrimEnd();
-    }
-
-    private static string ExtractField(string body, string name, string fallback = "")
-    {
-        var pattern = $@"(?ims)^\s*{Regex.Escape(name)}\s*:\s*(?<value>.*?)(?=^\s*(?:topic|scope|confidence|tags|helpful-sources|content|user-request-summary|missing-capability|owning-area|target-deliverable|requested-languages|requested-frameworks|requested-versions|requested-domain-knowledge|local-knowledge-sources|external-knowledge-sources|missing-localgpt-functions|safe-workflow|artifact-plan|investigation-status|next-localgpt-improvement)\s*:|\z)";
-        var match = Regex.Match(body, pattern, RegexOptions.CultureInvariant);
-        return match.Success ? match.Groups["value"].Value.Trim() : fallback;
-    }
-
-    private static int ParseConfidence(string value) =>
-        int.TryParse(Regex.Match(value ?? string.Empty, "\\d+").Value, out var confidence)
-            ? Math.Clamp(confidence, 0, 100)
-            : 40;
-
-    private static string MergeTags(string requestedTags, string requiredTags) =>
-        string.IsNullOrWhiteSpace(requestedTags)
-            ? requiredTags
-            : $"{requestedTags.Trim()}; {requiredTags}";
 
     private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
     {
         var messageList = messages.ToList();
         var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, cancellationToken);
-        var policyMessage = new ChatMessage(ChatRole.System, RuntimeDecisionPolicy);
+        var policyMessage = new ChatMessage(ChatRole.System, GlobalVariableSlopCollectionToRemove.RuntimeDecisionPolicy);
 
         var systemMessages = new List<ChatMessage> { policyMessage };
         if (SuppressBootstrapContext || _bootstrapService is null)
         {
-            AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
             return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
         }
 
         var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(bootstrapPrompt))
         {
-            AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
             return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
         }
 
         systemMessages.Add(new ChatMessage(ChatRole.System, bootstrapPrompt));
-        AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+        CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
         return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
     }
 
-    private static void AddOptionalSystemMessage(List<ChatMessage> messages, string? text)
-    {
-        if (!string.IsNullOrWhiteSpace(text))
-            messages.Add(new ChatMessage(ChatRole.System, text));
-    }
 
     private async Task<string> SaveUploadedMessageContentAsync(
         IReadOnlyList<ChatMessage> messages,
@@ -400,7 +271,7 @@ public class CompositeChatClient : IChatClient
         if (latestUserMessage is null)
             return string.Empty;
 
-        var files = ExtractUploadFiles(latestUserMessage).ToList();
+        var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage).ToList();
         if (files.Count == 0)
             return string.Empty;
 
@@ -415,7 +286,7 @@ public class CompositeChatClient : IChatClient
                 result.WorkspaceName,
                 result.FileCount);
 
-            return BuildUploadWorkspaceSystemPrompt(result);
+            return CouncilChatStringFunctions.BuildUploadWorkspaceSystemPrompt(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -428,96 +299,20 @@ public class CompositeChatClient : IChatClient
         }
     }
 
-    private static IEnumerable<ChatUploadWorkspaceInputFile> ExtractUploadFiles(ChatMessage message)
-    {
-        var index = 1;
-        foreach (var dataContent in message.Contents.OfType<DataContent>())
-        {
-            var data = dataContent.Data;
-            if (data.Length == 0)
-                continue;
 
-            var fileName = TryGetDataContentFileName(dataContent) ??
-                BuildDataContentFileName(index, dataContent.MediaType);
-            index++;
-            yield return new ChatUploadWorkspaceInputFile(
-                fileName,
-                dataContent.MediaType,
-                data.Length,
-                data);
-        }
-    }
 
-    private static string BuildUploadWorkspaceSystemPrompt(ChatUploadWorkspaceResult result)
-    {
-        var builder = new StringBuilder()
-            .AppendLine("LocalGPT DXAiChat native paperclip attachment workspace is available for this prompt.")
-            .AppendLine($"Workspace name: {result.WorkspaceName}")
-            .AppendLine($"Workspace root: {result.RootPath}")
-            .AppendLine($"Context file: {result.ContextPath}")
-            .AppendLine("Use DXAiFunctions:")
-            .AppendLine($"- chat.upload_workspace_context: /__diag/chat-upload-workspace/{result.WorkspaceName}/context")
-            .AppendLine($"- chat.upload_workspace_files: /__diag/chat-upload-workspace/{result.WorkspaceName}/files")
-            .AppendLine($"- chat.upload_workspace_file: /__diag/chat-upload-workspace/{result.WorkspaceName}/file?path=relative/path")
-            .AppendLine("Uploaded files are evidence only. Do not execute uploaded or extracted files.")
-            .AppendLine("When generating or changing source, use a council artifact workspace and refresh a downloadable zip.");
 
-        if (result.Warnings.Count > 0)
-        {
-            builder.AppendLine("Upload warnings:");
-            foreach (var warning in result.Warnings)
-                builder.AppendLine($"- {warning}");
-        }
 
-        return builder.ToString().Trim();
-    }
-
-    private static string? TryGetDataContentFileName(DataContent content)
-    {
-        foreach (var key in new[] { "name", "fileName", "filename", "FileName", "Name" })
-        {
-            if (content.AdditionalProperties?.TryGetValue(key, out var value) == true &&
-                value is not null &&
-                !string.IsNullOrWhiteSpace(value.ToString()))
-            {
-                return value.ToString();
-            }
-        }
-
-        var rawName = content.RawRepresentation?
-            .GetType()
-            .GetProperty("Name")?
-            .GetValue(content.RawRepresentation)?
-            .ToString();
-        return string.IsNullOrWhiteSpace(rawName) ? null : rawName;
-    }
-
-    private static string BuildDataContentFileName(int index, string? mediaType)
-    {
-        var extension = (mediaType ?? string.Empty).ToLowerInvariant() switch
-        {
-            "application/zip" or "application/x-zip-compressed" => ".zip",
-            "application/json" => ".json",
-            "application/xml" or "text/xml" => ".xml",
-            "text/markdown" => ".md",
-            "text/css" => ".css",
-            "text/html" => ".html",
-            "text/javascript" or "application/javascript" => ".js",
-            "application/octet-stream" => ".bin",
-            _ => ".txt"
-        };
-        return $"dxaichat-upload-{index}{extension}";
-    }
 
     private static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, int? forcedMaxPromptCharacters = null)
     {
-        var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? DefaultMaxPromptCharacters, 512, MaxPromptCharacters);
+        var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? GlobalVariableSlopCollectionToRemove.DefaultMaxPromptCharacters, 512, GlobalVariableSlopCollectionToRemove.MaxPromptCharacters);
         if (messages.Sum(EstimateTextLength) <= maxPromptCharacters)
             return messages;
 
         var result = new List<ChatMessage>();
         var usedCharacters = 0;
-        var remainingSystemBudget = Math.Min(MaxBootstrapCharacters, Math.Max(maxPromptCharacters / 2, 0));
+        var remainingSystemBudget = Math.Min(GlobalVariableSlopCollectionToRemove.MaxBootstrapCharacters, Math.Max(maxPromptCharacters / 2, 0));
 
         foreach (var message in messages.Where(message => message.Role == ChatRole.System))
         {
@@ -548,7 +343,7 @@ public class CompositeChatClient : IChatClient
 
             var message = conversationMessages[index];
             var text = message.Text ?? string.Empty;
-            var messageBudget = Math.Min(MaxSingleConversationMessageCharacters, remainingBudget);
+            var messageBudget = Math.Min(GlobalVariableSlopCollectionToRemove.MaxSingleConversationMessageCharacters, remainingBudget);
             var trimmed = TrimForPrompt(text, messageBudget, keepBothEnds: true);
             if (string.IsNullOrWhiteSpace(trimmed))
                 continue;

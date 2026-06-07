@@ -21,16 +21,8 @@ namespace LocalGPT.Extensions
             NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString
 
         };
-        public static string TrimEndpoint(string endpoint)
-        {
-            if (string.IsNullOrWhiteSpace(endpoint))
-                return "unknown endpoint";
 
-            return endpoint
-                .Replace("http://", string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase)
-                .TrimEnd('/');
-        }
+  
         public static string ToJsonString(this object obj, JsonSerializerOptions? jsonOptions = null)
         {
             try

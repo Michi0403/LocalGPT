@@ -273,7 +273,7 @@ namespace LocalGPT.Endpoints
         private static bool IsMcFunctionPath(string entry) =>
             entry.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase);
 
-        private sealed record DatapackReferenceComparison(
+        public sealed record DatapackReferenceComparison(
             string GeneratedZipPath,
             string ReferenceZipPath,
             bool ReferenceExists,

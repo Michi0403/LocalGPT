@@ -386,7 +386,7 @@ namespace LocalGPT.Services
         [GeneratedRegex("<think>(?<thinking>.*?)</think>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         private static partial Regex ThinkTagPattern();
 
-        private sealed class OllamaChatRequest
+        public sealed class OllamaChatRequest
         {
             public string Model { get; set; } = string.Empty;
             public bool Stream { get; set; }
@@ -395,7 +395,7 @@ namespace LocalGPT.Services
             public OllamaRequestOptions? Options { get; set; }
         }
 
-        private sealed class OllamaRequestOptions
+        public sealed class OllamaRequestOptions
         {
             [JsonPropertyName("num_predict")]
             public int NumPredict { get; set; }
@@ -410,19 +410,19 @@ namespace LocalGPT.Services
             public double? Temperature { get; set; }
         }
 
-        private sealed class OllamaChatMessage
+        public sealed class OllamaChatMessage
         {
             public string Role { get; set; } = "user";
             public string Content { get; set; } = string.Empty;
             public string? Thinking { get; set; }
         }
 
-        private sealed class OllamaChatResponse
+        public sealed class OllamaChatResponse
         {
             public OllamaChatMessage? Message { get; set; }
         }
 
-        private sealed class VisibleThinkingStreamFormatter(bool harmonyModel)
+        public sealed class VisibleThinkingStreamFormatter(bool harmonyModel)
         {
             private const string ThinkStartTag = "<think>";
             private const string ThinkEndTag = "</think>";

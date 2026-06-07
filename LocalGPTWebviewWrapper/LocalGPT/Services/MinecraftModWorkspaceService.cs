@@ -1548,7 +1548,7 @@ namespace LocalGPT.Services
         [GeneratedRegex("[^a-z0-9_]")]
         private static partial Regex PackagePartCleaner();
 
-        private sealed record WorkspaceContext(
+        public sealed record WorkspaceContext(
             string ProjectName,
             string ModId,
             string PackageName,
@@ -1562,7 +1562,7 @@ namespace LocalGPT.Services
             string MetadataPath,
             string ReadmePath);
 
-        private sealed class WorkspaceLayout(WorkspaceContext context)
+        public sealed class WorkspaceLayout(WorkspaceContext context)
         {
             public WorkspaceContext Context { get; } = context;
 

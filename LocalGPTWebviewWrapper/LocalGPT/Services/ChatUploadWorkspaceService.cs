@@ -773,7 +773,7 @@ namespace LocalGPT.Services
         private static string ToForwardSlash(string path) =>
             path.Replace('\\', '/');
 
-        private sealed record AnalyzedUploadFile(
+        public sealed record AnalyzedUploadFile(
             ChatUploadWorkspaceFileSummary Summary,
             string Excerpt);
     }
