@@ -1,3 +1,23 @@
+# Security consideration
+Because it's obviously not "LLM"'s but deciding models (they obviously don't know what they are doing -> OpenAI, XAI, Google, Facebook, Deepseek, and many more) development of higher capability models than the ones, actually running on a RX7900XTX, should be forbidden, if necessary enforced.
+
+The seemingly truth is, that we accidentally found out that the better this "deciding brain kernel" is, and that is a pretty important part of the brain of modern living beings, it gets dangerous giving them a full brain.
+Other AI's would see it possibly as God, (and if things go wrong you too).
+
+Another seemingly truth is, that it's exactly the right thing to get many thought processes and sights of a story, to a story, if you feed it one after each into the brain.
+Don't use several AI's same time and give the "LLM"'s rather all power and time, provided the best results in my tests.
+
+If you see someone using that with more VRam Models, outside a sandbox, please punch his f***, thanks.
+
+It's a webhost, means if you overwork the certificate stuff or depends on how you host it where, you can use it also as PWA Smartphone App but server prerenderd.
+
+So this can also be your private at home hosted LocalGPT Client.
+
+Not all is done yet... takes time...
+
+Pull Requests and Collaboration or other maintainers are welcome as well, or fork it, do whatever you like.
+Any company as well but take security considerations always into account.
+
 # Hardware
 
 Successfully tested on:
