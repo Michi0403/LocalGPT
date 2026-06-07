@@ -51,13 +51,11 @@ namespace WebView2_WinUI3_Sample
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             _webApp = LocalGPT.Program.BuildWebApp();
-            await _webApp.StartAsync();          // non-blocking
+            await _webApp.StartAsync().ConfigureAwait(false);          // non-blocking
             _baseUrl = $"http://localhost:{LocalGPT.Program.Port}";
 
-            // Optionally: wait for /health before showing UI (keeps initial nav smooth)
-
             _window = new MainWindow(_baseUrl);
-            _window.Title = "WebView2 Hosts Blazor Backend";
+            _window.Title = "LocalGPT by Michi0403";
             // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
             var appWindow = _window.AppWindow;
             // Set your icon file (must be an .ico, not .png)
