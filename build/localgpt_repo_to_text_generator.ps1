@@ -31,77 +31,47 @@ if (Test-Path $RepoDir) {
 Write-Host "Cloning $RepoUrl ..."
 git clone $RepoUrl $randomString
 
-$IncludeExtensions = @(
-    ".cs", ".csproj", ".sln", ".slnx", ".razor", ".cshtml",
-    ".json", ".config", ".xml", ".props", ".targets", ".pubxml",
-    ".xaml", ".resw", ".resx", ".manifest", ".appxmanifest",
-    ".ps1", ".psm1", ".cmd", ".bat", ".sh", ".yml", ".yaml",
-    ".html", ".htm", ".css", ".scss", ".js", ".ts", ".mjs",
-    ".md", ".txt", ".editorconfig", ".gitignore", ".gitattributes",
-    ".props", ".targets", ".sql", ".http", ".env.example"
-)
-
-$IncludeExactNames = @(
-    "Dockerfile", "Makefile", "global.json", "Directory.Build.props", "Directory.Build.targets",
-    "NuGet.config", "README", "LICENSE", "AGENTS.md", "CLAUDE.md", "llms.txt"
-)
-
-$ExcludeDirNames = @(
-    ".git", ".vs", ".vscode", "bin", "obj", "node_modules", "packages",
-    "artifacts", "publish", "published", "Release", "Debug", "x64", "x86", "arm64",
-    ".nuget", ".cache", ".idea", "TestResults", "coverage", "logs",
-    "LocalState", "AppPackages", "BundleArtifacts", "PackageArtifacts"
-)
-
 $ExcludeExtensions = @(
     ".dll", ".exe", ".pdb", ".obj", ".bin", ".zip", ".7z", ".rar", ".tar", ".gz",
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svgz", ".mp4", ".mp3", ".wav",
     ".pdf", ".docx", ".xlsx", ".pptx", ".sqlite", ".db", ".bak", ".log",
-    ".nupkg", ".snupkg", ".msix", ".appx", ".cer", ".pfx", ".key"
+    ".nupkg", ".snupkg", ".msix", ".appx", ".cer", ".pfx", ".key", ".jpgux", ".svgux", ".cssux",
+    ".cssux", ".userux", ".csux", ".razorux", ".snupkg", ".snupkg"
 )
 
-function Is-ExcludedPath {
-    param([System.IO.FileInfo]$File)
-    $relativeParts = $File.FullName.Substring($RepoDir.Length).TrimStart('\','/') -split '[\\/]'
-    foreach ($part in $relativeParts) {
-        if ($ExcludeDirNames -contains $part) { return $true }
-    }
-    return $false
-}
 
 function Is-TextWanted {
     param([System.IO.FileInfo]$File)
 
-    if (Is-ExcludedPath $File) { return $false }
-    if ($ExcludeExtensions -contains $File.Extension.ToLowerInvariant()) { return $false }
-    if ($File.Length -gt 2MB) { return $false }
+    $name = $File.Name.ToLowerInvariant()
+    $name = $File.Name.ToLowerInvariant()
+    $ext  = $File.Extension.ToLowerInvariant()
 
-    $name = $File.Name
-    if ($IncludeExactNames -contains $name) { return $true }
-    if ($IncludeExtensions -contains $File.Extension.ToLowerInvariant()) { return $true }
+    if ($name -like "*.png*" -or $ext -eq ".png") {
+        Write-Host "DEBUG PNG:"
+        Write-Host "  FullName:  [$($File.FullName)]"
+        Write-Host "  Name:      [$name]"
+        Write-Host "  Extension:[$ext]"
+        Write-Host "  Excludes contains .png? [$($ExcludeExtensions -contains '.png')]"
 
-    return $false
-}
-
-function Looks-Binary {
-    param([System.IO.FileInfo]$File)
-    $fs = [System.IO.File]::OpenRead($File.FullName)
-    try {
-        $max = [Math]::Min(4096, $File.Length)
-        $buffer = New-Object byte[] $max
-        $read = $fs.Read($buffer, 0, $max)
-        for ($i = 0; $i -lt $read; $i++) {
-            if ($buffer[$i] -eq 0) { return $true }
+        foreach ($extension in $ExcludeExtensions) {
+            Write-Host "  Testing [$extension] against [$name] -> [$($name -like "*$extension*")]"
         }
-        return $false
     }
-    finally {
-        $fs.Dispose()
+ 
+    foreach ($extension in $ExcludeExtensions) {
+        if ($name -like "*$extension*") {
+            Write-Host "SKIP: $($File.Name) matched [$extension]"
+            return $false
+        }
     }
+    Write-Host "KEEP: $($File.Name) Extension=[$ext]"
+    return $true
 }
+
 
 $files = Get-ChildItem -Path $RepoDirOuter -Recurse -File |
-#    Where-Object { Is-TextWanted $_ } |
+    Where-Object { Is-TextWanted $_ } |
 #    Where-Object { -not (Looks-Binary $_) } |
     Sort-Object FullName
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
