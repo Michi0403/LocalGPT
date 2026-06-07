@@ -2,15 +2,21 @@
 using DevExpress.Blazor.Viewer.Internal;
 using DevExpress.Utils.About;
 using DevExpress.XtraCharts;
+using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Services;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.CSharp;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.AI;
 using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Globalization;
+using System.Net;
+using System.Reactive;
 using System.Security.AccessControl;
+using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.RegularExpressions;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
@@ -2794,141 +2800,223 @@ namespace LocalGPT.Extensions.PlainStatics
             }
 
         }
-        public static void AppendLine(CodeMemberMethod method, string line)
+        public static void AppendLine(CodeMemberMethod method, string line, ILogger logger)
         {
-            method.Statements.Add(new CodeMethodInvokeExpression(
-                new CodeVariableReferenceExpression("builder"),
-                "AppendLine",
-                new CodePrimitiveExpression(line)));
-        }
-
-        public static bool IsMinecraftDatapackArtifactTarget(string prompt, string finalAnswer)
-        {
-            var text = prompt;
-            return GlobalVariableSlopCollectionToRemove.MinecraftPattern().IsMatch(text) && GlobalVariableSlopCollectionToRemove.DatapackPattern().IsMatch(text);
-        }
-
-        public static bool IsMinecraftSkeletonMatrixArtifactTarget(string prompt, string finalAnswer)
-        {
-            var text = prompt;
-            return GlobalVariableSlopCollectionToRemove.MinecraftPattern().IsMatch(text) && GlobalVariableSlopCollectionToRemove.MinecraftSkeletonMatrixPattern().IsMatch(text);
-        }
-
-        public static string ExtractMinecraftVersion(string text)
-        {
-            var match = GlobalVariableSlopCollectionToRemove.MinecraftVersionPattern().Match(text);
-            return match.Success
-                ? match.Groups["version"].Value
-                : MinecraftDatapackVersionCatalog.DefaultMinecraftVersion;
-        }
-
-        public static GlobalVariableSlopCollectionToRemove.MinecraftDatapackArtifactIdentity BuildMinecraftDatapackArtifactIdentity(string text, string timestamp)
-        {
-            var displayName = ExtractMinecraftProjectDisplayName(text);
-            var modId = ToMinecraftNamespace(displayName);
-            var projectName = ToPascalIdentifier(displayName);
-            if (string.IsNullOrWhiteSpace(projectName))
-                projectName = "PromptedDatapack";
-            if (string.IsNullOrWhiteSpace(modId))
-                modId = "prompted_datapack";
-
-            return new GlobalVariableSlopCollectionToRemove.MinecraftDatapackArtifactIdentity(
-                $"{projectName}Council{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}",
-                modId,
-                $"com.localgpt.{modId.Replace("_", string.Empty, StringComparison.Ordinal)}",
-                displayName);
-        }
-
-        public static string ExtractMinecraftProjectDisplayName(string text)
-        {
-            var quoted = Regex.Match(text, "\"(?<name>[A-Z][A-Za-z0-9 _-]{2,60})\"");
-            if (quoted.Success)
-                return CleanMinecraftProjectDisplayName(quoted.Groups["name"].Value);
-
-            var explicitlyNamed = Regex.Match(text, @"(?i)(?:called|named|titled)\s+(?<name>[A-Z][A-Za-z0-9 _-]{2,60})");
-            if (explicitlyNamed.Success)
-                return CleanMinecraftProjectDisplayName(explicitlyNamed.Groups["name"].Value);
-
-            var named = Regex.Match(
-                text,
-                @"(?i)(?:datapack|data pack|modpack|minecraft project|minecraft mod)\s+(?:called|named|for|about)?\s*(?<name>[A-Z][A-Za-z0-9 _-]{2,60})");
-            if (named.Success)
-                return CleanMinecraftProjectDisplayName(named.Groups["name"].Value);
-
-            var heading = Regex.Match(text, @"(?m)^#\s+(?<name>[A-Za-z0-9 _-]{3,60})");
-            if (heading.Success)
-                return CleanMinecraftProjectDisplayName(heading.Groups["name"].Value);
-
-            return "Prompted Datapack";
-        }
-
-        public static string CleanMinecraftProjectDisplayName(string value)
-        {
-            var trimmed = value.Trim();
-            foreach (var separator in new[] { " with ", " for ", " and ", " that ", " the ", " zip ", " pack " })
+            try
             {
-                var index = trimmed.IndexOf(separator, StringComparison.OrdinalIgnoreCase);
-                if (index > 2)
-                    trimmed = trimmed[..index].Trim();
+                method.Statements.Add(new CodeMethodInvokeExpression(
+                 new CodeVariableReferenceExpression("builder"),
+                 "AppendLine",
+                 new CodePrimitiveExpression(line)));
             }
-
-            return string.IsNullOrWhiteSpace(trimmed) ? "Prompted Datapack" : trimmed;
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AppendLine method:{method.ToString()} line:{line}");
+            }
         }
 
-        public static string ToMinecraftNamespace(string value)
+        public static bool? IsMinecraftDatapackArtifactTarget(string prompt, string finalAnswer, ILogger logger)
         {
-            var normalized = Regex.Replace(value.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
-            return string.IsNullOrWhiteSpace(normalized) ? "prompted_datapack" : normalized;
+            try
+            {
+                var text = prompt;
+                return GlobalVariableSlopCollectionToRemove.MinecraftPattern().IsMatch(text) && GlobalVariableSlopCollectionToRemove.DatapackPattern().IsMatch(text);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsMinecraftDatapackArtifactTarget prompt:{prompt} finalAnswer:{finalAnswer}");
+                return null;
+            }
         }
 
-        public static string ToPascalIdentifier(string value)
+        public static bool? IsMinecraftSkeletonMatrixArtifactTarget(string prompt, string finalAnswer, ILogger logger)
         {
-            var words = Regex.Matches(value, "[A-Za-z0-9]+")
+            try
+            {
+                var text = prompt;
+                return GlobalVariableSlopCollectionToRemove.MinecraftPattern().IsMatch(text) && GlobalVariableSlopCollectionToRemove.MinecraftSkeletonMatrixPattern().IsMatch(text);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsMinecraftSkeletonMatrixArtifactTarget prompt:{prompt} finalAnswer:{finalAnswer}");
+                return null;
+            }
+        }
+
+        public static string ExtractMinecraftVersion(string text, ILogger logger)
+        {
+            try
+            {
+                var match = GlobalVariableSlopCollectionToRemove.MinecraftVersionPattern().Match(text);
+                return match.Success
+                    ? match.Groups["version"].Value
+                    : MinecraftDatapackVersionCatalog.DefaultMinecraftVersion;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractMinecraftVersion text:{text}");
+                return string.Empty;
+            }
+        }
+
+        public static GlobalVariableSlopCollectionToRemove.MinecraftDatapackArtifactIdentity? BuildMinecraftDatapackArtifactIdentity(string text, string timestamp, ILogger logger)
+        {
+            try
+            {
+                var displayName = ExtractMinecraftProjectDisplayName(text);
+                var modId = ToMinecraftNamespace(displayName);
+                var projectName = ToPascalIdentifier(displayName);
+                if (string.IsNullOrWhiteSpace(projectName))
+                    projectName = "PromptedDatapack";
+                if (string.IsNullOrWhiteSpace(modId))
+                    modId = "prompted_datapack";
+
+                return new GlobalVariableSlopCollectionToRemove.MinecraftDatapackArtifactIdentity(
+                    $"{projectName}Council{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}",
+                    modId,
+                    $"com.localgpt.{modId.Replace("_", string.Empty, StringComparison.Ordinal)}",
+                    displayName);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildMinecraftDatapackArtifactIdentity text:{text} timestamp:{timestamp}");
+                return null;
+            }
+        }
+
+        public static string ExtractMinecraftProjectDisplayName(string text, ILogger logger)
+        {
+            try
+            {
+                var quoted = Regex.Match(text, "\"(?<name>[A-Z][A-Za-z0-9 _-]{2,60})\"");
+                if (quoted.Success)
+                    return CleanMinecraftProjectDisplayName(quoted.Groups["name"].Value);
+
+                var explicitlyNamed = Regex.Match(text, @"(?i)(?:called|named|titled)\s+(?<name>[A-Z][A-Za-z0-9 _-]{2,60})");
+                if (explicitlyNamed.Success)
+                    return CleanMinecraftProjectDisplayName(explicitlyNamed.Groups["name"].Value);
+
+                var named = Regex.Match(
+                    text,
+                    @"(?i)(?:datapack|data pack|modpack|minecraft project|minecraft mod)\s+(?:called|named|for|about)?\s*(?<name>[A-Z][A-Za-z0-9 _-]{2,60})");
+                if (named.Success)
+                    return CleanMinecraftProjectDisplayName(named.Groups["name"].Value);
+
+                var heading = Regex.Match(text, @"(?m)^#\s+(?<name>[A-Za-z0-9 _-]{3,60})");
+                if (heading.Success)
+                    return CleanMinecraftProjectDisplayName(heading.Groups["name"].Value);
+
+                return "Prompted Datapack";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractMinecraftProjectDisplayName text:{text}");
+                return string.Empty;
+            }
+            
+        }
+
+        public static string CleanMinecraftProjectDisplayName(string value, ILogger logger)
+        {
+            try
+            {
+                var trimmed = value.Trim();
+                foreach (var separator in new[] { " with ", " for ", " and ", " that ", " the ", " zip ", " pack " })
+                {
+                    var index = trimmed.IndexOf(separator, StringComparison.OrdinalIgnoreCase);
+                    if (index > 2)
+                        trimmed = trimmed[..index].Trim();
+                }
+
+                return string.IsNullOrWhiteSpace(trimmed) ? "Prompted Datapack" : trimmed;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CleanMinecraftProjectDisplayName value:{value}");
+                return string.Empty;
+            }
+        }
+
+        public static string ToMinecraftNamespace(string value, ILogger logger)
+        {
+            try
+            {
+                var normalized = Regex.Replace(value.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
+                return string.IsNullOrWhiteSpace(normalized) ? "prompted_datapack" : normalized;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToMinecraftNamespace value:{value}");
+                return string.Empty;
+            }
+        }
+
+        public static string ToPascalIdentifier(string value, ILogger logger)
+        {
+            try
+            {
+                var words = Regex.Matches(value, "[A-Za-z0-9]+")
                 .Select(match => match.Value)
                 .Where(word => !string.IsNullOrWhiteSpace(word))
                 .Take(5);
-            return string.Concat(words.Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
+                return string.Concat(words.Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToPascalIdentifier value:{value}");
+                return string.Empty;
+            }
         }
 
-        public static string ToKebabRoute(string value)
+        public static string ToKebabRoute(string value, ILogger logger)
         {
-            var normalized = Regex.Replace(value.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
-            return string.IsNullOrWhiteSpace(normalized) ? "promise-module" : normalized;
+            try
+            {
+                var normalized = Regex.Replace(value.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+                return string.IsNullOrWhiteSpace(normalized) ? "promise-module" : normalized;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToKebabRoute value:{value}");
+                return string.Empty;
+            }
         }
 
 
         public static string GenerateSolutionNavigationRazor(
              GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype archetype,
-            IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules)
+            IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules, ILogger logger)
         {
-            var isAiHostLab = archetype == GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost;
-            var labName = archetype switch
+            try
             {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
-                _ => "LocalGPT Generation Lab"
-            };
-            var catalogHref = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "/models",
-                _ => "/knowledge"
-            };
-            var catalogText = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "Model Catalog",
-                _ => "Knowledge"
-            };
-            var detailHref = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "/api-console",
-                _ => "/implementation-plan"
-            };
-            var detailText = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "API Console",
-                _ => "Implementation Plan"
-            };
-            var aiHostLinks = isAiHostLab
-                ? """
+                var isAiHostLab = archetype == GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost;
+                var labName = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
+                    _ => "LocalGPT Generation Lab"
+                };
+                var catalogHref = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "/models",
+                    _ => "/knowledge"
+                };
+                var catalogText = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "Model Catalog",
+                    _ => "Knowledge"
+                };
+                var detailHref = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "/api-console",
+                    _ => "/implementation-plan"
+                };
+                var detailText = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "API Console",
+                    _ => "Implementation Plan"
+                };
+                var aiHostLinks = isAiHostLab
+                    ? """
                     <a href="/chat">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
@@ -2970,10 +3058,10 @@ namespace LocalGPT.Extensions.PlainStatics
                         <span>Settings</span>
                     </a>
                 """
-                : string.Empty;
-            var archetypeLinks = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => """
+                    : string.Empty;
+                var archetypeLinks = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => """
                     <a href="/chat">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
@@ -3000,7 +3088,7 @@ namespace LocalGPT.Extensions.PlainStatics
                         <span>Test Lab</span>
                     </a>
                 """,
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => """
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => """
                     <a href="/telegram-ingestion">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
@@ -3027,7 +3115,7 @@ namespace LocalGPT.Extensions.PlainStatics
                         <span>Client Shells</span>
                     </a>
                 """,
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => """
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => """
                     <a href="/webhooks">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
@@ -3049,11 +3137,11 @@ namespace LocalGPT.Extensions.PlainStatics
                         <span>Python Interop</span>
                     </a>
                 """,
-                _ => string.Empty
-            };
-            var promiseLinks = BuildPromiseNavigationLinks(promiseModules);
+                    _ => string.Empty
+                };
+                var promiseLinks = BuildPromiseNavigationLinks(promiseModules);
 
-            return $$"""
+                return $$"""
                 <nav class="generated-nav" aria-label="{{labName}} navigation">
                     <a class="generated-brand" href="/">{{labName}}</a>
                     <a href="/dashboard">
@@ -3086,92 +3174,109 @@ namespace LocalGPT.Extensions.PlainStatics
                     public bool IsAiHostLab { get; set; }
                 }
                 """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionNavigationRazor archetype:{archetype.ToString()} promiseModules:{promiseModules.ToString()}", archetype, promiseModules);
+                return string.Empty;
+            }
         }
 
-        public static string BuildPromiseNavigationLinks(IReadOnlyList<GlobalVariableSlopCollectionToRemove. GeneratedPromiseModule> promiseModules)
+        public static string BuildPromiseNavigationLinks(IReadOnlyList<GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule> promiseModules, ILogger logger)
         {
-            if (promiseModules.Count == 0)
-                return string.Empty;
-
-            var builder = new StringBuilder();
-            foreach (var module in promiseModules.Take(6))
+            try
             {
-                builder.AppendLine($$"""
+                if (promiseModules.Count == 0)
+                    return string.Empty;
+
+                var builder = new StringBuilder();
+                foreach (var module in promiseModules.Take(6))
+                {
+                    builder.AppendLine($$"""
                     <a href="{{module.Route}}">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
                         <span>{{module.Title}}</span>
                     </a>
                 """);
-            }
+                }
 
-            return builder.ToString().TrimEnd();
+                return builder.ToString().TrimEnd();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildPromiseNavigationLinks promiseModules:{promiseModules.ToString()}", promiseModules);
+                return string.Empty;
+            }
+            
         }
 
         public static string GenerateSolutionIndexRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype archetype)
+            GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype archetype, ILogger logger)
         {
-            var isAiHostLab = archetype == GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost;
-            var isAiHostLiteral = isAiHostLab ? "true" : "false";
-            var title = archetype switch
+            try
             {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Bot Backend Control Plane",
-                _ => "LocalGPT Feature Generation Lab"
-            };
-            var subtitle = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "A DevExpress Blazor shell for provider-compatible API routes, model cataloging, endpoint checks, and external runner boundaries.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "A local-first AI workbench with DXAiChat, AI Council, SQLite memory, artifact downloads, Minecraft generation, setup, and test-lab surfaces.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "A server-interactive operations portal with menu, orders, reservations, admin CRUD, notifications, and a simple bot backend boundary.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "A compact bot backend with webhooks, conversation state, moderation/retry queues, Python interop boundaries, and operator settings.",
-                _ => "A LocalGPT/TacosPortalOpen-style sandbox for AI Council feature requests, implementation planning, knowledge-backed generation, and artifact review."
-            };
-            var primaryHref = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "/api-console",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "/chat",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "/orders",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "/webhooks",
-                _ => "/implementation-plan"
-            };
-            var primaryLabel = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "Open API console",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "Open DXAiChat",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "Open orders",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Open webhooks",
-                _ => "Open implementation plan"
-            };
-            var secondaryHref = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "/models",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "/model-council",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "/menu",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "/conversations",
-                _ => "/knowledge"
-            };
-            var secondaryLabel = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "Review model catalog",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "Review AI Council",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "Review menu",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Review conversations",
-                _ => "Review knowledge table"
-            };
-            var kicker = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI host lab",
-                _ => "LocalGPT lab"
-            };
-            var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500));
-            var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 700));
+                var isAiHostLab = archetype == GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost;
+                var isAiHostLiteral = isAiHostLab ? "true" : "false";
+                var title = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Bot Backend Control Plane",
+                    _ => "LocalGPT Feature Generation Lab"
+                };
+                var subtitle = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "A DevExpress Blazor shell for provider-compatible API routes, model cataloging, endpoint checks, and external runner boundaries.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "A local-first AI workbench with DXAiChat, AI Council, SQLite memory, artifact downloads, Minecraft generation, setup, and test-lab surfaces.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "A server-interactive operations portal with menu, orders, reservations, admin CRUD, notifications, and a simple bot backend boundary.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "A compact bot backend with webhooks, conversation state, moderation/retry queues, Python interop boundaries, and operator settings.",
+                    _ => "A LocalGPT/TacosPortalOpen-style sandbox for AI Council feature requests, implementation planning, knowledge-backed generation, and artifact review."
+                };
+                var primaryHref = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "/api-console",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "/chat",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "/orders",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "/webhooks",
+                    _ => "/implementation-plan"
+                };
+                var primaryLabel = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "Open API console",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "Open DXAiChat",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "Open orders",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Open webhooks",
+                    _ => "Open implementation plan"
+                };
+                var secondaryHref = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "/models",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "/model-council",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "/menu",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "/conversations",
+                    _ => "/knowledge"
+                };
+                var secondaryLabel = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "Review model catalog",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "Review AI Council",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "Review menu",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Review conversations",
+                    _ => "Review knowledge table"
+                };
+                var kicker = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI host lab",
+                    _ => "LocalGPT lab"
+                };
+                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500));
+                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 700));
 
-            return $$"""
+                return $$"""
                 @page "/"
                 @rendermode InteractiveServer
                 @inject GeneratedHealthSummaryService HealthService
@@ -3232,34 +3337,42 @@ namespace LocalGPT.Extensions.PlainStatics
                     string CouncilSummary { get; } = "{{consensusSummary}}";
                 }
                 """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionIndexRazor request:{request.ToString()} result:{result.ToString()} archetype:{archetype.ToString()}", request, result, archetype);
+                return string.Empty;
+            }
+           
         }
-
         public static string GenerateSolutionDashboardRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype archetype)
+            GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype archetype, ILogger logger)
         {
-            var isAiHostLab = archetype == GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost;
-            var isAiHostLiteral = isAiHostLab ? "true" : "false";
-            var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700));
-            var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900));
-            var title = archetype switch
+            try
             {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI Host Dashboard",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench Dashboard",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations Dashboard",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Bot Backend Dashboard",
-                _ => "LocalGPT Generation Dashboard"
-            };
-            var subtitle = archetype switch
-            {
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "Track API compatibility, model catalog readiness, runner adapter boundaries, and endpoint-test status.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "Track model connectivity, Council health, SQLite memory, generated artifacts, Minecraft builder readiness, and frontend test status.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "Track order throughput, kitchen state, menu publishing, reservations, admin CRUD, and bot notification boundaries.",
-                GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Track webhook health, queue state, conversation memory, retry policy, Python interop, and operator approvals.",
-                _ => "Track AI Council feature-generation readiness, knowledge grounding, artifact review, and integration safety."
-            };
-            return $$"""
+                var isAiHostLab = archetype == GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost;
+                var isAiHostLiteral = isAiHostLab ? "true" : "false";
+                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700));
+                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900));
+                var title = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI Host Dashboard",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench Dashboard",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations Dashboard",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Bot Backend Dashboard",
+                    _ => "LocalGPT Generation Dashboard"
+                };
+                var subtitle = archetype switch
+                {
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "Track API compatibility, model catalog readiness, runner adapter boundaries, and endpoint-test status.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "Track model connectivity, Council health, SQLite memory, generated artifacts, Minecraft builder readiness, and frontend test status.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "Track order throughput, kitchen state, menu publishing, reservations, admin CRUD, and bot notification boundaries.",
+                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "Track webhook health, queue state, conversation memory, retry policy, Python interop, and operator approvals.",
+                    _ => "Track AI Council feature-generation readiness, knowledge grounding, artifact review, and integration safety."
+                };
+                return $$"""
             @page "/dashboard"
             @rendermode InteractiveServer
             @inject GeneratedHealthSummaryService HealthService
@@ -3320,13 +3433,21 @@ namespace LocalGPT.Extensions.PlainStatics
                 }
             }
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionDashboardRazor request:{request.ToString()} result:{result.ToString()} archetype:{archetype.ToString()}", request, result, archetype);
+                return string.Empty;
+            }
         }
 
-        public static string GenerateSolutionKnowledgeTableRazor(bool isAiHostLab)
+        public static string GenerateSolutionKnowledgeTableRazor(bool isAiHostLab, ILogger logger)
         {
-            if (isAiHostLab)
+            try
             {
-                return """
+                if (isAiHostLab)
+                {
+                    return """
                 @page "/models"
                 @rendermode InteractiveServer
                 @inject GeneratedHealthSummaryService HealthService
@@ -3351,9 +3472,9 @@ namespace LocalGPT.Extensions.PlainStatics
                     </DxGrid>
                 </main>
                 """;
-            }
+                }
 
-            return """
+                return """
             @page "/knowledge"
             @rendermode InteractiveServer
             @inject GeneratedHealthSummaryService HealthService
@@ -3377,63 +3498,22 @@ namespace LocalGPT.Extensions.PlainStatics
                 </DxGrid>
             </main>
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionKnowledgeTableRazor isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
+            
         }
  
-        public static string GenerateSourceFidelityRazor() =>
-            """
-            @page "/source-fidelity"
-            @rendermode InteractiveServer
-            @inject ISourceFidelityService FidelityService
+        
 
-            <PageTitle>Source Fidelity</PageTitle>
-
-            <main class="generated-shell">
-                <GeneratedNavigation />
-
-                <section class="generated-header">
-                    <div>
-                        <h1>Source Fidelity</h1>
-                        <p>Checks whether this generated solution represents the requested source architecture instead of only compiling.</p>
-                    </div>
-                </section>
-
-                <DxGrid Data="@Rows"
-                        CssClass="generated-grid"
-                        ShowSearchBox="true"
-                        ShowFilterRow="true"
-                        TextWrapEnabled="true">
-                    <Columns>
-                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Area)" Caption="Area" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.SourceSignal)" Caption="Source Signal" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.GeneratedBoundary)" Caption="Generated Boundary" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Status)" Caption="Status" />
-                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Evidence)" Caption="Evidence" />
-                    </Columns>
-                </DxGrid>
-
-                <DxFormLayout CssClass="generated-form">
-                    <DxFormLayoutGroup Caption="Review rule" ColSpanMd="12">
-                        <DxFormLayoutItem Caption="Acceptance" ColSpanMd="12">
-                            <DxMemo Text="@ReviewRule" Rows="4" ReadOnly="true" />
-                        </DxFormLayoutItem>
-                    </DxFormLayoutGroup>
-                </DxFormLayout>
-            </main>
-
-            @code {
-                IReadOnlyList<GeneratedSourceFidelityRequirement> Rows { get; set; } = [];
-                string ReviewRule { get; } =
-                    "A generated replacement is not accepted just because it builds. It must preserve the source application's recognizable workflows, service boundaries, persistence shape, navigation, diagnostics, and artifact/download behavior.";
-
-                protected override void OnInitialized()
-                {
-                    Rows = FidelityService.GetRequirements();
-                }
-            }
-            """;
-
-        public static string GenerateSolutionFile(string projectName, string projectGuid) =>
-            $$"""
+        public static string GenerateSolutionFile(string projectName, string projectGuid, ILogger logger)
+        {
+            try
+            {
+                return $$"""
             Microsoft Visual Studio Solution File, Format Version 12.00
             # Visual Studio Version 17
             VisualStudioVersion = 17.0.31903.59
@@ -3453,27 +3533,25 @@ namespace LocalGPT.Extensions.PlainStatics
             	EndGlobalSection
             EndGlobal
             """;
-
-        public static string GenerateSolutionProjectFile() =>
-            """
-            <Project Sdk="Microsoft.NET.Sdk.Web">
-              <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework>
-                <Nullable>enable</Nullable>
-                <ImplicitUsings>enable</ImplicitUsings>
-                <GenerateDocumentationFile>true</GenerateDocumentationFile>
-              </PropertyGroup>
-              <ItemGroup>
-                <PackageReference Include="DevExpress.Blazor" Version="25.1.*" />
-              </ItemGroup>
-            </Project>
-            """;
-
-        public static string GenerateSolutionAppSettings(bool isAiHostLab)
-        {
-            if (!isAiHostLab)
+            }
+            catch (Exception ex)
             {
-                return """
+                logger.LogError(ex, $"Error in GenerateSolutionFile projectName:{projectName} projectGuid:{projectGuid}");
+                return string.Empty;
+            }
+
+        }
+            
+
+       
+
+        public static string GenerateSolutionAppSettings(bool isAiHostLab,ILogger logger)
+        {
+            try
+            {
+                if (!isAiHostLab)
+                {
+                    return """
                 {
                   "Logging": {
                     "LogLevel": {
@@ -3482,9 +3560,9 @@ namespace LocalGPT.Extensions.PlainStatics
                   }
                 }
                 """;
-            }
+                }
 
-            return """
+                return """
             {
               "Logging": {
                 "LogLevel": {
@@ -3529,11 +3607,20 @@ namespace LocalGPT.Extensions.PlainStatics
               }
             }
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionAppSettings isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
+            
         }
 
-        public static string GenerateSolutionProgram(string projectName, bool isAiHostLab)
+        public static string GenerateSolutionProgram(string projectName, bool isAiHostLab, ILogger logger)
         {
-            var aiHostServiceRegistrations = isAiHostLab
+            try
+            {
+                var aiHostServiceRegistrations = isAiHostLab
                 ? """
                   builder.Services.Configure<AiHostRuntimeOptions>(builder.Configuration.GetSection("AiHost"));
                   builder.Services.AddSingleton<IModelCatalogService>(sp => sp.GetRequiredService<GeneratedHealthSummaryService>());
@@ -3547,8 +3634,8 @@ namespace LocalGPT.Extensions.PlainStatics
                   """
                 : string.Empty;
 
-            var aiHostRoutes = isAiHostLab
-                ? """
+                var aiHostRoutes = isAiHostLab
+                    ? """
                   app.MapGet("/api/version", () => new
                   {
                       version = "dotnet-lab-0.2",
@@ -3586,9 +3673,9 @@ namespace LocalGPT.Extensions.PlainStatics
                   app.MapPost("/v1/chat/completions", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedChatRequest request, CancellationToken cancellationToken) => await provider.ChatAsync(request, cancellationToken));
                   app.MapPost("/v1/embeddings", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   """
-                : string.Empty;
+                    : string.Empty;
 
-            return $$"""
+                return $$"""
             using DevExpress.Blazor;
             using Microsoft.AspNetCore.Mvc;
             using {{projectName}}.Components;
@@ -3615,10 +3702,19 @@ namespace LocalGPT.Extensions.PlainStatics
 
             app.Run();
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionProgram projectName:{projectName} isAiHostLab:{isAiHostLab}");
+                return string.Empty;
+            }
         }
 
-        public static string GenerateSolutionImports(string projectName) =>
-            $$"""
+        public static string GenerateSolutionImports(string projectName, ILogger logger)
+        {
+            try
+            {
+                return $$"""
             @using System.Net.Http
             @using Microsoft.AspNetCore.Components
             @using Microsoft.AspNetCore.Components.Forms
@@ -3634,78 +3730,74 @@ namespace LocalGPT.Extensions.PlainStatics
             @using {{projectName}}.Models
             @using {{projectName}}.Services
             """;
-
-        public static string GenerateSolutionAppRazor() =>
-            """
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="utf-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <base href="/" />
-                <link href="_content/DevExpress.Blazor.Themes/blazing-berry.bs5.css" rel="stylesheet" />
-                <link href="app.css" rel="stylesheet" />
-                <HeadOutlet @rendermode="InteractiveServer" />
-            </head>
-            <body>
-                <Routes @rendermode="InteractiveServer" />
-                <script src="_framework/blazor.web.js"></script>
-            </body>
-            </html>
-            """;
-
-        public static string GenerateSolutionRoutesRazor() =>
-            """
-            <Router AppAssembly="@typeof(Program).Assembly">
-                <Found Context="routeData">
-                    <RouteView RouteData="@routeData" />
-                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-                </Found>
-                <NotFound>
-                    <PageTitle>Not Found</PageTitle>
-                    <p role="alert">This generated LocalGPT route was not found.</p>
-                </NotFound>
-            </Router>
-            """;
-        public static string BuildDataContentFileName(int index, string? mediaType)
-        {
-            var extension = (mediaType ?? string.Empty).ToLowerInvariant() switch
+            }
+            catch (Exception ex)
             {
-                "application/zip" or "application/x-zip-compressed" => ".zip",
-                "application/json" => ".json",
-                "application/xml" or "text/xml" => ".xml",
-                "text/markdown" => ".md",
-                "text/css" => ".css",
-                "text/html" => ".html",
-                "text/javascript" or "application/javascript" => ".js",
-                "application/octet-stream" => ".bin",
-                _ => ".txt"
-            };
-            return $"dxaichat-upload-{index}{extension}";
-        }
-        public static string? TryGetDataContentFileName(DataContent content)
-        {
-            foreach (var key in new[] { "name", "fileName", "filename", "FileName", "Name" })
-            {
-                if (content.AdditionalProperties?.TryGetValue(key, out var value) == true &&
-                    value is not null &&
-                    !string.IsNullOrWhiteSpace(value.ToString()))
-                {
-                    return value.ToString();
-                }
+                logger.LogError(ex, $"Error in GenerateSolutionImports projectName:{projectName}");
+                return string.Empty;
             }
 
-            var rawName = content.RawRepresentation?
-                .GetType()
-                .GetProperty("Name")?
-                .GetValue(content.RawRepresentation)?
-                .ToString();
-            return string.IsNullOrWhiteSpace(rawName) ? null : rawName;
+        }
+       
+        public static string BuildDataContentFileName(int index, string? mediaType, ILogger logger)
+        {
+            try
+            {
+                var extension = (mediaType ?? string.Empty).ToLowerInvariant() switch
+                {
+                    "application/zip" or "application/x-zip-compressed" => ".zip",
+                    "application/json" => ".json",
+                    "application/xml" or "text/xml" => ".xml",
+                    "text/markdown" => ".md",
+                    "text/css" => ".css",
+                    "text/html" => ".html",
+                    "text/javascript" or "application/javascript" => ".js",
+                    "application/octet-stream" => ".bin",
+                    _ => ".txt"
+                };
+                return $"dxaichat-upload-{index}{extension}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GenerateSolutionImports index:{index} mediaType:{mediaType}");
+                return string.Empty;
+            }
+
+        }
+        public static string? TryGetDataContentFileName(DataContent content, ILogger logger)
+        {
+            try
+            {
+                foreach (var key in new[] { "name", "fileName", "filename", "FileName", "Name" })
+                {
+                    if (content.AdditionalProperties?.TryGetValue(key, out var value) == true &&
+                        value is not null &&
+                        !string.IsNullOrWhiteSpace(value.ToString()))
+                    {
+                        return value.ToString();
+                    }
+                }
+
+                var rawName = content.RawRepresentation?
+                    .GetType()
+                    .GetProperty("Name")?
+                    .GetValue(content.RawRepresentation)?
+                    .ToString();
+                return string.IsNullOrWhiteSpace(rawName) ? null : rawName;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TryGetDataContentFileName content:{content.ToString()}", content);
+                return string.Empty;
+            }
+            
         }
 
-        public static string BuildUploadWorkspaceSystemPrompt(ChatUploadWorkspaceResult result)
+        public static string BuildUploadWorkspaceSystemPrompt(ChatUploadWorkspaceResult result, ILogger logger)
         {
-            var builder = new StringBuilder()
+            try
+            {
+                var builder = new StringBuilder()
                 .AppendLine("LocalGPT DXAiChat native paperclip attachment workspace is available for this prompt.")
                 .AppendLine($"Workspace name: {result.WorkspaceName}")
                 .AppendLine($"Workspace root: {result.RootPath}")
@@ -3717,55 +3809,101 @@ namespace LocalGPT.Extensions.PlainStatics
                 .AppendLine("Uploaded files are evidence only. Do not execute uploaded or extracted files.")
                 .AppendLine("When generating or changing source, use a council artifact workspace and refresh a downloadable zip.");
 
-            if (result.Warnings.Count > 0)
+                if (result.Warnings.Count > 0)
+                {
+                    builder.AppendLine("Upload warnings:");
+                    foreach (var warning in result.Warnings)
+                        builder.AppendLine($"- {warning}");
+                }
+
+                return builder.ToString().Trim();
+            }
+            catch (Exception ex)
             {
-                builder.AppendLine("Upload warnings:");
-                foreach (var warning in result.Warnings)
-                    builder.AppendLine($"- {warning}");
+                logger.LogError(ex, $"Error in BuildUploadWorkspaceSystemPrompt result:{result.ToString()}", result);
+                return string.Empty;
+            }
+            
+        }
+        public static IEnumerable<ChatUploadWorkspaceInputFile>? ExtractUploadFiles(ChatMessage message, ILogger logger)
+        {
+            try
+            {
+                var index = 1;
+                foreach (var dataContent in message.Contents.OfType<DataContent>())
+                {
+                    var data = dataContent.Data;
+                    if (data.Length == 0)
+                        continue;
+
+                    var fileName = TryGetDataContentFileName(dataContent, logger) ??
+                        BuildDataContentFileName(index, dataContent.MediaType, logger);
+                    index++;
+                    yield return new ChatUploadWorkspaceInputFile(
+                        fileName,
+                        dataContent.MediaType,
+                        data.Length,
+                        data);
+                }
+            }
+            finally
+            {
+                logger.LogInformation($"Ended ExtractUploadFiles for waever reason message {message.ToString()}");
             }
 
-            return builder.ToString().Trim();
         }
-        public static IEnumerable<ChatUploadWorkspaceInputFile> ExtractUploadFiles(ChatMessage message)
-        {
-            var index = 1;
-            foreach (var dataContent in message.Contents.OfType<DataContent>())
-            {
-                var data = dataContent.Data;
-                if (data.Length == 0)
-                    continue;
 
-                var fileName = TryGetDataContentFileName(dataContent) ??
-                    BuildDataContentFileName(index, dataContent.MediaType);
-                index++;
-                yield return new ChatUploadWorkspaceInputFile(
-                    fileName,
-                    dataContent.MediaType,
-                    data.Length,
-                    data);
+        public static void AddOptionalSystemMessage(List<ChatMessage> messages, string? text, ILogger logger)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(text))
+                    messages.Add(new ChatMessage(ChatRole.System, text));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AddOptionalSystemMessage messages:{messages.ToString()} text:{text}", messages);
             }
         }
 
-        public static void AddOptionalSystemMessage(List<ChatMessage> messages, string? text)
+        public static int? TryParseConfidence(string value, ILogger logger)
         {
-            if (!string.IsNullOrWhiteSpace(text))
-                messages.Add(new ChatMessage(ChatRole.System, text));
+            try
+            {
+                return int.TryParse(Regex.Match(value ?? string.Empty, "\\d+").Value, out var confidence)
+      ? Math.Clamp(confidence, 0, 100)
+      : 40;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TryParseConfidence value:{value}");
+                return null;
+            }
+
         }
+      
 
-        public static int ParseConfidence(string value) =>
-    int.TryParse(Regex.Match(value ?? string.Empty, "\\d+").Value, out var confidence)
-        ? Math.Clamp(confidence, 0, 100)
-        : 40;
-
-        public static string MergeTags(string requestedTags, string requiredTags) =>
-            string.IsNullOrWhiteSpace(requestedTags)
+        public static string MergeTags(string requestedTags, string requiredTags, ILogger logger)
+        {
+            try
+            {
+                return string.IsNullOrWhiteSpace(requestedTags)
                 ? requiredTags
                 : $"{requestedTags.Trim()}; {requiredTags}";
-
-        public static string BuildCapabilityGapKnowledgeContent(string body)
-        {
-            var fields = new[]
+            }
+            catch (Exception ex)
             {
+                logger.LogError(ex, $"Error in MergeTags requestedTags:{requestedTags} requiredTags:{requiredTags}");
+                return string.Empty;
+            }
+        }
+
+        public static string BuildCapabilityGapKnowledgeContent(string body, ILogger logger)
+        {
+            try
+            {
+                var fields = new[]
+           {
             "user-request-summary",
             "missing-capability",
             "owning-area",
@@ -3783,205 +3921,352 @@ namespace LocalGPT.Extensions.PlainStatics
             "next-localgpt-improvement"
         };
 
-            var builder = new StringBuilder()
-                .AppendLine("Structured LocalGPT capability gap request:");
+                var builder = new StringBuilder()
+                    .AppendLine("Structured LocalGPT capability gap request:");
 
-            foreach (var field in fields)
-            {
-                var value = CouncilChatStringFunctions.ExtractField(body, field);
-                if (!string.IsNullOrWhiteSpace(value))
-                    builder.Append("- ").Append(field).Append(": ").AppendLine(value);
-            }
-
-            return builder.ToString().TrimEnd();
-        }
-
-
-        public static IEnumerable<CouncilKnowledgeEntry> ParseKnowledgeRequests(string source, string responseText)
-        {
-            foreach (Match match in Regex.Matches(responseText, "<localgpt-knowledge>(?<body>.*?)</localgpt-knowledge>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant))
-            {
-                var body = match.Groups["body"].Value.Trim();
-                if (string.IsNullOrWhiteSpace(body))
-                    continue;
-
-                var content = CouncilChatStringFunctions.ExtractField(body, "content");
-                if (string.IsNullOrWhiteSpace(content))
-                    content = body;
-
-                yield return new CouncilKnowledgeEntry
+                foreach (var field in fields)
                 {
-                    Topic = CouncilChatStringFunctions.ExtractField(body, "topic", "AI model knowledge request"),
-                    Scope = CouncilChatStringFunctions.ExtractField(body, "scope", "DXAiChat"),
-                    Source = $"AI model request: {source}",
-                    Content = content,
-                    HelpfulSources = CouncilChatStringFunctions.ExtractField(body, "helpful-sources", "None explicitly requested."),
-                    Tags = MergeTags(CouncilChatStringFunctions.ExtractField(body, "tags"), "model-written; unapproved"),
-                    Confidence = ParseConfidence(CouncilChatStringFunctions.ExtractField(body, "confidence")),
-                    VerificationStatus = "ModelSuggested",
-                    ReviewStatus = "NeedsUserReview",
-                    ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
-                    IsUserApproved = false,
-                    IsPinned = false,
-                    IsArchived = false
-                };
-            }
+                    var value = CouncilChatStringFunctions.ExtractField(body, field);
+                    if (!string.IsNullOrWhiteSpace(value))
+                        builder.Append("- ").Append(field).Append(": ").AppendLine(value);
+                }
 
-            foreach (Match match in Regex.Matches(responseText, "<localgpt-capability-gap>(?<body>.*?)</localgpt-capability-gap>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant))
+                return builder.ToString().TrimEnd();
+            }
+            catch (Exception ex)
             {
-                var body = match.Groups["body"].Value.Trim();
-                if (string.IsNullOrWhiteSpace(body))
-                    continue;
-
-                var missingCapability = CouncilChatStringFunctions.ExtractField(body, "missing-capability", "LocalGPT capability gap request");
-                var owningArea = CouncilChatStringFunctions.ExtractField(body, "owning-area", "DXAiChat / AI Council");
-                var localSources = CouncilChatStringFunctions.ExtractField(body, "local-knowledge-sources", "None listed.");
-                var externalSources = CouncilChatStringFunctions.ExtractField(body, "external-knowledge-sources", "None listed.");
-
-                yield return new CouncilKnowledgeEntry
-                {
-                    Topic = missingCapability,
-                    Scope = owningArea,
-                    Source = $"AI capability gap request: {source}",
-                    Content = BuildCapabilityGapKnowledgeContent(body),
-                    HelpfulSources = $"Local sources:\n{localSources}\n\nExternal sources:\n{externalSources}",
-                    Tags = MergeTags(CouncilChatStringFunctions.ExtractField(body, "tags"), "capability-gap; model-written; unapproved"),
-                    Confidence = ParseConfidence(CouncilChatStringFunctions.ExtractField(body, "confidence")),
-                    VerificationStatus = "ModelSuggested",
-                    ReviewStatus = "NeedsDiagnosticVerification",
-                    ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
-                    StalenessReason = "Capability gap request needs human or diagnostic verification before it becomes trusted guidance.",
-                    StalenessDetectedBy = "DXAiChat capability-gap parser",
-                    IsUserApproved = false,
-                    IsPinned = false,
-                    IsArchived = false
-                };
-            }
-        }
-        public static string ExtractField(string body, string name, string fallback = "")
-        {
-            var pattern = $@"(?ims)^\s*{Regex.Escape(name)}\s*:\s*(?<value>.*?)(?=^\s*(?:topic|scope|confidence|tags|helpful-sources|content|user-request-summary|missing-capability|owning-area|target-deliverable|requested-languages|requested-frameworks|requested-versions|requested-domain-knowledge|local-knowledge-sources|external-knowledge-sources|missing-localgpt-functions|safe-workflow|artifact-plan|investigation-status|next-localgpt-improvement)\s*:|\z)";
-            var match = Regex.Match(body, pattern, RegexOptions.CultureInvariant);
-            return match.Success ? match.Groups["value"].Value.Trim() : fallback;
-        }
-
-        public static string Fallback(string value, string fallback)
-        {
-            return string.IsNullOrWhiteSpace(value) ? fallback : value;
-        }
-
-        public static Guid? ParseNullableGuid(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return null;
-
-            return Guid.TryParse(value, out var parsed) ? parsed : null;
-        }
-
-        public static string FormatNullableUtc(DateTime? value)
-        {
-            return value?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) ?? string.Empty;
-        }
-        public static string FormatNullableGuid(Guid? value)
-        {
-            return value?.ToString("D") ?? string.Empty;
-        }
-        public static DateTime? ParseNullableUtc(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return null;
-
-            return DateTime.TryParse(
-                value,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out var parsed)
-                ? parsed
-                : null;
-        }
-
-        public static string CreateMessageSignature(IEnumerable<BlazorChatMessage> messages)
-        {
-            return string.Join("|", messages
-                .Where(message => !message.Typing)
-                .Select(message => $"{message.Role}:{message.Content.GetHashCode(StringComparison.Ordinal)}:{message.Content.Length}"));
-        }
-
-        public static string RenderChatMarkdown(string? content)
-        {
-            var normalized = NormalizeChatMarkdown(content);
-            return Markdig.Markdown.ToHtml(normalized, GlobalVariableSlopCollectionToRemove.ChatMarkdownPipeline).Trim();
-        }
-
-        public static string NormalizeChatMarkdown(string? content)
-        {
-            if (string.IsNullOrWhiteSpace(content))
+                logger.LogError(ex, $"Error in BuildCapabilityGapKnowledgeContent body:{body}");
                 return string.Empty;
-
-            var text = System.Net.WebUtility.HtmlDecode(content);
-            text = GlobalVariableSlopCollectionToRemove.HarmonyMarkerCleanupRegex.Replace(text, string.Empty);
-            text = GlobalVariableSlopCollectionToRemove.OpenThinkingDetailsRegex.Replace(text, "<details class=\"model-thinking\">");
-            text = text.Replace("</details>\n", "</details>\n\n", StringComparison.OrdinalIgnoreCase);
-            text = GlobalVariableSlopCollectionToRemove.ListAfterHtmlRegex.Replace(text, "$1\n\n$2");
-            return text.Trim();
+            }
         }
 
-        public static string DetectTargetArea(string prompt, string finalAnswer)
+
+        public static IEnumerable<CouncilKnowledgeEntry>? ParseKnowledgeRequests(string source, string responseText, ILogger logger)
         {
-            var text = $"{prompt} {finalAnswer}";
-            if (GlobalVariableSlopCollectionToRemove.DevExpressDocumentPattern().IsMatch(text))
-                return "DevExpress document/report backend";
-            if (GlobalVariableSlopCollectionToRemove.BlazorFrontendPattern().IsMatch(text))
-                return "Blazor/DevExpress frontend";
-            if (GlobalVariableSlopCollectionToRemove.DotNetPattern().IsMatch(text))
-                return ".NET/Blazor/ASP.NET Core";
-            if (GlobalVariableSlopCollectionToRemove.MinecraftPattern().IsMatch(text))
-                return "Minecraft builder";
-            if (GlobalVariableSlopCollectionToRemove.FrontendPattern().IsMatch(text))
-                return "Blazor frontend";
-            if (GlobalVariableSlopCollectionToRemove.LoggingPattern().IsMatch(text))
-                return "diagnostics and logging";
+            try
+            {
+                foreach (Match match in Regex.Matches(responseText, "<localgpt-knowledge>(?<body>.*?)</localgpt-knowledge>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant))
+                {
+                    var body = match.Groups["body"].Value.Trim();
+                    if (string.IsNullOrWhiteSpace(body))
+                        continue;
 
-            return "LocalGPT feature";
+                    var content = CouncilChatStringFunctions.ExtractField(body, "content");
+                    if (string.IsNullOrWhiteSpace(content))
+                        content = body;
+
+                    yield return new CouncilKnowledgeEntry
+                    {
+                        Topic = CouncilChatStringFunctions.ExtractField(body, "topic", "AI model knowledge request"),
+                        Scope = CouncilChatStringFunctions.ExtractField(body, "scope", "DXAiChat"),
+                        Source = $"AI model request: {source}",
+                        Content = content,
+                        HelpfulSources = CouncilChatStringFunctions.ExtractField(body, "helpful-sources", "None explicitly requested."),
+                        Tags = MergeTags(CouncilChatStringFunctions.ExtractField(body, "tags"), "model-written; unapproved"),
+                        Confidence = ParseConfidence(CouncilChatStringFunctions.ExtractField(body, "confidence")),
+                        VerificationStatus = "ModelSuggested",
+                        ReviewStatus = "NeedsUserReview",
+                        ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
+                        IsUserApproved = false,
+                        IsPinned = false,
+                        IsArchived = false
+                    };
+                }
+
+                foreach (Match match in Regex.Matches(responseText, "<localgpt-capability-gap>(?<body>.*?)</localgpt-capability-gap>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant))
+                {
+                    var body = match.Groups["body"].Value.Trim();
+                    if (string.IsNullOrWhiteSpace(body))
+                        continue;
+
+                    var missingCapability = CouncilChatStringFunctions.ExtractField(body, "missing-capability", "LocalGPT capability gap request");
+                    var owningArea = CouncilChatStringFunctions.ExtractField(body, "owning-area", "DXAiChat / AI Council");
+                    var localSources = CouncilChatStringFunctions.ExtractField(body, "local-knowledge-sources", "None listed.");
+                    var externalSources = CouncilChatStringFunctions.ExtractField(body, "external-knowledge-sources", "None listed.");
+
+                    yield return new CouncilKnowledgeEntry
+                    {
+                        Topic = missingCapability,
+                        Scope = owningArea,
+                        Source = $"AI capability gap request: {source}",
+                        Content = BuildCapabilityGapKnowledgeContent(body),
+                        HelpfulSources = $"Local sources:\n{localSources}\n\nExternal sources:\n{externalSources}",
+                        Tags = MergeTags(CouncilChatStringFunctions.ExtractField(body, "tags"), "capability-gap; model-written; unapproved"),
+                        Confidence = ParseConfidence(CouncilChatStringFunctions.ExtractField(body, "confidence")),
+                        VerificationStatus = "ModelSuggested",
+                        ReviewStatus = "NeedsDiagnosticVerification",
+                        ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
+                        StalenessReason = "Capability gap request needs human or diagnostic verification before it becomes trusted guidance.",
+                        StalenessDetectedBy = "DXAiChat capability-gap parser",
+                        IsUserApproved = false,
+                        IsPinned = false,
+                        IsArchived = false
+                    };
+                }
+            }
+            finally
+            {
+                logger.LogInformation( $"Ending in ParseKnowledgeRequests for waever reason source:{source} responseText:{responseText}");
+            }
         }
-
-        public static string TrimForCodeComment(string text, int maxLength)
+        public static string ExtractField(string body, string name, string fallback = "", ILogger logger)
         {
-            var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(text, " ").Trim();
-            return normalized.Length <= maxLength
-                ? normalized
-                : $"{normalized[..maxLength].TrimEnd()}...";
+            try
+            {
+                var pattern = $@"(?ims)^\s*{Regex.Escape(name)}\s*:\s*(?<value>.*?)(?=^\s*(?:topic|scope|confidence|tags|helpful-sources|content|user-request-summary|missing-capability|owning-area|target-deliverable|requested-languages|requested-frameworks|requested-versions|requested-domain-knowledge|local-knowledge-sources|external-knowledge-sources|missing-localgpt-functions|safe-workflow|artifact-plan|investigation-status|next-localgpt-improvement)\s*:|\z)";
+                var match = Regex.Match(body, pattern, RegexOptions.CultureInvariant);
+                return match.Success ? match.Groups["value"].Value.Trim() : fallback;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractField body:{body} name:{name} fallback:{fallback}");
+                return string.Empty;
+            }
+            
         }
 
-        public static string EscapeCSharpString(string text)
+        public static string Fallback(string value, string fallback, ILogger logger)
         {
-            return text
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal)
-                .Replace("\r", "\\r", StringComparison.Ordinal)
-                .Replace("\n", "\\n", StringComparison.Ordinal);
+            try
+            {
+                return string.IsNullOrWhiteSpace(value) ? fallback : value;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in Fallback value:{value} fallback:{fallback}");
+                return string.Empty;
+            }
+          
         }
 
-        public static string EscapeJsonString(string text)
+        public static Guid? ParseNullableGuid(string value, ILogger logger)
         {
-            return EscapeCSharpString(text);
-        }
-        public static string? NormalizeDBNullStringValue(string value)
-        {
-            return value.Equals("[null]", StringComparison.OrdinalIgnoreCase) ? null : value;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    return null;
+
+                return Guid.TryParse(value, out var parsed) ? parsed : null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ParseNullableGuid value:{value}");
+                return null;
+            }
+
         }
 
-        public static string TrimEndpoint(string endpoint)
+        public static string FormatNullableUtc(DateTime? value, ILogger logger)
         {
-            if (string.IsNullOrWhiteSpace(endpoint))
-                return "unknown endpoint";
-
-            return endpoint
-                .Replace("http://", string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase)
-                .TrimEnd('/');
+            try
+            {
+                return value?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FormatNullableUtc value:{value}");
+                return string.Empty;
+            }
         }
-        public static string CreateMinecraftSystemPrompt(string mode) => string.Join(Environment.NewLine, new[]
+        public static string FormatNullableGuid(Guid? value, ILogger logger)
+        {
+            try
+            {
+                return value?.ToString("D") ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FormatNullableGuid value:{value}");
+                return string.Empty;
+            }
+        }
+        public static DateTime? ParseNullableUtc(string value, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    return null;
+
+                return DateTime.TryParse(
+                    value,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out var parsed)
+                    ? parsed
+                    : null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ParseNullableUtc value:{value}");
+                return null;
+            }
+          
+        }
+
+        public static string CreateMessageSignature(IEnumerable<BlazorChatMessage> messages, ILogger logger)
+        {
+            try
+            {
+                return string.Join("|", messages
+               .Where(message => !message.Typing)
+               .Select(message => $"{message.Role}:{message.Content.GetHashCode(StringComparison.Ordinal)}:{message.Content.Length}"));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateMessageSignature messages:{messages.ToString()}", messages);
+                return string.Empty;
+            }
+        }
+
+        public static string RenderChatMarkdown(string? content, ILogger logger)
+        {
+            try
+            {
+                var normalized = NormalizeChatMarkdown(content);
+                return Markdig.Markdown.ToHtml(normalized, GlobalVariableSlopCollectionToRemove.ChatMarkdownPipeline).Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in RenderChatMarkdown content:{content}");
+                return string.Empty;
+            }
+           
+        }
+
+        public static string NormalizeChatMarkdown(string? content, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return string.Empty;
+
+                var text = System.Net.WebUtility.HtmlDecode(content);
+                text = GlobalVariableSlopCollectionToRemove.HarmonyMarkerCleanupRegex.Replace(text, string.Empty);
+                text = GlobalVariableSlopCollectionToRemove.OpenThinkingDetailsRegex.Replace(text, "<details class=\"model-thinking\">");
+                text = text.Replace("</details>\n", "</details>\n\n", StringComparison.OrdinalIgnoreCase);
+                text = GlobalVariableSlopCollectionToRemove.ListAfterHtmlRegex.Replace(text, "$1\n\n$2");
+                return text.Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeChatMarkdown content:{content}");
+                return string.Empty;
+            }
+        }
+
+        public static string DetectTargetArea(string prompt, string finalAnswer, ILogger logger)
+        {
+            try
+            {
+                var text = $"{prompt} {finalAnswer}";
+                if (GlobalVariableSlopCollectionToRemove.DevExpressDocumentPattern().IsMatch(text))
+                    return "DevExpress document/report backend";
+                if (GlobalVariableSlopCollectionToRemove.BlazorFrontendPattern().IsMatch(text))
+                    return "Blazor/DevExpress frontend";
+                if (GlobalVariableSlopCollectionToRemove.DotNetPattern().IsMatch(text))
+                    return ".NET/Blazor/ASP.NET Core";
+                if (GlobalVariableSlopCollectionToRemove.MinecraftPattern().IsMatch(text))
+                    return "Minecraft builder";
+                if (GlobalVariableSlopCollectionToRemove.FrontendPattern().IsMatch(text))
+                    return "Blazor frontend";
+                if (GlobalVariableSlopCollectionToRemove.LoggingPattern().IsMatch(text))
+                    return "diagnostics and logging";
+
+                return "LocalGPT feature";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in DetectTargetArea prompt:{prompt} finalAnswer:{finalAnswer}");
+                return string.Empty;
+            }
+
+        }
+
+        public static string TrimForCodeComment(string text, int maxLength, ILogger logger)
+        {
+            try
+            {
+                var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(text, " ").Trim();
+                return normalized.Length <= maxLength
+                    ? normalized
+                    : $"{normalized[..maxLength].TrimEnd()}...";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TrimForCodeComment text:{text} maxLength:{maxLength}");
+                return string.Empty;
+            }
+            
+        }
+
+        public static string EscapeCSharpString(string text, ILogger logger)
+        {
+            try
+            {
+                return text
+              .Replace("\\", "\\\\", StringComparison.Ordinal)
+              .Replace("\"", "\\\"", StringComparison.Ordinal)
+              .Replace("\r", "\\r", StringComparison.Ordinal)
+              .Replace("\n", "\\n", StringComparison.Ordinal);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in EscapeCSharpString text:{text}");
+                return string.Empty;
+            }
+          
+        }
+
+        public static string EscapeJsonString(string text, ILogger logger)
+        {
+            try
+            {
+                return EscapeCSharpString(text, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in EscapeJsonString text:{text}");
+                return string.Empty;
+            }
+           
+        }
+        public static string? NormalizeDBNullStringValue(string value, ILogger logger)
+        {
+            try
+            {
+                return value.Equals("[null]", StringComparison.OrdinalIgnoreCase) ? null : value;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeDBNullStringValue value:{value}");
+                return null;
+            }
+        }
+
+        public static string TrimEndpoint(string endpoint, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(endpoint))
+                    return "unknown endpoint";
+
+                return endpoint
+                    .Replace("http://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                    .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                    .TrimEnd('/');
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TrimEndpoint endpoint:{endpoint}");
+                return string.Empty;
+            }
+           
+        }
+        public static string CreateMinecraftSystemPrompt(string mode, ILogger logger)
+        {
+            try
+            {
+                return string.Join(Environment.NewLine, new[]
 {
         $"You are a senior Minecraft Java mod engineer helping through LocalGPT in {mode}.",
         "Prefer Java Edition first. Treat Bedrock as a separate behavior/resource pack exporter.",
@@ -3994,29 +4279,33 @@ namespace LocalGPT.Extensions.PlainStatics
         "If LocalGPT needs a missing feature, include a 'Missing feature report' section that can be saved to memory.",
         "Label uncertain dependency versions under 'Needs verification'."
     });
-        public static readonly string LivingCitiesPrompt = string.Join(Environment.NewLine, new[]
-{
-        "Living Cities 0.1 should turn Minecraft villages into persistent cities with population, food, security, personalities, chronicle, quests, and town hall administration.",
-        "",
-        "First build target:",
-        "- generate a vanilla Java Edition datapack first",
-        "- default to the newest installed Java Edition generation line; LocalGPT currently maps Minecraft 26.1 to datapack pack_format 101.1 and Java 25",
-        "- keep the first generated datapack small, buildable, and installable",
-        "- include pack.mcmeta, minecraft load/tick function tags, namespace functions, and build-local.ps1 validation",
-        "- include a town hall/admin book UI through trigger commands",
-        "- keep the critical path documented: datapack/data structure, scoreboards or saved data, city founding, citizen registration, population management, minimal town hall",
-        "- avoid world-wide scans",
-        "- plan for 1000+ citizens by simulating city aggregates before individuals"
-    });
-        public static string TrimForDisplay(string value, int maxCharacters)
-        {
-            if (string.IsNullOrWhiteSpace(value))
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateMinecraftSystemPrompt mode:{mode}");
                 return string.Empty;
+            }
 
-            var trimmed = value.Trim();
-            return trimmed.Length <= maxCharacters
-                ? trimmed
-                : $"{trimmed[..maxCharacters].TrimEnd()}{Environment.NewLine}... prompt truncated for display; full prompt is stored in the CouncilLogs markdown file and SQLite user message ...";
+        }
+        
+        public static string TrimForDisplay(string value, int maxCharacters, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    return string.Empty;
+
+                var trimmed = value.Trim();
+                return trimmed.Length <= maxCharacters
+                    ? trimmed
+                    : $"{trimmed[..maxCharacters].TrimEnd()}{Environment.NewLine}... prompt truncated for display; full prompt is stored in the CouncilLogs markdown file and SQLite user message ...";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TrimForDisplay value:{value} maxCharacters:{maxCharacters}");
+                return string.Empty;
+            }
+           
         }
 
     }
