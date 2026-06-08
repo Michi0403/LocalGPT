@@ -872,7 +872,7 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                RequireJsonProperty(root, propertyName, path);
+                RequireJsonProperty(root, propertyName, path, logger);
                 var property = root.GetProperty(propertyName);
                 if (property.ValueKind != JsonValueKind.Array || property.GetArrayLength() == 0)
                 {
