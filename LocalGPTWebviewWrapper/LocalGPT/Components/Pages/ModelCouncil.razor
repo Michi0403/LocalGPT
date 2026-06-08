@@ -398,167 +398,271 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadCandidatesAsync();
-        await LoadSavedCouncilConversationsAsync();
+        try
+        {
+            await LoadCandidatesAsync().ConfigureAwait(true);
+            await LoadSavedCouncilConversationsAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in OnInitializedAsync {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in OnInitializedAsync");
+        }
+
     }
 
     async Task LoadCandidatesAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            Candidates = (await CouncilService.GetCandidatesAsync()).ToList();
+            await RunUiActionAsync(async () =>
+       {
+           Candidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false)).ToList();
 
-            if (SelectedModels.Count == 0)
-            {
-                foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled || candidate.IsConfigured).Take(2))
-                    SelectedModels.Add(candidate.ModelName);
-            }
+           if (SelectedModels.Count == 0)
+           {
+               foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled || candidate.IsConfigured).Take(2))
+                   SelectedModels.Add(candidate.ModelName);
+           }
 
-            statusText = Candidates.Count == 0
-                ? "No Ollama models found."
-                : $"Found {Candidates.Count} Ollama model(s).";
-        }, "LoadCandidatesAsync");
+           statusText = Candidates.Count == 0
+               ? "No Ollama models found."
+               : $"Found {Candidates.Count} Ollama model(s).";
+       }, "LoadCandidatesAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in LoadCandidatesAsync {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in LoadCandidatesAsync");
+        }
     }
 
     async Task RunCouncilAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            Request.ModelNames = SelectedModels.ToList();
-            LastResult = await CouncilService.RunAsync(Request);
-            if (LastResult.MemoryConversationId is Guid memoryId)
-            {
-                Request.ContinueConversationId = memoryId;
-                await LoadSavedCouncilConversationsAsync(showStatus: false);
-                SelectedCouncilConversation = SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == memoryId);
-            }
-            statusText = $"Council completed with {LastResult.Steps.Count} transcript step(s).";
-            Notifier.ShowSuccess(toastName, "Council transcript saved and visualized.", "Council complete");
-        }, "RunCouncilAsync");
+            await RunUiActionAsync(async () =>
+   {
+       Request.ModelNames = SelectedModels.ToList();
+       LastResult = await CouncilService.RunAsync(Request).ConfigureAwait(false);
+       if (LastResult.MemoryConversationId is Guid memoryId)
+       {
+           Request.ContinueConversationId = memoryId;
+           await LoadSavedCouncilConversationsAsync(showStatus: false).ConfigureAwait(false);
+           SelectedCouncilConversation = SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == memoryId);
+       }
+       statusText = $"Council completed with {LastResult.Steps.Count} transcript step(s).";
+       Notifier.ShowSuccess(toastName, "Council transcript saved and visualized.", "Council complete");
+   }, "RunCouncilAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in RunCouncilAsync {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in RunCouncilAsync");
+        }
     }
 
     async Task LoadSavedCouncilConversationsAsync()
     {
-        await LoadSavedCouncilConversationsAsync(showStatus: true);
+        try
+        {
+            await LoadSavedCouncilConversationsAsync(showStatus: true).ConfigureAwait(false); ;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in LoadSavedCouncilConversationsAsync {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in LoadSavedCouncilConversationsAsync");
+        }
+
     }
 
     async Task LoadSavedCouncilConversationsAsync(bool showStatus)
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100))
-                .Where(conversation => conversation.ProviderName.StartsWith("AI Council", StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            await RunUiActionAsync(async () =>
+       {
+           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100))
+               .Where(conversation => conversation.ProviderName.StartsWith("AI Council", StringComparison.OrdinalIgnoreCase))
+               .ToList();
 
-            SelectedCouncilConversation = Request.ContinueConversationId is Guid selectedId
-                ? SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == selectedId)
-                : null;
+           SelectedCouncilConversation = Request.ContinueConversationId is Guid selectedId
+               ? SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == selectedId)
+               : null;
 
-            if (showStatus)
-                statusText = $"Loaded {SavedCouncilConversations.Count} saved council conversation(s).";
-        }, "LoadSavedCouncilConversationsAsync");
+           if (showStatus)
+               statusText = $"Loaded {SavedCouncilConversations.Count} saved council conversation(s).";
+       }, "LoadSavedCouncilConversationsAsync");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in LoadSavedCouncilConversationsAsync {ex.ToString()} showStatus {showStatus}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in LoadSavedCouncilConversationsAsync");
+        }
+
     }
 
     void AddManualModel()
     {
-        var model = ManualModelName.Trim();
-        if (string.IsNullOrWhiteSpace(model))
-            return;
-
-        SelectedModels.Add(model);
-        if (!Candidates.Any(candidate => candidate.ModelName.Equals(model, StringComparison.OrdinalIgnoreCase)))
+        try
         {
-            Candidates.Add(new MultiModelCouncilModelCandidate(
-                model,
-                "Manual Ollama",
-                "http://localhost:11434",
-                IsInstalled: false,
-                IsConfigured: false,
-                IsLoaded: false,
-                Details: "Manual model name. Ollama will report an error if it is not installed."));
+            var model = ManualModelName.Trim();
+            if (string.IsNullOrWhiteSpace(model))
+                return;
+
+            SelectedModels.Add(model);
+            if (!Candidates.Any(candidate => candidate.ModelName.Equals(model, StringComparison.OrdinalIgnoreCase)))
+            {
+                Candidates.Add(new MultiModelCouncilModelCandidate(
+                    model,
+                    "Manual Ollama",
+                    "http://localhost:11434",
+                    IsInstalled: false,
+                    IsConfigured: false,
+                    IsLoaded: false,
+                    Details: "Manual model name. Ollama will report an error if it is not installed."));
+            }
+            statusText = $"Added {model}.";
         }
-        statusText = $"Added {model}.";
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in AddManualModel {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in AddManualModel");
+        }
+
     }
 
     void ToggleModel(string modelName, ChangeEventArgs args)
     {
-        var isChecked = args.Value is bool value
-            ? value
-            : bool.TryParse(Convert.ToString(args.Value), out var parsed) && parsed;
+        try
+        {
+            var isChecked = args.Value is bool value
+           ? value
+           : bool.TryParse(Convert.ToString(args.Value), out var parsed) && parsed;
 
-        if (isChecked)
-            SelectedModels.Add(modelName);
-        else
-            SelectedModels.Remove(modelName);
+            if (isChecked)
+                SelectedModels.Add(modelName);
+            else
+                SelectedModels.Remove(modelName);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ToggleModel {ex.ToString()} modelName {modelName.ToString()} args {args.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in ToggleModel");
+        }
+
     }
 
     void SelectCouncilConversation(ChatMemoryConversationSummary conversation)
     {
-        SelectedCouncilConversation = conversation;
-        Request.ContinueConversationId = conversation.Id;
-        statusText = $"Selected council memory: {conversation.DisplayName}";
+        try
+        {
+            SelectedCouncilConversation = conversation;
+            Request.ContinueConversationId = conversation.Id;
+            statusText = $"Selected council memory: {conversation.DisplayName}";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in SelectCouncilConversation {ex.ToString()} conversation {conversation.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in SelectCouncilConversation");
+        }
+
     }
 
     void StartNewCouncilThread()
     {
-        SelectedCouncilConversation = null;
-        Request.ContinueConversationId = null;
-        Request.GenerateImplementationArtifact = false;
-        statusText = "Next council run will start a new memory conversation.";
+        try
+        {
+            SelectedCouncilConversation = null;
+            Request.ContinueConversationId = null;
+            Request.GenerateImplementationArtifact = false;
+            statusText = "Next council run will start a new memory conversation.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in StartNewCouncilThread {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in StartNewCouncilThread");
+        }
     }
 
     void ApplyLowResourcePreset()
     {
-        Request.MaxRounds = 0;
-        Request.MaxOutputTokens = 1024;
-        Request.MaxParallelModels = 1;
-        Request.MaxContextTokens = 2048;
-        Request.ModelTimeoutSeconds = 300;
-        Request.OllamaKeepAlive = "0s";
-        Request.OllamaNumGpu = 0;
-        Request.IncludeMemory = true;
-        Request.SaveToMemory = true;
-        statusText = "Low GPU preset active: diagnostics only, one proposal pass, small context, CPU-only Ollama, and unload after each model.";
+        try
+        {
+            Request.MaxRounds = 0;
+            Request.MaxOutputTokens = 1024;
+            Request.MaxParallelModels = 1;
+            Request.MaxContextTokens = 2048;
+            Request.ModelTimeoutSeconds = 300;
+            Request.OllamaKeepAlive = "0s";
+            Request.OllamaNumGpu = 0;
+            Request.IncludeMemory = true;
+            Request.SaveToMemory = true;
+            statusText = "Low GPU preset active: diagnostics only, one proposal pass, small context, CPU-only Ollama, and unload after each model.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ApplyLowResourcePreset {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyLowResourcePreset");
+        }
     }
 
     void ApplyBalancedPreset()
     {
-        Request.MaxRounds = 1;
-        Request.MaxOutputTokens = 65536;
-        Request.MaxParallelModels = 1;
-        Request.MaxContextTokens = 65536;
-        Request.ModelTimeoutSeconds = 900;
-        Request.OllamaKeepAlive = null;
-        Request.OllamaNumGpu = null;
-        Request.IncludeMemory = true;
-        Request.SaveToMemory = true;
-        statusText = "Balanced preset active: 64K source-generation floor, sequential models, one review round, normal Ollama GPU scheduling.";
+        try
+        {
+            Request.MaxRounds = 1;
+            Request.MaxOutputTokens = 65536;
+            Request.MaxParallelModels = 1;
+            Request.MaxContextTokens = 65536;
+            Request.ModelTimeoutSeconds = 900;
+            Request.OllamaKeepAlive = null;
+            Request.OllamaNumGpu = null;
+            Request.IncludeMemory = true;
+            Request.SaveToMemory = true;
+            statusText = "Balanced preset active: 64K source-generation floor, sequential models, one review round, normal Ollama GPU scheduling.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ApplyBalancedPreset {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyBalancedPreset");
+        }
     }
 
     void ApplyGenerationPreset()
     {
-        Request.MaxRounds = 1;
-        Request.MaxOutputTokens = 262144;
-        Request.MaxParallelModels = 1;
-        Request.MaxContextTokens = 262144;
-        Request.ModelTimeoutSeconds = 1800;
-        Request.OllamaKeepAlive = "0s";
-        Request.OllamaNumGpu = 0;
-        Request.IncludeMemory = true;
-        Request.SaveToMemory = true;
-        statusText = "Generation preset active: 256K output/context, sequential CPU-only model calls, and unload after each model.";
+        try
+        {
+            Request.MaxRounds = 1;
+            Request.MaxOutputTokens = 262144;
+            Request.MaxParallelModels = 1;
+            Request.MaxContextTokens = 262144;
+            Request.ModelTimeoutSeconds = 1800;
+            Request.OllamaKeepAlive = "0s";
+            Request.OllamaNumGpu = 0;
+            Request.IncludeMemory = true;
+            Request.SaveToMemory = true;
+            statusText = "Generation preset active: 256K output/context, sequential CPU-only model calls, and unload after each model.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ApplyGenerationPreset {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyGenerationPreset");
+        }
     }
 
     void StartFeatureRequestChat()
     {
-        ApplyGenerationPreset();
-        SelectedCouncilConversation = null;
-        Request.ContinueConversationId = null;
-        Request.SaveToMemory = true;
-        Request.IncludeMemory = true;
-        Request.GenerateImplementationArtifact = true;
-        Request.Prompt = string.Join(Environment.NewLine, new[]
+        try
         {
+            ApplyGenerationPreset();
+            SelectedCouncilConversation = null;
+            Request.ContinueConversationId = null;
+            Request.SaveToMemory = true;
+            Request.IncludeMemory = true;
+            Request.GenerateImplementationArtifact = true;
+            Request.Prompt = string.Join(Environment.NewLine, new[]
+            {
             "Start a new LocalGPT implementation-request council chat.",
             "",
             "Goal:",
@@ -577,60 +681,105 @@
             "- request a downloadable example file when a .NET/Blazor/ASP.NET Core sketch would help",
             "- mark unsupported claims under Needs verification"
         });
-        statusText = "Started a new implementation-request council chat with 256K generation budget and example file generation enabled.";
+            statusText = "Started a new implementation-request council chat with 256K generation budget and example file generation enabled.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in StartFeatureRequestChat {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in StartFeatureRequestChat");
+        }
+
     }
 
-    string GetArtifactUrl(CouncilArtifact artifact) =>
-        Navigation.ToAbsoluteUri(artifact.DownloadUrl).ToString();
+    string GetArtifactUrl(CouncilArtifact artifact)
+    {
+        try
+        {
+            return Navigation.ToAbsoluteUri(artifact.DownloadUrl).ToString();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in StartFeatureRequestChat {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in StartFeatureRequestChat");
+            return string.Empty;
+        }
+    }
+ 
 
 
     void ExcludeModel(string modelName)
     {
-        if (SelectedModels.Count <= 1)
+        try
         {
-            statusText = "Keep at least one council model selected.";
-            return;
-        }
+            if (SelectedModels.Count <= 1)
+            {
+                statusText = "Keep at least one council model selected.";
+                return;
+            }
 
-        if (SelectedModels.Remove(modelName))
-        {
-            Request.Prompt = $"{Request.Prompt}\n\nUser decision for the next council round:\nExclude `{modelName}` from the council unless I re-add it. Remaining members must acknowledge the exclusion and continue from the prior transcript.";
-            statusText = $"Excluded {modelName} from the next round.";
+            if (SelectedModels.Remove(modelName))
+            {
+                Request.Prompt = $"{Request.Prompt}\n\nUser decision for the next council round:\nExclude `{modelName}` from the council unless I re-add it. Remaining members must acknowledge the exclusion and continue from the prior transcript.";
+                statusText = $"Excluded {modelName} from the next round.";
+            }
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ExcludeModel {ex.ToString()} modelName {modelName}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in ExcludeModel");
+        }
+       
     }
 
     void ApplyPollOption(CouncilUserPollOption option)
     {
-        if (option.Label.Contains("Exclude", StringComparison.OrdinalIgnoreCase) && LastResult is not null)
+        try
         {
-            foreach (var modelName in LastResult.Steps
-                .Where(step => !string.IsNullOrWhiteSpace(step.Error))
-                .Select(step => step.ModelName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList())
+            if (option.Label.Contains("Exclude", StringComparison.OrdinalIgnoreCase) && LastResult is not null)
             {
-                if (SelectedModels.Count > 1)
-                    SelectedModels.Remove(modelName);
+                foreach (var modelName in LastResult.Steps
+                    .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+                    .Select(step => step.ModelName)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList())
+                {
+                    if (SelectedModels.Count > 1)
+                        SelectedModels.Remove(modelName);
+                }
             }
-        }
 
-        Request.Prompt = $"{Request.Prompt}\n\nUser decision for the next council round:\n{option.FollowUpPrompt}";
-        CustomPollFeedback = string.Empty;
-        statusText = $"Poll choice added: {option.Label}. Run Council again to continue.";
+            Request.Prompt = $"{Request.Prompt}\n\nUser decision for the next council round:\n{option.FollowUpPrompt}";
+            CustomPollFeedback = string.Empty;
+            statusText = $"Poll choice added: {option.Label}. Run Council again to continue.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ApplyPollOption {ex.ToString()} option {option.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyPollOption");
+        }
     }
 
     void ApplyCustomPollFeedback()
     {
-        var feedback = CustomPollFeedback.Trim();
-        if (string.IsNullOrWhiteSpace(feedback))
+        try
         {
-            statusText = "Write a custom council direction before adding it.";
-            return;
-        }
+            var feedback = CustomPollFeedback.Trim();
+            if (string.IsNullOrWhiteSpace(feedback))
+            {
+                statusText = "Write a custom council direction before adding it.";
+                return;
+            }
 
-        Request.Prompt = $"{Request.Prompt}\n\nUser custom decision for the next council round:\n{feedback}\n\nAll council members must treat this typed feedback as binding implementation guidance unless the user changes it later.";
-        CustomPollFeedback = string.Empty;
-        statusText = "Custom poll feedback added. Run Council again to continue.";
+            Request.Prompt = $"{Request.Prompt}\n\nUser custom decision for the next council round:\n{feedback}\n\nAll council members must treat this typed feedback as binding implementation guidance unless the user changes it later.";
+            CustomPollFeedback = string.Empty;
+            statusText = "Custom poll feedback added. Run Council again to continue.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in ApplyCustomPollFeedback {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyCustomPollFeedback");
+        }
+        
     }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)

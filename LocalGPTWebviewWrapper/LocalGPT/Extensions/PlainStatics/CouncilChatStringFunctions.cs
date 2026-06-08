@@ -25,6 +25,54 @@ namespace LocalGPT.Extensions.PlainStatics
     
     public static class CouncilChatStringFunctions
     {
+
+        public static string BuildSourcePreviewMarkup(string relativePath, string source)
+        {
+            var extension = Path.GetExtension(relativePath);
+            var encodedPath = System.Net.WebUtility.HtmlEncode(relativePath);
+            var encodedSource = System.Net.WebUtility.HtmlEncode(source);
+            return $"""
+            <h3>{encodedPath}</h3>
+            <p>Preview is read-only. Edit the raw source pane, then save and refresh the zip separately.</p>
+            <pre><code>{encodedSource}</code></pre>
+            <p><small>File type: {System.Net.WebUtility.HtmlEncode(extension)}</small></p>
+            """;
+        }
+        public static bool IsAllowedLocalRoute(string route)
+        {
+            try
+            {
+                return route.StartsWith("/__diag", StringComparison.OrdinalIgnoreCase)
+                || route.StartsWith("/__artifacts", StringComparison.OrdinalIgnoreCase)
+                || route.StartsWith("/health", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
+
+        }
+
+        public static string PrettyPrintJson(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                using var json = System.Text.Json.JsonDocument.Parse(text);
+                return System.Text.Json.JsonSerializer.Serialize(
+                    json.RootElement,
+                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return text;
+            }
+        }
         public static string TrimForPrompt(
     string? text,
     int maxCharacters,

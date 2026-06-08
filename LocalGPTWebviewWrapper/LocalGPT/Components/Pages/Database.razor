@@ -326,160 +326,273 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await RefreshAllAsync();
+        try
+        {
+
+            await RefreshAllAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in OnInitializedAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in OnInitializedAsync!");
+        }
     }
 
     async Task RefreshAllAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            await ChatMemory.EnsureCreatedAsync();
-            await ApplicationLogs.EnsureCreatedAsync();
-            await CouncilKnowledge.EnsureCreatedAsync();
-            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250),Logger);
-            Tables = (await TableEditor.GetTablesAsync()).ToList();
-            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
-            if (SelectedKnowledgeEntry is not null)
-                SelectKnowledgeEntry(SelectedKnowledgeEntry);
-            else
-                NewKnowledgeEntry();
+            await RunUiActionAsync(async () =>
+     {
+         await ChatMemory.EnsureCreatedAsync();
+         await ApplicationLogs.EnsureCreatedAsync();
+         await CouncilKnowledge.EnsureCreatedAsync();
+         KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
+         Tables = (await TableEditor.GetTablesAsync()).ToList();
+         SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
+         if (SelectedKnowledgeEntry is not null)
+             SelectKnowledgeEntry(SelectedKnowledgeEntry);
+         else
+             NewKnowledgeEntry();
 
-            if (SelectedTable is not null)
-                SelectedTable = Tables.FirstOrDefault(table => table.Name.Equals(SelectedTable.Name, StringComparison.OrdinalIgnoreCase));
-            SelectedTable ??= Tables.FirstOrDefault(table => table.Name.Equals("CouncilKnowledgeEntries", StringComparison.OrdinalIgnoreCase)) ?? Tables.FirstOrDefault();
-            if (SelectedTable is not null)
-                await LoadTableAsync(SelectedTable);
+         if (SelectedTable is not null)
+             SelectedTable = Tables.FirstOrDefault(table => table.Name.Equals(SelectedTable.Name, StringComparison.OrdinalIgnoreCase));
+         SelectedTable ??= Tables.FirstOrDefault(table => table.Name.Equals("CouncilKnowledgeEntries", StringComparison.OrdinalIgnoreCase)) ?? Tables.FirstOrDefault();
+         if (SelectedTable is not null)
+             await LoadTableAsync(SelectedTable);
 
-            statusText = $"Loaded {Tables.Count} table(s) and {KnowledgeEntries.Count} knowledge note(s).";
-        }, "RefreshAllAsync");
+         statusText = $"Loaded {Tables.Count} table(s) and {KnowledgeEntries.Count} knowledge note(s).";
+     }, "RefreshAllAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in RefreshAllAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RefreshAllAsync!");
+        }
+
     }
 
     void SelectKnowledgeEntry(CouncilKnowledgeEntry entry)
     {
-        SelectedKnowledgeEntry = entry;
-        KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(entry, Logger) ?? GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew; 
+        try
+        {
+            SelectedKnowledgeEntry = entry;
+            KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(entry, Logger) ?? GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SelectKnowledgeEntry: {ex.ToString()} entry {entry.ToString()}");
+            Notifier.ShowError(toastName, $"entry {entry.ToString()} Exception: {ex.ToString()}", "Error in SelectKnowledgeEntry!");
+        }
     }
 
     void NewKnowledgeEntry()
     {
-        SelectedKnowledgeEntry = null;
-        KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
-        statusText = "New council knowledge note ready.";
+        try
+        {
+            SelectedKnowledgeEntry = null;
+            KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
+            statusText = "New council knowledge note ready.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in NewKnowledgeEntry: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in NewKnowledgeEntry!");
+        }
     }
 
     async Task SaveKnowledgeAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit);
-            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250),Logger);
-            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
-            if (SelectedKnowledgeEntry is not null)
-                KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(SelectedKnowledgeEntry,Logger) ?? new();
-            await RefreshTablesOnlyAsync(loadSelectedTable: true);
-            statusText = $"Saved knowledge note: {KnowledgeEdit.Topic}";
-            Notifier.ShowSuccess(toastName, "Council knowledge saved to SQLite.", "Knowledge saved");
-        }, "SaveKnowledgeAsync");
+            await RunUiActionAsync(async () =>
+       {
+           KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit);
+           KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
+           SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
+           if (SelectedKnowledgeEntry is not null)
+               KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(SelectedKnowledgeEntry, Logger) ?? new();
+           await RefreshTablesOnlyAsync(loadSelectedTable: true);
+           statusText = $"Saved knowledge note: {KnowledgeEdit.Topic}";
+           Notifier.ShowSuccess(toastName, "Council knowledge saved to SQLite.", "Knowledge saved");
+       }, "SaveKnowledgeAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SaveKnowledgeAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveKnowledgeAsync!");
+        }
+
     }
 
     async Task DeleteKnowledgeAsync()
     {
-        if (SelectedKnowledgeEntry is null)
-            return;
-
-        await RunUiActionAsync(async () =>
+        try
         {
-            await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id);
-            SelectedKnowledgeEntry = null;
-            KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
-            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250),Logger);
-            await RefreshTablesOnlyAsync(loadSelectedTable: true);
-            statusText = "Deleted council knowledge note.";
-            Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");
-        }, "DeleteKnowledgeAsync");
+            if (SelectedKnowledgeEntry is null)
+                return;
+
+            await RunUiActionAsync(async () =>
+            {
+                await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id);
+                SelectedKnowledgeEntry = null;
+                KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
+                KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true);
+                statusText = "Deleted council knowledge note.";
+                Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");
+            }, "DeleteKnowledgeAsync");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in DeleteKnowledgeAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in DeleteKnowledgeAsync!");
+        }
+
     }
 
     void MarkKnowledgeCurrent()
     {
-        ApplyKnowledgeReviewPreset("Current");
+        try
+        {
+            ApplyKnowledgeReviewPreset("Current");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in MarkKnowledgeCurrent: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MarkKnowledgeCurrent!");
+        }
     }
 
     void MarkKnowledgeNeedsUserReview()
     {
-        ApplyKnowledgeReviewPreset("NeedsUserReview");
+        try
+        {
+
+            ApplyKnowledgeReviewPreset("NeedsUserReview");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in MarkKnowledgeNeedsUserReview: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MarkKnowledgeNeedsUserReview!");
+        }
     }
 
     void MarkKnowledgeNeedsSourceRefresh()
     {
-        ApplyKnowledgeReviewPreset("NeedsSourceRefresh");
+        try
+        {
+            ApplyKnowledgeReviewPreset("NeedsSourceRefresh");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in MarkKnowledgeNeedsSourceRefresh: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MarkKnowledgeNeedsSourceRefresh!");
+        }
+
     }
 
     void MarkKnowledgeExpired()
     {
-        ApplyKnowledgeReviewPreset("Expired");
+        try
+        {
+            ApplyKnowledgeReviewPreset("Expired");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in MarkKnowledgeExpired: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MarkKnowledgeExpired!");
+        }
+
     }
 
     void ApplyKnowledgeReviewPreset(string reviewStatus)
     {
-        var now = DateTime.UtcNow;
-        KnowledgeEdit.ReviewStatus = reviewStatus;
-        switch (reviewStatus)
+        try
         {
-            case "Current":
-                KnowledgeEdit.IsArchived = false;
-                KnowledgeEdit.IsUserApproved = true;
-                KnowledgeEdit.VerificationStatus = KnowledgeEdit.VerificationStatus == "SourceBacked"
-                    ? "SourceBacked"
-                    : "UserVerified";
-                KnowledgeEdit.LastVerifiedAtUtc = now;
-                KnowledgeEdit.ExpiresAtUtc = null;
-                KnowledgeEdit.StalenessReason = string.Empty;
-                KnowledgeEdit.StalenessDetectedAtUtc = null;
-                KnowledgeEdit.StalenessDetectedBy = string.Empty;
-                break;
-            case "NeedsUserReview":
-                KnowledgeEdit.IsArchived = false;
-                KnowledgeEdit.IsUserApproved = false;
-                if (KnowledgeEdit.VerificationStatus is "SourceBacked" or "UserVerified")
-                    KnowledgeEdit.VerificationStatus = "NeedsVerification";
-                KnowledgeEdit.ExpiresAtUtc ??= now.AddDays(30);
-                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Needs user review before the council treats it as trusted knowledge.", Logger);
-                KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
-                break;
-            case "NeedsSourceRefresh":
-                KnowledgeEdit.IsArchived = false;
-                KnowledgeEdit.ExpiresAtUtc ??= now.AddDays(14);
-                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Source should be refreshed before reuse in generation.", Logger);
-                KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
-                break;
-            case "Expired":
-                KnowledgeEdit.IsUserApproved = false;
-                KnowledgeEdit.ExpiresAtUtc = now;
-                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Marked expired by the database editor.", Logger);
-                KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
-                break;
-        }
+            var now = DateTime.UtcNow;
+            KnowledgeEdit.ReviewStatus = reviewStatus;
+            switch (reviewStatus)
+            {
+                case "Current":
+                    KnowledgeEdit.IsArchived = false;
+                    KnowledgeEdit.IsUserApproved = true;
+                    KnowledgeEdit.VerificationStatus = KnowledgeEdit.VerificationStatus == "SourceBacked"
+                        ? "SourceBacked"
+                        : "UserVerified";
+                    KnowledgeEdit.LastVerifiedAtUtc = now;
+                    KnowledgeEdit.ExpiresAtUtc = null;
+                    KnowledgeEdit.StalenessReason = string.Empty;
+                    KnowledgeEdit.StalenessDetectedAtUtc = null;
+                    KnowledgeEdit.StalenessDetectedBy = string.Empty;
+                    break;
+                case "NeedsUserReview":
+                    KnowledgeEdit.IsArchived = false;
+                    KnowledgeEdit.IsUserApproved = false;
+                    if (KnowledgeEdit.VerificationStatus is "SourceBacked" or "UserVerified")
+                        KnowledgeEdit.VerificationStatus = "NeedsVerification";
+                    KnowledgeEdit.ExpiresAtUtc ??= now.AddDays(30);
+                    KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Needs user review before the council treats it as trusted knowledge.", Logger);
+                    KnowledgeEdit.StalenessDetectedAtUtc ??= now;
+                    KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
+                    break;
+                case "NeedsSourceRefresh":
+                    KnowledgeEdit.IsArchived = false;
+                    KnowledgeEdit.ExpiresAtUtc ??= now.AddDays(14);
+                    KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Source should be refreshed before reuse in generation.", Logger);
+                    KnowledgeEdit.StalenessDetectedAtUtc ??= now;
+                    KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
+                    break;
+                case "Expired":
+                    KnowledgeEdit.IsUserApproved = false;
+                    KnowledgeEdit.ExpiresAtUtc = now;
+                    KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Marked expired by the database editor.", Logger);
+                    KnowledgeEdit.StalenessDetectedAtUtc ??= now;
+                    KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
+                    break;
+            }
 
-        statusText = $"Knowledge review status set to {reviewStatus}. Save the note to persist it.";
+            statusText = $"Knowledge review status set to {reviewStatus}. Save the note to persist it.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in ApplyKnowledgeReviewPreset: {ex.ToString()} reviewStatus {reviewStatus}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ApplyKnowledgeReviewPreset!");
+        }
     }
 
     async Task SelectTableAsync(SqliteTableSummary table)
     {
-        await LoadTableAsync(table);
+        try
+        {
+            await LoadTableAsync(table).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SelectTableAsync: {ex.ToString()} table {table.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SelectTableAsync!");
+        }
     }
 
     async Task LoadSelectedTableAsync()
     {
-        if (SelectedTable is not null)
-            await LoadTableAsync(SelectedTable);
+        try
+        {
+            if (SelectedTable is not null)
+                await LoadTableAsync(SelectedTable).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in LoadSelectedTableAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadSelectedTableAsync!");
+        }
     }
 
     async Task LoadTableAsync(SqliteTableSummary table)
     {
-        await RunUiActionAsync(async () =>
+        try
+        {
+            await RunUiActionAsync(async () =>
         {
             SelectedTable = table;
             CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
@@ -507,116 +620,186 @@
                 NewSqliteRow();
             statusText = $"Loaded {CurrentTable.Rows.Count} row(s) from {CurrentTable.TableName}.";
         }, "LoadTableAsync");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in LoadTableAsync: {ex.ToString()} table {table.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadTableAsync!");
+        }
     }
 
     void SelectSqliteRow(SqliteRowSnapshot row)
     {
-        SelectedRow = row;
-        RowEditValues = CurrentTable?.Columns.ToDictionary(
-            column => column.Name,
-            column => row.Values.TryGetValue(column.Name, out var value) ? value : null,
-            StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            SelectedRow = row;
+            RowEditValues = CurrentTable?.Columns.ToDictionary(
+                column => column.Name,
+                column => row.Values.TryGetValue(column.Name, out var value) ? value : null,
+                StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SelectSqliteRow: {ex.ToString()} row {row.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SelectSqliteRow!");
+        }
+
     }
 
     void NewSqliteRow()
     {
-        SelectedRow = null;
-        RowEditValues = CurrentTable?.Columns.ToDictionary(
-            column => column.Name,
-            _ => (string?)null,
-            StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        statusText = "New SQLite row ready.";
+        try
+        {
+
+            SelectedRow = null;
+            RowEditValues = CurrentTable?.Columns.ToDictionary(
+                column => column.Name,
+                _ => (string?)null,
+                StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            statusText = "New SQLite row ready.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in NewSqliteRow: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in NewSqliteRow!");
+        }
     }
 
     async Task SaveSqliteRowAsync()
     {
-        if (CurrentTable is null)
-            return;
-
-        await RunUiActionAsync(async () =>
+        try
         {
-            var editableValues = CurrentTable.Columns
-                .Where(column => !column.IsPrimaryKey)
-                .ToDictionary(
-                    column => column.Name,
-                    column => CouncilChatStringFunctions.NormalizeDBNullStringValue(GetEditValue(column.Name),Logger),
-                    StringComparer.OrdinalIgnoreCase);
+            if (CurrentTable is null)
+                return;
 
-            if (SelectedRow is null)
+            await RunUiActionAsync(async () =>
             {
-                await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues);
-                statusText = $"Inserted row into {CurrentTable.TableName}.";
-            }
-            else
-            {
-                var updates = editableValues
-                    .Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value })
-                    .ToList();
-                await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates);
-                statusText = $"Updated row {SelectedRow.RowId} in {CurrentTable.TableName}.";
-            }
+                var editableValues = CurrentTable.Columns
+                    .Where(column => !column.IsPrimaryKey)
+                    .ToDictionary(
+                        column => column.Name,
+                        column => CouncilChatStringFunctions.NormalizeDBNullStringValue(GetEditValue(column.Name), Logger),
+                        StringComparer.OrdinalIgnoreCase);
 
-            await RefreshTablesOnlyAsync(loadSelectedTable: true);
-            Notifier.ShowSuccess(toastName, "SQLite row saved.", "Database saved");
-        }, "SaveSqliteRowAsync");
+                if (SelectedRow is null)
+                {
+                    await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues);
+                    statusText = $"Inserted row into {CurrentTable.TableName}.";
+                }
+                else
+                {
+                    var updates = editableValues
+                        .Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value })
+                        .ToList();
+                    await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates);
+                    statusText = $"Updated row {SelectedRow.RowId} in {CurrentTable.TableName}.";
+                }
+
+                await RefreshTablesOnlyAsync(loadSelectedTable: true);
+                Notifier.ShowSuccess(toastName, "SQLite row saved.", "Database saved");
+            }, "SaveSqliteRowAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SaveSqliteRowAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveSqliteRowAsync!");
+        }
+
     }
 
     async Task DeleteSqliteRowAsync()
     {
-        if (CurrentTable is null || SelectedRow is null)
-            return;
-
-        await RunUiActionAsync(async () =>
+        try
         {
-            await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId);
-            statusText = $"Deleted row {SelectedRow.RowId} from {CurrentTable.TableName}.";
-            await RefreshTablesOnlyAsync(loadSelectedTable: true);
-            Notifier.ShowSuccess(toastName, "SQLite row deleted.", "Database saved");
-        }, "DeleteSqliteRowAsync");
+            if (CurrentTable is null || SelectedRow is null)
+                return;
+
+            await RunUiActionAsync(async () =>
+            {
+                await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId);
+                statusText = $"Deleted row {SelectedRow.RowId} from {CurrentTable.TableName}.";
+                await RefreshTablesOnlyAsync(loadSelectedTable: true);
+                Notifier.ShowSuccess(toastName, "SQLite row deleted.", "Database saved");
+            }, "DeleteSqliteRowAsync");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in DeleteSqliteRowAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in DeleteSqliteRowAsync!");
+        }
+
     }
 
     async Task RefreshTablesOnlyAsync(bool loadSelectedTable)
     {
-        Tables = (await TableEditor.GetTablesAsync()).ToList();
-        if (!loadSelectedTable || CurrentTable is null)
-            return;
-
-        var table = Tables.FirstOrDefault(item => item.Name.Equals(CurrentTable.TableName, StringComparison.OrdinalIgnoreCase));
-        if (table is not null)
+        try
         {
-            SelectedTable = table;
-            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
-            GridRows.Clear();
-            foreach (var row in CurrentTable.Rows)
-            {
-                try
-                {
-                    var gridRow = TableFunctions.ToGridRow(row, Logger);
-                    ArgumentNullException.ThrowIfNull(gridRow);
-                    GridRows.Add(gridRow);
-                }
-                catch (Exception ex)
-                {
-                    Notifier.ShowWarning(toastName, ex.Message, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
-                    Logger.LogWarning(ex, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
-                }
+            Tables = (await TableEditor.GetTablesAsync()).ToList();
+            if (!loadSelectedTable || CurrentTable is null)
+                return;
 
-               
+            var table = Tables.FirstOrDefault(item => item.Name.Equals(CurrentTable.TableName, StringComparison.OrdinalIgnoreCase));
+            if (table is not null)
+            {
+                SelectedTable = table;
+                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
+                GridRows.Clear();
+                foreach (var row in CurrentTable.Rows)
+                {
+                    try
+                    {
+                        var gridRow = TableFunctions.ToGridRow(row, Logger);
+                        ArgumentNullException.ThrowIfNull(gridRow);
+                        GridRows.Add(gridRow);
+                    }
+                    catch (Exception ex)
+                    {
+                        Notifier.ShowWarning(toastName, ex.Message, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
+                        Logger.LogWarning(ex, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
+                    }
+
+
+                }
+                SelectedRow = CurrentTable.Rows.FirstOrDefault(row => row.RowId == SelectedRow?.RowId) ?? CurrentTable.Rows.FirstOrDefault();
+                if (SelectedRow is not null)
+                    SelectSqliteRow(SelectedRow);
             }
-            SelectedRow = CurrentTable.Rows.FirstOrDefault(row => row.RowId == SelectedRow?.RowId) ?? CurrentTable.Rows.FirstOrDefault();
-            if (SelectedRow is not null)
-                SelectSqliteRow(SelectedRow);
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in DeleteSqliteRowAsync: {ex.ToString()} loadSelectedTable {loadSelectedTable}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in DeleteSqliteRowAsync!");
+        }
+
     }
 
     string GetEditValue(string columnName)
     {
-        return RowEditValues.TryGetValue(columnName, out var value) ? value ?? "[null]" : string.Empty;
+        try
+        {
+            return RowEditValues.TryGetValue(columnName, out var value) ? value ?? "[null]" : string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in GetEditValue: {ex.ToString()} columnName {columnName}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in GetEditValue!");
+            return string.Empty;
+        }
+
     }
 
     void SetEditValue(string columnName, string value)
     {
-        RowEditValues[columnName] = value;
+        try
+        {
+            RowEditValues[columnName] = value;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SetEditValue: {ex.ToString()} columnName {columnName} value {value}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SetEditValue!");
+          
+        }
     }
 
  

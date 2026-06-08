@@ -1,4 +1,5 @@
-﻿using LocalGPT.BusinessObjects;
+﻿using DevExpress.Blazor;
+using LocalGPT.BusinessObjects;
 using Markdig;
 using System.Text.RegularExpressions;
 
@@ -6,6 +7,68 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public static readonly Regex DownloadUrlPattern =
+     new("\"downloadUrl\"\\s*:\\s*\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        public const string LearnBaseFilePolicySummary =
+            "Reads source and docs such as .cs, .razor, .csproj, .sln, .md, .yml, .json, .xml, .py, .js, .ts, .go, .ps1, and .sql. Skips build/cache folders such as bin, obj, node_modules, packages, .git, build, dist, and publish. Binary files, installers, archives, PDFs, certificates, SQLite files, and images are counted or ignored, not stored as knowledge text.";
+        public const string LearnBaseDuplicatePolicySummary =
+            "Duplicate handling: each project path and known docs-corpus section gets a stable database id. Re-importing the same source updates/upserts the existing knowledge row instead of adding another copy.";
+        public static string LearnBasePresetList => string.Join(", ", GlobalVariableSlopCollectionToRemove.LearnBasePresets.Select(preset => preset.Label));
+
+        public static readonly IReadOnlyList<GlobalVariableSlopCollectionToRemove.LearnBasePreset> LearnBasePresets =
+   [
+       new(
+            "All selected local learn-base",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt",
+            "Scans the curated local learn-base root and auto-detects known docs corpora plus project architecture roots.",
+            80),
+        new(
+            "Microsoft .NET docs + C# compiler",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt\docs-main\docs-main",
+            "Teaches source maps for .NET architecture, C# language/compiler diagnostics, C# 12-era syntax, ASP.NET Core, Blazor, data, and DocFX/Microsoft Learn authoring.",
+            30),
+        new(
+            "Windows developer docs",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt\windows-dev-docs-docs",
+            "Teaches source maps for Windows App SDK, WinUI, WebView2, MSIX, Windows setup/support, design, accessibility, and technician workflows.",
+            24),
+        new(
+            "DevExpress Blazor 25.2 samples",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt\Blazor-25.2\Blazor-25.2",
+            "Scans DevExpress Blazor demos and examples so generated pages can choose real components, services, layout patterns, and file/download workflows.",
+            60),
+        new(
+            "DevExpress examples",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt\DevExpress-Examples",
+            "Scans local DevExpress example repositories for reusable component and service wiring patterns.",
+            60),
+        new(
+            "Custom path",
+            @"C:\tmpselectedcodexlearnbaseforlocalgpt",
+            "Use this when you want to paste or edit a specific local source/docs folder path.",
+            40)
+   ];
+        public static readonly IReadOnlyList<GlobalVariableSlopCollectionToRemove.LearnBaseScanProfile> LearnBaseScanProfiles =
+        [
+            new("Focused scan", 12, "Best for one documentation corpus or one repository. Fast and low noise."),
+        new("Balanced scan", 40, "Best default: enough project roots to teach patterns without importing every nested sample."),
+        new("Broad scan", 100, "Best after adding many repositories or documentation corpora. Slower, but still bounded."),
+        new("Custom limit", 40, "Use the advanced import limit below.")
+        ];
+
+        public static readonly List<GlobalVariableSlopCollectionToRemove.TestLabRoute> Routes =
+ [
+     new("Health", "/health", ButtonRenderStyle.Secondary),
+        new("Diagnostics", "/__diag", ButtonRenderStyle.Secondary),
+        new("DXAiFunctions", "/__diag/dxaichat-functions", ButtonRenderStyle.Secondary),
+        new("Minecraft 26.1", "/__diag/minecraft/datapack-version?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
+        new("Datapack ZIP", "/__diag/council/artifact-smoke?target=datapack", ButtonRenderStyle.Primary),
+        new("AI Host ZIP", "/__diag/council/artifact-smoke?target=ai-host", ButtonRenderStyle.Primary),
+        new("Minecraft Benchmark", "/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
+        new("Engineering Benchmark", "/__diag/benchmark/engineering?taskSet=engineering&saveToKnowledge=true", ButtonRenderStyle.Secondary),
+        new("Replacement Benchmark", "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4&saveToKnowledge=true", ButtonRenderStyle.Primary),
+        new("Council Feedback", "/__diag/council/development-feedback-talk?maxOutputTokens=2048&maxContextTokens=32768&maxRounds=0", ButtonRenderStyle.Primary)
+ ];
         public static  List<PromptSuggestion> GetSuggestion()
         {
             return new List<PromptSuggestion>()
@@ -895,6 +958,43 @@ namespace LocalGPT.Extensions.PlainStatics
             string Title,
             string Summary,
             IReadOnlyList<string> Areas);
+        public sealed record TestLabRoute(string Label, string Path, ButtonRenderStyle Style);
+        public sealed record TestLabDownloadLink(string Label, string AbsoluteUrl);
+        public sealed record LearnBasePreset(string Label, string RootPath, string Description, int RecommendedMaxProjects);
+        public sealed record LearnBaseScanProfile(string Label, int MaxProjects, string Description);
+        public sealed record ArtifactWorkspaceListResponse(
+            string BaseUrl,
+            string ArtifactRoot,
+            int Count,
+            ArtifactWorkspaceSummary? LatestWorkspace,
+            List<ArtifactWorkspaceSummary> Workspaces);
+        public sealed record ArtifactWorkspaceFilesResponse(
+            string WorkspaceName,
+            string RootPath,
+            List<ArtifactWorkspaceFileSummary> Files);
+        public sealed record ArtifactWorkspaceFileResponse(
+            string WorkspaceName,
+            string RootPath,
+            string RelativePath,
+            string FullPath,
+            long Length,
+            DateTime LastWriteTimeUtc,
+            string Content);
+        public sealed record ArtifactWorkspaceSummary(
+            string WorkspaceName,
+            string RootPath,
+            DateTime LastWriteTimeUtc,
+            int SourceFileCount,
+            int RazorFileCount,
+            int CSharpFileCount,
+            List<string> ZipNames);
+        public sealed record ArtifactWorkspaceFileSummary(
+            string RelativePath,
+            long Length,
+            DateTime LastWriteTimeUtc);
+        public sealed record ArtifactWorkspaceFileSaveRequest(
+            string RelativePath,
+            string Content);
 
     }
 }

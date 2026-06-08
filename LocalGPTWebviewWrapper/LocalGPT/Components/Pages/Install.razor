@@ -277,8 +277,18 @@
 
     private async Task Append(string text)
     {
-        _log = $"[{DateTime.Now:T}] {text}\n" + _log;
-        await InvokeAsync(StateHasChanged);
+        try
+        {
+
+            _log = $"[{DateTime.Now:T}] {text}\n" + _log;
+
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to normalize local endpoint: {Message}", ex.Message);
+            _ = Append("Normalization warning: " + ex.Message);
+        }
     }
 
     private async Task TestLocal()
@@ -340,8 +350,17 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-            await RefreshConnectivityStatusAsync(showToast: false);
+        try
+        {
+            if (firstRender)
+                await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "OnAfterRenderAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "OnAfterRenderAsyncError");
+            await Append("(OnAfterRenderAsync) " + ex.Message);
+        }
     }
 
     private async Task DiscoverLocalAiHosts()
@@ -380,7 +399,16 @@
 
     private Task RefreshConnectivityStatusFromButton()
     {
-        return RefreshConnectivityStatusAsync(showToast: true);
+        try
+        {
+            return RefreshConnectivityStatusAsync(showToast: true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "DiscoverLocalAiHosts failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "Discovery Error");
+            return Task.CompletedTask;
+        }
     }
 
     private async Task RefreshConnectivityStatusAsync(bool showToast)
@@ -413,24 +441,33 @@
             ConnectivityStatus = "Connectivity check failed: " + ex.Message;
             if (showToast)
                 Notifier.ShowError(toastName, ex.ToString(), "Connectivity Error");
-            await Append("(Connectivity) " + ex.Message);
+            await Append("(Connectivity) " + ex.Message).ConfigureAwait(false);
         }
         finally
         {
             IsConnectivityChecking = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
     private string BuildConnectivityStatus(int reachable, int models)
     {
-        if (reachable <= 0)
-            return "No local Ollama or LM Studio host is reachable. Start Ollama or LM Studio, then refresh.";
+        try
+        {
+            if (reachable <= 0)
+                return "No local Ollama or LM Studio host is reachable. Start Ollama or LM Studio, then refresh.";
 
-        var hostSummaries = DiscoveredHosts
-            .Where(host => host.IsReachable)
-            .Select(host => $"{host.Provider} at {host.Endpoint} ({host.Models.Count} model(s))");
-        return $"Reachable: {string.Join("; ", hostSummaries)}. Total detected models: {models}.";
+            var hostSummaries = DiscoveredHosts
+                .Where(host => host.IsReachable)
+                .Select(host => $"{host.Provider} at {host.Endpoint} ({host.Models.Count} model(s))");
+            return $"Reachable: {string.Join("; ", hostSummaries)}. Total detected models: {models}.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"BuildConnectivityStatus failed:reachable {reachable} models {models}");
+            Notifier.ShowError(toastName, ex.ToString(), "BuildConnectivityStatus Error");
+            return string.Empty;
+        }
     }
 
     private async Task ApplyDiscoveredModel(LocalAiHostDiscoveryResult host, LocalAiModelInfo model)
@@ -465,7 +502,9 @@
 
     private void AutoSelectBestDiscoveredModel()
     {
-        var best = DiscoveredHosts
+        try
+        {
+            var best = DiscoveredHosts
             .Where(h => h.IsReachable)
             .SelectMany(h => h.Models.Select(m => new { Host = h, Model = m }))
             .OrderByDescending(x => string.Equals(x.Host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
@@ -473,51 +512,81 @@
             .ThenByDescending(x => x.Model.IsLoaded)
             .FirstOrDefault();
 
-        if (best is null)
-        {
-            var ollama = DiscoveredHosts.FirstOrDefault(h => h.IsReachable && string.Equals(h.Provider, "Ollama", StringComparison.OrdinalIgnoreCase));
-            if (ollama is not null && string.IsNullOrWhiteSpace(Model.OllamaCore.Uri))
-                Model.OllamaCore.Uri = ollama.Endpoint;
-            return;
-        }
+            if (best is null)
+            {
+                var ollama = DiscoveredHosts.FirstOrDefault(h => h.IsReachable && string.Equals(h.Provider, "Ollama", StringComparison.OrdinalIgnoreCase));
+                if (ollama is not null && string.IsNullOrWhiteSpace(Model.OllamaCore.Uri))
+                    Model.OllamaCore.Uri = ollama.Endpoint;
+                return;
+            }
 
-        if (string.Equals(best.Host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
-        {
-            Model.OllamaCore.Uri = best.Host.Endpoint;
-            Model.OllamaCore.ModelName = best.Model.Name;
+            if (string.Equals(best.Host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                Model.OllamaCore.Uri = best.Host.Endpoint;
+                Model.OllamaCore.ModelName = best.Model.Name;
+            }
+            else
+            {
+                Model.ChatGPTLocalCore.Endpoint = best.Host.Endpoint;
+                Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
+                    ? "local-key"
+                    : Model.ChatGPTLocalCore.ApiKey;
+                Model.ChatGPTLocalCore.ModelName = best.Model.Name;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Model.ChatGPTLocalCore.Endpoint = best.Host.Endpoint;
-            Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
-                ? "local-key"
-                : Model.ChatGPTLocalCore.ApiKey;
-            Model.ChatGPTLocalCore.ModelName = best.Model.Name;
+            Logger.LogError(ex, "AutoSelectBestDiscoveredModel failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "AutoSelectBestDiscoveredModel Error");
         }
+        
     }
 
     private async Task UseOllamaGptOss20b()
     {
-        Model.OllamaCore.Uri = "http://localhost:11434";
-        Model.OllamaCore.ModelName = "gpt-oss:20b";
-        await Append("Selected Ollama gpt-oss:20b at http://localhost:11434.");
-        Notifier.ShowSuccess(toastName, "Ollama gpt-oss:20b selected.", "Model Selected");
+        try
+        {
+            Model.OllamaCore.Uri = "http://localhost:11434";
+            Model.OllamaCore.ModelName = "gpt-oss:20b";
+            await Append("Selected Ollama gpt-oss:20b at http://localhost:11434.");
+            Notifier.ShowSuccess(toastName, "Ollama gpt-oss:20b selected.", "Model Selected");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "UseOllamaGptOss20b failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "UseOllamaGptOss20b Error");
+        }
     }
-
-  
 
     private void AddOllamaModel()
     {
-        Model.OllamaCores.Add(new OllamaCoreOptions
+        try
         {
-            Uri = Model.OllamaCore?.Uri ?? "http://localhost:11434",
-            ModelName = string.Empty
-        });
+            Model.OllamaCores.Add(new OllamaCoreOptions
+            {
+                Uri = Model.OllamaCore?.Uri ?? "http://localhost:11434",
+                ModelName = string.Empty
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "AddOllamaModel failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "AddOllamaModel Error");
+        }
     }
 
     private void RemoveOllamaModel(OllamaCoreOptions ollama)
     {
-        Model.OllamaCores.Remove(ollama);
+        try
+        {
+
+            Model.OllamaCores.Remove(ollama);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "RemoveOllamaModel failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "AddOllamaModel Error");
+        }
     }
 
     private async Task TestOpenAI()

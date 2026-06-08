@@ -3,24 +3,24 @@
 @using System.Text
 @using System.Text.Json
 @using System.Text.RegularExpressions
+@using LocalGPT.Extensions.PlainStatics.CouncilData
 @inject NavigationManager NavigationManager
 @inject ILogger<TestLab> Logger
 @rendermode InteractiveServer
-
+@inject INotificationService Notifier
 <PageTitle>Test Lab</PageTitle>
-
 <main class="test-lab-page">
     <section class="help-hero">
         <h1>Test Lab</h1>
         <p>Run LocalGPT diagnostics, artifact generators, and learn-base imports from inside the frontend.</p>
     </section>
-
+    <ToastWrapper Name="@toastName" />
     <section class="test-lab-grid">
         <article class="help-panel test-lab-panel">
             <h2>Frontend API Smoke</h2>
             <p>These checks stay on the local loopback server and are useful before loading a heavy model.</p>
             <div class="test-lab-actions">
-                @foreach (var route in Routes)
+                @foreach (var route in GlobalVariableSlopCollectionToRemove.Routes)
                 {
                     <DxButton Text="@route.Label"
                               RenderStyle="@route.Style"
@@ -36,12 +36,12 @@
             <p>Import compact source maps into the council knowledge database without pasting huge contexts into a model.</p>
             <label class="test-lab-field">
                 <span>Knowledge source preset</span>
-                <DxComboBox Data="@LearnBasePresets"
+                <DxComboBox Data="@GlobalVariableSlopCollectionToRemove.LearnBasePresets"
                             Value="@selectedLearnBasePreset"
-                            TextFieldName="@nameof(LearnBasePreset.Label)"
-                            ValueChanged="@((LearnBasePreset preset) => SelectLearnBasePreset(preset))" />
+                            TextFieldName="@nameof(GlobalVariableSlopCollectionToRemove.LearnBasePreset.Label)"
+                            ValueChanged="@((GlobalVariableSlopCollectionToRemove.LearnBasePreset preset) => SelectLearnBasePreset(preset))" />
             </label>
-            <p class="test-lab-muted">Available presets: @LearnBasePresetList</p>
+            <p class="test-lab-muted">Available presets: @GlobalVariableSlopCollectionToRemove.LearnBasePresetList</p>
             <div class="test-lab-import-summary">
                 <strong>@selectedLearnBasePreset.Label</strong>
                 <p>@selectedLearnBasePreset.Description</p>
@@ -52,15 +52,15 @@
             </label>
             <label class="test-lab-field">
                 <span>Scan scope</span>
-                <DxComboBox Data="@LearnBaseScanProfiles"
+                <DxComboBox Data="@GlobalVariableSlopCollectionToRemove.LearnBaseScanProfiles"
                             Value="@selectedScanProfile"
-                            TextFieldName="@nameof(LearnBaseScanProfile.Label)"
-                            ValueChanged="@((LearnBaseScanProfile profile) => SelectLearnBaseScanProfile(profile))" />
+                            TextFieldName="@nameof(GlobalVariableSlopCollectionToRemove.LearnBaseScanProfile.Label)"
+                            ValueChanged="@((GlobalVariableSlopCollectionToRemove.LearnBaseScanProfile profile) => SelectLearnBaseScanProfile(profile))" />
             </label>
             <div class="test-lab-import-summary">
                 <p>@selectedScanProfile.Description</p>
-                <p>@LearnBaseFilePolicySummary</p>
-                <p>@LearnBaseDuplicatePolicySummary</p>
+                <p>@GlobalVariableSlopCollectionToRemove.LearnBaseFilePolicySummary</p>
+                <p>@GlobalVariableSlopCollectionToRemove.LearnBaseDuplicatePolicySummary</p>
             </div>
             <label class="test-lab-field">
                 <span>Advanced import limit</span>
@@ -101,8 +101,8 @@
             {
                 <DxComboBox Data="@artifactWorkspaces"
                             Value="@selectedArtifactWorkspace"
-                            TextFieldName="@nameof(ArtifactWorkspaceSummary.WorkspaceName)"
-                            ValueChanged="@((ArtifactWorkspaceSummary workspace) => SelectArtifactWorkspaceAsync(workspace))" />
+                            TextFieldName="@nameof(GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary.WorkspaceName)"
+                            ValueChanged="@((GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary workspace) => SelectArtifactWorkspaceAsync(workspace))" />
             }
             <DxButton Text="Refresh ZIP"
                       RenderStyle="ButtonRenderStyle.Primary"
@@ -196,33 +196,21 @@
 </main>
 
 @code {
-    private readonly List<TestLabRoute> Routes =
-    [
-        new("Health", "/health", ButtonRenderStyle.Secondary),
-        new("Diagnostics", "/__diag", ButtonRenderStyle.Secondary),
-        new("DXAiFunctions", "/__diag/dxaichat-functions", ButtonRenderStyle.Secondary),
-        new("Minecraft 26.1", "/__diag/minecraft/datapack-version?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
-        new("Datapack ZIP", "/__diag/council/artifact-smoke?target=datapack", ButtonRenderStyle.Primary),
-        new("AI Host ZIP", "/__diag/council/artifact-smoke?target=ai-host", ButtonRenderStyle.Primary),
-        new("Minecraft Benchmark", "/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
-        new("Engineering Benchmark", "/__diag/benchmark/engineering?taskSet=engineering&saveToKnowledge=true", ButtonRenderStyle.Secondary),
-        new("Replacement Benchmark", "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4&saveToKnowledge=true", ButtonRenderStyle.Primary),
-        new("Council Feedback", "/__diag/council/development-feedback-talk?maxOutputTokens=2048&maxContextTokens=32768&maxRounds=0", ButtonRenderStyle.Primary)
-    ];
 
+    string toastName = "TestLabToasts";
     private bool isBusy;
     private string statusText = "Ready.";
     private string resultText = "Run a local diagnostic route to see JSON here.";
     private string customRoute = "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4";
-    private string learnBaseRoot = LearnBasePresets[0].RootPath;
-    private int maxProjects = LearnBasePresets[0].RecommendedMaxProjects;
+    private string learnBaseRoot = GlobalVariableSlopCollectionToRemove.LearnBasePresets[0].RootPath;
+    private int maxProjects = GlobalVariableSlopCollectionToRemove.LearnBasePresets[0].RecommendedMaxProjects;
     private bool saveToKnowledge = true;
-    private LearnBasePreset selectedLearnBasePreset = LearnBasePresets[0];
-    private LearnBaseScanProfile selectedScanProfile = LearnBaseScanProfiles[1];
-    private List<TestLabDownloadLink> downloadLinks = [];
-    private List<ArtifactWorkspaceSummary> artifactWorkspaces = [];
-    private List<ArtifactWorkspaceFileSummary> artifactWorkspaceFiles = [];
-    private ArtifactWorkspaceSummary? selectedArtifactWorkspace;
+    private GlobalVariableSlopCollectionToRemove.LearnBasePreset selectedLearnBasePreset = GlobalVariableSlopCollectionToRemove.LearnBasePresets[0];
+    private GlobalVariableSlopCollectionToRemove.LearnBaseScanProfile selectedScanProfile = GlobalVariableSlopCollectionToRemove.LearnBaseScanProfiles[1];
+    private List<GlobalVariableSlopCollectionToRemove.TestLabDownloadLink> downloadLinks = [];
+    private List<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary> artifactWorkspaces = [];
+    private List<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileSummary> artifactWorkspaceFiles = [];
+    private GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary? selectedArtifactWorkspace;
     private string artifactBaseUrl = string.Empty;
     private bool sourcePopupVisible;
     private string openSourceRelativePath = string.Empty;
@@ -231,311 +219,370 @@
     private string SourcePopupTitle => string.IsNullOrWhiteSpace(openSourceRelativePath)
         ? "Generated Source"
         : $"Generated Source - {openSourceRelativePath}";
-    private static readonly Regex DownloadUrlPattern =
-        new("\"downloadUrl\"\\s*:\\s*\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private const string LearnBaseFilePolicySummary =
-        "Reads source and docs such as .cs, .razor, .csproj, .sln, .md, .yml, .json, .xml, .py, .js, .ts, .go, .ps1, and .sql. Skips build/cache folders such as bin, obj, node_modules, packages, .git, build, dist, and publish. Binary files, installers, archives, PDFs, certificates, SQLite files, and images are counted or ignored, not stored as knowledge text.";
-    private const string LearnBaseDuplicatePolicySummary =
-        "Duplicate handling: each project path and known docs-corpus section gets a stable database id. Re-importing the same source updates/upserts the existing knowledge row instead of adding another copy.";
-    private static string LearnBasePresetList => string.Join(", ", LearnBasePresets.Select(preset => preset.Label));
-    private static readonly IReadOnlyList<LearnBasePreset> LearnBasePresets =
-    [
-        new(
-            "All selected local learn-base",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt",
-            "Scans the curated local learn-base root and auto-detects known docs corpora plus project architecture roots.",
-            80),
-        new(
-            "Microsoft .NET docs + C# compiler",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt\docs-main\docs-main",
-            "Teaches source maps for .NET architecture, C# language/compiler diagnostics, C# 12-era syntax, ASP.NET Core, Blazor, data, and DocFX/Microsoft Learn authoring.",
-            30),
-        new(
-            "Windows developer docs",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt\windows-dev-docs-docs",
-            "Teaches source maps for Windows App SDK, WinUI, WebView2, MSIX, Windows setup/support, design, accessibility, and technician workflows.",
-            24),
-        new(
-            "DevExpress Blazor 25.2 samples",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt\Blazor-25.2\Blazor-25.2",
-            "Scans DevExpress Blazor demos and examples so generated pages can choose real components, services, layout patterns, and file/download workflows.",
-            60),
-        new(
-            "DevExpress examples",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt\DevExpress-Examples",
-            "Scans local DevExpress example repositories for reusable component and service wiring patterns.",
-            60),
-        new(
-            "Custom path",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt",
-            "Use this when you want to paste or edit a specific local source/docs folder path.",
-            40)
-    ];
-    private static readonly IReadOnlyList<LearnBaseScanProfile> LearnBaseScanProfiles =
-    [
-        new("Focused scan", 12, "Best for one documentation corpus or one repository. Fast and low noise."),
-        new("Balanced scan", 40, "Best default: enough project roots to teach patterns without importing every nested sample."),
-        new("Broad scan", 100, "Best after adding many repositories or documentation corpora. Slower, but still bounded."),
-        new("Custom limit", 40, "Use the advanced import limit below.")
-    ];
 
     private Task RunCustomRouteAsync()
     {
-        var route = string.IsNullOrWhiteSpace(customRoute) ? "/__diag" : customRoute.Trim();
-        if (!route.StartsWith('/'))
+        try
         {
-            route = "/" + route;
+            var route = string.IsNullOrWhiteSpace(customRoute) ? "/__diag" : customRoute.Trim();
+            if (!route.StartsWith('/'))
+            {
+                route = "/" + route;
+            }
+
+            return CouncilChatStringFunctions.IsAllowedLocalRoute(route)
+                ? RunRouteAsync(route)
+                : ShowBlockedRouteAsync(route);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in RunCustomRouteAsync {Message}",  ex.Message);
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in RunCustomRouteAsync");
+            return Task.CompletedTask;
         }
 
-        return IsAllowedLocalRoute(route)
-            ? RunRouteAsync(route)
-            : ShowBlockedRouteAsync(route);
     }
 
     private Task RunLearnBaseImportAsync()
     {
-        var encodedRoot = Uri.EscapeDataString(learnBaseRoot.Trim());
-        var route = $"/__diag/learn-base/import?rootPath={encodedRoot}&saveToKnowledge={saveToKnowledge.ToString().ToLowerInvariant()}&maxProjects={Math.Clamp(maxProjects, 1, 120)}";
-        return RunRouteAsync(route);
+        try
+        {
+            var encodedRoot = Uri.EscapeDataString(learnBaseRoot.Trim());
+            var route = $"/__diag/learn-base/import?rootPath={encodedRoot}&saveToKnowledge={saveToKnowledge.ToString().ToLowerInvariant()}&maxProjects={Math.Clamp(maxProjects, 1, 120)}";
+            return RunRouteAsync(route);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in RunLearnBaseImportAsync {Message}", ex.Message);
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in RunLearnBaseImportAsync");
+            return Task.CompletedTask;
+        }
+
     }
 
-    private void SelectLearnBasePreset(LearnBasePreset preset)
+    private void SelectLearnBasePreset(GlobalVariableSlopCollectionToRemove.LearnBasePreset preset)
     {
-        selectedLearnBasePreset = preset;
-        learnBaseRoot = preset.RootPath;
-        maxProjects = preset.RecommendedMaxProjects;
-        selectedScanProfile = LearnBaseScanProfiles
-            .FirstOrDefault(profile => profile.MaxProjects == preset.RecommendedMaxProjects) ??
-            LearnBaseScanProfiles[^1];
+        try
+        {
+            selectedLearnBasePreset = preset;
+            learnBaseRoot = preset.RootPath;
+            maxProjects = preset.RecommendedMaxProjects;
+            selectedScanProfile = GlobalVariableSlopCollectionToRemove.LearnBaseScanProfiles
+                .FirstOrDefault(profile => profile.MaxProjects == preset.RecommendedMaxProjects) ??
+                GlobalVariableSlopCollectionToRemove.LearnBaseScanProfiles[^1];
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SelectLearnBasePreset preset {preset.ToString()}", preset);
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in SelectLearnBasePreset");
+        }
     }
 
-    private void SelectLearnBaseScanProfile(LearnBaseScanProfile profile)
+    private void SelectLearnBaseScanProfile(GlobalVariableSlopCollectionToRemove.LearnBaseScanProfile profile)
     {
-        selectedScanProfile = profile;
-        maxProjects = profile.MaxProjects;
+        try
+        {
+            selectedScanProfile = profile;
+            maxProjects = profile.MaxProjects;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SelectLearnBaseScanProfile profile {profile.ToString()}", profile);
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in SelectLearnBaseScanProfile");
+        }
+
     }
 
     private async Task RunRouteAsync(string route)
     {
-        if (!IsAllowedLocalRoute(route))
-        {
-            await ShowBlockedRouteAsync(route);
-            return;
-        }
-
-        isBusy = true;
-        statusText = $"Running GET {route} ...";
-        resultText = string.Empty;
-        downloadLinks = [];
-
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-            var url = NavigationManager.ToAbsoluteUri(route);
-            var response = await http.GetAsync(url);
-            var text = await response.Content.ReadAsStringAsync();
-            statusText = $"GET {route} -> {(int)response.StatusCode} {response.ReasonPhrase}";
-            resultText = PrettyPrintJson(text);
-            downloadLinks = ExtractDownloadLinks(text);
-            await TryRefreshArtifactWorkspacesAfterRouteAsync(text);
+            if (!CouncilChatStringFunctions.IsAllowedLocalRoute(route))
+            {
+                await ShowBlockedRouteAsync(route).ConfigureAwait(false);
+                return;
+            }
+
+            isBusy = true;
+            statusText = $"Running GET {route} ...";
+            resultText = string.Empty;
+            downloadLinks = [];
+
+            try
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+                var url = NavigationManager.ToAbsoluteUri(route);
+                var response = await http.GetAsync(url).ConfigureAwait(false);
+                var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                statusText = $"GET {route} -> {(int)response.StatusCode} {response.ReasonPhrase}";
+                resultText = CouncilChatStringFunctions.PrettyPrintJson(text);
+                downloadLinks = ExtractDownloadLinks(text);
+                await TryRefreshArtifactWorkspacesAfterRouteAsync(text).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+            {
+                Logger.LogWarning(ex, "Test Lab route {Route} failed.", route);
+                statusText = $"GET {route} failed: {ex.Message}";
+                resultText = ex.ToString();
+            }
+            finally
+            {
+                isBusy = false;
+            }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Test Lab route {Route} failed.", route);
-            statusText = $"GET {route} failed: {ex.Message}";
-            resultText = ex.ToString();
+            Logger.LogError(ex, $"Exception in RunRouteAsync route {route}");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in RunRouteAsync");
         }
-        finally
-        {
-            isBusy = false;
-        }
+
     }
 
     private async Task LoadArtifactWorkspacesAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
+        {
+            await RunUiActionAsync(async () =>
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-            var response = await http.GetFromJsonAsync<ArtifactWorkspaceListResponse>(
-                NavigationManager.ToAbsoluteUri("/__diag/artifact-workspaces?take=30"));
+            var response = await http.GetFromJsonAsync<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceListResponse>(
+                NavigationManager.ToAbsoluteUri("/__diag/artifact-workspaces?take=30")).ConfigureAwait(false);
 
             artifactBaseUrl = response?.BaseUrl ?? NavigationManager.BaseUri.TrimEnd('/');
             artifactWorkspaces = response?.Workspaces ?? [];
             selectedArtifactWorkspace = response?.LatestWorkspace ?? artifactWorkspaces.FirstOrDefault();
-            await LoadSelectedWorkspaceFilesAsync();
+            await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(false);
             statusText = selectedArtifactWorkspace is null
                 ? "No generated artifact workspaces found yet."
                 : $"Loaded workspace {selectedArtifactWorkspace.WorkspaceName}.";
-        }, "LoadArtifactWorkspacesAsync");
+        }, "LoadArtifactWorkspacesAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in LoadArtifactWorkspacesAsync");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in LoadArtifactWorkspacesAsync");
+        }
+
     }
 
-    private async Task SelectArtifactWorkspaceAsync(ArtifactWorkspaceSummary workspace)
+    private async Task SelectArtifactWorkspaceAsync(GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary workspace)
     {
-        selectedArtifactWorkspace = workspace;
-        await LoadSelectedWorkspaceFilesAsync();
+        try
+        {
+            selectedArtifactWorkspace = workspace;
+            await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SelectArtifactWorkspaceAsync workspace {workspace.ToString()}");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in SelectArtifactWorkspaceAsync workspace {workspace.ToString()}");
+        }
+
     }
 
     private async Task LoadSelectedWorkspaceFilesAsync()
     {
-        artifactWorkspaceFiles = [];
-        if (selectedArtifactWorkspace is null)
-            return;
-
-        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/files?take=500";
-        var response = await http.GetFromJsonAsync<ArtifactWorkspaceFilesResponse>(NavigationManager.ToAbsoluteUri(route));
-        artifactWorkspaceFiles = response?.Files ?? [];
-    }
-
-    private async Task OpenWorkspaceFileAsync(ArtifactWorkspaceFileSummary file)
-    {
-        await RunUiActionAsync(async () =>
+        try
         {
+            artifactWorkspaceFiles = [];
             if (selectedArtifactWorkspace is null)
                 return;
 
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file?path={Uri.EscapeDataString(file.RelativePath)}";
-            var response = await http.GetFromJsonAsync<ArtifactWorkspaceFileResponse>(NavigationManager.ToAbsoluteUri(route));
-            openSourceRelativePath = response?.RelativePath ?? file.RelativePath;
-            openSourceContent = response?.Content ?? string.Empty;
-            openSourcePreviewMarkup = BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent);
-            sourcePopupVisible = true;
-            statusText = $"Opened {openSourceRelativePath}.";
-        }, "OpenWorkspaceFileAsync");
+            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/files?take=500";
+            var response = await http.GetFromJsonAsync<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFilesResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
+            artifactWorkspaceFiles = response?.Files ?? [];
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in LoadSelectedWorkspaceFilesAsync");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in LoadSelectedWorkspaceFilesAsync");
+        }
+
+    }
+
+    private async Task OpenWorkspaceFileAsync(GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileSummary file)
+    {
+        try
+        {
+            await RunUiActionAsync(async () =>
+       {
+           if (selectedArtifactWorkspace is null)
+               return;
+
+           using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+           var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file?path={Uri.EscapeDataString(file.RelativePath)}";
+           var response = await http.GetFromJsonAsync<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
+           openSourceRelativePath = response?.RelativePath ?? file.RelativePath;
+           openSourceContent = response?.Content ?? string.Empty;
+           openSourcePreviewMarkup = CouncilChatStringFunctions.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent);
+           sourcePopupVisible = true;
+           statusText = $"Opened {openSourceRelativePath}.";
+       }, "OpenWorkspaceFileAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in OpenWorkspaceFileAsync file {file.ToString()}");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in OpenWorkspaceFileAsync file {file.ToString()}");
+        }
+
     }
 
     private async Task SaveWorkspaceFileAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            if (selectedArtifactWorkspace is null || string.IsNullOrWhiteSpace(openSourceRelativePath))
-                return;
+            await RunUiActionAsync(async () =>
+    {
+        if (selectedArtifactWorkspace is null || string.IsNullOrWhiteSpace(openSourceRelativePath))
+            return;
 
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file";
-            var response = await http.PostAsJsonAsync(
-                NavigationManager.ToAbsoluteUri(route),
-                new ArtifactWorkspaceFileSaveRequest(openSourceRelativePath, openSourceContent));
-            var text = await response.Content.ReadAsStringAsync();
-            statusText = response.IsSuccessStatusCode
-                ? $"Saved {openSourceRelativePath}. Refresh the zip when the source is ready."
-                : $"Save failed: {(int)response.StatusCode} {response.ReasonPhrase}";
-            resultText = PrettyPrintJson(text);
-            openSourcePreviewMarkup = BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent);
-            await LoadSelectedWorkspaceFilesAsync();
-        }, "SaveWorkspaceFileAsync");
+        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file";
+        var response = await http.PostAsJsonAsync(
+            NavigationManager.ToAbsoluteUri(route),
+            new GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileSaveRequest(openSourceRelativePath, openSourceContent)).ConfigureAwait(false);
+        var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        statusText = response.IsSuccessStatusCode
+            ? $"Saved {openSourceRelativePath}. Refresh the zip when the source is ready."
+            : $"Save failed: {(int)response.StatusCode} {response.ReasonPhrase}";
+        resultText = CouncilChatStringFunctions.PrettyPrintJson(text);
+        openSourcePreviewMarkup = CouncilChatStringFunctions.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent);
+        await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(false);
+    }, "SaveWorkspaceFileAsync").ConfigureAwait(false); 
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SaveWorkspaceFileAsync");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in SaveWorkspaceFileAsync");
+        }
+
     }
 
     private async Task RefreshWorkspaceZipAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            if (selectedArtifactWorkspace is null)
-                return;
+            await RunUiActionAsync(async () =>
+      {
+          if (selectedArtifactWorkspace is null)
+              return;
 
-            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/zip";
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-            var response = await http.GetAsync(NavigationManager.ToAbsoluteUri(route));
-            var text = await response.Content.ReadAsStringAsync();
-            statusText = response.IsSuccessStatusCode
-                ? $"Workspace zip refreshed for {selectedArtifactWorkspace.WorkspaceName}."
-                : $"Zip refresh failed: {(int)response.StatusCode} {response.ReasonPhrase}";
-            resultText = PrettyPrintJson(text);
-            downloadLinks = ExtractDownloadLinks(text);
-            await LoadArtifactWorkspacesAsync();
-        }, "RefreshWorkspaceZipAsync");
+          var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/zip";
+          using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+          var response = await http.GetAsync(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
+          var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+          statusText = response.IsSuccessStatusCode
+              ? $"Workspace zip refreshed for {selectedArtifactWorkspace.WorkspaceName}."
+              : $"Zip refresh failed: {(int)response.StatusCode} {response.ReasonPhrase}";
+          resultText = CouncilChatStringFunctions.PrettyPrintJson(text);
+          downloadLinks = ExtractDownloadLinks(text);
+          await LoadArtifactWorkspacesAsync().ConfigureAwait(false);
+      }, "RefreshWorkspaceZipAsync");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in RefreshWorkspaceZipAsync");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in RefreshWorkspaceZipAsync");
+        }
+
     }
 
     private async Task TryRefreshArtifactWorkspacesAfterRouteAsync(string responseText)
     {
-        if (responseText.Contains("ArtifactRoot", StringComparison.OrdinalIgnoreCase) ||
-            responseText.Contains("\"artifacts\"", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            try
+            if (responseText.Contains("ArtifactRoot", StringComparison.OrdinalIgnoreCase) ||
+           responseText.Contains("\"artifacts\"", StringComparison.OrdinalIgnoreCase))
             {
-                await LoadArtifactWorkspacesAsync();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Could not refresh generated artifact workspaces after route run.");
+                try
+                {
+                    await LoadArtifactWorkspacesAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Could not refresh generated artifact workspaces after route run.");
+                }
             }
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in TryRefreshArtifactWorkspacesAfterRouteAsync responseText {responseText}");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in TryRefreshArtifactWorkspacesAfterRouteAsync responseText {responseText}");
+        }
+
     }
 
     private Task ShowBlockedRouteAsync(string route)
     {
-        statusText = "Route blocked by Test Lab local safety policy.";
-        resultText = $"Blocked route: {route}{Environment.NewLine}Allowed prefixes: /__diag, /__artifacts, /health.";
-        downloadLinks = [];
-        return Task.CompletedTask;
-    }
-
-    private static bool IsAllowedLocalRoute(string route)
-    {
-        return route.StartsWith("/__diag", StringComparison.OrdinalIgnoreCase)
-            || route.StartsWith("/__artifacts", StringComparison.OrdinalIgnoreCase)
-            || route.StartsWith("/health", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string PrettyPrintJson(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return string.Empty;
-        }
-
         try
         {
-            using var json = System.Text.Json.JsonDocument.Parse(text);
-            return System.Text.Json.JsonSerializer.Serialize(
-                json.RootElement,
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            statusText = "Route blocked by Test Lab local safety policy.";
+            resultText = $"Blocked route: {route}{Environment.NewLine}Allowed prefixes: /__diag, /__artifacts, /health.";
+            downloadLinks = [];
+            return Task.CompletedTask;
         }
-        catch (System.Text.Json.JsonException)
+        catch (Exception ex)
         {
-            return text;
+            Logger.LogError(ex, $"Exception in ShowBlockedRouteAsync responseText {route}");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in ShowBlockedRouteAsync responseText {route}");
+            return Task.CompletedTask;
         }
+
     }
 
-    private List<TestLabDownloadLink> ExtractDownloadLinks(string text)
-    {
-        var links = new List<TestLabDownloadLink>();
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return links;
-        }
 
-        foreach (Match match in DownloadUrlPattern.Matches(text))
+
+    private List<GlobalVariableSlopCollectionToRemove.TestLabDownloadLink> ExtractDownloadLinks(string text)
+    {
+        try
         {
-            var relativeUrl = match.Groups["url"].Value.Replace("\\/", "/", StringComparison.Ordinal);
-            if (!relativeUrl.StartsWith("/__artifacts", StringComparison.OrdinalIgnoreCase))
+            var links = new List<GlobalVariableSlopCollectionToRemove.TestLabDownloadLink>();
+            if (string.IsNullOrWhiteSpace(text))
             {
-                continue;
+                return links;
             }
 
-            var absoluteUrl = NavigationManager.ToAbsoluteUri(relativeUrl).ToString();
-            var label = relativeUrl.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? relativeUrl;
-            links.Add(new TestLabDownloadLink(label, absoluteUrl));
+            foreach (Match match in GlobalVariableSlopCollectionToRemove.DownloadUrlPattern.Matches(text))
+            {
+                var relativeUrl = match.Groups["url"].Value.Replace("\\/", "/", StringComparison.Ordinal);
+                if (!relativeUrl.StartsWith("/__artifacts", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var absoluteUrl = NavigationManager.ToAbsoluteUri(relativeUrl).ToString();
+                var label = relativeUrl.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? relativeUrl;
+                links.Add(new GlobalVariableSlopCollectionToRemove.TestLabDownloadLink(label, absoluteUrl));
+            }
+
+            return links
+                .DistinctBy(link => link.AbsoluteUrl)
+                .ToList();
         }
-
-        return links
-            .DistinctBy(link => link.AbsoluteUrl)
-            .ToList();
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in ExtractDownloadLinks text {text}");
+            statusText = ex.Message;
+            Notifier.ShowError(toastName, ex.Message, $"Error in ExtractDownloadLinks text {text}");
+            return new();
+        }
+     
     }
 
-    private static string BuildSourcePreviewMarkup(string relativePath, string source)
-    {
-        var extension = Path.GetExtension(relativePath);
-        var encodedPath = System.Net.WebUtility.HtmlEncode(relativePath);
-        var encodedSource = System.Net.WebUtility.HtmlEncode(source);
-        return $"""
-            <h3>{encodedPath}</h3>
-            <p>Preview is read-only. Edit the raw source pane, then save and refresh the zip separately.</p>
-            <pre><code>{encodedSource}</code></pre>
-            <p><small>File type: {System.Net.WebUtility.HtmlEncode(extension)}</small></p>
-            """;
-    }
 
     private async Task RunUiActionAsync(Func<Task> action, string operation)
     {
@@ -546,7 +593,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Test Lab operation {Operation} failed.", operation);
+            Logger.LogWarning(ex, $"Test Lab operation {operation} failed. {action.ToString()}", action);
             statusText = $"{operation} failed: {ex.Message}";
             resultText = ex.ToString();
         }
@@ -556,41 +603,5 @@
         }
     }
 
-    public sealed record TestLabRoute(string Label, string Path, ButtonRenderStyle Style);
-    public sealed record TestLabDownloadLink(string Label, string AbsoluteUrl);
-    public sealed record LearnBasePreset(string Label, string RootPath, string Description, int RecommendedMaxProjects);
-    public sealed record LearnBaseScanProfile(string Label, int MaxProjects, string Description);
-    public sealed record ArtifactWorkspaceListResponse(
-        string BaseUrl,
-        string ArtifactRoot,
-        int Count,
-        ArtifactWorkspaceSummary? LatestWorkspace,
-        List<ArtifactWorkspaceSummary> Workspaces);
-    public sealed record ArtifactWorkspaceFilesResponse(
-        string WorkspaceName,
-        string RootPath,
-        List<ArtifactWorkspaceFileSummary> Files);
-    public sealed record ArtifactWorkspaceFileResponse(
-        string WorkspaceName,
-        string RootPath,
-        string RelativePath,
-        string FullPath,
-        long Length,
-        DateTime LastWriteTimeUtc,
-        string Content);
-    public sealed record ArtifactWorkspaceSummary(
-        string WorkspaceName,
-        string RootPath,
-        DateTime LastWriteTimeUtc,
-        int SourceFileCount,
-        int RazorFileCount,
-        int CSharpFileCount,
-        List<string> ZipNames);
-    public sealed record ArtifactWorkspaceFileSummary(
-        string RelativePath,
-        long Length,
-        DateTime LastWriteTimeUtc);
-    public sealed record ArtifactWorkspaceFileSaveRequest(
-        string RelativePath,
-        string Content);
+ 
 }

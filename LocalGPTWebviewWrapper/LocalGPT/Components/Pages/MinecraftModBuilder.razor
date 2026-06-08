@@ -240,190 +240,286 @@
 
     async Task CreateWorkspaceAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            await CreateWorkspaceCoreAsync();
-            if (workspace is not null)
-                Notifier.ShowSuccess(toastName, workspace.RootPath, "Workspace created");
-        }, "CreateWorkspaceAsync");
+            await RunUiActionAsync(async () =>
+       {
+           await CreateWorkspaceCoreAsync().ConfigureAwait(false);
+           if (workspace is not null)
+               Notifier.ShowSuccess(toastName, workspace.RootPath, "Workspace created");
+       }, "CreateWorkspaceAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "CreateWorkspaceAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "CreateWorkspaceAsync Error");
+        }
     }
 
     async Task CreateDatapackZipAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            await CreateWorkspaceCoreAsync();
-            await RunCommandCoreAsync();
-            if (lastCommandResult?.Succeeded == true && !string.IsNullOrWhiteSpace(artifactDownloadUrl))
-                Notifier.ShowSuccess(toastName, artifactFileName ?? "Datapack ZIP", "Datapack ZIP ready");
-        }, "CreateDatapackZipAsync");
+            await RunUiActionAsync(async () =>
+       {
+           await CreateWorkspaceCoreAsync().ConfigureAwait(false);
+           await RunCommandCoreAsync().ConfigureAwait(false);
+           if (lastCommandResult?.Succeeded == true && !string.IsNullOrWhiteSpace(artifactDownloadUrl))
+               Notifier.ShowSuccess(toastName, artifactFileName ?? "Datapack ZIP", "Datapack ZIP ready");
+       }, "CreateDatapackZipAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "CreateDatapackZipAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "CreateDatapackZipAsync Error");
+
+        }
+
     }
 
     async Task CreateWorkspaceCoreAsync()
     {
-        workspace = await WorkspaceService.CreateWorkspaceAsync(request);
-        ClearDownloadArtifact();
-        lastCommandResult = null;
-        commandFileName = "powershell.exe";
-        commandArguments = "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1";
+        try
+        {
+            workspace = await WorkspaceService.CreateWorkspaceAsync(request).ConfigureAwait(false);
+            ClearDownloadArtifact();
+            lastCommandResult = null;
+            commandFileName = "powershell.exe";
+            commandArguments = "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "CreateWorkspaceCoreAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "CreateWorkspaceCoreAsync Error");
+
+        }
     }
 
     async Task GeneratePlanAsync()
     {
-        if (ChatClient is null)
+        try
         {
-            Notifier.ShowError(toastName, "No AI chat client is configured.", "AI unavailable");
-            return;
-        }
-
-        await RunUiActionAsync(async () =>
-        {
-            var messages = new[]
+            if (ChatClient is null)
             {
+                Notifier.ShowError(toastName, "No AI chat client is configured.", "AI unavailable");
+                return;
+            }
+
+            await RunUiActionAsync(async () =>
+            {
+                var messages = new[]
+                {
                 new ChatMessage(ChatRole.System, CouncilChatStringFunctions.CreateMinecraftSystemPrompt("single model",Logger)),
                 new ChatMessage(ChatRole.User, CreatePlanningPrompt())
-            };
+                };
 
-            var response = await ChatClient.GetResponseAsync(messages);
-            aiPlan = response.Text;
-        }, "GeneratePlanAsync");
+                var response = await ChatClient.GetResponseAsync(messages).ConfigureAwait(false);
+                aiPlan = response.Text;
+            }, "GeneratePlanAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "GeneratePlanAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "GeneratePlanAsync Error");
+
+        }
     }
 
     async Task GenerateCouncilPlanAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
-            var result = await CouncilService.RunAsync(new MultiModelCouncilRequest
-            {
-                ModelNames = ParseCouncilModels().ToList(),
-                Prompt = CreatePlanningPrompt(),
-                MaxRounds = 0,
-                MaxOutputTokens = 1024,
-                MaxParallelModels = 1,
-                MaxContextTokens = 2048,
-                ModelTimeoutSeconds = 300,
-                OllamaKeepAlive = "0s",
-                OllamaNumGpu = useCpuOnlyCouncil ? 0 : null,
-                IncludeMemory = true,
-                SaveToMemory = true
-            });
+            await RunUiActionAsync(async () =>
+       {
+           var result = await CouncilService.RunAsync(new MultiModelCouncilRequest
+           {
+               ModelNames = ParseCouncilModels().ToList(),
+               Prompt = CreatePlanningPrompt(),
+               MaxRounds = 0,
+               MaxOutputTokens = 1024,
+               MaxParallelModels = 1,
+               MaxContextTokens = 2048,
+               ModelTimeoutSeconds = 300,
+               OllamaKeepAlive = "0s",
+               OllamaNumGpu = useCpuOnlyCouncil ? 0 : null,
+               IncludeMemory = true,
+               SaveToMemory = true
+           }).ConfigureAwait(false);
 
-            lastCouncilResult = result;
-            aiPlan = result.FinalAnswer;
-            Notifier.ShowSuccess(toastName, "Council plan saved to log and memory.", "AI Council complete");
-        }, "GenerateCouncilPlanAsync");
+           lastCouncilResult = result;
+           aiPlan = result.FinalAnswer;
+           Notifier.ShowSuccess(toastName, "Council plan saved to log and memory.", "AI Council complete");
+       }, "GenerateCouncilPlanAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "GenerateCouncilPlanAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "GenerateCouncilPlanAsync Error");
+
+        }
     }
 
     async Task RunCommandAsync()
     {
-        if (workspace is null)
+        try
         {
-            Notifier.ShowError(toastName, "Create a workspace first.", "No workspace");
-            return;
+            if (workspace is null)
+            {
+                Notifier.ShowError(toastName, "Create a workspace first.", "No workspace");
+                return;
+            }
+
+            await RunUiActionAsync(async () =>
+            {
+                await RunCommandCoreAsync().ConfigureAwait(false);
+                if (lastCommandResult?.Succeeded == true)
+                    Notifier.ShowSuccess(toastName, "Command finished successfully.", "Command complete");
+                else
+                    Notifier.ShowError(toastName, $"Exit code {lastCommandResult?.ExitCode.ToString() ?? "unknown"}", "Command failed");
+            }, "RunCommandAsync").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "RunCommandAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "RunCommandAsync Error");
+
         }
 
-        await RunUiActionAsync(async () =>
-        {
-            await RunCommandCoreAsync();
-            if (lastCommandResult?.Succeeded == true)
-                Notifier.ShowSuccess(toastName, "Command finished successfully.", "Command complete");
-            else
-                Notifier.ShowError(toastName, $"Exit code {lastCommandResult?.ExitCode.ToString() ?? "unknown"}", "Command failed");
-        }, "RunCommandAsync");
     }
 
     async Task RunCommandCoreAsync()
     {
-        if (workspace is null)
-            throw new InvalidOperationException("Create a workspace first.");
+        try
+        {
+            if (workspace is null)
+                throw new InvalidOperationException("Create a workspace first.");
 
-        lastCommandResult = await CommandRunner.RunAsync(commandFileName, commandArguments, workspace.RootPath);
-        if (lastCommandResult.Succeeded)
-        {
-            SetDownloadArtifact(workspace.RootPath);
+            lastCommandResult = await CommandRunner.RunAsync(commandFileName, commandArguments, workspace.RootPath).ConfigureAwait(false);
+            if (lastCommandResult.Succeeded)
+            {
+                SetDownloadArtifact(workspace.RootPath);
+            }
+            else
+            {
+                ClearDownloadArtifact();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            ClearDownloadArtifact();
+            Logger.LogError(ex, "RunCommandCoreAsync failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "RunCommandCoreAsync Error");
+
         }
+
     }
 
     void ClearDownloadArtifact()
     {
-        artifactDownloadUrl = null;
-        artifactDownloadRoute = null;
-        artifactFileName = null;
-        artifactPath = null;
+        try
+        {
+            artifactDownloadUrl = null;
+            artifactDownloadRoute = null;
+            artifactFileName = null;
+            artifactPath = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "ClearDownloadArtifact failed: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "ClearDownloadArtifact Error");
+
+        }
+
     }
 
     void SetDownloadArtifact(string workspaceRoot)
     {
-        if (workspace is null)
-            return;
-
-        var buildDirectory = Path.Combine(workspaceRoot, "build");
-        if (!Directory.Exists(buildDirectory))
+        try
         {
-            ClearDownloadArtifact();
-            return;
+            if (workspace is null)
+                return;
+
+            var buildDirectory = Path.Combine(workspaceRoot, "build");
+            if (!Directory.Exists(buildDirectory))
+            {
+                ClearDownloadArtifact();
+                return;
+            }
+
+            var zip = Directory.GetFiles(buildDirectory, "*.zip", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(zip))
+            {
+                ClearDownloadArtifact();
+                return;
+            }
+
+            artifactPath = zip;
+            artifactFileName = Path.GetFileName(zip);
+            var workspaceDirectory = Path.GetFileName(Path.TrimEndingDirectorySeparator(workspaceRoot));
+            if (string.IsNullOrWhiteSpace(workspaceDirectory))
+            {
+                ClearDownloadArtifact();
+                return;
+            }
+
+            artifactDownloadRoute = $"/__artifacts/minecraft/{Uri.EscapeDataString(workspaceDirectory)}/{Uri.EscapeDataString(artifactFileName)}";
+            artifactDownloadUrl = Navigation.ToAbsoluteUri(artifactDownloadRoute).ToString();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SetDownloadArtifact failed: {Message} workspaceRoot {workspaceRoot}", ex.Message, workspaceRoot);
+            Notifier.ShowError(toastName, ex.ToString(), "SetDownloadArtifact Error");
+
         }
 
-        var zip = Directory.GetFiles(buildDirectory, "*.zip", SearchOption.TopDirectoryOnly)
-            .OrderByDescending(File.GetLastWriteTimeUtc)
-            .FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(zip))
-        {
-            ClearDownloadArtifact();
-            return;
-        }
-
-        artifactPath = zip;
-        artifactFileName = Path.GetFileName(zip);
-        var workspaceDirectory = Path.GetFileName(Path.TrimEndingDirectorySeparator(workspaceRoot));
-        if (string.IsNullOrWhiteSpace(workspaceDirectory))
-        {
-            ClearDownloadArtifact();
-            return;
-        }
-
-        artifactDownloadRoute = $"/__artifacts/minecraft/{Uri.EscapeDataString(workspaceDirectory)}/{Uri.EscapeDataString(artifactFileName)}";
-        artifactDownloadUrl = Navigation.ToAbsoluteUri(artifactDownloadRoute).ToString();
     }
 
-    string CreatePlanningPrompt() => string.Join(Environment.NewLine, new[]
+    string CreatePlanningPrompt()
     {
-        "Build target:",
-        $"- Loader: {request.Loader}",
-        $"- Minecraft: {request.MinecraftVersion}",
-        $"- Java: {request.JavaVersion}",
-        $"- Gradle: {request.GradleVersion}",
-        $"- IDE: {request.Ide}",
-        $"- Project: {request.ProjectName}",
-        $"- Mod id: {request.ModId}",
-        $"- Package: {request.PackageName}",
-        $"- Workspace root: {workspace?.RootPath ?? "not created yet"}",
-        "",
-        "User request:",
-        request.Description,
-        "",
-        "Return:",
-        "1. Architecture and classes.",
-        "2. Files to create or edit.",
-        "3. Java code strategy, or explain why this target is command/datapack-only.",
-        "4. Assets/data files needed.",
-        "5. Build and test commands.",
-        "6. User setup steps for JDK, Gradle, Eclipse/Minecraft launcher, Ollama, and LocalGPT AI Council.",
-        "7. Risks or missing details to ask the user.",
-        "8. Missing feature report for LocalGPT if the builder lacks a needed capability.",
-        "",
-        "Council rules:",
-        "- Work kindly with the other models and correct each other directly.",
-        "- Do not claim the mod was compiled or run unless the transcript contains command output.",
-        "- If setup is incomplete, make a short user decision poll instead of guessing.",
-        "- Mark version-sensitive dependency claims as Needs verification unless proven by a build."
-    });
+        try
+        {
+            return string.Join(Environment.NewLine, new[]
+                {
 
-
+                    "Build target:",
+                    $"- Loader: {request.Loader}",
+                    $"- Minecraft: {request.MinecraftVersion}",
+                    $"- Java: {request.JavaVersion}",
+                    $"- Gradle: {request.GradleVersion}",
+                    $"- IDE: {request.Ide}",
+                    $"- Project: {request.ProjectName}",
+                    $"- Mod id: {request.ModId}",
+                    $"- Package: {request.PackageName}",
+                    $"- Workspace root: {workspace?.RootPath ?? "not created yet"}",
+                    "",
+                    "User request:",
+                    request.Description,
+                    "",
+                    "Return:",
+                    "1. Architecture and classes.",
+                    "2. Files to create or edit.",
+                    "3. Java code strategy, or explain why this target is command/datapack-only.",
+                    "4. Assets/data files needed.",
+                    "5. Build and test commands.",
+                    "6. User setup steps for JDK, Gradle, Eclipse/Minecraft launcher, Ollama, and LocalGPT AI Council.",
+                    "7. Risks or missing details to ask the user.",
+                    "8. Missing feature report for LocalGPT if the builder lacks a needed capability.",
+                    "",
+                    "Council rules:",
+                    "- Work kindly with the other models and correct each other directly.",
+                    "- Do not claim the mod was compiled or run unless the transcript contains command output.",
+                    "- If setup is incomplete, make a short user decision poll instead of guessing.",
+                    "- Mark version-sensitive dependency claims as Needs verification unless proven by a build."
+                });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "CreatePlanningPrompt failed: {Message} ", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "CreatePlanningPrompt Error");
+            return string.Empty;
+        }
+    } 
 
     IEnumerable<string> ParseCouncilModels() =>
         councilModels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -431,14 +527,23 @@
 
     void LoadLivingCitiesPrompt()
     {
-        request.ProjectName = "LivingCities";
-        request.ModId = "living_cities";
-        request.PackageName = "com.localgpt.livingcities";
-        request.MinecraftVersion = "26.1";
-        request.JavaVersion = "25";
-        request.Loader = "Datapack";
-        request.IncludeLivingCitiesStarter = true;
-        request.Description = GlobalVariableSlopCollectionToRemove.LivingCitiesPrompt;
+        try
+        {
+            request.ProjectName = "LivingCities";
+            request.ModId = "living_cities";
+            request.PackageName = "com.localgpt.livingcities";
+            request.MinecraftVersion = "26.1";
+            request.JavaVersion = "25";
+            request.Loader = "Datapack";
+            request.IncludeLivingCitiesStarter = true;
+            request.Description = GlobalVariableSlopCollectionToRemove.LivingCitiesPrompt;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "LoadLivingCitiesPrompt failed: {Message} ", ex.Message);
+            Notifier.ShowError(toastName, ex.ToString(), "LoadLivingCitiesPrompt Error");
+        }
+       
     }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
