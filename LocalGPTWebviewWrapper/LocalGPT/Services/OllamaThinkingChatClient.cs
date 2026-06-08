@@ -50,7 +50,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,$"Error in Counstructor OllamaThinkingChatClient options {options.ToString()} keepAlive {options}  contextLength {contextLength}  timeout {timeout}  numGpu {numGpu} ")
+                logger.LogError(ex, $"Error in Counstructor OllamaThinkingChatClient options {options.ToString()} keepAlive {options}  contextLength {contextLength}  timeout {timeout}  numGpu {numGpu} ");
             }
 
         }
@@ -81,7 +81,7 @@ namespace LocalGPT.Services
             try
             {
                 var request = CreateRequest(messages, options, stream: true);
-                yield return CreateStreamingStatusUpdate($"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...");
+                yield return CreateStreamingStatusUpdate($"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...",logger);
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
                 {
@@ -101,7 +101,7 @@ namespace LocalGPT.Services
                 using (response)
                 {
                     await EnsureSuccessOrThrowAsync(response, cancellationToken, logger);
-                    yield return CreateStreamingStatusUpdate("Ollama accepted the request. Waiting for streamed model output...");
+                    yield return CreateStreamingStatusUpdate("Ollama accepted the request. Waiting for streamed model output...", logger);
 
                     Stream stream;
                     try
@@ -145,18 +145,18 @@ namespace LocalGPT.Services
                             if (!string.IsNullOrWhiteSpace(chunk?.Message?.Thinking))
                             {
                                 foreach (var text in formatter.AppendThinking(chunk.Message.Thinking))
-                                    yield return CreateStreamingUpdate(text);
+                                    yield return CreateStreamingUpdate(text, logger);
                             }
 
                             if (!string.IsNullOrEmpty(chunk?.Message?.Content))
                             {
                                 foreach (var text in formatter.AppendContent(chunk.Message.Content))
-                                    yield return CreateStreamingUpdate(text);
+                                    yield return CreateStreamingUpdate(text, logger);
                             }
                         }
 
                         foreach (var text in formatter.Complete())
-                            yield return CreateStreamingUpdate(text);
+                            yield return CreateStreamingUpdate(text, logger);
                     }
                 }
             }
@@ -322,7 +322,7 @@ namespace LocalGPT.Services
             try
             {
                 var ollamaMessages = messages
-             .Select(ToOllamaMessage)
+             .Select(filter => ToOllamaMessage(filter,logger)?? new())
              .Where(message => !string.IsNullOrWhiteSpace(message.Content))
              .ToList();
 
@@ -371,8 +371,8 @@ namespace LocalGPT.Services
                 return new OllamaChatMessage
                 {
                     Role = message.Role == ChatRole.System ? "system"
-          : message.Role == ChatRole.Assistant ? "assistant"
-          : "user",
+                      : message.Role == ChatRole.Assistant ? "assistant"
+                      : "user",
                     Content = message.Text
                 };
             }
@@ -547,343 +547,5 @@ namespace LocalGPT.Services
         [GeneratedRegex("<think>(?<thinking>.*?)</think>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         private static partial Regex ThinkTagPattern();
 
-        public sealed class OllamaChatRequest
-        {
-            public string Model { get; set; } = string.Empty;
-            public bool Stream { get; set; }
-            public string KeepAlive { get; set; } = "10m";
-            public List<OllamaChatMessage> Messages { get; set; } = new();
-            public OllamaRequestOptions? Options { get; set; }
-        }
-
-        public sealed class OllamaRequestOptions
-        {
-            [JsonPropertyName("num_predict")]
-            public int NumPredict { get; set; }
-
-            [JsonPropertyName("num_ctx")]
-            public int? NumCtx { get; set; }
-
-            [JsonPropertyName("num_gpu")]
-            public int? NumGpu { get; set; }
-
-            [JsonPropertyName("temperature")]
-            public double? Temperature { get; set; }
-        }
-
-        public sealed class OllamaChatMessage
-        {
-            public string Role { get; set; } = "user";
-            public string Content { get; set; } = string.Empty;
-            public string? Thinking { get; set; }
-        }
-
-        public sealed class OllamaChatResponse
-        {
-            public OllamaChatMessage? Message { get; set; }
-        }
-
-        public sealed class VisibleThinkingStreamFormatter(bool harmonyModel)
-        {
-            private const string ThinkStartTag = "<think>";
-            private const string ThinkEndTag = "</think>";
-            private const int TagLookbehindLength = 16;
-            private readonly StringBuilder contentBuffer = new();
-            private readonly StringBuilder harmonyBuffer = new();
-            private int emittedHarmonyThinkingLength;
-            private int emittedHarmonyFinalLength;
-            private bool inTaggedThinking;
-            private bool emittedExplicitThinking;
-            private bool emittedVisibleContent;
-            private bool emittedMissingFinalNotice;
-            private bool thinkingBlockOpen;
-
-            public IEnumerable<string> AppendThinking(string text)
-            {
-                if (string.IsNullOrEmpty(text))
-                    yield break;
-
-                foreach (var chunk in OpenThinkingBlock())
-                    yield return chunk;
-
-                emittedExplicitThinking = true;
-                yield return WebUtility.HtmlEncode(text);
-            }
-
-            public IEnumerable<string> AppendContent(string text)
-            {
-                if (string.IsNullOrEmpty(text))
-                    yield break;
-
-                if (harmonyModel)
-                {
-                    foreach (var chunk in AppendHarmonyContent(text))
-                        yield return chunk;
-                    yield break;
-                }
-
-                foreach (var chunk in AppendTaggedContent(text))
-                    yield return chunk;
-            }
-
-            private IEnumerable<string> AppendTaggedContent(string text)
-            {
-                if (string.IsNullOrEmpty(text))
-                    yield break;
-
-                contentBuffer.Append(text);
-
-                while (contentBuffer.Length > 0)
-                {
-                    var current = contentBuffer.ToString();
-                    if (inTaggedThinking)
-                    {
-                        var endIndex = current.IndexOf(ThinkEndTag, StringComparison.OrdinalIgnoreCase);
-                        if (endIndex >= 0)
-                        {
-                            if (endIndex > 0)
-                                yield return WebUtility.HtmlEncode(current[..endIndex]);
-
-                            contentBuffer.Remove(0, endIndex + ThinkEndTag.Length);
-                            foreach (var chunk in CloseThinkingBlock())
-                                yield return chunk;
-
-                            inTaggedThinking = false;
-                            continue;
-                        }
-
-                        var safeLength = GetSafeFlushLength(current);
-                        if (safeLength <= 0)
-                            yield break;
-
-                        yield return WebUtility.HtmlEncode(current[..safeLength]);
-                        contentBuffer.Remove(0, safeLength);
-                        continue;
-                    }
-
-                    var startIndex = current.IndexOf(ThinkStartTag, StringComparison.OrdinalIgnoreCase);
-                    if (startIndex >= 0)
-                    {
-                        if (startIndex > 0)
-                        {
-                            foreach (var chunk in CloseThinkingBlock())
-                                yield return chunk;
-
-                            emittedVisibleContent = true;
-                            yield return current[..startIndex];
-                        }
-
-                        contentBuffer.Remove(0, startIndex + ThinkStartTag.Length);
-                        foreach (var chunk in OpenThinkingBlock())
-                            yield return chunk;
-
-                        inTaggedThinking = true;
-                        continue;
-                    }
-
-                    var flushLength = GetSafeFlushLength(current);
-                    if (flushLength <= 0)
-                        yield break;
-
-                    foreach (var chunk in CloseThinkingBlock())
-                        yield return chunk;
-
-                    emittedVisibleContent = true;
-                    yield return current[..flushLength];
-                    contentBuffer.Remove(0, flushLength);
-                }
-            }
-
-            public IEnumerable<string> Complete()
-            {
-                if (harmonyModel)
-                {
-                    foreach (var chunk in CompleteHarmonyContent())
-                        yield return chunk;
-                    yield break;
-                }
-
-                foreach (var chunk in CompleteTaggedContent())
-                    yield return chunk;
-
-                if (!emittedVisibleContent && emittedExplicitThinking)
-                {
-                    foreach (var chunk in EmitMissingFinalNotice())
-                        yield return chunk;
-                }
-            }
-
-            private IEnumerable<string> CompleteTaggedContent()
-            {
-                if (contentBuffer.Length > 0)
-                {
-                    var current = contentBuffer.ToString();
-                    contentBuffer.Clear();
-                    if (inTaggedThinking)
-                        yield return WebUtility.HtmlEncode(current);
-                    else
-                    {
-                        foreach (var chunk in CloseThinkingBlock())
-                            yield return chunk;
-
-                        emittedVisibleContent = true;
-                        yield return current;
-                    }
-                }
-
-                foreach (var chunk in CloseThinkingBlock())
-                    yield return chunk;
-
-                inTaggedThinking = false;
-            }
-
-            private IEnumerable<string> AppendHarmonyContent(string text)
-            {
-                harmonyBuffer.Append(WebUtility.HtmlDecode(text));
-                var raw = harmonyBuffer.ToString();
-                if (!raw.Contains("<|", StringComparison.Ordinal))
-                {
-                    harmonyBuffer.Clear();
-                    foreach (var chunk in AppendTaggedContent(raw))
-                        yield return chunk;
-                    yield break;
-                }
-
-                foreach (var chunk in EmitHarmonyDeltas(raw))
-                    yield return chunk;
-            }
-
-            private IEnumerable<string> CompleteHarmonyContent()
-            {
-                if (harmonyBuffer.Length > 0)
-                {
-                    var raw = harmonyBuffer.ToString();
-                    harmonyBuffer.Clear();
-                    if (!raw.Contains("<|", StringComparison.Ordinal))
-                    {
-                        foreach (var chunk in AppendTaggedContent(raw))
-                            yield return chunk;
-                        foreach (var chunk in CompleteTaggedContent())
-                            yield return chunk;
-                        yield break;
-                    }
-
-                    foreach (var chunk in EmitHarmonyDeltas(raw))
-                        yield return chunk;
-
-                    if (emittedHarmonyFinalLength == 0 && emittedHarmonyThinkingLength > 0)
-                    {
-                        foreach (var chunk in CloseThinkingBlock())
-                            yield return chunk;
-
-                        foreach (var chunk in EmitMissingFinalNotice())
-                            yield return chunk;
-                    }
-                }
-
-                foreach (var chunk in CloseThinkingBlock())
-                    yield return chunk;
-
-                if (!emittedVisibleContent && emittedExplicitThinking)
-                {
-                    foreach (var chunk in EmitMissingFinalNotice())
-                        yield return chunk;
-                }
-            }
-
-            private IEnumerable<string> EmitHarmonyDeltas(string raw)
-            {
-                var thinking = ExtractHarmonyThinkingText(raw);
-                if (thinking.Length > emittedHarmonyThinkingLength)
-                {
-                    foreach (var chunk in OpenThinkingBlock())
-                        yield return chunk;
-
-                    yield return WebUtility.HtmlEncode(thinking[emittedHarmonyThinkingLength..]);
-                    emittedHarmonyThinkingLength = thinking.Length;
-                }
-
-                var final = ExtractHarmonyFinalText(raw);
-                if (final.Length <= emittedHarmonyFinalLength)
-                    yield break;
-
-                foreach (var chunk in CloseThinkingBlock())
-                    yield return chunk;
-
-                emittedVisibleContent = true;
-                yield return final[emittedHarmonyFinalLength..];
-                emittedHarmonyFinalLength = final.Length;
-            }
-
-            private static string ExtractHarmonyThinkingText(string raw)
-            {
-                var matches = HarmonyThinkingPattern().Matches(raw);
-                if (matches.Count == 0)
-                    return string.Empty;
-
-                return string.Join(
-                    Environment.NewLine,
-                    matches
-                        .Select(match => CleanHarmonyText(match.Groups["content"].Value))
-                        .Where(text => !string.IsNullOrWhiteSpace(text)));
-            }
-
-            private static string ExtractHarmonyFinalText(string raw)
-            {
-                var matches = HarmonyFinalPattern().Matches(raw);
-                if (matches.Count == 0)
-                    return string.Empty;
-
-                return CleanHarmonyText(matches[^1].Groups["content"].Value);
-            }
-
-            private static string CleanHarmonyText(string text)
-            {
-                var cleaned = HarmonyMarkerPattern().Replace(WebUtility.HtmlDecode(text), string.Empty);
-                var partialMarkerIndex = cleaned.LastIndexOf("<|", StringComparison.Ordinal);
-                if (partialMarkerIndex >= 0 &&
-                    cleaned.IndexOf("|>", partialMarkerIndex, StringComparison.Ordinal) < 0)
-                {
-                    cleaned = cleaned[..partialMarkerIndex];
-                }
-
-                return cleaned;
-            }
-
-            private IEnumerable<string> OpenThinkingBlock()
-            {
-                if (thinkingBlockOpen)
-                    yield break;
-
-                thinkingBlockOpen = true;
-                yield return "<details class=\"model-thinking\"><summary>Model thinking</summary><pre>";
-            }
-
-            private IEnumerable<string> CloseThinkingBlock()
-            {
-                if (!thinkingBlockOpen)
-                    yield break;
-
-                thinkingBlockOpen = false;
-                yield return "</pre></details>\n\n";
-            }
-
-            private IEnumerable<string> EmitMissingFinalNotice()
-            {
-                if (emittedMissingFinalNotice)
-                    yield break;
-
-                emittedMissingFinalNotice = true;
-                yield return MissingFinalAnswerNotice;
-            }
-
-            private static int GetSafeFlushLength(string current)
-            {
-                if (current.Length <= TagLookbehindLength)
-                    return 0;
-
-                return current.Length - TagLookbehindLength;
-            }
-        }
     }
 }

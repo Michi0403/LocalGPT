@@ -25,7 +25,30 @@ namespace LocalGPT.Extensions.PlainStatics
     
     public static class CouncilChatStringFunctions
     {
+        public static IEnumerable<string> AppendHarmonyContent(string textm, ILogger logger)
+        {
+            try
+            {
+                harmonyBuffer.Append(WebUtility.HtmlDecode(text));
+                var raw = harmonyBuffer.ToString();
+                if (!raw.Contains("<|", StringComparison.Ordinal))
+                {
+                    harmonyBuffer.Clear();
+                    foreach (var chunk in AppendTaggedContent(raw))
+                        yield return chunk;
+                    yield break;
+                }
 
+                foreach (var chunk in EmitHarmonyDeltas(raw))
+                    yield return chunk;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+        }
         public static string BuildSourcePreviewMarkup(string relativePath, string source)
         {
             var extension = Path.GetExtension(relativePath);
