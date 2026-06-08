@@ -33,7 +33,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     if (budget <= 0)
                         break;
 
-                    var trimmed = TrimForPrompt(text, budget, keepBothEnds: false);
+                    var trimmed = CouncilChatStringFunctions. TrimForPrompt(text, budget, keepBothEnds: false);
                     if (string.IsNullOrWhiteSpace(trimmed))
                         continue;
 
@@ -56,7 +56,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     var message = conversationMessages[index];
                     var text = message.Text ?? string.Empty;
                     var messageBudget = Math.Min(GlobalVariableSlopCollectionToRemove.MaxSingleConversationMessageCharacters, remainingBudget);
-                    var trimmed = TrimForPrompt(text, messageBudget, keepBothEnds: true);
+                    var trimmed = CouncilChatStringFunctions.TrimForPrompt(text, messageBudget, keepBothEnds: true);
                     if (string.IsNullOrWhiteSpace(trimmed))
                         continue;
 

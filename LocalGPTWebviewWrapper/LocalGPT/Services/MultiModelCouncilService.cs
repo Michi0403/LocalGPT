@@ -1,13 +1,14 @@
+using DevExpress.AIIntegration.Blazor.Chat;
+using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
+using LocalGPT.Interfaces;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using DevExpress.AIIntegration.Blazor.Chat;
-using LocalGPT.BusinessObjects;
-using LocalGPT.Interfaces;
-using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Options;
 
 namespace LocalGPT.Services
 {
@@ -1522,7 +1523,7 @@ namespace LocalGPT.Services
 
         private static string TrimCouncilText(string content, int maxLength)
         {
-            var normalized = WhitespacePattern().Replace(content, " ").Trim();
+            var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(content, " ").Trim();
             return normalized.Length <= maxLength
                 ? normalized
                 : $"{normalized[..maxLength].TrimEnd()}...";

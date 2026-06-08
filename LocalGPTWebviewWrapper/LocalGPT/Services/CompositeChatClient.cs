@@ -296,19 +296,19 @@ public class CompositeChatClient : IChatClient
             if (SuppressBootstrapContext || _bootstrapService is null)
             {
                 CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
-                return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+                return CouncilChatStaticsGeneral.LimitPromptSize([.. systemMessages, .. messageList], _logger, ForcedMaxPromptCharacters );
             }
 
             var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(bootstrapPrompt))
             {
                 CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
-                return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+                return CouncilChatStaticsGeneral.LimitPromptSize([.. systemMessages, .. messageList] ,_logger, ForcedMaxPromptCharacters);
             }
 
             systemMessages.Add(new ChatMessage(ChatRole.System, bootstrapPrompt));
             CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
-            return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+            return CouncilChatStaticsGeneral.LimitPromptSize([.. systemMessages, .. messageList], _logger, ForcedMaxPromptCharacters);
         }
         catch (Exception ex)
         {
@@ -369,90 +369,5 @@ public class CompositeChatClient : IChatClient
             return string.Empty;
         }
     }
-    private static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, ILogger logger,  int? forcedMaxPromptCharacters = null)
-    {
-        try
-        {
-
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, $"LimitPromptSize messages {messages.ToString()} forcedMaxPromptCharacters {forcedMaxPromptCharacters}",
-         messages,
-         forcedMaxPromptCharacters);
-            return new List<ChatMessage>();
-        }
-        var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? GlobalVariableSlopCollectionToRemove.DefaultMaxPromptCharacters, 512, GlobalVariableSlopCollectionToRemove.MaxPromptCharacters);
-        if (messages.Sum(EstimateTextLength) <= maxPromptCharacters)
-            return messages;
-
-        var result = new List<ChatMessage>();
-        var usedCharacters = 0;
-        var remainingSystemBudget = Math.Min(GlobalVariableSlopCollectionToRemove.MaxBootstrapCharacters, Math.Max(maxPromptCharacters / 2, 0));
-
-        foreach (var message in messages.Where(message => message.Role == ChatRole.System))
-        {
-            var text = message.Text ?? string.Empty;
-            var budget = Math.Min(remainingSystemBudget, maxPromptCharacters - usedCharacters);
-            if (budget <= 0)
-                break;
-
-            var trimmed = TrimForPrompt(text, budget, keepBothEnds: false);
-            if (string.IsNullOrWhiteSpace(trimmed))
-                continue;
-
-            result.Add(new ChatMessage(message.Role, trimmed));
-            usedCharacters += trimmed.Length;
-            remainingSystemBudget -= trimmed.Length;
-        }
-
-        var conversationMessages = messages
-            .Where(message => message.Role != ChatRole.System)
-            .ToList();
-        var keptConversationMessages = new Stack<ChatMessage>();
-
-        for (var index = conversationMessages.Count - 1; index >= 0; index--)
-        {
-            var remainingBudget = maxPromptCharacters - usedCharacters;
-            if (remainingBudget <= 0)
-                break;
-
-            var message = conversationMessages[index];
-            var text = message.Text ?? string.Empty;
-            var messageBudget = Math.Min(GlobalVariableSlopCollectionToRemove.MaxSingleConversationMessageCharacters, remainingBudget);
-            var trimmed = TrimForPrompt(text, messageBudget, keepBothEnds: true);
-            if (string.IsNullOrWhiteSpace(trimmed))
-                continue;
-
-            keptConversationMessages.Push(new ChatMessage(message.Role, trimmed));
-            usedCharacters += trimmed.Length;
-        }
-
-        result.AddRange(keptConversationMessages);
-        return result;
-    }
-
-    private static int EstimateTextLength(ChatMessage message) => message.Text?.Length ?? 0;
-
-    private static string TrimForPrompt(string text, int maxCharacters, bool keepBothEnds)
-    {
-        var normalized = text.Replace("\r\n", "\n").Trim();
-        if (maxCharacters <= 0 || string.IsNullOrWhiteSpace(normalized))
-            return string.Empty;
-
-        if (normalized.Length <= maxCharacters)
-            return normalized;
-
-        const string omission = "\n\n[...older context trimmed by LocalGPT to fit the local model context window...]\n\n";
-        if (maxCharacters <= omission.Length + 40)
-            return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
-
-        if (!keepBothEnds)
-            return $"{normalized[..(maxCharacters - omission.Length)].TrimEnd()}{omission.TrimEnd()}";
-
-        var remaining = maxCharacters - omission.Length;
-        var head = Math.Max(remaining / 2, 1);
-        var tail = Math.Max(remaining - head, 1);
-        return $"{normalized[..head].TrimEnd()}{omission}{normalized[^tail..].TrimStart()}";
-    }
+    
 }

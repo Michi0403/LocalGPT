@@ -1,12 +1,13 @@
-using System.Net;
-using System.Text;
-using System.Text.RegularExpressions;
 using DevExpress.AIIntegration.Blazor.Chat;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
+using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
@@ -159,7 +160,7 @@ namespace LocalGPT.Services
                 builder.AppendLine("Former model thoughts:");
                 foreach (var thought in thoughts)
                 {
-                    builder.AppendLine($"- {thought.ConversationTitle}: {TrimForPrompt(thought.Thinking, 500)}");
+                    builder.AppendLine($"- {thought.ConversationTitle}: {CouncilChatStringFunctions.TrimForPrompt(thought.Thinking, 500)}");
                 }
             }
 
@@ -274,7 +275,7 @@ namespace LocalGPT.Services
         {
             var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Content
                 ?? messages.First().Content;
-            var title = WhitespacePattern().Replace(StripThinking(firstUserMessage), " ").Trim();
+            var title = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(StripThinking(firstUserMessage), " ").Trim();
 
             if (string.IsNullOrWhiteSpace(title))
                 return "New conversation";
@@ -297,13 +298,7 @@ namespace LocalGPT.Services
             return ThinkingBlockPattern().Replace(content, string.Empty);
         }
 
-        private static string TrimForPrompt(string text, int maxLength)
-        {
-            var normalized = WhitespacePattern().Replace(text, " ").Trim();
-            return normalized.Length <= maxLength
-                ? normalized
-                : $"{normalized[..maxLength].TrimEnd()}...";
-        }
+
 
         private static string ToRoleName(ChatMessageRole role)
         {
@@ -333,7 +328,5 @@ namespace LocalGPT.Services
         [GeneratedRegex("AI Council (?:continuation )?request:\\s*(?<prompt>.*?)(?:\\n\\s*##|\\z)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         private static partial Regex CouncilRequestBlockPattern();
 
-        [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
-        private static partial Regex WhitespacePattern();
     }
 }

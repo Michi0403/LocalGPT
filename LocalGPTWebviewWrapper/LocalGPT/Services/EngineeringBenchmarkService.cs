@@ -1,8 +1,9 @@
+using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
+using LocalGPT.Interfaces;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
-using LocalGPT.BusinessObjects;
-using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services
 {
@@ -229,8 +230,8 @@ namespace LocalGPT.Services
 
                 check.ExitCode = process.ExitCode;
                 check.Status = process.ExitCode == 0 ? "BuildPassed" : "BuildFailed";
-                check.OutputPreview = TrimForPrompt(output, 1800);
-                check.ErrorPreview = TrimForPrompt(error, 1200);
+                check.OutputPreview = CouncilChatStringFunctions.TrimForPrompt(output, 1800);
+                check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(error, 1200);
                 return check;
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -242,7 +243,7 @@ namespace LocalGPT.Services
             catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
                 check.Status = "BuildCheckError";
-                check.ErrorPreview = TrimForPrompt(ex.Message, 1200);
+                check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(ex.Message, 1200);
                 return check;
             }
             finally
@@ -387,17 +388,6 @@ namespace LocalGPT.Services
                 "all" or "full" => "all",
                 _ => "engineering"
             };
-        }
-
-        private static string TrimForPrompt(string text, int maxLength)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-                return string.Empty;
-
-            var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
-            return normalized.Length <= maxLength
-                ? normalized
-                : $"{normalized[..maxLength].TrimEnd()}...";
         }
 
         private static IReadOnlyList<BenchmarkTaskDefinition> BuildTasks(string taskSet)

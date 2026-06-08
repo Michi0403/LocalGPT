@@ -1,7 +1,8 @@
-using System.Text;
-using System.Text.Json;
+using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.Http;
+using System.Text;
+using System.Text.Json;
 
 namespace LocalGPT.Services
 {
@@ -94,7 +95,7 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(logBriefing))
             {
                 builder.AppendLine("Recent LocalGPT diagnostic log awareness:")
-                    .AppendLine(TrimForPrompt(logBriefing, 900))
+                    .AppendLine(CouncilChatStringFunctions.TrimForPrompt(logBriefing, 900))
                     .AppendLine();
             }
 
@@ -102,7 +103,7 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(devExpressBriefing))
             {
                 builder.AppendLine("Local DevExpress library inventory:")
-                    .AppendLine(TrimForPrompt(devExpressBriefing, 900))
+                    .AppendLine(CouncilChatStringFunctions.TrimForPrompt(devExpressBriefing, 900))
                     .AppendLine();
             }
 
@@ -110,7 +111,7 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(buildDebugBriefing))
             {
                 builder.AppendLine("Local build debug symbol inventory:")
-                    .AppendLine(TrimForPrompt(buildDebugBriefing, 700))
+                    .AppendLine(CouncilChatStringFunctions.TrimForPrompt(buildDebugBriefing, 700))
                     .AppendLine();
             }
 
@@ -183,7 +184,7 @@ namespace LocalGPT.Services
                 {
                     builder
                         .AppendLine("- Latest fresh upload context excerpt:")
-                        .AppendLine(TrimForPrompt(uploadContext, 2600));
+                        .AppendLine(CouncilChatStringFunctions.TrimForPrompt(uploadContext, 2600));
                 }
             }
 
@@ -255,7 +256,7 @@ namespace LocalGPT.Services
                     await using var stream = File.OpenRead(path);
                     using var reader = new StreamReader(stream);
                     var firstLine = (await reader.ReadLineAsync(cancellationToken))?.Trim() ?? string.Empty;
-                    builder.AppendLine($"- {relativePath} ({info.Length:n0} bytes){(string.IsNullOrWhiteSpace(firstLine) ? string.Empty : $": {TrimForPrompt(firstLine, 140)}")}");
+                    builder.AppendLine($"- {relativePath} ({info.Length:n0} bytes){(string.IsNullOrWhiteSpace(firstLine) ? string.Empty : $": {CouncilChatStringFunctions.TrimForPrompt(firstLine, 140)}")}");
                 }
                 catch (Exception ex)
                 {
@@ -290,12 +291,6 @@ namespace LocalGPT.Services
             return null;
         }
 
-        private static string TrimForPrompt(string text, int maxLength)
-        {
-            var normalized = text.Replace("\r\n", "\n").Trim();
-            return normalized.Length <= maxLength
-                ? normalized
-                : $"{normalized[..maxLength].TrimEnd()}\n...";
-        }
+
     }
 }

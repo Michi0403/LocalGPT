@@ -1,9 +1,10 @@
+using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
+using LocalGPT.Interfaces;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using LocalGPT.BusinessObjects;
-using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services
 {
@@ -229,7 +230,7 @@ namespace LocalGPT.Services
                 if (!File.Exists(latest.ContextPath))
                     return string.Empty;
 
-                return TrimForPrompt(File.ReadAllText(latest.ContextPath), maxCharacters);
+                return CouncilChatStringFunctions.TrimForPrompt(File.ReadAllText(latest.ContextPath), maxCharacters);
             }
             catch (Exception ex)
             {
@@ -252,7 +253,7 @@ namespace LocalGPT.Services
                 return string.Empty;
 
             var context = await File.ReadAllTextAsync(contextPath, cancellationToken);
-            return TrimForPrompt(context, maxCharacters);
+            return CouncilChatStringFunctions.TrimForPrompt(context, maxCharacters);
         }
 
         public IReadOnlyList<ChatUploadWorkspaceFileSummary> ListFiles(string workspaceName, int take = 250)
@@ -313,7 +314,7 @@ namespace LocalGPT.Services
                 file,
                 analyzed.Summary.Kind,
                 analyzed.Summary.Length,
-                TrimForPrompt(analyzed.Excerpt, maxCharacters));
+                CouncilChatStringFunctions.TrimForPrompt(analyzed.Excerpt, maxCharacters));
         }
 
         public string? ResolveWorkspacePath(string workspaceName)
@@ -463,7 +464,7 @@ namespace LocalGPT.Services
                 .AppendLine($"Created UTC: {DateTimeOffset.UtcNow:O}")
                 .AppendLine()
                 .AppendLine("## Prompt")
-                .AppendLine(TrimForPrompt(prompt, 4_000))
+                .AppendLine(CouncilChatStringFunctions.TrimForPrompt(prompt, 4_000))
                 .AppendLine()
                 .AppendLine("## AI workflow instructions")
                 .AppendLine("- Use this workspace as uploaded user evidence for the current DXAiChat prompt.")
@@ -504,7 +505,7 @@ namespace LocalGPT.Services
                 if (remainingCharacters <= 0)
                     break;
 
-                var excerpt = TrimForPrompt(file.Excerpt, Math.Min(MaxExcerptCharactersPerFile, remainingCharacters));
+                var excerpt = CouncilChatStringFunctions.TrimForPrompt(file.Excerpt, Math.Min(MaxExcerptCharactersPerFile, remainingCharacters));
                 if (string.IsNullOrWhiteSpace(excerpt))
                     continue;
 
@@ -519,13 +520,13 @@ namespace LocalGPT.Services
                     .ToString();
 
                 if (section.Length > remainingCharacters)
-                    section = TrimForPrompt(section, remainingCharacters);
+                    section = CouncilChatStringFunctions.TrimForPrompt(section, remainingCharacters);
 
                 builder.Append(section);
                 remainingCharacters -= section.Length;
             }
 
-            return TrimForPrompt(builder.ToString(), MaxContextCharacters);
+            return CouncilChatStringFunctions.TrimForPrompt(builder.ToString(), MaxContextCharacters);
         }
 
         private ChatUploadWorkspaceSummary? BuildWorkspaceSummary(string path)
@@ -740,7 +741,7 @@ namespace LocalGPT.Services
                     DateTime.UtcNow,
                     includedInPrompt,
                     note),
-                TrimForPrompt(excerpt, MaxExcerptCharactersPerFile));
+                CouncilChatStringFunctions.TrimForPrompt(excerpt, MaxExcerptCharactersPerFile));
         }
 
         private static AnalyzedUploadFile BuildBinarySummary(
@@ -760,15 +761,7 @@ namespace LocalGPT.Services
             return text.Replace("\0", string.Empty, StringComparison.Ordinal);
         }
 
-        private static string TrimForPrompt(string text, int maxCharacters)
-        {
-            if (string.IsNullOrWhiteSpace(text) || maxCharacters <= 0)
-                return string.Empty;
 
-            return text.Length <= maxCharacters
-                ? text
-                : text[..maxCharacters] + Environment.NewLine + "... truncated by LocalGPT upload workspace budget ...";
-        }
 
         private static string ToForwardSlash(string path) =>
             path.Replace('\\', '/');

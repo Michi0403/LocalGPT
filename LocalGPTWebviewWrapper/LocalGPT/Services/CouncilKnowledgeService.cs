@@ -1,10 +1,11 @@
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Security.Cryptography;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
+using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
@@ -167,10 +168,10 @@ namespace LocalGPT.Services
                     .Append(", confidence ")
                     .Append(entry.Confidence)
                     .Append("%]: ")
-                    .AppendLine(TrimForPrompt(entry.Content, 420));
+                    .AppendLine(CouncilChatStringFunctions.TrimForPrompt(entry.Content, 420));
 
                 if (!string.IsNullOrWhiteSpace(entry.HelpfulSources))
-                    builder.AppendLine($"  Helpful sources requested: {TrimForPrompt(entry.HelpfulSources, 240)}");
+                    builder.AppendLine($"  Helpful sources requested: {CouncilChatStringFunctions.TrimForPrompt(entry.HelpfulSources, 240)}");
             }
 
             return builder.ToString().Trim();
@@ -1144,10 +1145,10 @@ namespace LocalGPT.Services
         {
             var builder = new StringBuilder()
                 .AppendLine($"Council members: {string.Join(", ", result.ModelNames)}")
-                .AppendLine($"Prompt: {TrimForPrompt(result.Prompt, 900)}")
+                .AppendLine($"Prompt: {CouncilChatStringFunctions.TrimForPrompt(result.Prompt, 900)}")
                 .AppendLine()
                 .AppendLine("Final answer:")
-                .AppendLine(TrimForPrompt(result.FinalAnswer, 2400));
+                .AppendLine(CouncilChatStringFunctions.TrimForPrompt(result.FinalAnswer, 2400));
 
             if (result.Warnings.Count > 0)
             {
@@ -1169,7 +1170,7 @@ namespace LocalGPT.Services
 
         private static string BuildTopic(string prompt)
         {
-            var normalized = WhitespacePattern().Replace(prompt, " ").Trim();
+            var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(prompt, " ").Trim();
             if (string.IsNullOrWhiteSpace(normalized))
                 return "AI Council run";
 
@@ -1231,14 +1232,7 @@ namespace LocalGPT.Services
                 : string.Join(Environment.NewLine, matches.Select(item => $"- {item}"));
         }
 
-        private static string TrimForPrompt(string text, int maxLength)
-        {
-            var normalized = WhitespacePattern().Replace(text, " ").Trim();
-            return normalized.Length <= maxLength
-                ? normalized
-                : $"{normalized[..maxLength].TrimEnd()}...";
-        }
-
+   
         private static string TrimOrFallback(string value, int maxLength, string fallback)
         {
             var trimmed = Trim(value, maxLength);
@@ -1250,9 +1244,6 @@ namespace LocalGPT.Services
             var trimmed = value?.Trim() ?? string.Empty;
             return trimmed.Length <= maxLength ? trimmed : $"{trimmed[..maxLength].TrimEnd()}";
         }
-
-        [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
-        private static partial Regex WhitespacePattern();
 
         [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?<line>(?:helpful sources?|source request|needed sources?|references?|docs?|documentation|official docs?|examples?|sample projects?|spec(?:ification)?s?|tutorials?)\\s*[:\\-].+)$", RegexOptions.CultureInvariant)]
         private static partial Regex HelpfulSourceLinePattern();
