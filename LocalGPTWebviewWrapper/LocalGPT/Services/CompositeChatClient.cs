@@ -224,7 +224,7 @@ public class CompositeChatClient : IChatClient
         if (_knowledgeService is null || string.IsNullOrWhiteSpace(responseText))
             return;
 
-        foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText,_logger))
+        foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText,_logger) ?? new List<CouncilKnowledgeEntry>())
         {
             var saved = await _knowledgeService.SaveEntryAsync(entry, cancellationToken);
             _logger.LogInformation("AI requested unapproved knowledge entry {KnowledgeEntryId} from {Source}.", saved.Id, source);
@@ -271,7 +271,7 @@ public class CompositeChatClient : IChatClient
         if (latestUserMessage is null)
             return string.Empty;
 
-        var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger).ToList();
+        var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger) != null ? CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger).ToList() : new();
         if (files.Count == 0)
             return string.Empty;
 

@@ -1,3 +1,7 @@
+using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
+using LocalGPT.Interfaces;
+using Microsoft.CSharp;
 using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Diagnostics;
@@ -5,10 +9,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
-using LocalGPT.Interfaces;
-using Microsoft.CSharp;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace LocalGPT.Services
 {
     public partial class CouncilArtifactService(
@@ -117,7 +118,7 @@ namespace LocalGPT.Services
         {
             var text = $"{request.Prompt} {result.FinalAnswer}";
             var minecraftVersion = CouncilChatStringFunctions.ExtractMinecraftVersion(text, logger);
-            var identity = CouncilChatStringFunctions.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger);
+            var identity = CouncilChatStringFunctions.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger) ?? new GlobalVariableSlopCollectionToRemove.MinecraftDatapackArtifactIdentity(string.Empty, string.Empty, string.Empty, string.Empty);
             var requestModel = new MinecraftModBuildRequest
             {
                 ProjectName = identity.ProjectName,
@@ -345,7 +346,7 @@ namespace LocalGPT.Services
             await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), CouncilChatStringFunctions.GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab, logger), cancellationToken, logger);
             await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), CouncilChatStringFunctions.GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab, logger), cancellationToken, logger);
             await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), CouncilChatStringFunctions.GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab, logger), cancellationToken, logger);
-            var contract = CouncilChatStaticsGeneral.ValidateSolutionArtifactContract(solutionRoot, projectName, archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, logger);
+            var contract = CouncilChatStaticsGeneral.ValidateSolutionArtifactContract(solutionRoot, projectName, archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, logger) ?? new GlobalVariableSlopCollectionToRemove.ArtifactContractReport(string.Empty, string.Empty, new List<string>(),new List<string>(),string.Empty);
 
             var zipName = $"{projectName}-{runSuffix}.zip";
             var zipPath = Path.Combine(ArtifactRoot, zipName);
