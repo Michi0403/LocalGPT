@@ -6,6 +6,7 @@ using DevExpress.XtraCharts;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Components;
 using LocalGPT.Endpoints;
+using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using LocalGPT.Helper;
 using LocalGPT.Hubs;
 using LocalGPT.Interfaces;
@@ -22,13 +23,13 @@ using Microsoft.Extensions.Options;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
+using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using TacosPortal.Services;
 using static System.Net.Mime.MediaTypeNames;
-using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 namespace LocalGPT
 {
     public static class Program
@@ -53,53 +54,60 @@ namespace LocalGPT
             //EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
 
             var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions( args));
-            TraceStartup("Created builder.");
-            ConfigureAppConfiguration(builder);
-            TraceStartup("Configured app configuration.");
-            ConfigureLogging(builder);
-            TraceStartup("Configured logging.");
+            TraceStartup("Created builder.", logger);
+            ConfigureAppConfiguration(builder, logger);
+            TryAppendStartupTrace("Configured app configuration.", logger);
+            ConfigureLogging(builder, logger);
+            TraceStartup("Configured logging.", logger);
             ConfigureOptionsAndServices(builder, logger);
-            TraceStartup("Configured options and services.");
-            ConfigureSignalR(builder.Services);
-            TraceStartup("Configured SignalR.");
-            ConfigureKestrel(builder);
-            TraceStartup("Configured Kestrel.");
-            ConfigureResponseCompression(builder.Services);
-            TraceStartup("Configured response compression.");
-            ConfigureBlazorAndMvc(builder);
-            TraceStartup("Configured Blazor and MVC.");
-            ConfigureJsonOptions(builder.Services);
-            TraceStartup("Configured JSON options.");
-            ConfigureForwardedHeaders(builder.Services);
-            TraceStartup("Configured forwarded headers.");
+            TraceStartup("Configured options and services.", logger);
+            ConfigureSignalR(builder.Services, logger);
+            TraceStartup("Configured SignalR.", logger);
+            ConfigureKestrel(builder, logger);
+            TraceStartup("Configured Kestrel.", logger);
+            ConfigureResponseCompression(builder.Services, logger);
+            TraceStartup("Configured response compression.", logger);
+            ConfigureBlazorAndMvc(builder, logger);
+            TraceStartup("Configured Blazor and MVC.", logger);
+            ConfigureJsonOptions(builder.Services, logger);
+            TraceStartup("Configured JSON options.", logger);
+            ConfigureForwardedHeaders(builder.Services, logger);
+            TraceStartup("Configured forwarded headers.", logger);
 
             var app = builder.Build();
-            TraceStartup("Built web application.");
-            ConfigureMiddlewareAndEndpoints(app);
-            TraceStartup("Configured middleware and endpoints.");
-            WriteRuntimeEndpointFile();
-            TraceStartup("Wrote runtime endpoint file.");
+            TraceStartup("Built web application.", logger);
+            ConfigureMiddlewareAndEndpoints(app, logger);
+            TraceStartup("Configured middleware and endpoints.", logger);
+            WriteRuntimeEndpointFile(logger);
+            TraceStartup("Wrote runtime endpoint file.", logger);
 
             return app;
         }
 
-        private static void TraceStartup(string message)
+        private static void TraceStartup(string message, ILogger logger)
         {
-            var line = $"[{DateTimeOffset.Now:O}] pid={Environment.ProcessId} {message}{Environment.NewLine}";
-            TryAppendStartupTrace(line);
-
-            if (!string.Equals(
-                Environment.GetEnvironmentVariable("LOCALGPT_STARTUP_TRACE"),
-                "1",
-                StringComparison.OrdinalIgnoreCase))
+            try
             {
-                return;
-            }
+                var line = $"[{DateTimeOffset.Now:O}] pid={Environment.ProcessId} {message}{Environment.NewLine}";
+                TryAppendStartupTrace(line, logger);
 
-            Console.Write($"[LocalGPT startup] {line}");
+                if (!string.Equals(
+                    Environment.GetEnvironmentVariable("LOCALGPT_STARTUP_TRACE"),
+                    "1",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+                TryAppendStartupTrace($"[LocalGPT startup] {line}", logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TraceStartup {message}");
+            }
+           
         }
 
-        private static void TryAppendStartupTrace(string line)
+        private static void TryAppendStartupTrace(string line, ILogger logger)
         {
             try
             {
@@ -109,8 +117,10 @@ namespace LocalGPT
                     File.AppendAllText(Path.Combine(directory, $"startup-trace-{Environment.ProcessId}.log"), line);
                 }
             }
-            catch
+            catch(Exception ex)
             {
+                logger.LogError(ex, $"Error in TryAppendStartupTrace line {line}");
+                TraceStartup(ex.ToString(), logger);
                 // Startup tracing must never block app launch.
             }
         }
@@ -145,103 +155,149 @@ namespace LocalGPT
             };
         }
 
-        private static void ConfigureAppConfiguration(WebApplicationBuilder builder)
+        private static void ConfigureAppConfiguration(WebApplicationBuilder builder, ILogger logger)
         {
-            builder.Configuration
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddJsonFile(
-                    $"appsettings.{builder.Environment.EnvironmentName}.json",
-                    optional: true,
-                    reloadOnChange: true)
-                .AddEnvironmentVariables();
+            try
+            {
+                builder.Configuration
+               .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+               .AddJsonFile(
+                   $"appsettings.{builder.Environment.EnvironmentName}.json",
+                   optional: true,
+                   reloadOnChange: true)
+               .AddEnvironmentVariables();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureAppConfiguration builder {builder.ToString()}",builder);
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
+           
         }
 
-        private static void ConfigureLogging(WebApplicationBuilder builder)
+        private static void ConfigureLogging(WebApplicationBuilder builder, ILogger logger)
         {
-            if (IsCustomLoggerBypassRequested())
+            try
             {
-                builder.Services.AddLogging(logging =>
+                if (IsCustomLoggerBypassRequested(logger))
                 {
-                    logging.AddJsonConsole();
-                    logging.AddConsole();
+                    builder.Services.AddLogging(logging =>
+                    {
+                        logging.AddJsonConsole();
+                        logging.AddConsole();
 #if DEBUG
-                    logging.AddDebug();
+                        logging.AddDebug();
 #endif
-                });
+                    });
 
-                return;
+                    return;
+                }
+
+                builder.Services.AddLogging(logging =>
+                    LoggingHelper.ConfigureCustomLoggersWithConsoleAndDebug(
+                        logging,
+                        builder.Services,
+                        builder.Configuration));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureLogging builder {builder.ToString()}", builder);
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
+           
+        }
+
+        private static bool IsCustomLoggerBypassRequested(ILogger logger)
+        {
+            try
+            {
+                return IsEnvironmentFlagEnabled("LOCALGPT_DISABLE_CUSTOM_LOGGERS", logger) ||
+             IsEnvironmentFlagEnabled("LOCALGPT_E2E", logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsCustomLoggerBypassRequested", logger);
+                TryAppendStartupTrace(ex.ToString(), logger);
+                return false;
             }
 
-            builder.Services.AddLogging(logging =>
-                LoggingHelper.ConfigureCustomLoggersWithConsoleAndDebug(
-                    logging,
-                    builder.Services,
-                    builder.Configuration));
         }
 
-        private static bool IsCustomLoggerBypassRequested()
+        private static bool IsEnvironmentFlagEnabled(string name, ILogger logger)
         {
-            return IsEnvironmentFlagEnabled("LOCALGPT_DISABLE_CUSTOM_LOGGERS") ||
-                   IsEnvironmentFlagEnabled("LOCALGPT_E2E");
-        }
+            try
+            {
+                return string.Equals(
+      Environment.GetEnvironmentVariable(name),
+      "1",
+      StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsEnvironmentFlagEnabled");
+                TryAppendStartupTrace(ex.ToString(), logger);
+                return false;
+            }
 
-        private static bool IsEnvironmentFlagEnabled(string name)
-        {
-            return string.Equals(
-                Environment.GetEnvironmentVariable(name),
-                "1",
-                StringComparison.OrdinalIgnoreCase);
         }
 
         private static void ConfigureOptionsAndServices(WebApplicationBuilder builder, ILogger logger)
         {
-            builder.Services
-                .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
-                .Bind(builder.Configuration);
-            builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
+            try
+            {
+                builder.Services
+               .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
+               .Bind(builder.Configuration);
+                builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
 
-            builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
-            builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
-            builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
-            builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
-            builder.Services.AddSingleton<IChatUploadWorkspaceService, ChatUploadWorkspaceService>();
-            builder.Services.AddSingleton<IProjectLibraryInventoryService, ProjectLibraryInventoryService>();
-            builder.Services.AddSingleton<IBuildDebugInventoryService, BuildDebugInventoryService>();
-            builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
-            builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
+                builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
+                builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
+                builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
+                builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
+                builder.Services.AddSingleton<IChatUploadWorkspaceService, ChatUploadWorkspaceService>();
+                builder.Services.AddSingleton<IProjectLibraryInventoryService, ProjectLibraryInventoryService>();
+                builder.Services.AddSingleton<IBuildDebugInventoryService, BuildDebugInventoryService>();
+                builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
+                builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
 
-            var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
-            Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
-            TraceStartup($"Checking SQLite database health at {memoryDbPath}.");
-            LocalGptDatabaseRecovery
-                .EnsureHealthyOrRecoverAsync(memoryDbPath, logger)
-                .GetAwaiter()
-                .GetResult();
-            TraceStartup("Finished SQLite database health check.");
-            builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
-                options.UseSqlite($"Data Source={memoryDbPath}"));
+                var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
+                Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
+                TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
+                LocalGptDatabaseRecovery
+                    .EnsureHealthyOrRecoverAsync(memoryDbPath, logger)
+                    .GetAwaiter()
+                    .GetResult();
+                TraceStartup("Finished SQLite database health check.", logger);
+                builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
+                    options.UseSqlite($"Data Source={memoryDbPath}"));
 
-            builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
-            builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
-            builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
-            builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
-            builder.Services.AddScoped<ILearnBaseKnowledgeImporterService, LearnBaseKnowledgeImporterService>();
-            builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
-            builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
-            builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
-            builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
-            builder.Services.AddScoped<IChatClient>(sp =>
-                sp.GetRequiredService<IChatClientFactory>().Build());
+                builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
+                builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
+                builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
+                builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
+                builder.Services.AddScoped<ILearnBaseKnowledgeImporterService, LearnBaseKnowledgeImporterService>();
+                builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
+                builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
+                builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
+                builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
+                builder.Services.AddScoped<IChatClient>(sp =>
+                    sp.GetRequiredService<IChatClientFactory>().Build());
 
-            builder.Services.AddDevExpressAI();
-            builder.Services.AddScoped<INotificationService, NotificationService>();
-            builder.Services.Configure<CircuitOptions>(options =>
-                options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
-            builder.Services.AddOptions();
-            builder.Services.AddHttpContextAccessor();
+                builder.Services.AddDevExpressAI();
+                builder.Services.AddScoped<INotificationService, NotificationService>();
+                builder.Services.Configure<CircuitOptions>(options =>
+                    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
+                builder.Services.AddOptions();
+                builder.Services.AddHttpContextAccessor();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureOptionsAndServices");
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
         }
 
-        private static void ConfigureSignalR(IServiceCollection services)
+        private static void ConfigureSignalR(IServiceCollection services, ILogger logger)
         {
             services.AddSignalR()
                 .AddMessagePackProtocol(options =>
@@ -252,122 +308,188 @@ namespace LocalGPT
                 })
                 .AddJsonProtocol(options =>
                 {
-                    ConfigureSharedJsonSerializerOptions(options.PayloadSerializerOptions);
+                    ConfigureSharedJsonSerializerOptions(options.PayloadSerializerOptions, logger);
                     options.PayloadSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
                 });
         }
 
-        private static void ConfigureKestrel(WebApplicationBuilder builder)
+        private static void ConfigureKestrel(WebApplicationBuilder builder, ILogger logger)
         {
-            Port = GetFreePort();
-            builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{Port}");
-        }
-
-        private static void ConfigureResponseCompression(IServiceCollection services)
-        {
-            services.AddResponseCompression(options =>
+            try
             {
-                options.EnableForHttps = true;
-                options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
-                [
-                    "application/octet-stream"
-                ]);
-            });
-        }
-
-        private static void ConfigureBlazorAndMvc(WebApplicationBuilder builder)
-        {
-            StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
-        
-            builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-            builder.Services.AddHealthChecks();
-            builder.Services.AddDevExpressBlazor(options => options.SizeMode = DevExpress.Blazor.SizeMode.Small);
-            builder.Services.AddMvc();
-            builder.Services.AddScoped<ThemeService>();
-            builder.Services.AddDevExpressServerSideBlazorPdfViewer();
-        }
-
-        private static void ConfigureJsonOptions(IServiceCollection services)
-        {
-            services.Configure<JsonOptions>(options =>
-            {
-                ConfigureSharedJsonSerializerOptions(options.JsonSerializerOptions);
-                options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-            });
-        }
-
-        private static void ConfigureSharedJsonSerializerOptions(JsonSerializerOptions options)
-        {
-            options.PropertyNameCaseInsensitive = true;
-            options.WriteIndented = true;
-            options.PropertyNamingPolicy = null;
-            options.IgnoreReadOnlyFields = false;
-            options.IgnoreReadOnlyProperties = false;
-            options.IncludeFields = false;
-            options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-            options.AllowTrailingCommas = true;
-            options.Converters.Add(new JsonStringEnumConverter());
-            options.NumberHandling = JsonNumberHandling.AllowReadingFromString |
-                JsonNumberHandling.WriteAsString;
-        }
-
-        private static void ConfigureForwardedHeaders(IServiceCollection services)
-        {
-            services.Configure<ForwardedHeadersOptions>(options =>
-            {
-                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-                options.KnownIPNetworks.Clear();
-                options.KnownProxies.Clear();
-            });
-        }
-
-        private static void ConfigureMiddlewareAndEndpoints(WebApplication app)
-        {
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseExceptionHandler("/Error", createScopeForErrors: true);
-                app.UseHsts();
+                Port = GetFreePort(logger);
+                builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{Port}");
             }
-            _ = app.UseForwardedHeaders(
-                new ForwardedHeadersOptions
-                {
-                    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-                });
-            // The bundled desktop/WebView host binds to a random HTTP loopback port.
-            // HTTPS redirection has no target port there and only produces noisy startup warnings.
-            _ = app.UseRequestLocalization();
-            app.UseStaticFiles();
-            app.UseRouting();
-            _ = app.UseResponseCompression();
-            app.UseAntiforgery();                 // ✅ after routing, before endpoints
-            app.MapControllers();
-            _ = app.MapHub<ChatHub>("/chathub");
-            app.MapStaticAssets();
-            app.MapHealthChecks("/health");
-            app.MapLocalGptDiagnosticEndpoints();
-            app.MapMinecraftDiagnosticEndpoints();
-            app.MapRazorComponents<App>()
-               .AddInteractiveServerRenderMode()
-               .AllowAnonymous();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureKestrel");
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
         }
 
-        private static bool IsGeneratedStaticWebAssetRoot(string path)
+        private static void ConfigureResponseCompression(IServiceCollection services, ILogger logger)
         {
-            var normalized = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-            var objSegment = $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}";
-            if (!normalized.Contains(objSegment, StringComparison.OrdinalIgnoreCase))
+            try
             {
+                services.AddResponseCompression(options =>
+                {
+                    options.EnableForHttps = true;
+                    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+                    [
+                        "application/octet-stream"
+                    ]);
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureResponseCompression");
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
+
+        }
+
+        private static void ConfigureBlazorAndMvc(WebApplicationBuilder builder, ILogger logger)
+        {
+            try
+            {
+                StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
+
+                builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+                builder.Services.AddHealthChecks();
+                builder.Services.AddDevExpressBlazor(options => options.SizeMode = DevExpress.Blazor.SizeMode.Small);
+                builder.Services.AddMvc();
+                builder.Services.AddScoped<ThemeService>();
+                builder.Services.AddDevExpressServerSideBlazorPdfViewer();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureBlazorAndMvc");
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
+        }
+
+        private static void ConfigureJsonOptions(IServiceCollection services, ILogger logger)
+        {
+            try
+            {
+                services.Configure<JsonOptions>(options =>
+                {
+                    ConfigureSharedJsonSerializerOptions(options.JsonSerializerOptions, logger);
+                    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureJsonOptions");
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
+        }
+
+        private static void ConfigureSharedJsonSerializerOptions(JsonSerializerOptions options, ILogger logger)
+        {
+            try
+            {
+                options.PropertyNameCaseInsensitive = true;
+                options.WriteIndented = true;
+                options.PropertyNamingPolicy = null;
+                options.IgnoreReadOnlyFields = false;
+                options.IgnoreReadOnlyProperties = false;
+                options.IncludeFields = false;
+                options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                options.AllowTrailingCommas = true;
+                options.Converters.Add(new JsonStringEnumConverter());
+                options.NumberHandling = JsonNumberHandling.AllowReadingFromString |
+                    JsonNumberHandling.WriteAsString;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureSharedJsonSerializerOptions");
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
+        }
+
+        private static void ConfigureForwardedHeaders(IServiceCollection services, ILogger logger)
+        {
+            try
+            {
+                services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                    options.KnownIPNetworks.Clear();
+                    options.KnownProxies.Clear();
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureJsonOptions");
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
+        }
+
+        private static void ConfigureMiddlewareAndEndpoints(WebApplication app, ILogger logger)
+        {
+            try
+            {
+                if (!app.Environment.IsDevelopment())
+                {
+                    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+                    app.UseHsts();
+                }
+                _ = app.UseForwardedHeaders(
+                    new ForwardedHeadersOptions
+                    {
+                        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+                    });
+                // The bundled desktop/WebView host binds to a random HTTP loopback port.
+                // HTTPS redirection has no target port there and only produces noisy startup warnings.
+                _ = app.UseRequestLocalization();
+                app.UseStaticFiles();
+                app.UseRouting();
+                _ = app.UseResponseCompression();
+                app.UseAntiforgery();                 // ✅ after routing, before endpoints
+                app.MapControllers();
+                _ = app.MapHub<ChatHub>("/chathub");
+                app.MapStaticAssets();
+                app.MapHealthChecks("/health");
+                app.MapLocalGptDiagnosticEndpoints();
+                app.MapMinecraftDiagnosticEndpoints();
+                app.MapRazorComponents<App>()
+                   .AddInteractiveServerRenderMode()
+                   .AllowAnonymous();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureMiddlewareAndEndpoints");
+                TryAppendStartupTrace(ex.ToString(), logger);
+            }
+        }
+
+        private static bool IsGeneratedStaticWebAssetRoot(string path, ILogger logger)
+        {
+            try
+            {
+                var normalized = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+                var objSegment = $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}";
+                if (!normalized.Contains(objSegment, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                var trimmed = normalized.TrimEnd(Path.DirectorySeparatorChar);
+                return trimmed.EndsWith($"{Path.DirectorySeparatorChar}compressed", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.EndsWith(
+                        $"{Path.DirectorySeparatorChar}scopedcss{Path.DirectorySeparatorChar}bundle",
+                        StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsGeneratedStaticWebAssetRoot path {path}");
+                TryAppendStartupTrace(ex.ToString(), logger);
                 return false;
             }
-
-            var trimmed = normalized.TrimEnd(Path.DirectorySeparatorChar);
-            return trimmed.EndsWith($"{Path.DirectorySeparatorChar}compressed", StringComparison.OrdinalIgnoreCase)
-                || trimmed.EndsWith(
-                    $"{Path.DirectorySeparatorChar}scopedcss{Path.DirectorySeparatorChar}bundle",
-                    StringComparison.OrdinalIgnoreCase);
         }
 
-        private static void WriteRuntimeEndpointFile()
+        private static void WriteRuntimeEndpointFile(ILogger logger)
         {
             try
             {
@@ -389,18 +511,28 @@ namespace LocalGPT
                     Path.Combine(directory, "server.json"),
                     JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
             }
-            catch
+            catch (Exception ex)
             {
-                // Diagnostics must never block app startup.
+                logger.LogError(ex, $"Error in WriteRuntimeEndpointFile");
+                TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
-        private static int GetFreePort()
+        private static int GetFreePort(ILogger logger)
         {
-            var listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
+            try
+            {
+                var listener = new TcpListener(IPAddress.Loopback, 0);
+                listener.Start();
+                var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                listener.Stop();
+                return port;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetFreePort");
+                TryAppendStartupTrace(ex.ToString(), logger);
+                return 0;
+            }
         }
 
     }
