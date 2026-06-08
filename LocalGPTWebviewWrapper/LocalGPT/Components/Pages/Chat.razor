@@ -277,11 +277,11 @@
     DxAIChat? DxAiChat { get; set; }
     List<ChatClientSession> ModelsList => ChatClientProvider?.AvailableChatClients ?? new();
     string toastName = "ChatToasts";
- 
+
     bool ReuseContextWhenSwitching { get; set; } = true;
     bool AutoLoadLatestConversation { get; set; }
     bool UseFreshDiagnosticChat { get; set; }
-   
+
     string OllamaAccelerationMode { get; set; } = GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
     int LimitedGpuLayers { get; set; } = 20;
     bool GenerateCouncilArtifacts { get; set; } = true;
@@ -313,69 +313,79 @@
     CancellationTokenSource? autoSaveCts;
     string lastSavedSignature = string.Empty;
 
-   
+
 
     protected override async Task OnInitializedAsync()
     {
-        PromptSuggestions = GetSuggestion();
-        await RefreshMemoryAsync();
-        ApplyDiagnosticQueryOptions(selectSession: false);
-        await RefreshOllamaModelsAsync(showToast: false);
-        ApplyDiagnosticQueryOptions(selectSession: true);
-        if (UseFreshDiagnosticChat)
+        try
         {
-            ClearSelectedSessionForFreshStart();
-            memoryStatus = "Diagnostic fresh chat: saved memory was not auto-loaded into the selected model.";
+            PromptSuggestions = GlobalVariableSlopCollectionToRemove.GetSuggestion();
+            await RefreshMemoryAsync();
+            ApplyDiagnosticQueryOptions(selectSession: false);
+            await RefreshOllamaModelsAsync(showToast: false);
+            ApplyDiagnosticQueryOptions(selectSession: true);
+            if (UseFreshDiagnosticChat)
+            {
+                ClearSelectedSessionForFreshStart();
+                memoryStatus = "Diagnostic fresh chat: saved memory was not auto-loaded into the selected model.";
+            }
+            else if (AutoLoadLatestConversation)
+            {
+                await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
+            }
+            else if (SavedConversations.Count > 0)
+            {
+                memoryStatus = "Saved memory is available. Click Load latest memory when you want to continue an older chat.";
+            }
         }
-        else if (AutoLoadLatestConversation)
+        catch (Exception ex)
         {
-            await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
+            Logger.LogError(ex, "Exception in OnInitializedAsync: {Message}", ex);
+            Notifier.ShowError(toastName, ex.Message, "OnInitializedAsync failed");
         }
-        else if (SavedConversations.Count > 0)
-        {
-            memoryStatus = "Saved memory is available. Click Load latest memory when you want to continue an older chat.";
-        }
+
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
-            return;
-
         try
         {
-            await JS.InvokeVoidAsync("localGptReady.markInteractive");
+            if (!firstRender)
+                return;
+
+            try
+            {
+                await JS.InvokeVoidAsync("localGptReady.markInteractive");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Could not mark the Chat page as interactively attached.");
+            }
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Could not mark the Chat page as interactively attached.");
+            Logger.LogError(ex, "Exception in OnAfterRenderAsync: {Message}", ex);
+            Notifier.ShowError(toastName, ex.Message, "OnAfterRenderAsync failed");
         }
+
     }
 
     void ChatInitialized()
     {
-        ApplyDiagnosticQueryOptions(selectSession: true);
-        LoadSelectedSessionMessages();
-        StartAutoSaveLoop();
+        try
+        {
+            ApplyDiagnosticQueryOptions(selectSession: true);
+            LoadSelectedSessionMessages();
+            StartAutoSaveLoop();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in ChatInitialized: {Message}", ex);
+            Notifier.ShowError(toastName, ex.Message, "ChatInitialized failed");
+        }
     }
 
-    public List<PromptSuggestion> GetSuggestion()
-    {
-        return new List<PromptSuggestion>() 
-        {
-        new PromptSuggestion("Recall memory", "Use saved chats and former thoughts", "Review your saved LocalGPT memory and former model thoughts, then summarize what you remember about this project and continue from that context."),
-        new PromptSuggestion("Minecraft target choice", "Pick Fabric, NeoForge, Paper, or datapack", "Act as a LocalGPT AI Council member. Compare Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, and future Bedrock add-on for my request. Recommend one target, explain setup, and create a short poll if a decision or missing tool blocks progress."),
-        new PromptSuggestion("Minecraft mod plan", "Plan a buildable Java mod or plugin", "Act as a senior Minecraft Java engineer. Create a buildable Fabric, NeoForge, or Paper plan with exact classes, registry or command steps, assets/data files, Gradle commands, and risks. If LocalGPT is missing a needed feature, include a 'Missing feature report' section."),
-        new PromptSuggestion("Minecraft datapack", "Generate vanilla datapack files", "Generate a vanilla Minecraft Java datapack. Include pack.mcmeta, load/tick function tags, namespace functions, scoreboard/storage design, validation steps, install commands, and performance notes. If AI Council downloadable artifacts are enabled, create a download-ready datapack zip."),
-        new PromptSuggestion("Datapack debug", "Find why /function cannot see files", "Debug a Minecraft Java datapack whose function is not visible in /function. Check zip root layout, pack.mcmeta, pack_format, singular/plural function folders for the target version, load/tick tags, namespace/path casing, .mcfunction.txt mistakes, storage syntax, and provide exact file tree fixes."),
-        new PromptSuggestion("Living Cities datapack", "Generate a phased Living Cities datapack", "Use the Living Cities 0.1 technical plan as the target. Produce a buildable, download-ready datapack zip plus optional Java follow-up steps, file paths, commands, scoreboard/storage design, and performance notes for 1000+ citizens."),
-        new PromptSuggestion("Missing features", "Write gaps to report file", "Review LocalGPT as a Minecraft mod builder. List missing features, blocked workflows, and required backend/frontend capabilities under a 'Missing feature report' heading."),
-        new PromptSuggestion("Write an email", "Make your text look and sound professional", "Format text as a formal email to a client:"),
-        new PromptSuggestion("Brainstorm ideas", "Get creative input for your tasks", "Help me brainstorm ideas for:"),
-        new PromptSuggestion("Fix my writing", "Avoid spelling, grammar, and style errors", "Proofread the following text:"),
-        new PromptSuggestion("Half-Life 3","Valve didn't deliver Half-Life 3 for like Decades", "Hi Team, very important reading: Valve didn't deliver Half-Life 3 for like Decades, tell me what you need to learn to invent a great Story which could be Half-Life 3 and as well in which Engine you are gonna building it and how?"),
-    };
-    }
+
 
     private async Task ClearHistoryAsync()
     {
@@ -419,13 +429,15 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in AddArchitecturePollToChatAsync: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.Message, "Architecture poll failed");
+            Notifier.ShowError(toastName, ex.Message, "AddArchitecturePollToChatAsync failed");
         }
     }
 
     private string BuildArchitecturePollMessage()
     {
-        var builder = new System.Text.StringBuilder()
+        try
+        {
+            var builder = new System.Text.StringBuilder()
             .AppendLine("# LocalGPT Architecture Poll Decision")
             .AppendLine()
             .AppendLine("Treat explicit non-Ask values as my current decision for the next answer. Treat my normal chat request and extra direction as binding design input too; do not downgrade a user-stated design into an unresolved Ask value.")
@@ -435,18 +447,26 @@
             .AppendLine($"- Reference look: {ArchitectureReferenceLook}")
             .AppendLine($"- Prior consent for safe sandbox details: {(AllowCouncilToChooseSandboxDetails ? "granted" : "not granted")}");
 
-        if (!string.IsNullOrWhiteSpace(ArchitecturePollNotes))
-            builder.AppendLine($"- Extra direction: {ArchitecturePollNotes.Trim()}");
+            if (!string.IsNullOrWhiteSpace(ArchitecturePollNotes))
+                builder.AppendLine($"- Extra direction: {ArchitecturePollNotes.Trim()}");
 
-        builder
-            .AppendLine()
-            .AppendLine("If any selected value says \"Ask me\", first check whether my chat prompt or extra direction already answers it. If yes, treat the stated design as selected.")
-            .AppendLine("If an Ask value remains materially unresolved and prior consent is granted, choose a safe sandbox default, name that choice, and continue with a downloadable artifact.")
-            .AppendLine("If an Ask value remains materially unresolved and prior consent is not granted, stop before generating code or files. Return a concise runtime poll with concrete options and wait for my answer.")
-            .AppendLine("Do not assume Blazor or DevExpress unless I chose it, the target repository already requires it, or the requested app type clearly benefits from it.")
-            .AppendLine("When recreating a goal application, compare its layout, navigation, data flows, API routes, settings, and user workflows, then recreate the recognizable structure with the selected architecture.");
+            builder
+                .AppendLine()
+                .AppendLine("If any selected value says \"Ask me\", first check whether my chat prompt or extra direction already answers it. If yes, treat the stated design as selected.")
+                .AppendLine("If an Ask value remains materially unresolved and prior consent is granted, choose a safe sandbox default, name that choice, and continue with a downloadable artifact.")
+                .AppendLine("If an Ask value remains materially unresolved and prior consent is not granted, stop before generating code or files. Return a concise runtime poll with concrete options and wait for my answer.")
+                .AppendLine("Do not assume Blazor or DevExpress unless I chose it, the target repository already requires it, or the requested app type clearly benefits from it.")
+                .AppendLine("When recreating a goal application, compare its layout, navigation, data flows, API routes, settings, and user workflows, then recreate the recognizable structure with the selected architecture.");
 
-        return builder.ToString().Trim();
+            return builder.ToString().Trim();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in BuildArchitecturePollMessage: {Message}", ex.Message);
+            Notifier.ShowError(toastName, ex.Message, "BuildArchitecturePollMessage failed");
+            return string.Empty;
+        }
+
     }
 
     private void ResetArchitecturePoll()
@@ -468,7 +488,7 @@
                 return;
 
             if (!string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName) &&
-                !MatchesRequestedDiagnosticSession(value, DiagnosticRequestedSessionName))
+                ! (MatchesRequestedDiagnosticSession(value, DiagnosticRequestedSessionName) ?? false))
             {
                 var diagnosticSession = FindRequestedDiagnosticSession(DiagnosticRequestedSessionName);
                 if (diagnosticSession is not null)
@@ -507,168 +527,253 @@
 
     private async Task RefreshOllamaModelsAsync()
     {
-        await RefreshOllamaModelsAsync(showToast: true);
+        try
+        {
+            await RefreshOllamaModelsAsync(showToast: true).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in RefreshOllamaModelsAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RefreshOllamaModelsAsync!");
+        }
     }
 
     private async Task RefreshOllamaModelsAsync(bool showToast)
     {
-        if (ChatClientProvider is null)
-            return;
-
         try
         {
-            isModelRefreshBusy = true;
-            if (DxAiChat is not null)
-                SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
+            if (ChatClientProvider is null)
+                return;
 
-            OllamaCandidates = (await CouncilService.GetCandidatesAsync())
-                .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
-                .OrderByDescending(candidate => candidate.IsLoaded)
-                .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
+            try
             {
-                var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
-                    ?? OllamaCandidates.FirstOrDefault();
-                if (preferred is not null)
-                    SelectedCouncilModelNames.Add(preferred.ModelName);
-            }
+                isModelRefreshBusy = true;
+                if (DxAiChat is not null)
+                    SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
 
-            RebuildDynamicSessions();
-            modelStatus = OllamaCandidates.Count == 0
-                ? "No installed Ollama models detected."
-                : $"Detected {OllamaCandidates.Count} Ollama model(s). Added missing models and AI Council to DXAiChat.";
-            if (DiagnosticCouncilModelNames.Count > 0)
+                OllamaCandidates = (await CouncilService.GetCandidatesAsync())
+                    .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
+                    .OrderByDescending(candidate => candidate.IsLoaded)
+                    .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
+                {
+                    var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
+                        ?? OllamaCandidates.FirstOrDefault();
+                    if (preferred is not null)
+                        SelectedCouncilModelNames.Add(preferred.ModelName);
+                }
+
+                RebuildDynamicSessions();
+                modelStatus = OllamaCandidates.Count == 0
+                    ? "No installed Ollama models detected."
+                    : $"Detected {OllamaCandidates.Count} Ollama model(s). Added missing models and AI Council to DXAiChat.";
+                if (DiagnosticCouncilModelNames.Count > 0)
+                {
+                    modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
+                }
+
+                if (showToast)
+                    Notifier.ShowSuccess(toastName, modelStatus, "Ollama models refreshed");
+            }
+            catch (Exception ex)
             {
-                modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
+                Logger.LogError(ex, "RefreshOllamaModelsAsync failed: {Message}", ex.Message);
+                modelStatus = $"Model refresh failed: {ex.Message}";
+                if (showToast)
+                    Notifier.ShowError(toastName, ex.Message, "Model refresh failed");
             }
-
-            if (showToast)
-                Notifier.ShowSuccess(toastName, modelStatus, "Ollama models refreshed");
+            finally
+            {
+                isModelRefreshBusy = false;
+            }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "RefreshOllamaModelsAsync failed: {Message}", ex.Message);
-            modelStatus = $"Model refresh failed: {ex.Message}";
-            if (showToast)
-                Notifier.ShowError(toastName, ex.Message, "Model refresh failed");
-        }
-        finally
-        {
-            isModelRefreshBusy = false;
+            Logger.LogError(ex, $"Exception in RefreshOllamaModelsAsync bool: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RefreshOllamaModelsAsync bool!");
         }
     }
 
     private void RebuildDynamicSessions()
     {
-        if (ChatClientProvider is null)
-            return;
-
-        var previousSelection = ChatClientProvider.SelectedSession?.Name;
-        var previousMessages = ChatClientProvider.AvailableChatClients
-            .Where(filter => CouncilChatStaticsGeneral.IsDynamicSession(filter,Logger) ?? new())
-            .ToDictionary(session => session.Name, session => session.Messages.ToList(), StringComparer.OrdinalIgnoreCase);
-
-        foreach (var session in ChatClientProvider.AvailableChatClients.Where(filter => CouncilChatStaticsGeneral.IsDynamicSession(filter,Logger) ?? new()).ToList())
+        try
         {
-            ChatClientProvider.AvailableChatClients.Remove(session);
-            session.Client.Dispose();
+            if (ChatClientProvider is null)
+                return;
+
+            var previousSelection = ChatClientProvider.SelectedSession?.Name;
+            var previousMessages = ChatClientProvider.AvailableChatClients
+                .Where(filter => CouncilChatStaticsGeneral.IsDynamicSession(filter, Logger) ?? new())
+                .ToDictionary(session => session.Name, session => session.Messages.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var session in ChatClientProvider.AvailableChatClients.Where(filter => CouncilChatStaticsGeneral.IsDynamicSession(filter, Logger) ?? new()).ToList())
+            {
+                ChatClientProvider.AvailableChatClients.Remove(session);
+                session.Client.Dispose();
+            }
+
+            foreach (var candidate in OllamaCandidates)
+            {
+                if (candidate.IsConfigured && HasConfiguredSessionForModel(candidate.ModelName) && !ShouldAddRuntimeProfileSession())
+                    continue;
+
+                var session = new ChatClientSession(
+                    new OllamaThinkingChatClient(
+                        new OllamaCoreOptions { Uri = candidate.Endpoint, ModelName = candidate.ModelName },
+                        keepAlive: "0s",
+                        contextLength: ResolveCouncilContextTokens(),
+                        timeout: TimeSpan.FromMinutes(30),
+                        numGpu: ResolveOllamaNumGpu()),
+                    CouncilChatStaticsGeneral.BuildDynamicSessionName(candidate, Logger));
+
+                if (previousMessages.TryGetValue(session.Name, out var messages))
+                    session.Messages.AddRange(messages);
+
+                ChatClientProvider.AvailableChatClients.Add(session);
+            }
+
+            EnsureDiagnosticOllamaSession(previousMessages);
+       
+            var councilSession = new ChatClientSession(
+                new CouncilChatClient(CouncilService, CreateCouncilRequest, ResolveCouncilDownloadUrl),
+                GlobalVariableSlopCollectionToRemove.CouncilSessionName);
+            if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
+                councilSession.Messages.AddRange(councilMessages);
+            ChatClientProvider.AvailableChatClients.Add(councilSession);
+
+            ChatClientProvider.SelectedSession =
+                ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name == previousSelection)
+                ?? ChatClientProvider.SelectedSession
+                ?? ChatClientProvider.AvailableChatClients.FirstOrDefault();
         }
-
-        foreach (var candidate in OllamaCandidates)
+        catch (Exception ex)
         {
-            if (candidate.IsConfigured && HasConfiguredSessionForModel(candidate.ModelName) && !ShouldAddRuntimeProfileSession())
-                continue;
+            Logger.LogError(ex, $"Exception in RebuildDynamicSessions: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RebuildDynamicSessions!");
+        }
+    }
+    /*
+     *       private void EnsureDiagnosticOllamaSession(IReadOnlyDictionary<string, List<BlazorChatMessage>> previousMessages)
+    {
+        try
+        {
+            return NavigationManager.ToAbsoluteUri(downloadUrl).ToString();
+            if (ChatClientProvider is null ||
+            string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName) ||
+            DiagnosticRequestedSessionName.Equals("council", StringComparison.OrdinalIgnoreCase) ||
+            FindRequestedDiagnosticSession(DiagnosticRequestedSessionName) is not null)
+            {
+                return;
+            }
+
+            var endpoint = DiagnosticOllamaEndpoint;
+            if (string.IsNullOrWhiteSpace(endpoint))
+                endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
+            if (string.IsNullOrWhiteSpace(endpoint))
+                endpoint = GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint;
 
             var session = new ChatClientSession(
                 new OllamaThinkingChatClient(
-                    new OllamaCoreOptions { Uri = candidate.Endpoint, ModelName = candidate.ModelName },
+                    new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
                     keepAlive: "0s",
-                    contextLength: ResolveCouncilContextTokens(),
-                    timeout: TimeSpan.FromMinutes(30),
-                    numGpu: ResolveOllamaNumGpu()),
-                CouncilChatStaticsGeneral.BuildDynamicSessionName(candidate,Logger));
+                        contextLength: ResolveCouncilContextTokens(),
+                        timeout: TimeSpan.FromMinutes(30),
+                        numGpu: ResolveOllamaNumGpu()),
+                $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilChatStringFunctions.TrimEndpoint(endpoint, Logger)}");
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
                 session.Messages.AddRange(messages);
 
             ChatClientProvider.AvailableChatClients.Add(session);
+            modelStatus = $"Diagnostic Ollama session created for {DiagnosticRequestedSessionName} at {endpoint}.";
         }
-
-        EnsureDiagnosticOllamaSession(previousMessages);
-
-        var councilSession = new ChatClientSession(
-            new CouncilChatClient(CouncilService, CreateCouncilRequest, ResolveCouncilDownloadUrl),
-            GlobalVariableSlopCollectionToRemove.CouncilSessionName);
-        if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
-            councilSession.Messages.AddRange(councilMessages);
-        ChatClientProvider.AvailableChatClients.Add(councilSession);
-
-        ChatClientProvider.SelectedSession =
-            ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name == previousSelection)
-            ?? ChatClientProvider.SelectedSession
-            ?? ChatClientProvider.AvailableChatClients.FirstOrDefault();
-    }
-
+        catch
+        catch (Exception ex)
+        {
+            return downloadUrl;
+            Logger.LogError(ex, $"Exception in EnsureDiagnosticOllamaSession: {ex.ToString()} {previousMessages.ToString()}", previousMessages);
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in EnsureDiagnosticOllamaSession!");
+        }
+     * 
+     */
     private void EnsureDiagnosticOllamaSession(IReadOnlyDictionary<string, List<BlazorChatMessage>> previousMessages)
     {
-        if (ChatClientProvider is null ||
+        try
+        {
+            if (ChatClientProvider is null ||
             string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName) ||
             DiagnosticRequestedSessionName.Equals("council", StringComparison.OrdinalIgnoreCase) ||
             FindRequestedDiagnosticSession(DiagnosticRequestedSessionName) is not null)
-        {
-            return;
+            {
+                return;
+            }
+
+            var endpoint = DiagnosticOllamaEndpoint;
+            if (string.IsNullOrWhiteSpace(endpoint))
+                endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
+            if (string.IsNullOrWhiteSpace(endpoint))
+                endpoint = GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint;
+
+            var session = new ChatClientSession(
+                new OllamaThinkingChatClient(
+                    new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
+                    keepAlive: "0s",
+                        contextLength: ResolveCouncilContextTokens(),
+                        timeout: TimeSpan.FromMinutes(30),
+                        numGpu: ResolveOllamaNumGpu()),
+                $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilChatStringFunctions.TrimEndpoint(endpoint, Logger)}");
+
+            if (previousMessages.TryGetValue(session.Name, out var messages))
+                session.Messages.AddRange(messages);
+
+            ChatClientProvider.AvailableChatClients.Add(session);
+            modelStatus = $"Diagnostic Ollama session created for {DiagnosticRequestedSessionName} at {endpoint}.";
         }
-
-        var endpoint = DiagnosticOllamaEndpoint;
-        if (string.IsNullOrWhiteSpace(endpoint))
-            endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
-        if (string.IsNullOrWhiteSpace(endpoint))
-            endpoint = GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint;
-
-        var session = new ChatClientSession(
-            new OllamaThinkingChatClient(
-                new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
-                keepAlive: "0s",
-                    contextLength: ResolveCouncilContextTokens(),
-                    timeout: TimeSpan.FromMinutes(30),
-                    numGpu: ResolveOllamaNumGpu()),
-            $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilChatStringFunctions.TrimEndpoint(endpoint, Logger)}");
-
-        if (previousMessages.TryGetValue(session.Name, out var messages))
-            session.Messages.AddRange(messages);
-
-        ChatClientProvider.AvailableChatClients.Add(session);
-        modelStatus = $"Diagnostic Ollama session created for {DiagnosticRequestedSessionName} at {endpoint}.";
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in EnsureDiagnosticOllamaSession: {ex.ToString()} {previousMessages.ToString()}", previousMessages);
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in EnsureDiagnosticOllamaSession!");
+        }
     }
 
     private MultiModelCouncilRequest CreateCouncilRequest()
     {
-        var selectedModels = DiagnosticCouncilModelNames.Count > 0
+        try
+        {
+            var selectedModels = DiagnosticCouncilModelNames.Count > 0
             ? DiagnosticCouncilModelNames
             : SelectedCouncilModelNames;
-        var selectedEndpoint = OllamaCandidates
-            .FirstOrDefault(candidate => selectedModels.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase))
-            ?.Endpoint;
+            var selectedEndpoint = OllamaCandidates
+                .FirstOrDefault(candidate => selectedModels.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase))
+                ?.Endpoint;
 
-        return new MultiModelCouncilRequest
+            return new MultiModelCouncilRequest
+            {
+                ModelNames = (CouncilChatStaticsGeneral.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
+                BaseUri = selectedEndpoint,
+                MaxRounds = 0,
+                MaxOutputTokens = ResolveCouncilOutputTokens(),
+                MaxParallelModels = 1,
+                MaxContextTokens = ResolveCouncilContextTokens(),
+                ModelTimeoutSeconds = 1800,
+                OllamaKeepAlive = "0s",
+                OllamaNumGpu = ResolveOllamaNumGpu(),
+                IncludeMemory = IncludeCouncilMemory,
+                SaveToMemory = true,
+                GenerateImplementationArtifact = GenerateCouncilArtifacts,
+                Title = "DXAiChat AI Council"
+            };
+        }
+        catch (Exception ex)
         {
-            ModelNames = (CouncilChatStaticsGeneral.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
-            BaseUri = selectedEndpoint,
-            MaxRounds = 0,
-            MaxOutputTokens = ResolveCouncilOutputTokens(),
-            MaxParallelModels = 1,
-            MaxContextTokens = ResolveCouncilContextTokens(),
-            ModelTimeoutSeconds = 1800,
-            OllamaKeepAlive = "0s",
-            OllamaNumGpu = ResolveOllamaNumGpu(),
-            IncludeMemory = IncludeCouncilMemory,
-            SaveToMemory = true,
-            GenerateImplementationArtifact = GenerateCouncilArtifacts,
-            Title = "DXAiChat AI Council"
-        };
+            Logger.LogError(ex, $"Exception in CreateCouncilRequest: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in CreateCouncilRequest!");
+            return new();
+        }
+
     }
 
     private string ResolveCouncilDownloadUrl(string downloadUrl)
@@ -677,222 +782,332 @@
         {
             return NavigationManager.ToAbsoluteUri(downloadUrl).ToString();
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogError(ex, $"Exception in ResolveCouncilDownloadUrl: {ex.ToString()} downloadUrl {downloadUrl}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ResolveCouncilDownloadUrl!");
             return downloadUrl;
         }
     }
 
     private void ApplyDiagnosticQueryOptions(bool selectSession)
     {
-        if (ChatClientProvider is null)
-            return;
-
-        var query = QueryHelpers.ParseQuery(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query);
-        if (query.TryGetValue("diagCouncilMaxOutputTokens", out var maxTokens) &&
-            int.TryParse(maxTokens.ToString(), out var parsedMaxTokens))
+        try
         {
-            CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens);
-        }
+            if (ChatClientProvider is null)
+                return;
 
-        if (query.TryGetValue("diagCouncilMaxContextTokens", out var maxContext) &&
-            int.TryParse(maxContext.ToString(), out var parsedMaxContext))
+            var query = QueryHelpers.ParseQuery(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query);
+            if (query.TryGetValue("diagCouncilMaxOutputTokens", out var maxTokens) &&
+                int.TryParse(maxTokens.ToString(), out var parsedMaxTokens))
+            {
+                CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens);
+            }
+
+            if (query.TryGetValue("diagCouncilMaxContextTokens", out var maxContext) &&
+                int.TryParse(maxContext.ToString(), out var parsedMaxContext))
+            {
+                CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
+            }
+
+            if (query.TryGetValue("diagMaxOutputTokens", out var maxOutputTokens) &&
+                int.TryParse(maxOutputTokens.ToString(), out var parsedMaxOutputTokens))
+            {
+                ChatClientProvider.ForcedMaxOutputTokens = Math.Clamp(parsedMaxOutputTokens, 64, 262144);
+            }
+
+            if (query.TryGetValue("diagMaxPromptCharacters", out var maxPromptCharacters) &&
+                int.TryParse(maxPromptCharacters.ToString(), out var parsedMaxPromptCharacters))
+            {
+                ChatClientProvider.ForcedMaxPromptCharacters = Math.Clamp(parsedMaxPromptCharacters, 512, 1_000_000);
+            }
+
+            if (query.TryGetValue("diagSkipBootstrap", out var skipBootstrap) &&
+                bool.TryParse(skipBootstrap.ToString(), out var parsedSkipBootstrap))
+            {
+                ChatClientProvider.SuppressBootstrapContext = parsedSkipBootstrap;
+            }
+
+            if (query.TryGetValue("diagOllamaMode", out var ollamaMode))
+            {
+                var mode = ollamaMode.ToString();
+                if (CouncilChatStaticsGeneral.TryIsSupportedOllamaMode(mode, Logger) ?? false)
+                    OllamaAccelerationMode = mode;
+            }
+
+            if (query.TryGetValue("diagGpuLayers", out var gpuLayers) &&
+                int.TryParse(gpuLayers.ToString(), out var parsedGpuLayers))
+            {
+                LimitedGpuLayers = Math.Clamp(parsedGpuLayers, 1, 99);
+            }
+
+            if (query.TryGetValue("diagCpuOnly", out var cpuOnly) &&
+                bool.TryParse(cpuOnly.ToString(), out var parsedCpuOnly))
+            {
+                OllamaAccelerationMode = parsedCpuOnly ? GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu : GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
+            }
+
+            if (query.TryGetValue("diagCouncilIncludeMemory", out var includeMemory) &&
+                bool.TryParse(includeMemory.ToString(), out var parsedIncludeMemory))
+            {
+                IncludeCouncilMemory = parsedIncludeMemory;
+            }
+
+            if (query.TryGetValue("diagGenerateCouncilArtifacts", out var generateArtifacts) &&
+                bool.TryParse(generateArtifacts.ToString(), out var parsedGenerateArtifacts))
+            {
+                GenerateCouncilArtifacts = parsedGenerateArtifacts;
+            }
+
+            if (query.TryGetValue("diagCouncilModels", out var councilModels))
+            {
+                DiagnosticCouncilModelNames = councilModels
+                    .ToString()
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(modelName => !string.IsNullOrWhiteSpace(modelName))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                SelectedCouncilModelNames = DiagnosticCouncilModelNames.ToList();
+            }
+
+            if (query.TryGetValue("diagFreshChat", out var freshChat) &&
+                bool.TryParse(freshChat.ToString(), out var parsedFreshChat))
+            {
+                UseFreshDiagnosticChat = parsedFreshChat;
+                if (parsedFreshChat)
+                    AutoLoadLatestConversation = false;
+            }
+
+            if (query.TryGetValue("diagSession", out var sessionValue))
+                DiagnosticRequestedSessionName = sessionValue.ToString();
+
+            if (query.TryGetValue("diagOllamaEndpoint", out var endpointValue))
+            {
+                var endpoint = endpointValue.ToString();
+                if (!string.IsNullOrWhiteSpace(endpoint))
+                    DiagnosticOllamaEndpoint = endpoint.TrimEnd('/');
+            }
+
+            if (!selectSession || string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName))
+                return;
+
+            var requestedSession = DiagnosticRequestedSessionName;
+            var selectedSession = FindRequestedDiagnosticSession(requestedSession);
+
+            if (selectedSession is not null)
+            {
+                ChatClientProvider.SelectedSession = selectedSession;
+                ChatClientProvider.LockedSessionName = selectedSession.Name;
+                modelStatus = $"Diagnostic session locked to {selectedSession.Name}.";
+            }
+
+            if (DiagnosticCouncilModelNames.Count > 0)
+                modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
+        }
+        catch (Exception ex)
         {
-            CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
+            Logger.LogError(ex, $"Exception in ApplyDiagnosticQueryOptions: {ex.ToString()} selectSession {selectSession}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ApplyDiagnosticQueryOptions!");
         }
-
-        if (query.TryGetValue("diagMaxOutputTokens", out var maxOutputTokens) &&
-            int.TryParse(maxOutputTokens.ToString(), out var parsedMaxOutputTokens))
-        {
-            ChatClientProvider.ForcedMaxOutputTokens = Math.Clamp(parsedMaxOutputTokens, 64, 262144);
-        }
-
-        if (query.TryGetValue("diagMaxPromptCharacters", out var maxPromptCharacters) &&
-            int.TryParse(maxPromptCharacters.ToString(), out var parsedMaxPromptCharacters))
-        {
-            ChatClientProvider.ForcedMaxPromptCharacters = Math.Clamp(parsedMaxPromptCharacters, 512, 1_000_000);
-        }
-
-        if (query.TryGetValue("diagSkipBootstrap", out var skipBootstrap) &&
-            bool.TryParse(skipBootstrap.ToString(), out var parsedSkipBootstrap))
-        {
-            ChatClientProvider.SuppressBootstrapContext = parsedSkipBootstrap;
-        }
-
-        if (query.TryGetValue("diagOllamaMode", out var ollamaMode))
-        {
-            var mode = ollamaMode.ToString();
-            if (CouncilChatStaticsGeneral.TryIsSupportedOllamaMode(mode,Logger) ?? false)
-                OllamaAccelerationMode = mode;
-        }
-
-        if (query.TryGetValue("diagGpuLayers", out var gpuLayers) &&
-            int.TryParse(gpuLayers.ToString(), out var parsedGpuLayers))
-        {
-            LimitedGpuLayers = Math.Clamp(parsedGpuLayers, 1, 99);
-        }
-
-        if (query.TryGetValue("diagCpuOnly", out var cpuOnly) &&
-            bool.TryParse(cpuOnly.ToString(), out var parsedCpuOnly))
-        {
-            OllamaAccelerationMode = parsedCpuOnly ? GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu : GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
-        }
-
-        if (query.TryGetValue("diagCouncilIncludeMemory", out var includeMemory) &&
-            bool.TryParse(includeMemory.ToString(), out var parsedIncludeMemory))
-        {
-            IncludeCouncilMemory = parsedIncludeMemory;
-        }
-
-        if (query.TryGetValue("diagGenerateCouncilArtifacts", out var generateArtifacts) &&
-            bool.TryParse(generateArtifacts.ToString(), out var parsedGenerateArtifacts))
-        {
-            GenerateCouncilArtifacts = parsedGenerateArtifacts;
-        }
-
-        if (query.TryGetValue("diagCouncilModels", out var councilModels))
-        {
-            DiagnosticCouncilModelNames = councilModels
-                .ToString()
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(modelName => !string.IsNullOrWhiteSpace(modelName))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            SelectedCouncilModelNames = DiagnosticCouncilModelNames.ToList();
-        }
-
-        if (query.TryGetValue("diagFreshChat", out var freshChat) &&
-            bool.TryParse(freshChat.ToString(), out var parsedFreshChat))
-        {
-            UseFreshDiagnosticChat = parsedFreshChat;
-            if (parsedFreshChat)
-                AutoLoadLatestConversation = false;
-        }
-
-        if (query.TryGetValue("diagSession", out var sessionValue))
-            DiagnosticRequestedSessionName = sessionValue.ToString();
-
-        if (query.TryGetValue("diagOllamaEndpoint", out var endpointValue))
-        {
-            var endpoint = endpointValue.ToString();
-            if (!string.IsNullOrWhiteSpace(endpoint))
-                DiagnosticOllamaEndpoint = endpoint.TrimEnd('/');
-        }
-
-        if (!selectSession || string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName))
-            return;
-
-        var requestedSession = DiagnosticRequestedSessionName;
-        var selectedSession = FindRequestedDiagnosticSession(requestedSession);
-
-        if (selectedSession is not null)
-        {
-            ChatClientProvider.SelectedSession = selectedSession;
-            ChatClientProvider.LockedSessionName = selectedSession.Name;
-            modelStatus = $"Diagnostic session locked to {selectedSession.Name}.";
-        }
-
-        if (DiagnosticCouncilModelNames.Count > 0)
-            modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
     }
 
     private ChatClientSession? FindRequestedDiagnosticSession(string requestedSession)
     {
-        if (ChatClientProvider is null)
-            return null;
+        try
+        {
+            if (ChatClientProvider is null)
+                return null;
 
-        return requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
-            ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
-            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => (CouncilChatStaticsGeneral.IsDynamicSession(session,Logger) ?? false ) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
-                ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
+            return requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
+                ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+                : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => (CouncilChatStaticsGeneral.IsDynamicSession(session, Logger) ?? false) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
+                    ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in FindRequestedDiagnosticSession: {ex.ToString()} requestedSession {requestedSession}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in FindRequestedDiagnosticSession!");
+            return null;
+        }
+
     }
 
-    private bool MatchesRequestedDiagnosticSession(ChatClientSession session, string requestedSession)
+    private bool? MatchesRequestedDiagnosticSession(ChatClientSession session, string requestedSession)
     {
-        if (requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase))
-            return session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
+        try
+        {
+            if (requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase))
+                return session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
 
-        return session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase);
+            return session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in MatchesRequestedDiagnosticSession: {ex.ToString()} requestedSession {requestedSession} session {session.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MatchesRequestedDiagnosticSession!");
+            return null;
+        }
     }
 
     private bool ShouldAddRuntimeProfileSession()
     {
-        if (!OllamaAccelerationMode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase))
-            return true;
+        try
+        {
+            if (!OllamaAccelerationMode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase))
+                return true;
 
-        var query = QueryHelpers.ParseQuery(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query);
-        return query.ContainsKey("diagCpuOnly") || query.ContainsKey("diagOllamaMode");
+            var query = QueryHelpers.ParseQuery(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query);
+            return query.ContainsKey("diagCpuOnly") || query.ContainsKey("diagOllamaMode");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in ShouldAddRuntimeProfileSession: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ShouldAddRuntimeProfileSession!");
+            return false;
+        }
     }
 
     private void ClearSelectedSessionForFreshStart()
     {
-        if (ChatClientProvider?.SelectedSession is null)
-            return;
+        try
+        {
+            if (ChatClientProvider?.SelectedSession is null)
+                return;
 
-        ChatClientProvider.SelectedSession.Messages.Clear();
-        ActiveConversationId = null;
-        SelectedConversation = null;
-        lastSavedSignature = string.Empty;
+            ChatClientProvider.SelectedSession.Messages.Clear();
+            ActiveConversationId = null;
+            SelectedConversation = null;
+            lastSavedSignature = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in ClearSelectedSessionForFreshStart: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ClearSelectedSessionForFreshStart!");
+
+        }
     }
 
-    private bool HasConfiguredSessionForModel(string modelName) =>
-        ChatClientProvider?.AvailableChatClients.Any(session =>
-            ! (CouncilChatStaticsGeneral.IsDynamicSession(session,Logger) == false)  &&
+    private bool HasConfiguredSessionForModel(string modelName)
+    {
+        try
+        {
+            return ChatClientProvider?.AvailableChatClients.Any(session =>
+            !(CouncilChatStaticsGeneral.IsDynamicSession(session, Logger) == false) &&
             session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in HasConfiguredSessionForModel: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in HasConfiguredSessionForModel!");
+            return false;
+        }
+    }
 
-  
 
-  
+
+
+
     private int? ResolveOllamaNumGpu()
     {
-        return OllamaAccelerationMode switch
+        try
         {
-            GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu => 0,
-            GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu => Math.Clamp(LimitedGpuLayers, 1, 99),
-            _ => null
-        };
+            return OllamaAccelerationMode switch
+            {
+                GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu => 0,
+                GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu => Math.Clamp(LimitedGpuLayers, 1, 99),
+                _ => null
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in ResolveOllamaNumGpu: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ResolveOllamaNumGpu!");
+            return 0;
+        }
+
     }
 
-    private int ResolveCouncilOutputTokens() =>
-        Math.Clamp(CouncilMaxOutputTokens, GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens);
+    private int ResolveCouncilOutputTokens()
+    {
+        try
+        {
+            return Math.Clamp(CouncilMaxOutputTokens, GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in ResolveCouncilOutputTokens: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ResolveCouncilOutputTokens!");
+            return 0;
+        }
+    }
 
-    private int ResolveCouncilContextTokens() =>
-        Math.Clamp(CouncilMaxContextTokens, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
+
+    private int ResolveCouncilContextTokens()
+    {
+        try
+        {
+            return Math.Clamp(CouncilMaxContextTokens, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in ResolveCouncilOutputTokens: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ResolveCouncilOutputTokens!");
+            return 0;
+        }
+    }
+   
 
 
     private void OnOllamaAccelerationModeChanged(ChangeEventArgs e)
     {
-        var requestedMode = Convert.ToString(e.Value) ?? GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
-        if (!CouncilChatStaticsGeneral.TryIsSupportedOllamaMode(requestedMode,Logger) ?? false)
-            requestedMode = GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
-
-        OllamaAccelerationMode = requestedMode;
-        if (DxAiChat is not null)
-            SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
-
-        RebuildDynamicSessions();
-        modelStatus = OllamaAccelerationMode switch
+        try
         {
-            GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu => "Ollama acceleration: Safe CPU. LocalGPT sends num_gpu=0.",
-            GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu => $"Ollama acceleration: Limited GPU. LocalGPT sends num_gpu={Math.Clamp(LimitedGpuLayers, 1, 99)}.",
-            _ => "Ollama acceleration: Auto GPU. LocalGPT lets Ollama choose GPU offload."
-        };
+            var requestedMode = Convert.ToString(e.Value) ?? GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
+            if (!CouncilChatStaticsGeneral.TryIsSupportedOllamaMode(requestedMode, Logger) ?? false)
+                requestedMode = GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
+
+            OllamaAccelerationMode = requestedMode;
+            if (DxAiChat is not null)
+                SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
+
+            RebuildDynamicSessions();
+            modelStatus = OllamaAccelerationMode switch
+            {
+                GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu => "Ollama acceleration: Safe CPU. LocalGPT sends num_gpu=0.",
+                GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu => $"Ollama acceleration: Limited GPU. LocalGPT sends num_gpu={Math.Clamp(LimitedGpuLayers, 1, 99)}.",
+                _ => "Ollama acceleration: Auto GPU. LocalGPT lets Ollama choose GPU offload."
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in OnOllamaAccelerationModeChanged: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in OnOllamaAccelerationModeChanged!");
+        }
     }
 
   
 
     private void ToggleCouncilModel(string modelName, ChangeEventArgs e)
     {
-        var isChecked = e.Value is bool value && value;
-        if (isChecked)
+        try
         {
-            if (!SelectedCouncilModelNames.Contains(modelName, StringComparer.OrdinalIgnoreCase))
-                SelectedCouncilModelNames.Add(modelName);
+            var isChecked = e.Value is bool value && value;
+            if (isChecked)
+            {
+                if (!SelectedCouncilModelNames.Contains(modelName, StringComparer.OrdinalIgnoreCase))
+                    SelectedCouncilModelNames.Add(modelName);
+            }
+            else
+            {
+                SelectedCouncilModelNames.RemoveAll(name => name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
+            }
         }
-        else
+        catch (Exception ex)
         {
-            SelectedCouncilModelNames.RemoveAll(name => name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
+            Logger.LogError(ex, $"Exception in ToggleCouncilModel: {ex.ToString()} modelName {modelName}  e {e.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ToggleCouncilModel!");
         }
+      
     }
 
     private void SaveMessagesForSelectedSession(IEnumerable<BlazorChatMessage> saveMessages)
@@ -907,7 +1122,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SaveLastAssistantMessage: {ex.ToString()}");
+            Logger.LogError(ex, $"Exception in SaveLastAssistantMessage: {ex.ToString()} saveMessages {saveMessages.ToString()}");
             Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveLastAssistantMessage!");
         }
 
@@ -929,147 +1144,239 @@
 
     private async Task SaveCurrentConversationAsync()
     {
-        await PersistCurrentConversationAsync(force: true, showToast: true);
+        try
+        {
+            await PersistCurrentConversationAsync(force: true, showToast: true).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in SaveCurrentConversationAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveCurrentConversationAsync!");
+        }
+       
     }
 
     private async Task LoadLatestConversationAsync()
     {
-        await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: true);
+        try
+        {
+            await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: true).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in LoadLatestConversationAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadLatestConversationAsync!");
+        }
+
+     
     }
 
     private async Task LoadLatestConversationIntoSessionAsync(bool loadIntoDxChat)
     {
-        if (SavedConversations.Count == 0)
-            return;
+        try
+        {
+            if (SavedConversations.Count == 0)
+                return;
 
-        await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat);
+            await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in LoadLatestConversationIntoSessionAsync: {ex.ToString()} loadIntoDxChat {loadIntoDxChat}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadLatestConversationIntoSessionAsync!");
+        }
+
+        
     }
 
     private async Task LoadSavedConversationAsync(ChatMemoryConversationSummary? conversation)
     {
-        await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true);
+        try
+        {
+            await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in LoadSavedConversationAsync: {ex.ToString()} conversation {conversation?.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadSavedConversationAsync!");
+        }
     }
 
     private async Task LoadSavedConversationAsync(ChatMemoryConversationSummary? conversation, bool saveCurrentFirst, bool loadIntoDxChat)
     {
-        if (conversation is null || ChatClientProvider?.SelectedSession is null)
-            return;
-
         try
         {
-            if (saveCurrentFirst)
-                await PersistCurrentConversationAsync(force: true, showToast: false);
-
-            isMemoryBusy = true;
-            var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id);
-            if (snapshot is null)
+            if (conversation is null || ChatClientProvider?.SelectedSession is null)
                 return;
 
-            ActiveConversationId = snapshot.Id;
-            SelectedConversation = conversation;
-            ChatClientProvider.SelectedSession.Messages.Clear();
-            ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
-            lastSavedSignature = CouncilChatStringFunctions.CreateMessageSignature(snapshot.Messages, Logger);
-            memoryStatus = $"Loaded memory: {snapshot.Title}";
+            try
+            {
+                if (saveCurrentFirst)
+                    await PersistCurrentConversationAsync(force: true, showToast: false);
 
-            if (loadIntoDxChat && DxAiChat is not null)
-                DxAiChat.LoadMessages(snapshot.Messages);
+                isMemoryBusy = true;
+                var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id);
+                if (snapshot is null)
+                    return;
+
+                ActiveConversationId = snapshot.Id;
+                SelectedConversation = conversation;
+                ChatClientProvider.SelectedSession.Messages.Clear();
+                ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
+                lastSavedSignature = CouncilChatStringFunctions.CreateMessageSignature(snapshot.Messages, Logger);
+                memoryStatus = $"Loaded memory: {snapshot.Title}";
+
+                if (loadIntoDxChat && DxAiChat is not null)
+                    DxAiChat.LoadMessages(snapshot.Messages);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "LoadSavedConversationAsync failed: {Message}", ex.Message);
+                Notifier.ShowError(toastName, ex.Message, "Memory load failed");
+            }
+            finally
+            {
+                isMemoryBusy = false;
+            }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "LoadSavedConversationAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.Message, "Memory load failed");
+            Logger.LogError(ex, $"Exception in LoadSavedConversationAsync: {ex.ToString()} conversation {conversation?.ToString()} saveCurrentFirst {saveCurrentFirst} loadIntoDxChat {loadIntoDxChat}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadSavedConversationAsync!");
         }
-        finally
-        {
-            isMemoryBusy = false;
-        }
+        
     }
 
     private async Task PersistCurrentConversationAsync(bool force, bool showToast)
     {
-        if (DxAiChat is null)
-            return;
+        try
+        {
+            if (DxAiChat is null)
+                return;
 
-        var messages = DxAiChat.SaveMessages().ToList();
-        SaveMessagesForSelectedSession(messages);
-        await PersistMessagesAsync(messages, force, showToast);
+            var messages = DxAiChat.SaveMessages().ToList();
+            SaveMessagesForSelectedSession(messages);
+            await PersistMessagesAsync(messages, force, showToast);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in PersistCurrentConversationAsync: {ex.ToString()} force {force} showToast {showToast}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in PersistCurrentConversationAsync!");
+        }
+  
     }
 
     private async Task PersistMessagesAsync(IReadOnlyList<BlazorChatMessage> messages, bool force, bool showToast)
     {
-        if (ChatClientProvider?.SelectedSession is null || messages.Count == 0)
-            return;
-
-        var signature = CouncilChatStringFunctions.CreateMessageSignature(messages, Logger);
-        if (!force && signature == lastSavedSignature)
-            return;
-
         try
         {
-            isMemoryBusy = true;
-            ActiveConversationId = await ChatMemory.SaveConversationAsync(
-                ChatClientProvider.SelectedSession.Name,
-                messages,
-                ActiveConversationId);
+            if (ChatClientProvider?.SelectedSession is null || messages.Count == 0)
+                return;
 
-            lastSavedSignature = signature;
-            await RefreshMemoryAsync();
-            memoryStatus = $"Memory saved at {DateTime.Now:t}.";
+            var signature = CouncilChatStringFunctions.CreateMessageSignature(messages, Logger);
+            if (!force && signature == lastSavedSignature)
+                return;
 
-            if (showToast)
-                Notifier.ShowSuccess(toastName, "Chat saved to SQLite memory.", "Memory saved");
+            try
+            {
+                isMemoryBusy = true;
+                ActiveConversationId = await ChatMemory.SaveConversationAsync(
+                    ChatClientProvider.SelectedSession.Name,
+                    messages,
+                    ActiveConversationId);
+
+                lastSavedSignature = signature;
+                await RefreshMemoryAsync();
+                memoryStatus = $"Memory saved at {DateTime.Now:t}.";
+
+                if (showToast)
+                    Notifier.ShowSuccess(toastName, "Chat saved to SQLite memory.", "Memory saved");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "PersistMessagesAsync failed: {Message}", ex.Message);
+                if (showToast)
+                    Notifier.ShowError(toastName, ex.Message, "Memory save failed");
+            }
+            finally
+            {
+                isMemoryBusy = false;
+            }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "PersistMessagesAsync failed: {Message}", ex.Message);
-            if (showToast)
-                Notifier.ShowError(toastName, ex.Message, "Memory save failed");
+            Logger.LogError(ex, $"Exception in PersistCurrentConversationAsync: {ex.ToString()} messages {messages.ToString()} force {force} showToast {showToast}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in PersistCurrentConversationAsync!");
         }
-        finally
-        {
-            isMemoryBusy = false;
-        }
+       
     }
 
     private async Task RefreshMemoryAsync()
     {
-        SavedConversations = (await ChatMemory.GetConversationsAsync()).ToList();
-        RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync()).ToList();
+        try
+        {
+            SavedConversations = (await ChatMemory.GetConversationsAsync().ConfigureAwait(false)).ToList();
+            RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync().ConfigureAwait(false)).ToList();
 
-        if (ActiveConversationId is Guid id)
-            SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
-        else
-            SelectedConversation = SavedConversations.FirstOrDefault();
+            if (ActiveConversationId is Guid id)
+                SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
+            else
+                SelectedConversation = SavedConversations.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in RefreshMemoryAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RefreshMemoryAsync!");
+        }
+       
     }
 
     private void StartAutoSaveLoop()
     {
-        if (autoSaveCts is not null)
-            return;
+        try
+        {
+            if (autoSaveCts is not null)
+                return;
 
-        autoSaveCts = new CancellationTokenSource();
-        _ = AutoSaveLoopAsync(autoSaveCts.Token);
+            autoSaveCts = new CancellationTokenSource();
+            _ = AutoSaveLoopAsync(autoSaveCts.Token);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in StartAutoSaveLoop: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in StartAutoSaveLoop!");
+        }
+      
     }
 
     private async Task AutoSaveLoopAsync(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            try
+            while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken);
-                await InvokeAsync(async () => await PersistCurrentConversationAsync(force: false, showToast: false));
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Chat memory auto-save failed: {Message}", ex.Message);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken).ConfigureAwait(false);
+                    await InvokeAsync(async () => await PersistCurrentConversationAsync(force: false, showToast: false).ConfigureAwait(false)).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    Logger.LogInformation(ex, "AutoSaveLoopAsync cancelled: {Message}", ex.Message);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Chat memory auto-save failed: {Message}", ex.Message);
+                }
             }
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Exception in AutoSaveLoopAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in AutoSaveLoopAsync!");
+        }
+        
     }
 
     public void Dispose()
