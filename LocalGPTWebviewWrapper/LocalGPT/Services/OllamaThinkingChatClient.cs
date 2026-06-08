@@ -1,3 +1,4 @@
+using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
@@ -316,149 +317,222 @@ namespace LocalGPT.Services
         }
            
 
-        private List<OllamaChatMessage> BuildOllamaMessages(IEnumerable<ChatMessage> messages)
+        private List<OllamaChatMessage>? BuildOllamaMessages(IEnumerable<ChatMessage> messages)
         {
-            var ollamaMessages = messages
-                .Select(ToOllamaMessage)
-                .Where(message => !string.IsNullOrWhiteSpace(message.Content))
-                .ToList();
-
-            if (IsHarmonyModel())
-                AddHarmonyResponseProtocol(ollamaMessages);
-
-            return ollamaMessages;
-        }
-
-        private static void AddHarmonyResponseProtocol(List<OllamaChatMessage> messages)
-        {
-            if (messages.Count > 0 &&
-                messages[0].Role.Equals("system", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                if (!messages[0].Content.Contains(HarmonyResponseProtocol, StringComparison.Ordinal))
-                    messages[0].Content = $"{HarmonyResponseProtocol}\n\n{messages[0].Content}";
+                var ollamaMessages = messages
+             .Select(ToOllamaMessage)
+             .Where(message => !string.IsNullOrWhiteSpace(message.Content))
+             .ToList();
 
-                return;
+                if (IsHarmonyModel())
+                    AddHarmonyResponseProtocol(ollamaMessages,logger);
+
+                return ollamaMessages;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildOllamaMessages messages {messages.ToString()}");
+                return null;
             }
 
-            messages.Insert(0, new OllamaChatMessage
-            {
-                Role = "system",
-                Content = HarmonyResponseProtocol
-            });
         }
 
-        private static OllamaChatMessage ToOllamaMessage(ChatMessage message)
+        private static void AddHarmonyResponseProtocol(List<OllamaChatMessage> messages, ILogger logger)
         {
-            return new OllamaChatMessage
+            try
             {
-                Role = message.Role == ChatRole.System ? "system"
-                    : message.Role == ChatRole.Assistant ? "assistant"
-                    : "user",
-                Content = message.Text
-            };
+                if (messages.Count > 0 &&
+          messages[0].Role.Equals("system", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!messages[0].Content.Contains(HarmonyResponseProtocol, StringComparison.Ordinal))
+                        messages[0].Content = $"{HarmonyResponseProtocol}\n\n{messages[0].Content}";
+
+                    return;
+                }
+
+                messages.Insert(0, new OllamaChatMessage
+                {
+                    Role = "system",
+                    Content = HarmonyResponseProtocol
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AddHarmonyResponseProtocol messages {messages.ToString()}");
+            }
         }
 
-        private List<AIContent> CreateContents(OllamaChatResponse response)
+        private static OllamaChatMessage? ToOllamaMessage(ChatMessage message, ILogger logger)
         {
-            var visible = FormatVisibleResponse(response.Message?.Content, response.Message?.Thinking);
-            return
-            [
-                new TextContent(visible)
-            ];
+            try
+            {
+                return new OllamaChatMessage
+                {
+                    Role = message.Role == ChatRole.System ? "system"
+          : message.Role == ChatRole.Assistant ? "assistant"
+          : "user",
+                    Content = message.Text
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToOllamaMessage message {message.ToString()}");
+                return null;
+            }
+        }
+
+        private List<AIContent>? CreateContents(OllamaChatResponse response)
+        {
+            try
+            {
+                var visible = FormatVisibleResponse(response.Message?.Content, response.Message?.Thinking);
+                return
+                [
+                    new TextContent(visible)
+                ];
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateContents response {response.ToString()}");
+                return null;
+            }
         }
 
         private string? NormalizeVisibleContent(string? content)
         {
-            if (string.IsNullOrWhiteSpace(content))
-                return null;
-
-            var text = WebUtility.HtmlDecode(content).Trim();
-            if (IsHarmonyModel())
+            try
             {
-                var finalMatches = HarmonyFinalPattern().Matches(text);
-                if (finalMatches.Count > 0)
-                    text = finalMatches[^1].Groups["content"].Value;
+                if (string.IsNullOrWhiteSpace(content))
+                    return null;
 
-                text = HarmonyMarkerPattern().Replace(text, string.Empty);
+                var text = WebUtility.HtmlDecode(content).Trim();
+                if (IsHarmonyModel())
+                {
+                    var finalMatches = HarmonyFinalPattern().Matches(text);
+                    if (finalMatches.Count > 0)
+                        text = finalMatches[^1].Groups["content"].Value;
+
+                    text = HarmonyMarkerPattern().Replace(text, string.Empty);
+                }
+
+                text = ThinkTagPattern().Replace(text, string.Empty);
+                return text.Trim();
             }
-
-            text = ThinkTagPattern().Replace(text, string.Empty);
-            return text.Trim();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeVisibleContent content {content?.ToString()}");
+                return null;
+            }
         }
 
         private string? ExtractHarmonyThinking(string? content)
         {
-            if (!IsHarmonyModel() || string.IsNullOrWhiteSpace(content))
+            try
+            {
+                if (!IsHarmonyModel() || string.IsNullOrWhiteSpace(content))
+                    return null;
+
+                content = WebUtility.HtmlDecode(content);
+                var matches = HarmonyThinkingPattern().Matches(content);
+                if (matches.Count == 0)
+                    return null;
+
+                var thinking = string.Join(
+                    Environment.NewLine,
+                    matches
+                        .Select(match => HarmonyMarkerPattern().Replace(match.Groups["content"].Value, string.Empty).Trim())
+                        .Where(text => !string.IsNullOrWhiteSpace(text)));
+
+                return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractHarmonyThinking content {content?.ToString()}");
                 return null;
-
-            content = WebUtility.HtmlDecode(content);
-            var matches = HarmonyThinkingPattern().Matches(content);
-            if (matches.Count == 0)
-                return null;
-
-            var thinking = string.Join(
-                Environment.NewLine,
-                matches
-                    .Select(match => HarmonyMarkerPattern().Replace(match.Groups["content"].Value, string.Empty).Trim())
-                    .Where(text => !string.IsNullOrWhiteSpace(text)));
-
-            return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+            }
         }
 
-        private static string? ExtractTaggedThinking(string? content)
+        private static string? ExtractTaggedThinking(string? content, ILogger logger)
         {
-            if (string.IsNullOrWhiteSpace(content))
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return null;
+
+                var matches = ThinkTagPattern().Matches(content);
+                if (matches.Count == 0)
+                    return null;
+
+                var thinking = string.Join(
+                    Environment.NewLine,
+                    matches
+                        .Select(match => match.Groups["thinking"].Value.Trim())
+                        .Where(text => !string.IsNullOrWhiteSpace(text)));
+
+                return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractTaggedThinking content {content?.ToString()}");
                 return null;
-
-            var matches = ThinkTagPattern().Matches(content);
-            if (matches.Count == 0)
-                return null;
-
-            var thinking = string.Join(
-                Environment.NewLine,
-                matches
-                    .Select(match => match.Groups["thinking"].Value.Trim())
-                    .Where(text => !string.IsNullOrWhiteSpace(text)));
-
-            return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+            }
         }
 
         private bool IsHarmonyModel()
         {
-            return model.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
-                model.Contains("harmony", StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                return model.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
+          model.Contains("harmony", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsHarmonyModel");
+                return false;
+            }
         }
 
         private string FormatVisibleResponse(string? content, string? thinking)
         {
-            var builder = new StringBuilder();
-            var normalizedContent = NormalizeVisibleContent(content);
-            var thinkingParts = new[]
+            try
             {
+                var builder = new StringBuilder();
+                var normalizedContent = NormalizeVisibleContent(content);
+                var thinkingParts = new[]
+                {
                 string.IsNullOrWhiteSpace(thinking) ? null : thinking.Trim(),
                 ExtractHarmonyThinking(content),
-                ExtractTaggedThinking(content)
+                ExtractTaggedThinking(content,logger)
             }.Where(text => !string.IsNullOrWhiteSpace(text));
-            var normalizedThinking = string.Join(Environment.NewLine, thinkingParts);
+                var normalizedThinking = string.Join(Environment.NewLine, thinkingParts);
 
-            if (!string.IsNullOrWhiteSpace(normalizedThinking))
+                if (!string.IsNullOrWhiteSpace(normalizedThinking))
+                {
+                    builder
+                        .AppendLine("<details class=\"model-thinking\" open>")
+                        .AppendLine("<summary>Model thinking</summary>")
+                        .AppendLine("<pre>")
+                        .AppendLine(WebUtility.HtmlEncode(normalizedThinking.Trim()))
+                        .AppendLine("</pre>")
+                        .AppendLine("</details>")
+                        .AppendLine();
+                }
+
+                if (!string.IsNullOrWhiteSpace(normalizedContent))
+                    builder.AppendLine(normalizedContent.Trim());
+                else if (!string.IsNullOrWhiteSpace(normalizedThinking))
+                    builder.AppendLine(MissingFinalAnswerNotice);
+
+                return builder.ToString().Trim();
+            }
+            catch (Exception ex)
             {
-                builder
-                    .AppendLine("<details class=\"model-thinking\" open>")
-                    .AppendLine("<summary>Model thinking</summary>")
-                    .AppendLine("<pre>")
-                    .AppendLine(WebUtility.HtmlEncode(normalizedThinking.Trim()))
-                    .AppendLine("</pre>")
-                    .AppendLine("</details>")
-                    .AppendLine();
+                logger.LogError(ex, $"Error in FormatVisibleResponse content {content} thinking {thinking}");
+                return string.Empty;
             }
 
-            if (!string.IsNullOrWhiteSpace(normalizedContent))
-                builder.AppendLine(normalizedContent.Trim());
-            else if (!string.IsNullOrWhiteSpace(normalizedThinking))
-                builder.AppendLine(MissingFinalAnswerNotice);
-
-            return builder.ToString().Trim();
         }
 
         [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|$)|<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|<\\|start\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
