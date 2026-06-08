@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -61,25 +62,14 @@ namespace LocalGPT.Services
                     .Append("] ")
                     .Append(log.Category)
                     .Append(": ")
-                    .AppendLine(TrimForPrompt(log.Message, 320));
+                    .AppendLine(CouncilChatStringFunctions. TrimForPrompt(log.Message, 320));
 
                 if (!string.IsNullOrWhiteSpace(log.Exception))
-                    builder.AppendLine($"  Exception: {TrimForPrompt(log.Exception, 320)}");
+                    builder.AppendLine($"  Exception: {CouncilChatStringFunctions.TrimForPrompt(log.Exception, 320)}");
             }
 
             builder.AppendLine("If these logs mention missing Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, package registration, or model setup, explain the likely local fix to the user and mark uncertain details as Needs verification.");
             return builder.ToString().Trim();
         }
-
-        private static string TrimForPrompt(string text, int maxLength)
-        {
-            var normalized = WhitespacePattern().Replace(text, " ").Trim();
-            return normalized.Length <= maxLength
-                ? normalized
-                : $"{normalized[..maxLength].TrimEnd()}...";
-        }
-
-        [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
-        private static partial Regex WhitespacePattern();
     }
 }

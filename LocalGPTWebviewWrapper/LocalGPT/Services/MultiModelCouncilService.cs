@@ -1544,9 +1544,6 @@ namespace LocalGPT.Services
         [GeneratedRegex("\\b[\\p{L}\\p{N}_'-]+\\b", RegexOptions.CultureInvariant)]
         private static partial Regex WordPattern();
 
-        [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
-        private static partial Regex WhitespacePattern();
-
         [GeneratedRegex("(implement|implementation|develop|development|build|create|add|generate|scaffold|feature|code|page|component|service|endpoint|database|settings|artifact|solution|plugin|mod|datapack)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex DevelopmentRequestPattern();
 

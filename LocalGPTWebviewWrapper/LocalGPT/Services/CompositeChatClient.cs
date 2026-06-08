@@ -1,10 +1,11 @@
+using DevExpress.DataAccess.DataFederation;
+using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
+using LocalGPT.Interfaces;
+using Microsoft.Extensions.AI;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using LocalGPT.BusinessObjects;
-using Microsoft.Extensions.AI;
-using LocalGPT.Interfaces;
-using LocalGPT.Extensions.PlainStatics;
 namespace LocalGPT.Services;
 
 public class CompositeChatClient : IChatClient
@@ -60,16 +61,16 @@ public class CompositeChatClient : IChatClient
                 throw new InvalidOperationException("No chat client session is selected.");
 
             var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
-            return await GetResponseAndReportAsync(selectedSession, enrichedMessages, ApplyDefaultOptions(options), cancellationToken);
+            return await GetResponseAndReportAsync(selectedSession, enrichedMessages, ApplyDefaultOptions(options), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error in GetResponseAsync {ex.ToString()}");
-            throw;
+            return new();
         }
     }
 
-    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+    public IAsyncEnumerable<ChatResponseUpdate>? GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken())
     {
         try
@@ -84,17 +85,34 @@ public class CompositeChatClient : IChatClient
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error in GetStreamingResponseAsync {ex.ToString()}");
-            throw;
+            return null;
         }
     }
 
     public void Dispose()
     {
-        for (int i = 0; i < AvailableChatClients.Count; i++)
+        try
         {
-            AvailableChatClients[i].Client.Dispose();
-            AvailableChatClients[i].Messages.Clear();
+            for (int i = 0; i < AvailableChatClients.Count; i++)
+            {
+                try
+                {
+                    AvailableChatClients[i].Client.Dispose();
+                    AvailableChatClients[i].Messages.Clear();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"Error in Dispose clients and messages {ex.ToString()}");
+               
+                }
+
+            }
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error in Dispose {ex.ToString()}");
+        }
+
     }
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
@@ -145,10 +163,21 @@ public class CompositeChatClient : IChatClient
         ChatOptions options,
         CancellationToken cancellationToken)
     {
-        var response = await session.Client.GetResponseAsync(messages, options, cancellationToken);
-        await WriteMissingFeatureReportIfNeededAsync(session.Name, response.Text, cancellationToken);
-        await WriteKnowledgeRequestsIfNeededAsync(session.Name, response.Text, cancellationToken);
-        return response;
+        try
+        {
+            var response = await session.Client.GetResponseAsync(messages, options, cancellationToken);
+            await WriteMissingFeatureReportIfNeededAsync(session.Name, response.Text, cancellationToken);
+            await WriteKnowledgeRequestsIfNeededAsync(session.Name, response.Text, cancellationToken);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,$"GetResponseAndReportAsync {LockedSessionName} {SelectedSession}.",
+         LockedSessionName,
+         SelectedSession);
+            return new();
+        }
+        
     }
 
     private async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAndReportAsync(
@@ -157,77 +186,98 @@ public class CompositeChatClient : IChatClient
         ChatOptions options,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        IReadOnlyList<ChatMessage> enrichedMessages;
-        try
-        {
-            enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            yield break;
-        }
-
-        var responseText = new StringBuilder();
-        var updates = session.Client.GetStreamingResponseAsync(enrichedMessages, options, cancellationToken).GetAsyncEnumerator(cancellationToken);
-        try
-        {
-            while (true)
+            IReadOnlyList<ChatMessage> enrichedMessages;
+            try
             {
-                ChatResponseUpdate update;
-                try
-                {
-                    if (!await updates.MoveNextAsync())
-                        break;
-
-                    update = updates.Current;
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    yield break;
-                }
-
-                responseText.Append(update.Text);
-                yield return update;
+                enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
             }
-        }
-        finally
-        {
-            await updates.DisposeAsync();
-        }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                yield break;
+            }
 
-        if (cancellationToken.IsCancellationRequested)
-            yield break;
+            var responseText = new StringBuilder();
+            var updates = session.Client.GetStreamingResponseAsync(enrichedMessages, options, cancellationToken).GetAsyncEnumerator(cancellationToken);
+            try
+            {
+                while (true)
+                {
+                    ChatResponseUpdate update;
+                    try
+                    {
+                        if (!await updates.MoveNextAsync())
+                            break;
 
-        var text = responseText.ToString();
-        try
-        {
-            await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken);
-            await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
+                        update = updates.Current;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        yield break;
+                    }
+
+                    responseText.Append(update.Text);
+                    yield return update;
+                }
+            }
+            finally
+            {
+                await updates.DisposeAsync();
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+                yield break;
+
+            var text = responseText.ToString();
+            try
+            {
+                await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken);
+                await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
     }
 
     private async Task WriteMissingFeatureReportIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)
     {
-        if (_featureReportService is null)
-            return;
+        try
+        {
+            if (_featureReportService is null)
+                return;
 
-        var path = await _featureReportService.WriteIfMissingFeatureReportAsync(source, responseText, cancellationToken);
-        if (!string.IsNullOrWhiteSpace(path))
-            _logger.LogInformation("AI missing feature report written: {Path}", path);
+            var path = await _featureReportService.WriteIfMissingFeatureReportAsync(source, responseText, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(path))
+                _logger.LogInformation("AI missing feature report written: {Path}", path);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"WriteMissingFeatureReportIfNeededAsync source {source} responseText {responseText}.",
+         LockedSessionName,
+         SelectedSession);
+           
+        }
+
     }
 
     private async Task WriteKnowledgeRequestsIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)
     {
-        if (_knowledgeService is null || string.IsNullOrWhiteSpace(responseText))
-            return;
-
-        foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText,_logger) ?? new List<CouncilKnowledgeEntry>())
+        try
         {
-            var saved = await _knowledgeService.SaveEntryAsync(entry, cancellationToken);
-            _logger.LogInformation("AI requested unapproved knowledge entry {KnowledgeEntryId} from {Source}.", saved.Id, source);
+            if (_knowledgeService is null || string.IsNullOrWhiteSpace(responseText))
+                return;
+
+            foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText, _logger) ?? new List<CouncilKnowledgeEntry>())
+            {
+                var saved = await _knowledgeService.SaveEntryAsync(entry, cancellationToken);
+                _logger.LogInformation("AI requested unapproved knowledge entry {KnowledgeEntryId} from {Source}.", saved.Id, source);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"WriteKnowledgeRequestsIfNeededAsync source {source} responseText {responseText}.",
+         LockedSessionName,
+         SelectedSession);
+
         }
     }
 
@@ -236,27 +286,38 @@ public class CompositeChatClient : IChatClient
 
     private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
     {
-        var messageList = messages.ToList();
-        var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, cancellationToken);
-        var policyMessage = new ChatMessage(ChatRole.System, GlobalVariableSlopCollectionToRemove.RuntimeDecisionPolicy);
-
-        var systemMessages = new List<ChatMessage> { policyMessage };
-        if (SuppressBootstrapContext || _bootstrapService is null)
+        try
         {
-            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt,_logger);
-            return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
-        }
+            var messageList = messages.ToList();
+            var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, cancellationToken);
+            var policyMessage = new ChatMessage(ChatRole.System, GlobalVariableSlopCollectionToRemove.RuntimeDecisionPolicy);
 
-        var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
-        if (string.IsNullOrWhiteSpace(bootstrapPrompt))
-        {
+            var systemMessages = new List<ChatMessage> { policyMessage };
+            if (SuppressBootstrapContext || _bootstrapService is null)
+            {
+                CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
+                return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+            }
+
+            var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(bootstrapPrompt))
+            {
+                CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
+                return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+            }
+
+            systemMessages.Add(new ChatMessage(ChatRole.System, bootstrapPrompt));
             CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
             return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
         }
-
-        systemMessages.Add(new ChatMessage(ChatRole.System, bootstrapPrompt));
-        CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
-        return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"AddBootstrapContextAsync messages {messages.ToString()}",
+         LockedSessionName,
+         SelectedSession);
+            return new List<ChatMessage>();
+        }
+       
     }
 
 
@@ -264,48 +325,63 @@ public class CompositeChatClient : IChatClient
         IReadOnlyList<ChatMessage> messages,
         CancellationToken cancellationToken)
     {
-        if (_chatUploadWorkspaces is null)
-            return string.Empty;
-
-        var latestUserMessage = messages.LastOrDefault(message => message.Role == ChatRole.User);
-        if (latestUserMessage is null)
-            return string.Empty;
-
-        var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger) != null ? CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger).ToList() : new();
-        if (files.Count == 0)
-            return string.Empty;
-
         try
         {
-            var result = await _chatUploadWorkspaces.CreateWorkspaceAsync(
-                latestUserMessage.Text ?? string.Empty,
-                files,
-                cancellationToken);
-            _logger.LogInformation(
-                "Created DXAiChat native attachment workspace {WorkspaceName} with {FileCount} files.",
-                result.WorkspaceName,
-                result.FileCount);
+            if (_chatUploadWorkspaces is null)
+                return string.Empty;
 
-            return CouncilChatStringFunctions.BuildUploadWorkspaceSystemPrompt(result, _logger);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
+            var latestUserMessage = messages.LastOrDefault(message => message.Role == ChatRole.User);
+            if (latestUserMessage is null)
+                return string.Empty;
+
+            var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger) != null ? CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger).ToList() : new();
+            if (files.Count == 0)
+                return string.Empty;
+
+            try
+            {
+                var result = await _chatUploadWorkspaces.CreateWorkspaceAsync(
+                    latestUserMessage.Text ?? string.Empty,
+                    files,
+                    cancellationToken);
+                _logger.LogInformation(
+                    "Created DXAiChat native attachment workspace {WorkspaceName} with {FileCount} files.",
+                    result.WorkspaceName,
+                    result.FileCount);
+
+                return CouncilChatStringFunctions.BuildUploadWorkspaceSystemPrompt(result, _logger);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not create DXAiChat native attachment workspace.");
+                return "LocalGPT upload workspace creation failed. Tell the user the uploaded files could not be saved, then continue only with the visible prompt.";
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not create DXAiChat native attachment workspace.");
-            return "LocalGPT upload workspace creation failed. Tell the user the uploaded files could not be saved, then continue only with the visible prompt.";
+            _logger.LogError(ex, $"SaveUploadedMessageContentAsync messages {messages.ToString()}",
+         LockedSessionName,
+         SelectedSession);
+            return string.Empty;
         }
     }
-
-
-
-
-
-
-    private static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, int? forcedMaxPromptCharacters = null)
+    private static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, ILogger logger,  int? forcedMaxPromptCharacters = null)
     {
+        try
+        {
+
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"LimitPromptSize messages {messages.ToString()} forcedMaxPromptCharacters {forcedMaxPromptCharacters}",
+         messages,
+         forcedMaxPromptCharacters);
+            return new List<ChatMessage>();
+        }
         var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? GlobalVariableSlopCollectionToRemove.DefaultMaxPromptCharacters, 512, GlobalVariableSlopCollectionToRemove.MaxPromptCharacters);
         if (messages.Sum(EstimateTextLength) <= maxPromptCharacters)
             return messages;

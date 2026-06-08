@@ -351,49 +351,6 @@ namespace LocalGPT
                .AllowAnonymous();
         }
 
-        //private static void EnsureGeneratedStaticWebAssetContentRoots(string exeDir, ILogger logger)
-        //{
-        //    var assemblyName = typeof(Program).Assembly.GetName().Name;
-        //    var manifestPath = Path.Combine(exeDir, $"{assemblyName}.staticwebassets.runtime.json");
-        //    if (!File.Exists(manifestPath))
-        //    {
-        //        return;
-        //    }
-
-        //    try
-        //    {
-        //        using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
-        //        if (!manifest.RootElement.TryGetProperty("ContentRoots", out var contentRoots)
-        //            || contentRoots.ValueKind != JsonValueKind.Array)
-        //        {
-        //            return;
-        //        }
-
-        //        foreach (var contentRoot in contentRoots.EnumerateArray())
-        //        {
-        //            if (contentRoot.ValueKind != JsonValueKind.String)
-        //            {
-        //                continue;
-        //            }
-
-        //            var path = contentRoot.GetString();
-        //            if (string.IsNullOrWhiteSpace(path)
-        //                || Directory.Exists(path)
-        //                || !IsGeneratedStaticWebAssetRoot(path))
-        //            {
-        //                continue;
-        //            }
-
-        //            Directory.CreateDirectory(path);
-        //            logger.LogInformation("Recreated missing generated static web asset root {Path}.", path);
-        //        }
-        //    }
-        //    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        //    {
-        //        logger.LogWarning(ex, "Could not inspect static web asset manifest {ManifestPath}.", manifestPath);
-        //    }
-        //}
-
         private static bool IsGeneratedStaticWebAssetRoot(string path)
         {
             var normalized = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
@@ -437,7 +394,6 @@ namespace LocalGPT
                 // Diagnostics must never block app startup.
             }
         }
-
         private static int GetFreePort()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);

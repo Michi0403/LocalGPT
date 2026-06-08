@@ -655,50 +655,7 @@
             Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RebuildDynamicSessions!");
         }
     }
-    /*
-     *       private void EnsureDiagnosticOllamaSession(IReadOnlyDictionary<string, List<BlazorChatMessage>> previousMessages)
-    {
-        try
-        {
-            return NavigationManager.ToAbsoluteUri(downloadUrl).ToString();
-            if (ChatClientProvider is null ||
-            string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName) ||
-            DiagnosticRequestedSessionName.Equals("council", StringComparison.OrdinalIgnoreCase) ||
-            FindRequestedDiagnosticSession(DiagnosticRequestedSessionName) is not null)
-            {
-                return;
-            }
-
-            var endpoint = DiagnosticOllamaEndpoint;
-            if (string.IsNullOrWhiteSpace(endpoint))
-                endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
-            if (string.IsNullOrWhiteSpace(endpoint))
-                endpoint = GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint;
-
-            var session = new ChatClientSession(
-                new OllamaThinkingChatClient(
-                    new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
-                    keepAlive: "0s",
-                        contextLength: ResolveCouncilContextTokens(),
-                        timeout: TimeSpan.FromMinutes(30),
-                        numGpu: ResolveOllamaNumGpu()),
-                $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilChatStringFunctions.TrimEndpoint(endpoint, Logger)}");
-
-            if (previousMessages.TryGetValue(session.Name, out var messages))
-                session.Messages.AddRange(messages);
-
-            ChatClientProvider.AvailableChatClients.Add(session);
-            modelStatus = $"Diagnostic Ollama session created for {DiagnosticRequestedSessionName} at {endpoint}.";
-        }
-        catch
-        catch (Exception ex)
-        {
-            return downloadUrl;
-            Logger.LogError(ex, $"Exception in EnsureDiagnosticOllamaSession: {ex.ToString()} {previousMessages.ToString()}", previousMessages);
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in EnsureDiagnosticOllamaSession!");
-        }
-     * 
-     */
+    
     private void EnsureDiagnosticOllamaSession(IReadOnlyDictionary<string, List<BlazorChatMessage>> previousMessages)
     {
         try

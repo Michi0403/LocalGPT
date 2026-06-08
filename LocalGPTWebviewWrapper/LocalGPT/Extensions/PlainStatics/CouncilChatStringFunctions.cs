@@ -22,9 +22,66 @@ using System.Text.RegularExpressions;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 namespace LocalGPT.Extensions.PlainStatics
 {
+    
     public static class CouncilChatStringFunctions
     {
+        public static string TrimForPrompt(
+    string? text,
+    int maxCharacters,
+    bool keepBothEnds = false,
+    bool collapseWhitespace = false,
+    bool useLocalGptOmission = false)
+        {
+            if (string.IsNullOrWhiteSpace(text) || maxCharacters <= 0)
+                return string.Empty;
 
+            var normalized = collapseWhitespace
+                ? GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(text, " ").Trim()
+                : text.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
+
+            if (string.IsNullOrWhiteSpace(normalized))
+                return string.Empty;
+
+            if (normalized.Length <= maxCharacters)
+                return normalized;
+
+            if (!useLocalGptOmission)
+            {
+                var trimmed = normalized[..Math.Min(normalized.Length, maxCharacters)].TrimEnd();
+                return $"{trimmed}...";
+            }
+
+            const string omission =
+                "\n\n[...older context trimmed by LocalGPT to fit the local model context window...]\n\n";
+
+            const string shortOmission =
+                "\n... truncated by LocalGPT upload workspace budget ...";
+
+            if (maxCharacters <= omission.Length + 40)
+            {
+                return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
+            }
+
+            if (!keepBothEnds)
+            {
+                var available = maxCharacters - shortOmission.Length;
+
+                if (available <= 0)
+                    return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
+
+                return $"{normalized[..available].TrimEnd()}{shortOmission}";
+            }
+
+            var remaining = maxCharacters - omission.Length;
+
+            if (remaining <= 0)
+                return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
+
+            var head = Math.Max(remaining / 2, 1);
+            var tail = Math.Max(remaining - head, 1);
+
+            return $"{normalized[..head].TrimEnd()}{omission}{normalized[^tail..].TrimStart()}";
+        }
         public static string GenerateArchetypePageRazor(
             string route,
             string title,
