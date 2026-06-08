@@ -116,7 +116,7 @@ namespace LocalGPT.Services
                 Topic = BuildTopic(result.Prompt),
                 Scope = "AI Council",
                 Source = $"AI Council {result.RunId}",
-                Content = BuildCouncilKnowledgeContent(result),
+                Content = BuildCouncilKnowledgeContent(result, logger),
                 HelpfulSources = ExtractHelpfulSources(result.FinalAnswer),
                 Tags = BuildTags(result, nonSubstantive),
                 Confidence = nonSubstantive ? 20 : result.Warnings.Count == 0 ? 75 : 55,
@@ -133,48 +133,56 @@ namespace LocalGPT.Services
             return entry.Id;
         }
 
-        public async Task<string> BuildKnowledgeBriefingAsync(int take = 8, CancellationToken cancellationToken = default)
+        public async Task<string> BuildKnowledgeBriefingAsync( int take = 8, CancellationToken cancellationToken = default)
         {
-            var entries = await GetEntriesAsync(includeArchived: false, take, cancellationToken);
-            if (entries.Count == 0)
-                return string.Empty;
-
-            var builder = new StringBuilder()
-                .AppendLine("AI Council maintained knowledge database:");
-
-            var briefingEntries = entries
-                .Where(entry => !LooksLikeNonSubstantiveContent(entry.Content))
-                .Where(IsUsableForBriefing)
-                .OrderByDescending(entry => entry.IsUserApproved)
-                .GroupBy(entry => $"{entry.Scope}|{entry.Topic}|{entry.Source}", StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First())
-                .ToList();
-
-            if (briefingEntries.Count == 0)
-                return string.Empty;
-
-            await MarkEntriesUsedAsync(briefingEntries.Select(entry => entry.Id), cancellationToken);
-
-            foreach (var entry in briefingEntries)
+            try
             {
-                var trust = BuildTrustLabel(entry);
-                builder
-                    .Append("- ")
-                    .Append(entry.Topic)
-                    .Append(" [")
-                    .Append(entry.Scope)
-                    .Append(", ")
-                    .Append(trust)
-                    .Append(", confidence ")
-                    .Append(entry.Confidence)
-                    .Append("%]: ")
-                    .AppendLine(CouncilChatStringFunctions.TrimForPrompt(entry.Content, 420));
+                var entries = await GetEntriesAsync(includeArchived: false, take, cancellationToken);
+                if (entries.Count == 0)
+                    return string.Empty;
 
-                if (!string.IsNullOrWhiteSpace(entry.HelpfulSources))
-                    builder.AppendLine($"  Helpful sources requested: {CouncilChatStringFunctions.TrimForPrompt(entry.HelpfulSources, 240)}");
+                var builder = new StringBuilder()
+                    .AppendLine("AI Council maintained knowledge database:");
+
+                var briefingEntries = entries
+                    .Where(entry => !LooksLikeNonSubstantiveContent(entry.Content))
+                    .Where(IsUsableForBriefing)
+                    .OrderByDescending(entry => entry.IsUserApproved)
+                    .GroupBy(entry => $"{entry.Scope}|{entry.Topic}|{entry.Source}", StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .ToList();
+
+                if (briefingEntries.Count == 0)
+                    return string.Empty;
+
+                await MarkEntriesUsedAsync(briefingEntries.Select(entry => entry.Id), cancellationToken);
+
+                foreach (var entry in briefingEntries)
+                {
+                    var trust = BuildTrustLabel(entry);
+                    builder
+                        .Append("- ")
+                        .Append(entry.Topic)
+                        .Append(" [")
+                        .Append(entry.Scope)
+                        .Append(", ")
+                        .Append(trust)
+                        .Append(", confidence ")
+                        .Append(entry.Confidence)
+                        .Append("%]: ")
+                        .AppendLine(CouncilChatStringFunctions.TrimForPrompt(entry.Content, 420,logger));
+
+                    if (!string.IsNullOrWhiteSpace(entry.HelpfulSources))
+                        builder.AppendLine($"  Helpful sources requested: {CouncilChatStringFunctions.TrimForPrompt(entry.HelpfulSources, 240, logger)}");
+                }
+
+                return builder.ToString().Trim();
             }
-
-            return builder.ToString().Trim();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in RunLocalGptLaneAsync take {take}");
+                return string.Empty;
+            }
         }
 
         private static void Normalize(CouncilKnowledgeEntry entry)
@@ -1141,14 +1149,23 @@ namespace LocalGPT.Services
             return null;
         }
 
-        private static string BuildCouncilKnowledgeContent(MultiModelCouncilResult result)
+        private static string BuildCouncilKnowledgeContent(MultiModelCouncilResult result, ILogger logger)
         {
+            try
+            {
+
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
             var builder = new StringBuilder()
                 .AppendLine($"Council members: {string.Join(", ", result.ModelNames)}")
-                .AppendLine($"Prompt: {CouncilChatStringFunctions.TrimForPrompt(result.Prompt, 900)}")
+                .AppendLine($"Prompt: {CouncilChatStringFunctions.TrimForPrompt(result.Prompt, 900, logger)}")
                 .AppendLine()
                 .AppendLine("Final answer:")
-                .AppendLine(CouncilChatStringFunctions.TrimForPrompt(result.FinalAnswer, 2400));
+                .AppendLine(CouncilChatStringFunctions.TrimForPrompt(result.FinalAnswer, 2400, logger));
 
             if (result.Warnings.Count > 0)
             {

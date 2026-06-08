@@ -1,5 +1,6 @@
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using System.Net;
@@ -110,7 +111,7 @@ namespace LocalGPT.Services
                     await using (stream)
                     using (var reader = new StreamReader(stream))
                     {
-                        var formatter = new VisibleThinkingStreamFormatter(IsHarmonyModel());
+                        var formatter = new VisibleThinkingStreamFormatter(CouncilChatStringFunctions.IsHarmonyModel(logger));
                         while (!reader.EndOfStream)
                         {
                             string? line;
@@ -320,7 +321,7 @@ namespace LocalGPT.Services
              .Where(message => !string.IsNullOrWhiteSpace(message.Content))
              .ToList();
 
-                if (IsHarmonyModel())
+                if (CouncilChatStringFunctions.IsHarmonyModel(logger))
                     AddHarmonyResponseProtocol(ollamaMessages,logger);
 
                 return ollamaMessages;
@@ -381,7 +382,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var visible = FormatVisibleResponse(response.Message?.Content, response.Message?.Thinking);
+                var visible = CouncilChatStringFunctions.FormatVisibleResponse(response.Message?.Content, response.Message?.Thinking, logger);
                 return
                 [
                     new TextContent(visible)

@@ -3413,7 +3413,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     yield break;
 
                 emittedMissingFinalNotice = true;
-                yield return MissingFinalAnswerNotice;
+                yield return GlobalVariableSlopCollectionToRemove. MissingFinalAnswerNotice;
             }
             finally
             {
@@ -3498,7 +3498,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 return string.Join(
                     Environment.NewLine,
                     matches
-                        .Select(match => CleanHarmonyText(match.Groups["content"].Value), logger)
+                        .Select(match => CleanHarmonyText(match.Groups["content"].Value, logger))
                         .Where(text => !string.IsNullOrWhiteSpace(text)));
             }
             catch (Exception ex)
@@ -3669,7 +3669,7 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                if (!IsHarmonyModel() || string.IsNullOrWhiteSpace(content))
+                if (!IsHarmonyModel(logger) || string.IsNullOrWhiteSpace(content))
                     return null;
 
                 content = WebUtility.HtmlDecode(content);

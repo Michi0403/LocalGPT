@@ -1,8 +1,10 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
+using SQLitePCL;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.ServiceModel.Channels;
 using System.Text;
 
 namespace LocalGPT.Services
@@ -40,7 +42,7 @@ namespace LocalGPT.Services
 
                 taskResult.Lanes.Add(NotRunLane("A. raw Ollama model", "Live raw Ollama call intentionally not run in this deterministic benchmark. Run later with GPU-safe caps and record the transcript."));
                 if (request.RunLocalGptArtifacts)
-                    taskResult.Lanes.Add(await RunLocalGptLaneAsync(task, request, cancellationToken));
+                    taskResult.Lanes.Add(await RunLocalGptLaneAsync(task, request, cancellationToken, logger));
                 else
                     taskResult.Lanes.Add(NotRunLane("B. LocalGPT with DxFunctions + memory", "Skipped by request."));
 
@@ -57,64 +59,73 @@ namespace LocalGPT.Services
             return result;
         }
 
-        private async Task<EngineeringBenchmarkLaneResult> RunLocalGptLaneAsync(
+        private async Task<EngineeringBenchmarkLaneResult?> RunLocalGptLaneAsync(
             BenchmarkTaskDefinition task,
             EngineeringBenchmarkRequest request,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken, ILogger logger)
         {
-            var stopwatch = Stopwatch.StartNew();
-            var councilResult = new MultiModelCouncilResult
+            try
             {
-                Prompt = task.Prompt,
-                ModelNames = ["LocalGPT deterministic artifact service"],
-                FinalAnswer = task.LocalGptFinalAnswer
-            };
-            var councilRequest = new MultiModelCouncilRequest
+                var stopwatch = Stopwatch.StartNew();
+                var councilResult = new MultiModelCouncilResult
+                {
+                    Prompt = task.Prompt,
+                    ModelNames = ["LocalGPT deterministic artifact service"],
+                    FinalAnswer = task.LocalGptFinalAnswer
+                };
+                var councilRequest = new MultiModelCouncilRequest
+                {
+                    Prompt = task.Prompt,
+                    ModelNames = ["artifact-benchmark"],
+                    GenerateImplementationArtifact = true,
+                    MaxOutputTokens = 1024,
+                    MaxContextTokens = 2048,
+                    MaxRounds = 0
+                };
+
+                var artifacts = await artifactService.CreateImplementationArtifactsAsync(councilRequest, councilResult, cancellationToken);
+                stopwatch.Stop();
+
+                var lane = new EngineeringBenchmarkLaneResult
+                {
+                    Lane = "B. LocalGPT with DxFunctions + memory",
+                    Status = artifacts.Count > 0 ? "Ran" : "RanNoArtifact",
+                    Duration = stopwatch.Elapsed,
+                    Artifacts = artifacts.ToList(),
+                    TimeToUsableOutputScore = stopwatch.Elapsed < TimeSpan.FromSeconds(20) ? 10 : stopwatch.Elapsed < TimeSpan.FromMinutes(1) ? 8 : 5,
+                    RepairPromptsScore = 10,
+                    RepairPromptCount = 0,
+                    DownloadableArtifactScore = artifacts.Any(artifact => !string.IsNullOrWhiteSpace(artifact.DownloadUrl)) ? 10 : 0
+                };
+
+                var artifactEntries = artifacts
+                    .Where(artifact => artifact.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .SelectMany(ReadZipEntriesSafe)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                lane.Evidence.AddRange(artifacts.Select(artifact => $"{artifact.Kind}: {artifact.Name} -> {artifact.DownloadUrl}"));
+                lane.MissingFiles.AddRange(task.RequiredArtifactEntries.Where(required => !ContainsZipEntry(artifactEntries, required)));
+                lane.MissingFilesScore = lane.MissingFiles.Count == 0 ? 10 : Math.Max(0, 10 - lane.MissingFiles.Count * 2);
+                lane.ValidArchitectureScore = ScoreArchitecture(task, artifactEntries, artifacts);
+                if (request.ValidateBuildableArtifacts)
+                    lane.BuildChecks.AddRange(await ValidateBuildableArtifactsAsync(artifacts, request.MaxBuildArtifacts, cancellationToken,logger).ConfigureAwait(false));
+
+                lane.BuildabilityScore = ScoreBuildability(task, artifacts, lane.BuildChecks, request.ValidateBuildableArtifacts);
+                lane.WrongPackagesTemplatesScore = ScoreWrongTemplateRisk(task, artifactEntries);
+                lane.TotalScore = SumScores(lane);
+                lane.Notes = lane.MissingFiles.Count == 0
+                    ? "Deterministic LocalGPT artifact path produced expected benchmark files."
+                    : "Artifact was produced, but required benchmark entries were missing. This is improvement fuel, not a pass.";
+                if (request.ValidateBuildableArtifacts && lane.BuildChecks.Count > 0)
+                    lane.Notes += $" Build checks: {string.Join("; ", lane.BuildChecks.Select(check => $"{check.ArtifactName}={check.Status}"))}.";
+                return lane;
+            }
+            catch (Exception ex)
             {
-                Prompt = task.Prompt,
-                ModelNames = ["artifact-benchmark"],
-                GenerateImplementationArtifact = true,
-                MaxOutputTokens = 1024,
-                MaxContextTokens = 2048,
-                MaxRounds = 0
-            };
-
-            var artifacts = await artifactService.CreateImplementationArtifactsAsync(councilRequest, councilResult, cancellationToken);
-            stopwatch.Stop();
-
-            var lane = new EngineeringBenchmarkLaneResult
-            {
-                Lane = "B. LocalGPT with DxFunctions + memory",
-                Status = artifacts.Count > 0 ? "Ran" : "RanNoArtifact",
-                Duration = stopwatch.Elapsed,
-                Artifacts = artifacts.ToList(),
-                TimeToUsableOutputScore = stopwatch.Elapsed < TimeSpan.FromSeconds(20) ? 10 : stopwatch.Elapsed < TimeSpan.FromMinutes(1) ? 8 : 5,
-                RepairPromptsScore = 10,
-                RepairPromptCount = 0,
-                DownloadableArtifactScore = artifacts.Any(artifact => !string.IsNullOrWhiteSpace(artifact.DownloadUrl)) ? 10 : 0
-            };
-
-            var artifactEntries = artifacts
-                .Where(artifact => artifact.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                .SelectMany(ReadZipEntriesSafe)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            lane.Evidence.AddRange(artifacts.Select(artifact => $"{artifact.Kind}: {artifact.Name} -> {artifact.DownloadUrl}"));
-            lane.MissingFiles.AddRange(task.RequiredArtifactEntries.Where(required => !ContainsZipEntry(artifactEntries, required)));
-            lane.MissingFilesScore = lane.MissingFiles.Count == 0 ? 10 : Math.Max(0, 10 - lane.MissingFiles.Count * 2);
-            lane.ValidArchitectureScore = ScoreArchitecture(task, artifactEntries, artifacts);
-            if (request.ValidateBuildableArtifacts)
-                lane.BuildChecks.AddRange(await ValidateBuildableArtifactsAsync(artifacts, request.MaxBuildArtifacts, cancellationToken));
-
-            lane.BuildabilityScore = ScoreBuildability(task, artifacts, lane.BuildChecks, request.ValidateBuildableArtifacts);
-            lane.WrongPackagesTemplatesScore = ScoreWrongTemplateRisk(task, artifactEntries);
-            lane.TotalScore = SumScores(lane);
-            lane.Notes = lane.MissingFiles.Count == 0
-                ? "Deterministic LocalGPT artifact path produced expected benchmark files."
-                : "Artifact was produced, but required benchmark entries were missing. This is improvement fuel, not a pass.";
-            if (request.ValidateBuildableArtifacts && lane.BuildChecks.Count > 0)
-                lane.Notes += $" Build checks: {string.Join("; ", lane.BuildChecks.Select(check => $"{check.ArtifactName}={check.Status}"))}.";
-            return lane;
+                logger.LogError(ex, $"Error in RunLocalGptLaneAsync task {task.ToString()} request {request.ToString()} ");
+                return null;
+            }
+         
         }
 
         private static EngineeringBenchmarkLaneResult BuildManualExpectedLane(BenchmarkTaskDefinition task)
@@ -150,140 +161,167 @@ namespace LocalGPT.Services
         private static async Task<IReadOnlyList<EngineeringBenchmarkBuildCheck>> ValidateBuildableArtifactsAsync(
             IReadOnlyList<CouncilArtifact> artifacts,
             int maxBuildArtifacts,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,ILogger logger)
         {
-            var checks = new List<EngineeringBenchmarkBuildCheck>();
-            var zipArtifacts = artifacts
-                .Where(artifact => artifact.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
-                    File.Exists(artifact.FilePath))
-                .Take(Math.Clamp(maxBuildArtifacts, 1, 8))
-                .ToArray();
-
-            foreach (var artifact in zipArtifacts)
-            {
-                checks.Add(await ValidateBuildableArtifactAsync(artifact, cancellationToken));
-            }
-
-            return checks;
-        }
-
-        private static async Task<EngineeringBenchmarkBuildCheck> ValidateBuildableArtifactAsync(
-            CouncilArtifact artifact,
-            CancellationToken cancellationToken)
-        {
-            var started = DateTime.UtcNow;
-            var root = Path.Combine(
-                Path.GetTempPath(),
-                "LocalGPT",
-                "EngineeringBenchmarkBuilds",
-                $"{Path.GetFileNameWithoutExtension(artifact.Name)}-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(root);
-
-            var check = new EngineeringBenchmarkBuildCheck
-            {
-                ArtifactName = artifact.Name,
-                ExtractedRoot = root
-            };
-
             try
             {
-                ZipFile.ExtractToDirectory(artifact.FilePath, root, overwriteFiles: true);
-                var solutionPath = Directory
-                    .EnumerateFiles(root, "*.sln", SearchOption.AllDirectories)
-                    .OrderBy(path => path.Length)
-                    .FirstOrDefault();
+                var checks = new List<EngineeringBenchmarkBuildCheck>();
+                var zipArtifacts = artifacts
+                    .Where(artifact => artifact.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+                        File.Exists(artifact.FilePath))
+                    .Take(Math.Clamp(maxBuildArtifacts, 1, 8))
+                    .ToArray();
 
-                if (solutionPath is null)
+                foreach (var artifact in zipArtifacts)
                 {
-                    check.Status = "NoSolution";
-                    check.OutputPreview = "No .sln file found. This artifact is not a .NET build target.";
-                    return check;
+                    checks.Add(await ValidateBuildableArtifactAsync(artifact, cancellationToken, logger));
                 }
 
-                check.SolutionPath = solutionPath;
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "dotnet",
-                    Arguments = $"build \"{solutionPath}\" -c Debug /nologo /p:UseSharedCompilation=false",
-                    WorkingDirectory = Path.GetDirectoryName(solutionPath) ?? root,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeoutCts.CancelAfter(TimeSpan.FromMinutes(3));
-
-                using var process = Process.Start(startInfo);
-                if (process is null)
-                {
-                    check.Status = "ProcessNotStarted";
-                    return check;
-                }
-
-                var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
-                var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
-                await process.WaitForExitAsync(timeoutCts.Token);
-                var output = await outputTask;
-                var error = await errorTask;
-
-                check.ExitCode = process.ExitCode;
-                check.Status = process.ExitCode == 0 ? "BuildPassed" : "BuildFailed";
-                check.OutputPreview = CouncilChatStringFunctions.TrimForPrompt(output, 1800);
-                check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(error, 1200);
-                return check;
+                return checks;
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            catch (Exception ex)
             {
-                check.Status = "TimedOut";
-                check.ErrorPreview = "dotnet build exceeded the 3 minute benchmark timeout.";
-                return check;
-            }
-            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
-            {
-                check.Status = "BuildCheckError";
-                check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(ex.Message, 1200);
-                return check;
-            }
-            finally
-            {
-                check.Duration = DateTime.UtcNow - started;
+                logger.LogError(ex, $"ValidateBuildableArtifactsAsync artifacts {artifacts.ToString()}");
+                return new List<EngineeringBenchmarkBuildCheck>();
             }
         }
 
-        private async Task<Guid> SaveBenchmarkKnowledgeAsync(EngineeringBenchmarkResult result, CancellationToken cancellationToken)
+        private static async Task<EngineeringBenchmarkBuildCheck?> ValidateBuildableArtifactAsync(
+            CouncilArtifact artifact,
+            CancellationToken cancellationToken,ILogger logger)
         {
-            var summary = new StringBuilder()
-                .AppendLine($"Engineering benchmark run {result.RunId} completed at {result.CompletedAtUtc:O}.")
-                .AppendLine($"Task set: {result.TaskSet}.")
-                .AppendLine($"Tasks: {string.Join("; ", result.Tasks.Select(task => task.Name))}.")
-                .AppendLine("Lane rule: raw Ollama and cloud lanes must be run with real transcripts before scoring; deterministic LocalGPT artifacts are allowed for no-GPU smoke evidence.");
-
-            foreach (var task in result.Tasks)
+            try
             {
-                var local = task.Lanes.FirstOrDefault(lane => lane.Lane.StartsWith("B.", StringComparison.Ordinal));
-                summary.AppendLine($"- {task.Name}: LocalGPT status {local?.Status}, score {local?.TotalScore}, artifacts {local?.Artifacts.Count ?? 0}.");
-                if (local?.MissingFiles.Count > 0)
-                    summary.AppendLine($"  Missing: {string.Join(", ", local.MissingFiles)}");
-                if (local?.BuildChecks.Count > 0)
-                    summary.AppendLine($"  Build checks: {string.Join(", ", local.BuildChecks.Select(check => $"{check.ArtifactName}={check.Status}"))}");
+                var started = DateTime.UtcNow;
+                var root = Path.Combine(
+                    Path.GetTempPath(),
+                    "LocalGPT",
+                    "EngineeringBenchmarkBuilds",
+                    $"{Path.GetFileNameWithoutExtension(artifact.Name)}-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(root);
+
+                var check = new EngineeringBenchmarkBuildCheck
+                {
+                    ArtifactName = artifact.Name,
+                    ExtractedRoot = root
+                };
+                try
+                {
+                    ZipFile.ExtractToDirectory(artifact.FilePath, root, overwriteFiles: true);
+                    var solutionPath = Directory
+                        .EnumerateFiles(root, "*.sln", SearchOption.AllDirectories)
+                        .OrderBy(path => path.Length)
+                        .FirstOrDefault();
+
+                    if (solutionPath is null)
+                    {
+                        check.Status = "NoSolution";
+                        check.OutputPreview = "No .sln file found. This artifact is not a .NET build target.";
+                        return check;
+                    }
+
+                    check.SolutionPath = solutionPath;
+                    var startInfo = new ProcessStartInfo
+                    {
+                        FileName = "dotnet",
+                        Arguments = $"build \"{solutionPath}\" -c Debug /nologo /p:UseSharedCompilation=false",
+                        WorkingDirectory = Path.GetDirectoryName(solutionPath) ?? root,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    timeoutCts.CancelAfter(TimeSpan.FromMinutes(3));
+
+                    using var process = Process.Start(startInfo);
+                    if (process is null)
+                    {
+                        check.Status = "ProcessNotStarted";
+                        return check;
+                    }
+
+                    var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+                    var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
+                    await process.WaitForExitAsync(timeoutCts.Token);
+                    var output = await outputTask;
+                    var error = await errorTask;
+
+                    check.ExitCode = process.ExitCode;
+                    check.Status = process.ExitCode == 0 ? "BuildPassed" : "BuildFailed";
+                    check.OutputPreview = CouncilChatStringFunctions.TrimForPrompt(output, 1800, logger);
+                    check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(error, 1200, logger);
+                    return check;
+                }
+                catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    check.Status = "TimedOut";
+                    check.ErrorPreview = "dotnet build exceeded the 3 minute benchmark timeout.";
+                    logger.LogError(ex, $"Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
+                    return check;
+                }
+                catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+                {
+                    check.Status = "BuildCheckError";
+                    check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(ex.Message, 1200, logger);
+                    logger.LogError(ex, $"Inner Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
+                    return check;
+                }
+                finally
+                {
+                    check.Duration = DateTime.UtcNow - started;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Outer Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
+            }
+            return null;
+        }
+
+        private async Task<Guid?> SaveBenchmarkKnowledgeAsync(EngineeringBenchmarkResult result, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var summary = new StringBuilder()
+               .AppendLine($"Engineering benchmark run {result.RunId} completed at {result.CompletedAtUtc:O}.")
+               .AppendLine($"Task set: {result.TaskSet}.")
+               .AppendLine($"Tasks: {string.Join("; ", result.Tasks.Select(task => task.Name))}.")
+               .AppendLine("Lane rule: raw Ollama and cloud lanes must be run with real transcripts before scoring; deterministic LocalGPT artifacts are allowed for no-GPU smoke evidence.");
+
+                foreach (var task in result.Tasks)
+                {
+                    var local = task.Lanes.FirstOrDefault(lane => lane.Lane.StartsWith("B.", StringComparison.Ordinal));
+                    summary.AppendLine($"- {task.Name}: LocalGPT status {local?.Status}, score {local?.TotalScore}, artifacts {local?.Artifacts.Count ?? 0}.");
+                    if (local?.MissingFiles.Count > 0)
+                        summary.AppendLine($"  Missing: {string.Join(", ", local.MissingFiles)}");
+                    if (local?.BuildChecks.Count > 0)
+                        summary.AppendLine($"  Build checks: {string.Join(", ", local.BuildChecks.Select(check => $"{check.ArtifactName}={check.Status}"))}");
+                }
+
+                var entry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
+                {
+                    Topic = "Personal engineering benchmark: LocalGPT vs raw models",
+                    Scope = "Benchmark",
+                    Source = $"/__diag/benchmark/engineering {result.RunId}",
+                    Content = summary.ToString(),
+                    HelpfulSources = "Use selected learn-base knowledge entries, artifact zips, build checks, raw Ollama transcripts, and cloud assistant transcripts. Do not fake unrun lanes.",
+                    Tags = "benchmark; localgpt; ollama; devexpress; blazor; minecraft; artifacts",
+                    Confidence = 70,
+                    VerificationStatus = "SourceBacked",
+                    IsPinned = true
+                }, cancellationToken);
+
+                return entry.Id;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Outer Error in ValidateBuildableArtifactAsync result {result.ToString()}");
+                return null;
             }
 
-            var entry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
-            {
-                Topic = "Personal engineering benchmark: LocalGPT vs raw models",
-                Scope = "Benchmark",
-                Source = $"/__diag/benchmark/engineering {result.RunId}",
-                Content = summary.ToString(),
-                HelpfulSources = "Use selected learn-base knowledge entries, artifact zips, build checks, raw Ollama transcripts, and cloud assistant transcripts. Do not fake unrun lanes.",
-                Tags = "benchmark; localgpt; ollama; devexpress; blazor; minecraft; artifacts",
-                Confidence = 70,
-                VerificationStatus = "SourceBacked",
-                IsPinned = true
-            }, cancellationToken);
 
-            return entry.Id;
         }
 
         private static int ScoreArchitecture(

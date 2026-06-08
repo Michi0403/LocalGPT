@@ -1,7 +1,10 @@
 using DevExpress.AIIntegration.Blazor.Chat;
+using DevExpress.Charts.Native;
+using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
@@ -205,7 +208,7 @@ namespace LocalGPT.Services
                     cancellationToken);
                 AddOrderedStep(result, consensusStep);
                 request.StepCompleted?.Invoke(consensusStep);
-                var consensusContent = SelectConsensusContent(result, consensusStep);
+                var consensusContent = SelectConsensusContent(result, consensusStep,logger);
 
                 if (participants.Count > 1 && critiqueRounds > 0)
                 {
@@ -350,7 +353,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private async Task<MultiModelCouncilStep> RunParticipantAsync(
+        private async Task<MultiModelCouncilStep?> RunParticipantAsync(
             string baseUri,
             string modelName,
             IReadOnlyList<string> councilMembers,
@@ -367,128 +370,138 @@ namespace LocalGPT.Services
             Action<string>? streamUpdate,
             CancellationToken cancellationToken)
         {
-            var started = DateTime.UtcNow;
-            var stopwatch = Stopwatch.StartNew();
-
             try
             {
-                using var client = new OllamaThinkingChatClient(new OllamaCoreOptions
+                var started = DateTime.UtcNow;
+                var stopwatch = Stopwatch.StartNew();
+
+                try
                 {
-                    Uri = baseUri,
-                    ModelName = modelName
-                }, keepAlive, maxContextTokens, TimeSpan.FromSeconds(modelTimeoutSeconds + 15), ollamaNumGpu);
-
-                using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
-
-                var messages = new List<ChatMessage>();
-                if (!string.IsNullOrWhiteSpace(bootstrap))
-                    messages.Add(new ChatMessage(ChatRole.System, bootstrap));
-                messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName, councilMembers)));
-                messages.Add(new ChatMessage(ChatRole.User, prompt));
-
-                streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
-                var builder = new StringBuilder();
-                await foreach (var update in client.GetStreamingResponseAsync(
-                    messages,
-                    new ChatOptions
+                    using var client = new OllamaThinkingChatClient(new OllamaCoreOptions
                     {
-                        MaxOutputTokens = Math.Clamp(maxOutputTokens, MinOutputTokens, MaxOutputTokens),
-                        Temperature = 0.2f
-                    },
-                    participantCts.Token).WithCancellation(participantCts.Token))
-                {
-                    builder.Append(update.Text);
-                    streamUpdate?.Invoke(update.Text);
-                }
+                        Uri = baseUri,
+                        ModelName = modelName
+                    },logger, keepAlive, maxContextTokens, TimeSpan.FromSeconds(modelTimeoutSeconds + 15), ollamaNumGpu);
 
-                streamUpdate?.Invoke("\n\n</details>\n\n");
 
-                var content = builder.ToString();
-                var thinking = ExtractThinking(content);
-                var visibleContent = StripThinking(content);
-                if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
-                    visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
+                    using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
 
-                if (IsThinkingOnlyCouncilContent(visibleContent))
-                {
-                    var recovery = await RunFinalOnlyRecoveryAsync(
-                        client,
-                        modelName,
-                        phase,
+                    var messages = new List<ChatMessage>();
+                    if (!string.IsNullOrWhiteSpace(bootstrap))
+                        messages.Add(new ChatMessage(ChatRole.System, bootstrap));
+                    messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName, councilMembers)));
+                    messages.Add(new ChatMessage(ChatRole.User, prompt));
+
+                    streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
+                    var builder = new StringBuilder();
+                    await foreach (var update in client.GetStreamingResponseAsync(
                         messages,
-                        Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 2048), 8192), MinOutputTokens, MaxOutputTokens),
-                        streamUpdate,
-                        participantCts.Token);
+                        new ChatOptions
+                        {
+                            MaxOutputTokens = Math.Clamp(maxOutputTokens, MinOutputTokens, MaxOutputTokens),
+                            Temperature = 0.2f
+                        },
+                        participantCts.Token).WithCancellation(participantCts.Token))
+                    {
+                        builder.Append(update.Text);
+                        streamUpdate?.Invoke(update.Text);
+                    }
 
-                    if (!string.IsNullOrWhiteSpace(recovery.Content))
-                        content = $"{content}{Environment.NewLine}{Environment.NewLine}{recovery.Content}";
-                    if (!string.IsNullOrWhiteSpace(recovery.Thinking))
-                        thinking = string.Join(Environment.NewLine, new[] { thinking, recovery.Thinking }.Where(text => !string.IsNullOrWhiteSpace(text)));
-                    if (IsSubstantiveCouncilContent(recovery.VisibleContent))
-                        visibleContent = recovery.VisibleContent;
+                    streamUpdate?.Invoke("\n\n</details>\n\n");
+
+                    var content = builder.ToString();
+                    var thinking = ExtractThinking(content);
+                    var visibleContent = StripThinking(content);
+                    if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
+                        visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
+
+                    if (IsThinkingOnlyCouncilContent(visibleContent))
+                    {
+                        var recovery = await RunFinalOnlyRecoveryAsync(
+                            client,
+                            modelName,
+                            phase,
+                            messages,
+                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 2048), 8192), MinOutputTokens, MaxOutputTokens),
+                            streamUpdate,
+                            participantCts.Token,logger);
+
+                        if (!string.IsNullOrWhiteSpace(recovery.Content))
+                            content = $"{content}{Environment.NewLine}{Environment.NewLine}{recovery.Content}";
+                        if (!string.IsNullOrWhiteSpace(recovery.Thinking))
+                            thinking = string.Join(Environment.NewLine, new[] { thinking, recovery.Thinking }.Where(text => !string.IsNullOrWhiteSpace(text)));
+                        if (IsSubstantiveCouncilContent(recovery.VisibleContent))
+                            visibleContent = recovery.VisibleContent;
+                    }
+
+                    stopwatch.Stop();
+                    return new MultiModelCouncilStep
+                    {
+                        Round = round,
+                        Phase = phase,
+                        ModelName = modelName,
+                        CouncilMembers = councilMembers.ToList(),
+                        Role = role,
+                        Content = content,
+                        VisibleContent = visibleContent,
+                        Thinking = thinking,
+                        StartedAtUtc = started,
+                        CompletedAtUtc = DateTime.UtcNow,
+                        DurationSeconds = stopwatch.Elapsed.TotalSeconds
+                    };
                 }
-
-                stopwatch.Stop();
-                return new MultiModelCouncilStep
+                catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
                 {
-                    Round = round,
-                    Phase = phase,
-                    ModelName = modelName,
-                    CouncilMembers = councilMembers.ToList(),
-                    Role = role,
-                    Content = content,
-                    VisibleContent = visibleContent,
-                    Thinking = thinking,
-                    StartedAtUtc = started,
-                    CompletedAtUtc = DateTime.UtcNow,
-                    DurationSeconds = stopwatch.Elapsed.TotalSeconds
-                };
-            }
-            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
-            {
-                stopwatch.Stop();
-                var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
-                logger.LogWarning(ex, "{Message}", message);
-                return new MultiModelCouncilStep
+                    stopwatch.Stop();
+                    var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
+                    logger.LogWarning(ex, "{Message}", message);
+                    return new MultiModelCouncilStep
+                    {
+                        Round = round,
+                        Phase = phase,
+                        ModelName = modelName,
+                        CouncilMembers = councilMembers.ToList(),
+                        Role = role,
+                        Content = $"**{message}**",
+                        VisibleContent = $"**{message}**",
+                        StartedAtUtc = started,
+                        CompletedAtUtc = DateTime.UtcNow,
+                        DurationSeconds = stopwatch.Elapsed.TotalSeconds,
+                        Error = message
+                    };
+                }
+                catch (Exception ex)
                 {
-                    Round = round,
-                    Phase = phase,
-                    ModelName = modelName,
-                    CouncilMembers = councilMembers.ToList(),
-                    Role = role,
-                    Content = $"**{message}**",
-                    VisibleContent = $"**{message}**",
-                    StartedAtUtc = started,
-                    CompletedAtUtc = DateTime.UtcNow,
-                    DurationSeconds = stopwatch.Elapsed.TotalSeconds,
-                    Error = message
-                };
+                    stopwatch.Stop();
+                    logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
+                    return new MultiModelCouncilStep
+                    {
+                        Round = round,
+                        Phase = phase,
+                        ModelName = modelName,
+                        CouncilMembers = councilMembers.ToList(),
+                        Role = role,
+                        Content = $"**{modelName} failed during {phase}.**{Environment.NewLine}{ex.Message}",
+                        VisibleContent = $"**{modelName} failed during {phase}.**{Environment.NewLine}{ex.Message}",
+                        StartedAtUtc = started,
+                        CompletedAtUtc = DateTime.UtcNow,
+                        DurationSeconds = stopwatch.Elapsed.TotalSeconds,
+                        Error = ex.Message
+                    };
+                }
+                finally
+                {
+                    if (ShouldUnloadAfterParticipant(keepAlive))
+                        await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken);
+                }
             }
             catch (Exception ex)
             {
-                stopwatch.Stop();
-                logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
-                return new MultiModelCouncilStep
-                {
-                    Round = round,
-                    Phase = phase,
-                    ModelName = modelName,
-                    CouncilMembers = councilMembers.ToList(),
-                    Role = role,
-                    Content = $"**{modelName} failed during {phase}.**{Environment.NewLine}{ex.Message}",
-                    VisibleContent = $"**{modelName} failed during {phase}.**{Environment.NewLine}{ex.Message}",
-                    StartedAtUtc = started,
-                    CompletedAtUtc = DateTime.UtcNow,
-                    DurationSeconds = stopwatch.Elapsed.TotalSeconds,
-                    Error = ex.Message
-                };
+                logger.LogError(ex, $"Error in RunParticipantAsync {ex.ToString()}");
+                return null;
             }
-            finally
-            {
-                if (ShouldUnloadAfterParticipant(keepAlive))
-                    await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken);
-            }
+           
         }
 
         private static async Task<(string Content, string VisibleContent, string? Thinking)> RunFinalOnlyRecoveryAsync(
@@ -498,64 +511,88 @@ namespace LocalGPT.Services
             IReadOnlyList<ChatMessage> originalMessages,
             int maxOutputTokens,
             Action<string>? streamUpdate,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken, ILogger logger)
         {
-            var messages = originalMessages.ToList();
-            messages.Add(new ChatMessage(ChatRole.User, $"""
+            try
+            {
+                var messages = originalMessages.ToList();
+                messages.Add(new ChatMessage(ChatRole.User, $"""
                 Your previous {phase} response for LocalGPT produced model thinking/status but no user-visible final answer.
                 Do not analyze again. Do not emit hidden reasoning. Do not use tool calls.
                 Emit only the final visible answer now in concise Markdown bullets.
                 Start with: Final answer:
                 """));
 
-            var builder = new StringBuilder();
-            streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
-            await foreach (var update in client.GetStreamingResponseAsync(
-                messages,
-                new ChatOptions
+                var builder = new StringBuilder();
+                streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
+                await foreach (var update in client.GetStreamingResponseAsync(
+                    messages,
+                    new ChatOptions
+                    {
+                        MaxOutputTokens = maxOutputTokens,
+                        Temperature = 0.1f
+                    },
+                    cancellationToken).WithCancellation(cancellationToken))
                 {
-                    MaxOutputTokens = maxOutputTokens,
-                    Temperature = 0.1f
-                },
-                cancellationToken).WithCancellation(cancellationToken))
+                    builder.Append(update.Text);
+                    streamUpdate?.Invoke(update.Text);
+                }
+
+                streamUpdate?.Invoke("\n\n</details>\n\n");
+                var content = builder.ToString();
+                var thinking = ExtractThinking(content);
+                var visibleContent = StripThinking(content);
+                return (content, visibleContent, thinking);
+            }
+            catch (Exception ex)
             {
-                builder.Append(update.Text);
-                streamUpdate?.Invoke(update.Text);
+                logger.LogError(ex, $"Error in RunFinalOnlyRecoveryAsync {ex.ToString()} client {client.ToString()}  modelName {modelName}  phase {phase}  originalMessages {originalMessages.ToString()}  maxOutputTokens {maxOutputTokens} streamUpdate {streamUpdate.ToString()} ");
+                return (string.Empty, string.Empty, null);
             }
 
-            streamUpdate?.Invoke("\n\n</details>\n\n");
-            var content = builder.ToString();
-            var thinking = ExtractThinking(content);
-            var visibleContent = StripThinking(content);
-            return (content, visibleContent, thinking);
         }
 
         private void AddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step)
         {
-            step.SortOrder = result.Steps.Count;
-            if (step.CouncilMembers.Count == 0)
-                step.CouncilMembers = result.ModelNames.ToList();
-            result.Steps.Add(step);
+            try
+            {
+                step.SortOrder = result.Steps.Count;
+                if (step.CouncilMembers.Count == 0)
+                    step.CouncilMembers = result.ModelNames.ToList();
+                result.Steps.Add(step);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AddOrderedStep {ex.ToString()} result {result.ToString()} step {step.ToString()}");
+            }
         }
 
-        private static string SelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep)
+        private static string SelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep , ILogger logger)
         {
-            var consensus = consensusStep.VisibleContent.Trim();
-            if (IsSubstantiveCouncilContent(consensus))
-                return consensus;
+            try
+            {
+                var consensus = consensusStep.VisibleContent.Trim();
+                if (IsSubstantiveCouncilContent(consensus))
+                    return consensus;
 
-            result.Warnings.Add($"{consensusStep.ModelName} returned a non-substantive consensus during {consensusStep.Phase}; LocalGPT used the latest substantive council step as the final-answer fallback.");
+                result.Warnings.Add($"{consensusStep.ModelName} returned a non-substantive consensus during {consensusStep.Phase}; LocalGPT used the latest substantive council step as the final-answer fallback.");
 
-            var fallback = result.Steps
-                .Where(step => !ReferenceEquals(step, consensusStep))
-                .OrderByDescending(step => step.SortOrder)
-                .Select(step => step.VisibleContent.Trim())
-                .FirstOrDefault(IsSubstantiveCouncilContent);
+                var fallback = result.Steps
+                    .Where(step => !ReferenceEquals(step, consensusStep))
+                    .OrderByDescending(step => step.SortOrder)
+                    .Select(step => step.VisibleContent.Trim())
+                    .FirstOrDefault(IsSubstantiveCouncilContent);
 
-            if (!string.IsNullOrWhiteSpace(fallback))
-                return fallback;
+                if (!string.IsNullOrWhiteSpace(fallback))
+                    return fallback;
 
-            return $"_{consensusStep.ModelName} did not return a substantive consensus answer. Retry with a higher output token budget, a smaller model set, or a shorter prompt._";
+                return $"_{consensusStep.ModelName} did not return a substantive consensus answer. Retry with a higher output token budget, a smaller model set, or a shorter prompt._";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SelectConsensusContent {ex.ToString()} result {result.ToString()} consensusStep {consensusStep.ToString()}");
+                return string.Empty;
+            }
         }
 
         private static bool IsSubstantiveCouncilContent(string content)

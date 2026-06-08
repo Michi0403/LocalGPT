@@ -1,3 +1,4 @@
+using DevExpress.CodeParser;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
@@ -454,79 +455,88 @@ namespace LocalGPT.Services
             string root,
             string prompt,
             IReadOnlyList<AnalyzedUploadFile> analyzedFiles,
-            IReadOnlyList<string> warnings)
+            IReadOnlyList<string> warnings, ILogger logger)
         {
-            var builder = new StringBuilder()
-                .AppendLine("# LocalGPT Chat Upload Workspace")
-                .AppendLine()
-                .AppendLine($"Workspace: `{workspaceName}`")
-                .AppendLine($"Root path: `{root}`")
-                .AppendLine($"Created UTC: {DateTimeOffset.UtcNow:O}")
-                .AppendLine()
-                .AppendLine("## Prompt")
-                .AppendLine(CouncilChatStringFunctions.TrimForPrompt(prompt, 4_000))
-                .AppendLine()
-                .AppendLine("## AI workflow instructions")
-                .AppendLine("- Use this workspace as uploaded user evidence for the current DXAiChat prompt.")
-                .AppendLine("- Read files through chat.upload_workspace_* DXAiFunctions instead of asking for huge pasted context.")
-                .AppendLine("- Zips are extracted safely; skipped entries are listed as warnings.")
-                .AppendLine("- PDB, DLL, EXE, WASM, and other binaries are never executed; only bounded printable strings are shown.")
-                .AppendLine("- Generated or edited code belongs in a council artifact workspace, then a refreshed zip download.")
-                .AppendLine();
-
-            if (warnings.Count > 0)
+            try
             {
-                builder.AppendLine("## Warnings");
-                foreach (var warning in warnings)
-                    builder.AppendLine($"- {warning}");
+                var builder = new StringBuilder()
+              .AppendLine("# LocalGPT Chat Upload Workspace")
+              .AppendLine()
+              .AppendLine($"Workspace: `{workspaceName}`")
+              .AppendLine($"Root path: `{root}`")
+              .AppendLine($"Created UTC: {DateTimeOffset.UtcNow:O}")
+              .AppendLine()
+              .AppendLine("## Prompt")
+              .AppendLine(CouncilChatStringFunctions.TrimForPrompt(prompt, 4_000,logger))
+              .AppendLine()
+              .AppendLine("## AI workflow instructions")
+              .AppendLine("- Use this workspace as uploaded user evidence for the current DXAiChat prompt.")
+              .AppendLine("- Read files through chat.upload_workspace_* DXAiFunctions instead of asking for huge pasted context.")
+              .AppendLine("- Zips are extracted safely; skipped entries are listed as warnings.")
+              .AppendLine("- PDB, DLL, EXE, WASM, and other binaries are never executed; only bounded printable strings are shown.")
+              .AppendLine("- Generated or edited code belongs in a council artifact workspace, then a refreshed zip download.")
+              .AppendLine();
+
+                if (warnings.Count > 0)
+                {
+                    builder.AppendLine("## Warnings");
+                    foreach (var warning in warnings)
+                        builder.AppendLine($"- {warning}");
+                    builder.AppendLine();
+                }
+
+                builder.AppendLine("## Files");
+                foreach (var file in analyzedFiles.Select(file => file.Summary))
+                {
+                    builder
+                        .Append("- ")
+                        .Append(file.RelativePath)
+                        .Append(" (")
+                        .Append(file.Kind)
+                        .Append(", ")
+                        .Append(file.Length)
+                        .Append(" bytes): ")
+                        .AppendLine(file.Note);
+                }
+
                 builder.AppendLine();
-            }
+                builder.AppendLine("## Extracted context");
 
-            builder.AppendLine("## Files");
-            foreach (var file in analyzedFiles.Select(file => file.Summary))
+                var remainingCharacters = MaxContextCharacters - builder.Length;
+                foreach (var file in analyzedFiles.Where(file => file.Summary.IncludedInPrompt))
+                {
+                    if (remainingCharacters <= 0)
+                        break;
+
+                    var excerpt = CouncilChatStringFunctions.TrimForPrompt(file.Excerpt, Math.Min(MaxExcerptCharactersPerFile, remainingCharacters), logger);
+                    if (string.IsNullOrWhiteSpace(excerpt))
+                        continue;
+
+                    var section = new StringBuilder()
+                        .AppendLine()
+                        .AppendLine($"### {file.Summary.RelativePath}")
+                        .AppendLine($"Kind: {file.Summary.Kind}. {file.Summary.Note}")
+                        .AppendLine()
+                        .AppendLine("```text")
+                        .AppendLine(excerpt)
+                        .AppendLine("```")
+                        .ToString();
+
+                    if (section.Length > remainingCharacters)
+                        section = CouncilChatStringFunctions.TrimForPrompt(section, remainingCharacters, logger);
+
+                    builder.Append(section);
+                    remainingCharacters -= section.Length;
+                }
+
+                return CouncilChatStringFunctions.TrimForPrompt(builder.ToString(), MaxContextCharacters, logger);
+            }
+            catch (Exception ex)
             {
-                builder
-                    .Append("- ")
-                    .Append(file.RelativePath)
-                    .Append(" (")
-                    .Append(file.Kind)
-                    .Append(", ")
-                    .Append(file.Length)
-                    .Append(" bytes): ")
-                    .AppendLine(file.Note);
+                logger.LogWarning(ex, $"Error inBuildContextMarkdown workspaceName {workspaceName} root {root} prompt {prompt} analyzedFiles {analyzedFiles.ToString()} warnings {warnings.ToString()}");
+                return null;
             }
 
-            builder.AppendLine();
-            builder.AppendLine("## Extracted context");
-
-            var remainingCharacters = MaxContextCharacters - builder.Length;
-            foreach (var file in analyzedFiles.Where(file => file.Summary.IncludedInPrompt))
-            {
-                if (remainingCharacters <= 0)
-                    break;
-
-                var excerpt = CouncilChatStringFunctions.TrimForPrompt(file.Excerpt, Math.Min(MaxExcerptCharactersPerFile, remainingCharacters));
-                if (string.IsNullOrWhiteSpace(excerpt))
-                    continue;
-
-                var section = new StringBuilder()
-                    .AppendLine()
-                    .AppendLine($"### {file.Summary.RelativePath}")
-                    .AppendLine($"Kind: {file.Summary.Kind}. {file.Summary.Note}")
-                    .AppendLine()
-                    .AppendLine("```text")
-                    .AppendLine(excerpt)
-                    .AppendLine("```")
-                    .ToString();
-
-                if (section.Length > remainingCharacters)
-                    section = CouncilChatStringFunctions.TrimForPrompt(section, remainingCharacters);
-
-                builder.Append(section);
-                remainingCharacters -= section.Length;
-            }
-
-            return CouncilChatStringFunctions.TrimForPrompt(builder.ToString(), MaxContextCharacters);
         }
 
         private ChatUploadWorkspaceSummary? BuildWorkspaceSummary(string path)
@@ -725,15 +735,17 @@ namespace LocalGPT.Services
             current.Clear();
         }
 
-        private static AnalyzedUploadFile BuildSummary(
+        private static AnalyzedUploadFile? BuildSummary(
             string relativePath,
             long length,
             string kind,
             bool includedInPrompt,
             string note,
-            string excerpt)
+            string excerpt, ILogger logger)
         {
-            return new AnalyzedUploadFile(
+            try
+            {
+                return new AnalyzedUploadFile(
                 new ChatUploadWorkspaceFileSummary(
                     relativePath,
                     kind,
@@ -741,30 +753,66 @@ namespace LocalGPT.Services
                     DateTime.UtcNow,
                     includedInPrompt,
                     note),
-                CouncilChatStringFunctions.TrimForPrompt(excerpt, MaxExcerptCharactersPerFile));
+                CouncilChatStringFunctions.TrimForPrompt(excerpt, MaxExcerptCharactersPerFile, logger));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildSummary relativePath {relativePath} length {length} kind {kind} includedInPrompt {includedInPrompt} note {note} excerpt {excerpt}");
+                return null;
+            }
         }
 
-        private static AnalyzedUploadFile BuildBinarySummary(
+        public static AnalyzedUploadFile? BuildBinarySummary(
             string relativePath,
             long length,
             string kind,
             bool includedInPrompt,
-            string note) =>
-            BuildSummary(relativePath, length, kind, includedInPrompt, note, string.Empty);
-
-        private static string SanitizeForPrompt(string text)
+            string note, ILogger logger) 
         {
-            var userName = Environment.UserName;
-            if (!string.IsNullOrWhiteSpace(userName))
-                text = text.Replace(userName, "%USER%", StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                return BuildSummary(relativePath, length, kind, includedInPrompt, note, string.Empty, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildBinarySummary relativePath {relativePath} length {length} kind {kind} includedInPrompt {includedInPrompt} note {note}");
+                return null;
+            }
+        }
 
-            return text.Replace("\0", string.Empty, StringComparison.Ordinal);
+
+        public static string SanitizeForPrompt(string text, ILogger logger)
+        {
+            try
+            {
+                var userName = Environment.UserName;
+                if (!string.IsNullOrWhiteSpace(userName))
+                    text = text.Replace(userName, "%USER%", StringComparison.OrdinalIgnoreCase);
+
+                return text.Replace("\0", string.Empty, StringComparison.Ordinal);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SanitizeForPrompt text {text}");
+                return string.Empty;
+            }
         }
 
 
 
-        private static string ToForwardSlash(string path) =>
-            path.Replace('\\', '/');
+        public static string ToForwardSlash(string path, ILogger logger) 
+        {
+            try
+            {
+                return path.Replace('\\', '/');
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToForwardSlash path {path}");
+                return string.Empty;
+            }
+        }
+            
 
         public sealed record AnalyzedUploadFile(
             ChatUploadWorkspaceFileSummary Summary,

@@ -5,6 +5,7 @@ using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
+using Microsoft.VisualBasic;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -123,56 +124,81 @@ namespace LocalGPT.Services
 
         public async Task<IReadOnlyList<ChatMemoryThought>> GetRecentThoughtsAsync(int take = 12, CancellationToken cancellationToken = default)
         {
-            await using var db = await CreateDbContextAsync(cancellationToken);
-            return await db.Messages
-                .AsNoTracking()
-                .Where(message => message.Thinking != null && message.Thinking != string.Empty)
-                .OrderByDescending(message => message.CreatedAtUtc)
-                .Take(Math.Clamp(take, 1, 100))
-                .Select(message => new ChatMemoryThought(
-                    message.ConversationId,
-                    message.Conversation.Title,
-                    message.CreatedAtUtc,
-                    message.Thinking!))
-                .ToListAsync(cancellationToken);
+            try
+            {
+                await using var db = await CreateDbContextAsync(cancellationToken);
+                return await db.Messages
+                    .AsNoTracking()
+                    .Where(message => message.Thinking != null && message.Thinking != string.Empty)
+                    .OrderByDescending(message => message.CreatedAtUtc)
+                    .Take(Math.Clamp(take, 1, 100))
+                    .Select(message => new ChatMemoryThought(
+                        message.ConversationId,
+                        message.Conversation.Title,
+                        message.CreatedAtUtc,
+                        message.Thinking!))
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetRecentThoughtsAsync take {take}");
+                return new List<ChatMemoryThought>();
+            }
         }
 
         public async Task<string> BuildMemoryBriefingAsync(int conversationTake = 5, int thoughtTake = 5, CancellationToken cancellationToken = default)
         {
-            var conversations = await GetConversationsAsync(conversationTake, cancellationToken);
-            var thoughts = await GetRecentThoughtsAsync(thoughtTake, cancellationToken);
+            try
+            {
+                var conversations = await GetConversationsAsync(conversationTake, cancellationToken);
+                var thoughts = await GetRecentThoughtsAsync(thoughtTake, cancellationToken);
 
-            if (conversations.Count == 0 && thoughts.Count == 0)
+                if (conversations.Count == 0 && thoughts.Count == 0)
+                    return string.Empty;
+
+                var builder = new StringBuilder();
+                if (conversations.Count > 0)
+                {
+                    builder.AppendLine("Recent conversations:");
+                    foreach (var conversation in conversations)
+                    {
+                        builder.AppendLine($"- {conversation.Title} ({conversation.ProviderName}, {conversation.MessageCount} messages, updated {conversation.UpdatedAtUtc:u})");
+                    }
+                }
+
+                if (thoughts.Count > 0)
+                {
+                    builder.AppendLine("Former model thoughts:");
+                    foreach (var thought in thoughts)
+                    {
+                        builder.AppendLine($"- {thought.ConversationTitle}: {CouncilChatStringFunctions.TrimForPrompt(thought.Thinking, 500, logger)}");
+                    }
+                }
+
+                return builder.ToString().Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,$"Error in BuildMemoryBriefingAsync conversationTake {conversationTake} thoughtTake {thoughtTake}");
                 return string.Empty;
-
-            var builder = new StringBuilder();
-            if (conversations.Count > 0)
-            {
-                builder.AppendLine("Recent conversations:");
-                foreach (var conversation in conversations)
-                {
-                    builder.AppendLine($"- {conversation.Title} ({conversation.ProviderName}, {conversation.MessageCount} messages, updated {conversation.UpdatedAtUtc:u})");
-                }
             }
-
-            if (thoughts.Count > 0)
-            {
-                builder.AppendLine("Former model thoughts:");
-                foreach (var thought in thoughts)
-                {
-                    builder.AppendLine($"- {thought.ConversationTitle}: {CouncilChatStringFunctions.TrimForPrompt(thought.Thinking, 500)}");
-                }
-            }
-
-            return builder.ToString().Trim();
+            
         }
 
-        private async Task<LocalGptMemoryDbContext> CreateDbContextAsync(CancellationToken cancellationToken)
+        private async Task<LocalGptMemoryDbContext?> CreateDbContextAsync(CancellationToken cancellationToken)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
-            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await db.Database.EnsureCreatedAsync(cancellationToken);
-            return db;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                await db.Database.EnsureCreatedAsync(cancellationToken);
+                return db;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateDbContextAsync");
+                return null;
+            }
         }
 
         private static BlazorChatMessage ToBlazorChatMessage(ChatMemoryMessage message)
