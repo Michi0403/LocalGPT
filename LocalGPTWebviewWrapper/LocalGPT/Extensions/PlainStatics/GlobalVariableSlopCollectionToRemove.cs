@@ -1,4 +1,5 @@
 ﻿using DevExpress.Blazor;
+using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using Markdig;
 using System.Net;
@@ -10,7 +11,7 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
-
+      
         public sealed class OllamaChatRequest
         {
             public string Model { get; set; } = string.Empty;
@@ -1060,6 +1061,84 @@ namespace LocalGPT.Extensions.PlainStatics
                 }
             }
             """;
+        [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|$)|<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|<\\|start\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex HarmonyFinalPatternNew();
+        public static bool HarmonyFinalPatternIsMatch(string value, ILogger logger)
+        {
+            try
+            {
+                logger.LogInformation($"HarmonyFinalPatternIsMatch enterd {value}");
+                return HarmonyFinalPatternNew().IsMatch(value);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in HarmonyFinalPatternIsMatch value {value}");
+                return false;
+            }
+        }
+
+        [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)|<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex HarmonyThinkingPatternNew();
+        public static bool HarmonyThinkingPatternNewIsMatch(string value, ILogger logger)
+        {
+            try
+            {
+                logger.LogInformation($"HarmonyThinkingPatternNewIsMatch enterd {value}");
+                return HarmonyThinkingPatternNew().IsMatch(value);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in HarmonyThinkingPatternNewIsMatch value {value}");
+                return false;
+            }
+        }
+
+
+        [GeneratedRegex("<\\|[^>]+\\|>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex HarmonyMarkerPatternNew();
+        public static bool HarmonyMarkerPatternNewIsMatch(string value, ILogger logger)
+        {
+            try
+            {
+                logger.LogInformation($"HarmonyMarkerPatternNewIsMatch enterd {value}");
+                return HarmonyMarkerPatternNew().IsMatch(value);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in HarmonyMarkerPatternNewIsMatch value {value}");
+                return false;
+            }
+        }
+        [GeneratedRegex("<think>(?<thinking>.*?)</think>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex ThinkTagPatternNew();
+        public static string? ThinkTagPatternNewExtractTaggedThinking(string? value, ILogger logger)
+        {
+            try
+            {
+
+                logger.LogInformation($"ThinkTagPatternNewIsMatch enterd {value}");
+                if (string.IsNullOrWhiteSpace(value))
+                    return null;
+
+                var matches = ThinkTagPatternNew().Matches(value);
+                if (matches.Count == 0)
+                    return null;
+
+                var thinking = string.Join(
+               Environment.NewLine,
+               matches
+                   .Select(match => match.Groups["thinking"].Value.Trim())
+                   .Where(text => !string.IsNullOrWhiteSpace(text)));
+
+                return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ThinkTagPatternNewIsMatch value {value}");
+                return null;
+            }
+        }
+
         [GeneratedRegex("(devexpress|richedit|pdfviewer|pivot|report|xtrareport|office|docx|xlsx|pdf export|spreadsheet|document generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         public static partial Regex DevExpressDocumentPattern();
 

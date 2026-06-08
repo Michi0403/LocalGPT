@@ -454,31 +454,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static string? ExtractTaggedThinking(string? content, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(content))
-                    return null;
 
-                var matches = ThinkTagPattern().Matches(content);
-                if (matches.Count == 0)
-                    return null;
-
-                var thinking = string.Join(
-                    Environment.NewLine,
-                    matches
-                        .Select(match => match.Groups["thinking"].Value.Trim())
-                        .Where(text => !string.IsNullOrWhiteSpace(text)));
-
-                return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ExtractTaggedThinking content {content?.ToString()}");
-                return null;
-            }
-        }
 
         private bool IsHarmonyModel()
         {
@@ -535,17 +511,7 @@ namespace LocalGPT.Services
 
         }
 
-        [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|$)|<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|<\\|start\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        private static partial Regex HarmonyFinalPattern();
 
-        [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)|<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        private static partial Regex HarmonyThinkingPattern();
-
-        [GeneratedRegex("<\\|[^>]+\\|>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex HarmonyMarkerPattern();
-
-        [GeneratedRegex("<think>(?<thinking>.*?)</think>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        private static partial Regex ThinkTagPattern();
 
     }
 }
