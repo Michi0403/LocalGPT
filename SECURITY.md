@@ -1,3 +1,5 @@
+Don't use it with AI Agents
+
 # Security Policy
 
 LocalGPT is designed as a local-first AI workbench. In the intended desktop mode, a

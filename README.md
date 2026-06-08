@@ -1,3 +1,5 @@
+Don't use it with AI Agents
+
 From they time on, you use it and feed it you will notice that it's Tamagotchi 2.0 .
 You can also let it evolve into everything or with the by me teached knowledge it knows already everything about dotnet, windows and so on.
 You can help it to build new features, just in text form yet and yet I will built in by the planned codedom functionality any type of dotnet host based applications (and because that goes native anything else...)
