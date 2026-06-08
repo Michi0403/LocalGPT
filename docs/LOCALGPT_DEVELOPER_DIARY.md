@@ -1,3 +1,13 @@
+202606080702 Michi: Treat it good and everybody (and everything else), you as customer and user.
+This memorizes, learns by itself and by your input.
+Most inputs are still hardcoded and halfway broken but I gonna fix that soon, anyway this is already capable of everything around microsoft, c# and so on and knows my architecture from scratch + can tool anything how I would code it(I don't wanna clap loud hands but I could give it quite a range of my own sourcerepos or forks, you can read it all in the database it's documented.
+As well you can strip it naked and start from scratch, there might still be hardcoded stuff so right now it's extra dangerous.
+Don't use it with super high IQ models, around 30b-35b is professor iq lifeform .. don't use more, if there are problems they need to be solved not that way.
+High Token models are dead from now on. Already a gremium of 2-4 members has stunning results. Just try and talk with it especially when you have a goal in mind.
+You saw these Videos of these guys "CHATGPT 1 MILLION DOLLAR IDEA WORK ON IT NOW?"), yeah they maybe can't ask ChatGPT for that but your own Offline Models with Ollama are overcapable todo so.
+
+SaaS died by me, I thought this could work... It did. Have it for free Apache2 forever and so on but the Devexpress Components, trial or buy. Thanks.
+
 202606072225 Michi: I am cleaning up most of the code, Codex drove really far away from my architecture.
 First thing was that I removed all special WinWrapper Access (I planned with Selenium and that was one of the goals)
 Now I moved all hardcoded static consts and statics from Components into a Namespace and turned them into public statics.

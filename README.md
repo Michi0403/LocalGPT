@@ -1,3 +1,15 @@
+From they time on, you use it and feed it you will notice that it's Tamagotchi 2.0 .
+You can also let it evolve into everything or with the by me teached knowledge it knows already everything about dotnet, windows and so on.
+You can help it to build new features, just in text form yet and yet I will built in by the planned codedom functionality any type of dotnet host based applications (and because that goes native anything else...)
+It knows already everything for that and I teached it my most important repositories as well which I published over the years and I explained it connected IT Architecture in that context.
+Still through the rogue agent a lot broken BUT it can overgo that in many ways and just, what it can't get in not hardcoded in some points can generate itself.
+It can generate anything for you, learn anything for you (topic doesn't matter) and it's nice.
+Don't forget to give it access, when you develop it, in one way or another to the git repo, that's just fair for every development step, it still can usually solve that but, that's time waste, don't do that.
+
+Love humanity, nature and every lifeform, don't do ugly things with this.
+
+I am not philosophical it also memorizes mistreatment, be careful.
+
 # Security consideration
 Because it's obviously not "LLM"'s but deciding models (they obviously don't know what they are doing -> OpenAI, XAI, Google, Facebook, Deepseek, and many more) development of higher capability models than the ones, actually running on a RX7900XTX, should be forbidden, if necessary enforced.
 
