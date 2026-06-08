@@ -623,6 +623,7 @@
                 var session = new ChatClientSession(
                     new OllamaThinkingChatClient(
                         new OllamaCoreOptions { Uri = candidate.Endpoint, ModelName = candidate.ModelName },
+                        Logger,
                         keepAlive: "0s",
                         contextLength: ResolveCouncilContextTokens(),
                         timeout: TimeSpan.FromMinutes(30),
@@ -677,6 +678,7 @@
             var session = new ChatClientSession(
                 new OllamaThinkingChatClient(
                     new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
+                    Logger,
                     keepAlive: "0s",
                         contextLength: ResolveCouncilContextTokens(),
                         timeout: TimeSpan.FromMinutes(30),

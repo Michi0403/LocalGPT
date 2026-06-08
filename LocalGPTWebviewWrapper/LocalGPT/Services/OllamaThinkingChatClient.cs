@@ -10,10 +10,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
 
 namespace LocalGPT.Services
 {
-    public sealed partial class OllamaThinkingChatClient(ILogger<OllamaThinkingChatClient> logger) : IChatClient
+    public sealed partial class OllamaThinkingChatClient(ILogger logger) : IChatClient
     {
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
         {
@@ -34,7 +35,7 @@ namespace LocalGPT.Services
         private readonly int? contextLength;
         private readonly int? numGpu;
 
-        public OllamaThinkingChatClient(OllamaCoreOptions options, ILogger<OllamaThinkingChatClient> logger, string? keepAlive = null, int? contextLength = null, TimeSpan? timeout = null, int? numGpu = null) : this(logger)
+        public OllamaThinkingChatClient(OllamaCoreOptions options, ILogger logger, string? keepAlive = null, int? contextLength = null, TimeSpan? timeout = null, int? numGpu = null) : this(logger)
         {
             try
             {
@@ -383,7 +384,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private List<AIContent>? CreateContents(OllamaChatResponse response)
+        public List<AIContent>? CreateContents(OllamaChatResponse response)
         {
             try
             {

@@ -17,82 +17,8 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
-        public static string ExtractHarmonyThinkingText(string raw, ILogger logger)
-        {
-            try
-            {
-                var matches = CouncilChatStringFunctions.HarmonyThinkingPattern(logger).Matches(raw);
-                if (matches.Count == 0)
-                    return string.Empty;
-
-                return string.Join(
-                    Environment.NewLine,
-                    matches
-                        .Select(match => CleanHarmonyText(match.Groups["content"].Value))
-                        .Where(text => !string.IsNullOrWhiteSpace(text)));
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"ExtractHarmonyThinkingText raw {raw}");
-                return string.Empty;
-            }
-        }
 
 
-
-        public static string ExtractHarmonyFinalText(string raw, ILogger logger)
-        {
-            try
-            {
-                var matches = HarmonyFinalPattern().Matches(raw);
-                if (matches.Count == 0)
-                    return string.Empty;
-
-                return CleanHarmonyText(matches[^1].Groups["content"].Value);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"ExtractHarmonyFinalText raw {raw}");
-                return string.Empty;
-            }
-        }
-        public static string CleanHarmonyText(string text, ILogger logger)
-        {
-            try
-            {
-                var cleaned = HarmonyMarkerPattern().Replace(WebUtility.HtmlDecode(text), string.Empty);
-                var partialMarkerIndex = cleaned.LastIndexOf("<|", StringComparison.Ordinal);
-                if (partialMarkerIndex >= 0 &&
-                    cleaned.IndexOf("|>", partialMarkerIndex, StringComparison.Ordinal) < 0)
-                {
-                    cleaned = cleaned[..partialMarkerIndex];
-                }
-
-                return cleaned;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"CleanHarmonyText text {text}");
-                return string.Empty;
-            }
- 
-        }
-        public static int GetSafeFlushLength(string current, ILogger logger)
-        {
-            try
-            {
-                if (current.Length <= TagLookbehindLength)
-                    return 0;
-
-                return current.Length - TagLookbehindLength;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"GetSafeFlushLength current {current}");
-                return -1;
-            }
-            
-        }
         public static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, ILogger logger, int? forcedMaxPromptCharacters = null)
         {
             try

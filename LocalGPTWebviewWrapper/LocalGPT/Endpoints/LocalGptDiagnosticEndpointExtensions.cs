@@ -13,7 +13,7 @@ namespace LocalGPT.Endpoints
 {
     public static class LocalGptDiagnosticEndpointExtensions
     {
-        public static IEndpointRouteBuilder MapLocalGptDiagnosticEndpoints(this IEndpointRouteBuilder app)
+        public static IEndpointRouteBuilder MapLocalGptDiagnosticEndpoints(this IEndpointRouteBuilder app, ILogger logger)
         {
             app.MapGet("/__diag", (IWebHostEnvironment env) => new
             {
@@ -58,6 +58,7 @@ namespace LocalGPT.Endpoints
                 var modelName = string.IsNullOrWhiteSpace(model) ? "gpt-oss:20b" : model.Trim();
                 using var client = new OllamaThinkingChatClient(
                     new OllamaCoreOptions { Uri = normalizedEndpoint, ModelName = modelName },
+                    logger,
                     keepAlive: "0s",
                     contextLength: 2048,
                     timeout: TimeSpan.FromMinutes(5),
