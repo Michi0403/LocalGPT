@@ -1,10 +1,22 @@
+@inject ILogger<InteractiveStartupMarker> Logger
+@inject INotificationService Notifier
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IJSRuntime JS
 
 @code {
+
+    string toastName = "interactiveMarkerToasts";
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-            await JS.InvokeVoidAsync("localGptReady.markInteractive");
+        try
+        {
+            if (firstRender)
+                await JS.InvokeVoidAsync("localGptReady.markInteractive");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error in OnInitializedAsync {ex.ToString()}");
+            Notifier.ShowError(toastName, ex.Message, $"Error in OnInitializedAsync");
+        }
     }
 }

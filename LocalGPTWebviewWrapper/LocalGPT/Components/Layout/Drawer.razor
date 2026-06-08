@@ -5,6 +5,7 @@
 @inject IJSRuntime JS
 @implements IDisposable
 @inject ILogger<Drawer> Logger
+@inject INotificationService Notifier
 <div id="main-window-drawer">
 @*       <DxDrawer SizeMode="SizeMode.Large"
                 PanelWidth="@Width"
@@ -35,6 +36,7 @@
 </div>
 
 @code {
+    string toastName { get; set; } = "DrawerToasts";
     [Parameter]
     public string Width { get; set; } = "max-content";
     [Parameter]
@@ -78,6 +80,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, $"Error in Dispose {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ClearHistory!");
         }
 
     }
@@ -95,6 +98,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, $"Error in DisposeAsync {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Error in DisposeAsync {ex.ToString()}");
         }
 
         // Optionally call Dispose for sync resources
@@ -110,6 +114,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, $"Error in OnInitializedAsync: {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Error in OnInitializedAsync: {ex.ToString()}");
         }
     }
 
@@ -134,6 +139,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, $"Error in OnAfterRenderAsync in Drawer {ex.ToString()}");
+            Notifier.ShowError(toastName, $"Error in OnAfterRenderAsync in Drawer {ex.ToString()}");
         }
     }
 }

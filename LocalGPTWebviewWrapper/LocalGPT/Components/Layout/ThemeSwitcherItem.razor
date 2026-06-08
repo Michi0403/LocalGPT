@@ -1,5 +1,7 @@
 ﻿
 @inject ThemeService Themes
+@inject ILogger<ThemeSwitcherItem> Logger
+@inject INotificationService Notifier
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 <a class="themeswitcher-item list-group-item list-group-item-action @Theme?.GetCssClass(Themes.ActiveTheme == Theme) @Theme?.IconCssClass"
    @onclick:preventDefault
