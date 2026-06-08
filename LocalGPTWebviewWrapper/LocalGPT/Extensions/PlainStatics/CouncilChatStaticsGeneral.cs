@@ -38,7 +38,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     if (budget <= 0)
                         break;
 
-                    var trimmed = CouncilChatStringFunctions. TrimForPrompt(text, budget, keepBothEnds: false);
+                    var trimmed = CouncilChatStringFunctions.TrimForPrompt(text, budget,logger, keepBothEnds: false);
                     if (string.IsNullOrWhiteSpace(trimmed))
                         continue;
 
@@ -61,7 +61,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     var message = conversationMessages[index];
                     var text = message.Text ?? string.Empty;
                     var messageBudget = Math.Min(GlobalVariableSlopCollectionToRemove.MaxSingleConversationMessageCharacters, remainingBudget);
-                    var trimmed = CouncilChatStringFunctions.TrimForPrompt(text, messageBudget, keepBothEnds: true);
+                    var trimmed = CouncilChatStringFunctions.TrimForPrompt(text, messageBudget, logger, keepBothEnds: true);
                     if (string.IsNullOrWhiteSpace(trimmed))
                         continue;
 
@@ -297,7 +297,7 @@ namespace LocalGPT.Extensions.PlainStatics
            
         }
 
-
+    
 
         public static GlobalVariableSlopCollectionToRemove.GeneratedArchetypePage? ArchetypePage(
             string fileName,

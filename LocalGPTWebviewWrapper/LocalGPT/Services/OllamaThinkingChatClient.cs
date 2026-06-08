@@ -21,14 +21,7 @@ namespace LocalGPT.Services
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             PropertyNameCaseInsensitive = true
         };
-        private const string HarmonyResponseProtocol =
-            "Response protocol for Harmony/OpenAI-style local models: keep analysis short, " +
-            "emit user-visible final answer text early in the final channel, never spend the whole budget on analysis, and if the request is too large, " +
-            "say what is missing or what to do next in final instead of spending the whole answer budget on analysis.";
-        private const string MissingFinalAnswerNotice =
-            "**No final answer was emitted.** The model only sent thinking. LocalGPT kept the thinking visible and stopped the spinner; " +
-            "send a short \"continue with the final answer\" request or raise the answer-token budget for this model.";
-
+       
         private readonly HttpClient http;
         private readonly string model;
         private readonly string keepAlive;
@@ -399,117 +392,6 @@ namespace LocalGPT.Services
                 logger.LogError(ex, $"Error in CreateContents response {response.ToString()}");
                 return null;
             }
-        }
-
-        private string? NormalizeVisibleContent(string? content)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(content))
-                    return null;
-
-                var text = WebUtility.HtmlDecode(content).Trim();
-                if (IsHarmonyModel())
-                {
-                    var finalMatches = HarmonyFinalPattern().Matches(text);
-                    if (finalMatches.Count > 0)
-                        text = finalMatches[^1].Groups["content"].Value;
-
-                    text = HarmonyMarkerPattern().Replace(text, string.Empty);
-                }
-
-                text = ThinkTagPattern().Replace(text, string.Empty);
-                return text.Trim();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in NormalizeVisibleContent content {content?.ToString()}");
-                return null;
-            }
-        }
-
-        private string? ExtractHarmonyThinking(string? content)
-        {
-            try
-            {
-                if (!IsHarmonyModel() || string.IsNullOrWhiteSpace(content))
-                    return null;
-
-                content = WebUtility.HtmlDecode(content);
-                var matches = HarmonyThinkingPattern().Matches(content);
-                if (matches.Count == 0)
-                    return null;
-
-                var thinking = string.Join(
-                    Environment.NewLine,
-                    matches
-                        .Select(match => HarmonyMarkerPattern().Replace(match.Groups["content"].Value, string.Empty).Trim())
-                        .Where(text => !string.IsNullOrWhiteSpace(text)));
-
-                return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ExtractHarmonyThinking content {content?.ToString()}");
-                return null;
-            }
-        }
-
-
-
-        private bool IsHarmonyModel()
-        {
-            try
-            {
-                return model.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
-          model.Contains("harmony", StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsHarmonyModel");
-                return false;
-            }
-        }
-
-        private string FormatVisibleResponse(string? content, string? thinking)
-        {
-            try
-            {
-                var builder = new StringBuilder();
-                var normalizedContent = NormalizeVisibleContent(content);
-                var thinkingParts = new[]
-                {
-                string.IsNullOrWhiteSpace(thinking) ? null : thinking.Trim(),
-                ExtractHarmonyThinking(content),
-                ExtractTaggedThinking(content,logger)
-            }.Where(text => !string.IsNullOrWhiteSpace(text));
-                var normalizedThinking = string.Join(Environment.NewLine, thinkingParts);
-
-                if (!string.IsNullOrWhiteSpace(normalizedThinking))
-                {
-                    builder
-                        .AppendLine("<details class=\"model-thinking\" open>")
-                        .AppendLine("<summary>Model thinking</summary>")
-                        .AppendLine("<pre>")
-                        .AppendLine(WebUtility.HtmlEncode(normalizedThinking.Trim()))
-                        .AppendLine("</pre>")
-                        .AppendLine("</details>")
-                        .AppendLine();
-                }
-
-                if (!string.IsNullOrWhiteSpace(normalizedContent))
-                    builder.AppendLine(normalizedContent.Trim());
-                else if (!string.IsNullOrWhiteSpace(normalizedThinking))
-                    builder.AppendLine(MissingFinalAnswerNotice);
-
-                return builder.ToString().Trim();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in FormatVisibleResponse content {content} thinking {thinking}");
-                return string.Empty;
-            }
-
         }
 
 

@@ -230,7 +230,7 @@
                 route = "/" + route;
             }
 
-            return CouncilChatStringFunctions.IsAllowedLocalRoute(route)
+            return CouncilChatStringFunctions.IsAllowedLocalRoute(route, Logger)
                 ? RunRouteAsync(route)
                 : ShowBlockedRouteAsync(route);
         }
@@ -301,7 +301,7 @@
     {
         try
         {
-            if (!CouncilChatStringFunctions.IsAllowedLocalRoute(route))
+            if (!CouncilChatStringFunctions.IsAllowedLocalRoute(route, Logger))
             {
                 await ShowBlockedRouteAsync(route).ConfigureAwait(false);
                 return;
@@ -319,7 +319,7 @@
                 var response = await http.GetAsync(url).ConfigureAwait(false);
                 var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 statusText = $"GET {route} -> {(int)response.StatusCode} {response.ReasonPhrase}";
-                resultText = CouncilChatStringFunctions.PrettyPrintJson(text);
+                resultText = CouncilChatStringFunctions.PrettyPrintJson(text, Logger);
                 downloadLinks = ExtractDownloadLinks(text);
                 await TryRefreshArtifactWorkspacesAfterRouteAsync(text).ConfigureAwait(false);
             }
@@ -423,7 +423,7 @@
            var response = await http.GetFromJsonAsync<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
            openSourceRelativePath = response?.RelativePath ?? file.RelativePath;
            openSourceContent = response?.Content ?? string.Empty;
-           openSourcePreviewMarkup = CouncilChatStringFunctions.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent);
+           openSourcePreviewMarkup = CouncilChatStringFunctions.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent, Logger);
            sourcePopupVisible = true;
            statusText = $"Opened {openSourceRelativePath}.";
        }, "OpenWorkspaceFileAsync").ConfigureAwait(false);
@@ -455,8 +455,8 @@
         statusText = response.IsSuccessStatusCode
             ? $"Saved {openSourceRelativePath}. Refresh the zip when the source is ready."
             : $"Save failed: {(int)response.StatusCode} {response.ReasonPhrase}";
-        resultText = CouncilChatStringFunctions.PrettyPrintJson(text);
-        openSourcePreviewMarkup = CouncilChatStringFunctions.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent);
+        resultText = CouncilChatStringFunctions.PrettyPrintJson(text, Logger);
+        openSourcePreviewMarkup = CouncilChatStringFunctions.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent, Logger);
         await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(false);
     }, "SaveWorkspaceFileAsync").ConfigureAwait(false); 
         }
@@ -485,7 +485,7 @@
           statusText = response.IsSuccessStatusCode
               ? $"Workspace zip refreshed for {selectedArtifactWorkspace.WorkspaceName}."
               : $"Zip refresh failed: {(int)response.StatusCode} {response.ReasonPhrase}";
-          resultText = CouncilChatStringFunctions.PrettyPrintJson(text);
+          resultText = CouncilChatStringFunctions.PrettyPrintJson(text, Logger);
           downloadLinks = ExtractDownloadLinks(text);
           await LoadArtifactWorkspacesAsync().ConfigureAwait(false);
       }, "RefreshWorkspaceZipAsync");

@@ -1,5 +1,6 @@
 ﻿using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.Blazor.Viewer.Internal;
+using DevExpress.DataAccess.DataFederation;
 using DevExpress.Utils.About;
 using DevExpress.XtraCharts;
 using DevExpress.XtraRichEdit.Import.Html;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.CSharp;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.AI;
+using SQLitePCL;
 using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Globalization;
@@ -20,12 +22,13 @@ using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.RegularExpressions;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 namespace LocalGPT.Extensions.PlainStatics
 {
     
-    public static class CouncilChatStringFunctions
+    public  static partial class CouncilChatStringFunctions
     {
-        public static IEnumerable<string> AppendHarmonyContent(string textm, ILogger logger)
+        public static IEnumerable<string> AppendHarmonyContent(string text, ILogger logger)
         {
             try
             {
@@ -34,34 +37,42 @@ namespace LocalGPT.Extensions.PlainStatics
                 if (!raw.Contains("<|", StringComparison.Ordinal))
                 {
                     harmonyBuffer.Clear();
-                    foreach (var chunk in AppendTaggedContent(raw))
+                    foreach (var chunk in CouncilChatStringFunctions.AppendTaggedContent(raw,true,logger))
                         yield return chunk;
                     yield break;
                 }
 
-                foreach (var chunk in EmitHarmonyDeltas(raw))
+                foreach (var chunk in CouncilChatStringFunctions.EmitHarmonyDeltas(raw,true,logger))
                     yield return chunk;
             }
-            catch (Exception)
+            finally 
             {
-
-                throw;
+                logger.LogInformation($"Appended Harmony Content {text}");
             }
 
         }
-        public static string BuildSourcePreviewMarkup(string relativePath, string source)
+        public static string BuildSourcePreviewMarkup(string relativePath, string source, ILogger logger)
         {
-            var extension = Path.GetExtension(relativePath);
-            var encodedPath = System.Net.WebUtility.HtmlEncode(relativePath);
-            var encodedSource = System.Net.WebUtility.HtmlEncode(source);
-            return $"""
+            try
+            {
+                var extension = Path.GetExtension(relativePath);
+                var encodedPath = System.Net.WebUtility.HtmlEncode(relativePath);
+                var encodedSource = System.Net.WebUtility.HtmlEncode(source);
+                return $"""
             <h3>{encodedPath}</h3>
             <p>Preview is read-only. Edit the raw source pane, then save and refresh the zip separately.</p>
             <pre><code>{encodedSource}</code></pre>
             <p><small>File type: {System.Net.WebUtility.HtmlEncode(extension)}</small></p>
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,$"Error in BuildSourcePreviewMarkup relativePath {relativePath} source {source}");
+                return string.Empty;
+            }
+         
         }
-        public static bool IsAllowedLocalRoute(string route)
+        public static bool IsAllowedLocalRoute(string route, ILogger logger)
         {
             try
             {
@@ -71,87 +82,102 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-
-                throw;
+                logger.LogError(ex, $"Error in IsAllowedLocalRoute route {route}");
+                return false;
             }
 
         }
 
-        public static string PrettyPrintJson(string text)
+        public static string PrettyPrintJson(string text, ILogger logger)
         {
-            if (string.IsNullOrWhiteSpace(text))
+            try
             {
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return string.Empty;
+                }
+
+                try
+                {
+                    using var json = System.Text.Json.JsonDocument.Parse(text);
+                    return System.Text.Json.JsonSerializer.Serialize(
+                        json.RootElement,
+                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    return text;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in PrettyPrintJson text {text}");
                 return string.Empty;
             }
 
-            try
-            {
-                using var json = System.Text.Json.JsonDocument.Parse(text);
-                return System.Text.Json.JsonSerializer.Serialize(
-                    json.RootElement,
-                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-            }
-            catch (System.Text.Json.JsonException)
-            {
-                return text;
-            }
+
         }
         public static string TrimForPrompt(
     string? text,
-    int maxCharacters,
+    int maxCharacters, 
+    ILogger logger,
     bool keepBothEnds = false,
     bool collapseWhitespace = false,
     bool useLocalGptOmission = false)
         {
-            if (string.IsNullOrWhiteSpace(text) || maxCharacters <= 0)
-                return string.Empty;
-
-            var normalized = collapseWhitespace
-                ? GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(text, " ").Trim()
-                : text.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
-
-            if (string.IsNullOrWhiteSpace(normalized))
-                return string.Empty;
-
-            if (normalized.Length <= maxCharacters)
-                return normalized;
-
-            if (!useLocalGptOmission)
+            try
             {
-                var trimmed = normalized[..Math.Min(normalized.Length, maxCharacters)].TrimEnd();
-                return $"{trimmed}...";
-            }
+                if (string.IsNullOrWhiteSpace(text) || maxCharacters <= 0)
+                    return string.Empty;
 
-            const string omission =
-                "\n\n[...older context trimmed by LocalGPT to fit the local model context window...]\n\n";
+                var normalized = collapseWhitespace
+                    ? GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(text, " ").Trim()
+                    : text.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
 
-            const string shortOmission =
-                "\n... truncated by LocalGPT upload workspace budget ...";
+                if (string.IsNullOrWhiteSpace(normalized))
+                    return string.Empty;
 
-            if (maxCharacters <= omission.Length + 40)
-            {
-                return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
-            }
+                if (normalized.Length <= maxCharacters)
+                    return normalized;
 
-            if (!keepBothEnds)
-            {
-                var available = maxCharacters - shortOmission.Length;
+                if (!useLocalGptOmission)
+                {
+                    var trimmed = normalized[..Math.Min(normalized.Length, maxCharacters)].TrimEnd();
+                    return $"{trimmed}...";
+                }
 
-                if (available <= 0)
+               
+
+                if (maxCharacters <= GlobalVariableSlopCollectionToRemove. omission.Length + 40)
+                {
+                    return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
+                }
+
+                if (!keepBothEnds)
+                {
+                    var available = maxCharacters - GlobalVariableSlopCollectionToRemove.shortOmission.Length;
+
+                    if (available <= 0)
+                        return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
+
+                    return $"{normalized[..available].TrimEnd()}{GlobalVariableSlopCollectionToRemove.shortOmission}";
+                }
+
+                var remaining = maxCharacters - GlobalVariableSlopCollectionToRemove.omission.Length;
+
+                if (remaining <= 0)
                     return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
 
-                return $"{normalized[..available].TrimEnd()}{shortOmission}";
+                var head = Math.Max(remaining / 2, 1);
+                var tail = Math.Max(remaining - head, 1);
+
+                return $"{normalized[..head].TrimEnd()}{GlobalVariableSlopCollectionToRemove.omission}{normalized[^tail..].TrimStart()}";
             }
-
-            var remaining = maxCharacters - omission.Length;
-
-            if (remaining <= 0)
-                return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
-
-            var head = Math.Max(remaining / 2, 1);
-            var tail = Math.Max(remaining - head, 1);
-
-            return $"{normalized[..head].TrimEnd()}{omission}{normalized[^tail..].TrimStart()}";
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TrimForPrompt text {text} maxCharacters {maxCharacters} keepBothEnds {keepBothEnds} collapseWhitespace {collapseWhitespace} useLocalGptOmission {useLocalGptOmission}");
+                return string.Empty;
+            }
         }
         public static string GenerateArchetypePageRazor(
             string route,
@@ -2991,7 +3017,7 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var displayName = ExtractMinecraftProjectDisplayName(text, logger);
+                var displayName = ExtractMinecraftProjectDisplayName(text,null, logger);
                 var modId = ToMinecraftNamespace(displayName, logger);
                 var projectName = ToPascalIdentifier(displayName, logger);
                 if (string.IsNullOrWhiteSpace(projectName))
@@ -3023,10 +3049,11 @@ namespace LocalGPT.Extensions.PlainStatics
         public static bool emittedVisibleContent;
         public static bool emittedMissingFinalNotice;
         public static bool thinkingBlockOpen;
-        public static string ExtractMinecraftProjectDisplayName(string text, bool harmonyModel, ILogger logger)
+        public static string ExtractMinecraftProjectDisplayName(string text, bool? harmonyModel, ILogger logger)
         {
             try
             {
+                harmonyModel=harmonyModel ?? false;
                 var quoted = Regex.Match(text, "\"(?<name>[A-Z][A-Za-z0-9 _-]{2,60})\"");
                 if (quoted.Success)
                     return CleanMinecraftProjectDisplayName(quoted.Groups["name"].Value, logger);
@@ -3056,258 +3083,343 @@ namespace LocalGPT.Extensions.PlainStatics
         }
         public static IEnumerable<string> AppendThinking(string text, bool harmonyModel, ILogger logger)
         {
-            if (string.IsNullOrEmpty(text))
-                yield break;
+            try
+            {
+                if (string.IsNullOrEmpty(text))
+                    yield break;
 
-            foreach (var chunk in OpenThinkingBlock())
-                yield return chunk;
+                foreach (var chunk in CouncilChatStringFunctions.OpenThinkingBlock(logger))
+                    yield return chunk;
 
-            emittedExplicitThinking = true;
-            yield return WebUtility.HtmlEncode(text);
+                emittedExplicitThinking = true;
+                yield return WebUtility.HtmlEncode(text);
+            }
+            finally
+            {
+                        
+                logger.LogInformation($"ended AppendThinking text:{text} harmonyModel:{harmonyModel}");
+                
+            }
         }
 
         public static IEnumerable<string> AppendContent(string text, bool harmonyModel, ILogger logger)
         {
-            if (string.IsNullOrEmpty(text))
-                yield break;
-
-            if (harmonyModel)
+            try
             {
-                foreach (var chunk in AppendHarmonyContent(text))
+                if (string.IsNullOrEmpty(text))
+                    yield break;
+
+                if (harmonyModel)
+                {
+                    foreach (var chunk in AppendHarmonyContent(text, logger))
+                        yield return chunk;
+                    yield break;
+                }
+
+                foreach (var chunk in AppendTaggedContent(text, harmonyModel, logger))
                     yield return chunk;
-                yield break;
+            }
+            finally
+            {
+
+                logger.LogInformation($"ended AppendContent text:{text} harmonyModel:{harmonyModel}");
+
             }
 
-            foreach (var chunk in AppendTaggedContent(text))
-                yield return chunk;
         }
 
         public static IEnumerable<string> AppendTaggedContent(string text, bool harmonyModel, ILogger logger)
         {
-            if (string.IsNullOrEmpty(text))
-                yield break;
-
-            contentBuffer.Append(text);
-
-            while (contentBuffer.Length > 0)
+            try
             {
-                var current = contentBuffer.ToString();
-                if (inTaggedThinking)
+                if (string.IsNullOrEmpty(text))
+                    yield break;
+
+                contentBuffer.Append(text);
+
+                while (contentBuffer.Length > 0)
                 {
-                    var endIndex = current.IndexOf(ThinkEndTag, StringComparison.OrdinalIgnoreCase);
-                    if (endIndex >= 0)
+                    var current = contentBuffer.ToString();
+                    if (inTaggedThinking)
                     {
-                        if (endIndex > 0)
-                            yield return WebUtility.HtmlEncode(current[..endIndex]);
+                        var endIndex = current.IndexOf(ThinkEndTag, StringComparison.OrdinalIgnoreCase);
+                        if (endIndex >= 0)
+                        {
+                            if (endIndex > 0)
+                                yield return WebUtility.HtmlEncode(current[..endIndex]);
 
-                        contentBuffer.Remove(0, endIndex + ThinkEndTag.Length);
-                        foreach (var chunk in CloseThinkingBlock())
-                            yield return chunk;
+                            contentBuffer.Remove(0, endIndex + ThinkEndTag.Length);
+                            foreach (var chunk in CloseThinkingBlock(logger))
+                                yield return chunk;
 
-                        inTaggedThinking = false;
+                            inTaggedThinking = false;
+                            continue;
+                        }
+
+                        var safeLength = GetSafeFlushLength(current, logger);
+                        if (safeLength <= 0)
+                            yield break;
+
+                        yield return WebUtility.HtmlEncode(current[..safeLength]);
+                        contentBuffer.Remove(0, safeLength);
                         continue;
                     }
 
-                    var safeLength = GetSafeFlushLength(current);
-                    if (safeLength <= 0)
-                        yield break;
-
-                    yield return WebUtility.HtmlEncode(current[..safeLength]);
-                    contentBuffer.Remove(0, safeLength);
-                    continue;
-                }
-
-                var startIndex = current.IndexOf(ThinkStartTag, StringComparison.OrdinalIgnoreCase);
-                if (startIndex >= 0)
-                {
-                    if (startIndex > 0)
+                    var startIndex = current.IndexOf(ThinkStartTag, StringComparison.OrdinalIgnoreCase);
+                    if (startIndex >= 0)
                     {
-                        foreach (var chunk in CloseThinkingBlock())
+                        if (startIndex > 0)
+                        {
+                            foreach (var chunk in CloseThinkingBlock(logger))
+                                yield return chunk;
+
+                            emittedVisibleContent = true;
+                            yield return current[..startIndex];
+                        }
+
+                        contentBuffer.Remove(0, startIndex + ThinkStartTag.Length);
+                        foreach (var chunk in OpenThinkingBlock(logger))
                             yield return chunk;
 
-                        emittedVisibleContent = true;
-                        yield return current[..startIndex];
+                        inTaggedThinking = true;
+                        continue;
                     }
 
-                    contentBuffer.Remove(0, startIndex + ThinkStartTag.Length);
-                    foreach (var chunk in OpenThinkingBlock())
+                    var flushLength = GetSafeFlushLength(current, logger);
+                    if (flushLength <= 0)
+                        yield break;
+
+                    foreach (var chunk in CloseThinkingBlock(logger))
                         yield return chunk;
 
-                    inTaggedThinking = true;
-                    continue;
+                    emittedVisibleContent = true;
+                    yield return current[..flushLength];
+                    contentBuffer.Remove(0, flushLength);
                 }
-
-                var flushLength = GetSafeFlushLength(current);
-                if (flushLength <= 0)
-                    yield break;
-
-                foreach (var chunk in CloseThinkingBlock())
-                    yield return chunk;
-
-                emittedVisibleContent = true;
-                yield return current[..flushLength];
-                contentBuffer.Remove(0, flushLength);
+            }
+            finally
+            {
+                logger.LogInformation($"ended AppendTaggedContent text:{text} harmonyModel:{harmonyModel}");
             }
         }
 
         public static IEnumerable<string> Complete( bool harmonyModel, ILogger logger)
         {
-            if (harmonyModel)
+            try
             {
-                foreach (var chunk in CompleteHarmonyContent())
+                if (harmonyModel)
+                {
+                    foreach (var chunk in CompleteHarmonyContent(logger))
+                        yield return chunk;
+                    yield break;
+                }
+
+                foreach (var chunk in CompleteTaggedContent(logger))
                     yield return chunk;
-                yield break;
+
+                if (!emittedVisibleContent && emittedExplicitThinking)
+                {
+                    foreach (var chunk in EmitMissingFinalNotice(logger))
+                        yield return chunk;
+                }
             }
-
-            foreach (var chunk in CompleteTaggedContent())
-                yield return chunk;
-
-            if (!emittedVisibleContent && emittedExplicitThinking)
+            finally
             {
-                foreach (var chunk in EmitMissingFinalNotice())
-                    yield return chunk;
+                logger.LogInformation($"ended Complete harmonyModel:{harmonyModel}");
             }
         }
 
         public static IEnumerable<string> CompleteTaggedContent(ILogger logger)
         {
-            if (contentBuffer.Length > 0)
+            try
             {
-                var current = contentBuffer.ToString();
-                contentBuffer.Clear();
-                if (inTaggedThinking)
-                    yield return WebUtility.HtmlEncode(current);
-                else
+                if (contentBuffer.Length > 0)
                 {
-                    foreach (var chunk in CloseThinkingBlock())
-                        yield return chunk;
+                    var current = contentBuffer.ToString();
+                    contentBuffer.Clear();
+                    if (inTaggedThinking)
+                        yield return WebUtility.HtmlEncode(current);
+                    else
+                    {
+                        foreach (var chunk in CloseThinkingBlock(logger))
+                            yield return chunk;
 
-                    emittedVisibleContent = true;
-                    yield return current;
+                        emittedVisibleContent = true;
+                        yield return current;
+                    }
                 }
+
+                foreach (var chunk in CloseThinkingBlock(logger))
+                    yield return chunk;
+
+                inTaggedThinking = false;
             }
-
-            foreach (var chunk in CloseThinkingBlock())
-                yield return chunk;
-
-            inTaggedThinking = false;
+            finally
+            {
+                logger.LogInformation($"ended CompleteTaggedContent");
+            }
+        
         }
 
 
 
         public static IEnumerable<string> CompleteHarmonyContent( ILogger logger)
         {
-            if (harmonyBuffer.Length > 0)
+            try
             {
-                var raw = harmonyBuffer.ToString();
-                harmonyBuffer.Clear();
-                if (!raw.Contains("<|", StringComparison.Ordinal))
+                if (harmonyBuffer.Length > 0)
                 {
-                    foreach (var chunk in AppendTaggedContent(raw))
+                    var raw = harmonyBuffer.ToString();
+                    harmonyBuffer.Clear();
+                    if (!raw.Contains("<|", StringComparison.Ordinal))
+                    {
+                        foreach (var chunk in AppendTaggedContent(raw, true, logger))
+                            yield return chunk;
+                        foreach (var chunk in CompleteTaggedContent(logger))
+                            yield return chunk;
+                        yield break;
+                    }
+
+                    foreach (var chunk in EmitHarmonyDeltas(raw, true, logger))
                         yield return chunk;
-                    foreach (var chunk in CompleteTaggedContent())
-                        yield return chunk;
-                    yield break;
+
+                    if (emittedHarmonyFinalLength == 0 && emittedHarmonyThinkingLength > 0)
+                    {
+                        foreach (var chunk in CloseThinkingBlock(logger))
+                            yield return chunk;
+
+                        foreach (var chunk in EmitMissingFinalNotice(logger))
+                            yield return chunk;
+                    }
                 }
 
-                foreach (var chunk in EmitHarmonyDeltas(raw))
+                foreach (var chunk in CloseThinkingBlock(logger))
                     yield return chunk;
 
-                if (emittedHarmonyFinalLength == 0 && emittedHarmonyThinkingLength > 0)
+                if (!emittedVisibleContent && emittedExplicitThinking)
                 {
-                    foreach (var chunk in CloseThinkingBlock())
-                        yield return chunk;
-
-                    foreach (var chunk in EmitMissingFinalNotice())
+                    foreach (var chunk in EmitMissingFinalNotice(logger))
                         yield return chunk;
                 }
             }
-
-            foreach (var chunk in CloseThinkingBlock())
-                yield return chunk;
-
-            if (!emittedVisibleContent && emittedExplicitThinking)
+            finally
             {
-                foreach (var chunk in EmitMissingFinalNotice())
-                    yield return chunk;
+                logger.LogInformation($"ended CompleteHarmonyContent");
             }
+           
         }
 
         public static IEnumerable<string> EmitHarmonyDeltas(string raw, bool harmonyModel, ILogger logger)
         {
-            var thinking = ExtractHarmonyThinkingText(raw);
-            if (thinking.Length > emittedHarmonyThinkingLength)
+            try
             {
-                foreach (var chunk in OpenThinkingBlock())
+                var thinking = ExtractHarmonyThinkingText(raw, logger);
+                if (thinking.Length > emittedHarmonyThinkingLength)
+                {
+                    foreach (var chunk in OpenThinkingBlock(logger))
+                        yield return chunk;
+
+                    yield return WebUtility.HtmlEncode(thinking[emittedHarmonyThinkingLength..]);
+                    emittedHarmonyThinkingLength = thinking.Length;
+                }
+
+                var final = ExtractHarmonyFinalText(raw, logger);
+                if (final.Length <= emittedHarmonyFinalLength)
+                    yield break;
+
+                foreach (var chunk in CloseThinkingBlock(logger))
                     yield return chunk;
 
-                yield return WebUtility.HtmlEncode(thinking[emittedHarmonyThinkingLength..]);
-                emittedHarmonyThinkingLength = thinking.Length;
+                emittedVisibleContent = true;
+                yield return final[emittedHarmonyFinalLength..];
+                emittedHarmonyFinalLength = final.Length;
             }
-
-            var final = ExtractHarmonyFinalText(raw);
-            if (final.Length <= emittedHarmonyFinalLength)
-                yield break;
-
-            foreach (var chunk in CloseThinkingBlock())
-                yield return chunk;
-
-            emittedVisibleContent = true;
-            yield return final[emittedHarmonyFinalLength..];
-            emittedHarmonyFinalLength = final.Length;
+            finally
+            {
+                logger.LogInformation($"ended EmitHarmonyDeltas raw {raw} harmonyModel {harmonyModel}");
+            }
         }
 
         public static IEnumerable<string> EmitHarmonyDeltas(string raw, ILogger logger)
         {
-            var thinking = ExtractHarmonyThinkingText(raw);
-            if (thinking.Length > emittedHarmonyThinkingLength)
+            try
             {
-                foreach (var chunk in OpenThinkingBlock())
+                var thinking = ExtractHarmonyThinkingText(raw, logger);
+                if (thinking.Length > emittedHarmonyThinkingLength)
+                {
+                    foreach (var chunk in OpenThinkingBlock(logger))
+                        yield return chunk;
+
+                    yield return WebUtility.HtmlEncode(thinking[emittedHarmonyThinkingLength..]);
+                    emittedHarmonyThinkingLength = thinking.Length;
+                }
+
+                var final = ExtractHarmonyFinalText(raw, logger);
+                if (final.Length <= emittedHarmonyFinalLength)
+                    yield break;
+
+                foreach (var chunk in CloseThinkingBlock(logger))
                     yield return chunk;
 
-                yield return WebUtility.HtmlEncode(thinking[emittedHarmonyThinkingLength..]);
-                emittedHarmonyThinkingLength = thinking.Length;
+                emittedVisibleContent = true;
+                yield return final[emittedHarmonyFinalLength..];
+                emittedHarmonyFinalLength = final.Length;
             }
-
-            var final = ExtractHarmonyFinalText(raw);
-            if (final.Length <= emittedHarmonyFinalLength)
-                yield break;
-
-            foreach (var chunk in CloseThinkingBlock())
-                yield return chunk;
-
-            emittedVisibleContent = true;
-            yield return final[emittedHarmonyFinalLength..];
-            emittedHarmonyFinalLength = final.Length;
+            finally
+            {
+                logger.LogInformation($"ended EmitHarmonyDeltas raw {raw}");
+            }
         }
 
 
 
         public static IEnumerable<string> OpenThinkingBlock( ILogger logger)
         {
-            if (thinkingBlockOpen)
-                yield break;
+            try
+            {
+                if (thinkingBlockOpen)
+                    yield break;
 
-            thinkingBlockOpen = true;
-            yield return "<details class=\"model-thinking\"><summary>Model thinking</summary><pre>";
+                thinkingBlockOpen = true;
+                yield return "<details class=\"model-thinking\"><summary>Model thinking</summary><pre>";
+            }
+            finally
+            {
+                logger.LogInformation($"ended OpenThinkingBlock");
+            }
         }
 
         public static IEnumerable<string> CloseThinkingBlock( ILogger logger)
         {
-            if (!thinkingBlockOpen)
-                yield break;
+            try
+            {
+                if (!thinkingBlockOpen)
+                    yield break;
 
-            thinkingBlockOpen = false;
-            yield return "</pre></details>\n\n";
+                thinkingBlockOpen = false;
+                yield return "</pre></details>\n\n";
+            }
+            finally
+            {
+                logger.LogInformation($"ended CloseThinkingBlock");
+            }
         }
 
         public static IEnumerable<string> EmitMissingFinalNotice(ILogger logger)
         {
-            if (emittedMissingFinalNotice)
-                yield break;
+            try
+            {
+                if (emittedMissingFinalNotice)
+                    yield break;
 
-            emittedMissingFinalNotice = true;
-            yield return MissingFinalAnswerNotice;
+                emittedMissingFinalNotice = true;
+                yield return MissingFinalAnswerNotice;
+            }
+            finally
+            {
+                logger.LogInformation($"ended EmitMissingFinalNotice");
+            }
+
         }
         public static string CleanMinecraftProjectDisplayName(string value, ILogger logger)
         {
@@ -3379,14 +3491,14 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var matches = CouncilChatStringFunctions.HarmonyThinkingPattern(logger).Matches(raw);
+                var matches = CouncilChatStringFunctions.HarmonyThinkingPatternNew(logger).Matches(raw);
                 if (matches.Count == 0)
                     return string.Empty;
 
                 return string.Join(
                     Environment.NewLine,
                     matches
-                        .Select(match => CleanHarmonyText(match.Groups["content"].Value))
+                        .Select(match => CleanHarmonyText(match.Groups["content"].Value), logger)
                         .Where(text => !string.IsNullOrWhiteSpace(text)));
             }
             catch (Exception ex)
@@ -3411,11 +3523,88 @@ namespace LocalGPT.Extensions.PlainStatics
                 return string.Empty;
             }
         }
+        [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|$)|<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|<\\|start\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex HarmonyFinalPatternNew();
+        public static bool HarmonyFinalPatternIsMatch(string value, ILogger logger)
+        {
+            try
+            {
+                logger.LogInformation($"HarmonyFinalPatternIsMatch enterd {value}");
+                return HarmonyFinalPatternNew().IsMatch(value);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in HarmonyFinalPatternIsMatch value {value}");
+                return false;
+            }
+        }
+
+        [GeneratedRegex("<\\|start\\|>assistant<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)|<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex HarmonyThinkingPatternNew();
+        public static bool HarmonyThinkingPatternNewIsMatch(string value, ILogger logger)
+        {
+            try
+            {
+                logger.LogInformation($"HarmonyThinkingPatternNewIsMatch enterd {value}");
+                return HarmonyThinkingPatternNew().IsMatch(value);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in HarmonyThinkingPatternNewIsMatch value {value}");
+                return false;
+            }
+        }
+
+
+        [GeneratedRegex("<\\|[^>]+\\|>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex HarmonyMarkerPatternNew();
+        public static bool HarmonyMarkerPatternNewIsMatch(string value, ILogger logger)
+        {
+            try
+            {
+                logger.LogInformation($"HarmonyMarkerPatternNewIsMatch enterd {value}");
+                return HarmonyMarkerPatternNew().IsMatch(value);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in HarmonyMarkerPatternNewIsMatch value {value}");
+                return false;
+            }
+        }
+        [GeneratedRegex("<think>(?<thinking>.*?)</think>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex ThinkTagPatternNew();
+        public static string? ThinkTagPatternNewExtractTaggedThinking(string? value, ILogger logger)
+        {
+            try
+            {
+
+                logger.LogInformation($"ThinkTagPatternNewIsMatch enterd {value}");
+                if (string.IsNullOrWhiteSpace(value))
+                    return null;
+
+                var matches = ThinkTagPatternNew().Matches(value);
+                if (matches.Count == 0)
+                    return null;
+
+                var thinking = string.Join(
+               Environment.NewLine,
+               matches
+                   .Select(match => match.Groups["thinking"].Value.Trim())
+                   .Where(text => !string.IsNullOrWhiteSpace(text)));
+
+                return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ThinkTagPatternNewIsMatch value {value}");
+                return null;
+            }
+        }
         public static string CleanHarmonyText(string text, ILogger logger)
         {
             try
             {
-                var cleaned = HarmonyMarkerPattern().Replace(WebUtility.HtmlDecode(text), string.Empty);
+                var cleaned = HarmonyMarkerPatternNew().Replace(WebUtility.HtmlDecode(text), string.Empty);
                 var partialMarkerIndex = cleaned.LastIndexOf("<|", StringComparison.Ordinal);
                 if (partialMarkerIndex >= 0 &&
                     cleaned.IndexOf("|>", partialMarkerIndex, StringComparison.Ordinal) < 0)
@@ -3445,6 +3634,117 @@ namespace LocalGPT.Extensions.PlainStatics
             {
                 logger.LogError(ex, $"GetSafeFlushLength current {current}");
                 return -1;
+            }
+
+        }
+
+        public static string? NormalizeVisibleContent(string? content, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return null;
+
+                var text = WebUtility.HtmlDecode(content).Trim();
+                if (IsHarmonyModel())
+                {
+                    var finalMatches = HarmonyFinalPatternNew().Matches(text);
+                    if (finalMatches.Count > 0)
+                        text = finalMatches[^1].Groups["content"].Value;
+
+                    text = HarmonyMarkerPatternNew().Replace(text, string.Empty);
+                }
+
+                text = ThinkTagPatternNew().Replace(text, string.Empty);
+                return text.Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeVisibleContent content {content?.ToString()}");
+                return null;
+            }
+        }
+
+        public static string? ExtractHarmonyThinking(string? content, ILogger logger)
+        {
+            try
+            {
+                if (!IsHarmonyModel() || string.IsNullOrWhiteSpace(content))
+                    return null;
+
+                content = WebUtility.HtmlDecode(content);
+                var matches = HarmonyThinkingPatternNew().Matches(content);
+                if (matches.Count == 0)
+                    return null;
+
+                var thinking = string.Join(
+                    Environment.NewLine,
+                    matches
+                        .Select(match => HarmonyMarkerPatternNew().Replace(match.Groups["content"].Value, string.Empty).Trim())
+                        .Where(text => !string.IsNullOrWhiteSpace(text)));
+
+                return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractHarmonyThinking content {content?.ToString()}");
+                return null;
+            }
+        }
+
+
+
+        public static bool IsHarmonyModel( ILogger logger)
+        {
+            try
+            {
+                return model.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ||
+          model.Contains("harmony", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsHarmonyModel");
+                return false;
+            }
+        }
+
+        public static string FormatVisibleResponse(string? content, string? thinking, ILogger logger)
+        {
+            try
+            {
+                var builder = new StringBuilder();
+                var normalizedContent = NormalizeVisibleContent(content, logger);
+                var thinkingParts = new[]
+                {
+                string.IsNullOrWhiteSpace(thinking) ? null : thinking.Trim(),
+                ExtractHarmonyThinking(content,logger),
+                CouncilChatStringFunctions.ThinkTagPatternNewExtractTaggedThinking(content,logger)
+            }.Where(text => !string.IsNullOrWhiteSpace(text));
+                var normalizedThinking = string.Join(Environment.NewLine, thinkingParts);
+
+                if (!string.IsNullOrWhiteSpace(normalizedThinking))
+                {
+                    builder
+                        .AppendLine("<details class=\"model-thinking\" open>")
+                        .AppendLine("<summary>Model thinking</summary>")
+                        .AppendLine("<pre>")
+                        .AppendLine(WebUtility.HtmlEncode(normalizedThinking.Trim()))
+                        .AppendLine("</pre>")
+                        .AppendLine("</details>")
+                        .AppendLine();
+                }
+
+                if (!string.IsNullOrWhiteSpace(normalizedContent))
+                    builder.AppendLine(normalizedContent.Trim());
+                else if (!string.IsNullOrWhiteSpace(normalizedThinking))
+                    builder.AppendLine(GlobalVariableSlopCollectionToRemove.MissingFinalAnswerNotice);
+
+                return builder.ToString().Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FormatVisibleResponse content {content} thinking {thinking}");
+                return string.Empty;
             }
 
         }
