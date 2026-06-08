@@ -35,7 +35,7 @@ namespace LocalGPT.Extensions.PlainStatics
             {
                 var rows = string.Join(
                "," + Environment.NewLine + "            ",
-               areas.Select((area, index) => $$"""new("{{EscapeCSharpString(area)}}", "{{(index == 0 ? "Ready" : "Planned")}}", "{{EscapeCSharpString(BuildArchetypeNextAction(area))}}")"""));
+               areas.Select((area, index) => $$"""new("{{EscapeCSharpString(area, logger)}}", "{{(index == 0 ? "Ready" : "Planned")}}", "{{EscapeCSharpString(BuildArchetypeNextAction(area, logger), logger)}}")"""));
 
                 return $$"""
             @page "{{route}}"
@@ -184,8 +184,8 @@ namespace LocalGPT.Extensions.PlainStatics
                 """;
                 }
 
-                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 650));
-                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 800));
+                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 650, logger),logger);
+                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 800, logger), logger);
                 return $$"""
                 @page "/implementation-plan"
                 @rendermode InteractiveServer
@@ -1949,11 +1949,11 @@ namespace LocalGPT.Extensions.PlainStatics
 
             ## Original Request
 
-            {{TrimForCodeComment(request.Prompt, 1200)}}
+            {{TrimForCodeComment(request.Prompt, 1200, logger)}}
 
             ## Council Output Summary
 
-            {{TrimForCodeComment(result.FinalAnswer, 1200)}}
+            {{TrimForCodeComment(result.FinalAnswer, 1200, logger)}}
             """;
             }
             catch (Exception ex)
@@ -2084,11 +2084,11 @@ namespace LocalGPT.Extensions.PlainStatics
 
             ## Original Request
 
-            {{TrimForCodeComment(request.Prompt, 900)}}
+            {{TrimForCodeComment(request.Prompt, 900, logger)}}
 
             ## Council Summary
 
-            {{TrimForCodeComment(result.FinalAnswer, 900)}}
+            {{TrimForCodeComment(result.FinalAnswer, 900, logger)}}
             """;
             }
             catch (Exception ex)
@@ -2260,13 +2260,13 @@ namespace LocalGPT.Extensions.PlainStatics
             ## Request Excerpt
 
             ```text
-            {{TrimForCodeComment(request.Prompt, 1200)}}
+            {{TrimForCodeComment(request.Prompt, 1200, logger)}}
             ```
 
             ## Council Excerpt
 
             ```text
-            {{TrimForCodeComment(result.FinalAnswer, 1600)}}
+            {{TrimForCodeComment(result.FinalAnswer, 1600, logger)}}
             ```
             """;
             }
@@ -2430,7 +2430,7 @@ namespace LocalGPT.Extensions.PlainStatics
               "schema": "localgpt-generation-contract/v1",
               "project_kind": "{{projectKind}}",
               "target_platform": "{{targetPlatform}}",
-              "project_name": "{{EscapeJsonString(projectName)}}",
+              "project_name": "{{EscapeJsonString(projectName, logger)}}",
               "generated_at_utc": "{{DateTime.UtcNow:O}}",
               "complexity": "normal",
               "needs_datagen": false,
@@ -2438,10 +2438,10 @@ namespace LocalGPT.Extensions.PlainStatics
               "needs_native_commands": {{(isAiHostLab ? "true" : "false")}},
               "needs_index": true,
               "needs_version_resolver": false,
-              "model_names": "{{EscapeJsonString(string.Join(", ", result.ModelNames))}}",
-              "requested_features": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 900))}}",
+              "model_names": "{{EscapeJsonString(string.Join(", ", result.ModelNames), logger)}}",
+              "requested_features": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 900, logger), logger)}}",
               "validation_status": "GeneratedFilesValidatedOnly",
-              "validation_notes": "{{EscapeJsonString(validationNotes)}}",
+              "validation_notes": "{{EscapeJsonString(validationNotes, logger)}}",
               "build_test_result_provenance": "LocalGPT validated required files and contract JSON before zipping. dotnet build was not run for this sandbox artifact, so no build success is claimed.",
               "expected_entrypoints": [
                 "src/{{projectName}}/Program.cs",
@@ -2511,17 +2511,17 @@ namespace LocalGPT.Extensions.PlainStatics
                 return
                 $$"""
             {
-              "projectName": "{{EscapeJsonString(projectName)}}",
-              "solutionGuid": "{{EscapeJsonString(solutionGuid)}}",
+              "projectName": "{{EscapeJsonString(projectName, logger)}}",
+              "solutionGuid": "{{EscapeJsonString(solutionGuid, logger)}}",
               "generatedAtUtc": "{{DateTime.UtcNow:O}}",
-              "modelNames": "{{EscapeJsonString(string.Join(", ", result.ModelNames))}}",
+              "modelNames": "{{EscapeJsonString(string.Join(", ", result.ModelNames), logger)}}",
               "artifactKind": "WholeSolutionZip",
-              "sourceGoal": "{{EscapeJsonString(sourceGoal)}}",
+              "sourceGoal": "{{EscapeJsonString(sourceGoal, logger)}}",
               "designContract": "Bootstrap v5 layout, DevExpress Blazor controls, and paired line/solid SVG navigation icons.",
               "validationStatus": "GeneratedFilesValidatedOnly",
               "buildTestResultProvenance": "Required files and contract metadata were validated before zipping. No generated-project build success is claimed.",
-              "request": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 1400))}}",
-              "finalAnswer": "{{EscapeJsonString(TrimForCodeComment(result.FinalAnswer, 1400))}}",
+              "request": "{{EscapeJsonString(TrimForCodeComment(request.Prompt, 1400, logger), logger)}}",
+              "finalAnswer": "{{EscapeJsonString(TrimForCodeComment(result.FinalAnswer, 1400, logger), logger)}}",
               "safety": "Sandbox artifact only. Integration requires explicit user approval."
             }
             """;
@@ -2539,8 +2539,8 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var requestSummary = TrimForCodeComment(request.Prompt, 700);
-                var consensusSummary = TrimForCodeComment(result.FinalAnswer, 900);
+                var requestSummary = TrimForCodeComment(request.Prompt, 700, logger);
+                var consensusSummary = TrimForCodeComment(result.FinalAnswer, 900, logger);
                 return $$"""
                 @page "/generated/localgpt-health-summary"
                 @rendermode InteractiveServer
@@ -2603,8 +2603,8 @@ namespace LocalGPT.Extensions.PlainStatics
                     bool PanelVisible { get; set; }
                     bool ShowTechnicalDetails { get; set; } = true;
                     List<HealthCard> Cards { get; set; } = new();
-                    string RequestSummary { get; } = "{{EscapeCSharpString(requestSummary)}}";
-                    string CouncilConsensus { get; } = "{{EscapeCSharpString(consensusSummary)}}";
+                    string RequestSummary { get; } = "{{EscapeCSharpString(requestSummary, logger)}}";
+                    string CouncilConsensus { get; } = "{{EscapeCSharpString(consensusSummary, logger)}}";
 
                     protected override Task OnInitializedAsync() => RefreshAsync();
 
@@ -2654,9 +2654,9 @@ namespace LocalGPT.Extensions.PlainStatics
 
                 public sealed class LocalGptGeneratedHealthSummaryService
                 {
-                    public const string TargetArea = "{{EscapeCSharpString(targetArea)}}";
-                    public const string CouncilMembers = "{{EscapeCSharpString(string.Join(", ", result.ModelNames))}}";
-                    public const string OriginalRequest = "{{EscapeCSharpString(TrimForCodeComment(request.Prompt, 900))}}";
+                    public const string TargetArea = "{{EscapeCSharpString(targetArea, logger)}}";
+                    public const string CouncilMembers = "{{EscapeCSharpString(string.Join(", ", result.ModelNames), logger)}}";
+                    public const string OriginalRequest = "{{EscapeCSharpString(TrimForCodeComment(request.Prompt, 900, logger), logger)}}";
 
                     public IReadOnlyList<LocalGptGeneratedHealthCard> GetCards()
                     {
@@ -2706,9 +2706,9 @@ namespace LocalGPT.Extensions.PlainStatics
                 };
                 type.Members.Add(privateConstructor);
 
-                type.Members.Add(CreateConstant("TargetArea", targetArea));
-                type.Members.Add(CreateConstant("CouncilMembers", string.Join(", ", result.ModelNames)));
-                type.Members.Add(CreateConstant("OriginalRequest", TrimForCodeComment(request.Prompt, 900)));
+                type.Members.Add(CreateConstant("TargetArea", targetArea, logger));
+                type.Members.Add(CreateConstant("CouncilMembers", string.Join(", ", result.ModelNames, logger), logger));
+                type.Members.Add(CreateConstant("OriginalRequest", TrimForCodeComment(request.Prompt, 900, logger), logger));
 
                 var method = new CodeMemberMethod
                 {
@@ -2718,29 +2718,29 @@ namespace LocalGPT.Extensions.PlainStatics
                 };
                 method.Comments.Add(new CodeCommentStatement("This shape can be pasted into DXAiChat or an AI Council continuation round."));
                 method.Statements.Add(new CodeVariableDeclarationStatement(typeof(StringBuilder), "builder", new CodeObjectCreateExpression(typeof(StringBuilder))));
-                AppendLine(method, "# LocalGPT Implementation Request");
-                AppendLine(method, "");
-                AppendLine(method, $"Target area: {targetArea}");
-                AppendLine(method, $"Council members: {string.Join(", ", result.ModelNames)}");
-                AppendLine(method, "");
-                AppendLine(method, "## Requested feature");
-                AppendLine(method, TrimForCodeComment(request.Prompt, 1000));
-                AppendLine(method, "");
-                AppendLine(method, "## Current council consensus");
-                AppendLine(method, TrimForCodeComment(result.FinalAnswer, 1600));
-                AppendLine(method, "");
-                AppendLine(method, "## Implementation checklist");
-                AppendLine(method, "- Identify the owning LocalGPT service/page/project.");
-                AppendLine(method, "- Check /__diag/devexpress before proposing DevExpress APIs or UI components.");
-                AppendLine(method, "- Put DevExpress Office/report/PDF/export generation in ASP.NET Core backend services and expose safe download links.");
-                AppendLine(method, "- Keep native commands in backend services.");
-                AppendLine(method, "- Save user-visible state to EF/SQLite when it affects future chats.");
-                AppendLine(method, "- Prototype requested features in a harmless sandbox artifact or temporary workspace before integrating into the real project.");
-                AppendLine(method, "- Ask the user for explicit permission before integrating any generated expansion into LocalGPT.");
-                AppendLine(method, "- Never overrule a user decision that denies or limits self-expansion.");
-                AppendLine(method, "- List helpful official docs, examples, specs, or source repositories needed before implementation.");
-                AppendLine(method, "- Add a diagnostic endpoint or smoke path before relying on UI behavior.");
-                AppendLine(method, "- Mark unknown dependencies as Needs verification.");
+                AppendLine(method, "# LocalGPT Implementation Request", logger);
+                AppendLine(method, "", logger);
+                AppendLine(method, $"Target area: {targetArea}", logger);
+                AppendLine(method, $"Council members: {string.Join(", ", result.ModelNames)}", logger);
+                AppendLine(method, "", logger);
+                AppendLine(method, "## Requested feature", logger);
+                AppendLine(method, TrimForCodeComment(request.Prompt, 1000, logger), logger);
+                AppendLine(method, "", logger);
+                AppendLine(method, "## Current council consensus", logger);
+                AppendLine(method, TrimForCodeComment(result.FinalAnswer, 1600, logger), logger);
+                AppendLine(method, "", logger);
+                AppendLine(method, "## Implementation checklist", logger);
+                AppendLine(method, "- Identify the owning LocalGPT service/page/project.", logger);
+                AppendLine(method, "- Check /__diag/devexpress before proposing DevExpress APIs or UI components.", logger);
+                AppendLine(method, "- Put DevExpress Office/report/PDF/export generation in ASP.NET Core backend services and expose safe download links.", logger);
+                AppendLine(method, "- Keep native commands in backend services.", logger);
+                AppendLine(method, "- Save user-visible state to EF/SQLite when it affects future chats.", logger);
+                AppendLine(method, "- Prototype requested features in a harmless sandbox artifact or temporary workspace before integrating into the real project.", logger);
+                AppendLine(method, "- Ask the user for explicit permission before integrating any generated expansion into LocalGPT.", logger);
+                AppendLine(method, "- Never overrule a user decision that denies or limits self-expansion.", logger);
+                AppendLine(method, "- List helpful official docs, examples, specs, or source repositories needed before implementation.", logger);
+                AppendLine(method, "- Add a diagnostic endpoint or smoke path before relying on UI behavior.", logger);
+                AppendLine(method, "- Mark unknown dependencies as Needs verification.", logger);
                 method.Statements.Add(new CodeMethodReturnStatement(new CodeMethodInvokeExpression(new CodeVariableReferenceExpression("builder"), "ToString")));
                 type.Members.Add(method);
 
@@ -2863,9 +2863,9 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var displayName = ExtractMinecraftProjectDisplayName(text);
-                var modId = ToMinecraftNamespace(displayName);
-                var projectName = ToPascalIdentifier(displayName);
+                var displayName = ExtractMinecraftProjectDisplayName(text, logger);
+                var modId = ToMinecraftNamespace(displayName, logger);
+                var projectName = ToPascalIdentifier(displayName, logger);
                 if (string.IsNullOrWhiteSpace(projectName))
                     projectName = "PromptedDatapack";
                 if (string.IsNullOrWhiteSpace(modId))
@@ -2890,21 +2890,21 @@ namespace LocalGPT.Extensions.PlainStatics
             {
                 var quoted = Regex.Match(text, "\"(?<name>[A-Z][A-Za-z0-9 _-]{2,60})\"");
                 if (quoted.Success)
-                    return CleanMinecraftProjectDisplayName(quoted.Groups["name"].Value);
+                    return CleanMinecraftProjectDisplayName(quoted.Groups["name"].Value, logger);
 
                 var explicitlyNamed = Regex.Match(text, @"(?i)(?:called|named|titled)\s+(?<name>[A-Z][A-Za-z0-9 _-]{2,60})");
                 if (explicitlyNamed.Success)
-                    return CleanMinecraftProjectDisplayName(explicitlyNamed.Groups["name"].Value);
+                    return CleanMinecraftProjectDisplayName(explicitlyNamed.Groups["name"].Value, logger);
 
                 var named = Regex.Match(
                     text,
                     @"(?i)(?:datapack|data pack|modpack|minecraft project|minecraft mod)\s+(?:called|named|for|about)?\s*(?<name>[A-Z][A-Za-z0-9 _-]{2,60})");
                 if (named.Success)
-                    return CleanMinecraftProjectDisplayName(named.Groups["name"].Value);
+                    return CleanMinecraftProjectDisplayName(named.Groups["name"].Value, logger);
 
                 var heading = Regex.Match(text, @"(?m)^#\s+(?<name>[A-Za-z0-9 _-]{3,60})");
                 if (heading.Success)
-                    return CleanMinecraftProjectDisplayName(heading.Groups["name"].Value);
+                    return CleanMinecraftProjectDisplayName(heading.Groups["name"].Value, logger);
 
                 return "Prompted Datapack";
             }
@@ -3139,7 +3139,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 """,
                     _ => string.Empty
                 };
-                var promiseLinks = BuildPromiseNavigationLinks(promiseModules);
+                var promiseLinks = BuildPromiseNavigationLinks(promiseModules, logger);
 
                 return $$"""
                 <nav class="generated-nav" aria-label="{{labName}} navigation">
@@ -3273,8 +3273,8 @@ namespace LocalGPT.Extensions.PlainStatics
                     GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI host lab",
                     _ => "LocalGPT lab"
                 };
-                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500));
-                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 700));
+                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500, logger), logger);
+                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 700, logger), logger);
 
                 return $$"""
                 @page "/"
@@ -3354,8 +3354,8 @@ namespace LocalGPT.Extensions.PlainStatics
             {
                 var isAiHostLab = archetype == GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost;
                 var isAiHostLiteral = isAiHostLab ? "true" : "false";
-                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700));
-                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900));
+                var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700, logger), logger);
+                var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900, logger), logger);
                 var title = archetype switch
                 {
                     GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AI Host Dashboard",
@@ -3881,8 +3881,23 @@ namespace LocalGPT.Extensions.PlainStatics
             }
 
         }
-      
 
+        public static string GeneratePromiseModuleRazor(GlobalVariableSlopCollectionToRemove.GeneratedPromiseModule module, ILogger logger)
+        {
+            try
+            {
+                return CouncilChatStringFunctions.GenerateArchetypePageRazor(module.Route, module.Title, module.Summary, module.Areas, logger);
+
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GeneratePromiseModuleRazor module:{module.ToString()}");
+                return string.Empty;
+            }
+
+        }
+
+      
         public static string MergeTags(string requestedTags, string requiredTags, ILogger logger)
         {
             try
@@ -3926,7 +3941,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
                 foreach (var field in fields)
                 {
-                    var value = CouncilChatStringFunctions.ExtractField(body, field);
+                    var value = CouncilChatStringFunctions.ExtractField(body, field, logger);
                     if (!string.IsNullOrWhiteSpace(value))
                         builder.Append("- ").Append(field).Append(": ").AppendLine(value);
                 }
@@ -3951,19 +3966,19 @@ namespace LocalGPT.Extensions.PlainStatics
                     if (string.IsNullOrWhiteSpace(body))
                         continue;
 
-                    var content = CouncilChatStringFunctions.ExtractField(body, "content");
+                    var content = CouncilChatStringFunctions.ExtractField(body, "content" , logger);
                     if (string.IsNullOrWhiteSpace(content))
                         content = body;
 
                     yield return new CouncilKnowledgeEntry
                     {
-                        Topic = CouncilChatStringFunctions.ExtractField(body, "topic", "AI model knowledge request"),
-                        Scope = CouncilChatStringFunctions.ExtractField(body, "scope", "DXAiChat"),
+                        Topic = CouncilChatStringFunctions.ExtractField(body, "topic", logger, "AI model knowledge request"),
+                        Scope = CouncilChatStringFunctions.ExtractField(body, "scope", logger, "DXAiChat"),
                         Source = $"AI model request: {source}",
                         Content = content,
-                        HelpfulSources = CouncilChatStringFunctions.ExtractField(body, "helpful-sources", "None explicitly requested."),
-                        Tags = MergeTags(CouncilChatStringFunctions.ExtractField(body, "tags"), "model-written; unapproved"),
-                        Confidence = ParseConfidence(CouncilChatStringFunctions.ExtractField(body, "confidence")),
+                        HelpfulSources = CouncilChatStringFunctions.ExtractField(body, "helpful-sources", logger, "None explicitly requested."),
+                        Tags = MergeTags(CouncilChatStringFunctions.ExtractField(body, "tags", logger), "model-written; unapproved", logger),
+                        Confidence = TryParseConfidence(CouncilChatStringFunctions.ExtractField(body, "confidence",  logger),logger) ?? 0,
                         VerificationStatus = "ModelSuggested",
                         ReviewStatus = "NeedsUserReview",
                         ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
@@ -3979,20 +3994,20 @@ namespace LocalGPT.Extensions.PlainStatics
                     if (string.IsNullOrWhiteSpace(body))
                         continue;
 
-                    var missingCapability = CouncilChatStringFunctions.ExtractField(body, "missing-capability", "LocalGPT capability gap request");
-                    var owningArea = CouncilChatStringFunctions.ExtractField(body, "owning-area", "DXAiChat / AI Council");
-                    var localSources = CouncilChatStringFunctions.ExtractField(body, "local-knowledge-sources", "None listed.");
-                    var externalSources = CouncilChatStringFunctions.ExtractField(body, "external-knowledge-sources", "None listed.");
+                    var missingCapability = CouncilChatStringFunctions.ExtractField(body, "missing-capability", logger, "LocalGPT capability gap request");
+                    var owningArea = CouncilChatStringFunctions.ExtractField(body, "owning-area", logger, "DXAiChat / AI Council");
+                    var localSources = CouncilChatStringFunctions.ExtractField(body, "local-knowledge-sources", logger, "None listed.");
+                    var externalSources = CouncilChatStringFunctions.ExtractField(body, "external-knowledge-sources", logger, "None listed.");
 
                     yield return new CouncilKnowledgeEntry
                     {
                         Topic = missingCapability,
                         Scope = owningArea,
                         Source = $"AI capability gap request: {source}",
-                        Content = BuildCapabilityGapKnowledgeContent(body),
+                        Content = BuildCapabilityGapKnowledgeContent(body, logger),
                         HelpfulSources = $"Local sources:\n{localSources}\n\nExternal sources:\n{externalSources}",
-                        Tags = MergeTags(CouncilChatStringFunctions.ExtractField(body, "tags"), "capability-gap; model-written; unapproved"),
-                        Confidence = ParseConfidence(CouncilChatStringFunctions.ExtractField(body, "confidence")),
+                        Tags = MergeTags(CouncilChatStringFunctions.ExtractField(body, "tags", logger), "capability-gap; model-written; unapproved", logger),
+                        Confidence = TryParseConfidence(CouncilChatStringFunctions.ExtractField(body, "confidence",  logger),logger) ?? 0,
                         VerificationStatus = "ModelSuggested",
                         ReviewStatus = "NeedsDiagnosticVerification",
                         ExpiresAtUtc = DateTime.UtcNow.AddDays(30),
@@ -4009,7 +4024,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 logger.LogInformation( $"Ending in ParseKnowledgeRequests for waever reason source:{source} responseText:{responseText}");
             }
         }
-        public static string ExtractField(string body, string name, string fallback = "", ILogger logger)
+        public static string ExtractField(string body, string name,  ILogger logger, string fallback = "")
         {
             try
             {
@@ -4122,7 +4137,7 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var normalized = NormalizeChatMarkdown(content);
+                var normalized = NormalizeChatMarkdown(content,logger);
                 return Markdig.Markdown.ToHtml(normalized, GlobalVariableSlopCollectionToRemove.ChatMarkdownPipeline).Trim();
             }
             catch (Exception ex)

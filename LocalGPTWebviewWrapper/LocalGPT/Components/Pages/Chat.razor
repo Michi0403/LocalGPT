@@ -111,11 +111,11 @@
                 <div class="council-member-list">
                     @foreach (var candidate in OllamaCandidates)
                     {
-                        <label title="@CouncilChatStaticsGeneral.BuildCandidateTitle(candidate)">
+                        <label title="@CouncilChatStaticsGeneral.BuildCandidateTitle(candidate,Logger)">
                             <input type="checkbox"
                                    checked="@SelectedCouncilModelNames.Contains(candidate.ModelName)"
                                    @onchange="@((ChangeEventArgs e) => ToggleCouncilModel(candidate.ModelName, e))" />
-                            <span>@CouncilChatStaticsGeneral.BuildCandidateLabel(candidate)</span>
+                            <span>@CouncilChatStaticsGeneral.BuildCandidateLabel(candidate, Logger)</span>
                             @if (candidate.IsLoaded)
                             {
                                 <small>loaded</small>
@@ -250,7 +250,7 @@
                 </PromptSuggestions>
                 <MessageContentTemplate>
                     <div class="demo-chat-content">
-                        @(new MarkupString(CouncilChatStringFunctions.RenderChatMarkdown(context.Content)))
+                        @(new MarkupString(CouncilChatStringFunctions.RenderChatMarkdown(context.Content, Logger)))
                     </div>
                 </MessageContentTemplate>
                 <AIChatSettings>
@@ -568,10 +568,10 @@
 
         var previousSelection = ChatClientProvider.SelectedSession?.Name;
         var previousMessages = ChatClientProvider.AvailableChatClients
-            .Where(CouncilChatStaticsGeneral. IsDynamicSession)
+            .Where(filter => CouncilChatStaticsGeneral.IsDynamicSession(filter,Logger) ?? new())
             .ToDictionary(session => session.Name, session => session.Messages.ToList(), StringComparer.OrdinalIgnoreCase);
 
-        foreach (var session in ChatClientProvider.AvailableChatClients.Where(CouncilChatStaticsGeneral.IsDynamicSession).ToList())
+        foreach (var session in ChatClientProvider.AvailableChatClients.Where(filter => CouncilChatStaticsGeneral.IsDynamicSession(filter,Logger) ?? new()).ToList())
         {
             ChatClientProvider.AvailableChatClients.Remove(session);
             session.Client.Dispose();
@@ -589,7 +589,7 @@
                     contextLength: ResolveCouncilContextTokens(),
                     timeout: TimeSpan.FromMinutes(30),
                     numGpu: ResolveOllamaNumGpu()),
-                CouncilChatStaticsGeneral.BuildDynamicSessionName(candidate));
+                CouncilChatStaticsGeneral.BuildDynamicSessionName(candidate,Logger));
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
                 session.Messages.AddRange(messages);
@@ -635,7 +635,7 @@
                     contextLength: ResolveCouncilContextTokens(),
                     timeout: TimeSpan.FromMinutes(30),
                     numGpu: ResolveOllamaNumGpu()),
-            $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilChatStringFunctions.TrimEndpoint(endpoint)}");
+            $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilChatStringFunctions.TrimEndpoint(endpoint, Logger)}");
 
         if (previousMessages.TryGetValue(session.Name, out var messages))
             session.Messages.AddRange(messages);
@@ -655,7 +655,7 @@
 
         return new MultiModelCouncilRequest
         {
-            ModelNames = CouncilChatStaticsGeneral.OrderCouncilModelsForLoad(selectedModels).ToList(),
+            ModelNames = (CouncilChatStaticsGeneral.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
             BaseUri = selectedEndpoint,
             MaxRounds = 0,
             MaxOutputTokens = ResolveCouncilOutputTokens(),
@@ -722,7 +722,7 @@
         if (query.TryGetValue("diagOllamaMode", out var ollamaMode))
         {
             var mode = ollamaMode.ToString();
-            if (CouncilChatStaticsGeneral.IsSupportedOllamaMode(mode))
+            if (CouncilChatStaticsGeneral.TryIsSupportedOllamaMode(mode,Logger) ?? false)
                 OllamaAccelerationMode = mode;
         }
 
@@ -803,7 +803,7 @@
 
         return requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
             ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
-            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => CouncilChatStaticsGeneral.IsDynamicSession(session) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
+            : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => (CouncilChatStaticsGeneral.IsDynamicSession(session,Logger) ?? false ) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
                 ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -837,7 +837,7 @@
 
     private bool HasConfiguredSessionForModel(string modelName) =>
         ChatClientProvider?.AvailableChatClients.Any(session =>
-            !CouncilChatStaticsGeneral.IsDynamicSession(session) &&
+            ! (CouncilChatStaticsGeneral.IsDynamicSession(session,Logger) == false)  &&
             session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
 
   
@@ -863,7 +863,7 @@
     private void OnOllamaAccelerationModeChanged(ChangeEventArgs e)
     {
         var requestedMode = Convert.ToString(e.Value) ?? GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
-        if (!CouncilChatStaticsGeneral. IsSupportedOllamaMode(requestedMode))
+        if (!CouncilChatStaticsGeneral.TryIsSupportedOllamaMode(requestedMode,Logger) ?? false)
             requestedMode = GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
 
         OllamaAccelerationMode = requestedMode;
@@ -969,7 +969,7 @@
             SelectedConversation = conversation;
             ChatClientProvider.SelectedSession.Messages.Clear();
             ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
-            lastSavedSignature = CouncilChatStringFunctions.CreateMessageSignature(snapshot.Messages);
+            lastSavedSignature = CouncilChatStringFunctions.CreateMessageSignature(snapshot.Messages, Logger);
             memoryStatus = $"Loaded memory: {snapshot.Title}";
 
             if (loadIntoDxChat && DxAiChat is not null)
@@ -1001,7 +1001,7 @@
         if (ChatClientProvider?.SelectedSession is null || messages.Count == 0)
             return;
 
-        var signature = CouncilChatStringFunctions.CreateMessageSignature(messages);
+        var signature = CouncilChatStringFunctions.CreateMessageSignature(messages, Logger);
         if (!force && signature == lastSavedSignature)
             return;
 

@@ -103,18 +103,18 @@
                 </label>
                 <label title="Optional UTC date after which this note should stop influencing the council. Use ISO format such as 2026-06-30T12:00:00Z.">
                     Expires At UTC
-                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.ExpiresAtUtc)"
-                               TextChanged="@((string value) => KnowledgeEdit.ExpiresAtUtc = CouncilChatStringFunctions.ParseNullableUtc(value))" />
+                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.ExpiresAtUtc, Logger)"
+                               TextChanged="@((string value) => KnowledgeEdit.ExpiresAtUtc = CouncilChatStringFunctions.ParseNullableUtc(value,Logger))" />
                 </label>
                 <label title="UTC date when a human or source-backed import last verified this note.">
                     Last Verified UTC
-                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.LastVerifiedAtUtc)"
-                               TextChanged="@((string value) => KnowledgeEdit.LastVerifiedAtUtc = CouncilChatStringFunctions.ParseNullableUtc(value))" />
+                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.LastVerifiedAtUtc, Logger)"
+                               TextChanged="@((string value) => KnowledgeEdit.LastVerifiedAtUtc = CouncilChatStringFunctions.ParseNullableUtc(value,Logger))" />
                 </label>
                 <label title="Optional knowledge id that replaces this entry when Review Status is Superseded.">
                     Superseded By Knowledge Id
-                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableGuid(KnowledgeEdit.SupersededByKnowledgeId)"
-                               TextChanged="@((string value) => KnowledgeEdit.SupersededByKnowledgeId = CouncilChatStringFunctions. ParseNullableGuid(value))" />
+                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableGuid(KnowledgeEdit.SupersededByKnowledgeId, Logger)"
+                               TextChanged="@((string value) => KnowledgeEdit.SupersededByKnowledgeId = CouncilChatStringFunctions.ParseNullableGuid(value,Logger))" />
                 </label>
                 <label title="Why this note needs refresh, diagnostics, expiry, or replacement.">
                     Staleness Reason
@@ -130,8 +130,8 @@
                 </label>
                 <label title="Optional UTC date of the source material this knowledge summarizes.">
                     Source Date UTC
-                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.SourceDateUtc)"
-                               TextChanged="@((string value) => KnowledgeEdit.SourceDateUtc = CouncilChatStringFunctions. ParseNullableUtc(value))" />
+                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.SourceDateUtc, Logger)"
+                               TextChanged="@((string value) => KnowledgeEdit.SourceDateUtc = CouncilChatStringFunctions.ParseNullableUtc(value,Logger))" />
                 </label>
                 <div class="form-row">
                     <label title="How reliable the note currently is.">
@@ -260,9 +260,9 @@
                     @foreach (var column in CurrentTable.Columns)
                     {
                         var value = GetEditValue(column.Name);
-                        <label title="@TableFunctions.BuildColumnTitle(column)">
+                        <label title="@TableFunctions.BuildColumnTitle(column, Logger)">
                             @column.Name <small>@column.Type@if (column.IsPrimaryKey) { <text> primary key</text> }</small>
-                    @if (TableFunctions.IsLongTextColumn(column.Name, value))
+                    @if (TableFunctions.IsLongTextColumn(column.Name, value, Logger))
                             {
                                 <DxMemo Text="@value"
                                         TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))"
@@ -311,7 +311,7 @@
 
     List<CouncilKnowledgeEntry> KnowledgeEntries { get; set; } = [];
     CouncilKnowledgeEntry? SelectedKnowledgeEntry { get; set; }
-    CouncilKnowledgeEntry KnowledgeEdit { get; set; } = CouncilChatStaticsGeneral.CreateEmptyKnowledgeEntry();
+    CouncilKnowledgeEntry KnowledgeEdit { get; set; } = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew ;
 
     List<SqliteTableSummary> Tables { get; set; } = [];
     SqliteTableSummary? SelectedTable { get; set; }
@@ -322,7 +322,7 @@
     int RowLimit { get; set; } = 100;
     bool isBusy;
     string statusText = string.Empty;
-    string KnowledgeReviewSummary => CouncilChatStaticsGeneral.BuildKnowledgeReviewSummary(KnowledgeEntries);
+    string KnowledgeReviewSummary => CouncilChatStaticsGeneral.BuildKnowledgeReviewSummary(KnowledgeEntries,Logger);
 
     protected override async Task OnInitializedAsync()
     {
@@ -336,7 +336,7 @@
             await ChatMemory.EnsureCreatedAsync();
             await ApplicationLogs.EnsureCreatedAsync();
             await CouncilKnowledge.EnsureCreatedAsync();
-            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250));
+            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250),Logger);
             Tables = (await TableEditor.GetTablesAsync()).ToList();
             SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
             if (SelectedKnowledgeEntry is not null)
@@ -357,13 +357,13 @@
     void SelectKnowledgeEntry(CouncilKnowledgeEntry entry)
     {
         SelectedKnowledgeEntry = entry;
-        KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(entry);
+        KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(entry, Logger) ?? GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew; 
     }
 
     void NewKnowledgeEntry()
     {
         SelectedKnowledgeEntry = null;
-        KnowledgeEdit = CouncilChatStaticsGeneral.CreateEmptyKnowledgeEntry();
+        KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
         statusText = "New council knowledge note ready.";
     }
 
@@ -372,10 +372,10 @@
         await RunUiActionAsync(async () =>
         {
             KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit);
-            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250));
+            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250),Logger);
             SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
             if (SelectedKnowledgeEntry is not null)
-                KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(SelectedKnowledgeEntry);
+                KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(SelectedKnowledgeEntry,Logger) ?? new();
             await RefreshTablesOnlyAsync(loadSelectedTable: true);
             statusText = $"Saved knowledge note: {KnowledgeEdit.Topic}";
             Notifier.ShowSuccess(toastName, "Council knowledge saved to SQLite.", "Knowledge saved");
@@ -391,8 +391,8 @@
         {
             await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id);
             SelectedKnowledgeEntry = null;
-            KnowledgeEdit = CouncilChatStaticsGeneral.CreateEmptyKnowledgeEntry();
-            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250));
+            KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
+            KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250),Logger);
             await RefreshTablesOnlyAsync(loadSelectedTable: true);
             statusText = "Deleted council knowledge note.";
             Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");
@@ -443,23 +443,23 @@
                 if (KnowledgeEdit.VerificationStatus is "SourceBacked" or "UserVerified")
                     KnowledgeEdit.VerificationStatus = "NeedsVerification";
                 KnowledgeEdit.ExpiresAtUtc ??= now.AddDays(30);
-                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Needs user review before the council treats it as trusted knowledge.");
+                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Needs user review before the council treats it as trusted knowledge.", Logger);
                 KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor");
+                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
                 break;
             case "NeedsSourceRefresh":
                 KnowledgeEdit.IsArchived = false;
                 KnowledgeEdit.ExpiresAtUtc ??= now.AddDays(14);
-                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Source should be refreshed before reuse in generation.");
+                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Source should be refreshed before reuse in generation.", Logger);
                 KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor");
+                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
                 break;
             case "Expired":
                 KnowledgeEdit.IsUserApproved = false;
                 KnowledgeEdit.ExpiresAtUtc = now;
-                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Marked expired by the database editor.");
+                KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Marked expired by the database editor.", Logger);
                 KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor");
+                KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
                 break;
         }
 
@@ -483,7 +483,23 @@
         {
             SelectedTable = table;
             CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
-            GridRows = CurrentTable.Rows.Select(TableFunctions.ToGridRow).ToList();
+            GridRows.Clear();
+            foreach (var row in CurrentTable.Rows)
+            {
+                try
+                {
+                    var gridRow = TableFunctions.ToGridRow(row, Logger);
+                    ArgumentNullException.ThrowIfNull(gridRow);
+                    GridRows.Add(gridRow);
+                }
+                catch (Exception ex)
+                {
+                    Notifier.ShowWarning(toastName, ex.Message, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
+                    Logger.LogWarning(ex, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
+                }
+
+
+            }
             SelectedRow = CurrentTable.Rows.FirstOrDefault();
             if (SelectedRow is not null)
                 SelectSqliteRow(SelectedRow);
@@ -523,7 +539,7 @@
                 .Where(column => !column.IsPrimaryKey)
                 .ToDictionary(
                     column => column.Name,
-                    column => CouncilChatStringFunctions.NormalizeDBNullStringValue(GetEditValue(column.Name)),
+                    column => CouncilChatStringFunctions.NormalizeDBNullStringValue(GetEditValue(column.Name),Logger),
                     StringComparer.OrdinalIgnoreCase);
 
             if (SelectedRow is null)
@@ -570,7 +586,23 @@
         {
             SelectedTable = table;
             CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
-            GridRows = CurrentTable.Rows.Select(TableFunctions.ToGridRow).ToList();
+            GridRows.Clear();
+            foreach (var row in CurrentTable.Rows)
+            {
+                try
+                {
+                    var gridRow = TableFunctions.ToGridRow(row, Logger);
+                    ArgumentNullException.ThrowIfNull(gridRow);
+                    GridRows.Add(gridRow);
+                }
+                catch (Exception ex)
+                {
+                    Notifier.ShowWarning(toastName, ex.Message, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
+                    Logger.LogWarning(ex, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
+                }
+
+               
+            }
             SelectedRow = CurrentTable.Rows.FirstOrDefault(row => row.RowId == SelectedRow?.RowId) ?? CurrentTable.Rows.FirstOrDefault();
             if (SelectedRow is not null)
                 SelectSqliteRow(SelectedRow);

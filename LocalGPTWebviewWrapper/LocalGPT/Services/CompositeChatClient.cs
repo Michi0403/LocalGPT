@@ -224,7 +224,7 @@ public class CompositeChatClient : IChatClient
         if (_knowledgeService is null || string.IsNullOrWhiteSpace(responseText))
             return;
 
-        foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText))
+        foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText,_logger))
         {
             var saved = await _knowledgeService.SaveEntryAsync(entry, cancellationToken);
             _logger.LogInformation("AI requested unapproved knowledge entry {KnowledgeEntryId} from {Source}.", saved.Id, source);
@@ -243,19 +243,19 @@ public class CompositeChatClient : IChatClient
         var systemMessages = new List<ChatMessage> { policyMessage };
         if (SuppressBootstrapContext || _bootstrapService is null)
         {
-            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt,_logger);
             return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
         }
 
         var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(bootstrapPrompt))
         {
-            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
             return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
         }
 
         systemMessages.Add(new ChatMessage(ChatRole.System, bootstrapPrompt));
-        CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt);
+        CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
         return LimitPromptSize([.. systemMessages, .. messageList], ForcedMaxPromptCharacters);
     }
 
@@ -271,7 +271,7 @@ public class CompositeChatClient : IChatClient
         if (latestUserMessage is null)
             return string.Empty;
 
-        var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage).ToList();
+        var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger).ToList();
         if (files.Count == 0)
             return string.Empty;
 
@@ -286,7 +286,7 @@ public class CompositeChatClient : IChatClient
                 result.WorkspaceName,
                 result.FileCount);
 
-            return CouncilChatStringFunctions.BuildUploadWorkspaceSystemPrompt(result);
+            return CouncilChatStringFunctions.BuildUploadWorkspaceSystemPrompt(result, _logger);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

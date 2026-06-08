@@ -218,7 +218,7 @@
         PackageName = "com.localgpt.livingcities",
         Loader = "Datapack",
         IncludeLivingCitiesStarter = true,
-        Description = CouncilChatStringFunctions.LivingCitiesPrompt
+        Description = GlobalVariableSlopCollectionToRemove.LivingCitiesPrompt
     };
 
     MinecraftModWorkspace? workspace;
@@ -280,7 +280,7 @@
         {
             var messages = new[]
             {
-                new ChatMessage(ChatRole.System, CouncilChatStringFunctions.CreateMinecraftSystemPrompt("single model")),
+                new ChatMessage(ChatRole.System, CouncilChatStringFunctions.CreateMinecraftSystemPrompt("single model",Logger)),
                 new ChatMessage(ChatRole.User, CreatePlanningPrompt())
             };
 
@@ -438,7 +438,7 @@
         request.JavaVersion = "25";
         request.Loader = "Datapack";
         request.IncludeLivingCitiesStarter = true;
-        request.Description = CouncilChatStringFunctions.LivingCitiesPrompt;
+        request.Description = GlobalVariableSlopCollectionToRemove.LivingCitiesPrompt;
     }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)

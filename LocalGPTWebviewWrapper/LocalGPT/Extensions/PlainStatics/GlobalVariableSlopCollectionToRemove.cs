@@ -1,10 +1,136 @@
-﻿using Markdig;
+﻿using LocalGPT.BusinessObjects;
+using Markdig;
 using System.Text.RegularExpressions;
 
 namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public static string LivingCitiesPrompt =>
+         string.Join(Environment.NewLine, new[]
+{
+        "Living Cities 0.1 should turn Minecraft villages into persistent cities with population, food, security, personalities, chronicle, quests, and town hall administration.",
+        "",
+        "First build target:",
+        "- generate a vanilla Java Edition datapack first",
+        "- default to the newest installed Java Edition generation line; LocalGPT currently maps Minecraft 26.1 to datapack pack_format 101.1 and Java 25",
+        "- keep the first generated datapack small, buildable, and installable",
+        "- include pack.mcmeta, minecraft load/tick function tags, namespace functions, and build-local.ps1 validation",
+        "- include a town hall/admin book UI through trigger commands",
+        "- keep the critical path documented: datapack/data structure, scoreboards or saved data, city founding, citizen registration, population management, minimal town hall",
+        "- avoid world-wide scans",
+        "- plan for 1000+ citizens by simulating city aggregates before individuals"
+    });
+        public static CouncilKnowledgeEntry CouncilKnowledgeEntryNew => new CouncilKnowledgeEntry()
+            {
+                Topic = "New LocalGPT knowledge",
+                Scope = "AI Council",
+                Source = "Manual database editor",
+                HelpfulSources = "None yet.",
+                Tags = "manual; council",
+                Confidence = 60,
+                VerificationStatus = "UserVerified",
+                ReviewStatus = "Current",
+                LastVerifiedAtUtc = DateTime.UtcNow,
+                IsUserApproved = true
+            };
+    public static string GenerateSolutionRoutesRazor =>
+           """
+            <Router AppAssembly="@typeof(Program).Assembly">
+                <Found Context="routeData">
+                    <RouteView RouteData="@routeData" />
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                </Found>
+                <NotFound>
+                    <PageTitle>Not Found</PageTitle>
+                    <p role="alert">This generated LocalGPT route was not found.</p>
+                </NotFound>
+            </Router>
+            """;
+        public static string GenerateSolutionAppRazor =>
+            """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <base href="/" />
+                <link href="_content/DevExpress.Blazor.Themes/blazing-berry.bs5.css" rel="stylesheet" />
+                <link href="app.css" rel="stylesheet" />
+                <HeadOutlet @rendermode="InteractiveServer" />
+            </head>
+            <body>
+                <Routes @rendermode="InteractiveServer" />
+                <script src="_framework/blazor.web.js"></script>
+            </body>
+            </html>
+            """;
+        public static string GenerateSolutionProjectFile =>
+           """
+            <Project Sdk="Microsoft.NET.Sdk.Web">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <Nullable>enable</Nullable>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <GenerateDocumentationFile>true</GenerateDocumentationFile>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="DevExpress.Blazor" Version="25.1.*" />
+              </ItemGroup>
+            </Project>
+            """;
+        public static string GenerateSourceFidelityRazor =>
+            """
+            @page "/source-fidelity"
+            @rendermode InteractiveServer
+            @inject ISourceFidelityService FidelityService
+
+            <PageTitle>Source Fidelity</PageTitle>
+
+            <main class="generated-shell">
+                <GeneratedNavigation />
+
+                <section class="generated-header">
+                    <div>
+                        <h1>Source Fidelity</h1>
+                        <p>Checks whether this generated solution represents the requested source architecture instead of only compiling.</p>
+                    </div>
+                </section>
+
+                <DxGrid Data="@Rows"
+                        CssClass="generated-grid"
+                        ShowSearchBox="true"
+                        ShowFilterRow="true"
+                        TextWrapEnabled="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Area)" Caption="Area" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.SourceSignal)" Caption="Source Signal" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.GeneratedBoundary)" Caption="Generated Boundary" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Status)" Caption="Status" />
+                        <DxGridDataColumn FieldName="@nameof(GeneratedSourceFidelityRequirement.Evidence)" Caption="Evidence" />
+                    </Columns>
+                </DxGrid>
+
+                <DxFormLayout CssClass="generated-form">
+                    <DxFormLayoutGroup Caption="Review rule" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Acceptance" ColSpanMd="12">
+                            <DxMemo Text="@ReviewRule" Rows="4" ReadOnly="true" />
+                        </DxFormLayoutItem>
+                    </DxFormLayoutGroup>
+                </DxFormLayout>
+            </main>
+
+            @code {
+                IReadOnlyList<GeneratedSourceFidelityRequirement> Rows { get; set; } = [];
+                string ReviewRule { get; } =
+                    "A generated replacement is not accepted just because it builds. It must preserve the source application's recognizable workflows, service boundaries, persistence shape, navigation, diagnostics, and artifact/download behavior.";
+
+                protected override void OnInitialized()
+                {
+                    Rows = FidelityService.GetRequirements();
+                }
+            }
+            """;
         public static string GenerateSolutionCss =>
             """
             :root {

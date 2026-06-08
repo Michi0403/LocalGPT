@@ -73,7 +73,7 @@
                                     <div class="top-container">
                                         @foreach (var model in host.Models)
                                         {
-                                            <DxButton Text="@CouncilChatStringFunctions.GetDiscoveredModelButtonText(model)"
+                                            <DxButton Text="@CouncilChatStringFunctions.GetDiscoveredModelButtonText(model,Logger)"
                                                       RenderStyle="ButtonRenderStyle.Primary"
                                                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                                                       Click="@(() => ApplyDiscoveredModel(host, model))" />

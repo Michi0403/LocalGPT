@@ -36,17 +36,17 @@ namespace LocalGPT.Services
 
             Directory.CreateDirectory(ArtifactRoot);
 
-            var targetArea = CouncilChatStringFunctions.DetectTargetArea(request.Prompt, result.FinalAnswer);
+            var targetArea = CouncilChatStringFunctions.DetectTargetArea(request.Prompt, result.FinalAnswer, logger);
             var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
             var artifacts = new List<CouncilArtifact>();
 
-            if (CouncilChatStringFunctions.IsMinecraftSkeletonMatrixArtifactTarget(request.Prompt, result.FinalAnswer))
+            if (CouncilChatStringFunctions.IsMinecraftSkeletonMatrixArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
             {
                 artifacts.AddRange(await CreateMinecraftSkeletonMatrixArtifactsAsync(request, result, timestamp, cancellationToken));
                 return artifacts;
             }
 
-            if (CouncilChatStringFunctions.IsMinecraftDatapackArtifactTarget(request.Prompt, result.FinalAnswer))
+            if (CouncilChatStringFunctions.IsMinecraftDatapackArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
             {
                 artifacts.AddRange(await CreateMinecraftDatapackArtifactsAsync(request, result, timestamp, cancellationToken));
                 return artifacts;
@@ -56,7 +56,7 @@ namespace LocalGPT.Services
             {
                 var razorFileName = $"council-feature-page-{timestamp}-{result.RunId:N}.razor";
                 var razorPath = Path.Combine(ArtifactRoot, razorFileName);
-                var razorSource = CouncilChatStringFunctions.GenerateBlazorDevExpressRazorExample(request, result);
+                var razorSource = CouncilChatStringFunctions.GenerateBlazorDevExpressRazorExample(request, result, logger);
                 await File.WriteAllTextAsync(razorPath, razorSource, cancellationToken);
                 logger.LogInformation("Wrote council Blazor Razor artifact to {Path}", razorPath);
                 artifacts.Add(new CouncilArtifact
@@ -78,8 +78,8 @@ namespace LocalGPT.Services
             var fileName = $"council-feature-example-{timestamp}-{result.RunId:N}.cs";
             var path = Path.Combine(ArtifactRoot, fileName);
             var source = CouncilChatStaticsGeneral.IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea)
-                ? CouncilChatStringFunctions.GenerateBlazorSupportCode(request, result, targetArea)
-                : CouncilChatStringFunctions.GenerateCodeDomExample(request, result, targetArea);
+                ? CouncilChatStringFunctions.GenerateBlazorSupportCode(request, result, targetArea, logger)
+                : CouncilChatStringFunctions.GenerateCodeDomExample(request, result, targetArea, logger);
 
             await File.WriteAllTextAsync(path, source, cancellationToken);
             logger.LogInformation("Wrote council implementation example artifact to {Path}", path);
@@ -116,8 +116,8 @@ namespace LocalGPT.Services
             CancellationToken cancellationToken)
         {
             var text = $"{request.Prompt} {result.FinalAnswer}";
-            var minecraftVersion = CouncilChatStringFunctions.ExtractMinecraftVersion(text);
-            var identity = CouncilChatStringFunctions.BuildMinecraftDatapackArtifactIdentity(text, timestamp);
+            var minecraftVersion = CouncilChatStringFunctions.ExtractMinecraftVersion(text, logger);
+            var identity = CouncilChatStringFunctions.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger);
             var requestModel = new MinecraftModBuildRequest
             {
                 ProjectName = identity.ProjectName,
@@ -129,7 +129,7 @@ namespace LocalGPT.Services
                 GradleVersion = "8.14.2",
                 Ide = "Eclipse",
                 IncludeLivingCitiesStarter = false,
-                Description = CouncilChatStringFunctions.TrimForCodeComment(request.Prompt, 1800)
+                Description = CouncilChatStringFunctions.TrimForCodeComment(request.Prompt, 1800, logger)
             };
 
             var workspace = await minecraftWorkspaceService.CreateWorkspaceAsync(requestModel, cancellationToken);
@@ -175,7 +175,7 @@ namespace LocalGPT.Services
             CancellationToken cancellationToken)
         {
             var text = $"{request.Prompt} {result.FinalAnswer}";
-            var minecraftVersion = CouncilChatStringFunctions.ExtractMinecraftVersion(text);
+            var minecraftVersion = CouncilChatStringFunctions.ExtractMinecraftVersion(text, logger);
             var runSuffix = result.RunId.ToString("N")[..8];
             var matrixRoot = Path.Combine(ArtifactRoot, $"minecraft-loader-matrix-{timestamp}-{runSuffix}");
             if (Directory.Exists(matrixRoot))
@@ -213,7 +213,7 @@ namespace LocalGPT.Services
                 # Minecraft Loader Matrix
 
                 Prompt:
-                { CouncilChatStringFunctions.TrimForCodeComment(request.Prompt, 1200)}
+                { CouncilChatStringFunctions.TrimForCodeComment(request.Prompt, 1200, logger)}
 
                 This artifact intentionally contains three different Java Edition skeleton families:
 
@@ -292,59 +292,59 @@ namespace LocalGPT.Services
             var solutionGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
             var projectGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
 
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, $"{projectName}.sln"), CouncilChatStringFunctions.GenerateSolutionFile(projectName, projectGuid), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, $"{projectName}.csproj"), CouncilChatStringFunctions.GenerateSolutionProjectFile(), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "Program.cs"), CouncilChatStringFunctions.GenerateSolutionProgram(projectName, isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "_Imports.razor"), CouncilChatStringFunctions.GenerateSolutionImports(projectName), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), CouncilChatStringFunctions.GenerateSolutionAppSettings(isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), CouncilChatStringFunctions.GenerateSolutionAppRazor(), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), CouncilChatStringFunctions.GenerateSolutionRoutesRazor(), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), CouncilChatStringFunctions.GenerateSolutionNavigationRazor(archetype, promiseModules), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), CouncilChatStringFunctions.GenerateSolutionIndexRazor(request, result, archetype), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), CouncilChatStringFunctions.GenerateSolutionDashboardRazor(request, result, archetype), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), CouncilChatStringFunctions.GenerateSolutionKnowledgeTableRazor(isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "SourceFidelity.razor"), CouncilChatStringFunctions.GenerateSourceFidelityRazor(), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, $"{projectName}.sln"), CouncilChatStringFunctions.GenerateSolutionFile(projectName, projectGuid, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, $"{projectName}.csproj"), GlobalVariableSlopCollectionToRemove.GenerateSolutionProjectFile, cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "Program.cs"), CouncilChatStringFunctions.GenerateSolutionProgram(projectName, isAiHostLab,logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "_Imports.razor"), CouncilChatStringFunctions.GenerateSolutionImports(projectName, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), CouncilChatStringFunctions.GenerateSolutionAppSettings(isAiHostLab, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), GlobalVariableSlopCollectionToRemove.GenerateSolutionAppRazor, cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), GlobalVariableSlopCollectionToRemove.GenerateSolutionRoutesRazor, cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), CouncilChatStringFunctions.GenerateSolutionNavigationRazor(archetype, promiseModules, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), CouncilChatStringFunctions.GenerateSolutionIndexRazor(request, result, archetype, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), CouncilChatStringFunctions.GenerateSolutionDashboardRazor(request, result, archetype, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), CouncilChatStringFunctions.GenerateSolutionKnowledgeTableRazor(isAiHostLab, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "SourceFidelity.razor"), GlobalVariableSlopCollectionToRemove.GenerateSourceFidelityRazor, cancellationToken);
             await CouncilChatStaticsGeneral.WriteTextAsync(
                 Path.Combine(pagesRoot, isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
-                CouncilChatStringFunctions.GenerateSolutionDetailRazor(request, result, isAiHostLab),
+                CouncilChatStringFunctions.GenerateSolutionDetailRazor(request, result, isAiHostLab,logger),
                 cancellationToken);
 
             foreach (var page in CouncilChatStaticsGeneral. GenerateArchetypePages(archetype))
                 await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, page.FileName), page.Source, cancellationToken);
             foreach (var module in promiseModules)
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, module.FileName), CouncilChatStaticsGeneral.GeneratePromiseModuleRazor(module), cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, module.FileName), CouncilChatStringFunctions.GeneratePromiseModuleRazor(module,logger), cancellationToken);
 
             if (isAiHostLab)
             {
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Chat.razor"), CouncilChatStringFunctions.GenerateAiHostChatRazor(), cancellationToken);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "RunningModels.razor"), CouncilChatStringFunctions.GenerateAiHostRunningModelsRazor(), cancellationToken);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "ModelDownloads.razor"), CouncilChatStringFunctions.GenerateAiHostModelDownloadsRazor(), cancellationToken);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Templates.razor"), CouncilChatStringFunctions.GenerateAiHostTemplatesRazor(), cancellationToken);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Hardware.razor"), CouncilChatStringFunctions.GenerateAiHostHardwareRazor(), cancellationToken);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "RunnerPlugins.razor"), CouncilChatStringFunctions.GenerateAiHostRunnerPluginsRazor(), cancellationToken);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Logs.razor"), CouncilChatStringFunctions.GenerateAiHostLogsRazor(), cancellationToken);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Settings.razor"), CouncilChatStringFunctions.GenerateAiHostSettingsRazor(), cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Chat.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostChatRazor, cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "RunningModels.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostRunningModelsRazor, cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "ModelDownloads.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostModelDownloadsRazor, cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Templates.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostTemplatesRazor, cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Hardware.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostHardwareRazor, cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "RunnerPlugins.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostRunnerPluginsRazor, cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Logs.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostLogsRazor, cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Settings.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostSettingsRazor, cancellationToken);
             }
 
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), CouncilChatStringFunctions.GenerateSolutionService(projectName, isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedSourceFidelityService.cs"), CouncilChatStringFunctions.GenerateSourceFidelityService(projectName, archetype), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), CouncilChatStringFunctions.GenerateSolutionService(projectName, isAiHostLab,logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedSourceFidelityService.cs"), CouncilChatStringFunctions.GenerateSourceFidelityService(projectName, archetype, logger), cancellationToken);
             if (isAiHostLab)
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedAiHostArchitectureServices.cs"), CouncilChatStringFunctions.GenerateAiHostArchitectureServices(projectName), cancellationToken);
+                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedAiHostArchitectureServices.cs"), CouncilChatStringFunctions.GenerateAiHostArchitectureServices(projectName, logger), cancellationToken);
 
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), CouncilChatStringFunctions.GenerateSolutionModel(projectName), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(wwwroot, "app.css"), CouncilChatStringFunctions.GenerateSolutionCss(), cancellationToken);
-            foreach (var icon in CouncilChatStringFunctions.GenerateNavigationIconSvgs())
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), CouncilChatStringFunctions.GenerateSolutionModel(projectName, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(wwwroot, "app.css"), GlobalVariableSlopCollectionToRemove.GenerateSolutionCss, cancellationToken);
+            foreach (var icon in CouncilChatStringFunctions.GenerateNavigationIconSvgs(logger)?? new List<(string,string)>() )
                 await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(navIconsRoot, icon.FileName), icon.Svg, cancellationToken);
 
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "README.md"), CouncilChatStringFunctions.GenerateSolutionReadme(projectName, request, result, isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), CouncilChatStringFunctions.GenerateSolutionProjectIndex(projectName, request, result, isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), CouncilChatStringFunctions.GenerateSolutionArchitectureDoc(projectName, isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), CouncilChatStringFunctions.GenerateSourceFidelityDoc(projectName, archetype, promiseModules), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "PROMISE_MAP.md"), CouncilChatStringFunctions.GeneratePromiseMapDoc(projectName, request, result, promiseModules), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "DESIGN_REVIEW.md"), CouncilChatStringFunctions.GenerateDesignReviewDoc(projectName, archetype, promiseModules), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), CouncilChatStringFunctions.GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), CouncilChatStringFunctions.GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab), cancellationToken);
-            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), CouncilChatStringFunctions.GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "README.md"), CouncilChatStringFunctions.GenerateSolutionReadme(projectName, request, result, isAiHostLab, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), CouncilChatStringFunctions.GenerateSolutionProjectIndex(projectName, request, result, isAiHostLab, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), CouncilChatStringFunctions.GenerateSolutionArchitectureDoc(projectName, isAiHostLab, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), CouncilChatStringFunctions.GenerateSourceFidelityDoc(projectName, archetype, promiseModules, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "PROMISE_MAP.md"), CouncilChatStringFunctions.GeneratePromiseMapDoc(projectName, request, result, promiseModules, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "DESIGN_REVIEW.md"), CouncilChatStringFunctions.GenerateDesignReviewDoc(projectName, archetype, promiseModules, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), CouncilChatStringFunctions.GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), CouncilChatStringFunctions.GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab, logger), cancellationToken);
+            await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), CouncilChatStringFunctions.GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab, logger), cancellationToken);
             var contract = CouncilChatStaticsGeneral.ValidateSolutionArtifactContract(solutionRoot, projectName, archetype);
 
             var zipName = $"{projectName}-{runSuffix}.zip";
