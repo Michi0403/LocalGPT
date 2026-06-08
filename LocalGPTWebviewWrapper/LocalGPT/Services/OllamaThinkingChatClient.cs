@@ -111,7 +111,6 @@ namespace LocalGPT.Services
                     await using (stream)
                     using (var reader = new StreamReader(stream))
                     {
-                        var formatter = new VisibleThinkingStreamFormatter(CouncilChatStringFunctions.IsHarmonyModel(logger));
                         while (!reader.EndOfStream)
                         {
                             string? line;
@@ -139,19 +138,17 @@ namespace LocalGPT.Services
 
                             if (!string.IsNullOrWhiteSpace(chunk?.Message?.Thinking))
                             {
-                                foreach (var text in formatter.AppendThinking(chunk.Message.Thinking))
-                                    yield return CreateStreamingUpdate(text, logger);
+                                foreach (var text in CouncilChatStringFunctions.AppendThinking(chunk.Message.Thinking,false,logger))
+                                    yield return CreateStreamingUpdate(text , logger);
                             }
 
                             if (!string.IsNullOrEmpty(chunk?.Message?.Content))
                             {
-                                foreach (var text in formatter.AppendContent(chunk.Message.Content))
+                                foreach (var text in CouncilChatStringFunctions.AppendContent(chunk.Message.Content, false, logger))
                                     yield return CreateStreamingUpdate(text, logger);
                             }
                         }
 
-                        foreach (var text in formatter.Complete())
-                            yield return CreateStreamingUpdate(text, logger);
                     }
                 }
             }

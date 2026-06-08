@@ -451,7 +451,7 @@ namespace LocalGPT
                 _ = app.MapHub<ChatHub>("/chathub");
                 app.MapStaticAssets();
                 app.MapHealthChecks("/health");
-                app.MapLocalGptDiagnosticEndpoints();
+                app.MapLocalGptDiagnosticEndpoints(logger);
                 app.MapMinecraftDiagnosticEndpoints();
                 app.MapRazorComponents<App>()
                    .AddInteractiveServerRenderMode()

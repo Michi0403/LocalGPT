@@ -11,6 +11,41 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public const int MaxFiles = 12;
+        public const long MaxSingleFileBytes = 32 * 1024 * 1024;
+        public const long MaxTotalFileBytes = 96 * 1024 * 1024;
+        public const int MaxZipEntries = 400;
+        public const long MaxZipEntryBytes = 8 * 1024 * 1024;
+        public const long MaxExtractedBytes = 64 * 1024 * 1024;
+        public const int MaxContextCharacters = 80_000;
+        public const int MaxExcerptCharactersPerFile = 6_000;
+        public const int MaxBinaryStringCharacters = 8_000;
+        public sealed record AnalyzedUploadFile(
+    ChatUploadWorkspaceFileSummary Summary,
+    string Excerpt);
+        public static readonly string[] KnowledgeFiles =
+       [
+           "AGENTS.md",
+            "CLAUDE.md",
+            "llms.txt",
+            Path.Combine("docs", "ARCHITECTURE_FOR_AI.md"),
+            Path.Combine("docs", "COUNCIL_KNOWLEDGE_SEED.sql"),
+            Path.Combine("docs", "MINECRAFT_MOD_AI_BUILDER.md"),
+            Path.Combine("docs", "MINECRAFT_SOURCE_KNOWLEDGE.md"),
+            Path.Combine("docs", "AI_HOST_DOTNET_EXPERIMENT.md"),
+            Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
+            Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md"),
+            Path.Combine("docs", "DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md"),
+            Path.Combine("docs", "LOCALGPT_DEVELOPER_DIARY.md"),
+            Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md"),
+            Path.Combine("docs", "CAPABILITY_GAP_CONTRACT.md"),
+            Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
+            Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md"),
+            Path.Combine("docs", "FRONTEND_DESIGN_PATTERN_LIBRARY.md"),
+            Path.Combine("docs", "MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md"),
+            Path.Combine("docs", "EF_DEVEXPRESS_BUSINESS_OBJECTS.md"),
+            Path.Combine("docs", "GENERATION_ARCHETYPE_CONTRACTS.md")
+       ];
         public const string omission =
                  "\n\n[...older context trimmed by LocalGPT to fit the local model context window...]\n\n";
 

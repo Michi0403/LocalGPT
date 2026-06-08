@@ -6,21 +6,14 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
 
 namespace LocalGPT.Services
 {
     public sealed class ChatUploadWorkspaceService(
         ILogger<ChatUploadWorkspaceService> logger) : IChatUploadWorkspaceService
     {
-        private const int MaxFiles = 12;
-        private const long MaxSingleFileBytes = 32 * 1024 * 1024;
-        private const long MaxTotalFileBytes = 96 * 1024 * 1024;
-        private const int MaxZipEntries = 400;
-        private const long MaxZipEntryBytes = 8 * 1024 * 1024;
-        private const long MaxExtractedBytes = 64 * 1024 * 1024;
-        private const int MaxContextCharacters = 80_000;
-        private const int MaxExcerptCharactersPerFile = 6_000;
-        private const int MaxBinaryStringCharacters = 8_000;
+
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -128,23 +121,23 @@ namespace LocalGPT.Services
                 var bytes = input.Data.ToArray();
                 await File.WriteAllBytesAsync(originalPath, bytes, cancellationToken);
 
-                var originalRelativePath = ToForwardSlash(Path.GetRelativePath(root, originalPath));
+                var originalRelativePath = ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
                 if (IsZip(input.Name))
                 {
                     analyzedFiles.Add(BuildBinarySummary(originalRelativePath, bytes.Length, "zip", false,
-                        "Original zip saved. Extracted safe entries are listed separately."));
+                        "Original zip saved. Extracted safe entries are listed separately.", logger));
                     await ExtractZipAsync(root, extractedRoot, safeName, bytes, analyzedFiles, warnings, cancellationToken);
                 }
                 else
                 {
-                    analyzedFiles.Add(AnalyzeBytes(originalRelativePath, bytes));
+                    analyzedFiles.Add(AnalyzeBytes(originalRelativePath, bytes, logger));
                 }
             }
 
             if (!fileList.Any())
                 warnings.Add("No files were supplied for this prompt workspace.");
 
-            var context = BuildContextMarkdown(workspaceName, root, prompt, analyzedFiles, warnings);
+            var context = BuildContextMarkdown(workspaceName, root, prompt, analyzedFiles, warnings, logger);
             var contextPath = Path.Combine(root, "context.md");
             await File.WriteAllTextAsync(contextPath, context, Encoding.UTF8, cancellationToken);
 
@@ -231,7 +224,7 @@ namespace LocalGPT.Services
                 if (!File.Exists(latest.ContextPath))
                     return string.Empty;
 
-                return CouncilChatStringFunctions.TrimForPrompt(File.ReadAllText(latest.ContextPath), maxCharacters);
+                return CouncilChatStringFunctions.TrimForPrompt(File.ReadAllText(latest.ContextPath), maxCharacters, logger);
             }
             catch (Exception ex)
             {
@@ -254,7 +247,7 @@ namespace LocalGPT.Services
                 return string.Empty;
 
             var context = await File.ReadAllTextAsync(contextPath, cancellationToken);
-            return CouncilChatStringFunctions.TrimForPrompt(context, maxCharacters);
+            return CouncilChatStringFunctions.TrimForPrompt(context, maxCharacters, logger);
         }
 
         public IReadOnlyList<ChatUploadWorkspaceFileSummary> ListFiles(string workspaceName, int take = 250)
@@ -269,7 +262,7 @@ namespace LocalGPT.Services
                 {
                     var info = new FileInfo(path);
                     return new ChatUploadWorkspaceFileSummary(
-                        ToForwardSlash(Path.GetRelativePath(workspace, path)),
+                        ToForwardSlash(Path.GetRelativePath(workspace, path), logger),
                         DetermineFileKind(path),
                         info.Length,
                         info.LastWriteTimeUtc,
@@ -301,21 +294,21 @@ namespace LocalGPT.Services
             if (info.Length > MaxSingleFileBytes)
                 return new ChatUploadWorkspaceFileReadResult(
                     workspaceName,
-                    ToForwardSlash(Path.GetRelativePath(workspace, file)),
+                    ToForwardSlash(Path.GetRelativePath(workspace, file), logger),
                     file,
                     "too-large",
                     info.Length,
                     "File is too large for inline reading. Use the file summary and inspect it manually.");
 
             var bytes = await File.ReadAllBytesAsync(file, cancellationToken);
-            var analyzed = AnalyzeBytes(ToForwardSlash(Path.GetRelativePath(workspace, file)), bytes);
+            var analyzed = AnalyzeBytes(ToForwardSlash(Path.GetRelativePath(workspace, file), logger), bytes, logger);
             return new ChatUploadWorkspaceFileReadResult(
                 workspaceName,
                 analyzed.Summary.RelativePath,
                 file,
                 analyzed.Summary.Kind,
                 analyzed.Summary.Length,
-                CouncilChatStringFunctions.TrimForPrompt(analyzed.Excerpt, maxCharacters));
+                CouncilChatStringFunctions.TrimForPrompt(analyzed.Excerpt, maxCharacters, logger));
         }
 
         public string? ResolveWorkspacePath(string workspaceName)
@@ -404,7 +397,7 @@ namespace LocalGPT.Services
                     }
 
                     var bytes = await File.ReadAllBytesAsync(destination, cancellationToken);
-                    analyzedFiles.Add(AnalyzeBytes(ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination)), bytes));
+                    analyzedFiles.Add(AnalyzeBytes(ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger), bytes, logger));
                 }
             }
             catch (InvalidDataException ex)
@@ -413,7 +406,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static AnalyzedUploadFile AnalyzeBytes(string relativePath, byte[] bytes)
+        private static AnalyzedUploadFile AnalyzeBytes(string relativePath, byte[] bytes, ILogger logger)
         {
             if (IsZip(relativePath))
             {
@@ -422,24 +415,24 @@ namespace LocalGPT.Services
                     bytes.Length,
                     "zip",
                     false,
-                    "Zip file saved as uploaded. Extracted safe entries are represented separately.");
+                    "Zip file saved as uploaded. Extracted safe entries are represented separately.", logger);
             }
 
             var isText = IsTextLike(relativePath) || LooksLikeText(bytes);
             if (isText)
             {
-                var text = DecodeText(bytes);
-                return BuildSummary(relativePath, bytes.Length, "text", true, "Text excerpt included.", text);
+                var text = DecodeText(bytes, logger);
+                return BuildSummary(relativePath, bytes.Length, "text", true, "Text excerpt included.", text, logger);
             }
 
             var extension = Path.GetExtension(relativePath);
             if (BinaryDiagnosticExtensions.Contains(extension))
             {
-                var strings = ExtractPrintableStrings(bytes, MaxBinaryStringCharacters);
+                var strings = ExtractPrintableStrings(bytes, MaxBinaryStringCharacters, logger);
                 var note = extension.Equals(".pdb", StringComparison.OrdinalIgnoreCase)
                     ? "PDB/debug file summarized with printable strings only."
                     : "Binary file summarized with printable strings only.";
-                return BuildSummary(relativePath, bytes.Length, "binary-strings", true, note, strings);
+                return BuildSummary(relativePath, bytes.Length, "binary-strings", true, note, strings, logger);
             }
 
             return BuildBinarySummary(
@@ -447,7 +440,7 @@ namespace LocalGPT.Services
                 bytes.Length,
                 "binary",
                 false,
-                "Binary file saved but not included in prompt context.");
+                "Binary file saved but not included in prompt context.", logger);
         }
 
         private static string BuildContextMarkdown(
@@ -690,19 +683,19 @@ namespace LocalGPT.Services
             return controlCount <= sampleLength / 20;
         }
 
-        private static string DecodeText(byte[] bytes)
+        private static string DecodeText(byte[] bytes, ILogger logger)
         {
             try
             {
-                return SanitizeForPrompt(Encoding.UTF8.GetString(bytes));
+                return SanitizeForPrompt(Encoding.UTF8.GetString(bytes), logger);
             }
             catch
             {
-                return SanitizeForPrompt(Encoding.Latin1.GetString(bytes));
+                return SanitizeForPrompt(Encoding.Latin1.GetString(bytes), logger);
             }
         }
 
-        private static string ExtractPrintableStrings(byte[] bytes, int maxCharacters)
+        private static string ExtractPrintableStrings(byte[] bytes, int maxCharacters, ILogger logger)
         {
             var builder = new StringBuilder();
             var current = new StringBuilder();
@@ -722,7 +715,7 @@ namespace LocalGPT.Services
             }
 
             FlushCurrentString(builder, current, maxCharacters);
-            return SanitizeForPrompt(builder.ToString());
+            return SanitizeForPrompt(builder.ToString(), logger);
         }
 
         private static void FlushCurrentString(StringBuilder builder, StringBuilder current, int maxCharacters)
@@ -814,8 +807,6 @@ namespace LocalGPT.Services
         }
             
 
-        public sealed record AnalyzedUploadFile(
-            ChatUploadWorkspaceFileSummary Summary,
-            string Excerpt);
+
     }
 }

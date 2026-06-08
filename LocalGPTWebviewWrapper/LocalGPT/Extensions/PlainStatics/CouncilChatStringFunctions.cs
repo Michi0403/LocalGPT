@@ -3491,7 +3491,7 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var matches = CouncilChatStringFunctions.HarmonyThinkingPatternNew(logger).Matches(raw);
+                var matches = CouncilChatStringFunctions.HarmonyThinkingPatternNew().Matches(raw);
                 if (matches.Count == 0)
                     return string.Empty;
 
@@ -3511,11 +3511,11 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var matches = HarmonyFinalPattern().Matches(raw);
+                var matches =  CouncilChatStringFunctions.HarmonyFinalPatternNew().Matches(raw);
                 if (matches.Count == 0)
                     return string.Empty;
 
-                return CleanHarmonyText(matches[^1].Groups["content"].Value);
+                return CleanHarmonyText(matches[^1].Groups["content"].Value, logger);
             }
             catch (Exception ex)
             {
@@ -3646,7 +3646,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     return null;
 
                 var text = WebUtility.HtmlDecode(content).Trim();
-                if (IsHarmonyModel())
+                if (CouncilChatStringFunctions.IsHarmonyModel(logger))
                 {
                     var finalMatches = HarmonyFinalPatternNew().Matches(text);
                     if (finalMatches.Count > 0)
