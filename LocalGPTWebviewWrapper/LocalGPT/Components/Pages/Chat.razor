@@ -1316,7 +1316,7 @@
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken);
                     await InvokeAsync(async () => await PersistCurrentConversationAsync(force: false, showToast: false).ConfigureAwait(false)).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException ex)

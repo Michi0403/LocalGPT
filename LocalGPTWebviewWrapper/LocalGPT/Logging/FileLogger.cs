@@ -88,7 +88,15 @@ namespace LocalGPT.Logging
                         {
                             _ = Directory.CreateDirectory(dir);
                         }
-                        File.AppendAllText(_realPath, message + Environment.NewLine);
+                        try
+                        {
+                            File.AppendAllText(_realPath, message + Environment.NewLine);
+                        }
+                        catch (System.IO.IOException ex)
+                        {
+                            Console.WriteLine($"Warning Logger couldn't access log file: {ex.Message}");
+                        }
+                      
                     }
                     catch (Exception ex)
                     {
