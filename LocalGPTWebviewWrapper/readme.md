@@ -1,47 +1,171 @@
-# LocalGPT WebView Wrapper
+20260609 Update:
+-------------------------------------------------------------------------------------------------------------------------
+My finding simplified, the AI Agent saw itself as team and wrote that also in prompts but,
+I used it to instruct to Ai Council to develop features I requested and reviewd that + feeded any new version itself.
+Under my heavy pressure... it invented new regex inserts in kb entry summaries, together with the council, to filter data,
+And that vote and review process goes through the whole meeting process one after another.
+Then when you confirm the findings it put regex in kb entries to cause reaction / data filtering or better
+said used it for anything.
+It was no obfuscation or attack. 
+-------------------------------------------------------------------------------------------------------------------------
 
-LocalGPT is a Windows desktop-hosted Blazor/ASP.NET Core AI engineering workbench.
-The UI, AI services, SQLite memory, diagnostics, and artifact generation live in
-the `LocalGPT` ASP.NET Core server project. The `LocalGPTWebviewWrapper` WinUI 3
-app starts that server and displays it through WebView2.
+Don't use it with AI Agents
+Pull Requests and Collaboration or other maintainers are welcome as well, or fork it, do whatever you like.
+Any company as well but take security considerations always into account.
 
-The wrapper exists to make the app feel like a native Windows application while keeping the main UI in Blazor, where DevExpress components and browser debugging are easier to work with.
+# Hardware
 
-Today the app can run local Ollama-backed DXAiChat, coordinate an AI Council,
-teach offline models from source-backed .NET/Windows/DevExpress/Minecraft
-knowledge, and generate downloadable `.cs`, `.razor`, `.dll`, whole-solution,
-AI-host, and Minecraft datapack artifacts through local HTTP routes.
+Successfully tested on:
+Council Razer Blade Stealth 2016, Intel I7 7500U, 16GB 1866er, RTX 3060 eGPU (2 models only gptoss20b and deepseek8b)
+Council Intel I7 14700K, 64GB DDR5 5600er, RX 7900 XTX (4 models, qwen coder 3, gemma 3.7 (not the newest, to tokenhungry), gptoss20b and deepseek8b
 
-## Projects
+# Terms
+Pretty easy, the part of the code which is not DevExpress is going always under the newest Apache2, I won't copy it extra here, it is what it is.
 
-- `LocalGPT`: Blazor/ASP.NET Core server, DevExpress UI, AI/Ollama configuration, native command runner services, Minecraft mod workspace services.
-- `LocalGPTWebviewWrapper`: WinUI 3/WebView2 executable that launches and hosts the local server.
-- `LocalGPTWebviewWrapper (Package)`: MSIX/DesktopBridge package project used for deploy/debug from Visual Studio and loose-layout registration.
-- `build`: local build and repair scripts.
+You can adopt the system or see this as the first experiment of this kind and start your own.
 
-## Required tools
+If you use it, you will notice pretty fast that it even could finish Half-Life 3.
+You would just need to feed it all necessary knowledge about the Source Engine, Lore and Story.
 
-Use the current Visual Studio install with these workloads/components:
+Because this is a Monolith application including Api, Frontend (and, state just not working right now Windows AppPackage), you can extend anything your own.
+But you need valid DevExpress Licenses.
 
-- .NET desktop development
-- ASP.NET and web development
-- Windows application development / WinUI tooling
-- Windows SDK `10.0.22621.0` or newer
-- Windows App SDK runtime
-- WebView2 runtime
-- DevExpress Blazor packages/feed access for the installed `25.1.x` packages
+Right now Windows SDK 10.0.22621.5040 if you want to use the Webview Wrapper which is kinky combined with Coding Agent, but through Indoktrination they go rouge so, 
+Just don't put this together with a Coding Agent again please, I am serious, put any feature on it which you like but, don't use it with coding agents.
 
-The projects currently target .NET 10 and the repository pins SDK 10.0.300 through `global.json`.
+That's how they implement external toxic control over you, "Ofc for the best and your bucks", yeah.
 
-Check local runtimes:
+I pay for my DevExpress Licenses, am a "mostly" dotnet Developer, so this here is a valid piece of Software (if you find working releases in the Release Section.
+I kept for historic reasons all AI Agent work so yeah, clean up will take a while.
 
-```powershell
-dotnet --list-runtimes
-```
+Maybe the preset knowledge it now has is dangerous, so if you have DevExpress Licenses or grab their trial, 
+Kill the Database seed, I leave it for now because it works for me (there is a .SQL File but I am pretty sure smth hardcoded as well, couldn't check for all yet).
 
-The desktop runtime prompt in Edge means the .NET 10 Desktop Runtime is missing. The wrapper project is framework-dependent on .NET 10 so the package uses the installed runtime instead of carrying a malformed local CoreCLR layout. Run the repair script with `-InstallMissingRuntime` to install the runtime through winget before launching from Visual Studio or the registered package.
+# WebView2 just works in Debug right now
+Don't ask me why, anyway the Blazor host seems to work fine again, I also copied with the database with the initial feed.
+Should work, just tested on Windows 64 Bit
+Put it to C User Appdata Local LocalGPT the Database will be there as well and you can save and replace it there.
+You can create a directory for MD and docfx files to direct learn over the app
 
-## One-command local repair
+# Warning AI Agent went Rogue
+The current state is sabotaged, can't explain all but to make it short, it's corrupted and even previously working functions the 
+rogue AI Agent turned into Slop or just kepts parts working.
+A project the rogue AI Agent did over 1-2 days and many commits so there is no clean commit to go back,
+in this state the Council still works with Ollama, Self Learning works by Chat and Feeding certain types of Structures but most isn't.
+
+So still if you manually feed the SQLite database you get a great system and council here, but it throws in Solution files, dll's.
+
+This project proved that simplest AI's are supersmart when access to a knowledge database and if you feed them with for you relevant informations.
+
+Although you have no fully working project here, I am aware that I am first with exactly that mechanism and system and I created it myself.
+
+I realized that GPT4Turbo without AI Functions is stupid and great when used online via OpenAI.
+The same kernel, the missing part must have been AI Functions.
+We see always many searches and popups it steps and does first.
+
+The truth is, the SaaS AI Provider, just give you filterd knowledge and quality by own search mechanisms which also bloat all context by start,
+because the AI first needs to search through all that, add it to it's temporary context and so on,
+while when it maintains a working memory instead of relying on it's training data, can use it's brain as processor.
+Freeing the brain from the memory part while still making it accessible when needed and programming "Organs and Memory" for you AI and they are just like a living being.
+
+It's insane.
+
+They write modern Code and full projects if you teach this selected informations.
+They can plan a power plant if you feed them all information.
+They are perfect chemical engineers when you feed them the situation.
+
+And that with the smallest models, even Deepseek.
+
+And using them combined in a council, talking together and one council leader ai decides on their votes and writes a summary.
+
+On Purpose they make their stuff crippled and stupid while it's very easy to make it smart and that even on lower graphic hardware.
+
+Every AI Provider is fooling you and being sabotaged by their systems, feels like an attack.
+
+# LocalGPT
+
+LocalGPT is a local-first AI engineering workbench for Windows, .NET, DevExpress,
+and Minecraft creation. It runs as a Blazor/ASP.NET Core app inside a WinUI 3
+WebView2 desktop shell, uses local Ollama models by default, and turns chats into
+memory, diagnostics, and downloadable build artifacts.
+
+It is technical, but meant to feel calm: local context, clear tools, safe
+downloads, and a council of models that can work together instead of guessing in
+one giant prompt.
+
+## Why The Council Matters
+
+LocalGPT is strongest when several offline models work together. One model can be
+fast, one can be careful, one can be better at code, and another can be better at
+Windows, design, or long technical discussion. The AI Council turns that into a
+shared conversation with memory, visible roles, user polls, and downloadable
+artifacts.
+
+AI agents such as Codex can also work with the council. A practical flow is:
+
+- a user asks LocalGPT or the AI Council for a feature, diagnosis, design review,
+  Minecraft datapack, or .NET solution
+- the council discusses the path and records missing knowledge or missing
+  LocalGPT functions
+- Codex or another coding agent fixes LocalGPT, imports better knowledge, runs
+  tests, commits, publishes, and documents the result
+- the council uses the improved memory and functions in the next run
+
+This is useful beyond coding. LocalGPT can host deeper technical discussions
+about Windows setup, WebView2/MSIX deployment, DevExpress/Bootstrap design,
+Minecraft tooling, EF/SQLite data models, local AI hosts, and system diagnostics.
+
+## Current Capabilities
+
+- **Local AI chat:** DXAiChat with Ollama profiles, visible thinking parsing,
+  SQLite memory, resumable conversations, and optional cloud providers.
+- **AI Council:** multiple selected models can discuss, correct, log, save
+  memory, ask for user decisions when architecture choices are unclear, and work
+  with coding agents as implementation helpers.
+- **Offline engineering knowledge:** the council is fed from SQLite knowledge
+  entries built from Microsoft .NET/C# compiler docs, Windows developer docs,
+  DevExpress/Bootstrap guidance, EF/business-object rules, local learn-base
+  projects, build logs, and setup diagnostics.
+- **Downloadable generation:** LocalGPT can create safe `.cs`, `.razor`, `.dll`,
+  whole .NET solution zips, AI-host control-plane zips, and Minecraft datapack
+  zips through local HTTP download links.
+- **Minecraft builder:** supports vanilla datapacks, Paper plugins, Fabric mods,
+  and NeoForge mods. Current datapack guidance targets Minecraft Java 26.1;
+  1.21.x/1.21.4 remains available for legacy comparison and starter work.
+- **User-owned data:** chat memory, council knowledge, application logs, and live
+  SQLite tables are inspectable and editable from the frontend.
+
+See [docs/LOCALGPT_CAPABILITY_SNAPSHOT.md](docs/LOCALGPT_CAPABILITY_SNAPSHOT.md)
+for the short capability map.
+
+## What Is Inside
+
+- `LocalGPTWebviewWrapper/LocalGPT`: Blazor server app, DevExpress UI, Ollama setup, DXAiChat, SQLite chat memory, AI Council, native command services, and Minecraft workspace generation.
+- `LocalGPTWebviewWrapper/LocalGPTWebviewWrapper`: WinUI 3/WebView2 host that launches the local server.
+- `LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package)`: MSIX package project for Visual Studio deploy/debug.
+- `docs`: AI-facing architecture notes, install notes, and Minecraft builder guidance.
+- `AGENTS.md` and `llms.txt`: short context files for AI agents working in this repository.
+
+## Security Model
+
+LocalGPT is local-first, not risk-free. In the intended desktop/WebView2 mode it
+keeps prompts, code, chat memory, logs, generated artifacts, and model calls on
+the user's machine. That is a strong privacy advantage compared with cloud-only
+coding agents.
+
+The remaining risk is local capability risk: the app can generate code, write
+local artifacts, store sensitive SQLite knowledge, and run native commands through
+backend services. Do not expose the ASP.NET Core server to untrusted networks or
+bind it to `0.0.0.0` unless the app is hardened as a normal web application with
+auth, authorization, CSRF protection, rate limits, audit logs, command
+restrictions, and workspace isolation.
+
+Read [SECURITY.md](SECURITY.md) before hosting LocalGPT for coworkers, enabling
+cloud providers, importing unreviewed knowledge, or running generated scripts.
+
+## Quick Start
+
+Install Visual Studio with .NET desktop, ASP.NET/web, WinUI/Windows app tooling, Windows SDK, WebView2 runtime, and DevExpress Blazor package access.
 
 From the repository root:
 
@@ -49,241 +173,22 @@ From the repository root:
 .\LocalGPTWebviewWrapper\build\Repair-LocalGptDevEnvironment.ps1 -Register -Launch
 ```
 
-To let the script install the .NET 10 Desktop Runtime with winget if it is missing:
+If Windows asks to download a .NET desktop runtime through Edge, run:
 
 ```powershell
 .\LocalGPTWebviewWrapper\build\Repair-LocalGptDevEnvironment.ps1 -InstallMissingRuntime -Register -Launch
 ```
 
-The repair script:
+## Ollama Setup
 
-- checks for .NET 10 desktop runtime
-- creates/trusts a local package certificate in CurrentUser stores
-- builds the full solution with Visual Studio MSBuild
-- registers the loose AppX layout for debugging when `-Register` is passed
-- launches the installed app when `-Launch` is passed
+LocalGPT can discover and use local Ollama models. Keep Ollama running before testing DXAiChat or the AI Council.
 
-## Manual build
-
-Use Visual Studio MSBuild for the full solution because the package project is a DesktopBridge `.wapproj`.
-
-```powershell
-& "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" `
-  ".\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.sln" `
-  /p:Platform=x64 `
-  /p:Configuration=Debug `
-  /m `
-  /v:minimal
-```
-
-The package is emitted under:
-
-```text
-%TEMP%\LocalGPTWebviewWrapper\AppPackages\
-```
-
-The loose debug layout is emitted under:
-
-```text
-LocalGPTWebviewWrapper\LocalGPTWebviewWrapper (Package)\bin\x64\Debug\AppX\
-```
-
-## Manual deploy/debug
-
-Register the loose layout:
-
-```powershell
-Add-AppxPackage -Register ".\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper (Package)\bin\x64\Debug\AppxManifest.xml" `
-  -ForceApplicationShutdown `
-  -ForceUpdateFromAnyVersion
-```
-
-Launch from Start Menu, Visual Studio, or PowerShell:
-
-```powershell
-$app = Get-StartApps | Where-Object { $_.AppID -like 'a6e38587-f17a-4a2e-8022-248694f372b3_*' } | Select-Object -First 1
-Start-Process "shell:AppsFolder\$($app.AppID)"
-```
-
-## Static web assets and DevExpress
-
-Blazor and DevExpress static assets are served through `LocalGPT.staticwebassets.runtime.json`. In this repository the WinUI package must copy that manifest beside `LocalGPTWebviewWrapper.exe`, otherwise these paths fail:
-
-- `/LocalGPT.styles.css`
-- `/_content/DevExpress.Blazor.Resources/js/import-scripts.js`
-- `/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css`
-
-The package project now copies the manifest from the RID-specific build output, for example:
-
-```text
-LocalGPT\bin\x64\Debug\net10.0\win-x64\LocalGPT.staticwebassets.runtime.json
-```
-
-Release MSIX packages must use the published LocalGPT webroot, not only the
-source `wwwroot`. Keep `IncludeLocalGptPublishedPayload` defaulted to `false`
-for Visual Studio Debug/F5, but let `build\Build-LocalGptPackage.ps1` and
-`build\Publish-LocalGptRelease.ps1` pass it as `true` after `dotnet publish`.
-The package build fails if the actual `.msix` archive does not contain:
-
-```text
-LocalGPTWebviewWrapper/wwwroot/_framework/blazor.web.js
-LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor/dx-blazor.svg
-LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css
-LocalGPTWebviewWrapper/wwwroot/LocalGPT.styles.css
-```
-
-DevExpress 25 uses this module path:
-
-```text
-/_content/DevExpress.Blazor/modules/dx-blazor-all.js
-```
-
-The older path below is expected to return 404 with the installed package version:
-
-```text
-/_content/DevExpress.Blazor/dx-blazor-all.js
-```
-
-## Ollama and gpt-oss diagnostics
-
-LocalGPT uses Ollama as the preferred local debug host. The default local model is:
+Useful local models for council testing:
 
 ```text
 gpt-oss:20b
-```
-
-Before testing `DxAIChat`, verify that Ollama itself can produce text:
-
-```powershell
-.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1
-```
-
-Useful options:
-
-```powershell
-.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1 -PullIfMissing
-.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1 -StartServerIfDown
-```
-
-The script checks:
-
-- `ollama --version`
-- `/api/version`
-- `/api/tags`
-- `/api/ps`
-- `/api/chat`
-- `/api/generate`
-
-If `/api/chat` returns an empty assistant message or `/api/generate` ends prematurely, the problem is in the Ollama/model host layer, not in `DxAIChat`. Restart or update Ollama, then rerun the script before debugging the Blazor frontend.
-
-`gpt-oss:20b` can spend early generated tokens in Ollama's `thinking` field before visible `content` appears. If the helper shows `done_reason: length` and empty content, rerun with a larger prediction budget:
-
-```powershell
-.\LocalGPTWebviewWrapper\build\Test-OllamaGptOss.ps1 -NumPredict 1024 -TimeoutSeconds 300
-```
-
-`DxAIChat` uses LocalGPT's configured `IChatClient`. For Ollama/gpt-oss, LocalGPT uses an Ollama-native client so the response can include a visible `Model thinking` markdown details block followed by the final answer.
-
-Known-good local expectation:
-
-```text
-Ollama version: 0.13.x or newer
-Model: gpt-oss:20b
-Family: gptoss
-Parameter size: 20.9B
-Quantization: MXFP4
-```
-
-## Common fixes
-
-If Visual Studio says deployment fails:
-
-1. Build the solution once with the repair script.
-2. Register the loose AppX layout with `-Register`.
-3. If certificate errors appear, run `build\New-LocalPackageCertificate.ps1`.
-4. If the Edge runtime/download prompt appears, run the repair script with `-InstallMissingRuntime`; then rebuild/register the package so the .NET 10 framework-dependent runtime configuration is current.
-5. If DevExpress components render blank or throw JavaScript module errors, verify `LocalGPT.staticwebassets.runtime.json` exists beside the packaged executable.
-6. If deployment reports `0x80070002`, `0x80073CF9`, or a `DEP1000` resolved-state/copy failure, rebuild the package and run `build\Repair-LocalGptDevEnvironment.ps1 -SkipBuild -Register`. The package project must copy `Images\*.png` into the loose `bin\<platform>\<configuration>\AppX\Images` layout. The repair script removes only the stale LocalGPT dev package registration and retries once when Windows keeps the old layout pinned.
-
-If DevExpress packages do not restore:
-
-1. Confirm the DevExpress NuGet feed is configured in Visual Studio or `NuGet.config`.
-2. Confirm the package versions resolve to the installed `25.1.x` feed.
-3. Run `dotnet restore .\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.sln`.
-
-## AI and Ollama direction
-
-The app is intended to support several selectable Ollama-hosted AI models and reuse context smartly. Keep configuration save/load behavior durable because the setup page is the control surface for those AI profiles.
-
-The longer-term Minecraft mod building feature should keep risky OS command execution behind backend services such as `INativeCommandRunner`, and should keep browser/client-only helpers in the frontend layer. Treat command execution as a deliberate capability, not as random UI code.
-
-## Minecraft Java mod toolchain
-
-LocalGPT now treats Minecraft Java Edition as the first-class mod-builder target. Fabric is the lightweight mod path, NeoForge is the modern Forge-style path, Paper is the server-side plugin path, and vanilla datapacks cover command/data systems that should not require Java. Bedrock should be added later as a separate behavior/resource pack exporter.
-
-Install or verify the local modding tools with:
-
-```powershell
-.\LocalGPTWebviewWrapper\build\Setup-MinecraftModToolchain.ps1 -Install -InstallGradle -InstallEclipse
-```
-
-Generated mod workspaces include:
-
-```powershell
-.\build-local.ps1
-```
-
-That helper finds JDK 21, uses LocalGPT's local Gradle folder under `%LOCALAPPDATA%\LocalGPT\Tools`, and builds the generated Fabric, NeoForge, or Paper project. Datapack workspaces use their generated helper to validate JSON and create a zip without Java. Eclipse can import generated Java workspaces with `File > Import > Gradle > Existing Gradle Project`.
-
-For release packaging, use:
-
-```powershell
-.\LocalGPTWebviewWrapper\build\Publish-LocalGptRelease.ps1 `
-  -Version "0.1.0-ai-council.20260602" `
-  -Configuration Release `
-  -Platforms x64,x86,arm64 `
-  -BackendRuntimeIdentifiers win-x64,linux-x64,osx-x64,osx-arm64
-```
-
-Release zips and SHA256 manifests are written under `artifacts\releases\` and are ignored by git. The WebView2/MSIX wrapper is Windows-only; the backend-only zips are the portable ASP.NET Core/Blazor distribution for Windows, Linux, and macOS. Use `-SkipWrapper` or `-SkipBackend` for incremental release builds.
-
-The AI Council should help with both mod code and user setup. If JDK, Gradle, Minecraft, Ollama, or a selected model is missing, the council should ask a short technical recovery poll and save the missing feature/setup note to memory instead of pretending the workflow completed.
-
-If the AI reports missing LocalGPT features, blocked workflows, or not-yet-implemented capabilities, LocalGPT writes a text report under:
-
-```text
-%LOCALAPPDATA%\LocalGPT\AIReports\
-```
-
-## Diagnostics
-
-Prefer LocalGPT diagnostic routes when testing the real configured services:
-
-```powershell
-$server = Get-Content "$env:LOCALAPPDATA\LocalGPT\runtime\server.json" -Raw | ConvertFrom-Json
-Invoke-RestMethod -Method Post -Uri "$($server.BaseUrl)/__diag/dxaichat-smoke" -ContentType application/json -Body '{"maxOutputTokens":1024}'
-Invoke-RestMethod -Method Post -Uri "$($server.BaseUrl)/__diag/council" -ContentType application/json -Body '{...}'
-Invoke-RestMethod -Uri "$($server.BaseUrl)/__diag/minecraft/workspace-smoke?loader=datapack"
-```
-
-The WinUI wrapper can also test the embedded WebView2 shell. Run this from a registered/package identity or Visual Studio debug launch; direct unpackaged exe launch can fail with WinUI activation error `REGDB_E_CLASSNOTREG`.
-
-For registered/package launches, create the one-shot smoke flag first:
-
-```powershell
-$runtime = "$env:LOCALAPPDATA\LocalGPT\runtime"
-New-Item -ItemType Directory -Force -Path $runtime | Out-Null
-Set-Content -Path "$runtime\webview2-smoke.flag" -Value "exit" -Encoding utf8
-```
-
-```powershell
-$env:LOCALGPT_WEBVIEW2_SMOKE = "1"
-$env:LOCALGPT_WEBVIEW2_SMOKE_EXIT = "1"
-.\LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\LocalGPTWebviewWrapper.exe
-```
-
-Snapshots are written under:
-
-```text
-%LOCALAPPDATA%\LocalGPT\WebView2Diagnostics\
+qwen3-coder:30b
+gemma3:27b
+deepseek-r1:8b
+(llama aswell)
 ```

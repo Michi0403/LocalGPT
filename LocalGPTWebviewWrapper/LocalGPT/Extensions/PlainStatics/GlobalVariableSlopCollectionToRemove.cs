@@ -11,6 +11,7 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public static bool IsHarmonyModel { get; set; } = false;
         public const int MaxFiles = 12;
         public const long MaxSingleFileBytes = 32 * 1024 * 1024;
         public const long MaxTotalFileBytes = 96 * 1024 * 1024;

@@ -3694,7 +3694,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
 
 
-        public static bool IsHarmonyModel( ILogger logger)
+        public static bool IsHarmonyModel(LocalAiModelInfo model, ILogger logger)
         {
             try
             {
