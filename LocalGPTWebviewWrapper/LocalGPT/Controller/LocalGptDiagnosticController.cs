@@ -2,6 +2,7 @@ using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.CodeParser;
 using DevExpress.CodeParser.Diagnostics;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -178,8 +179,8 @@ namespace LocalGPT.Controller
                         cancellationToken: ct).ConfigureAwait(false);
                 }
 
-                var thinking = ExtractModelThinking(response.Text);
-                var visibleText = StripModelThinking(response.Text);
+                var thinking = CouncilChatStringFunctions.ExtractModelThinking(response.Text,logger);
+                var visibleText = CouncilChatStringFunctions.StripModelThinking(response.Text, logger);
                 if (string.IsNullOrWhiteSpace(visibleText) && !string.IsNullOrWhiteSpace(thinking))
                     visibleText = "The model returned thinking but no final visible answer. Increase MaxOutputTokens or ask for a shorter final answer.";
 
@@ -441,8 +442,8 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var workspaces = EnumerateArtifactWorkspaces(artifacts.ArtifactRoot, take ?? 20);
-                var baseUrl = GetRequestBaseUrl(HttpContext);
+                var workspaces = CouncilChatStaticsGeneral.EnumerateArtifactWorkspaces(artifacts.ArtifactRoot, take ?? 20, logger);
+                var baseUrl = CouncilChatStaticsGeneral.GetRequestBaseUrl(HttpContext, logger);
                 return Results.Ok(new
                 {
                     BaseUrl = baseUrl,
@@ -479,7 +480,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var workspace = ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName);
+                var workspace = CouncilChatStaticsGeneral.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName, logger);
                 if (workspace is null)
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
@@ -487,7 +488,7 @@ namespace LocalGPT.Controller
                 {
                     WorkspaceName = workspaceName,
                     RootPath = workspace,
-                    Files = EnumerateWorkspaceTextFiles(workspace, take ?? 250),
+                    Files = CouncilChatStaticsGeneral.EnumerateWorkspaceTextFiles(workspace, take ?? 250, logger),
                     CreatedAt = DateTimeOffset.UtcNow
                 });
             }
@@ -507,23 +508,23 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var workspace = ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName);
+                var workspace = CouncilChatStaticsGeneral.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName,logger);
                 if (workspace is null)
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
-                var file = ResolveWorkspaceTextFile(workspace, path, allowMissing: false);
+                var file = CouncilChatStaticsGeneral.ResolveWorkspaceTextFile(workspace, path, false,logger);
                 if (file is null)
                     return Results.BadRequest(new { Error = "Invalid, unsupported, or missing source file path." });
 
                 var info = new FileInfo(file);
-                if (info.Length > MaxArtifactTextFileBytes)
+                if (info.Length > GlobalVariableSlopCollectionToRemove.MaxArtifactTextFileBytes)
                     return Results.BadRequest(new { Error = "File is too large for inline source editing.", info.Length });
 
                 return Results.Ok(new
                 {
                     WorkspaceName = workspaceName,
                     RootPath = workspace,
-                    RelativePath = ToForwardSlash(Path.GetRelativePath(workspace, file)),
+                    RelativePath = CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspace, file), logger),
                     FullPath = file,
                     Length = info.Length,
                     LastWriteTimeUtc = info.LastWriteTimeUtc,
@@ -541,21 +542,21 @@ namespace LocalGPT.Controller
         [HttpPost("/__diag/artifact-workspace/{workspaceName}/file")]
         public async Task<IResult> PostArtifactWorkspaceWorkspaceNameFile(
             string workspaceName,
-            [FromBody] ArtifactWorkspaceFileSaveRequest request,
+            [FromBody] GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileSaveRequest request,
             [FromServices] ICouncilArtifactService artifacts,
             CancellationToken ct)
         {
             try
             {
-                var workspace = ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName);
+                var workspace = CouncilChatStaticsGeneral.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName, logger);
                 if (workspace is null)
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
                 var content = request.Content ?? string.Empty;
-                if (Encoding.UTF8.GetByteCount(content) > MaxArtifactTextFileBytes)
+                if (Encoding.UTF8.GetByteCount(content) > GlobalVariableSlopCollectionToRemove.MaxArtifactTextFileBytes)
                     return Results.BadRequest(new { Error = "File content is too large for inline source editing." });
 
-                var file = ResolveWorkspaceTextFile(workspace, request.RelativePath, allowMissing: true);
+                var file = CouncilChatStaticsGeneral.ResolveWorkspaceTextFile(workspace, request.RelativePath, allowMissing: true, logger);
                 if (file is null)
                     return Results.BadRequest(new { Error = "Invalid or unsupported source file path." });
 
@@ -566,7 +567,7 @@ namespace LocalGPT.Controller
                 {
                     WorkspaceName = workspaceName,
                     RootPath = workspace,
-                    RelativePath = ToForwardSlash(Path.GetRelativePath(workspace, file)),
+                    RelativePath = CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspace, file),logger),
                     FullPath = file,
                     Length = info.Length,
                     LastWriteTimeUtc = info.LastWriteTimeUtc,
@@ -588,7 +589,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var workspace = ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName);
+                var workspace = CouncilChatStaticsGeneral.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName,logger);
                 if (workspace is null)
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
@@ -605,7 +606,7 @@ namespace LocalGPT.Controller
                     RootPath = workspace,
                     ZipPath = zipPath,
                     DownloadUrl = downloadUrl,
-                    AbsoluteDownloadUrl = new Uri(new Uri(GetRequestBaseUrl(HttpContext)), downloadUrl).ToString(),
+                    AbsoluteDownloadUrl = new Uri(new Uri(CouncilChatStaticsGeneral.GetRequestBaseUrl(HttpContext,logger)), downloadUrl).ToString(),
                     Message = "Workspace zip refreshed from the current source directory.",
                     CreatedAt = DateTimeOffset.UtcNow
                 });
@@ -627,7 +628,7 @@ namespace LocalGPT.Controller
                 var workspaces = uploads.ListWorkspaces(take ?? 20);
                 return Results.Ok(new
                 {
-                    BaseUrl = GetRequestBaseUrl(HttpContext),
+                    BaseUrl = CouncilChatStaticsGeneral.GetRequestBaseUrl(HttpContext,logger),
                     uploads.WorkspaceRoot,
                     Count = workspaces.Count,
                     LatestWorkspace = workspaces.FirstOrDefault(),
@@ -741,7 +742,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var zip = CreateChatUploadSmokeZip();
+                var zip = CouncilChatStaticsGeneral.CreateChatUploadSmokeZip(logger);
                 var pdb = Encoding.ASCII.GetBytes(
                     "RSDS LocalGPT smoke WeatherHost.pdb Services/WeatherForecastService.cs Pages/Index.razor");
                 var result = await uploads.CreateWorkspaceAsync(
@@ -1048,7 +1049,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await ReadGuidanceDocsAsync(
+                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
       env,
       [
           Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
@@ -1060,7 +1061,7 @@ namespace LocalGPT.Controller
                 Generate line and solid SVG navigation icon variants when nav icons are requested. Check
                 /__diag/devexpress for package inventory and mark unknown APIs as Needs verification.
                 """,
-      ct).ConfigureAwait(false);
+      ct,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1076,7 +1077,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await ReadGuidanceDocsAsync(
+                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
             env,
             [
                 Path.Combine("docs", "FRONTEND_DESIGN_PATTERN_LIBRARY.md"),
@@ -1088,7 +1089,7 @@ namespace LocalGPT.Controller
                 principles, Bootstrap layout, DevExpress/custom Razor components, injected services,
                 accessibility states, and safe downloadable artifact path before generating frontend code.
                 """,
-            ct).ConfigureAwait(false);
+            ct,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1104,7 +1105,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await ReadGuidanceDocsAsync(
+                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
                env,
                [
                    Path.Combine("docs", "MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md"),
@@ -1116,7 +1117,7 @@ namespace LocalGPT.Controller
                 services, Blazor pages, EF/SQLite persistence, CI/build/test/publish evidence, and explicit
                 architecture boundaries. Mark unknown package or template details as Needs verification.
                 """,
-               ct).ConfigureAwait(false);
+               ct, logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1132,7 +1133,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await ReadGuidanceDocsAsync(
+                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
          env,
          [
              Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
@@ -1146,7 +1147,7 @@ namespace LocalGPT.Controller
                 DI/IoC registrations, provider adapters, plugin/native-runner interfaces, Python.NET/PowerShell
                 boundaries when useful, and an honest native-inference capability gap until a real runner exists.
                 """,
-         ct).ConfigureAwait(false);
+         ct,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1164,7 +1165,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await ReadGuidanceDocsAsync(
+                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
               env,
               [
                   Path.Combine("docs", "FRONTEND_TEST_AUTOMATION.md"),
@@ -1177,7 +1178,7 @@ namespace LocalGPT.Controller
                 Optional Python/browser automation belongs behind explicit user permission gates and should be
                 learned as source fingerprints rather than pasted as huge prompt context.
                 """,
-              ct).ConfigureAwait(false);
+              ct,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1193,7 +1194,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await ReadGuidanceDocsAsync(
+                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
                env,
                [
                    Path.Combine("docs", "CAPABILITY_GAP_CONTRACT.md"),
@@ -1205,7 +1206,7 @@ namespace LocalGPT.Controller
                 Classify requested language/framework/version/domain knowledge, local sources, external
                 official sources, missing LocalGPT functions, safe workflow, and downloadable artifact plan.
                 """,
-               ct).ConfigureAwait(false);
+               ct,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1476,331 +1477,7 @@ namespace LocalGPT.Controller
             {
                 logger.LogError(ex, $"Error in GetCouncilArtifactSmoke {ex.ToString()} request {request?.ToString()}");
                 return Results.InternalServerError($"Error in GetCouncilArtifactSmoke {ex.ToString()} council {council?.ToString()}");
-            }
-      
-                        
-        }
-
-        private const long MaxArtifactTextFileBytes = 2 * 1024 * 1024;
-
-        private static readonly HashSet<string> ArtifactTextExtensions = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ".cs",
-            ".razor",
-            ".cshtml",
-            ".csproj",
-            ".sln",
-            ".props",
-            ".targets",
-            ".md",
-            ".txt",
-            ".json",
-            ".xml",
-            ".css",
-            ".scss",
-            ".js",
-            ".ts",
-            ".yml",
-            ".yaml",
-            ".ps1",
-            ".sql",
-            ".html",
-            ".htm",
-            ".mcfunction",
-            ".mcmeta",
-            ".toml",
-            ".properties",
-            ".java"
-        };
-
-        private static byte[] CreateChatUploadSmokeZip()
-        {
-            using var memory = new MemoryStream();
-            using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
-            {
-                WriteZipEntry(archive, "WeatherHost/WeatherHost.sln", """
-                    Microsoft Visual Studio Solution File, Format Version 12.00
-                    # Visual Studio Version 17
-                    Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeatherHost", "src\WeatherHost\WeatherHost.csproj", "{11111111-1111-1111-1111-111111111111}"
-                    EndProject
-                    Global
-                    EndGlobal
-                    """);
-                WriteZipEntry(archive, "WeatherHost/src/WeatherHost/WeatherHost.csproj", """
-                    <Project Sdk="Microsoft.NET.Sdk.Web">
-                      <PropertyGroup>
-                        <TargetFramework>net10.0</TargetFramework>
-                        <Nullable>enable</Nullable>
-                        <ImplicitUsings>enable</ImplicitUsings>
-                      </PropertyGroup>
-                    </Project>
-                    """);
-                WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Program.cs", """
-                    using WeatherHost.Services;
-
-                    var builder = WebApplication.CreateBuilder(args);
-                    builder.Services.AddRazorPages();
-                    builder.Services.AddServerSideBlazor();
-                    builder.Services.AddScoped<WeatherForecastService>();
-
-                    var app = builder.Build();
-                    app.MapGet("/api/weather", (WeatherForecastService service) => service.GetForecasts());
-                    app.MapBlazorHub();
-                    app.MapFallbackToPage("/_Host");
-                    app.Run();
-                    """);
-                WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Services/WeatherForecastService.cs", """
-                    namespace WeatherHost.Services;
-
-                    public sealed class WeatherForecastService
-                    {
-                        public IReadOnlyList<WeatherForecast> GetForecasts() =>
-                        [
-                            new(DateOnly.FromDateTime(DateTime.Today), 21, "Clear"),
-                            new(DateOnly.FromDateTime(DateTime.Today.AddDays(1)), 18, "Rain"),
-                            new(DateOnly.FromDateTime(DateTime.Today.AddDays(2)), 24, "Sunny")
-                        ];
-                    }
-
-                    public sealed record WeatherForecast(DateOnly Date, int TemperatureC, string Summary);
-                    """);
-                WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Pages/Index.razor", """
-                    @page "/"
-                    @inject WeatherHost.Services.WeatherForecastService Weather
-
-                    <h1>Weather Host</h1>
-
-                    <ul>
-                        @foreach (var item in Weather.GetForecasts())
-                        {
-                            <li>@item.Date: @item.TemperatureC C, @item.Summary</li>
-                        }
-                    </ul>
-                    """);
-            }
-
-            return memory.ToArray();
-        }
-
-        private static void WriteZipEntry(ZipArchive archive, string path, string content)
-        {
-            var entry = archive.CreateEntry(path, CompressionLevel.SmallestSize);
-            using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
-            writer.Write(content.Replace("                    ", string.Empty, StringComparison.Ordinal));
-        }
-
-        private static string GetRequestBaseUrl(HttpContext httpContext)
-        {
-            var request = httpContext.Request;
-            return $"{request.Scheme}://{request.Host}";
-        }
-
-        private static IReadOnlyList<ArtifactWorkspaceSummary> EnumerateArtifactWorkspaces(string artifactRoot, int take)
-        {
-            if (!Directory.Exists(artifactRoot))
-                return [];
-
-            return Directory
-                .EnumerateDirectories(artifactRoot)
-                .Select(path => BuildArtifactWorkspaceSummary(artifactRoot, path))
-                .Where(summary => summary is not null)
-                .Cast<ArtifactWorkspaceSummary>()
-                .OrderByDescending(summary => summary.LastWriteTimeUtc)
-                .Take(Math.Clamp(take, 1, 100))
-                .ToList();
-        }
-
-        private static ArtifactWorkspaceSummary? BuildArtifactWorkspaceSummary(string artifactRoot, string workspacePath)
-        {
-            try
-            {
-                var directory = new DirectoryInfo(workspacePath);
-                var files = EnumerateWorkspaceTextFiles(workspacePath, 500);
-                var zipNames = Directory
-                    .EnumerateFiles(artifactRoot, "*.zip", SearchOption.TopDirectoryOnly)
-                    .Select(Path.GetFileName)
-                    .Where(name => !string.IsNullOrWhiteSpace(name))
-                    .Where(name => name!.StartsWith(directory.Name, StringComparison.OrdinalIgnoreCase))
-                    .Select(name => name!)
-                    .Order(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                return new ArtifactWorkspaceSummary(
-                    directory.Name,
-                    directory.FullName,
-                    directory.LastWriteTimeUtc,
-                    files.Count,
-                    files.Count(file => file.RelativePath.EndsWith(".razor", StringComparison.OrdinalIgnoreCase)),
-                    files.Count(file => file.RelativePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)),
-                    zipNames);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static List<ArtifactWorkspaceFileSummary> EnumerateWorkspaceTextFiles(string workspaceRoot, int take)
-        {
-            if (!Directory.Exists(workspaceRoot))
-                return [];
-
-            return Directory
-                .EnumerateFiles(workspaceRoot, "*", SearchOption.AllDirectories)
-                .Where(IsSupportedArtifactTextFile)
-                .Select(path =>
-                {
-                    var info = new FileInfo(path);
-                    return new ArtifactWorkspaceFileSummary(
-                        ToForwardSlash(Path.GetRelativePath(workspaceRoot, path)),
-                        info.Length,
-                        info.LastWriteTimeUtc);
-                })
-                .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .Take(Math.Clamp(take, 1, 1000))
-                .ToList();
-        }
-
-        private static string? ResolveArtifactWorkspace(string artifactRoot, string workspaceName)
-        {
-            var safeName = Path.GetFileName(workspaceName);
-            if (!string.Equals(workspaceName, safeName, StringComparison.Ordinal) ||
-                string.IsNullOrWhiteSpace(safeName))
-            {
-                return null;
-            }
-
-            var root = Path.GetFullPath(artifactRoot);
-            var path = Path.GetFullPath(Path.Combine(root, safeName));
-            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
-                !Directory.Exists(path))
-            {
-                return null;
-            }
-
-            return path;
-        }
-
-        private static string? ResolveWorkspaceTextFile(string workspaceRoot, string relativePath, bool allowMissing)
-        {
-            if (string.IsNullOrWhiteSpace(relativePath))
-                return null;
-
-            var normalizedRelativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
-            if (Path.IsPathRooted(normalizedRelativePath))
-                return null;
-
-            var root = Path.GetFullPath(workspaceRoot);
-            var path = Path.GetFullPath(Path.Combine(root, normalizedRelativePath));
-            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
-                !IsSupportedArtifactTextFile(path))
-            {
-                return null;
-            }
-
-            return allowMissing || System.IO.File.Exists(path) ? path : null;
-        }
-
-        private static bool IsSupportedArtifactTextFile(string path)
-        {
-            var extension = Path.GetExtension(path);
-            return ArtifactTextExtensions.Contains(extension);
-        }
-
-        private static string ToForwardSlash(string path) =>
-            path.Replace('\\', '/');
-
-        public sealed record ArtifactWorkspaceSummary(
-            string WorkspaceName,
-            string RootPath,
-            DateTime LastWriteTimeUtc,
-            int SourceFileCount,
-            int RazorFileCount,
-            int CSharpFileCount,
-            IReadOnlyList<string> ZipNames);
-
-        public sealed record ArtifactWorkspaceFileSummary(
-            string RelativePath,
-            long Length,
-            DateTime LastWriteTimeUtc);
-
-        public sealed record ArtifactWorkspaceFileSaveRequest(
-            string RelativePath,
-            string? Content);
-
-        private static async Task<IResult> ReadGuidanceDocsAsync(
-            IWebHostEnvironment env,
-            IReadOnlyList<string> relativePaths,
-            string fallbackBriefing,
-            CancellationToken cancellationToken)
-        {
-            var foundFiles = new List<object>();
-            var briefing = new StringBuilder();
-
-            foreach (var relativePath in relativePaths)
-            {
-                var candidatePaths = new[]
-                {
-                    Path.Combine(AppContext.BaseDirectory, relativePath),
-                    Path.Combine(env.ContentRootPath, relativePath),
-                    Path.Combine(Directory.GetCurrentDirectory(), relativePath)
-                }.Distinct(StringComparer.OrdinalIgnoreCase);
-
-                var path = candidatePaths.FirstOrDefault(System.IO.File.Exists);
-                if (path is null)
-                    continue;
-
-                var text = await System.IO.File.ReadAllTextAsync(path, cancellationToken);
-                foundFiles.Add(new
-                {
-                    RelativePath = relativePath.Replace('\\', '/'),
-                    SourcePath = path
-                });
-
-                briefing
-                    .Append("# ")
-                    .AppendLine(Path.GetFileName(relativePath))
-                    .AppendLine()
-                    .AppendLine(text.Trim())
-                    .AppendLine();
-            }
-
-            return Results.Ok(new
-            {
-                GuidanceFiles = foundFiles,
-                Briefing = foundFiles.Count > 0
-                    ? briefing.ToString().Trim()
-                    : fallbackBriefing.Trim(),
-                CreatedAt = DateTimeOffset.UtcNow
-            });
-        }
-
-        private static string ExtractModelThinking(string content)
-        {
-            if (string.IsNullOrWhiteSpace(content))
-                return string.Empty;
-
-            var match = Regex.Match(
-                content,
-                "<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
-                RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
-
-            return match.Success
-                ? WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim()
-                : string.Empty;
-        }
-
-        private static string StripModelThinking(string content)
-        {
-            if (string.IsNullOrWhiteSpace(content))
-                return string.Empty;
-
-            return Regex.Replace(
-                    content,
-                    "<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
-                    string.Empty,
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)
-                .Trim();
+            }     
         }
     }
 }

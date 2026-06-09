@@ -3,6 +3,7 @@ using DevExpress.Blazor.Viewer.Internal;
 using DevExpress.DataAccess.DataFederation;
 using DevExpress.Utils.About;
 using DevExpress.XtraCharts;
+using DevExpress.XtraReports.Serialization;
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
@@ -28,6 +29,62 @@ namespace LocalGPT.Extensions.PlainStatics
     
     public  static partial class CouncilChatStringFunctions
     {
+
+        public static string ToForwardSlash(string path, ILogger logger)
+        {
+            try
+            {
+                return path.Replace('\\', '/');
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in StripModelThinking path {path}");
+                return string.Empty;
+            }
+        }
+        public static string ExtractModelThinking(string content, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return string.Empty;
+
+                var match = Regex.Match(
+                    content,
+                    "<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+
+                return match.Success
+                    ? WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim()
+                    : string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractModelThinking content {content}");
+                return string.Empty;
+            }
+        }
+
+        public static string StripModelThinking(string content, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return string.Empty;
+
+                return Regex.Replace(
+                        content,
+                        "<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
+                        string.Empty,
+                        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)
+                    .Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in StripModelThinking content {content}");
+                return string.Empty;
+            }
+        }
         public static IEnumerable<string> AppendHarmonyContent(string text, ILogger logger)
         {
             try

@@ -10,6 +10,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Security.AccessControl;
 using System.ServiceModel.Channels;
+using System.Text;
 using System.Text.Json;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 
@@ -17,8 +18,319 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
+        public static byte[] CreateChatUploadSmokeZip( ILogger logger)
+        {
+            try
+            {
+                using var memory = new MemoryStream();
+                using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
+                {
+                    CouncilChatStaticsGeneral.WriteZipEntry(archive, "WeatherHost/WeatherHost.sln", """
+                    Microsoft Visual Studio Solution File, Format Version 12.00
+                    # Visual Studio Version 17
+                    Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeatherHost", "src\WeatherHost\WeatherHost.csproj", "{11111111-1111-1111-1111-111111111111}"
+                    EndProject
+                    Global
+                    EndGlobal
+                    """, logger);
+                    CouncilChatStaticsGeneral.WriteZipEntry(archive, "WeatherHost/src/WeatherHost/WeatherHost.csproj", """
+                    <Project Sdk="Microsoft.NET.Sdk.Web">
+                      <PropertyGroup>
+                        <TargetFramework>net10.0</TargetFramework>
+                        <Nullable>enable</Nullable>
+                        <ImplicitUsings>enable</ImplicitUsings>
+                      </PropertyGroup>
+                    </Project>
+                    """, logger);
+                    CouncilChatStaticsGeneral.WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Program.cs", """
+                    using WeatherHost.Services;
+
+                    var builder = WebApplication.CreateBuilder(args);
+                    builder.Services.AddRazorPages();
+                    builder.Services.AddServerSideBlazor();
+                    builder.Services.AddScoped<WeatherForecastService>();
+
+                    var app = builder.Build();
+                    app.MapGet("/api/weather", (WeatherForecastService service) => service.GetForecasts());
+                    app.MapBlazorHub();
+                    app.MapFallbackToPage("/_Host");
+                    app.Run();
+                    """, logger);
+                    CouncilChatStaticsGeneral.WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Services/WeatherForecastService.cs", """
+                    namespace WeatherHost.Services;
+
+                    public sealed class WeatherForecastService
+                    {
+                        public IReadOnlyList<WeatherForecast> GetForecasts() =>
+                        [
+                            new(DateOnly.FromDateTime(DateTime.Today), 21, "Clear"),
+                            new(DateOnly.FromDateTime(DateTime.Today.AddDays(1)), 18, "Rain"),
+                            new(DateOnly.FromDateTime(DateTime.Today.AddDays(2)), 24, "Sunny")
+                        ];
+                    }
+
+                    public sealed record WeatherForecast(DateOnly Date, int TemperatureC, string Summary);
+                    """, logger);
+                    CouncilChatStaticsGeneral.WriteZipEntry(archive, "WeatherHost/src/WeatherHost/Pages/Index.razor", """
+                    @page "/"
+                    @inject WeatherHost.Services.WeatherForecastService Weather
+
+                    <h1>Weather Host</h1>
+
+                    <ul>
+                        @foreach (var item in Weather.GetForecasts())
+                        {
+                            <li>@item.Date: @item.TemperatureC C, @item.Summary</li>
+                        }
+                    </ul>
+                    """, logger);
+                }
+
+                return memory.ToArray();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"CreateChatUploadSmokeZip");
+                return new byte[0];
+            }
+        }
+        public static void WriteZipEntry(ZipArchive archive, string path, string content, ILogger logger)
+        {
+            try
+            {
+                var entry = archive.CreateEntry(path, CompressionLevel.SmallestSize);
+                using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+                writer.Write(content.Replace("                    ", string.Empty, StringComparison.Ordinal));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"WriteZipEntry archive {archive.ToString()} path {path.ToString()} content {content.ToString()}");
+            }
+        }
+
+        public static string GetRequestBaseUrl(HttpContext httpContext, ILogger logger)
+        {
+            try
+            {
+                var request = httpContext.Request;
+                return $"{request.Scheme}://{request.Host}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"GetRequestBaseUrl httpContext {httpContext.ToString()}");
+                return string.Empty;
+            }
+        }
 
 
+        public static IReadOnlyList<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary> EnumerateArtifactWorkspaces(string artifactRoot, int take, ILogger logger)
+        {
+            try
+            {
+                if (!Directory.Exists(artifactRoot))
+                    return [];
+
+                return Directory
+                    .EnumerateDirectories(artifactRoot)
+                    .Select(path => CouncilChatStaticsGeneral.BuildArtifactWorkspaceSummary(artifactRoot, path, logger))
+                    .Where(summary => summary is not null)
+                    .Cast<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary>()
+                    .OrderByDescending(summary => summary.LastWriteTimeUtc)
+                    .Take(Math.Clamp(take, 1, 100))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"EnumerateArtifactWorkspaces artifactRoot {artifactRoot.ToString()} take {take.ToString()}");
+                return new List<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary>();
+            }
+        }
+
+
+        public static GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary? BuildArtifactWorkspaceSummary(string artifactRoot, string workspacePath, ILogger logger)
+        {
+            try
+            {
+                var directory = new DirectoryInfo(workspacePath);
+                var files = CouncilChatStaticsGeneral.EnumerateWorkspaceTextFiles(workspacePath, 500,logger);
+                var zipNames = Directory
+                    .EnumerateFiles(artifactRoot, "*.zip", SearchOption.TopDirectoryOnly)
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Where(name => name!.StartsWith(directory.Name, StringComparison.OrdinalIgnoreCase))
+                    .Select(name => name!)
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                return new GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary(
+                    directory.Name,
+                    directory.FullName,
+                    directory.LastWriteTimeUtc,
+                    files.Count,
+                    files.Count(file => file.RelativePath.EndsWith(".razor", StringComparison.OrdinalIgnoreCase)),
+                    files.Count(file => file.RelativePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)),
+                    zipNames);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"BuildArtifactWorkspaceSummary artifactRoot {artifactRoot.ToString()} workspacePath {workspacePath.ToString()}");
+                return null;
+            }
+
+        }
+        public static List<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileSummary> EnumerateWorkspaceTextFiles(string workspaceRoot, int take, ILogger logger)
+        {
+            try
+            {
+                 if (!Directory.Exists(workspaceRoot))
+                return [];
+
+            return Directory
+                .EnumerateFiles(workspaceRoot, "*", SearchOption.AllDirectories)
+                .Where(file => CouncilChatStaticsGeneral.IsSupportedArtifactTextFile(file,logger))
+                .Select(path =>
+                {
+                    var info = new FileInfo(path);
+                    return new GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileSummary(
+                        CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspaceRoot, path),logger),
+                        info.Length,
+                        info.LastWriteTimeUtc);
+                })
+                .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .Take(Math.Clamp(take, 1, 1000))
+                .ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"EnumerateWorkspaceTextFiles workspaceRoot {workspaceRoot.ToString()} take {take.ToString()}");
+                return new();
+            }
+           
+        }
+        public static string? ResolveArtifactWorkspace(string artifactRoot, string workspaceName, ILogger logger)
+        {
+            try
+            {
+                var safeName = Path.GetFileName(workspaceName);
+                if (!string.Equals(workspaceName, safeName, StringComparison.Ordinal) ||
+                    string.IsNullOrWhiteSpace(safeName))
+                {
+                    return null;
+                }
+
+                var root = Path.GetFullPath(artifactRoot);
+                var path = Path.GetFullPath(Path.Combine(root, safeName));
+                if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
+                    !Directory.Exists(path))
+                {
+                    return null;
+                }
+
+                return path;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"ResolveWorkspaceTextFile artifactRoot {artifactRoot.ToString()} workspaceName {workspaceName.ToString()}");
+                return null;
+            }
+        }
+        public static string? ResolveWorkspaceTextFile(string workspaceRoot, string relativePath, bool allowMissing, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(relativePath))
+                    return null;
+
+                var normalizedRelativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
+                if (Path.IsPathRooted(normalizedRelativePath))
+                    return null;
+
+                var root = Path.GetFullPath(workspaceRoot);
+                var path = Path.GetFullPath(Path.Combine(root, normalizedRelativePath));
+                if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
+                    !CouncilChatStaticsGeneral.IsSupportedArtifactTextFile(path, logger))
+                {
+                    return null;
+                }
+
+                return allowMissing || System.IO.File.Exists(path) ? path : null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"ResolveWorkspaceTextFile workspaceRoot {workspaceRoot.ToString()} relativePath {relativePath.ToString()} allowMissing {allowMissing.ToString()}");
+                return null;
+            }
+        }
+
+        public static bool IsSupportedArtifactTextFile(string path, ILogger logger)
+        {
+            try
+            {
+                var extension = Path.GetExtension(path);
+                return GlobalVariableSlopCollectionToRemove.ArtifactTextExtensions.Contains(extension);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"IsSupportedArtifactTextFile path {path.ToString()}");
+                return false;
+            }
+        }
+        public static async Task<IResult> ReadGuidanceDocsAsync(
+            IWebHostEnvironment env,
+            IReadOnlyList<string> relativePaths,
+            string fallbackBriefing,
+            CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                var foundFiles = new List<object>();
+                var briefing = new StringBuilder();
+
+                foreach (var relativePath in relativePaths)
+                {
+                    var candidatePaths = new[]
+                    {
+                    Path.Combine(AppContext.BaseDirectory, relativePath),
+                    Path.Combine(env.ContentRootPath, relativePath),
+                    Path.Combine(Directory.GetCurrentDirectory(), relativePath)
+                }.Distinct(StringComparer.OrdinalIgnoreCase);
+
+                    var path = candidatePaths.FirstOrDefault(System.IO.File.Exists);
+                    if (path is null)
+                        continue;
+
+                    var text = await System.IO.File.ReadAllTextAsync(path, cancellationToken);
+                    foundFiles.Add(new
+                    {
+                        RelativePath = relativePath.Replace('\\', '/'),
+                        SourcePath = path
+                    });
+
+                    briefing
+                        .Append("# ")
+                        .AppendLine(Path.GetFileName(relativePath))
+                        .AppendLine()
+                        .AppendLine(text.Trim())
+                        .AppendLine();
+                }
+
+                return Results.Ok(new
+                {
+                    GuidanceFiles = foundFiles,
+                    Briefing = foundFiles.Count > 0
+                        ? briefing.ToString().Trim()
+                        : fallbackBriefing.Trim(),
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"ReadGuidanceDocsAsync env {env.ToString()} relativePaths {relativePaths} fallbackBriefing {fallbackBriefing}",
+             env,
+             relativePaths);
+                return Results.InternalServerError(ex.ToString());
+            }
+        }
         public static IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, ILogger logger, int? forcedMaxPromptCharacters = null)
         {
             try

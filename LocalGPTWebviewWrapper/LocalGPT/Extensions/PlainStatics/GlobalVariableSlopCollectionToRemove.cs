@@ -11,6 +11,55 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public static readonly HashSet<string> ArtifactTextExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".cs",
+            ".razor",
+            ".cshtml",
+            ".csproj",
+            ".sln",
+            ".props",
+            ".targets",
+            ".md",
+            ".txt",
+            ".json",
+            ".xml",
+            ".css",
+            ".scss",
+            ".js",
+            ".ts",
+            ".yml",
+            ".yaml",
+            ".ps1",
+            ".sql",
+            ".html",
+            ".htm",
+            ".mcfunction",
+            ".mcmeta",
+            ".toml",
+            ".properties",
+            ".java"
+        };
+
+        public const long MaxArtifactTextFileBytes = 2 * 1024 * 1024;
+     
+        public sealed record ArtifactWorkspaceSummary(
+          string WorkspaceName,
+          string RootPath,
+          DateTime LastWriteTimeUtc,
+          int SourceFileCount,
+          int RazorFileCount,
+          int CSharpFileCount,
+          List<string> ZipNames);
+        public sealed record ArtifactWorkspaceFileSummary(
+            string RelativePath,
+            long Length,
+            DateTime LastWriteTimeUtc);
+
+        public sealed record ArtifactWorkspaceFileSaveRequest(
+            string RelativePath,
+            string? Content);
+
         public static bool IsHarmonyModel { get; set; } = false;
         public const int MaxFiles = 12;
         public const long MaxSingleFileBytes = 32 * 1024 * 1024;
@@ -1072,21 +1121,5 @@ namespace LocalGPT.Extensions.PlainStatics
             long Length,
             DateTime LastWriteTimeUtc,
             string Content);
-        public sealed record ArtifactWorkspaceSummary(
-            string WorkspaceName,
-            string RootPath,
-            DateTime LastWriteTimeUtc,
-            int SourceFileCount,
-            int RazorFileCount,
-            int CSharpFileCount,
-            List<string> ZipNames);
-        public sealed record ArtifactWorkspaceFileSummary(
-            string RelativePath,
-            long Length,
-            DateTime LastWriteTimeUtc);
-        public sealed record ArtifactWorkspaceFileSaveRequest(
-            string RelativePath,
-            string Content);
-
     }
 }
