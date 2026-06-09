@@ -1,7 +1,7 @@
 using DevExpress.AIIntegration.Blazor.Chat;
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Extensions.PlainStatics;
-using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;

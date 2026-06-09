@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Extensions.PlainStatics;
-using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

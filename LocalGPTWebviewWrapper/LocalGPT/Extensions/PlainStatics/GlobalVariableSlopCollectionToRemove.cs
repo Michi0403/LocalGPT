@@ -11,6 +11,9 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public const int ProbeCommandTimeoutSeconds = 5;
+        public static readonly string[] SidecarSuffixes = ["", "-wal", "-shm"];
+
         public static readonly HashSet<string> ArtifactTextExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".cs",

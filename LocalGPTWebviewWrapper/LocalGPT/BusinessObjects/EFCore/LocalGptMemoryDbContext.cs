@@ -1,7 +1,7 @@
 using LocalGPT.BusinessObjects;
 using Microsoft.EntityFrameworkCore;
 
-namespace LocalGPT.Extensions.PlainStatics.CouncilData.Data
+namespace LocalGPT.BusinessObjects.EFCore
 {
     public class LocalGptMemoryDbContext(DbContextOptions<LocalGptMemoryDbContext> options) : DbContext(options)
     {

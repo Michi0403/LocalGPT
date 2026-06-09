@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;

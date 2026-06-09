@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.BusinessObjects.Enums;
-using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
