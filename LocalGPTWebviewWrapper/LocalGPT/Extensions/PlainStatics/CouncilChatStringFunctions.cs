@@ -5099,6 +5099,23 @@ namespace LocalGPT.Extensions.PlainStatics
             }
            
         }
+        public static string TrimForKnowledge(string text, int maxLength, ILogger logger)
+        {
+            try
+            {
+                var normalized = Regex.Replace(text ?? string.Empty, "\\s+", " ").Trim();
+                return normalized.Length <= maxLength
+                    ? normalized
+                    : $"{normalized[..maxLength].TrimEnd()}...";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TrimForKnowledge {ex.ToString()} text {text?.ToString()} maxLength {maxLength.ToString()}");
+                return string.Empty;
+            }
+        }
+
+
         public static string CreateMinecraftSystemPrompt(string mode, ILogger logger)
         {
             try

@@ -1121,5 +1121,27 @@ namespace LocalGPT.Extensions.PlainStatics
             long Length,
             DateTime LastWriteTimeUtc,
             string Content);
+        public sealed record DatapackReferenceComparison(
+      string GeneratedZipPath,
+      string ReferenceZipPath,
+      bool ReferenceExists,
+      int GeneratedFileCount,
+      int GeneratedFunctionFileCount,
+      int GeneratedPlaceholderCount,
+      int ReferenceFileCount,
+      int ReferenceFunctionFileCount,
+      int ReferencePlaceholderCount,
+      bool GeneratedHasRootPackMcmeta,
+      bool ReferenceHasRootPackMcmeta,
+      bool ReferenceHasNestedPackMcmeta,
+      bool GeneratedHasLoadTag,
+      bool GeneratedHasTickTag,
+      bool ReferenceHasLoadTag,
+      bool ReferenceHasTickTag,
+      int CriticalFileCount,
+      int PreservedCriticalFileCount,
+      string[] PreservedCriticalFiles,
+      string[] ReferencePlaceholderSamples,
+      string Summary);
     }
 }

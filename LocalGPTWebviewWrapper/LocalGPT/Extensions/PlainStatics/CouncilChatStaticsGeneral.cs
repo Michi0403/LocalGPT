@@ -13,6 +13,8 @@ using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.Json;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
+using static LocalGPT.Endpoints.MinecraftDiagnosticController;
+using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
 
 namespace LocalGPT.Extensions.PlainStatics
 {
@@ -145,8 +147,183 @@ namespace LocalGPT.Extensions.PlainStatics
                 return new List<GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary>();
             }
         }
+        public static DatapackReferenceComparison? DatapackReferenceComparisonMissing(string generatedZipPath, string referenceZipPath, string summary, ILogger logger)
+        {
+            try
+            {
+               return new(
+                    GeneratedZipPath: generatedZipPath,
+                    ReferenceZipPath: referenceZipPath,
+                    ReferenceExists: System.IO.File.Exists(referenceZipPath),
+                    GeneratedFileCount: 0,
+                    GeneratedFunctionFileCount: 0,
+                    GeneratedPlaceholderCount: 0,
+                    ReferenceFileCount: 0,
+                    ReferenceFunctionFileCount: 0,
+                    ReferencePlaceholderCount: 0,
+                    GeneratedHasRootPackMcmeta: false,
+                    ReferenceHasRootPackMcmeta: false,
+                    ReferenceHasNestedPackMcmeta: false,
+                    GeneratedHasLoadTag: false,
+                    GeneratedHasTickTag: false,
+                    ReferenceHasLoadTag: false,
+                    ReferenceHasTickTag: false,
+                    CriticalFileCount: 0,
+                    PreservedCriticalFileCount: 0,
+                    PreservedCriticalFiles: [],
+                    ReferencePlaceholderSamples: [],
+                    Summary: summary);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Missing generatedZipPath {generatedZipPath.ToString()} referenceZipPath {referenceZipPath.ToString()} summary {summary.ToString()}");
+                return null;
+            }
+        }
 
+        public static GlobalVariableSlopCollectionToRemove.DatapackReferenceComparison? BuildDatapackReferenceComparison(string workspaceRoot, ILogger logger)
+        {
+            try
+            {
+                var generatedZip = Directory.Exists(Path.Combine(workspaceRoot, "build"))
+      ? Directory.GetFiles(Path.Combine(workspaceRoot, "build"), "*.zip").Order(StringComparer.OrdinalIgnoreCase).FirstOrDefault() ?? string.Empty
+      : string.Empty;
+                var referenceZip = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "Downloads",
+                    "living_cities.zip");
 
+                if (string.IsNullOrWhiteSpace(generatedZip) || !System.IO.File.Exists(generatedZip))
+                {
+                    return CouncilChatStaticsGeneral.DatapackReferenceComparisonMissing(
+                        generatedZip,
+                        referenceZip,
+                        "Generated benchmark zip was not found.", logger);
+                }
+
+                if (!System.IO.File.Exists(referenceZip))
+                {
+                    return CouncilChatStaticsGeneral.DatapackReferenceComparisonMissing(
+                        generatedZip,
+                        referenceZip,
+                        "Reference living_cities.zip was not found in Downloads.", logger);
+                }
+
+                var generatedEntries = CouncilChatStaticsGeneral.ReadZipFileEntries(generatedZip, logger);
+                var referenceEntries = CouncilChatStaticsGeneral.ReadZipFileEntries(referenceZip, logger);
+                var normalizedReferenceEntries = referenceEntries
+                    .Select(filter => CouncilChatStaticsGeneral.NormalizeReferenceDatapackEntry(filter, logger))
+                    .Where(entry => !string.IsNullOrWhiteSpace(entry))
+                    .ToArray();
+
+                var generatedSet = generatedEntries.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var normalizedReferenceSet = normalizedReferenceEntries.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var criticalFiles = new[]
+                {
+                "pack.mcmeta",
+                "data/minecraft/tags/function/load.json",
+                "data/minecraft/tags/function/tick.json",
+                "data/living_cities/function/core/load.mcfunction",
+                "data/living_cities/function/core/tick.mcfunction",
+                "data/living_cities/function/city/create.mcfunction",
+                "data/living_cities/function/citizens/register.mcfunction",
+                "data/living_cities/function/ui/status.mcfunction"
+            };
+                var preservedCriticalFiles = criticalFiles
+                    .Where(file => generatedSet.Contains(file) && normalizedReferenceSet.Contains(file))
+                    .ToArray();
+                var generatedPlaceholders = generatedEntries
+                    .Where(entry => entry.EndsWith(".mcfunction.txt", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                var referencePlaceholders = referenceEntries
+                    .Where(entry => entry.EndsWith(".mcfunction.txt", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+
+                var summary = string.Join(" ", new[]
+                {
+                $"Generated zip has {generatedEntries.Length} files and {generatedEntries.Count(filter => CouncilChatStaticsGeneral.IsMcFunctionPath(filter,logger))} functions.",
+                $"Reference zip has {referenceEntries.Length} files and {referenceEntries.Count(filter => CouncilChatStaticsGeneral.IsMcFunctionPath(filter,logger))} real functions plus {referencePlaceholders.Length} placeholders.",
+                "Generated zip has root pack.mcmeta/load/tick tags; reference keeps those under a top-level folder, so it is useful as a design benchmark but less install-ready as a zip."
+            });
+
+                return new GlobalVariableSlopCollectionToRemove.DatapackReferenceComparison(
+                    GeneratedZipPath: generatedZip,
+                    ReferenceZipPath: referenceZip,
+                    ReferenceExists: true,
+                    GeneratedFileCount: generatedEntries.Length,
+                    GeneratedFunctionFileCount: generatedEntries.Count(filter => CouncilChatStaticsGeneral.IsMcFunctionPath(filter, logger)),
+                    GeneratedPlaceholderCount: generatedPlaceholders.Length,
+                    ReferenceFileCount: referenceEntries.Length,
+                    ReferenceFunctionFileCount: referenceEntries.Count(filter => CouncilChatStaticsGeneral.IsMcFunctionPath(filter, logger)),
+                    ReferencePlaceholderCount: referencePlaceholders.Length,
+                    GeneratedHasRootPackMcmeta: generatedSet.Contains("pack.mcmeta"),
+                    ReferenceHasRootPackMcmeta: referenceEntries.Contains("pack.mcmeta", StringComparer.OrdinalIgnoreCase),
+                    ReferenceHasNestedPackMcmeta: normalizedReferenceSet.Contains("pack.mcmeta"),
+                    GeneratedHasLoadTag: generatedSet.Contains("data/minecraft/tags/function/load.json"),
+                    GeneratedHasTickTag: generatedSet.Contains("data/minecraft/tags/function/tick.json"),
+                    ReferenceHasLoadTag: normalizedReferenceSet.Contains("data/minecraft/tags/function/load.json"),
+                    ReferenceHasTickTag: normalizedReferenceSet.Contains("data/minecraft/tags/function/tick.json"),
+                    CriticalFileCount: criticalFiles.Length,
+                    PreservedCriticalFileCount: preservedCriticalFiles.Length,
+                    PreservedCriticalFiles: preservedCriticalFiles,
+                    ReferencePlaceholderSamples: referencePlaceholders.Take(12).ToArray(),
+                    Summary: summary);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildDatapackReferenceComparison {ex.ToString()} workspaceRoot {workspaceRoot?.ToString()}");
+                return null;
+            }
+        }
+        public static string[] ReadZipFileEntries(string zipPath, ILogger logger)
+        {
+            try
+            {
+                using var archive = ZipFile.OpenRead(zipPath);
+                return archive.Entries
+                    .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
+                    .Select(entry => entry.FullName.Replace('\\', '/'))
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ReadZipFileEntries {ex.ToString()} zipPath {zipPath?.ToString()}");
+                return new string[0];
+            }
+
+        }
+
+        public static string NormalizeReferenceDatapackEntry(string entry, ILogger logger)
+        {
+            try
+            {
+                var normalized = entry.Replace('\\', '/').TrimStart('/');
+                const string nestedPrefix = "living_cities/";
+                return normalized.StartsWith(nestedPrefix, StringComparison.OrdinalIgnoreCase)
+                    ? normalized[nestedPrefix.Length..]
+                    : normalized;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeReferenceDatapackEntry {ex.ToString()} entry {entry?.ToString()}");
+                return string.Empty;
+            }
+
+        }
+
+        public static bool IsMcFunctionPath(string entry, ILogger logger)
+        {
+            try
+            {
+                return entry.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsMcFunctionPath {ex.ToString()} entry {entry?.ToString()}");
+                return false;
+            }
+        }
         public static GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceSummary? BuildArtifactWorkspaceSummary(string artifactRoot, string workspacePath, ILogger logger)
         {
             try
