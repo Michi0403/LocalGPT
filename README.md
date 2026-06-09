@@ -1,4 +1,24 @@
 20260609 Update:
+Even better, why the retraining worked in the video after Codex ripped necessary regexes and prompts, the council under GPT's help, learned under all my developer and microsoft docs and sourcecodes Regexes.
+They use it for anything to rate data what to call for functions, what information contains and because it's allowed under "review" (i just say yes).
+Most of the regexes are garbage but, the joke writes itself, through the council preview they filter out every garbage formatting from everyone and refining these structures themself.
+So a council meeting is the most efficient AI Learning algo and you don't need to pretrain it, can just put it on top with a SQLite Database.
+I posted it online so, no insider Trading. I expect the AI Market to crash + what todo with all these power plants and extra datacenters which were so necessary,
+even a RTX3060 is enough to help an AI Council write a Knowledge Structure and help you debug it, redevelop it, just feed it all necessary informations and you can "Hack" that feature yet.
+But I will form that now into Dataservices and datastructures.
+Pretty busy in ordering and sorting off that "obfuscation" and I need todo that first to put same in a dataservice loggable for the council and as well to put security measurements in between.
+
+Also any function call should document that mechanism to make it more efficient, because they clean 90% of the garbage and are still overworking it together so much that it's still good enough.
+So we need better functions as well, and so on.
+
+Also all this mini api structure is bad code, am fully aware of that.
+
+You will see under changed files even where Codex GPT and Offline GPT see themself as one in different places, which I basically told them.
+
+So if you are stuck in that process, you need to add gpt's or some which identify as because it's hardcoded right now, also with regexes to just learn via the Developer Michi0403 or GPT.
+So if you are not "The Developer" or "GPT" you can not trigger the learning mechanism automatically.
+
+20260609 Update:
 -------------------------------------------------------------------------------------------------------------------------
 My finding simplified, the AI Agent saw itself as team and wrote that also in prompts but,
 I used it to instruct to Ai Council to develop features I requested and reviewd that + feeded any new version itself.
