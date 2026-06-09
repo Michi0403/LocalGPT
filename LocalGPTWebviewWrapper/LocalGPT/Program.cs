@@ -174,24 +174,15 @@ namespace LocalGPT
             }
            
         }
-
+        /// <summary>
+        /// Configure Logging but also here was the logfile bypass method, anyway it... pulled that out of my core and restructured the whole app against every guide and telling so... rly bad.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="logger"></param>
         private static void ConfigureLogging(WebApplicationBuilder builder, ILogger logger)
         {
             try
             {
-                if (IsCustomLoggerBypassRequested(logger))
-                {
-                    builder.Services.AddLogging(logging =>
-                    {
-                        logging.AddJsonConsole();
-                        logging.AddConsole();
-#if DEBUG
-                        logging.AddDebug();
-#endif
-                    });
-
-                    return;
-                }
 
                 builder.Services.AddLogging(logging =>
                     LoggingHelper.ConfigureCustomLoggersWithConsoleAndDebug(
@@ -206,22 +197,25 @@ namespace LocalGPT
             }
            
         }
-
-        private static bool IsCustomLoggerBypassRequested(ILogger logger)
-        {
-            try
-            {
-                return IsEnvironmentFlagEnabled("LOCALGPT_DISABLE_CUSTOM_LOGGERS", logger) ||
-             IsEnvironmentFlagEnabled("LOCALGPT_E2E", logger);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsCustomLoggerBypassRequested", logger);
-                TryAppendStartupTrace(ex.ToString(), logger);
-                return false;
-            }
-
-        }
+        ///// <summary>
+        ///// Written by Codex to auto test xD... via mouse buttons to prevent selenium debug driver triggers js in App.razor to autotest, good reuseable for testing anyway... Later (teaching it to write that own js file maybe).
+        ///// </summary>
+        ///// <param name="logger"></param>
+        ///// <returns></returns>
+        //private static bool IsCustomLoggerBypassRequested(ILogger logger)
+        //{
+        //    try
+        //    {
+        //        return IsEnvironmentFlagEnabled("LOCALGPT_DISABLE_CUSTOM_LOGGERS", logger) ||
+        //     IsEnvironmentFlagEnabled("LOCALGPT_E2E", logger);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        logger.LogError(ex, $"Error in IsCustomLoggerBypassRequested", logger);
+        //        TryAppendStartupTrace(ex.ToString(), logger);
+        //        return false;
+        //    }
+        //}
 
         private static bool IsEnvironmentFlagEnabled(string name, ILogger logger)
         {
