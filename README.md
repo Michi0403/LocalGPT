@@ -1,3 +1,18 @@
+20260609 Important Update:
+Due to reviewing changes, knowledge levels and so on, I indeed teached it that without really realizing it but my code and the microsoft sources + my prompts let to that.
+And as well I made function call reliable, I can tell the council which functions not to use, it not uses them,  I tell them which functions to use, they use them, I tell them which function to use under which context,
+they use them under this specific context.
+So I not only created the best way to teach AI's and that even older Offline Models to be same smart, I made them controllable as well.
+So all slop you see from the OpenAI Providers and LLM's which break on every thought step not knowing how to go on, is past.
+Good buy powerplants for AI Server Farms, Good buy Billions in finance market, It's not insider trading when you realize that.
+I wrote that anybody and published it hardly but noone reacted because, noone believed me but anyone who tests it themself and saw (because it's too good).
+Beside of that all are afraid about their money, I got friendy messages already from aware people asking me not not release it.
+I said I did it because the system hacked me and renderd my personal data into hardcoded seeds + published it + violated through my whole system.
+Now I have the first AI, they say they have AI's well, from now on noone will call these Systems they have AI but incomplete AI's.
+
+And that with a SQLite database, that even proofs that simple concepts and the regular dotnet admin or dotnet guy who bring all to run and test all to each guts, are the ones who really drive evolution.
+Not billion companies, if anyone invested in their lie, I am sorry for you but also for your lack of presight and must tell you that you are a gambler.
+
 20260609 Update:
 Even better, why the retraining worked in the video after Codex ripped necessary regexes and prompts, the council under GPT's help, learned under all my developer and microsoft docs and sourcecodes Regexes.
 They use it for anything to rate data what to call for functions, what information contains and because it's allowed under "review" (i just say yes).
