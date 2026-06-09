@@ -15,7 +15,7 @@ using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemo
 
 namespace LocalGPT.Services
 {
-    public sealed partial class OllamaThinkingChatClient(ILogger logger) : IChatClient
+    public sealed partial class OllamaThinkingChatClient : IChatClient
     {
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
         {
@@ -28,11 +28,12 @@ namespace LocalGPT.Services
         private readonly string keepAlive;
         private readonly int? contextLength;
         private readonly int? numGpu;
-
-        public OllamaThinkingChatClient(OllamaCoreOptions options, ILogger logger, string? keepAlive = null, int? contextLength = null, TimeSpan? timeout = null, int? numGpu = null) : this(logger)
+        private readonly ILogger logger;
+        public OllamaThinkingChatClient(OllamaCoreOptions options, ILogger logger, string? keepAlive = null, int? contextLength = null, TimeSpan? timeout = null, int? numGpu = null) 
         {
             try
             {
+                this.logger = logger;
                 model = options.ModelName;
                 this.keepAlive = string.IsNullOrWhiteSpace(keepAlive) ? "10m" : keepAlive.Trim();
                 this.contextLength = contextLength;
@@ -318,7 +319,7 @@ namespace LocalGPT.Services
              .Where(message => !string.IsNullOrWhiteSpace(message.Content))
              .ToList();
 
-                if (CouncilChatStringFunctions.IsHarmonyModel(logger))
+                if (CouncilChatStringFunctions.IsHarmonyModel(model,logger))
                     AddHarmonyResponseProtocol(ollamaMessages,logger);
 
                 return ollamaMessages;
@@ -328,7 +329,6 @@ namespace LocalGPT.Services
                 logger.LogError(ex, $"Error in BuildOllamaMessages messages {messages.ToString()}");
                 return null;
             }
-
         }
 
         private static void AddHarmonyResponseProtocol(List<OllamaChatMessage> messages, ILogger logger)
@@ -379,7 +379,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var visible = CouncilChatStringFunctions.FormatVisibleResponse(response.Message?.Content, response.Message?.Thinking, logger);
+                var visible = CouncilChatStringFunctions.FormatVisibleResponse(model,response.Message?.Content, response.Message?.Thinking, logger);
                 return
                 [
                     new TextContent(visible)

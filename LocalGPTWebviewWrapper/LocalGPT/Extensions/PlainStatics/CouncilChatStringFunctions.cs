@@ -3638,7 +3638,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
         }
 
-        public static string? NormalizeVisibleContent(string? content, ILogger logger)
+        public static string? NormalizeVisibleContent(string model, string? content, ILogger logger)
         {
             try
             {
@@ -3646,7 +3646,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     return null;
 
                 var text = WebUtility.HtmlDecode(content).Trim();
-                if (CouncilChatStringFunctions.IsHarmonyModel(logger))
+                if (CouncilChatStringFunctions.IsHarmonyModel(model,logger))
                 {
                     var finalMatches = HarmonyFinalPatternNew().Matches(text);
                     if (finalMatches.Count > 0)
@@ -3665,11 +3665,11 @@ namespace LocalGPT.Extensions.PlainStatics
             }
         }
 
-        public static string? ExtractHarmonyThinking(string? content, ILogger logger)
+        public static string? ExtractHarmonyThinking(string model, string? content, ILogger logger)
         {
             try
             {
-                if (!IsHarmonyModel(logger) || string.IsNullOrWhiteSpace(content))
+                if (!IsHarmonyModel(model,logger) || string.IsNullOrWhiteSpace(content))
                     return null;
 
                 content = WebUtility.HtmlDecode(content);
@@ -3692,9 +3692,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
         }
 
-
-
-        public static bool IsHarmonyModel(LocalAiModelInfo model, ILogger logger)
+        public static bool IsHarmonyModel(string model, ILogger logger)
         {
             try
             {
@@ -3708,16 +3706,16 @@ namespace LocalGPT.Extensions.PlainStatics
             }
         }
 
-        public static string FormatVisibleResponse(string? content, string? thinking, ILogger logger)
+        public static string FormatVisibleResponse(string model, string? content, string? thinking, ILogger logger)
         {
             try
             {
                 var builder = new StringBuilder();
-                var normalizedContent = NormalizeVisibleContent(content, logger);
+                var normalizedContent = NormalizeVisibleContent(model,content, logger);
                 var thinkingParts = new[]
                 {
                 string.IsNullOrWhiteSpace(thinking) ? null : thinking.Trim(),
-                ExtractHarmonyThinking(content,logger),
+                ExtractHarmonyThinking(model,content,logger),
                 CouncilChatStringFunctions.ThinkTagPatternNewExtractTaggedThinking(content,logger)
             }.Where(text => !string.IsNullOrWhiteSpace(text));
                 var normalizedThinking = string.Join(Environment.NewLine, thinkingParts);
