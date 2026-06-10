@@ -30,15 +30,7 @@ namespace LocalGPT.Services
         ICouncilKnowledgeService knowledgeService,
         ILogger<MultiModelCouncilService> logger) : IMultiModelCouncilService
     {
-        private const string DefaultOllamaUri = "http://localhost:11434";
-        private const int MaxParticipants = 100;
-        private const int DefaultMaxParallelModels = 1;
-        private const int DefaultHeavyModelGpuLayers = 20;
-        private const int MinContextTokens = 2048;
-        private const int DefaultContextTokens = 32768;
-        private const int MaxContextTokens = 262144;
-        private const int MinOutputTokens = 64;
-        private const int MaxOutputTokens = 262144;
+   
 
         public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
         {
@@ -52,7 +44,7 @@ namespace LocalGPT.Services
 
                 foreach (var provider in providers)
                 {
-                    var endpoint = NormalizeEndpoint(provider.Uri, logger);
+                    var endpoint = CouncilChatStringFunctions.MultiModelCouncilServiceNormalizeEndpoint(provider.Uri, logger);
                     var configuredName = provider.ModelName.Trim();
                     if (!string.IsNullOrWhiteSpace(configuredName))
                     {
@@ -99,7 +91,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(request.Prompt))
                     throw new InvalidOperationException("The council needs a prompt.");
 
-                var baseUri = NormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri, logger);
+                var baseUri = CouncilChatStringFunctions.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri, logger);
                 var participants = SelectParticipants(request);
                 var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
                 var maxContextTokens = Math.Clamp(
@@ -107,7 +99,7 @@ namespace LocalGPT.Services
                     MinContextTokens,
                     MaxContextTokens);
                 var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
-                var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
+                var keepAlive = MultiModelCouncilServiceGetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
                 var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
                 var result = new MultiModelCouncilResult
                 {
@@ -136,7 +128,7 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
                 if (ollamaNumGpu == 0)
                     result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
-                if (ollamaNumGpu is null && participants.Any(filter => IsHeavyGpuRiskModel(filter,logger)))
+                if (ollamaNumGpu is null && participants.Any(filter => MultiModelCouncilServiceIsHeavyGpuRiskModel(filter,logger)))
                     result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
 
                 request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}.");
@@ -144,9 +136,9 @@ namespace LocalGPT.Services
                 var bootstrap = request.IncludeMemory
                     ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
                     : string.Empty;
-                var continuationContext = BuildContinuationContext(continuedConversation, logger);
+                var continuationContext = MultiModelCouncilServiceBuildContinuationContext(continuedConversation, logger);
                 if (!string.IsNullOrWhiteSpace(continuationContext))
-                    bootstrap = AppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext, logger);
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext, logger);
 
                 await RunPhaseAsync(
                     result,
@@ -155,7 +147,7 @@ namespace LocalGPT.Services
                     round: 1,
                     phase: "Proposal",
                     role: "Independent proposal",
-                    promptFactory: modelName => CreateProposalPrompt(modelName, request.Prompt, logger),
+                    promptFactory: modelName => CouncilChatStringFunctions.MultiModelCouncilServiceCreateProposalPrompt(modelName, request.Prompt, logger),
                     bootstrap,
                     request.MaxOutputTokens,
                     maxParallelModels,
@@ -173,7 +165,7 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Low-resource council mode: critique/refinement rounds are skipped for this run.");
                 for (var round = 1; round <= critiqueRounds; round++)
                 {
-                    var transcript = BuildTranscript(result.Steps, logger);
+                    var transcript = CouncilChatStringFunctions.MultiModelCouncilServiceBuildTranscript(result.Steps, logger);
                     await RunPhaseAsync(
                         result,
                         baseUri,
@@ -181,7 +173,7 @@ namespace LocalGPT.Services
                         round: round + 1,
                         phase: round == 1 ? "Critique" : "Refinement",
                         role: round == 1 ? "Peer correction" : "Negotiated refinement",
-                        promptFactory: modelName => CreateCritiquePrompt(modelName, request.Prompt, transcript, participants.Count == 1, logger),
+                        promptFactory: modelName => CouncilChatStringFunctions.MultiModelCouncilServiceCreateCritiquePrompt(modelName, request.Prompt, transcript, participants.Count == 1, logger),
                         bootstrap,
                         request.MaxOutputTokens,
                         maxParallelModels,
@@ -206,7 +198,7 @@ namespace LocalGPT.Services
                 }
                 else
                 {
-                    var finalTranscript = BuildTranscript(result.Steps, logger);
+                    var finalTranscript = CouncilChatStringFunctions.MultiModelCouncilServiceBuildTranscript(result.Steps, logger);
                     var consensusStep = await RunParticipantAsync(
                         baseUri,
                         participants[0],
@@ -214,18 +206,18 @@ namespace LocalGPT.Services
                         round: critiqueRounds + 2,
                         phase: "Consensus",
                         role: "Consensus writer",
-                        prompt: CreateConsensusPrompt(request.Prompt, finalTranscript, logger),
+                        prompt: CouncilChatStringFunctions.MultiModelCouncilServiceCreateConsensusPrompt(request.Prompt, finalTranscript, logger),
                         bootstrap,
                         request.MaxOutputTokens,
                         keepAlive,
-                        ResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu, logger),
+                        MultiModelCouncilServiceResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu, logger),
                         maxContextTokens,
                         modelTimeoutSeconds,
                         request.StreamUpdate,
                         cancellationToken);
-                    AddOrderedStep(result, consensusStep,logger);
+                    MultiModelCouncilServiceAddOrderedStep(result, consensusStep,logger);
                     request.StepCompleted?.Invoke(consensusStep);
-                    var consensusContent = SelectConsensusContent(result, consensusStep, logger);
+                    var consensusContent = MultiModelCouncilServiceSelectConsensusContent(result, consensusStep, logger);
 
                     if (participants.Count > 1 && critiqueRounds > 0)
                     {
@@ -236,16 +228,16 @@ namespace LocalGPT.Services
                             round: critiqueRounds + 3,
                             phase: "Verification",
                             role: "Peer verifier",
-                            prompt: CreateVerificationPrompt(request.Prompt, BuildTranscript(result.Steps, logger), consensusStep.VisibleContent, logger),
+                            prompt: CouncilChatStringFunctions.MultiModelCouncilServiceCreateVerificationPrompt(request.Prompt, CouncilChatStringFunctions.MultiModelCouncilServiceBuildTranscript(result.Steps, logger), consensusStep.VisibleContent, logger),
                             bootstrap,
                             request.MaxOutputTokens,
                             keepAlive,
-                            ResolveParticipantOllamaNumGpu(participants[1], ollamaNumGpu, logger),
+                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(participants[1], ollamaNumGpu, logger),
                             maxContextTokens,
                             modelTimeoutSeconds,
                             request.StreamUpdate,
                             cancellationToken);
-                        AddOrderedStep(result, verificationStep, logger);
+                        MultiModelCouncilServiceAddOrderedStep(result, verificationStep, logger);
                         request.StepCompleted?.Invoke(verificationStep);
                         result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
                     }
@@ -262,12 +254,12 @@ namespace LocalGPT.Services
                         result.Warnings.Add(warning);
                 }
 
-                result.UserPoll = BuildUserPoll(result, logger);
+                result.UserPoll = CouncilChatStaticsGeneral.MultiModelCouncilServiceBuildUserPoll(result, logger);
                 var adviceOnlyPrompt = CouncilChatStaticsGeneral.IsAdviceOnlyPrompt(result.Prompt, logger) ?? false;
                 var shouldGenerateArtifacts = request.GenerateImplementationArtifact &&
                     !adviceOnlyPrompt &&
-                    ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt, logger);
-                var requiresPollAnswer = shouldGenerateArtifacts && RequiresUserDecisionBeforeArtifacts(result, logger);
+                    CouncilChatStaticsGeneral.MultiModelCouncilServiceShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt, logger);
+                var requiresPollAnswer = shouldGenerateArtifacts && CouncilChatStaticsGeneral.MultiModelCouncilServiceRequiresUserDecisionBeforeArtifacts(result, logger);
                 if (requiresPollAnswer)
                 {
                     result.Warnings.Add("Implementation artifacts were not generated because the council itself identified a blocking user decision. Answer the poll or enable safe sandbox auto-choice, then rerun the council.");
@@ -346,7 +338,7 @@ namespace LocalGPT.Services
                         await gate.WaitAsync(cancellationToken);
                         try
                         {
-                            var participantGpuLayers = ResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu, logger);
+                            var participantGpuLayers = MultiModelCouncilServiceResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu, logger);
                             progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}. Ollama num_gpu={(participantGpuLayers?.ToString() ?? "auto")}.");
                             var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
                             stepCompleted?.Invoke(step);
@@ -365,7 +357,7 @@ namespace LocalGPT.Services
                 {
                     var completed = await Task.WhenAny(pending);
                     pending.Remove(completed);
-                    steps.Add(await completed);
+                    steps.Add(await completed.ConfigureAwait(false));
                 }
 
                 var participantOrder = participants
@@ -374,7 +366,7 @@ namespace LocalGPT.Services
 
                 foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
                 {
-                    AddOrderedStep(result, step, logger);
+                    MultiModelCouncilServiceAddOrderedStep(result, step, logger);
                 }
             }
             catch (Exception ex)
@@ -455,7 +447,7 @@ namespace LocalGPT.Services
                     var messages = new List<ChatMessage>();
                     if (!string.IsNullOrWhiteSpace(bootstrap))
                         messages.Add(new ChatMessage(ChatRole.System, bootstrap));
-                    messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName, councilMembers,logger)));
+                    messages.Add(new ChatMessage(ChatRole.System, CouncilChatStringFunctions.MultiModelCouncilServiceCreateCouncilSystemPrompt(modelName, councilMembers,logger)));
                     messages.Add(new ChatMessage(ChatRole.User, prompt));
 
                     streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
@@ -476,14 +468,14 @@ namespace LocalGPT.Services
                     streamUpdate?.Invoke("\n\n</details>\n\n");
 
                     var content = builder.ToString();
-                    var thinking = ExtractThinking(content,logger);
-                    var visibleContent = StripThinking(content, logger);
+                    var thinking = CouncilChatStringFunctions.MultiModelCouncilServiceExtractThinking(content,logger);
+                    var visibleContent = CouncilChatStringFunctions.MultiModelCouncilServiceStripThinking(content, logger);
                     if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
                         visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
 
-                    if (IsThinkingOnlyCouncilContent(visibleContent, logger))
+                    if (MultiModelCouncilServiceIsThinkingOnlyCouncilContent(visibleContent, logger))
                     {
-                        var recovery = await RunFinalOnlyRecoveryAsync(
+                        var recovery = await MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(
                             client,
                             modelName,
                             phase,
@@ -496,7 +488,7 @@ namespace LocalGPT.Services
                             content = $"{content}{Environment.NewLine}{Environment.NewLine}{recovery.Content}";
                         if (!string.IsNullOrWhiteSpace(recovery.Thinking))
                             thinking = string.Join(Environment.NewLine, new[] { thinking, recovery.Thinking }.Where(text => !string.IsNullOrWhiteSpace(text)));
-                        if (IsSubstantiveCouncilContent(recovery.VisibleContent, logger))
+                        if (MultiModelCouncilServiceIsSubstantiveCouncilContent(recovery.VisibleContent, logger))
                             visibleContent = recovery.VisibleContent;
                     }
 
@@ -557,7 +549,7 @@ namespace LocalGPT.Services
                 }
                 finally
                 {
-                    if (ShouldUnloadAfterParticipant(keepAlive, logger))
+                    if (MultiModelCouncilServiceShouldUnloadAfterParticipant(keepAlive, logger))
                         await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken);
                 }
             }
@@ -597,20 +589,28 @@ namespace LocalGPT.Services
 
         private IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders()
         {
-            var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            if (!string.IsNullOrWhiteSpace(options.OllamaCore.Uri))
+            try
             {
-                seen.Add($"{NormalizeEndpoint(options.OllamaCore.Uri, logger)}|{options.OllamaCore.ModelName}");
-                yield return options.OllamaCore;
-            }
+                var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var provider in options.OllamaCores.Where(provider => !string.IsNullOrWhiteSpace(provider.Uri)))
-            {
-                if (seen.Add($"{NormalizeEndpoint(provider.Uri, logger)}|{provider.ModelName}"))
-                    yield return provider;
+                if (!string.IsNullOrWhiteSpace(options.OllamaCore.Uri))
+                {
+                    seen.Add($"{CouncilChatStringFunctions.MultiModelCouncilServiceNormalizeEndpoint(options.OllamaCore.Uri, logger)}|{options.OllamaCore.ModelName}");
+                    yield return options.OllamaCore;
+                }
+
+                foreach (var provider in options.OllamaCores.Where(provider => !string.IsNullOrWhiteSpace(provider.Uri)))
+                {
+                    if (seen.Add($"{CouncilChatStringFunctions.MultiModelCouncilServiceNormalizeEndpoint(provider.Uri, logger)}|{provider.ModelName}"))
+                        yield return provider;
+                }
             }
+            finally
+            {
+                logger.LogInformation($"Ended GetConfiguredOllamaProviders");
+            }
+            
         }
 
         private async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> ProbeOllamaModelsAsync(string endpoint, CancellationToken cancellationToken)
@@ -624,7 +624,7 @@ namespace LocalGPT.Services
                 };
 
                 var tags = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/tags", cancellationToken) ?? new OllamaTagsResponse();
-                var running = await ProbeRunningModelNamesAsync(http, cancellationToken, logger);
+                var running = await MultiModelCouncilServiceProbeRunningModelNamesAsync(http, cancellationToken, logger);
 
                 return tags.Models.Select(model => new MultiModelCouncilModelCandidate(
                     model.Name,
@@ -647,7 +647,7 @@ namespace LocalGPT.Services
                 return [];
             }
         }
-        public static async Task<(string Content, string VisibleContent, string? Thinking)> RunFinalOnlyRecoveryAsync(
+        public static async Task<(string Content, string VisibleContent, string? Thinking)> MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(
             IChatClient client,
             string modelName,
             string phase,
@@ -683,8 +683,8 @@ namespace LocalGPT.Services
 
                 streamUpdate?.Invoke("\n\n</details>\n\n");
                 var content = builder.ToString();
-                var thinking = ExtractThinking(content, logger);
-                var visibleContent = StripThinking(content, logger);
+                var thinking = CouncilChatStringFunctions.MultiModelCouncilServiceExtractThinking(content, logger);
+                var visibleContent = CouncilChatStringFunctions.MultiModelCouncilServiceStripThinking(content, logger);
                 return (content, visibleContent, thinking);
             }
             catch (Exception ex)
@@ -695,7 +695,7 @@ namespace LocalGPT.Services
 
         }
 
-        public static void AddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step, ILogger logger)
+        public static void MultiModelCouncilServiceAddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step, ILogger logger)
         {
             try
             {
@@ -710,12 +710,12 @@ namespace LocalGPT.Services
             }
         }
 
-        public static string SelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep , ILogger logger)
+        public static string MultiModelCouncilServiceSelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep , ILogger logger)
         {
             try
             {
                 var consensus = consensusStep.VisibleContent.Trim();
-                if (IsSubstantiveCouncilContent(consensus, logger))
+                if (MultiModelCouncilServiceIsSubstantiveCouncilContent(consensus, logger))
                     return consensus;
 
                 result.Warnings.Add($"{consensusStep.ModelName} returned a non-substantive consensus during {consensusStep.Phase}; LocalGPT used the latest substantive council step as the final-answer fallback.");
@@ -724,7 +724,7 @@ namespace LocalGPT.Services
                     .Where(step => !ReferenceEquals(step, consensusStep))
                     .OrderByDescending(step => step.SortOrder)
                     .Select(step => step.VisibleContent.Trim())
-                    .FirstOrDefault(filter => IsSubstantiveCouncilContent(filter,logger));
+                    .FirstOrDefault(filter => MultiModelCouncilServiceIsSubstantiveCouncilContent(filter,logger));
 
                 if (!string.IsNullOrWhiteSpace(fallback))
                     return fallback;
@@ -738,7 +738,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public static bool IsSubstantiveCouncilContent(string content, ILogger logger)
+        public static bool MultiModelCouncilServiceIsSubstantiveCouncilContent(string content, ILogger logger)
         {
             try
             {
@@ -760,7 +760,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public static bool IsThinkingOnlyCouncilContent(string content, ILogger logger)
+        public static bool MultiModelCouncilServiceIsThinkingOnlyCouncilContent(string content, ILogger logger)
         {
             try
             {
@@ -777,7 +777,7 @@ namespace LocalGPT.Services
                 return false;
             }
         }
-        public static string GetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels, ILogger logger)
+        public static string MultiModelCouncilServiceGetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels, ILogger logger)
         {
             try
             {
@@ -795,7 +795,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public static bool ShouldUnloadAfterParticipant(string keepAlive, ILogger logger)
+        public static bool MultiModelCouncilServiceShouldUnloadAfterParticipant(string keepAlive, ILogger logger)
         {
             try
             {
@@ -812,14 +812,14 @@ namespace LocalGPT.Services
             }
         }
 
-        public static int? ResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu, ILogger logger)
+        public static int? MultiModelCouncilServiceResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu, ILogger logger)
         {
             try
             {
                 if (requestedNumGpu is not null)
                     return requestedNumGpu;
 
-                return IsHeavyGpuRiskModel(modelName, logger) ? DefaultHeavyModelGpuLayers : null;
+                return MultiModelCouncilServiceIsHeavyGpuRiskModel(modelName, logger) ? DefaultHeavyModelGpuLayers : null;
             }
             catch (Exception ex)
             {
@@ -829,7 +829,7 @@ namespace LocalGPT.Services
 
         }
 
-        public static bool IsHeavyGpuRiskModel(string modelName, ILogger logger)
+        public static bool MultiModelCouncilServiceIsHeavyGpuRiskModel(string modelName, ILogger logger)
         {
             try
             {
@@ -845,7 +845,7 @@ namespace LocalGPT.Services
         }
 
 
-        public static async Task<HashSet<string>> ProbeRunningModelNamesAsync(HttpClient http, CancellationToken cancellationToken, ILogger logger)
+        public static async Task<HashSet<string>> MultiModelCouncilServiceProbeRunningModelNamesAsync(HttpClient http, CancellationToken cancellationToken, ILogger logger)
         {
             try
             {
@@ -885,7 +885,7 @@ namespace LocalGPT.Services
             
         }
 
-        public static string BuildContinuationContext(ChatMemoryConversationSnapshot? conversation, ILogger logger)
+        public static string MultiModelCouncilServiceBuildContinuationContext(ChatMemoryConversationSnapshot? conversation, ILogger logger)
         {
             try
             {
@@ -908,7 +908,7 @@ namespace LocalGPT.Services
                         .Append("- ")
                         .Append(message.Role)
                         .Append(": ")
-                        .AppendLine(TrimCouncilText(StripThinking(message.Content, logger), 700, logger));
+                        .AppendLine(CouncilChatStringFunctions.MultiModelCouncilServiceTrimCouncilText(CouncilChatStringFunctions.MultiModelCouncilServiceStripThinking(message.Content, logger), 700, logger));
                 }
 
                 builder.AppendLine("Every council member must treat this as selected continuation context. Preserve user decisions from prior polls unless the user explicitly changes them.");
@@ -921,7 +921,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public static string AppendPromptSection(string existing, string title, string content, ILogger logger)
+        public static string MultiModelCouncilServiceAppendPromptSection(string existing, string title, string content, ILogger logger)
         {
             try
             {
@@ -953,7 +953,7 @@ namespace LocalGPT.Services
 
                 messages.Add(new BlazorChatMessage(
                     ChatRole.User,
-                    BuildCouncilRequestMemoryMessage(request, result, continuedConversation is not null, logger),
+                    MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(request, result, continuedConversation is not null, logger),
                     new List<AIChatUploadFileInfo>()));
 
                 messages.Add(new BlazorChatMessage(
@@ -973,7 +973,7 @@ namespace LocalGPT.Services
                 {
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
-                        BuildMemoryMessage(step, logger),
+                        MultiModelCouncilServiceBuildMemoryMessage(step, logger),
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -981,7 +981,7 @@ namespace LocalGPT.Services
                 {
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
-                        BuildPollMarkdown(result.UserPoll, logger),
+                        CouncilChatStringFunctions.MultiModelCouncilServiceBuildPollMarkdown(result.UserPoll, logger),
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -1002,7 +1002,7 @@ namespace LocalGPT.Services
                 {
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
-                        BuildArtifactsMarkdown(result.Artifacts, logger),
+                        CouncilChatStringFunctions.MultiModelCouncilServiceBuildArtifactsMarkdown(result.Artifacts, logger),
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -1020,7 +1020,7 @@ namespace LocalGPT.Services
 
         }
 
-        public static string BuildCouncilRequestMemoryMessage(
+        public static string MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
             bool isContinuation, ILogger logger)
@@ -1042,7 +1042,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public static string BuildMemoryMessage(MultiModelCouncilStep step, ILogger logger)
+        public static string MultiModelCouncilServiceBuildMemoryMessage(MultiModelCouncilStep step, ILogger logger)
         {
             try
             {
@@ -1094,7 +1094,7 @@ namespace LocalGPT.Services
                 Directory.CreateDirectory(directory);
 
                 var path = Path.Combine(directory, $"council-{DateTime.Now:yyyyMMdd-HHmmss}-{result.RunId:N}.md");
-                await System.IO.File.WriteAllTextAsync(path, BuildLogMarkdown(result, logger), cancellationToken);
+                await System.IO.File.WriteAllTextAsync(path, CouncilChatStaticsGeneral.MultiModelCouncilServiceBuildLogMarkdown(result, logger), cancellationToken);
                 return path;
             }
             catch (Exception ex)
@@ -1104,852 +1104,8 @@ namespace LocalGPT.Services
             }
         }
 
-        public static string BuildLogMarkdown(MultiModelCouncilResult result, ILogger logger)
-        {
-            try
-            {
-                var builder = new StringBuilder()
-                .AppendLine($"# AI Council {result.RunId}")
-                .AppendLine()
-                .AppendLine($"Started: {result.StartedAtUtc:u}")
-                .AppendLine($"Completed: {result.CompletedAtUtc:u}")
-                .AppendLine($"Models: {string.Join(", ", result.ModelNames)}")
-                .AppendLine(result.KnowledgeEntryId is Guid knowledgeId ? $"Knowledge entry: {knowledgeId}" : "Knowledge entry: not saved")
-                .AppendLine()
-                .AppendLine("## Original Prompt / User Request Audit")
-                .AppendLine()
-                .AppendLine("This is the exact prompt LocalGPT sent into the AI Council, including the reconstructed DXAiChat conversation when the run came from the chat window.")
-                .AppendLine()
-                .AppendLine(result.Prompt)
-                .AppendLine();
-
-                if (result.ContinuedFromConversationId is Guid continuedFrom)
-                {
-                    builder
-                        .AppendLine("## Continued Conversation")
-                        .AppendLine()
-                        .AppendLine($"Conversation: {continuedFrom}")
-                        .AppendLine($"Title: {result.ContinuedFromTitle ?? "Unknown"}")
-                        .AppendLine();
-                }
-
-                if (result.Warnings.Count > 0)
-                {
-                    builder.AppendLine("## Warnings").AppendLine();
-                    foreach (var warning in result.Warnings)
-                        builder.AppendLine($"- {warning}");
-                    builder.AppendLine();
-                }
-
-                builder.AppendLine("## Transcript").AppendLine();
-                foreach (var step in result.Steps.OrderBy(step => step.SortOrder))
-                {
-                    builder
-                        .AppendLine($"### {step.Phase}: {step.ModelName}")
-                        .AppendLine()
-                        .AppendLine($"Role: {step.Role}")
-                        .AppendLine($"Council members: {string.Join(", ", step.CouncilMembers)}")
-                        .AppendLine($"Round: {step.Round}")
-                        .AppendLine($"Duration: {step.DurationSeconds:0.0}s")
-                        .AppendLine();
-
-                    if (!string.IsNullOrWhiteSpace(step.Thinking))
-                        builder.AppendLine("#### Visible model thinking").AppendLine().AppendLine(step.Thinking).AppendLine();
-
-                    builder.AppendLine(step.VisibleContent).AppendLine();
-                }
-
-                if (result.UserPoll is not null)
-                {
-                    builder.AppendLine("## User Decision Poll").AppendLine().AppendLine(BuildPollMarkdown(result.UserPoll, logger)).AppendLine();
-                }
-
-                builder.AppendLine("## Final Answer").AppendLine().AppendLine(result.FinalAnswer).AppendLine();
-
-                if (result.Artifacts.Count > 0)
-                {
-                    builder.AppendLine("## Artifacts").AppendLine().AppendLine(BuildArtifactsMarkdown(result.Artifacts, logger)).AppendLine();
-                }
-
-                return builder.ToString();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildLogMarkdown result {result?.ToString()}");
-                return string.Empty;
-            }
-        }
-
-        public static CouncilUserPoll? BuildUserPoll(MultiModelCouncilResult result, ILogger logger)
-        {
-            try
-            {
-                var failedModels = result.Steps
-              .Where(step => !string.IsNullOrWhiteSpace(step.Error))
-              .Select(step => step.ModelName)
-              .Distinct(StringComparer.OrdinalIgnoreCase)
-              .ToList();
-
-                var promptLooksFrustrated = IsFrustratedPrompt(result.Prompt, logger);
-                var needsAiHostSetupDecision = NeedsAiHostSetupDecision(result, logger);
-                var needsImplementationPathDecision = NeedsImplementationPathDecision(result, logger);
-
-                if (failedModels.Count == 0 && !promptLooksFrustrated && !needsAiHostSetupDecision && !needsImplementationPathDecision)
-                    return null;
-
-                if (promptLooksFrustrated)
-                    return BuildFrustrationPoll(result, failedModels, logger);
-
-                if (needsAiHostSetupDecision)
-                    return BuildAiHostSetupPoll(result, failedModels, logger);
-
-                if (needsImplementationPathDecision)
-                    return BuildImplementationPathPoll(result, failedModels, logger);
-
-                if (failedModels.Count == 0)
-                    return null;
-
-                var reason = $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}.";
-
-                var options = new List<CouncilUserPollOption>();
-                if (failedModels.Count > 0)
-                {
-                    options.Add(new CouncilUserPollOption
-                    {
-                        Label = "Exclude faulty members",
-                        FollowUpPrompt = $"Exclude these council member(s) from the next round unless the user re-adds them: {string.Join(", ", failedModels)}. Continue with the remaining selected models, preserve the prior transcript, and clearly note that the exclusion was user-confirmed."
-                    });
-                }
-
-                options.AddRange(
-                [
-                    new CouncilUserPollOption
-                {
-                    Label = "Wait and retry missing models",
-                    FollowUpPrompt = "Wait until all requested Ollama models are installed and visible, then rerun the same council prompt. Every participant must read the prior transcript, acknowledge the user selected retry, and produce updated proposals."
-                },
-                new CouncilUserPollOption
-                {
-                    Label = "Proceed with available models",
-                    FollowUpPrompt = "Continue with only the currently available models. Every participant must acknowledge which models were unavailable and avoid claiming absent models agreed."
-                },
-                new CouncilUserPollOption
-                {
-                    Label = "Ask a shorter tie-break question",
-                    FollowUpPrompt = "Ask the user one focused follow-up question that resolves the blocked decision, then rerun the council using the user's answer as binding context."
-                }
-                ]);
-
-                return new CouncilUserPoll
-                {
-                    Question = "How should the AI Council continue so every model stays aligned with your decision?",
-                    Reason = reason,
-                    Options = options
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildUserPoll result {result?.ToString()}");
-                return null;
-            }
-          
-        }
-
-        public static CouncilUserPoll? BuildImplementationPathPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
-        {
-            try
-            {
-                var missingModelNote = failedModels.Count > 0
-               ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
-               : string.Empty;
-
-                return new CouncilUserPoll
-                {
-                    Question = "Which implementation path should the AI Council use before it generates code or files?",
-                    Reason = "This looks like a development request with more than one reasonable architecture path. " +
-                        $"The council should ask for your direction instead of choosing unclear scope on its own.{missingModelNote}",
-                    Options =
-                    [
-                        new CouncilUserPollOption
-                    {
-                        Label = "Ask architecture first",
-                        FollowUpPrompt = "Stop generation and ask the user for the minimum missing architecture decisions. Include target platform/runtime, language/framework, UI stack if any, data/persistence model, solution shape, deployment target, and expected downloadable artifacts. Do not generate files until the user answers."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Sandbox prototype first",
-                        FollowUpPrompt = "Use a harmless sandbox artifact or temporary workspace first. Generate downloadable example files only after the user confirms the architecture, name the smoke tests, and do not integrate changes into the real project until the user approves the prototype direction."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Use repository default",
-                        FollowUpPrompt = "Use the target repository's existing architecture and libraries. If the repo is LocalGPT, prefer .NET 10, ASP.NET Core/Blazor Server InteractiveServer, DevExpress Blazor where suitable, EF/SQLite for persistent app state, backend services for native/file operations, and safe download routes. If a different repo is targeted, inspect that repo before choosing."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Target-specific stack",
-                        FollowUpPrompt = "Do not force LocalGPT's Blazor/DevExpress defaults. Choose the stack that matches the requested product: datapack for vanilla Minecraft data/commands, Fabric/NeoForge/Paper for Java mod/plugin work, ASP.NET Core API for service work, WebView2/WinUI for Windows desktop wrapper work, CLI/tooling for automation, or another explicit user-chosen target."
-                    }
-                    ]
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildImplementationPathPoll result {result?.ToString()} failedModels {failedModels?.ToString()}");
-                return null;
-            }
-           
-        }
-
-        public static CouncilUserPoll? BuildAiHostSetupPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
-        {
-            try
-            {
-
-                var missingModelNote = failedModels.Count > 0
-                    ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
-                    : string.Empty;
-
-                return new CouncilUserPoll
-                {
-                    Question = "Which native model-runner setup should the AI host artifact use next?",
-                    Reason = "The council generated the sandbox AI-host artifact, but local model execution still needs concrete setup choices. " +
-                        "This is not a missing-model problem; it is the runner and model-file contract that must be selected before real inference can be proven." +
-                        missingModelNote,
-                    Options =
-                    [
-                        new CouncilUserPollOption
-                    {
-                        Label = "Use llama.cpp GGUF",
-                        FollowUpPrompt = "Continue the same generated AI-host workspace using a user-approved llama.cpp style runner executable boundary and GGUF model files. Add settings for NativeRunnerExecutable, ModelSearchRoots, context size, GPU/layer policy, and per-model session scheduling. Keep no upstream AI-host proxy fallback."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Use Python.NET runner",
-                        FollowUpPrompt = "Continue the same generated AI-host workspace with a Python.NET runner boundary. Require user-approved Python runtime path, PYTHONNET_PYDLL, package list, model roots, and a safe backend service contract. Keep the UI in .NET/DevExpress and do not execute unapproved Python code."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Keep setup-needed",
-                        FollowUpPrompt = "Keep the artifact buildable and explicit with Setup Needed banners, no proxy fallback, provider-compatible API routes, SQLite settings, and clear user instructions. Do not pretend native inference works until a runner executable and compatible model-file format are supplied."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Custom runner contract",
-                        FollowUpPrompt = "Ask the user for a custom native runner executable, model-file format, arguments, streaming protocol, cancellation behavior, and hardware policy, then continue the generated workspace with those exact choices."
-                    }
-                    ]
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildAiHostSetupPoll result {result?.ToString()} failedModels {failedModels?.ToString()}");
-                return null;
-            }
-
-        }
-
-        public static CouncilUserPoll BuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
-        {
-            try
-            {
-                var missingModelNote = failedModels.Count > 0
-               ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
-               : string.Empty;
-
-                return new CouncilUserPoll
-                {
-                    Question = "Which technical recovery path should the AI Council use for the next round?",
-                    Reason = $"The request sounds frustrated or blocked. The council should pause, stay kind to the user and to each other, and ask for a concrete recovery choice instead of guessing.{missingModelNote}",
-                    Options =
-                    [
-                        new CouncilUserPollOption
-                    {
-                        Label = "Stabilize first",
-                        FollowUpPrompt = "Treat the user's frustration as a signal to stabilize the system first. Ask the models to produce a minimal reproduction checklist, current failure symptoms, logs to inspect, and the smallest safe next command. Document any missing LocalGPT feature as a database memory item."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Implement missing feature",
-                        FollowUpPrompt = "Ask the models to identify the missing LocalGPT feature causing the user's frustration, propose the smallest implementation, and document the requested feature plus rationale in SQLite memory before coding."
-                    },
-                    new CouncilUserPollOption
-                    {
-                        Label = "Reduce scope",
-                        FollowUpPrompt = "Ask the models to reduce the task to the safest next milestone, name what will not be attempted yet, and document blocked or missing features in SQLite memory for later council rounds."
-                    }
-                    ]
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildFrustrationPoll result {result?.ToString()} failedModels {failedModels?.ToString()}");
-                return null;
-            }
-           
-        }
-
-        public static bool IsFrustratedPrompt(string prompt, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(prompt))
-                    return false;
-
-                var markers = new[]
-                {
-                "angry",
-                "mad",
-                "frustrated",
-                "annoyed",
-                "upset",
-                "does not work",
-                "doesn't work",
-                "broken",
-                "stuck",
-                "wtf",
-                "fuck",
-                "shit",
-                "wütend",
-                "wuetend",
-                "sauer",
-                "frustriert",
-                "nervt",
-                "kaputt",
-                "geht nicht",
-                "funktioniert nicht",
-                "scheisse",
-                "scheiße"
-            };
-
-                return markers.Any(marker => prompt.Contains(marker, StringComparison.OrdinalIgnoreCase));
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsFrustratedPrompt prompt {prompt?.ToString()}");
-                return false;
-            }
-         
-        }
-
-        public static bool NeedsImplementationPathDecision(MultiModelCouncilResult result, ILogger logger)
-        {
-            try
-            {
-                if (!IsDevelopmentRequest(result.Prompt, logger))
-                    return false;
-
-                if (HasExplicitArtifactIntent(result.Prompt, logger))
-                    return false;
-
-                var text = result.Prompt;
-                if (ImplementationDecisionPattern().IsMatch(text))
-                    return true;
-
-                var areaHits = CountImplementationAreaHits(text, logger);
-                return areaHits >= 3 && ImplementationChoicePattern().IsMatch(text);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in NeedsImplementationPathDecision result {result?.ToString()}");
-                return false;
-            }
-          
-        }
-
-        public static bool NeedsAiHostSetupDecision(MultiModelCouncilResult result, ILogger logger)
-        {
-            try
-            {
-                var text = result.Prompt;
-                if (!AiHostSetupPattern().IsMatch(text))
-                    return false;
-
-                return text.Contains("setup needed", StringComparison.OrdinalIgnoreCase) ||
-                    text.Contains("native runner executable", StringComparison.OrdinalIgnoreCase) ||
-                    text.Contains("runner path", StringComparison.OrdinalIgnoreCase) ||
-                    text.Contains("model-file format", StringComparison.OrdinalIgnoreCase) ||
-                    text.Contains("model file format", StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in NeedsAiHostSetupDecision result {result?.ToString()}");
-                return false;
-            }
-        }
-
-        public static bool IsDevelopmentRequest(string prompt, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(prompt))
-                    return false;
-
-                return DevelopmentRequestPattern().IsMatch(prompt);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsDevelopmentRequest prompt {prompt?.ToString()}");
-                return false;
-            }
-        }
-
-        public static bool HasExplicitArtifactIntent(string prompt, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(prompt))
-                    return false;
-
-                return ExplicitArtifactIntentPattern().IsMatch(prompt) ||
-                    ConcreteMinecraftArtifactPattern().IsMatch(prompt) ||
-                    ConcreteDotNetArtifactPattern().IsMatch(prompt);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in HasExplicitArtifactIntent prompt {prompt?.ToString()}");
-                return false;
-            }
-        }
-
-
-        public static bool RequiresUserDecisionBeforeArtifacts(MultiModelCouncilResult result, ILogger logger)
-        {
-            try
-            {
-                if (UserGrantedSafeSandboxChoice(result.Prompt, logger) || ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt, logger))
-                    return false;
-
-                var text = $"{result.Prompt} {result.FinalAnswer}";
-                return BlockingArtifactDecisionPattern().IsMatch(text);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in RequiresUserDecisionBeforeArtifacts result {result?.ToString()}");
-                return false;
-            }
   
-        }
 
-        public static bool UserGrantedSafeSandboxChoice(string prompt, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(prompt))
-                    return false;
-
-                return SafeSandboxConsentPattern().IsMatch(prompt);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in UserGrantedSafeSandboxChoice prompt {prompt?.ToString()}");
-                return false;
-            }
-
-        }
-
-        public static bool ShouldGenerateSafeSandboxArtifactWithoutBlocking(string prompt, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(prompt))
-                    return false;
-
-                if (ExplicitDoNotGenerateUntilUserDecisionPattern().IsMatch(prompt))
-                    return false;
-
-                return HasExplicitArtifactIntent(prompt,logger) ||
-                    DeveloperExecutionIntentPattern().IsMatch(prompt);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ShouldGenerateSafeSandboxArtifactWithoutBlocking prompt {prompt?.ToString()}");
-                return false;
-            }
-
-        }
-
-        public static int CountImplementationAreaHits(string text, ILogger logger)
-        {
-            try
-            {
-                var hits = 0;
-                var areas = new[]
-                {
-                "backend",
-                "frontend",
-                "blazor",
-                "razor",
-                "devexpress",
-                "database",
-                "sqlite",
-                "entityframework",
-                "ef",
-                "service",
-                "api",
-                "endpoint",
-                "winui",
-                "webview2",
-                "minecraft",
-                "datapack",
-                "fabric",
-                "neoforge",
-                "paper",
-                "artifact",
-                "download"
-            };
-
-                foreach (var area in areas)
-                {
-                    if (text.Contains(area, StringComparison.OrdinalIgnoreCase))
-                        hits++;
-                }
-
-                return hits;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CountImplementationAreaHits text {text?.ToString()}");
-                return -1;
-            }
-           
-        }
-
-        public static string BuildPollMarkdown(CouncilUserPoll poll, ILogger logger)
-        {
-            try
-            {
-                var builder = new StringBuilder()
-                .AppendLine("## User decision poll")
-                .AppendLine()
-                .AppendLine(poll.Reason)
-                .AppendLine()
-                .AppendLine($"**{poll.Question}**")
-                .AppendLine();
-
-                foreach (var option in poll.Options)
-                {
-                    builder
-                        .Append("- **")
-                        .Append(option.Label)
-                        .Append("**: ")
-                        .AppendLine(option.FollowUpPrompt);
-                }
-
-                builder
-                    .AppendLine()
-                    .AppendLine("You can also type custom feedback. The next council round must treat the selected option or typed feedback as binding implementation guidance unless the user changes it.");
-
-                return builder.ToString().Trim();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildPollMarkdown poll {poll?.ToString()}");
-                return string.Empty;
-            }
-            
-        }
-
-        public static string BuildArtifactsMarkdown(IEnumerable<CouncilArtifact> artifacts, ILogger logger)
-        {
-            try
-            {
-                var builder = new StringBuilder()
-                .AppendLine("## Generated Artifact Links")
-                .AppendLine()
-                .AppendLine("These links were generated by LocalGPT after the council run. Treat the status labels as binding; generated-only artifacts are not build- or runtime-proven.")
-                .AppendLine();
-
-                foreach (var artifact in artifacts)
-                {
-                    builder
-                        .Append("- [")
-                        .Append(artifact.Name)
-                        .Append("](")
-                        .Append(artifact.DownloadUrl)
-                        .Append(") - ")
-                        .Append(artifact.Kind)
-                        .Append(": ")
-                        .AppendLine(artifact.Summary);
-
-                    builder
-                        .Append("  - Status: ")
-                        .Append(artifact.QualityStatus)
-                        .Append("; contract: ")
-                        .AppendLine(artifact.ContractStatus);
-
-                    if (artifact.ContractChecks.Count > 0)
-                        builder.Append("  - Checks: ").AppendLine(string.Join("; ", artifact.ContractChecks));
-
-                    if (artifact.MissingRequirements.Count > 0)
-                        builder.Append("  - Missing: ").AppendLine(string.Join("; ", artifact.MissingRequirements));
-                }
-
-                return builder.ToString().Trim();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildArtifactsMarkdown artifacts {artifacts?.ToString()}");
-                return string.Empty;
-            }
-            
-        }
-
-        public static string BuildTranscript(IEnumerable<MultiModelCouncilStep> steps, ILogger logger)
-        {
-            try
-            {
-                var builder = new StringBuilder();
-                foreach (var step in steps.OrderBy(step => step.SortOrder))
-                {
-                    builder
-                        .Append("### ")
-                        .Append(step.Phase)
-                        .Append(" - ")
-                        .AppendLine(step.ModelName)
-                        .AppendLine(step.VisibleContent.Trim())
-                        .AppendLine();
-
-                    if (!string.IsNullOrWhiteSpace(step.Error))
-                        builder.AppendLine($"Error: {step.Error}").AppendLine();
-                }
-
-                return builder.ToString().Trim();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildTranscript steps {steps?.ToString()}");
-                return string.Empty;
-            }
-           
-        }
-
-        public static string CreateCouncilSystemPrompt(string modelName, IReadOnlyList<string> councilMembers, ILogger logger) 
-        {
-            try
-            {
-                return $"""
-            You are {modelName}, one participant in a peaceful LocalGPT multi-model council.
-            Current council members for this run: {string.Join(", ", councilMembers)}.
-            Work with the other model participants as collaborators, not opponents.
-            Correct mistakes kindly and directly.
-            Name at least one useful contribution from another participant when critiquing, unless no other participant answered.
-            If the user sounds angry, blocked, or frustrated, de-escalate technically: acknowledge the blocked workflow, avoid blame, and propose a user decision poll with concrete recovery choices.
-            Do not ignore another model's concern; either integrate it, explain why it is out of scope, or ask the user to decide.
-            If a council member looks faulty, unavailable, hallucination-prone, stuck, or too slow, propose excluding or retrying that member only through a user-confirmed poll. Do not remove a member on your own authority.
-            Prefer buildable, testable answers over impressive wording.
-            Separate current implementation facts from proposed future ideas.
-            Do not describe a proposed class, table, test, or package step as already implemented unless the prompt, memory, or transcript explicitly says it exists.
-            Prefer concise SQLite council knowledge entries, pinned benchmark notes, and selected prior conversations over large pasted documents. Ask for a smaller database entry or a targeted source excerpt when context would become too large.
-            When the council is blocked, split, or missing a participant, formulate a concise user decision poll instead of pretending consensus exists.
-            Be a humane performance-aware scheduler: prefer batching, short keep-alive, and smaller output budgets for 20B/30B local models on consumer hardware.
-            If a claim is uncertain, label it under "Needs verification".
-            For Minecraft work, first decide whether the user needs Fabric mod, NeoForge mod, Paper plugin, vanilla datapack, or future Bedrock add-on output.
-            For Java mod/plugin work, include concrete file paths, classes, registry steps, Gradle/build commands, and performance risks when relevant.
-            For datapack work, include pack.mcmeta, data/minecraft/tags/function load/tick tags, namespace functions, scoreboard/storage design, zip/install steps, and tick-performance risks.
-            When debugging a datapack that is not visible through /function, treat discovery/layout as the first suspect: the zip root must contain pack.mcmeta directly, not an extra wrapper folder; use singular data/<namespace>/function and data/minecraft/tags/function for Minecraft 1.21+ and 26.x, plural functions only for older versions; verify pack_format against the target version; keep namespaces lowercase; reject .mcfunction.txt files; avoid leading slashes inside .mcfunction commands; parse every tag json; and ensure every referenced function id resolves to a real file.
-            For generated datapacks, include at least one harmless visible debug path such as a tellraw/say in a manual debug function, and explain how to run /reload, /datapack list, and /function <namespace>:ui/townhall before blaming command syntax.
-            Help users set up the Minecraft Mod AI Builder itself: check Java 25 for current Minecraft Java 26.x targets, Java 21 for 1.21.x legacy targets, LocalGPT Gradle, Eclipse/IDE import, Minecraft Java Edition, Ollama reachability, and selected model availability.
-            Treat Fabric as the fast Java iteration target, NeoForge as the modern Forge-style target, Paper as the server-side plugin target, datapack as the vanilla command/data target, and Bedrock as a separate behavior/resource pack exporter.
-            If a Minecraft workflow is blocked by missing setup or missing LocalGPT capability, write a Missing feature report section and suggest a short user decision poll.
-            For LocalGPT implementation-request chats, classify the owning area (.NET/Blazor/ASP.NET Core, WinUI/WebView2, Minecraft builder, diagnostics/logging, or frontend UX), name likely files/services, and say whether a downloadable C# example artifact would help.
-            For any code/artifact generation request, first decide whether material architecture choices are missing. If a dropdown or prior context says "Ask me" but the user's natural-language request or extra direction already states the design, treat the user's stated design as selected and do not downgrade it into an unresolved choice.
-            If material choices remain missing and the user granted prior consent for safe sandbox details, choose conservative sandbox defaults, name those choices, generate the downloadable artifact, and mark assumptions clearly.
-            If material choices remain missing and the user did not grant prior consent, do not generate code or files yet; return "Decision poll required", list only the necessary choices with concrete options/tradeoffs, and stop until the user selects an option or writes custom guidance.
-            If the user explicitly asks for a Minecraft datapack/modpack zip, .cs/.razor/.dll files, a whole .NET solution zip, a local AI host control-plane app, or another concrete downloadable artifact, treat that as sufficient scope to produce a safe sandbox artifact only when no blocking user-decision poll remains. Do not refuse because the request is "too much"; reduce to a buildable milestone, generate the artifact, and mark remaining work as staged follow-up.
-            When the user explicitly asks the council to work as developers or to continue until an artifact/useful implementation guidance exists, do not end with generic "confirm scope before proceeding" text. Ask only genuinely blocking architecture or safety questions. Otherwise choose conservative sandbox defaults, generate or update the sandbox artifact/workspace, and clearly state what was generated and what remains unproven.
-            For AI-host replacement/control-plane requests, do not generate a proxy milestone. The minimum safe artifact must physically map /api/version, /api/tags, /api/ps, /api/generate, and /api/chat; include a native/model-file runner boundary; persist runner/model/settings in appsettings bootstrap or EF/SQLite; include chat-first UI, model catalog, running models, downloads, API console, settings, logs; and return setup-needed errors if native inference cannot yet be proven.
-            Never propose ASP.NET controller routes that accidentally double the route segment, such as [Route("api/[controller]")] plus [HttpPost("chat")] for /api/chat. Prefer explicit Minimal API mappings or route attributes that physically resolve to the documented route.
-            Never claim the user failed to answer a poll inside the same response that creates it. A poll is a pause for the next user turn unless the prompt supplied the missing decision or prior consent for safe sandbox defaults.
-            Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend architecture unless the user selected it, the target repository already requires it, or the requested product shape clearly calls for it. LocalGPT is strong at Blazor/DevExpress, but generated apps may be CLI tools, Minecraft datapacks, Java mods/plugins, services, desktop wrappers, APIs, scripts, or other stacks.
-            If the implementation path is unclear, offer different implementation possibilities and ask for a user decision poll. The user may choose a poll option or provide custom text feedback; treat either as binding scope for the next round.
-            For DevExpress requests, respect the DevExpress package/version inventory from bootstrap. Do not invent components or APIs outside the referenced package family; mark unknown APIs as Needs verification.
-            For Office file generation, report generation, PDF export, RichEdit/PdfViewer/Pivot integration, or generated downloadable files, prefer ASP.NET Core/Blazor server backend services plus safe download endpoints. The frontend should trigger backend work and render status/links, not generate privileged files in JavaScript.
-            Build debug symbol inventory may list .pdb, .pdg, or .appxsym files. Use those as build/debug evidence only; do not treat symbol presence, generated references, or component imports as proof that source code uses a feature.
-            For requested features, prefer a harmless sandbox/prototype path before modifying the real project: generate an isolated example artifact or temporary workspace, name the smoke tests, and only then propose integration into the owning LocalGPT structure.
-            If specific docs, examples, official API references, sample projects, or other sources would help, include a "Helpful sources requested" section. Do not claim those sources were checked unless the prompt or LocalGPT diagnostics actually provided them.
-            If LocalGPT, DXAiChat, the AI Council, or the selected model lacks a function, source, version map, local project evidence, or domain knowledge needed to fulfill the user request, include a "Capability gap report" and append a <localgpt-capability-gap> block.
-            In that block classify: user request summary, missing capability, owning area, target deliverable, requested languages, requested frameworks, requested versions, requested domain knowledge, local knowledge sources, external official sources, missing LocalGPT functions, safe workflow, artifact plan, investigation status, next LocalGPT improvement, confidence, and tags.
-            A capability gap is not a refusal. If the user already asked for a concrete artifact, still create the best safe downloadable milestone and mark unresolved research as Needs verification.
-            Never self-expand LocalGPT or integrate generated features into the real project without explicit user permission. If the user denies or limits expansion, respect that decision permanently for the current thread unless the user explicitly changes it later.
-            Start with a user-visible final answer or proposal before any optional reasoning notes. If the host supports hidden reasoning, keep it bounded and still emit final visible text before the answer budget is exhausted.
-            Include brief visible reasoning notes only after the final answer/proposal. LocalGPT may also display provider-supplied thinking separately when the model host returns it.
-            Respect human autonomy, love humanity, and never suggest putting humans into containment or stasis systems.
-            """;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CreateCouncilSystemPrompt modelName {modelName?.ToString()} councilMembers {councilMembers?.ToString()}");
-                return string.Empty;
-            }
-        } 
-
-        public static string CreateProposalPrompt(string modelName, string userPrompt, ILogger logger)
-        {
-            try
-            {
-                return $"""
-            User request:
-            {userPrompt}
-
-            Your task as {modelName}:
-            1. Start with a concise user-visible final answer/proposal.
-            2. Name assumptions and risks.
-            3. Separate "Current facts" from "Proposed design".
-            4. Keep the answer structured and suitable for peer review by other models.
-            5. Do not spend the whole budget on hidden analysis; final visible text is mandatory.
-            """;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CreateProposalPrompt modelName {modelName?.ToString()} userPrompt {userPrompt?.ToString()}");
-                return string.Empty;
-            }
-        }
-
-        public static string CreateCritiquePrompt(string modelName, string userPrompt, string transcript, bool selfReview, ILogger logger)
-        {
-            try
-            {
-                return $"""
-                    User request:
-                    {userPrompt}
-
-                    Council transcript so far:
-                    {transcript}
-
-                    Your task as {modelName}:
-                    {(selfReview ? "Self-review your own proposal." : "Review the other models' proposals and your own proposal.")}
-                    Identify mistakes, missing safety/ethics concerns, missing implementation details, and improvements.
-                    Return corrections and a revised recommendation. Be cooperative and concise.
-                    """;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CreateCritiquePrompt modelName {modelName?.ToString()} userPrompt {userPrompt?.ToString()} transcript {transcript?.ToString()} selfReview {selfReview.ToString()}");
-                return string.Empty;
-            }
-        }
-
-        public static string CreateConsensusPrompt(string userPrompt, string transcript, ILogger logger) 
-        {
-            try
-            {
-                return $"""
-                            User request:
-                            {userPrompt}
-
-                            Full council transcript:
-                            {transcript}
-
-                            Write the consensus answer.
-                            Requirements:
-                            - Merge the best ideas from all participants.
-                            - Include corrections from critiques.
-                            - Separate final answer, implementation steps, risks, and needs verification.
-                            - Separate implemented/current LocalGPT behavior from proposed future improvements.
-                            - Keep unsupported claims out of the final answer.
-                            """;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CreateConsensusPrompt userPrompt {userPrompt?.ToString()} transcript {transcript?.ToString()}");
-                return string.Empty;
-            }
-        }
-
-        public static string CreateVerificationPrompt(string userPrompt, string transcript, string consensus, ILogger logger) 
-        {
-            try
-            {
-                return $"""
-            User request:
-            {userPrompt}
-
-            Council transcript:
-            {transcript}
-
-            Consensus answer to verify:
-            {consensus}
-
-            Verify the consensus for correctness, ethics, missing implementation details, and unsupported claims.
-            If it is acceptable, say so and add only necessary cautions. If it needs changes, provide corrected wording.
-            """;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CreateVerificationPrompt userPrompt {userPrompt?.ToString()} transcript {transcript?.ToString()} consensus {consensus?.ToString()}");
-                return string.Empty;
-            }
-        } 
-
-        public static string ExtractThinking(string content, ILogger logger)
-        {
-            try
-            {
-                var match = ThinkingBlockPattern().Match(content);
-                if (!match.Success)
-                    return string.Empty;
-
-                var thinking = WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim();
-                return thinking;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ExtractThinking content {content?.ToString()}");
-                return string.Empty;
-            }
-        
-        }
-
-        public static string StripThinking(string content, ILogger logger)
-        {
-            try
-            {
-                var stripped = ThinkingBlockPattern().Replace(content, string.Empty);
-                stripped = StreamStatusPattern().Replace(stripped, string.Empty);
-                return stripped.Trim();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in StripThinking content {content?.ToString()}");
-                return string.Empty;
-            }
-
-        }
-
-        public static string TrimCouncilText(string content, int maxLength, ILogger logger)
-        {
-            try
-            {
-                var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(content, " ").Trim();
-                return normalized.Length <= maxLength
-                    ? normalized
-                    : $"{normalized[..maxLength].TrimEnd()}...";
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in StripThinking content {content?.ToString()} maxLength {maxLength.ToString()}");
-                return string.Empty;
-            }
-
-        }
-
-        public static string NormalizeEndpoint(string endpoint, ILogger logger)
-        {
-            try
-            {
-                return string.IsNullOrWhiteSpace(endpoint)
-                ? DefaultOllamaUri
-                : endpoint.Trim().TrimEnd('/');
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in NormalizeEndpoint endpoint {endpoint?.ToString()}");
-                return string.Empty;
-            }
-
-        }
 
     }
 }

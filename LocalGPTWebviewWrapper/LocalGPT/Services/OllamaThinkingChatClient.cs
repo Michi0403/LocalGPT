@@ -77,7 +77,7 @@ namespace LocalGPT.Services
             try
             {
                 var request = CreateRequest(messages, options, stream: true);
-                yield return CreateStreamingStatusUpdate($"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...",logger);
+                yield return CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingStatusUpdate($"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...",logger);
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
                 {
@@ -96,8 +96,8 @@ namespace LocalGPT.Services
 
                 using (response)
                 {
-                    await EnsureSuccessOrThrowAsync(response, cancellationToken, logger);
-                    yield return CreateStreamingStatusUpdate("Ollama accepted the request. Waiting for streamed model output...", logger);
+                    await CouncilChatStaticsGeneral.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger);
+                    yield return CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingStatusUpdate("Ollama accepted the request. Waiting for streamed model output...", logger);
 
                     Stream stream;
                     try
@@ -140,13 +140,13 @@ namespace LocalGPT.Services
                             if (!string.IsNullOrWhiteSpace(chunk?.Message?.Thinking))
                             {
                                 foreach (var text in CouncilChatStringFunctions.AppendThinking(chunk.Message.Thinking,false,logger))
-                                    yield return CreateStreamingUpdate(text , logger);
+                                    yield return CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingUpdate(text , logger);
                             }
 
                             if (!string.IsNullOrEmpty(chunk?.Message?.Content))
                             {
                                 foreach (var text in CouncilChatStringFunctions.AppendContent(chunk.Message.Content, false, logger))
-                                    yield return CreateStreamingUpdate(text, logger);
+                                    yield return CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingUpdate(text, logger);
                             }
                         }
 
@@ -201,7 +201,7 @@ namespace LocalGPT.Services
 
                 using (response)
                 {
-                    await EnsureSuccessOrThrowAsync(response, cancellationToken, logger);
+                    await CouncilChatStaticsGeneral.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger);
 
                     var ollama = await response.Content.ReadFromJsonAsync<OllamaChatResponse>(JsonOptions, cancellationToken);
                     return ollama ?? new OllamaChatResponse();
@@ -224,7 +224,7 @@ namespace LocalGPT.Services
                     Model = model,
                     Stream = stream,
                     KeepAlive = keepAlive,
-                    Messages = BuildOllamaMessages(messages),
+                    Messages = OllamaThinkingChatClientBuildOllamaMessages(messages),
                     Options = new OllamaRequestOptions
                     {
                         NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 262144),
@@ -241,86 +241,17 @@ namespace LocalGPT.Services
             }
         }
 
-        private static async Task EnsureSuccessOrThrowAsync(HttpResponseMessage response, CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                if (response.IsSuccessStatusCode)
-                    return;
-
-                var body = await ReadErrorBodyAsync(response, cancellationToken, logger);
-                var message = string.IsNullOrWhiteSpace(body)
-                    ? $"Ollama returned {(int)response.StatusCode} {response.StatusCode}."
-                    : $"Ollama returned {(int)response.StatusCode} {response.StatusCode}: {body}";
-                throw new HttpRequestException(message, null, response.StatusCode);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in EnsureSuccessOrThrowAsync response {response.ToString()}");
-                
-            }
-        }
-
-        private static async Task<string> ReadErrorBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
-                if (string.IsNullOrWhiteSpace(body))
-                    return string.Empty;
-
-                return body.Length <= 4000 ? body.Trim() : body[..4000].Trim() + "...";
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                return string.Empty;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ReadErrorBodyAsync response {response.ToString()}");
-                return string.Empty;
-            }
-        }
-
-        private static ChatResponseUpdate? CreateStreamingUpdate(string text, ILogger logger)
-        {
-            try
-            {
-                return new(ChatRole.Assistant, [new TextContent(text)]);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CreateStreamingUpdate text {text.ToString()}");
-                return null;
-            }
-        }
-
-
-        private static ChatResponseUpdate? CreateStreamingStatusUpdate(string text, ILogger logger)
-        {
-            try
-            {
-               return CreateStreamingUpdate($"<p class=\"localgpt-stream-status\"><em>{WebUtility.HtmlEncode(text)}</em></p>\n\n", logger);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CreateStreamingStatusUpdate text {text.ToString()}");
-                return null;
-            }
-        }
-           
-
-        private List<OllamaChatMessage>? BuildOllamaMessages(IEnumerable<ChatMessage> messages)
+        public List<OllamaChatMessage>? OllamaThinkingChatClientBuildOllamaMessages(IEnumerable<ChatMessage> messages)
         {
             try
             {
                 var ollamaMessages = messages
-             .Select(filter => ToOllamaMessage(filter,logger)?? new())
+             .Select(filter => CouncilChatStaticsGeneral.OllamaThinkingChatClientToOllamaMessage(filter,logger)?? new())
              .Where(message => !string.IsNullOrWhiteSpace(message.Content))
              .ToList();
 
                 if (CouncilChatStringFunctions.IsHarmonyModel(model,logger))
-                    AddHarmonyResponseProtocol(ollamaMessages,logger);
+                    CouncilChatStaticsGeneral.OllamaThinkingChatClientAddHarmonyResponseProtocol(ollamaMessages,logger);
 
                 return ollamaMessages;
             }
@@ -331,49 +262,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static void AddHarmonyResponseProtocol(List<OllamaChatMessage> messages, ILogger logger)
-        {
-            try
-            {
-                if (messages.Count > 0 &&
-          messages[0].Role.Equals("system", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!messages[0].Content.Contains(HarmonyResponseProtocol, StringComparison.Ordinal))
-                        messages[0].Content = $"{HarmonyResponseProtocol}\n\n{messages[0].Content}";
-
-                    return;
-                }
-
-                messages.Insert(0, new OllamaChatMessage
-                {
-                    Role = "system",
-                    Content = HarmonyResponseProtocol
-                });
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in AddHarmonyResponseProtocol messages {messages.ToString()}");
-            }
-        }
-
-        private static OllamaChatMessage? ToOllamaMessage(ChatMessage message, ILogger logger)
-        {
-            try
-            {
-                return new OllamaChatMessage
-                {
-                    Role = message.Role == ChatRole.System ? "system"
-                      : message.Role == ChatRole.Assistant ? "assistant"
-                      : "user",
-                    Content = message.Text
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ToOllamaMessage message {message.ToString()}");
-                return null;
-            }
-        }
+  
 
         public List<AIContent>? CreateContents(OllamaChatResponse response)
         {

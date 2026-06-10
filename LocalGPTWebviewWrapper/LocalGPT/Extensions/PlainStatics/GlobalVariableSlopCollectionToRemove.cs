@@ -11,7 +11,15 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
-
+        public const string DefaultOllamaUri = "http://localhost:11434";
+        public const int MaxParticipants = 100;
+        public const int DefaultMaxParallelModels = 1;
+        public const int DefaultHeavyModelGpuLayers = 20;
+        public const int MinContextTokens = 2048;
+        public const int DefaultContextTokens = 32768;
+        public const int MaxContextTokens = 262144;
+        public const int MinOutputTokens = 64;
+        public const int MaxOutputTokens = 262144;
         [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         public static partial Regex ThinkingBlockPattern();
 
