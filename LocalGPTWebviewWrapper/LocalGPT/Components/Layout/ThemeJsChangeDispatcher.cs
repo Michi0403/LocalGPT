@@ -14,13 +14,24 @@ namespace LocalGPT.Components.Layout
         [Inject]
         private ISafeJSRuntime? JsRuntime { get; set; }
         [Inject]
-        private ThemeService Themes { get; set; } = new ThemeService();
+        private ThemeService Themes { get; set; }
         [Inject]
         private ILogger<ThemeJsChangeDispatcher> Logger { get; set; } = default!;
 
         private Theme? _pendingTheme;
         private IJSObjectReference? _module;
         private bool disposedValue;
+        public ThemeJsChangeDispatcher(string initialThemeName, ISafeJSRuntime? jsRuntime, ThemeService themes, ILogger<ThemeJsChangeDispatcher> logger, Theme? pendingTheme, IJSObjectReference? module, bool disposedValue)
+        {
+            InitialThemeName = initialThemeName;
+            JsRuntime = jsRuntime;
+            Themes = themes;
+            Logger = logger;
+            _pendingTheme = pendingTheme;
+            _module = module;
+            this.disposedValue = disposedValue;
+        }
+
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             try

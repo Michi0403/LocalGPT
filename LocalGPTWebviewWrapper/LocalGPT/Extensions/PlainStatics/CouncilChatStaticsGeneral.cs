@@ -6,6 +6,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
+using System.Drawing;
 using System.IO.Compression;
 using System.Net;
 using System.Security.AccessControl;
@@ -20,6 +21,148 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
+        public static CommandPolicyDecision? CommandPolicyDecisionAllow(string profile, string reason, ILogger logger)
+        {
+            try
+            {
+                return new(true, "Allowed", reason, profile);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CommandPolicyDecisionAllow profile {profile.ToString()} reason {reason.ToString()}");
+                return null;
+            }
+        }
+        public static CommandPolicyDecision? CommandPolicyDecisionDenied(string reason, ILogger logger)
+        {
+            try
+            {
+                return new(false, "Denied", reason, "Denied");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CommandPolicyDecisionDenied profile {reason}");
+                return null;
+            }
+        }
+
+        public static async Task AppendDevExpressImportsAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                var importsPath = Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "Components", "_Imports.razor");
+                if (!File.Exists(importsPath))
+                    return;
+
+                var text = await File.ReadAllTextAsync(importsPath, cancellationToken);
+                var imports = GlobalVariableSlopCollectionToRemove.DevExpressImportPattern()
+                    .Matches(text)
+                    .Select(match => match.Groups["namespace"].Value.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(value => value)
+                    .ToList();
+
+                if (imports.Count == 0)
+                    return;
+
+                builder.AppendLine("- Imported DevExpress namespaces in Blazor:");
+                foreach (var item in imports)
+                    builder.AppendLine($"  - {item}");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AppendDevExpressImportsAsync builder {builder.ToString()} root {root.ToString()}");
+            }
+
+        }
+
+        public static async Task AppendDevExpressRegistrationsAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                var programPath = Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "Program.cs");
+                if (!File.Exists(programPath))
+                    return;
+
+                var text = await File.ReadAllTextAsync(programPath, cancellationToken);
+                var registrations = GlobalVariableSlopCollectionToRemove.DevExpressRegistrationPattern()
+                    .Matches(text)
+                    .Select(match => match.Value.TrimEnd('('))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(value => value)
+                    .ToList();
+
+                if (registrations.Count == 0)
+                    return;
+
+                builder.AppendLine("- DevExpress services registered in ASP.NET Core:");
+                foreach (var registration in registrations)
+                    builder.AppendLine($"  - {registration}");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AppendDevExpressRegistrationsAsync builder {builder.ToString()} root {root.ToString()}");
+            }
+            
+        }
+
+        public static void AppendLoadedDevExpressAssemblies(StringBuilder builder, ILogger logger)
+        {
+            try
+            {
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+                .Select(assembly => assembly.GetName())
+                .Where(name => name.Name?.StartsWith("DevExpress.", StringComparison.OrdinalIgnoreCase) == true)
+                .OrderBy(name => name.Name)
+                .Take(30)
+                .ToList();
+
+                if (assemblies.Count == 0)
+                    return;
+
+                builder.AppendLine("- Loaded DevExpress assemblies:");
+                foreach (var assembly in assemblies)
+                    builder.AppendLine($"  - {assembly.Name} {assembly.Version}");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AppendLoadedDevExpressAssemblies builder {builder.ToString()}");
+            }
+            
+        }
+
+        public static string? FindRepositoryRoot(ILogger logger)
+        {
+            try
+            {
+                foreach (var start in new[]
+            {
+                Directory.GetCurrentDirectory(),
+                AppContext.BaseDirectory
+            })
+                {
+                    var directory = new DirectoryInfo(start);
+                    while (directory is not null)
+                    {
+                        if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md")) ||
+                            Directory.Exists(Path.Combine(directory.FullName, ".git")))
+                        {
+                            return directory.FullName;
+                        }
+
+                        directory = directory.Parent;
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FindRepositoryRoot");
+                return null;
+            }
+            
+        }
         public static byte[] CreateChatUploadSmokeZip( ILogger logger)
         {
             try

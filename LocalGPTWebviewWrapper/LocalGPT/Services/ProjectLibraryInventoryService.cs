@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services
@@ -9,19 +10,19 @@ namespace LocalGPT.Services
     {
         public async Task<string> BuildDevExpressBriefingAsync(CancellationToken cancellationToken = default)
         {
-            var root = FindRepositoryRoot();
+            var root = CouncilChatStaticsGeneral.FindRepositoryRoot(logger);
             var builder = new StringBuilder()
                 .AppendLine("DevExpress package and capability inventory for LocalGPT:");
 
             var wroteSourceInventory = false;
             if (root is not null)
             {
-                wroteSourceInventory = await AppendProjectPackageReferencesAsync(builder, root, cancellationToken);
-                await AppendDevExpressImportsAsync(builder, root, cancellationToken);
-                await AppendDevExpressRegistrationsAsync(builder, root, cancellationToken);
+                wroteSourceInventory = await AppendProjectPackageReferencesAsync(builder, root, cancellationToken, logger);
+                await CouncilChatStaticsGeneral.AppendDevExpressImportsAsync(builder, root, cancellationToken, logger);
+                await CouncilChatStaticsGeneral.AppendDevExpressRegistrationsAsync(builder, root, cancellationToken, logger);
             }
 
-            AppendLoadedDevExpressAssemblies(builder);
+            CouncilChatStaticsGeneral.AppendLoadedDevExpressAssemblies(builder, logger);
             if (!wroteSourceInventory)
                 builder.AppendLine("- Source `LocalGPT.csproj` was not found from this runtime location; use loaded assemblies and copied AI docs as fallback evidence.");
 
@@ -32,7 +33,7 @@ namespace LocalGPT.Services
             return builder.ToString().Trim();
         }
 
-        private async Task<bool> AppendProjectPackageReferencesAsync(StringBuilder builder, string root, CancellationToken cancellationToken)
+        private async Task<bool> AppendProjectPackageReferencesAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
         {
             var projectPath = Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "LocalGPT.csproj");
             if (!File.Exists(projectPath))
@@ -71,95 +72,5 @@ namespace LocalGPT.Services
             }
         }
 
-        private static async Task AppendDevExpressImportsAsync(StringBuilder builder, string root, CancellationToken cancellationToken)
-        {
-            var importsPath = Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "Components", "_Imports.razor");
-            if (!File.Exists(importsPath))
-                return;
-
-            var text = await File.ReadAllTextAsync(importsPath, cancellationToken);
-            var imports = DevExpressImportPattern()
-                .Matches(text)
-                .Select(match => match.Groups["namespace"].Value.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(value => value)
-                .ToList();
-
-            if (imports.Count == 0)
-                return;
-
-            builder.AppendLine("- Imported DevExpress namespaces in Blazor:");
-            foreach (var item in imports)
-                builder.AppendLine($"  - {item}");
-        }
-
-        private static async Task AppendDevExpressRegistrationsAsync(StringBuilder builder, string root, CancellationToken cancellationToken)
-        {
-            var programPath = Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "Program.cs");
-            if (!File.Exists(programPath))
-                return;
-
-            var text = await File.ReadAllTextAsync(programPath, cancellationToken);
-            var registrations = DevExpressRegistrationPattern()
-                .Matches(text)
-                .Select(match => match.Value.TrimEnd('('))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(value => value)
-                .ToList();
-
-            if (registrations.Count == 0)
-                return;
-
-            builder.AppendLine("- DevExpress services registered in ASP.NET Core:");
-            foreach (var registration in registrations)
-                builder.AppendLine($"  - {registration}");
-        }
-
-        private static void AppendLoadedDevExpressAssemblies(StringBuilder builder)
-        {
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Select(assembly => assembly.GetName())
-                .Where(name => name.Name?.StartsWith("DevExpress.", StringComparison.OrdinalIgnoreCase) == true)
-                .OrderBy(name => name.Name)
-                .Take(30)
-                .ToList();
-
-            if (assemblies.Count == 0)
-                return;
-
-            builder.AppendLine("- Loaded DevExpress assemblies:");
-            foreach (var assembly in assemblies)
-                builder.AppendLine($"  - {assembly.Name} {assembly.Version}");
-        }
-
-        private static string? FindRepositoryRoot()
-        {
-            foreach (var start in new[]
-            {
-                Directory.GetCurrentDirectory(),
-                AppContext.BaseDirectory
-            })
-            {
-                var directory = new DirectoryInfo(start);
-                while (directory is not null)
-                {
-                    if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md")) ||
-                        Directory.Exists(Path.Combine(directory.FullName, ".git")))
-                    {
-                        return directory.FullName;
-                    }
-
-                    directory = directory.Parent;
-                }
-            }
-
-            return null;
-        }
-
-        [GeneratedRegex("^\\s*@using\\s+(?<namespace>DevExpress(?:\\.[A-Za-z0-9_]+)+)", RegexOptions.Multiline | RegexOptions.CultureInvariant)]
-        private static partial Regex DevExpressImportPattern();
-
-        [GeneratedRegex("AddDevExpress[A-Za-z0-9_]*\\(", RegexOptions.CultureInvariant)]
-        private static partial Regex DevExpressRegistrationPattern();
     }
 }

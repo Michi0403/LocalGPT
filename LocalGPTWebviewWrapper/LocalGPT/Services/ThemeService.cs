@@ -21,63 +21,112 @@ namespace LocalGPT.Services
         public List<ThemeSet> ThemeSets { get; }
         public IThemeChangeRequestDispatcher? ThemeChangeRequestDispatcher { get; set; }
         public IThemeLoadNotifier? ThemeLoadNotifier { get; set; }
-
-        public ThemeService()
+        private readonly ILogger<ThemeService> logger;
+        public ThemeService(ILogger<ThemeService> logger)
         {
-            ThemeSets = CreateSets(this);
+            logger = this.logger;
+            ThemeSets = CreateSets(this, logger);
 
             ActiveTheme = defaultTheme = FindThemeByName(DEFAULT_THEME_NAME)!;
         }
 
         public string GetThemeCssUrl(Theme theme)
         {
-            ArgumentNullException.ThrowIfNull(theme);
-            if (Array.IndexOf(NEW_BLAZOR_THEMES, theme.Name) > -1)
-                return $"_content/DevExpress.Blazor.Themes/{theme.Name}.bs5.min.css";
-            return $"_content/DevExpress.Blazor.Themes/bootstrap-external.bs5.min.css";
+            try
+            {
+                ArgumentNullException.ThrowIfNull(theme);
+                if (Array.IndexOf(NEW_BLAZOR_THEMES, theme.Name) > -1)
+                    return $"_content/DevExpress.Blazor.Themes/{theme.Name}.bs5.min.css";
+                return $"_content/DevExpress.Blazor.Themes/bootstrap-external.bs5.min.css";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetThemeCssUrl theme {theme.ToString()}");
+                return string.Empty;
+            }
         }
         public string GetBootstrapThemeCssUrl(Theme theme)
         {
-            ArgumentNullException.ThrowIfNull(theme);
-            return theme.IsBootstrapNative ? $"switcher-resources/css/themes/{theme.ThemePath}/bootstrap.min.css"
-            : string.Empty;
-
+            try
+            {
+                ArgumentNullException.ThrowIfNull(theme);
+                return theme.IsBootstrapNative ? $"switcher-resources/css/themes/{theme.ThemePath}/bootstrap.min.css"
+                : string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetBootstrapThemeCssUrl theme {theme.ToString()}");
+                return string.Empty;
+            }
         }
         public string GetHighlightJSThemeCssUrl(Theme theme)
         {
-            ArgumentNullException.ThrowIfNull(theme);
-            var highlightjsTheme = HIGHLIGHT_JS_THEME[DEFAULT_THEME_NAME];
+            try
+            {
+                ArgumentNullException.ThrowIfNull(theme);
+                var highlightjsTheme = HIGHLIGHT_JS_THEME[DEFAULT_THEME_NAME];
 
-            if (HIGHLIGHT_JS_THEME.TryGetValue(theme.Name, out var value))
-                highlightjsTheme = value;
-            return
-                $"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/{highlightjsTheme}.min.css";
+                if (HIGHLIGHT_JS_THEME.TryGetValue(theme.Name, out var value))
+                    highlightjsTheme = value;
+                return
+                    $"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/{highlightjsTheme}.min.css";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetHighlightJSThemeCssUrl theme {theme.ToString()}");
+                return string.Empty;
+            }
         }
         public void SetActiveThemeByName(string? themeName)
         {
-            ActiveTheme = FindThemeByName(themeName) ?? defaultTheme;
+            try
+            {
+                ActiveTheme = FindThemeByName(themeName) ?? defaultTheme;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SetActiveThemeByName themeName {themeName.ToString()}");
+            }
+         
         }
 
         private Theme? FindThemeByName(string? themeName)
         {
-            if (string.IsNullOrWhiteSpace(themeName))
-                return null;
-            var themes = ThemeSets.SelectMany(ts => ts.Themes);
-
-            foreach (var theme in themes)
+            try
             {
-                if (theme.Name.ToLower() == themeName.ToLower())
-                    return theme;
+                if (string.IsNullOrWhiteSpace(themeName))
+                    return null;
+                var themes = ThemeSets.SelectMany(ts => ts.Themes);
+
+                foreach (var theme in themes)
+                {
+                    if (theme.Name.ToLower() == themeName.ToLower())
+                        return theme;
+                }
+                return null;
             }
-            return null;
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FindThemeByName themeName {themeName.ToString()}");
+                return null;
+            }
         }
 
-        private static List<ThemeSet> CreateSets(ThemeService config)
+        private static List<ThemeSet> CreateSets(ThemeService config, ILogger logger)
         {
-            return new List<ThemeSet>() {
+            try
+            {
+                return new List<ThemeSet>() {
                 new("DevExpress Themes", NEW_BLAZOR_THEMES),
                 new("Bootstrap Themes", "default", "default-dark", "cerulean", "cyborg", "flatly", "journal", "litera", "lumen", "lux", "pulse", "simplex", "solar", "superhero", "united", "yeti"),
             };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateSets config {config.ToString()}");
+                return new();
+            }
+           
         }
     }
 

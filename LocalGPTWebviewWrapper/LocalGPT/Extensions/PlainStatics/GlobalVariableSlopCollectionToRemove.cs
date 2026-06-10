@@ -11,9 +11,14 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public sealed record CommandPolicyDecision(bool Allowed, string Decision, string Reason, string Profile);
         public const int ProbeCommandTimeoutSeconds = 5;
         public static readonly string[] SidecarSuffixes = ["", "-wal", "-shm"];
+        [GeneratedRegex("^\\s*@using\\s+(?<namespace>DevExpress(?:\\.[A-Za-z0-9_]+)+)", RegexOptions.Multiline | RegexOptions.CultureInvariant)]
+        public static partial Regex DevExpressImportPattern();
 
+        [GeneratedRegex("AddDevExpress[A-Za-z0-9_]*\\(", RegexOptions.CultureInvariant)]
+        public static partial Regex DevExpressRegistrationPattern();
         public static readonly HashSet<string> ArtifactTextExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".cs",

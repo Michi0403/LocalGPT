@@ -1,6 +1,6 @@
 using System.Web;
 
-namespace LocalGPT.Services
+namespace LocalGPT.Extensions.PlainStatics
 {
     public static class UrlGenerator
     {

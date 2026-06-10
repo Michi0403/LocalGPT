@@ -2,6 +2,7 @@
 using LocalGPT.BusinessObjects.EFCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -11,6 +12,291 @@ namespace LocalGPT.Extensions.PlainStatics
     public static class SQLLiteFunctions
     {
 
+        public static bool IsPowerShell(string executable, ILogger logger)
+        {
+            try
+            {
+                return executable.Equals("powershell.exe", StringComparison.OrdinalIgnoreCase) ||
+                executable.Equals("pwsh.exe", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsPowerShell executable {executable}");
+                return false;
+            }
+        }
+
+        public static bool IsGradle(string executable, ILogger logger)
+        {
+            try
+            {
+                return executable.Equals("gradle", StringComparison.OrdinalIgnoreCase) ||
+                executable.Equals("gradle.bat", StringComparison.OrdinalIgnoreCase) ||
+                executable.Equals("gradlew", StringComparison.OrdinalIgnoreCase) ||
+                executable.Equals("gradlew.bat", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsPowerShell executable {executable}");
+                return false;
+            }
+        }
+
+        public static string ClassifyCommandProfile(string executable, string arguments, ILogger logger)
+        {
+            try
+            {
+                if (IsGradle(executable, logger))
+                {
+                    return arguments.Contains("runClient", StringComparison.OrdinalIgnoreCase)
+                        ? "GradleRunClient"
+                        : "GradleBuildOnly";
+                }
+
+                if (executable.Equals("java", StringComparison.OrdinalIgnoreCase) ||
+                    executable.Equals("java.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    var normalized = arguments.Trim();
+                    return normalized.Equals("-version", StringComparison.OrdinalIgnoreCase) ||
+                        normalized.Equals("--version", StringComparison.OrdinalIgnoreCase)
+                        ? "JavaVersionOnly"
+                        : "JavaAllowlistedCommand";
+                }
+
+                return "CustomAllowlistedCommand";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ClassifyCommandProfile executable {executable} arguments {arguments}");
+                return string.Empty;
+            }
+        }
+
+        public static bool ContainsPathSegment(string fileName, ILogger logger)
+        {
+            try
+            {
+                return fileName.Contains(Path.DirectorySeparatorChar) ||
+               fileName.Contains(Path.AltDirectorySeparatorChar);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ClassifyCommandProfile fileName {fileName}");
+                return false;
+            }
+
+        }
+
+        public static string SanitizeFileName(string value, ILogger logger)
+        {
+            try
+            {
+                var invalid = Path.GetInvalidFileNameChars();
+                var safe = new string(value.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray()).Trim();
+                return string.IsNullOrWhiteSpace(safe) ? "command" : safe;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SanitizeFileName value {value}");
+                return string.Empty;
+            }
+        }
+        public static async Task EnsureValidTableAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(tableName))
+                    throw new InvalidOperationException("Select a table first.");
+
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'table'
+                  AND name = $name
+                  AND name NOT LIKE 'sqlite_%';
+                """;
+                command.Parameters.AddWithValue("$name", tableName);
+                var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+                if (count == 0)
+                    throw new InvalidOperationException($"SQLite table '{tableName}' was not found or is not editable.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in EnsureValidTableAsync connection {connection.ToString()} tableName {tableName}");
+            }
+        }
+
+        public static async Task<List<SqliteColumnSummary>> GetColumnsAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                await EnsureValidTableAsync(connection, tableName, cancellationToken, logger);
+
+                await using var command = connection.CreateCommand();
+                command.CommandText = $"PRAGMA table_info({QuoteIdentifier(tableName, logger)});";
+
+                var columns = new List<SqliteColumnSummary>();
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    var nameOrdinal = reader.GetOrdinal("name");
+                    var typeOrdinal = reader.GetOrdinal("type");
+                    var notNullOrdinal = reader.GetOrdinal("notnull");
+                    var primaryKeyOrdinal = reader.GetOrdinal("pk");
+                    var defaultValueOrdinal = reader.GetOrdinal("dflt_value");
+
+                    columns.Add(new SqliteColumnSummary(
+                        reader.GetString(nameOrdinal),
+                        reader.IsDBNull(typeOrdinal) ? string.Empty : reader.GetString(typeOrdinal),
+                        reader.GetInt64(notNullOrdinal) != 0,
+                        reader.GetInt64(primaryKeyOrdinal) != 0,
+                        reader.IsDBNull(defaultValueOrdinal) ? null : reader.GetString(defaultValueOrdinal)));
+                }
+
+                return columns;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetColumnsAsync connection {connection.ToString()} tableName {tableName}");
+                return new();
+            }
+        }
+
+        public static async Task<long> GetRowCountAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                await EnsureValidTableAsync(connection, tableName, cancellationToken, logger);
+
+                await using var command = connection.CreateCommand();
+                command.CommandText = $"SELECT COUNT(*) FROM {QuoteIdentifier(tableName, logger)};";
+                return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetRowCountAsync connection {connection.ToString()} tableName {tableName}");
+                return -1;
+            }
+        }
+
+        public static object? ToSqliteValue(string? value, ILogger logger)
+        {
+            try
+            {
+                return value is null ? DBNull.Value : value;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToSqliteValue value {value.ToString()}");
+                return null;
+            }
+
+        }
+
+        public static void ValidateRequiredColumnUpdates(
+            IReadOnlyList<SqliteColumnSummary> columns,
+            IReadOnlyList<SqliteCellUpdate> updates, ILogger logger)
+        {
+            try
+            {
+                var requiredColumns = columns
+                .Where(filter => IsRequiredEditableColumn(filter, logger))
+                .Select(column => column.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var nullAssignments = updates
+                    .Where(update => requiredColumns.Contains(update.ColumnName) && update.Value is null)
+                    .Select(update => update.ColumnName)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (nullAssignments.Count > 0)
+                    throw new InvalidOperationException($"SQLite update blocked: required column(s) cannot be set to NULL: {string.Join(", ", nullAssignments)}.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ValidateRequiredColumnUpdates columns {columns.ToString()} updates {updates.ToString()}");
+            }
+
+        }
+
+        public static void ValidateRequiredInsertColumns(
+            IReadOnlyList<SqliteColumnSummary> columns,
+            IReadOnlyList<KeyValuePair<string, string?>> values, ILogger logger)
+        {
+            try
+            {
+                var providedColumns = values
+               .Where(pair => pair.Value is not null)
+               .Select(pair => pair.Key)
+               .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var missingColumns = columns
+                    .Where(filter => IsRequiredEditableColumn(filter, logger))
+                    .Where(column => !providedColumns.Contains(column.Name))
+                    .Select(column => column.Name)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (missingColumns.Count > 0)
+                    throw new InvalidOperationException($"SQLite insert blocked: required column(s) need a value first: {string.Join(", ", missingColumns)}.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ValidateRequiredInsertColumns columns {columns.ToString()} values {values.ToString()}");
+            }
+        }
+
+        public static bool IsRequiredEditableColumn(SqliteColumnSummary column, ILogger logger)
+        {
+            try
+            {
+                return column.IsNotNull &&
+             !column.IsPrimaryKey &&
+             string.IsNullOrWhiteSpace(column.DefaultValue);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsRequiredEditableColumn column {column.ToString()}");
+                return false;
+            }
+        }
+
+
+        public static string CreateSqliteEditError(string operation, string tableName, SqliteException exception, ILogger logger)
+        {
+            try
+            {
+                return $"SQLite {operation} failed for table '{tableName}'. Check required fields, foreign keys, and value types. SQLite said: {exception.SqliteErrorCode} {exception.Message}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateSqliteEditError operation {operation.ToString()} tableName {tableName.ToString()} exception {exception.ToString()}");
+                return string.Empty;
+            }
+        }
+
+        public static string QuoteIdentifier(string identifier, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(identifier))
+                    throw new InvalidOperationException("SQLite identifier cannot be empty.");
+
+                var builder = new StringBuilder(identifier.Length + 2);
+                builder.Append('"');
+                builder.Append(identifier.Replace("\"", "\"\"", StringComparison.Ordinal));
+                builder.Append('"');
+                return builder.ToString();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in QuoteIdentifier identifier {identifier.ToString()}");
+                return string.Empty;
+            }
+        }
         public static string ComputeSourceHash(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try

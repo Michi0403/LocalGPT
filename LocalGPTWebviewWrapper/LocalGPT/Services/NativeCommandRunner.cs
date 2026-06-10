@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
 
 namespace LocalGPT.Services
 {
@@ -126,24 +127,24 @@ namespace LocalGPT.Services
             {
                 var executable = Path.GetFileName(fileName.Trim());
                 if (!AllowedExecutables.Contains(executable))
-                    return CommandPolicyDecision.Denied(
-                        $"Executable '{executable}' is not allowed by LocalGPT native command policy.");
+                    return CouncilChatStaticsGeneral.CommandPolicyDecisionDenied(
+                        $"Executable '{executable}' is not allowed by LocalGPT native command policy.", logger);
 
-                if (ContainsPathSegment(fileName, logger))
+                if (SQLLiteFunctions.ContainsPathSegment(fileName, logger))
                 {
                     var executablePath = Path.GetFullPath(Path.Combine(workingDirectory, fileName));
                     if (!workspaceService.IsPathInsideWorkspaceRoot(executablePath))
-                        return CommandPolicyDecision.Denied(
-                            "Executable paths must stay inside the LocalGPT Minecraft workspace root.");
+                        return CouncilChatStaticsGeneral.CommandPolicyDecisionDenied(
+                            "Executable paths must stay inside the LocalGPT Minecraft workspace root.", logger);
                 }
 
-                if (IsPowerShell(executable, logger))
+                if (SQLLiteFunctions.IsPowerShell(executable, logger))
                     return ValidatePowerShellPolicy(arguments, workingDirectory) ?? null;
 
-                var profile = ClassifyCommandProfile(executable, arguments, logger);
-                return CommandPolicyDecision.Allow(
+                var profile = SQLLiteFunctions.ClassifyCommandProfile(executable, arguments, logger);
+                return CouncilChatStaticsGeneral.CommandPolicyDecisionAllow(
                     profile,
-                    $"Profile '{profile}' selected for allowlisted executable '{executable}'.");
+                    $"Profile '{profile}' selected for allowlisted executable '{executable}'.", logger);
             }
             catch (Exception ex)
             {
@@ -158,27 +159,27 @@ namespace LocalGPT.Services
             try
             {
                 if (Regex.IsMatch(arguments, @"(?i)(^|\s)-EncodedCommand(\s|$)|(^|\s)-Command(\s|$)|(^|\s)-c(\s|$)"))
-                    return CommandPolicyDecision.Denied(
-                        "PowerShell inline commands are blocked; use -File with a workspace script.");
+                    return CouncilChatStaticsGeneral.CommandPolicyDecisionDenied(
+                        "PowerShell inline commands are blocked; use -File with a workspace script.", logger);
 
                 var match = Regex.Match(arguments, @"(?i)(^|\s)-File\s+(?:""(?<path>[^""]+)""|'(?<path>[^']+)'|(?<path>\S+))");
                 if (!match.Success)
-                    return CommandPolicyDecision.Denied("PowerShell commands must use -File with a workspace script.");
+                    return CouncilChatStaticsGeneral.CommandPolicyDecisionDenied("PowerShell commands must use -File with a workspace script.", logger);
 
                 var scriptPath = match.Groups["path"].Value;
                 if (!scriptPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
-                    return CommandPolicyDecision.Denied("PowerShell -File must target a .ps1 script.");
+                    return CouncilChatStaticsGeneral.CommandPolicyDecisionDenied("PowerShell -File must target a .ps1 script.", logger);
 
                 var fullScriptPath = Path.GetFullPath(Path.Combine(workingDirectory, scriptPath));
                 if (!workspaceService.IsPathInsideWorkspaceRoot(fullScriptPath))
-                    return CommandPolicyDecision.Denied("PowerShell script paths must stay inside the LocalGPT Minecraft workspace root.");
+                    return CouncilChatStaticsGeneral.CommandPolicyDecisionDenied("PowerShell script paths must stay inside the LocalGPT Minecraft workspace root.", logger);
 
                 if (!File.Exists(fullScriptPath))
-                    return CommandPolicyDecision.Denied($"PowerShell script does not exist: {fullScriptPath}");
+                    return CouncilChatStaticsGeneral.CommandPolicyDecisionDenied($"PowerShell script does not exist: {fullScriptPath}", logger);
 
-                return CommandPolicyDecision.Allow(
+                return CouncilChatStaticsGeneral.CommandPolicyDecisionAllow(
                     "PowerShellWorkspaceScript",
-                    "PowerShell -File script is inside the LocalGPT Minecraft workspace root.");
+                    "PowerShell -File script is inside the LocalGPT Minecraft workspace root.", logger);
             }
             catch (Exception ex)
             {
@@ -200,7 +201,7 @@ namespace LocalGPT.Services
                 var logDirectory = Path.Combine(workingDirectory, ".localgpt", "command-logs");
                 Directory.CreateDirectory(logDirectory);
 
-                var safeName = SanitizeFileName(Path.GetFileNameWithoutExtension(fileName), logger);
+                var safeName = SQLLiteFunctions.SanitizeFileName(Path.GetFileNameWithoutExtension(fileName), logger);
                 var stamp = startedAt.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
                 var stdoutPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stdout.txt");
                 var stderrPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stderr.txt");
@@ -254,105 +255,6 @@ namespace LocalGPT.Services
                 logger.LogError(ex, $"Error in ValidatePowerShellPolicy fileName {fileName} arguments {arguments} workingDirectory {workingDirectory.ToString()} startedAt {startedAt.ToString()} completedAt {completedAt.ToString()} exitCode {exitCode.ToString()} stdoutPath {stdoutPath.ToString()} stderrPath {stderrPath.ToString()} policy.Decision {policy.Decision.ToString()} policy.Reason {policy.Reason.ToString()}");
          
             }
-        }
-
-        public static bool IsPowerShell(string executable, ILogger logger)
-        {
-            try
-            {
-                return executable.Equals("powershell.exe", StringComparison.OrdinalIgnoreCase) ||
-                executable.Equals("pwsh.exe", StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsPowerShell executable {executable}");
-                return false;
-            }
-        }
-
-        public static bool IsGradle(string executable, ILogger logger)
-        {
-            try
-            {
-                return executable.Equals("gradle", StringComparison.OrdinalIgnoreCase) ||
-                executable.Equals("gradle.bat", StringComparison.OrdinalIgnoreCase) ||
-                executable.Equals("gradlew", StringComparison.OrdinalIgnoreCase) ||
-                executable.Equals("gradlew.bat", StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsPowerShell executable {executable}");
-                return false;
-            }
-        }
-
-        public static string ClassifyCommandProfile(string executable, string arguments, ILogger logger)
-        {
-            try
-            {
-                if (IsGradle(executable, logger))
-                {
-                    return arguments.Contains("runClient", StringComparison.OrdinalIgnoreCase)
-                        ? "GradleRunClient"
-                        : "GradleBuildOnly";
-                }
-
-                if (executable.Equals("java", StringComparison.OrdinalIgnoreCase) ||
-                    executable.Equals("java.exe", StringComparison.OrdinalIgnoreCase))
-                {
-                    var normalized = arguments.Trim();
-                    return normalized.Equals("-version", StringComparison.OrdinalIgnoreCase) ||
-                        normalized.Equals("--version", StringComparison.OrdinalIgnoreCase)
-                        ? "JavaVersionOnly"
-                        : "JavaAllowlistedCommand";
-                }
-
-                return "CustomAllowlistedCommand";
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ClassifyCommandProfile executable {executable} arguments {arguments}");
-                return string.Empty;
-            }
-        }
-
-        public static bool ContainsPathSegment(string fileName, ILogger logger)
-        {
-            try
-            {
-                return fileName.Contains(Path.DirectorySeparatorChar) ||
-               fileName.Contains(Path.AltDirectorySeparatorChar);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ClassifyCommandProfile fileName {fileName}");
-                return false;
-            }
-           
-        }
-
-        public static string SanitizeFileName(string value, ILogger logger)
-        {
-            try
-            {
-                var invalid = Path.GetInvalidFileNameChars();
-                var safe = new string(value.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray()).Trim();
-                return string.IsNullOrWhiteSpace(safe) ? "command" : safe;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in SanitizeFileName value {value}");
-                return string.Empty;
-            }
-        }
-
-        public sealed record CommandPolicyDecision(bool Allowed, string Decision, string Reason, string Profile)
-        {
-            public static CommandPolicyDecision Allow(string profile, string reason) =>
-                new(true, "Allowed", reason, profile);
-
-            public static CommandPolicyDecision Denied(string reason) =>
-                new(false, "Denied", reason, "Denied");
         }
     }
 }
