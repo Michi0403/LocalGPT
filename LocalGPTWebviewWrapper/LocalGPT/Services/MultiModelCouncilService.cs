@@ -1,5 +1,6 @@
 using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.Charts.Native;
+using DevExpress.XtraRichEdit;
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
@@ -12,6 +13,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 
 namespace LocalGPT.Services
 {
@@ -35,136 +37,120 @@ namespace LocalGPT.Services
 
         public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
         {
-            var providers = GetConfiguredOllamaProviders().ToList();
-            if (providers.Count == 0)
-                providers.Add(new OllamaCoreOptions { Uri = DefaultOllamaUri, ModelName = "gpt-oss:20b" });
-
-            var candidates = new Dictionary<string, MultiModelCouncilModelCandidate>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var provider in providers)
+            try
             {
-                var endpoint = NormalizeEndpoint(provider.Uri);
-                var configuredName = provider.ModelName.Trim();
-                if (!string.IsNullOrWhiteSpace(configuredName))
-                {
-                    candidates[$"{endpoint}|{configuredName}"] = new MultiModelCouncilModelCandidate(
-                        configuredName,
-                        "Configured Ollama",
-                        endpoint,
-                        IsInstalled: false,
-                        IsConfigured: true,
-                        IsLoaded: false,
-                        Details: null);
-                }
+                var providers = GetConfiguredOllamaProviders().ToList();
+                if (providers.Count == 0)
+                    providers.Add(new OllamaCoreOptions { Uri = DefaultOllamaUri, ModelName = "gpt-oss:20b" });
 
-                foreach (var installed in await ProbeOllamaModelsAsync(endpoint, cancellationToken))
+                var candidates = new Dictionary<string, MultiModelCouncilModelCandidate>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var provider in providers)
                 {
-                    var key = $"{endpoint}|{installed.ModelName}";
-                    var isConfigured = candidates.TryGetValue(key, out var existing) && existing.IsConfigured;
-                    candidates[key] = installed with
+                    var endpoint = NormalizeEndpoint(provider.Uri);
+                    var configuredName = provider.ModelName.Trim();
+                    if (!string.IsNullOrWhiteSpace(configuredName))
                     {
-                        Provider = isConfigured ? "Configured Ollama" : installed.Provider,
-                        IsConfigured = isConfigured
-                    };
-                }
-            }
+                        candidates[$"{endpoint}|{configuredName}"] = new MultiModelCouncilModelCandidate(
+                            configuredName,
+                            "Configured Ollama",
+                            endpoint,
+                            IsInstalled: false,
+                            IsConfigured: true,
+                            IsLoaded: false,
+                            Details: null);
+                    }
 
-            return candidates.Values
-                .OrderByDescending(candidate => candidate.IsConfigured)
-                .ThenByDescending(candidate => candidate.IsLoaded)
-                .ThenByDescending(candidate => candidate.ModelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
-                .ThenBy(candidate => candidate.ModelName)
-                .ToList();
+                    foreach (var installed in await ProbeOllamaModelsAsync(endpoint, cancellationToken))
+                    {
+                        var key = $"{endpoint}|{installed.ModelName}";
+                        var isConfigured = candidates.TryGetValue(key, out var existing) && existing.IsConfigured;
+                        candidates[key] = installed with
+                        {
+                            Provider = isConfigured ? "Configured Ollama" : installed.Provider,
+                            IsConfigured = isConfigured
+                        };
+                    }
+                }
+
+                return candidates.Values
+                    .OrderByDescending(candidate => candidate.IsConfigured)
+                    .ThenByDescending(candidate => candidate.IsLoaded)
+                    .ThenByDescending(candidate => candidate.ModelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(candidate => candidate.ModelName)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetCandidatesAsync");
+                return new List<MultiModelCouncilModelCandidate>();
+            }
         }
 
-        public async Task<MultiModelCouncilResult> RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
+        public async Task<MultiModelCouncilResult?> RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(request.Prompt))
-                throw new InvalidOperationException("The council needs a prompt.");
-
-            var baseUri = NormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri);
-            var participants = SelectParticipants(request);
-            var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
-            var maxContextTokens = Math.Clamp(
-                request.MaxContextTokens <= 0 ? DefaultContextTokens : request.MaxContextTokens,
-                MinContextTokens,
-                MaxContextTokens);
-            var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
-            var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels);
-            var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
-            var result = new MultiModelCouncilResult
+            try
             {
-                Prompt = request.Prompt.Trim(),
-                ModelNames = participants,
-                StartedAtUtc = DateTime.UtcNow
-            };
-            var continuedConversation = await LoadContinuationConversationAsync(request.ContinueConversationId, cancellationToken);
-            if (request.ContinueConversationId is Guid continuationId)
-            {
-                result.ContinuedFromConversationId = continuationId;
-                result.ContinuedFromTitle = continuedConversation?.Title;
-                if (continuedConversation is null)
-                    result.Warnings.Add($"The selected council memory conversation {continuationId} could not be loaded. This run will start from general memory instead.");
-            }
+                if (string.IsNullOrWhiteSpace(request.Prompt))
+                    throw new InvalidOperationException("The council needs a prompt.");
 
-            if (participants.Count < 2)
-                result.Warnings.Add("Only one council model is selected. Add another installed Ollama model on Install or type its model name manually for real cross-model negotiation.");
-            if (participants.Count > maxParallelModels)
-                result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
-            if (request.MaxOutputTokens > 32768)
-                result.Warnings.Add("Very large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
-            if (maxContextTokens < 64000)
-                result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens. Values below 64K are quick-chat/diagnostic budgets, not valid source-generation acceptance tests.");
-            if (participants.Count > 1 && maxParallelModels == 1 && keepAlive == "0s")
-                result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
-            if (ollamaNumGpu == 0)
-                result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
-            if (ollamaNumGpu is null && participants.Any(IsHeavyGpuRiskModel))
-                result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
+                var baseUri = NormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri);
+                var participants = SelectParticipants(request);
+                var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
+                var maxContextTokens = Math.Clamp(
+                    request.MaxContextTokens <= 0 ? DefaultContextTokens : request.MaxContextTokens,
+                    MinContextTokens,
+                    MaxContextTokens);
+                var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
+                var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels);
+                var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
+                var result = new MultiModelCouncilResult
+                {
+                    Prompt = request.Prompt.Trim(),
+                    ModelNames = participants,
+                    StartedAtUtc = DateTime.UtcNow
+                };
+                var continuedConversation = await LoadContinuationConversationAsync(request.ContinueConversationId, cancellationToken);
+                if (request.ContinueConversationId is Guid continuationId)
+                {
+                    result.ContinuedFromConversationId = continuationId;
+                    result.ContinuedFromTitle = continuedConversation?.Title;
+                    if (continuedConversation is null)
+                        result.Warnings.Add($"The selected council memory conversation {continuationId} could not be loaded. This run will start from general memory instead.");
+                }
 
-            request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}.");
+                if (participants.Count < 2)
+                    result.Warnings.Add("Only one council model is selected. Add another installed Ollama model on Install or type its model name manually for real cross-model negotiation.");
+                if (participants.Count > maxParallelModels)
+                    result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
+                if (request.MaxOutputTokens > 32768)
+                    result.Warnings.Add("Very large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
+                if (maxContextTokens < 64000)
+                    result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens. Values below 64K are quick-chat/diagnostic budgets, not valid source-generation acceptance tests.");
+                if (participants.Count > 1 && maxParallelModels == 1 && keepAlive == "0s")
+                    result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
+                if (ollamaNumGpu == 0)
+                    result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
+                if (ollamaNumGpu is null && participants.Any(IsHeavyGpuRiskModel))
+                    result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
 
-            var bootstrap = request.IncludeMemory
-                ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
-                : string.Empty;
-            var continuationContext = BuildContinuationContext(continuedConversation);
-            if (!string.IsNullOrWhiteSpace(continuationContext))
-                bootstrap = AppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext);
+                request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}.");
 
-            await RunPhaseAsync(
-                result,
-                baseUri,
-                participants,
-                round: 1,
-                phase: "Proposal",
-                role: "Independent proposal",
-                promptFactory: modelName => CreateProposalPrompt(modelName, request.Prompt),
-                bootstrap,
-                request.MaxOutputTokens,
-                maxParallelModels,
-                keepAlive,
-                ollamaNumGpu,
-                maxContextTokens,
-                modelTimeoutSeconds,
-                request.ProgressMessage,
-                request.StreamUpdate,
-                request.StepCompleted,
-                cancellationToken);
+                var bootstrap = request.IncludeMemory
+                    ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
+                    : string.Empty;
+                var continuationContext = BuildContinuationContext(continuedConversation);
+                if (!string.IsNullOrWhiteSpace(continuationContext))
+                    bootstrap = AppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext);
 
-            var critiqueRounds = Math.Clamp(request.MaxRounds, 0, 3);
-            if (critiqueRounds == 0)
-                result.Warnings.Add("Low-resource council mode: critique/refinement rounds are skipped for this run.");
-            for (var round = 1; round <= critiqueRounds; round++)
-            {
-                var transcript = BuildTranscript(result.Steps);
                 await RunPhaseAsync(
                     result,
                     baseUri,
                     participants,
-                    round: round + 1,
-                    phase: round == 1 ? "Critique" : "Refinement",
-                    role: round == 1 ? "Peer correction" : "Negotiated refinement",
-                    promptFactory: modelName => CreateCritiquePrompt(modelName, request.Prompt, transcript, participants.Count == 1),
+                    round: 1,
+                    phase: "Proposal",
+                    role: "Independent proposal",
+                    promptFactory: modelName => CreateProposalPrompt(modelName, request.Prompt),
                     bootstrap,
                     request.MaxOutputTokens,
                     maxParallelModels,
@@ -176,121 +162,153 @@ namespace LocalGPT.Services
                     request.StreamUpdate,
                     request.StepCompleted,
                     cancellationToken);
-            }
 
-            if (critiqueRounds == 0 && participants.Count == 1)
-            {
-                result.FinalAnswer = result.Steps
-                    .Where(step => string.IsNullOrWhiteSpace(step.Error))
-                    .OrderByDescending(step => step.SortOrder)
-                    .Select(step => step.VisibleContent.Trim())
-                    .FirstOrDefault(content => !string.IsNullOrWhiteSpace(content))
-                    ?? "The solo low-resource council run did not return a visible answer.";
-            }
-            else
-            {
-                var finalTranscript = BuildTranscript(result.Steps);
-                var consensusStep = await RunParticipantAsync(
-                    baseUri,
-                    participants[0],
-                    participants,
-                    round: critiqueRounds + 2,
-                    phase: "Consensus",
-                    role: "Consensus writer",
-                    prompt: CreateConsensusPrompt(request.Prompt, finalTranscript),
-                    bootstrap,
-                    request.MaxOutputTokens,
-                    keepAlive,
-                    ResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu),
-                    maxContextTokens,
-                    modelTimeoutSeconds,
-                    request.StreamUpdate,
-                    cancellationToken);
-                AddOrderedStep(result, consensusStep);
-                request.StepCompleted?.Invoke(consensusStep);
-                var consensusContent = SelectConsensusContent(result, consensusStep,logger);
-
-                if (participants.Count > 1 && critiqueRounds > 0)
+                var critiqueRounds = Math.Clamp(request.MaxRounds, 0, 3);
+                if (critiqueRounds == 0)
+                    result.Warnings.Add("Low-resource council mode: critique/refinement rounds are skipped for this run.");
+                for (var round = 1; round <= critiqueRounds; round++)
                 {
-                    var verificationStep = await RunParticipantAsync(
+                    var transcript = BuildTranscript(result.Steps);
+                    await RunPhaseAsync(
+                        result,
                         baseUri,
-                        participants[1],
                         participants,
-                        round: critiqueRounds + 3,
-                        phase: "Verification",
-                        role: "Peer verifier",
-                        prompt: CreateVerificationPrompt(request.Prompt, BuildTranscript(result.Steps), consensusStep.VisibleContent),
+                        round: round + 1,
+                        phase: round == 1 ? "Critique" : "Refinement",
+                        role: round == 1 ? "Peer correction" : "Negotiated refinement",
+                        promptFactory: modelName => CreateCritiquePrompt(modelName, request.Prompt, transcript, participants.Count == 1),
+                        bootstrap,
+                        request.MaxOutputTokens,
+                        maxParallelModels,
+                        keepAlive,
+                        ollamaNumGpu,
+                        maxContextTokens,
+                        modelTimeoutSeconds,
+                        request.ProgressMessage,
+                        request.StreamUpdate,
+                        request.StepCompleted,
+                        cancellationToken);
+                }
+
+                if (critiqueRounds == 0 && participants.Count == 1)
+                {
+                    result.FinalAnswer = result.Steps
+                        .Where(step => string.IsNullOrWhiteSpace(step.Error))
+                        .OrderByDescending(step => step.SortOrder)
+                        .Select(step => step.VisibleContent.Trim())
+                        .FirstOrDefault(content => !string.IsNullOrWhiteSpace(content))
+                        ?? "The solo low-resource council run did not return a visible answer.";
+                }
+                else
+                {
+                    var finalTranscript = BuildTranscript(result.Steps);
+                    var consensusStep = await RunParticipantAsync(
+                        baseUri,
+                        participants[0],
+                        participants,
+                        round: critiqueRounds + 2,
+                        phase: "Consensus",
+                        role: "Consensus writer",
+                        prompt: CreateConsensusPrompt(request.Prompt, finalTranscript),
                         bootstrap,
                         request.MaxOutputTokens,
                         keepAlive,
-                        ResolveParticipantOllamaNumGpu(participants[1], ollamaNumGpu),
+                        ResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu),
                         maxContextTokens,
                         modelTimeoutSeconds,
                         request.StreamUpdate,
                         cancellationToken);
-                    AddOrderedStep(result, verificationStep);
-                    request.StepCompleted?.Invoke(verificationStep);
-                    result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
+                    AddOrderedStep(result, consensusStep,logger);
+                    request.StepCompleted?.Invoke(consensusStep);
+                    var consensusContent = SelectConsensusContent(result, consensusStep, logger);
+
+                    if (participants.Count > 1 && critiqueRounds > 0)
+                    {
+                        var verificationStep = await RunParticipantAsync(
+                            baseUri,
+                            participants[1],
+                            participants,
+                            round: critiqueRounds + 3,
+                            phase: "Verification",
+                            role: "Peer verifier",
+                            prompt: CreateVerificationPrompt(request.Prompt, BuildTranscript(result.Steps), consensusStep.VisibleContent),
+                            bootstrap,
+                            request.MaxOutputTokens,
+                            keepAlive,
+                            ResolveParticipantOllamaNumGpu(participants[1], ollamaNumGpu),
+                            maxContextTokens,
+                            modelTimeoutSeconds,
+                            request.StreamUpdate,
+                            cancellationToken);
+                        AddOrderedStep(result, verificationStep, logger);
+                        request.StepCompleted?.Invoke(verificationStep);
+                        result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
+                    }
+                    else
+                    {
+                        result.FinalAnswer = consensusContent;
+                    }
                 }
-                else
+
+                foreach (var failedStep in result.Steps.Where(step => !string.IsNullOrWhiteSpace(step.Error)))
                 {
-                    result.FinalAnswer = consensusContent;
+                    var warning = $"{failedStep.ModelName} failed during {failedStep.Phase}: {failedStep.Error}";
+                    if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
+                        result.Warnings.Add(warning);
                 }
-            }
 
-            foreach (var failedStep in result.Steps.Where(step => !string.IsNullOrWhiteSpace(step.Error)))
-            {
-                var warning = $"{failedStep.ModelName} failed during {failedStep.Phase}: {failedStep.Error}";
-                if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
-                    result.Warnings.Add(warning);
-            }
-
-            result.UserPoll = BuildUserPoll(result);
-            var adviceOnlyPrompt = IsAdviceOnlyPrompt(result.Prompt);
-            var shouldGenerateArtifacts = request.GenerateImplementationArtifact &&
-                !adviceOnlyPrompt &&
-                ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt);
-            var requiresPollAnswer = shouldGenerateArtifacts && RequiresUserDecisionBeforeArtifacts(result);
-            if (requiresPollAnswer)
-            {
-                result.Warnings.Add("Implementation artifacts were not generated because the council itself identified a blocking user decision. Answer the poll or enable safe sandbox auto-choice, then rerun the council.");
-            }
-            else if (shouldGenerateArtifacts)
-            {
-                if (result.UserPoll is not null)
+                result.UserPoll = BuildUserPoll(result);
+                var adviceOnlyPrompt = IsAdviceOnlyPrompt(result.Prompt);
+                var shouldGenerateArtifacts = request.GenerateImplementationArtifact &&
+                    !adviceOnlyPrompt &&
+                    ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt);
+                var requiresPollAnswer = shouldGenerateArtifacts && RequiresUserDecisionBeforeArtifacts(result);
+                if (requiresPollAnswer)
                 {
-                    result.Warnings.Add("A non-blocking coordination poll is included for follow-up choices, but LocalGPT generated the requested sandbox artifact because no unresolved architecture gate remained.");
+                    result.Warnings.Add("Implementation artifacts were not generated because the council itself identified a blocking user decision. Answer the poll or enable safe sandbox auto-choice, then rerun the council.");
+                }
+                else if (shouldGenerateArtifacts)
+                {
+                    if (result.UserPoll is not null)
+                    {
+                        result.Warnings.Add("A non-blocking coordination poll is included for follow-up choices, but LocalGPT generated the requested sandbox artifact because no unresolved architecture gate remained.");
+                    }
+
+                    result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
+                }
+                else if (request.GenerateImplementationArtifact && adviceOnlyPrompt)
+                {
+                    result.Warnings.Add("Implementation artifacts were not generated because this is an advice, review, release-readiness, or diagnostic prompt. Ask explicitly for a downloadable source artifact when files are wanted.");
+                }
+                else if (request.GenerateImplementationArtifact)
+                {
+                    result.Warnings.Add("Implementation artifacts were not generated because the user prompt did not explicitly ask LocalGPT to generate, create, or continue a downloadable/code artifact. This prevents normal advice, review, or release-readiness chats from producing unrelated zip files.");
                 }
 
-                result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
+                result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken);
+
+                result.CompletedAtUtc = DateTime.UtcNow;
+                result.LogPath = await WriteLogAsync(result, cancellationToken);
+
+                if (request.SaveToMemory)
+                    result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken);
+
+                logger.LogInformation(
+                    "Multi-model council {RunId} completed with {ParticipantCount} participant(s), {StepCount} step(s), memory {MemoryConversationId}, knowledge {KnowledgeEntryId}, log {LogPath}.",
+                    result.RunId,
+                    result.ModelNames.Count,
+                    result.Steps.Count,
+                    result.MemoryConversationId,
+                    result.KnowledgeEntryId,
+                    result.LogPath);
+
+                return result;
             }
-            else if (request.GenerateImplementationArtifact && adviceOnlyPrompt)
+            catch (Exception ex)
             {
-                result.Warnings.Add("Implementation artifacts were not generated because this is an advice, review, release-readiness, or diagnostic prompt. Ask explicitly for a downloadable source artifact when files are wanted.");
+                logger.LogError(ex, $"Error in RunAsync request {request.ToString()}");
+                return null;
             }
-            else if (request.GenerateImplementationArtifact)
-            {
-                result.Warnings.Add("Implementation artifacts were not generated because the user prompt did not explicitly ask LocalGPT to generate, create, or continue a downloadable/code artifact. This prevents normal advice, review, or release-readiness chats from producing unrelated zip files.");
-            }
-
-            result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken);
-
-            result.CompletedAtUtc = DateTime.UtcNow;
-            result.LogPath = await WriteLogAsync(result, cancellationToken);
-
-            if (request.SaveToMemory)
-                result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken);
-
-            logger.LogInformation(
-                "Multi-model council {RunId} completed with {ParticipantCount} participant(s), {StepCount} step(s), memory {MemoryConversationId}, knowledge {KnowledgeEntryId}, log {LogPath}.",
-                result.RunId,
-                result.ModelNames.Count,
-                result.Steps.Count,
-                result.MemoryConversationId,
-                result.KnowledgeEntryId,
-                result.LogPath);
-
-            return result;
         }
 
         private async Task RunPhaseAsync(
@@ -313,44 +331,77 @@ namespace LocalGPT.Services
             Action<MultiModelCouncilStep>? stepCompleted,
             CancellationToken cancellationToken)
         {
-            progressMessage?.Invoke($"Starting council phase: round {round}, {phase}, role {role}.");
-            using var gate = new SemaphoreSlim(maxParallelModels, maxParallelModels);
-            var tasks = participants
-                .Select(async modelName =>
+            try
+            {
+                progressMessage?.Invoke($"Starting council phase: round {round}, {phase}, role {role}.");
+                using var gate = new SemaphoreSlim(maxParallelModels, maxParallelModels);
+                var tasks = participants
+                    .Select(async modelName =>
+                    {
+                        await gate.WaitAsync(cancellationToken);
+                        try
+                        {
+                            var participantGpuLayers = ResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu);
+                            progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}. Ollama num_gpu={(participantGpuLayers?.ToString() ?? "auto")}.");
+                            var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
+                            stepCompleted?.Invoke(step);
+                            return step;
+                        }
+                        finally
+                        {
+                            gate.Release();
+                        }
+                    })
+                    .ToList();
+
+                var pending = tasks.ToList();
+                var steps = new List<MultiModelCouncilStep>();
+                while (pending.Count > 0)
                 {
-                    await gate.WaitAsync(cancellationToken);
-                    try
-                    {
-                        var participantGpuLayers = ResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu);
-                        progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}. Ollama num_gpu={(participantGpuLayers?.ToString() ?? "auto")}.");
-                        var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
-                        stepCompleted?.Invoke(step);
-                        return step;
-                    }
-                    finally
-                    {
-                        gate.Release();
-                    }
-                })
+                    var completed = await Task.WhenAny(pending);
+                    pending.Remove(completed);
+                    steps.Add(await completed);
+                }
+
+                var participantOrder = participants
+                    .Select((modelName, index) => new { modelName, index })
+                    .ToDictionary(item => item.modelName, item => item.index, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
+                {
+                    AddOrderedStep(result, step, logger);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in RunPhaseAsync result {result.ToString()} baseUri {baseUri.ToString()} participants {participants.ToString()} round {round.ToString()} role {role.ToString()} promptFactory {promptFactory.ToString()} bootstrap {bootstrap.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxParallelModels {maxParallelModels.ToString()} keepAlive {keepAlive.ToString()} ollamaNumGpu {ollamaNumGpu.ToString()} maxContextTokens {maxContextTokens.ToString()} modelTimeoutSeconds {modelTimeoutSeconds.ToString()} progressMessage {progressMessage?.ToString()} streamUpdate {streamUpdate?.ToString()} stepCompleted {stepCompleted.ToString()}");
+            }
+        }
+        private List<string> SelectParticipants(MultiModelCouncilRequest request)
+        {
+            var selected = request.ModelNames
+                .Select(model => model.Trim())
+                .Where(model => !string.IsNullOrWhiteSpace(model))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(MaxParticipants)
                 .ToList();
 
-            var pending = tasks.ToList();
-            var steps = new List<MultiModelCouncilStep>();
-            while (pending.Count > 0)
+            if (selected.Count > 0)
+                return selected;
+
+            var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
+            if (!string.IsNullOrWhiteSpace(options.OllamaCore?.ModelName))
+                selected.Add(options.OllamaCore.ModelName.Trim());
+
+            foreach (var configured in options.OllamaCores.Select(core => core.ModelName).Where(name => !string.IsNullOrWhiteSpace(name)))
             {
-                var completed = await Task.WhenAny(pending);
-                pending.Remove(completed);
-                steps.Add(await completed);
+                if (selected.Count >= MaxParticipants)
+                    break;
+                if (!selected.Contains(configured, StringComparer.OrdinalIgnoreCase))
+                    selected.Add(configured.Trim());
             }
 
-            var participantOrder = participants
-                .Select((modelName, index) => new { modelName, index })
-                .ToDictionary(item => item.modelName, item => item.index, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
-            {
-                AddOrderedStep(result, step);
-            }
+            return selected.Count == 0 ? ["gpt-oss:20b"] : selected;
         }
 
         private async Task<MultiModelCouncilStep?> RunParticipantAsync(
@@ -416,7 +467,7 @@ namespace LocalGPT.Services
                     if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
                         visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
 
-                    if (IsThinkingOnlyCouncilContent(visibleContent))
+                    if (IsThinkingOnlyCouncilContent(visibleContent, logger))
                     {
                         var recovery = await RunFinalOnlyRecoveryAsync(
                             client,
@@ -431,7 +482,7 @@ namespace LocalGPT.Services
                             content = $"{content}{Environment.NewLine}{Environment.NewLine}{recovery.Content}";
                         if (!string.IsNullOrWhiteSpace(recovery.Thinking))
                             thinking = string.Join(Environment.NewLine, new[] { thinking, recovery.Thinking }.Where(text => !string.IsNullOrWhiteSpace(text)));
-                        if (IsSubstantiveCouncilContent(recovery.VisibleContent))
+                        if (IsSubstantiveCouncilContent(recovery.VisibleContent, logger))
                             visibleContent = recovery.VisibleContent;
                     }
 
@@ -498,12 +549,10 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunParticipantAsync {ex.ToString()}");
+                logger.LogError(ex, $"Error in RunParticipantAsync baseUri {baseUri.ToString()} modelName {modelName.ToString()} councilMembers {councilMembers.ToString()} round {round.ToString()} phase {phase.ToString()} role {role.ToString()} prompt {prompt.ToString()} bootstrap {bootstrap.ToString()} maxOutputTokens {maxOutputTokens.ToString()} keepAlive {keepAlive.ToString()} ollamaNumGpu {ollamaNumGpu.ToString()} maxContextTokens {maxContextTokens.ToString()} modelTimeoutSeconds {modelTimeoutSeconds.ToString()} streamUpdate {streamUpdate?.ToString()}");
                 return null;
             }
-           
         }
-
         private static async Task<(string Content, string VisibleContent, string? Thinking)> RunFinalOnlyRecoveryAsync(
             IChatClient client,
             string modelName,
@@ -552,7 +601,7 @@ namespace LocalGPT.Services
 
         }
 
-        private void AddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step)
+        public static void AddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step, ILogger logger)
         {
             try
             {
@@ -572,7 +621,7 @@ namespace LocalGPT.Services
             try
             {
                 var consensus = consensusStep.VisibleContent.Trim();
-                if (IsSubstantiveCouncilContent(consensus))
+                if (IsSubstantiveCouncilContent(consensus, logger))
                     return consensus;
 
                 result.Warnings.Add($"{consensusStep.ModelName} returned a non-substantive consensus during {consensusStep.Phase}; LocalGPT used the latest substantive council step as the final-answer fallback.");
@@ -581,7 +630,7 @@ namespace LocalGPT.Services
                     .Where(step => !ReferenceEquals(step, consensusStep))
                     .OrderByDescending(step => step.SortOrder)
                     .Select(step => step.VisibleContent.Trim())
-                    .FirstOrDefault(IsSubstantiveCouncilContent);
+                    .FirstOrDefault(filter => IsSubstantiveCouncilContent(filter,logger));
 
                 if (!string.IsNullOrWhiteSpace(fallback))
                     return fallback;
@@ -595,74 +644,78 @@ namespace LocalGPT.Services
             }
         }
 
-        private static bool IsSubstantiveCouncilContent(string content)
+        private static bool IsSubstantiveCouncilContent(string content, ILogger logger)
         {
-            if (string.IsNullOrWhiteSpace(content))
-                return false;
-
-            var trimmed = content.Trim();
-            if (trimmed.Length < 80)
-                return false;
-
-            var letterCount = trimmed.Count(char.IsLetter);
-            var wordCount = WordPattern().Matches(trimmed).Count;
-            return letterCount >= 40 && wordCount >= 10;
-        }
-
-        private static bool IsThinkingOnlyCouncilContent(string content)
-        {
-            if (string.IsNullOrWhiteSpace(content))
-                return false;
-
-            return content.Contains("No final answer was emitted", StringComparison.OrdinalIgnoreCase) ||
-                content.Contains("returned thinking during", StringComparison.OrdinalIgnoreCase) ||
-                content.Contains("no final visible answer", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private List<string> SelectParticipants(MultiModelCouncilRequest request)
-        {
-            var selected = request.ModelNames
-                .Select(model => model.Trim())
-                .Where(model => !string.IsNullOrWhiteSpace(model))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(MaxParticipants)
-                .ToList();
-
-            if (selected.Count > 0)
-                return selected;
-
-            var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
-            if (!string.IsNullOrWhiteSpace(options.OllamaCore?.ModelName))
-                selected.Add(options.OllamaCore.ModelName.Trim());
-
-            foreach (var configured in options.OllamaCores.Select(core => core.ModelName).Where(name => !string.IsNullOrWhiteSpace(name)))
+            try
             {
-                if (selected.Count >= MaxParticipants)
-                    break;
-                if (!selected.Contains(configured, StringComparer.OrdinalIgnoreCase))
-                    selected.Add(configured.Trim());
+                if (string.IsNullOrWhiteSpace(content))
+                    return false;
+
+                var trimmed = content.Trim();
+                if (trimmed.Length < 80)
+                    return false;
+
+                var letterCount = trimmed.Count(char.IsLetter);
+                var wordCount = GlobalVariableSlopCollectionToRemove.WordPattern(logger).Matches(trimmed).Count;
+                return letterCount >= 40 && wordCount >= 10;
             }
-
-            return selected.Count == 0 ? ["gpt-oss:20b"] : selected;
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsSubstantiveCouncilContent {ex.ToString()} content {content.ToString()}");
+                return false;
+            }
         }
 
-        private static string GetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels)
+        private static bool IsThinkingOnlyCouncilContent(string content, ILogger logger)
         {
-            if (!string.IsNullOrWhiteSpace(request.OllamaKeepAlive))
-                return request.OllamaKeepAlive.Trim();
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return false;
 
-            return participantCount > 1 && maxParallelModels == 1
-                ? "0s"
-                : "2m";
+                return content.Contains("No final answer was emitted", StringComparison.OrdinalIgnoreCase) ||
+                    content.Contains("returned thinking during", StringComparison.OrdinalIgnoreCase) ||
+                    content.Contains("no final visible answer", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsThinkingOnlyCouncilContent {ex.ToString()} content {content.ToString()}");
+                return false;
+            }
+        }
+        private static string GetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels, ILogger logger)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(request.OllamaKeepAlive))
+                    return request.OllamaKeepAlive.Trim();
+
+                return participantCount > 1 && maxParallelModels == 1
+                    ? "0s"
+                    : "3m";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetCouncilKeepAlive request {request.ToString()} participantCount {participantCount.ToString()} maxParallelModels {maxParallelModels.ToString()}");
+                return string.Empty;
+            }
         }
 
-        private static bool ShouldUnloadAfterParticipant(string keepAlive)
+        private static bool ShouldUnloadAfterParticipant(string keepAlive, ILogger logger)
         {
-            var normalized = keepAlive.Trim();
-            return normalized.Equals("0", StringComparison.OrdinalIgnoreCase) ||
-                normalized.Equals("0s", StringComparison.OrdinalIgnoreCase) ||
-                normalized.Equals("0m", StringComparison.OrdinalIgnoreCase) ||
-                normalized.Equals("0h", StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                var normalized = keepAlive.Trim();
+                return normalized.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("0s", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("0m", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("0h", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ShouldUnloadAfterParticipant keepAlive {keepAlive.ToString()}");
+                return false;
+            }
         }
 
         private static int? ResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu)
@@ -1573,85 +1626,5 @@ namespace LocalGPT.Services
                 : endpoint.Trim().TrimEnd('/');
         }
 
-        [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        private static partial Regex ThinkingBlockPattern();
-
-        [GeneratedRegex("<p\\s+class=\"localgpt-stream-status\"[^>]*>.*?</p>\\s*", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        private static partial Regex StreamStatusPattern();
-
-        [GeneratedRegex("\\b[\\p{L}\\p{N}_'-]+\\b", RegexOptions.CultureInvariant)]
-        private static partial Regex WordPattern();
-
-        [GeneratedRegex("(implement|implementation|develop|development|build|create|add|generate|scaffold|feature|code|page|component|service|endpoint|database|settings|artifact|solution|plugin|mod|datapack)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex DevelopmentRequestPattern();
-
-        [GeneratedRegex("(downloadable|download link|download route|zip|\\.zip|\\.cs\\b|\\.razor\\b|\\.dll\\b|\\.sln\\b|\\.csproj\\b|artifact|solution zip|project zip|whole solution|full solution)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex ExplicitArtifactIntentPattern();
-
-        [GeneratedRegex("(review|code review|diagnose|diagnostic|release readiness|readiness|go or no-go|blockers|evidence|what failed|why failed|build/deploy/package/publish|publish cycle|release cycle|maintenance cycle)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex AdviceOnlyPromptPattern();
-
-        [GeneratedRegex("(generate|create|produce|write|implement|make|build)\\b.{0,120}\\b(downloadable|artifact|zip|solution|source code|\\.sln|\\.csproj|\\.cs\\b|\\.razor\\b|ai host|localgpt replacement|application|app|datapack|modpack)\\b|\\b(downloadable|artifact|zip|solution)\\b.{0,120}\\b(generate|create|produce|write|implement|make|build)\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
-        private static partial Regex ExplicitArtifactCreationCommandPattern();
-
-        [GeneratedRegex("(minecraft|living cities|modpack|datapack|data pack|pack\\.mcmeta|mcfunction).*(generate|create|build|zip|download|artifact)|(generate|create|build|zip|download|artifact).*(minecraft|living cities|modpack|datapack|data pack|pack\\.mcmeta|mcfunction)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex ConcreteMinecraftArtifactPattern();
-
-        [GeneratedRegex("(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama).*(solution|project|zip|download|artifact|page|component|api|route|service)|(solution|project|zip|download|artifact|page|component|api|route|service).*(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex ConcreteDotNetArtifactPattern();
-
-        [GeneratedRegex("(ai host|local ai host|model host|inference host|native runner|model-file runner|model file runner|iinferencerunner|nativemodelfile|llama\\.cpp|gguf)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex AiHostSetupPattern();
-
-        [GeneratedRegex("(decision poll required|user decision poll|implementation path|architecture choice|architecture decision|target platform|runtime choice|ui stack|unclear implementation|unclear scope|scope is uncertain|ownership is uncertain|ask the user|needs user choice|choose between|pick between|multiple reasonable|trade-?off|depends on|which path|which approach)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex ImplementationDecisionPattern();
-
-        [GeneratedRegex("(choose|decide|pick|option|alternative|trade-?off|depends|uncertain|scope|ownership|clarify|question)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex ImplementationChoicePattern();
-
-        [GeneratedRegex("(decision poll required|no (?:code|files?|artifacts?) will be generated until|do not generate (?:code|files?|artifacts?) until|stop before generating|await (?:your )?(?:selection|choice|answer|decision)|waiting for (?:your )?(?:selection|choice|answer|decision)|please choose .* before|select .* and reply|will generate .* once (?:chosen|selected|confirmed))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex BlockingArtifactDecisionPattern();
-
-        [GeneratedRegex("(prior consent for safe sandbox details:\\s*granted|let council choose safe sandbox details|you may decide safe sandbox details|council may choose safe sandbox defaults|make reasonable sandbox assumptions|decide yourself for the sandbox)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex SafeSandboxConsentPattern();
-
-        [GeneratedRegex("(ask me first|do not generate|don't generate|wait for my decision|stop before coding|stop before generating|no files until|no artifact until)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex ExplicitDoNotGenerateUntilUserDecisionPattern();
-
-        [GeneratedRegex("(work as (?:the )?developers|you are the developers|continue until (?:you )?(?:produce|create|generate)|develop and debug|produce .* artifact|generate .* artifact|create .* artifact)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex DeveloperExecutionIntentPattern();
-
-        public sealed class OllamaTagsResponse
-        {
-            public List<OllamaModelResponse> Models { get; set; } = [];
-        }
-
-        public sealed class OllamaModelResponse
-        {
-            public string Name { get; set; } = string.Empty;
-            public string Model { get; set; } = string.Empty;
-            public OllamaModelDetails? Details { get; set; }
-        }
-
-        public sealed class OllamaModelDetails
-        {
-            public string? Family { get; set; }
-
-            [JsonPropertyName("parameter_size")]
-            public string? ParameterSize { get; set; }
-
-            [JsonPropertyName("quantization_level")]
-            public string? QuantizationLevel { get; set; }
-        }
-
-        public sealed class OllamaUnloadRequest
-        {
-            public string Model { get; set; } = string.Empty;
-            public string Prompt { get; set; } = string.Empty;
-            public bool Stream { get; set; }
-
-            [JsonPropertyName("keep_alive")]
-            public string KeepAlive { get; set; } = "0s";
-        }
     }
 }

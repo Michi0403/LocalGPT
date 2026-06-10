@@ -11,6 +11,87 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+
+        [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex ThinkingBlockPattern();
+
+        [GeneratedRegex("<p\\s+class=\"localgpt-stream-status\"[^>]*>.*?</p>\\s*", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex StreamStatusPattern();
+
+        [GeneratedRegex("\\b[\\p{L}\\p{N}_'-]+\\b", RegexOptions.CultureInvariant)]
+        public static partial Regex WordPattern();
+
+        [GeneratedRegex("(implement|implementation|develop|development|build|create|add|generate|scaffold|feature|code|page|component|service|endpoint|database|settings|artifact|solution|plugin|mod|datapack)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex DevelopmentRequestPattern();
+
+        [GeneratedRegex("(downloadable|download link|download route|zip|\\.zip|\\.cs\\b|\\.razor\\b|\\.dll\\b|\\.sln\\b|\\.csproj\\b|artifact|solution zip|project zip|whole solution|full solution)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex ExplicitArtifactIntentPattern();
+
+        [GeneratedRegex("(review|code review|diagnose|diagnostic|release readiness|readiness|go or no-go|blockers|evidence|what failed|why failed|build/deploy/package/publish|publish cycle|release cycle|maintenance cycle)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex AdviceOnlyPromptPattern();
+
+        [GeneratedRegex("(generate|create|produce|write|implement|make|build)\\b.{0,120}\\b(downloadable|artifact|zip|solution|source code|\\.sln|\\.csproj|\\.cs\\b|\\.razor\\b|ai host|localgpt replacement|application|app|datapack|modpack)\\b|\\b(downloadable|artifact|zip|solution)\\b.{0,120}\\b(generate|create|produce|write|implement|make|build)\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+        public static partial Regex ExplicitArtifactCreationCommandPattern();
+
+        [GeneratedRegex("(minecraft|living cities|modpack|datapack|data pack|pack\\.mcmeta|mcfunction).*(generate|create|build|zip|download|artifact)|(generate|create|build|zip|download|artifact).*(minecraft|living cities|modpack|datapack|data pack|pack\\.mcmeta|mcfunction)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex ConcreteMinecraftArtifactPattern();
+
+        [GeneratedRegex("(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama).*(solution|project|zip|download|artifact|page|component|api|route|service)|(solution|project|zip|download|artifact|page|component|api|route|service).*(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex ConcreteDotNetArtifactPattern();
+
+        [GeneratedRegex("(ai host|local ai host|model host|inference host|native runner|model-file runner|model file runner|iinferencerunner|nativemodelfile|llama\\.cpp|gguf)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex AiHostSetupPattern();
+
+        [GeneratedRegex("(decision poll required|user decision poll|implementation path|architecture choice|architecture decision|target platform|runtime choice|ui stack|unclear implementation|unclear scope|scope is uncertain|ownership is uncertain|ask the user|needs user choice|choose between|pick between|multiple reasonable|trade-?off|depends on|which path|which approach)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex ImplementationDecisionPattern();
+
+        [GeneratedRegex("(choose|decide|pick|option|alternative|trade-?off|depends|uncertain|scope|ownership|clarify|question)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex ImplementationChoicePattern();
+
+        [GeneratedRegex("(decision poll required|no (?:code|files?|artifacts?) will be generated until|do not generate (?:code|files?|artifacts?) until|stop before generating|await (?:your )?(?:selection|choice|answer|decision)|waiting for (?:your )?(?:selection|choice|answer|decision)|please choose .* before|select .* and reply|will generate .* once (?:chosen|selected|confirmed))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex BlockingArtifactDecisionPattern();
+
+        [GeneratedRegex("(prior consent for safe sandbox details:\\s*granted|let council choose safe sandbox details|you may decide safe sandbox details|council may choose safe sandbox defaults|make reasonable sandbox assumptions|decide yourself for the sandbox)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex SafeSandboxConsentPattern();
+
+        [GeneratedRegex("(ask me first|do not generate|don't generate|wait for my decision|stop before coding|stop before generating|no files until|no artifact until)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex ExplicitDoNotGenerateUntilUserDecisionPattern();
+
+        [GeneratedRegex("(work as (?:the )?developers|you are the developers|continue until (?:you )?(?:produce|create|generate)|develop and debug|produce .* artifact|generate .* artifact|create .* artifact)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex DeveloperExecutionIntentPattern();
+
+        public sealed class OllamaTagsResponse
+        {
+            public List<OllamaModelResponse> Models { get; set; } = [];
+        }
+
+        public sealed class OllamaModelResponse
+        {
+            public string Name { get; set; } = string.Empty;
+            public string Model { get; set; } = string.Empty;
+            public OllamaModelDetails? Details { get; set; }
+        }
+
+        public sealed class OllamaModelDetails
+        {
+            public string? Family { get; set; }
+
+            [JsonPropertyName("parameter_size")]
+            public string? ParameterSize { get; set; }
+
+            [JsonPropertyName("quantization_level")]
+            public string? QuantizationLevel { get; set; }
+        }
+
+        public sealed class OllamaUnloadRequest
+        {
+            public string Model { get; set; } = string.Empty;
+            public string Prompt { get; set; } = string.Empty;
+            public bool Stream { get; set; }
+
+            [JsonPropertyName("keep_alive")]
+            public string KeepAlive { get; set; } = "0s";
+        }
         public sealed record CommandPolicyDecision(bool Allowed, string Decision, string Reason, string Profile);
         public const int ProbeCommandTimeoutSeconds = 5;
         public static readonly string[] SidecarSuffixes = ["", "-wal", "-shm"];
