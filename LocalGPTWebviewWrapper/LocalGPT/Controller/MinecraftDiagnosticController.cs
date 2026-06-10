@@ -173,7 +173,7 @@ namespace LocalGPT.Endpoints
                     $"Latest generated workspace: {workspace.RootPath}",
                     $"Build succeeded: {build?.Succeeded}; exit code {build?.ExitCode}.",
                     $"Function files: {files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase))}.",
-                    $"Build output: {CouncilChatStringFunctions.TrimForKnowledge(build?.StandardOutput, 700,logger)}",
+                    $"Build output: {CouncilChatStringFunctions.TrimForKnowledge(((CommandExecutionResult)build).StandardOutput, 700,logger)}",
                     $"Reference comparison: {referenceComparison?.Summary}",
                     $"Reference placeholders: {referenceComparison?.ReferencePlaceholderCount}; generated placeholders: {referenceComparison?.GeneratedPlaceholderCount}.",
                     $"Root pack.mcmeta: generated={referenceComparison?.GeneratedHasRootPackMcmeta}, reference={referenceComparison?.ReferenceHasRootPackMcmeta}, reference nested={referenceComparison?.ReferenceHasNestedPackMcmeta}.",

@@ -215,6 +215,7 @@ namespace LocalGPT.Services
                         modelTimeoutSeconds,
                         request.StreamUpdate,
                         cancellationToken);
+                    ArgumentNullException.ThrowIfNull(consensusStep);
                     MultiModelCouncilServiceAddOrderedStep(result, consensusStep,logger);
                     request.StepCompleted?.Invoke(consensusStep);
                     var consensusContent = MultiModelCouncilServiceSelectConsensusContent(result, consensusStep, logger);
@@ -237,6 +238,7 @@ namespace LocalGPT.Services
                             modelTimeoutSeconds,
                             request.StreamUpdate,
                             cancellationToken);
+                        ArgumentNullException.ThrowIfNull(verificationStep);
                         MultiModelCouncilServiceAddOrderedStep(result, verificationStep, logger);
                         request.StepCompleted?.Invoke(verificationStep);
                         result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
@@ -341,6 +343,7 @@ namespace LocalGPT.Services
                             var participantGpuLayers = MultiModelCouncilServiceResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu, logger);
                             progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}. Ollama num_gpu={(participantGpuLayers?.ToString() ?? "auto")}.");
                             var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
+                            ArgumentNullException.ThrowIfNull(step);
                             stepCompleted?.Invoke(step);
                             return step;
                         }
@@ -357,7 +360,9 @@ namespace LocalGPT.Services
                 {
                     var completed = await Task.WhenAny(pending);
                     pending.Remove(completed);
-                    steps.Add(await completed.ConfigureAwait(false));
+                    var step = await completed.ConfigureAwait(false);
+                    ArgumentNullException.ThrowIfNull(step);
+                    steps.Add(step);
                 }
 
                 var participantOrder = participants
@@ -371,7 +376,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunPhaseAsync result {result.ToString()} baseUri {baseUri.ToString()} participants {participants.ToString()} round {round.ToString()} role {role.ToString()} promptFactory {promptFactory.ToString()} bootstrap {bootstrap.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxParallelModels {maxParallelModels.ToString()} keepAlive {keepAlive.ToString()} ollamaNumGpu {ollamaNumGpu.ToString()} maxContextTokens {maxContextTokens.ToString()} modelTimeoutSeconds {modelTimeoutSeconds.ToString()} progressMessage {progressMessage?.ToString()} streamUpdate {streamUpdate?.ToString()} stepCompleted {stepCompleted.ToString()}");
+                logger.LogError(ex, $"Error in RunPhaseAsync result {result.ToString()} baseUri {baseUri.ToString()} participants {participants.ToString()} round {round.ToString()} role {role.ToString()} promptFactory {promptFactory.ToString()} bootstrap {bootstrap.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxParallelModels {maxParallelModels.ToString()} keepAlive {keepAlive.ToString()} ollamaNumGpu {ollamaNumGpu.ToString()} maxContextTokens {maxContextTokens.ToString()} modelTimeoutSeconds {modelTimeoutSeconds.ToString()} progressMessage {progressMessage?.ToString()} streamUpdate {streamUpdate?.ToString()} stepCompleted {stepCompleted?.ToString()}");
             }
         }
         private List<string> SelectParticipants(MultiModelCouncilRequest request)
@@ -452,8 +457,10 @@ namespace LocalGPT.Services
 
                     streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
                     var builder = new StringBuilder();
+                    ArgumentNullException.ThrowIfNull(client);
+                    ArgumentNullException.ThrowIfNull(messages);
                     await foreach (var update in client.GetStreamingResponseAsync(
-                        messages,
+                        (List<ChatMessage>) messages,
                         new ChatOptions
                         {
                             MaxOutputTokens = Math.Clamp(maxOutputTokens, MinOutputTokens, MaxOutputTokens),
@@ -689,7 +696,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunFinalOnlyRecoveryAsync {ex.ToString()} client {client.ToString()}  modelName {modelName}  phase {phase}  originalMessages {originalMessages.ToString()}  maxOutputTokens {maxOutputTokens} streamUpdate {streamUpdate.ToString()} ");
+                logger.LogError(ex, $"Error in RunFinalOnlyRecoveryAsync {ex.ToString()} client {client.ToString()}  modelName {modelName}  phase {phase}  originalMessages {originalMessages.ToString()}  maxOutputTokens {maxOutputTokens} streamUpdate {streamUpdate?.ToString()} ");
                 return (string.Empty, string.Empty, null);
             }
 

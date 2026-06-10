@@ -107,7 +107,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in FindThemeByName themeName {themeName.ToString()}");
+                logger.LogError(ex, $"Error in FindThemeByName themeName {themeName?.ToString()}");
                 return null;
             }
         }

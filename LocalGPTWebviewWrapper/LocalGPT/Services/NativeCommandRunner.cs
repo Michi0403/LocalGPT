@@ -37,6 +37,7 @@ namespace LocalGPT.Services
 
                 var startedAt = DateTime.UtcNow;
                 var policy = ValidatePolicy(fileName, arguments, workingDirectory);
+                ArgumentNullException.ThrowIfNull(policy);
                 if (!policy.Allowed)
                 {
                     await SaveCommandLogAsync(fileName, arguments, workingDirectory, startedAt, DateTime.UtcNow, -1, string.Empty, string.Empty, policy, cancellationToken);

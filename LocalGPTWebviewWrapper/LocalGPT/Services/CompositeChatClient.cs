@@ -334,8 +334,10 @@ public class CompositeChatClient : IChatClient
             if (latestUserMessage is null)
                 return string.Empty;
 
-            var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger) != null ? CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger).ToList() : new();
-            if (files.Count == 0)
+            var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger);
+            ArgumentNullException.ThrowIfNull(files);
+            var fileList = files.ToList();
+            if (fileList.Count == 0)
                 return string.Empty;
 
             try

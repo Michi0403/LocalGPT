@@ -26,6 +26,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await CreateDbContextAsync(cancellationToken);
+                ArgumentNullException.ThrowIfNull(db);
                 await db.Database.EnsureCreatedAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -39,6 +40,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await CreateDbContextAsync(cancellationToken);
+                ArgumentNullException.ThrowIfNull(db);
                 return await db.Conversations
                     .AsNoTracking()
                     .OrderByDescending(conversation => conversation.UpdatedAtUtc)
@@ -76,8 +78,9 @@ namespace LocalGPT.Services
                     .OrderBy(message => message.SortOrder)
                     .Select(filter => DevExpressFunctions.ToBlazorChatMessage(filter,logger))
                     .ToList();
-                messages = DevExpressFunctions.EnsureVisibleCouncilPrompt(conversation, messages, logger) ?? new List<BlazorChatMessage>();
-
+                ArgumentNullException.ThrowIfNull(messages);
+                messages = DevExpressFunctions.EnsureVisibleCouncilPrompt(conversation, (List<BlazorChatMessage> )messages, logger) ?? new List<BlazorChatMessage>();
+                ArgumentNullException.ThrowIfNull(messages);
                 return new ChatMemoryConversationSnapshot(
                     conversation.Id,
                     conversation.Title,
@@ -109,6 +112,7 @@ namespace LocalGPT.Services
                     return conversationId;
 
                 await using var db = await CreateDbContextAsync(cancellationToken);
+                ArgumentNullException.ThrowIfNull(db);
                 var now = DateTime.UtcNow;
                 ChatMemoryConversation conversation;
 
@@ -161,6 +165,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await CreateDbContextAsync(cancellationToken);
+                ArgumentNullException.ThrowIfNull(db);
                 return await db.Messages
                     .AsNoTracking()
                     .Where(message => message.Thinking != null && message.Thinking != string.Empty)

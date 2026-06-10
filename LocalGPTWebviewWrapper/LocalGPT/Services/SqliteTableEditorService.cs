@@ -22,7 +22,7 @@ namespace LocalGPT.Services
             {
                 await EnsureDatabaseFileAsync(cancellationToken);
                 await using var connection = await OpenConnectionAsync(cancellationToken);
-
+                ArgumentNullException.ThrowIfNull(connection);
                 var names = new List<string>();
                 await using (var command = connection.CreateCommand())
                 {
@@ -174,7 +174,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in UpdateRowAsync ex tableName {tableName} rowId {rowId} updates {updates.ToString()}");
+                Console.WriteLine($"Error in UpdateRowAsync ex tableName {tableName} rowId {rowId} updates {updates.ToString()} ex {ex.ToString()}");
             }
         }
 
@@ -230,7 +230,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in InsertRowAsync tableName {tableName} values {values.ToString()}");
+                Console.WriteLine($"Error in InsertRowAsync tableName {tableName} values {values.ToString()} ex {ex.ToString()}");
             }
            
         }
@@ -258,7 +258,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in DeleteRowAsync tableName {tableName} rowId {rowId.ToString()}");
+                Console.WriteLine($"Error in DeleteRowAsync tableName {tableName} rowId {rowId.ToString()} ex {ex.ToString()}");
             }
         }
 
@@ -275,7 +275,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in EnsureDatabaseFileAsync");
+                Console.WriteLine($"Error in EnsureDatabaseFileAsync {ex.ToString()}");
             }
 
         }
@@ -290,7 +290,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in OpenConnectionAsync");
+                Console.WriteLine($"Error in OpenConnectionAsync {ex.ToString()}");
                 return null;
             }
         }

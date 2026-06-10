@@ -42,7 +42,11 @@ namespace LocalGPT.Services
 
                 taskResult.Lanes.Add(NotRunLane("A. raw Ollama model", "Live raw Ollama call intentionally not run in this deterministic benchmark. Run later with GPU-safe caps and record the transcript."));
                 if (request.RunLocalGptArtifacts)
-                    taskResult.Lanes.Add(await RunLocalGptLaneAsync(task, request, cancellationToken, logger));
+                {
+                    var runLocalGptLaneAsync = await RunLocalGptLaneAsync(task, request, cancellationToken, logger);
+                    ArgumentNullException.ThrowIfNull(runLocalGptLaneAsync);
+                    taskResult.Lanes.Add(runLocalGptLaneAsync);
+                }
                 else
                     taskResult.Lanes.Add(NotRunLane("B. LocalGPT with DxFunctions + memory", "Skipped by request."));
 
@@ -174,7 +178,9 @@ namespace LocalGPT.Services
 
                 foreach (var artifact in zipArtifacts)
                 {
-                    checks.Add(await ValidateBuildableArtifactAsync(artifact, cancellationToken, logger));
+                    var item = await ValidateBuildableArtifactAsync(artifact, cancellationToken, logger);
+                    ArgumentNullException.ThrowIfNull(item);
+                    checks.Add(item);
                 }
 
                 return checks;

@@ -59,6 +59,7 @@ namespace LocalGPT.Services
             try
             {
                 var response = await SendAsync(messages, options, stream: false, cancellationToken);
+                ArgumentNullException.ThrowIfNull(response);
                 return new ChatResponse(new ChatMessage(ChatRole.Assistant, CreateContents(response)));
             }
             catch (Exception ex)
@@ -77,7 +78,9 @@ namespace LocalGPT.Services
             try
             {
                 var request = CreateRequest(messages, options, stream: true);
-                yield return CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingStatusUpdate($"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...",logger);
+                var streamingStatusUpdate = CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingStatusUpdate($"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...", logger);
+                ArgumentNullException.ThrowIfNull(streamingStatusUpdate);
+                yield return streamingStatusUpdate;
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
                 {
@@ -97,7 +100,9 @@ namespace LocalGPT.Services
                 using (response)
                 {
                     await CouncilChatStaticsGeneral.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger);
-                    yield return CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingStatusUpdate("Ollama accepted the request. Waiting for streamed model output...", logger);
+                    var statusUpdate = CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingStatusUpdate("Ollama accepted the request. Waiting for streamed model output...", logger);
+                    ArgumentNullException.ThrowIfNull(statusUpdate);
+                    yield return statusUpdate;
 
                     Stream stream;
                     try
@@ -140,13 +145,21 @@ namespace LocalGPT.Services
                             if (!string.IsNullOrWhiteSpace(chunk?.Message?.Thinking))
                             {
                                 foreach (var text in CouncilChatStringFunctions.AppendThinking(chunk.Message.Thinking,false,logger))
-                                    yield return CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingUpdate(text , logger);
+                                {
+                                    var streamingUpdate = CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingUpdate(text, logger);
+                                    ArgumentNullException.ThrowIfNull(streamingUpdate);
+                                    yield return (ChatResponseUpdate)streamingUpdate;
+                                }
                             }
 
                             if (!string.IsNullOrEmpty(chunk?.Message?.Content))
                             {
                                 foreach (var text in CouncilChatStringFunctions.AppendContent(chunk.Message.Content, false, logger))
-                                    yield return CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingUpdate(text, logger);
+                                {
+                                    var streamingUpdate = CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingUpdate(text, logger);
+                                    ArgumentNullException.ThrowIfNull(streamingUpdate);
+                                    yield return (ChatResponseUpdate)streamingUpdate;
+                                }
                             }
                         }
 
@@ -219,12 +232,14 @@ namespace LocalGPT.Services
         {
             try
             {
+                var messagesForThinkingClient = OllamaThinkingChatClientBuildOllamaMessages(messages);
+                ArgumentNullException.ThrowIfNull(messagesForThinkingClient);
                 return new OllamaChatRequest
                 {
                     Model = model,
                     Stream = stream,
                     KeepAlive = keepAlive,
-                    Messages = OllamaThinkingChatClientBuildOllamaMessages(messages),
+                    Messages = messagesForThinkingClient,
                     Options = new OllamaRequestOptions
                     {
                         NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 262144),
