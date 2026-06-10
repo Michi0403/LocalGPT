@@ -11,6 +11,98 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        [GeneratedRegex("<TargetFrameworks?>(?<value>[^<]+)</TargetFrameworks?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex TargetFrameworkPattern();
+
+        [GeneratedRegex("<PackageReference\\s+Include=\"(?<value>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex PackageReferencePattern();
+
+        [GeneratedRegex("(?i)(fuck|shit|bitch|cunt|dick|pussy|whore|slut|porn|xxx)")]
+        public static partial Regex SensitiveNamePattern();
+        public static readonly HashSet<string> ExcludedDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".git",
+            ".vs",
+            ".idea",
+            "bin",
+            "obj",
+            "node_modules",
+            "packages",
+            ".venv",
+            "__pycache__",
+            ".gradle",
+            ".mypy_cache",
+            ".pytest_cache",
+            "build",
+            "dist",
+            "publish",
+            "AppPackages"
+        };
+
+        public static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".dll",
+            ".exe",
+            ".pdb",
+            ".msi",
+            ".pfx",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".ico",
+            ".pdf",
+            ".db",
+            ".sqlite",
+            ".sqlite3",
+            ".zip",
+            ".nupkg"
+        };
+
+        public static readonly HashSet<string> SourceExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".cs",
+            ".csproj",
+            ".sln",
+            ".razor",
+            ".xaml",
+            ".json",
+            ".xml",
+            ".py",
+            ".js",
+            ".ts",
+            ".html",
+            ".css",
+            ".sql",
+            ".md",
+            ".yml",
+            ".yaml",
+            ".ps1",
+            ".props",
+            ".targets",
+            ".config",
+            ".resx",
+            ".mdx",
+            ".go",
+            ".mod",
+            ".sum",
+            ".proto",
+            ".toml",
+            ".ini",
+            ".cmake",
+            ".sh",
+            ".bat",
+            ".cmd",
+            ".gotmpl",
+            ".txt",
+            ".text",
+            ".log",
+            ".csv",
+            ".tsv",
+            ".http",
+            ".rest",
+            ".tmpl"
+        };
         public const string DefaultOllamaUri = "http://localhost:11434";
         public const int MaxParticipants = 100;
         public const int DefaultMaxParallelModels = 1;

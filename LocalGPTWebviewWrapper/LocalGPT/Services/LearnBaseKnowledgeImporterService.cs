@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using LocalGPT.Extensions.PlainStatics;
 
 namespace LocalGPT.Services
 {
@@ -10,90 +11,7 @@ namespace LocalGPT.Services
         ICouncilKnowledgeService knowledgeService,
         ILogger<LearnBaseKnowledgeImporterService> logger) : ILearnBaseKnowledgeImporterService
     {
-        private static readonly HashSet<string> ExcludedDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ".git",
-            ".vs",
-            ".idea",
-            "bin",
-            "obj",
-            "node_modules",
-            "packages",
-            ".venv",
-            "__pycache__",
-            ".gradle",
-            ".mypy_cache",
-            ".pytest_cache",
-            "build",
-            "dist",
-            "publish",
-            "AppPackages"
-        };
 
-        private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ".dll",
-            ".exe",
-            ".pdb",
-            ".msi",
-            ".pfx",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".gif",
-            ".ico",
-            ".pdf",
-            ".db",
-            ".sqlite",
-            ".sqlite3",
-            ".zip",
-            ".nupkg"
-        };
-
-        private static readonly HashSet<string> SourceExtensions = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ".cs",
-            ".csproj",
-            ".sln",
-            ".razor",
-            ".xaml",
-            ".json",
-            ".xml",
-            ".py",
-            ".js",
-            ".ts",
-            ".html",
-            ".css",
-            ".sql",
-            ".md",
-            ".yml",
-            ".yaml",
-            ".ps1",
-            ".props",
-            ".targets",
-            ".config",
-            ".resx",
-            ".mdx",
-            ".go",
-            ".mod",
-            ".sum",
-            ".proto",
-            ".toml",
-            ".ini",
-            ".cmake",
-            ".sh",
-            ".bat",
-            ".cmd",
-            ".gotmpl",
-            ".txt",
-            ".text",
-            ".log",
-            ".csv",
-            ".tsv",
-            ".http",
-            ".rest",
-            ".tmpl"
-        };
 
         public async Task<LearnBaseImportResult> ImportAsync(
             LearnBaseImportRequest request,
@@ -562,9 +480,9 @@ namespace LocalGPT.Services
         {
             var files = EnumerateUsefulFiles(projectDirectory).Take(1600).ToArray();
             var sourceFiles = files
-                .Where(file => SourceExtensions.Contains(file.Extension))
+                .Where(file => GlobalVariableSlopCollectionToRemove.SourceExtensions.Contains(file.Extension))
                 .ToArray();
-            var binaryCount = files.Count(file => BinaryExtensions.Contains(file.Extension));
+            var binaryCount = files.Count(file => GlobalVariableSlopCollectionToRemove.BinaryExtensions.Contains(file.Extension));
             var textSamples = sourceFiles
                 .Where(file => file.Length is > 0 and < 256_000)
                 .Take(80)
@@ -584,8 +502,8 @@ namespace LocalGPT.Services
                 BinaryFileCount = binaryCount,
                 Architecture = InferArchitecture(projectDirectory, files, combined),
                 ProtocolsAndComponents = InferProtocolsAndComponents(combined, files),
-                TargetFrameworks = string.Join(", ", ExtractDistinct(combined, TargetFrameworkPattern()).Take(12)),
-                PackageReferences = string.Join(", ", ExtractDistinct(combined, PackageReferencePattern()).Take(24)),
+                TargetFrameworks = string.Join(", ", ExtractDistinct(combined, GlobalVariableSlopCollectionToRemove.TargetFrameworkPattern()).Take(12)),
+                PackageReferences = string.Join(", ", ExtractDistinct(combined, GlobalVariableSlopCollectionToRemove.PackageReferencePattern()).Take(24)),
                 ImportantFiles = BuildImportantFileList(rootPath, projectDirectory, sourceFiles)
             };
 
@@ -617,13 +535,13 @@ namespace LocalGPT.Services
 
                 foreach (var subdirectory in subdirectories)
                 {
-                    if (!ExcludedDirectoryNames.Contains(subdirectory.Name))
+                    if (!GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Contains(subdirectory.Name))
                         stack.Push(subdirectory);
                 }
 
                 foreach (var file in files)
                 {
-                    if (SourceExtensions.Contains(file.Extension) || BinaryExtensions.Contains(file.Extension))
+                    if (GlobalVariableSlopCollectionToRemove.SourceExtensions.Contains(file.Extension) || GlobalVariableSlopCollectionToRemove.BinaryExtensions.Contains(file.Extension))
                         yield return file;
                 }
             }
@@ -846,7 +764,7 @@ namespace LocalGPT.Services
                     yield break;
 
                 var directoryName = Path.GetFileName(directory);
-                if (ExcludedDirectoryNames.Contains(directoryName) || !emitted.Add(directory))
+                if (GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Contains(directoryName) || !emitted.Add(directory))
                     continue;
 
                 yield return directory;
@@ -871,7 +789,7 @@ namespace LocalGPT.Services
             while (stack.Count > 0)
             {
                 var current = stack.Pop();
-                if (ExcludedDirectoryNames.Contains(current.Name))
+                if (GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Contains(current.Name))
                     continue;
 
                 if (LooksLikeArchitectureRoot(current.FullName))
@@ -900,7 +818,7 @@ namespace LocalGPT.Services
             {
                 return new DirectoryInfo(rootPath)
                     .EnumerateDirectories()
-                    .Where(directory => !ExcludedDirectoryNames.Contains(directory.Name))
+                    .Where(directory => !GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Contains(directory.Name))
                     .OrderBy(directory => directory.FullName, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
             }
@@ -1031,7 +949,7 @@ namespace LocalGPT.Services
 
         private static string RedactSensitiveName(string value)
         {
-            return SensitiveNamePattern().Replace(value, "[redacted-name]");
+            return GlobalVariableSlopCollectionToRemove.SensitiveNamePattern().Replace(value, "[redacted-name]");
         }
 
         private static string BuildTags(LearnBaseProjectSummary summary)
@@ -1053,9 +971,9 @@ namespace LocalGPT.Services
 
         private static string BuildFilePolicySummary()
         {
-            var sourceExtensions = string.Join(", ", SourceExtensions.Order(StringComparer.OrdinalIgnoreCase));
-            var binaryExtensions = string.Join(", ", BinaryExtensions.Order(StringComparer.OrdinalIgnoreCase));
-            var excludedDirectories = string.Join(", ", ExcludedDirectoryNames.Order(StringComparer.OrdinalIgnoreCase));
+            var sourceExtensions = string.Join(", ", GlobalVariableSlopCollectionToRemove.SourceExtensions.Order(StringComparer.OrdinalIgnoreCase));
+            var binaryExtensions = string.Join(", ", GlobalVariableSlopCollectionToRemove.BinaryExtensions.Order(StringComparer.OrdinalIgnoreCase));
+            var excludedDirectories = string.Join(", ", GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Order(StringComparer.OrdinalIgnoreCase));
             return "Reads source/documentation-like files: " + sourceExtensions +
                 ". Counts but does not store binary/package files: " + binaryExtensions +
                 ". Skips noisy build/cache directories: " + excludedDirectories + ".";
@@ -1067,13 +985,6 @@ namespace LocalGPT.Services
             return new Guid(hash);
         }
 
-        [GeneratedRegex("<TargetFrameworks?>(?<value>[^<]+)</TargetFrameworks?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex TargetFrameworkPattern();
 
-        [GeneratedRegex("<PackageReference\\s+Include=\"(?<value>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex PackageReferencePattern();
-
-        [GeneratedRegex("(?i)(fuck|shit|bitch|cunt|dick|pussy|whore|slut|porn|xxx)")]
-        private static partial Regex SensitiveNamePattern();
     }
 }
