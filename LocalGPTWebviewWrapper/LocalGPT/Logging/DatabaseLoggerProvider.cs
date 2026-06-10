@@ -9,7 +9,7 @@ using System.Threading.Channels;
 
 namespace LocalGPT.Logging
 {
-    public sealed class DatabaseLoggerProvider(ILogger<DatabaseLoggerProvider> logger) : ILoggerProvider
+    public sealed class DatabaseLoggerProvider : ILoggerProvider
     {
         private static readonly string[] ExcludedCategoryPrefixes =
         [
@@ -23,9 +23,9 @@ namespace LocalGPT.Logging
         private readonly CancellationTokenSource stop = new();
         private readonly Task processingTask;
 
-        public DatabaseLoggerProvider(ILogger<DatabaseLoggerProvider> logger,
+        public DatabaseLoggerProvider(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
-            IOptionsMonitor<DatabaseLoggerCoreOptions> options) : this(logger)
+            IOptionsMonitor<DatabaseLoggerCoreOptions> options) 
         {
             this.dbContextFactory = dbContextFactory;
             this.options = options;
@@ -121,7 +121,7 @@ namespace LocalGPT.Logging
                 return;
 
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await SQLLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db,logger, cancellationToken);
+            await SQLLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db,  cancellationToken:cancellationToken);
             db.ApplicationLogs.AddRange(batch);
             await db.SaveChangesAsync(cancellationToken);
             await PruneOldLogsAsync(db, cancellationToken);

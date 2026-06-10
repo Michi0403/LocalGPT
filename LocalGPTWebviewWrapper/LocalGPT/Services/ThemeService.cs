@@ -24,7 +24,7 @@ namespace LocalGPT.Services
         private readonly ILogger<ThemeService> logger;
         public ThemeService(ILogger<ThemeService> logger)
         {
-            logger = this.logger;
+            this.logger = logger;
             ThemeSets = CreateSets(this, logger);
 
             ActiveTheme = defaultTheme = FindThemeByName(DEFAULT_THEME_NAME)!;

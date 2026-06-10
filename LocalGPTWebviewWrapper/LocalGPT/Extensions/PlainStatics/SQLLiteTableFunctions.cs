@@ -895,7 +895,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 logger.LogError(ex, $"Error in EnsureCreatedCouncilKnowledgeTableAsync db: {db.ToString()}");
             }
         }
-        public static async Task EnsureCreatedApplicationLogSchemaAsync(LocalGptMemoryDbContext db, ILogger logger, CancellationToken cancellationToken = default)
+        public static async Task EnsureCreatedApplicationLogSchemaAsync(LocalGptMemoryDbContext db, ILogger? logger = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -931,7 +931,14 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in EnsureCreatedApplicationLogSchemaAsync db: {db.ToString()}");
+                if(logger is not null)
+                {
+                    logger.LogError(ex, $"Error in EnsureCreatedApplicationLogSchemaAsync db: {db.ToString()}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in EnsureCreatedApplicationLogSchemaAsync db: {db.ToString()} ex: {ex.ToString()}");
+                }
             }
         }
     }

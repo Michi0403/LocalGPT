@@ -55,76 +55,76 @@ namespace LocalGPT
             //EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
 
             var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions( args));
-            TraceStartup("Created builder.", logger);
+            logger.LogInformation("Created builder.", logger);
             ConfigureAppConfiguration(builder, logger);
-            TryAppendStartupTrace("Configured app configuration.", logger);
+            logger.LogInformation("Configured app configuration.", logger);
             ConfigureLogging(builder, logger);
-            TraceStartup("Configured logging.", logger);
+            logger.LogInformation("Configured logging.", logger);
             ConfigureOptionsAndServices(builder, logger);
-            TraceStartup("Configured options and services.", logger);
+            logger.LogInformation("Configured options and services.", logger);
             ConfigureSignalR(builder.Services, logger);
-            TraceStartup("Configured SignalR.", logger);
+            logger.LogInformation("Configured SignalR.", logger);
             ConfigureKestrel(builder, logger);
-            TraceStartup("Configured Kestrel.", logger);
+            logger.LogInformation("Configured Kestrel.", logger);
             ConfigureResponseCompression(builder.Services, logger);
-            TraceStartup("Configured response compression.", logger);
+            logger.LogInformation("Configured response compression.", logger);
             ConfigureBlazorAndMvc(builder, logger);
-            TraceStartup("Configured Blazor and MVC.", logger);
+            logger.LogInformation("Configured Blazor and MVC.", logger);
             ConfigureJsonOptions(builder.Services, logger);
-            TraceStartup("Configured JSON options.", logger);
+            logger.LogInformation("Configured JSON options.", logger);
             ConfigureForwardedHeaders(builder.Services, logger);
-            TraceStartup("Configured forwarded headers.", logger);
+            logger.LogInformation("Configured forwarded headers.", logger);
 
             var app = builder.Build();
-            TraceStartup("Built web application.", logger);
+            logger.LogInformation("Built web application.", logger);
             ConfigureMiddlewareAndEndpoints(app, logger);
-            TraceStartup("Configured middleware and endpoints.", logger);
+            logger.LogInformation("Configured middleware and endpoints.", logger);
             WriteRuntimeEndpointFile(logger);
-            TraceStartup("Wrote runtime endpoint file.", logger);
+            logger.LogInformation("Wrote runtime endpoint file.", logger);
 
             return app;
         }
 
-        private static void TraceStartup(string message, ILogger logger)
-        {
-            try
-            {
-                var line = $"[{DateTimeOffset.Now:O}] pid={Environment.ProcessId} {message}{Environment.NewLine}";
-                TryAppendStartupTrace(line, logger);
+        //private static void TraceStartup(string message, ILogger logger)
+        //{
+        //    try
+        //    {
+        //        var line = $"[{DateTimeOffset.Now:O}] pid={Environment.ProcessId} {message}{Environment.NewLine}";
+        //        //TryAppendStartupTrace(line, logger);
 
-                if (!string.Equals(
-                    Environment.GetEnvironmentVariable("LOCALGPT_STARTUP_TRACE"),
-                    "1",
-                    StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-                TryAppendStartupTrace($"[LocalGPT startup] {line}", logger);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in TraceStartup {message}");
-            }
+        //        if (!string.Equals(
+        //            Environment.GetEnvironmentVariable("LOCALGPT_STARTUP_TRACE"),
+        //            "1",
+        //            StringComparison.OrdinalIgnoreCase))
+        //        {
+        //            return;
+        //        }
+        //        //TryAppendStartupTrace($"[LocalGPT startup] {line}", logger);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        logger.LogError(ex, $"Error in TraceStartup {message}");
+        //    }
            
-        }
+        //}
 
-        private static void TryAppendStartupTrace(string line, ILogger logger)
-        {
-            try
-            {
-                foreach (var directory in GetRuntimeTraceDirectories())
-                {
-                    Directory.CreateDirectory(directory);
-                    File.AppendAllText(Path.Combine(directory, $"startup-trace-{Environment.ProcessId}.log"), line);
-                }
-            }
-            catch(Exception ex)
-            {
-                logger.LogError(ex, $"Error in TryAppendStartupTrace line {line}");
-                TraceStartup(ex.ToString(), logger);
-                // Startup tracing must never block app launch.
-            }
-        }
+        //private static void TryAppendStartupTrace(string line, ILogger logger)
+        //{
+        //    try
+        //    {
+        //        foreach (var directory in GetRuntimeTraceDirectories())
+        //        {
+        //            Directory.CreateDirectory(directory);
+        //            File.AppendAllText(Path.Combine(directory, $"startup-trace-{Environment.ProcessId}.log"), line);
+        //        }
+        //    }
+        //    catch(Exception ex)
+        //    {
+        //        logger.LogError(ex, $"Error in TryAppendStartupTrace line {line}");
+        //        TraceStartup(ex.ToString(), logger);
+        //        // Startup tracing must never block app launch.
+        //    }
+        //}
 
         private static IEnumerable<string> GetRuntimeTraceDirectories()
         {
@@ -171,7 +171,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureAppConfiguration builder {builder.ToString()}",builder);
-                TryAppendStartupTrace(ex.ToString(), logger);
+                ///*TryAppendStartupTrace*/(ex.ToString(), logger);
             }
            
         }
@@ -194,7 +194,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureLogging builder {builder.ToString()}", builder);
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
            
         }
@@ -230,7 +230,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in IsEnvironmentFlagEnabled");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
                 return false;
             }
 
@@ -257,12 +257,12 @@ namespace LocalGPT
 
                 var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
                 Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
-                TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
+                //TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
                 SQLLiteTableFunctions.EnsureHealthyOrRecoverAsync
                     (memoryDbPath, logger)
                     .GetAwaiter()
                     .GetResult();
-                TraceStartup("Finished SQLite database health check.", logger);
+                //TraceStartup("Finished SQLite database health check.", logger);
                 builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
                     options.UseSqlite($"Data Source={memoryDbPath}"));
 
@@ -288,7 +288,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureOptionsAndServices");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
 
@@ -318,7 +318,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureKestrel");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
 
@@ -338,7 +338,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureResponseCompression");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
 
         }
@@ -359,7 +359,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureBlazorAndMvc");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
 
@@ -376,7 +376,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureJsonOptions");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
 
@@ -399,7 +399,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureSharedJsonSerializerOptions");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
 
@@ -417,7 +417,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureJsonOptions");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
 
@@ -456,7 +456,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in ConfigureMiddlewareAndEndpoints");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
 
@@ -480,7 +480,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in IsGeneratedStaticWebAssetRoot path {path}");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
                 return false;
             }
         }
@@ -510,7 +510,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in WriteRuntimeEndpointFile");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
         private static int GetFreePort(ILogger logger)
@@ -526,7 +526,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in GetFreePort");
-                TryAppendStartupTrace(ex.ToString(), logger);
+                //TryAppendStartupTrace(ex.ToString(), logger);
                 return 0;
             }
         }
