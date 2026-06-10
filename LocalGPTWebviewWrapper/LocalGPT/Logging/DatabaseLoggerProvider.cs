@@ -1,14 +1,15 @@
-using System.Threading.Channels;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.BusinessObjects.Enums;
+using LocalGPT.Extensions.PlainStatics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Threading.Channels;
 
 namespace LocalGPT.Logging
 {
-    public sealed class DatabaseLoggerProvider : ILoggerProvider
+    public sealed class DatabaseLoggerProvider(ILogger<DatabaseLoggerProvider> logger) : ILoggerProvider
     {
         private static readonly string[] ExcludedCategoryPrefixes =
         [
@@ -22,9 +23,9 @@ namespace LocalGPT.Logging
         private readonly CancellationTokenSource stop = new();
         private readonly Task processingTask;
 
-        public DatabaseLoggerProvider(
+        public DatabaseLoggerProvider(ILogger<DatabaseLoggerProvider> logger,
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
-            IOptionsMonitor<DatabaseLoggerCoreOptions> options)
+            IOptionsMonitor<DatabaseLoggerCoreOptions> options) : this(logger)
         {
             this.dbContextFactory = dbContextFactory;
             this.options = options;
@@ -120,7 +121,7 @@ namespace LocalGPT.Logging
                 return;
 
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await ApplicationLogSchema.EnsureCreatedAsync(db, cancellationToken);
+            await SQLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db,logger, cancellationToken);
             db.ApplicationLogs.AddRange(batch);
             await db.SaveChangesAsync(cancellationToken);
             await PruneOldLogsAsync(db, cancellationToken);

@@ -1,3 +1,4 @@
+using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Extensions.PlainStatics;
@@ -6,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 
 namespace LocalGPT.Services
 {
@@ -17,120 +19,161 @@ namespace LocalGPT.Services
 
         public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            await SeedKnowledgeAsync(db, cancellationToken);
+            try
+            {
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                await SQLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken);
+                await SeedKnowledgeAsync(db, cancellationToken,logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in EnsureCreatedAsync");
+            }
         }
 
         public async Task<IReadOnlyList<CouncilKnowledgeEntry>> GetEntriesAsync(bool includeArchived = false, int take = 100, CancellationToken cancellationToken = default)
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            await SeedKnowledgeAsync(db, cancellationToken);
+            try
+            {
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                await SQLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken);
+                await SeedKnowledgeAsync(db, cancellationToken, logger);
 
-            var now = DateTime.UtcNow;
-            var query = db.CouncilKnowledgeEntries.AsNoTracking();
-            if (!includeArchived)
-                query = query.Where(entry =>
-                    !entry.IsArchived &&
-                    entry.ReviewStatus != "Archived" &&
-                    entry.ReviewStatus != "Deprecated" &&
-                    entry.ReviewStatus != "Superseded" &&
-                    entry.ReviewStatus != "Expired" &&
-                    (entry.ExpiresAtUtc == null || entry.ExpiresAtUtc > now));
+                var now = DateTime.UtcNow;
+                var query = db.CouncilKnowledgeEntries.AsNoTracking();
+                if (!includeArchived)
+                    query = query.Where(entry =>
+                        !entry.IsArchived &&
+                        entry.ReviewStatus != "Archived" &&
+                        entry.ReviewStatus != "Deprecated" &&
+                        entry.ReviewStatus != "Superseded" &&
+                        entry.ReviewStatus != "Expired" &&
+                        (entry.ExpiresAtUtc == null || entry.ExpiresAtUtc > now));
 
-            return await query
-                .OrderByDescending(entry => entry.IsPinned)
-                .ThenByDescending(entry => entry.IsUserApproved)
-                .ThenBy(entry => entry.ReviewStatus)
-                .ThenByDescending(entry => entry.UpdatedAtUtc)
-                .Take(Math.Clamp(take, 1, 500))
-                .ToListAsync(cancellationToken);
+                return await query
+                    .OrderByDescending(entry => entry.IsPinned)
+                    .ThenByDescending(entry => entry.IsUserApproved)
+                    .ThenBy(entry => entry.ReviewStatus)
+                    .ThenByDescending(entry => entry.UpdatedAtUtc)
+                    .Take(Math.Clamp(take, 1, 500))
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetEntriesAsync");
+                return new List<CouncilKnowledgeEntry>();
+            }
         }
 
-        public async Task<CouncilKnowledgeEntry> SaveEntryAsync(CouncilKnowledgeEntry entry, CancellationToken cancellationToken = default)
+        public async Task<CouncilKnowledgeEntry?> SaveEntryAsync(CouncilKnowledgeEntry entry, CancellationToken cancellationToken = default)
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            await SeedKnowledgeAsync(db, cancellationToken);
-
-            var now = DateTime.UtcNow;
-            var existing = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == entry.Id, cancellationToken);
-            if (existing is null)
+            try
             {
-                entry.CreatedAtUtc = entry.CreatedAtUtc == default ? now : entry.CreatedAtUtc;
-                entry.UpdatedAtUtc = now;
-                Normalize(entry);
-                db.CouncilKnowledgeEntries.Add(entry);
-            }
-            else
-            {
-                existing.Topic = entry.Topic;
-                existing.Scope = entry.Scope;
-                existing.Content = entry.Content;
-                existing.Source = entry.Source;
-                existing.HelpfulSources = entry.HelpfulSources;
-                existing.Tags = entry.Tags;
-                existing.Confidence = entry.Confidence;
-                existing.VerificationStatus = entry.VerificationStatus;
-                existing.ReviewStatus = entry.ReviewStatus;
-                existing.ExpiresAtUtc = entry.ExpiresAtUtc;
-                existing.LastVerifiedAtUtc = entry.LastVerifiedAtUtc;
-                existing.LastUsedAtUtc = entry.LastUsedAtUtc;
-                existing.SupersededByKnowledgeId = entry.SupersededByKnowledgeId;
-                existing.StalenessReason = entry.StalenessReason;
-                existing.StalenessDetectedAtUtc = entry.StalenessDetectedAtUtc;
-                existing.StalenessDetectedBy = entry.StalenessDetectedBy;
-                existing.SourceHash = entry.SourceHash;
-                existing.SourceDateUtc = entry.SourceDateUtc;
-                existing.IsUserApproved = entry.IsUserApproved;
-                existing.IsPinned = entry.IsPinned;
-                existing.IsArchived = entry.IsArchived;
-                existing.UpdatedAtUtc = now;
-                Normalize(existing);
-                entry = existing;
-            }
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                await SQLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger,cancellationToken);
+                await SeedKnowledgeAsync(db, cancellationToken, logger);
 
-            await db.SaveChangesAsync(cancellationToken);
-            return entry;
+                var now = DateTime.UtcNow;
+                var existing = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == entry.Id, cancellationToken);
+                if (existing is null)
+                {
+                    entry.CreatedAtUtc = entry.CreatedAtUtc == default ? now : entry.CreatedAtUtc;
+                    entry.UpdatedAtUtc = now;
+                    Normalize(entry, logger);
+                    db.CouncilKnowledgeEntries.Add(entry);
+                }
+                else
+                {
+                    existing.Topic = entry.Topic;
+                    existing.Scope = entry.Scope;
+                    existing.Content = entry.Content;
+                    existing.Source = entry.Source;
+                    existing.HelpfulSources = entry.HelpfulSources;
+                    existing.Tags = entry.Tags;
+                    existing.Confidence = entry.Confidence;
+                    existing.VerificationStatus = entry.VerificationStatus;
+                    existing.ReviewStatus = entry.ReviewStatus;
+                    existing.ExpiresAtUtc = entry.ExpiresAtUtc;
+                    existing.LastVerifiedAtUtc = entry.LastVerifiedAtUtc;
+                    existing.LastUsedAtUtc = entry.LastUsedAtUtc;
+                    existing.SupersededByKnowledgeId = entry.SupersededByKnowledgeId;
+                    existing.StalenessReason = entry.StalenessReason;
+                    existing.StalenessDetectedAtUtc = entry.StalenessDetectedAtUtc;
+                    existing.StalenessDetectedBy = entry.StalenessDetectedBy;
+                    existing.SourceHash = entry.SourceHash;
+                    existing.SourceDateUtc = entry.SourceDateUtc;
+                    existing.IsUserApproved = entry.IsUserApproved;
+                    existing.IsPinned = entry.IsPinned;
+                    existing.IsArchived = entry.IsArchived;
+                    existing.UpdatedAtUtc = now;
+                    Normalize(existing, logger);
+                    entry = existing;
+                }
+
+                await db.SaveChangesAsync(cancellationToken);
+                return entry;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SaveEntryAsync");
+                return null;
+            }
+           
         }
 
         public async Task DeleteEntryAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-            await SeedKnowledgeAsync(db, cancellationToken);
-            var entry = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
-            if (entry is null)
-                return;
+            try
+            {
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                await SQLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken);
+                await SeedKnowledgeAsync(db, cancellationToken, logger);
+                var entry = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+                if (entry is null)
+                    return;
 
-            db.CouncilKnowledgeEntries.Remove(entry);
-            await db.SaveChangesAsync(cancellationToken);
+                db.CouncilKnowledgeEntries.Remove(entry);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in DeleteEntryAsync");
+                return;
+            }
         }
 
         public async Task<Guid> SaveFromCouncilRunAsync(MultiModelCouncilResult result, CancellationToken cancellationToken = default)
         {
-            var nonSubstantive = IsNonSubstantiveCouncilKnowledge(result);
-            var entry = new CouncilKnowledgeEntry
+            try
             {
-                Topic = BuildTopic(result.Prompt),
-                Scope = "AI Council",
-                Source = $"AI Council {result.RunId}",
-                Content = BuildCouncilKnowledgeContent(result, logger),
-                HelpfulSources = ExtractHelpfulSources(result.FinalAnswer),
-                Tags = BuildTags(result, nonSubstantive),
-                Confidence = nonSubstantive ? 20 : result.Warnings.Count == 0 ? 75 : 55,
-                VerificationStatus = nonSubstantive ? "Archived" : "ModelSuggested",
-                ReviewStatus = nonSubstantive ? "Archived" : "NeedsUserReview",
-                ExpiresAtUtc = nonSubstantive ? null : DateTime.UtcNow.AddDays(30),
-                IsUserApproved = false,
-                IsPinned = result.UserPoll is not null && !nonSubstantive,
-                IsArchived = nonSubstantive
-            };
+                var nonSubstantive = IsNonSubstantiveCouncilKnowledge(result, logger);
+                var entry = new CouncilKnowledgeEntry
+                {
+                    Topic = BuildTopic(result.Prompt, logger),
+                    Scope = "AI Council",
+                    Source = $"AI Council {result.RunId}",
+                    Content = BuildCouncilKnowledgeContent(result, logger),
+                    HelpfulSources = ExtractHelpfulSources(result.FinalAnswer, logger),
+                    Tags = BuildTags(result, nonSubstantive, logger),
+                    Confidence = nonSubstantive ? 20 : result.Warnings.Count == 0 ? 75 : 55,
+                    VerificationStatus = nonSubstantive ? "Archived" : "ModelSuggested",
+                    ReviewStatus = nonSubstantive ? "Archived" : "NeedsUserReview",
+                    ExpiresAtUtc = nonSubstantive ? null : DateTime.UtcNow.AddDays(30),
+                    IsUserApproved = false,
+                    IsPinned = result.UserPoll is not null && !nonSubstantive,
+                    IsArchived = nonSubstantive
+                };
 
-            await SaveEntryAsync(entry, cancellationToken);
-            logger.LogInformation("Saved council knowledge entry {KnowledgeEntryId} for council run {RunId}.", entry.Id, result.RunId);
-            return entry.Id;
+                await SaveEntryAsync(entry, cancellationToken);
+                logger.LogInformation("Saved council knowledge entry {KnowledgeEntryId} for council run {RunId}.", entry.Id, result.RunId);
+                return entry.Id;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SaveFromCouncilRunAsync");
+                return Guid.Empty;
+            }
+
         }
 
         public async Task<string> BuildKnowledgeBriefingAsync( int take = 8, CancellationToken cancellationToken = default)
@@ -145,8 +188,8 @@ namespace LocalGPT.Services
                     .AppendLine("AI Council maintained knowledge database:");
 
                 var briefingEntries = entries
-                    .Where(entry => !LooksLikeNonSubstantiveContent(entry.Content))
-                    .Where(IsUsableForBriefing)
+                    .Where(entry => !LooksLikeNonSubstantiveContent(entry.Content, logger))
+                    .Where(filter => IsUsableForBriefing(filter,logger))
                     .OrderByDescending(entry => entry.IsUserApproved)
                     .GroupBy(entry => $"{entry.Scope}|{entry.Topic}|{entry.Source}", StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.First())
@@ -155,11 +198,11 @@ namespace LocalGPT.Services
                 if (briefingEntries.Count == 0)
                     return string.Empty;
 
-                await MarkEntriesUsedAsync(briefingEntries.Select(entry => entry.Id), cancellationToken);
+                await MarkEntriesUsedAsync(briefingEntries.Select(entry => entry.Id), cancellationToken, logger);
 
                 foreach (var entry in briefingEntries)
                 {
-                    var trust = BuildTrustLabel(entry);
+                    var trust = BuildTrustLabel(entry,logger);
                     builder
                         .Append("- ")
                         .Append(entry.Topic)
@@ -185,187 +228,270 @@ namespace LocalGPT.Services
             }
         }
 
-        private static void Normalize(CouncilKnowledgeEntry entry)
+        public static void Normalize(CouncilKnowledgeEntry entry, ILogger logger)
         {
-            entry.Topic = TrimOrFallback(entry.Topic, 240, "Untitled knowledge entry");
-            entry.Scope = TrimOrFallback(entry.Scope, 120, "AI Council");
-            entry.Source = TrimOrFallback(entry.Source, 240, "Manual");
-            entry.Tags = Trim(entry.Tags, 400);
-            entry.Confidence = Math.Clamp(entry.Confidence, 0, 100);
-            entry.VerificationStatus = NormalizeVerificationStatus(entry);
-            entry.ReviewStatus = NormalizeReviewStatus(entry);
-            entry.StalenessReason = Trim(entry.StalenessReason, 500);
-            entry.StalenessDetectedBy = Trim(entry.StalenessDetectedBy, 160);
-            entry.SourceHash = Trim(entry.SourceHash, 128);
-            if (string.IsNullOrWhiteSpace(entry.SourceHash))
-                entry.SourceHash = ComputeSourceHash(entry);
-
-            if (entry.VerificationStatus is "SourceBacked" or "UserVerified" && entry.LastVerifiedAtUtc is null)
-                entry.LastVerifiedAtUtc = DateTime.UtcNow;
-
-            if (entry.ReviewStatus == "Archived")
-                entry.IsArchived = true;
-        }
-
-        private static string BuildTrustLabel(CouncilKnowledgeEntry entry)
-        {
-            var trust = entry.VerificationStatus switch
-            {
-                "SourceBacked" => "source-backed seed",
-                "UserVerified" => "verified by user",
-                "ModelSuggested" => "model-suggested; treat as hypothesis until user approves",
-                "Archived" => "archived; do not use as active evidence",
-                _ => entry.IsUserApproved
-                    ? "verified by user"
-                    : "needs verification"
-            };
-
-            var review = entry.ReviewStatus switch
-            {
-                "Current" => "current",
-                "NeedsUserReview" => "needs user review",
-                "NeedsSourceRefresh" => "needs source refresh",
-                "NeedsDiagnosticVerification" => "needs diagnostic verification",
-                "Expired" => "expired",
-                "Deprecated" => "deprecated",
-                "Superseded" => "superseded",
-                "Archived" => "archived",
-                _ => "needs review"
-            };
-
-            return $"{trust}; review: {review}";
-        }
-
-        private static string NormalizeVerificationStatus(CouncilKnowledgeEntry entry)
-        {
-            if (entry.IsArchived)
-                return "Archived";
-
-            var requested = Trim(entry.VerificationStatus, 80).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
-            if (IsKnownVerificationStatus(requested))
-                return requested;
-
-            if (entry.Source.Contains("seed", StringComparison.OrdinalIgnoreCase))
-                return "SourceBacked";
-
-            if (entry.IsUserApproved)
-                return "UserVerified";
-
-            if (entry.Source.StartsWith("AI Council ", StringComparison.OrdinalIgnoreCase))
-                return "ModelSuggested";
-
-            return "NeedsVerification";
-        }
-
-        private static bool IsKnownVerificationStatus(string value)
-        {
-            return value is "SourceBacked" or "UserVerified" or "ModelSuggested" or "NeedsVerification" or "Archived";
-        }
-
-        private static string NormalizeReviewStatus(CouncilKnowledgeEntry entry)
-        {
-            if (entry.IsArchived)
-                return "Archived";
-
-            if (entry.SupersededByKnowledgeId is not null)
-                return "Superseded";
-
-            var now = DateTime.UtcNow;
-            if (entry.ExpiresAtUtc is not null && entry.ExpiresAtUtc.Value <= now)
-            {
-                if (string.IsNullOrWhiteSpace(entry.StalenessReason))
-                    entry.StalenessReason = "Knowledge expiry date passed.";
-                entry.StalenessDetectedAtUtc ??= now;
-                entry.StalenessDetectedBy = TrimOrFallback(entry.StalenessDetectedBy, 160, "LocalGPT knowledge lifecycle");
-                return "Expired";
-            }
-
-            var requested = Trim(entry.ReviewStatus, 80).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
-            if (requested == "NeedsUserReview" &&
-                entry.IsUserApproved &&
-                entry.VerificationStatus is "SourceBacked" or "UserVerified")
-                return "Current";
-
-            if (IsKnownReviewStatus(requested))
-                return requested;
-
-            return entry.VerificationStatus switch
-            {
-                "SourceBacked" or "UserVerified" => "Current",
-                "Archived" => "Archived",
-                _ => "NeedsUserReview"
-            };
-        }
-
-        private static bool IsKnownReviewStatus(string value)
-        {
-            return value is "Current" or "NeedsUserReview" or "NeedsSourceRefresh" or "NeedsDiagnosticVerification" or "Expired" or "Deprecated" or "Superseded" or "Archived";
-        }
-
-        private static bool IsUsableForBriefing(CouncilKnowledgeEntry entry)
-        {
-            if (entry.IsArchived)
-                return false;
-
-            if (entry.ExpiresAtUtc is not null && entry.ExpiresAtUtc.Value <= DateTime.UtcNow)
-                return false;
-
-            return entry.ReviewStatus is not "Archived" and not "Deprecated" and not "Superseded" and not "Expired";
-        }
-
-        private async Task MarkEntriesUsedAsync(IEnumerable<Guid> entryIds, CancellationToken cancellationToken)
-        {
-            var ids = entryIds.Distinct().ToArray();
-            if (ids.Length == 0)
-                return;
-
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-                await CouncilKnowledgeSchema.EnsureCreatedAsync(db, cancellationToken);
-                var entries = await db.CouncilKnowledgeEntries
-                    .Where(entry => ids.Contains(entry.Id))
-                    .ToListAsync(cancellationToken);
-                var now = DateTime.UtcNow;
-                foreach (var entry in entries)
-                    entry.LastUsedAtUtc = now;
+                entry.Topic = TrimOrFallback(entry.Topic, 240, "Untitled knowledge entry", logger);
+                entry.Scope = TrimOrFallback(entry.Scope, 120, "AI Council", logger);
+                entry.Source = TrimOrFallback(entry.Source, 240, "Manual", logger);
+                entry.Tags = Trim(entry.Tags, 400, logger);
+                entry.Confidence = Math.Clamp(entry.Confidence, 0, 100);
+                entry.VerificationStatus = NormalizeVerificationStatus(entry, logger);
+                entry.ReviewStatus = NormalizeReviewStatus(entry, logger);
+                entry.StalenessReason = Trim(entry.StalenessReason, 500, logger);
+                entry.StalenessDetectedBy = Trim(entry.StalenessDetectedBy, 160, logger);
+                entry.SourceHash = Trim(entry.SourceHash, 128, logger);
+                if (string.IsNullOrWhiteSpace(entry.SourceHash))
+                    entry.SourceHash = ComputeSourceHash(entry, logger);
 
-                await db.SaveChangesAsync(cancellationToken);
+                if (entry.VerificationStatus is "SourceBacked" or "UserVerified" && entry.LastVerifiedAtUtc is null)
+                    entry.LastVerifiedAtUtc = DateTime.UtcNow;
+
+                if (entry.ReviewStatus == "Archived")
+                    entry.IsArchived = true;
             }
-            catch (Exception ex) when (ex is DbUpdateException or DbUpdateConcurrencyException or IOException)
+            catch (Exception ex)
             {
-                if (LocalGptDatabaseRecovery.IsSqliteCorruption(ex))
+                logger.LogError(ex, $"Error in Normalize entry {entry.ToString()}");
+            }
+        }
+
+        public static string BuildTrustLabel(CouncilKnowledgeEntry entry, ILogger logger)
+        {
+            try
+            {
+                var trust = entry.VerificationStatus switch
                 {
-                    await LocalGptDatabaseRecovery.RecoverMalformedDatabaseAsync(DatabasePath, logger, cancellationToken);
+                    "SourceBacked" => "source-backed seed",
+                    "UserVerified" => "verified by user",
+                    "ModelSuggested" => "model-suggested; treat as hypothesis until user approves",
+                    "Archived" => "archived; do not use as active evidence",
+                    _ => entry.IsUserApproved
+                        ? "verified by user"
+                        : "needs verification"
+                };
+
+                var review = entry.ReviewStatus switch
+                {
+                    "Current" => "current",
+                    "NeedsUserReview" => "needs user review",
+                    "NeedsSourceRefresh" => "needs source refresh",
+                    "NeedsDiagnosticVerification" => "needs diagnostic verification",
+                    "Expired" => "expired",
+                    "Deprecated" => "deprecated",
+                    "Superseded" => "superseded",
+                    "Archived" => "archived",
+                    _ => "needs review"
+                };
+
+                return $"{trust}; review: {review}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildTrustLabel entry {entry.ToString()}");
+                return string.Empty;
+            }
+        }
+
+        public static string NormalizeVerificationStatus(CouncilKnowledgeEntry entry, ILogger logger)
+        {
+            try
+            {
+                if (entry.IsArchived)
+                    return "Archived";
+
+                var requested = Trim(entry.VerificationStatus, 80, logger).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
+                if (IsKnownVerificationStatus(requested, logger))
+                    return requested;
+
+                if (entry.Source.Contains("seed", StringComparison.OrdinalIgnoreCase))
+                    return "SourceBacked";
+
+                if (entry.IsUserApproved)
+                    return "UserVerified";
+
+                if (entry.Source.StartsWith("AI Council ", StringComparison.OrdinalIgnoreCase))
+                    return "ModelSuggested";
+
+                return "NeedsVerification";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeVerificationStatus entry {entry.ToString()}");
+                return string.Empty;
+            }
+        }
+
+        public static bool IsKnownVerificationStatus(string value, ILogger logger)
+        {
+            try
+            {
+                return value is "SourceBacked" or "UserVerified" or "ModelSuggested" or "NeedsVerification" or "Archived";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsKnownVerificationStatus value {value.ToString()}");
+                return false;
+            }
+
+        }
+
+        public static string NormalizeReviewStatus(CouncilKnowledgeEntry entry, ILogger logger)
+        {
+            try
+            {
+                if (entry.IsArchived)
+                    return "Archived";
+
+                if (entry.SupersededByKnowledgeId is not null)
+                    return "Superseded";
+
+                var now = DateTime.UtcNow;
+                if (entry.ExpiresAtUtc is not null && entry.ExpiresAtUtc.Value <= now)
+                {
+                    if (string.IsNullOrWhiteSpace(entry.StalenessReason))
+                        entry.StalenessReason = "Knowledge expiry date passed.";
+                    entry.StalenessDetectedAtUtc ??= now;
+                    entry.StalenessDetectedBy = TrimOrFallback(entry.StalenessDetectedBy, 160, "LocalGPT knowledge lifecycle", logger);
+                    return "Expired";
                 }
 
-                logger.LogWarning(ex, "Could not update LastUsedAtUtc for council knowledge entries. Knowledge briefing will continue with read-only data.");
+                var requested = Trim(entry.ReviewStatus, 80, logger).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
+                if (requested == "NeedsUserReview" &&
+                    entry.IsUserApproved &&
+                    entry.VerificationStatus is "SourceBacked" or "UserVerified")
+                    return "Current";
+
+                if (IsKnownReviewStatus(requested, logger))
+                    return requested;
+
+                return entry.VerificationStatus switch
+                {
+                    "SourceBacked" or "UserVerified" => "Current",
+                    "Archived" => "Archived",
+                    _ => "NeedsUserReview"
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeReviewStatus entry {entry.ToString()}");
+                return string.Empty;
+            }
+            
+        }
+
+        public static bool IsKnownReviewStatus(string value, ILogger logger)
+        {
+            try
+            {
+                return value is "Current" or "NeedsUserReview" or "NeedsSourceRefresh" or "NeedsDiagnosticVerification" or "Expired" or "Deprecated" or "Superseded" or "Archived";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsKnownReviewStatus value {value.ToString()}");
+                return false;
             }
         }
 
-        private static string ComputeSourceHash(CouncilKnowledgeEntry entry)
+        public static bool IsUsableForBriefing(CouncilKnowledgeEntry entry, ILogger logger)
         {
-            var sourceMaterial = $"{entry.Topic}\n{entry.Scope}\n{entry.Source}\n{entry.HelpfulSources}\n{entry.Content}";
-            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceMaterial)));
-        }
-
-        private static async Task SeedKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
-        {
-            await SeedBuiltInKnowledgeAsync(db, cancellationToken);
-            await SeedSqlKnowledgeAsync(db, cancellationToken);
-        }
-
-        private static async Task SeedBuiltInKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
-        {
-            const string seedSource = "LocalGPT built-in seed";
-            var existingSeedIds = await db.CouncilKnowledgeEntries
-                .Where(entry => entry.Source == seedSource)
-                .Select(entry => entry.Id)
-                .ToListAsync(cancellationToken);
-
-            var now = DateTime.UtcNow;
-            var entries = new[]
+            try
             {
+                if (entry.IsArchived)
+                    return false;
+
+                if (entry.ExpiresAtUtc is not null && entry.ExpiresAtUtc.Value <= DateTime.UtcNow)
+                    return false;
+
+                return entry.ReviewStatus is not "Archived" and not "Deprecated" and not "Superseded" and not "Expired";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsUsableForBriefing entry {entry.ToString()}");
+                return false;
+            }
+        }
+
+        public async Task MarkEntriesUsedAsync(IEnumerable<Guid> entryIds, CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                var ids = entryIds.Distinct().ToArray();
+                if (ids.Length == 0)
+                    return;
+
+                try
+                {
+                    await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                    await SQLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken);
+                    var entries = await db.CouncilKnowledgeEntries
+                        .Where(entry => ids.Contains(entry.Id))
+                        .ToListAsync(cancellationToken);
+                    var now = DateTime.UtcNow;
+                    foreach (var entry in entries)
+                        entry.LastUsedAtUtc = now;
+
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+                catch (Exception ex) when (ex is DbUpdateException or DbUpdateConcurrencyException or IOException)
+                {
+                    if (SQLiteTableFunctions.IsSqliteCorruption(ex, logger))
+                    {
+                        await SQLiteTableFunctions.RecoverMalformedDatabaseAsync(DatabasePath, logger, cancellationToken);
+                    }
+
+                    logger.LogWarning(ex, "Could not update LastUsedAtUtc for council knowledge entries. Knowledge briefing will continue with read-only data.");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsUsableForBriefing entryIds {entryIds.ToString()}");
+            }
+        
+        }
+
+        public static string ComputeSourceHash(CouncilKnowledgeEntry entry, ILogger logger)
+        {
+            try
+            {
+                var sourceMaterial = $"{entry.Topic}\n{entry.Scope}\n{entry.Source}\n{entry.HelpfulSources}\n{entry.Content}";
+                return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceMaterial)));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ComputeSourceHash entry {entry.ToString()}");
+                return string.Empty;
+            }
+
+        }
+
+        public static async Task SeedKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                await SeedBuiltInKnowledgeAsync(db, cancellationToken, logger);
+                await SeedSqlKnowledgeAsync(db, cancellationToken, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SeedKnowledgeAsync db {db.ToString()}");
+            }
+        }
+
+        public static async Task SeedBuiltInKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                const string seedSource = "LocalGPT built-in seed";
+                var existingSeedIds = await db.CouncilKnowledgeEntries
+                    .Where(entry => entry.Source == seedSource)
+                    .Select(entry => entry.Id)
+                    .ToListAsync(cancellationToken);
+
+                var now = DateTime.UtcNow;
+                var entries = new[]
+                {
                 new CouncilKnowledgeEntry
                 {
                     Id = Guid.Parse("157ea50f-093d-43dc-b7f6-546d74d8ad22"),
@@ -1019,38 +1145,46 @@ namespace LocalGPT.Services
                 }
             };
 
-            foreach (var entry in entries)
-                Normalize(entry);
+                foreach (var entry in entries)
+                    Normalize(entry, logger);
 
-            var missingEntries = entries
-                .Where(entry => !existingSeedIds.Contains(entry.Id))
-                .ToArray();
+                var missingEntries = entries
+                    .Where(entry => !existingSeedIds.Contains(entry.Id))
+                    .ToArray();
 
-            if (missingEntries.Length == 0)
-            {
-                await MarkApprovedBuiltInSeedsAsVerifiedAsync(db, seedSource, cancellationToken);
-                return;
+                if (missingEntries.Length == 0)
+                {
+                    await MarkApprovedBuiltInSeedsAsVerifiedAsync(db, seedSource, cancellationToken,logger);
+                    return;
+                }
+
+                try
+                {
+                    db.CouncilKnowledgeEntries.AddRange(missingEntries);
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateException)
+                {
+                    // Another startup request may have inserted the same stable seed IDs first.
+                }
+
+                await MarkApprovedBuiltInSeedsAsVerifiedAsync(db, seedSource, cancellationToken,logger);
             }
-
-            try
+            catch (Exception ex)
             {
-                db.CouncilKnowledgeEntries.AddRange(missingEntries);
-                await db.SaveChangesAsync(cancellationToken);
+                logger.LogError(ex, $"Error in SeedBuiltInKnowledgeAsync db {db.ToString()}");
             }
-            catch (DbUpdateException)
-            {
-                // Another startup request may have inserted the same stable seed IDs first.
-            }
-
-            await MarkApprovedBuiltInSeedsAsVerifiedAsync(db, seedSource, cancellationToken);
+           
         }
 
-        private static Task MarkApprovedBuiltInSeedsAsVerifiedAsync(
+        public static Task MarkApprovedBuiltInSeedsAsVerifiedAsync(
             LocalGptMemoryDbContext db,
             string seedSource,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,ILogger logger)
         {
-            return db.Database.ExecuteSqlRawAsync(
+            try
+            {
+                return db.Database.ExecuteSqlRawAsync(
                 """
                 UPDATE "CouncilKnowledgeEntries"
                 SET "VerificationStatus" = 'UserVerified',
@@ -1069,21 +1203,30 @@ namespace LocalGPT.Services
                 """,
                 [seedSource],
                 cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in MarkApprovedBuiltInSeedsAsVerifiedAsync db {db.ToString()} seedSource {seedSource.ToString()}");
+                return Task.CompletedTask;
+            }
+            
         }
 
-        private static async Task SeedSqlKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
+        public static async Task SeedSqlKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken, ILogger logger)
         {
-            var path = FindSqlSeedPath();
-            if (path is null)
-                return;
+            try
+            {
+                var path = FindSqlSeedPath( logger);
+                if (path is null)
+                    return;
 
-            var sql = await File.ReadAllTextAsync(path, cancellationToken);
-            if (string.IsNullOrWhiteSpace(sql))
-                return;
+                var sql = await File.ReadAllTextAsync(path, cancellationToken);
+                if (string.IsNullOrWhiteSpace(sql))
+                    return;
 
-            await db.Database.ExecuteSqlRawAsync(EscapeSqlFormatBraces(sql), cancellationToken);
-            await db.Database.ExecuteSqlRawAsync(
-                """
+                await db.Database.ExecuteSqlRawAsync(EscapeSqlFormatBraces(sql, logger), cancellationToken);
+                await db.Database.ExecuteSqlRawAsync(
+                    """
                 UPDATE "CouncilKnowledgeEntries"
                 SET "VerificationStatus" =
                         CASE
@@ -1099,9 +1242,9 @@ namespace LocalGPT.Services
                 )
                   AND ("VerificationStatus" IS NULL OR trim("VerificationStatus") = '' OR "VerificationStatus" = 'NeedsVerification');
                 """,
-                cancellationToken);
-            await db.Database.ExecuteSqlRawAsync(
-                """
+                    cancellationToken);
+                await db.Database.ExecuteSqlRawAsync(
+                    """
                 UPDATE "CouncilKnowledgeEntries"
                 SET "ReviewStatus" = 'Current',
                     "LastVerifiedAtUtc" = COALESCE("LastVerifiedAtUtc", strftime('%Y-%m-%dT%H:%M:%fZ','now'))
@@ -1112,154 +1255,234 @@ namespace LocalGPT.Services
                 )
                   AND ("ReviewStatus" IS NULL OR trim("ReviewStatus") = '' OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview'));
                 """,
-                cancellationToken);
-        }
-
-        private static string EscapeSqlFormatBraces(string sql)
-        {
-            return sql.Replace("{", "{{", StringComparison.Ordinal)
-                .Replace("}", "}}", StringComparison.Ordinal);
-        }
-
-        private static string? FindSqlSeedPath()
-        {
-            const string seedFileName = "COUNCIL_KNOWLEDGE_SEED.sql";
-            var candidates = new[]
+                    cancellationToken);
+            }
+            catch (Exception ex)
             {
+                logger.LogError(ex, $"Error in SeedSqlKnowledgeAsync db {db.ToString()}");
+      
+            }
+        }
+
+        public static string EscapeSqlFormatBraces(string sql, ILogger logger)
+        {
+            try
+            {
+                return sql.Replace("{", "{{", StringComparison.Ordinal)
+             .Replace("}", "}}", StringComparison.Ordinal);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SeedSqlKnowledgeAsync sql {sql.ToString()}");
+                return string.Empty;
+            }
+         
+        }
+
+        public static string? FindSqlSeedPath(ILogger logger)
+        {
+            try
+            {
+                const string seedFileName = "COUNCIL_KNOWLEDGE_SEED.sql";
+                var candidates = new[]
+                {
                 Path.Combine(AppContext.BaseDirectory, "docs", seedFileName),
                 Path.Combine(Directory.GetCurrentDirectory(), "docs", seedFileName)
             };
 
-            foreach (var candidate in candidates)
-            {
-                if (File.Exists(candidate))
-                    return candidate;
-            }
+                foreach (var candidate in candidates)
+                {
+                    if (File.Exists(candidate))
+                        return candidate;
+                }
 
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is not null)
-            {
-                var candidate = Path.Combine(directory.FullName, "docs", seedFileName);
-                if (File.Exists(candidate))
-                    return candidate;
+                var directory = new DirectoryInfo(AppContext.BaseDirectory);
+                while (directory is not null)
+                {
+                    var candidate = Path.Combine(directory.FullName, "docs", seedFileName);
+                    if (File.Exists(candidate))
+                        return candidate;
 
-                directory = directory.Parent;
-            }
+                    directory = directory.Parent;
+                }
 
-            return null;
-        }
-
-        private static string BuildCouncilKnowledgeContent(MultiModelCouncilResult result, ILogger logger)
-        {
-            try
-            {
-
+                return null;
             }
             catch (Exception ex)
             {
-
-                throw;
+                logger.LogError(ex, $"Error in FindSqlSeedPath");
+                return null;
             }
-            var builder = new StringBuilder()
-                .AppendLine($"Council members: {string.Join(", ", result.ModelNames)}")
-                .AppendLine($"Prompt: {CouncilChatStringFunctions.TrimForPrompt(result.Prompt, 900, logger)}")
-                .AppendLine()
-                .AppendLine("Final answer:")
-                .AppendLine(CouncilChatStringFunctions.TrimForPrompt(result.FinalAnswer, 2400, logger));
-
-            if (result.Warnings.Count > 0)
-            {
-                builder.AppendLine().AppendLine("Warnings:");
-                foreach (var warning in result.Warnings.Take(10))
-                    builder.AppendLine($"- {warning}");
-            }
-
-            if (result.UserPoll is not null)
-            {
-                builder.AppendLine().AppendLine("User decision poll:");
-                builder.AppendLine(result.UserPoll.Question);
-                foreach (var option in result.UserPoll.Options)
-                    builder.AppendLine($"- {option.Label}: {option.FollowUpPrompt}");
-            }
-
-            return builder.ToString().Trim();
         }
 
-        private static string BuildTopic(string prompt)
+        public static string BuildCouncilKnowledgeContent(MultiModelCouncilResult result, ILogger logger)
         {
-            var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(prompt, " ").Trim();
-            if (string.IsNullOrWhiteSpace(normalized))
-                return "AI Council run";
+            try
+            {
+                var builder = new StringBuilder()
+             .AppendLine($"Council members: {string.Join(", ", result.ModelNames)}")
+             .AppendLine($"Prompt: {CouncilChatStringFunctions.TrimForPrompt(result.Prompt, 900, logger)}")
+             .AppendLine()
+             .AppendLine("Final answer:")
+             .AppendLine(CouncilChatStringFunctions.TrimForPrompt(result.FinalAnswer, 2400, logger));
 
-            return normalized.Length <= 120 ? normalized : $"{normalized[..117].TrimEnd()}...";
+                if (result.Warnings.Count > 0)
+                {
+                    builder.AppendLine().AppendLine("Warnings:");
+                    foreach (var warning in result.Warnings.Take(10))
+                        builder.AppendLine($"- {warning}");
+                }
+
+                if (result.UserPoll is not null)
+                {
+                    builder.AppendLine().AppendLine("User decision poll:");
+                    builder.AppendLine(result.UserPoll.Question);
+                    foreach (var option in result.UserPoll.Options)
+                        builder.AppendLine($"- {option.Label}: {option.FollowUpPrompt}");
+                }
+
+                return builder.ToString().Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildCouncilKnowledgeContent result {result.ToString()}");
+                return string.Empty;
+            }
         }
 
-        private static string BuildTags(MultiModelCouncilResult result, bool nonSubstantive)
+        public static string BuildTopic(string prompt, ILogger logger)
         {
-            var tags = new SortedSet<string>(StringComparer.OrdinalIgnoreCase)
+            try
+            {
+                var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(prompt, " ").Trim();
+                if (string.IsNullOrWhiteSpace(normalized))
+                    return "AI Council run";
+
+                return normalized.Length <= 120 ? normalized : $"{normalized[..117].TrimEnd()}...";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildTopic prompt {prompt.ToString()}");
+                return string.Empty;
+            }
+        }
+
+        private static string BuildTags(MultiModelCouncilResult result, bool nonSubstantive, ILogger logger)
+        {
+            try
+            {
+                var tags = new SortedSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "council",
                 "auto"
             };
 
-            foreach (var model in result.ModelNames)
-                tags.Add(model);
-            if (result.Artifacts.Count > 0)
-                tags.Add("artifact");
-            if (result.UserPoll is not null)
-                tags.Add("poll");
-            if (nonSubstantive)
-            {
-                tags.Add("non-substantive");
-                tags.Add("thinking-only");
+                foreach (var model in result.ModelNames)
+                    tags.Add(model);
+                if (result.Artifacts.Count > 0)
+                    tags.Add("artifact");
+                if (result.UserPoll is not null)
+                    tags.Add("poll");
+                if (nonSubstantive)
+                {
+                    tags.Add("non-substantive");
+                    tags.Add("thinking-only");
+                }
+
+                return string.Join("; ", tags);
             }
-
-            return string.Join("; ", tags);
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildTags result {result.ToString()} nonSubstantive {nonSubstantive.ToString()}");
+                return string.Empty;
+            }
         }
 
-        private static bool IsNonSubstantiveCouncilKnowledge(MultiModelCouncilResult result)
+        public static bool IsNonSubstantiveCouncilKnowledge(MultiModelCouncilResult result, ILogger logger)
         {
-            if (result.UserPoll is not null)
+            try
+            {
+                if (result.UserPoll is not null)
+                    return false;
+
+                return LooksLikeNonSubstantiveContent(result.FinalAnswer, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildTags result {result.ToString()}");
                 return false;
-
-            return LooksLikeNonSubstantiveContent(result.FinalAnswer);
+            }
         }
 
-        private static bool LooksLikeNonSubstantiveContent(string content)
+        private static bool LooksLikeNonSubstantiveContent(string content, ILogger logger)
         {
-            if (string.IsNullOrWhiteSpace(content))
-                return true;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return true;
 
-            return content.Contains("returned thinking but no final visible answer", StringComparison.OrdinalIgnoreCase) ||
-                content.Contains("did not return a visible answer", StringComparison.OrdinalIgnoreCase) ||
-                content.Contains("did not return a substantive consensus answer", StringComparison.OrdinalIgnoreCase);
+                return content.Contains("returned thinking but no final visible answer", StringComparison.OrdinalIgnoreCase) ||
+                    content.Contains("did not return a visible answer", StringComparison.OrdinalIgnoreCase) ||
+                    content.Contains("did not return a substantive consensus answer", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in LooksLikeNonSubstantiveContent content {content.ToString()}");
+                return false;
+            }
         }
 
-        private static string ExtractHelpfulSources(string text)
+        private static string ExtractHelpfulSources(string text, ILogger logger)
         {
-            var matches = HelpfulSourceLinePattern()
+            try
+            {
+                var matches = HelpfulSourceLinePattern()
                 .Matches(text)
                 .Select(match => match.Groups["line"].Value.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(12)
                 .ToList();
 
-            return matches.Count == 0
-                ? "None explicitly requested."
-                : string.Join(Environment.NewLine, matches.Select(item => $"- {item}"));
+                return matches.Count == 0
+                    ? "None explicitly requested."
+                    : string.Join(Environment.NewLine, matches.Select(item => $"- {item}"));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractHelpfulSources text {text.ToString()}");
+                return string.Empty;
+            }
+            
         }
 
    
-        private static string TrimOrFallback(string value, int maxLength, string fallback)
+        public static string TrimOrFallback(string value, int maxLength, string fallback, ILogger logger)
         {
-            var trimmed = Trim(value, maxLength);
-            return string.IsNullOrWhiteSpace(trimmed) ? fallback : trimmed;
+            try
+            {
+                var trimmed = Trim(value, maxLength, logger);
+                return string.IsNullOrWhiteSpace(trimmed) ? fallback : trimmed;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractHelpfulSources value {value.ToString()} maxLength {maxLength.ToString()} fallback {fallback.ToString()}");
+                return string.Empty;
+            }
+            
         }
 
-        private static string Trim(string value, int maxLength)
+        public static string Trim(string value, int maxLength, ILogger logger)
         {
-            var trimmed = value?.Trim() ?? string.Empty;
-            return trimmed.Length <= maxLength ? trimmed : $"{trimmed[..maxLength].TrimEnd()}";
+            try
+            {
+                var trimmed = value?.Trim() ?? string.Empty;
+                return trimmed.Length <= maxLength ? trimmed : $"{trimmed[..maxLength].TrimEnd()}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in Trim value {value.ToString()} maxLength {maxLength.ToString()}");
+                return string.Empty;
+            }
         }
 
         [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?<line>(?:helpful sources?|source request|needed sources?|references?|docs?|documentation|official docs?|examples?|sample projects?|spec(?:ification)?s?|tutorials?)\\s*[:\\-].+)$", RegexOptions.CultureInvariant)]

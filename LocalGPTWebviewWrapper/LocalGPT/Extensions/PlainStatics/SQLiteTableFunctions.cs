@@ -6,7 +6,7 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class SQLiteTableFunctions
     {
-        public static async Task EnsureCreatedAsync(LocalGptMemoryDbContext db, ILogger logger, CancellationToken cancellationToken = default)
+        public static async Task EnsureCreatedNativeCommandLogsAsync(LocalGptMemoryDbContext db, ILogger logger, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -36,7 +36,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "NativeCommandLogs" ADD COLUMN "CommandProfile" TEXT NOT NULL DEFAULT 'CustomAllowlistedCommand';""",
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken, logger).ConfigureAwait(false);
 
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_NativeCommandLogs_StartedAtUtc" ON "NativeCommandLogs" ("StartedAtUtc");""",
@@ -67,7 +67,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
 
-                if (File.Exists(GetRecoveryMarkerPath(databasePath)))
+                if (File.Exists(GetRecoveryMarkerPath(databasePath, logger)))
                 {
                     logger.LogWarning(
                         "LocalGPT found a pending SQLite recovery marker for {DatabasePath}. Backing up and recreating the local store before opening SQLite.",
@@ -79,7 +79,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
                 if (!File.Exists(databasePath))
                 {
-                    if (HasSidecars(databasePath))
+                    if (HasSidecars(databasePath, logger))
                     {
                         logger.LogWarning(
                             "LocalGPT found SQLite WAL/SHM sidecar files without the base database at {DatabasePath}. Backing up and removing orphan sidecars.",
@@ -207,7 +207,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 await using var connection = new SqliteConnection($"Data Source={databasePath};Mode=ReadOnly;Cache=Private");
                 await connection.OpenAsync(cancellationToken);
 
-                if (!await HasTableAsync(connection, "ApplicationLogs", cancellationToken))
+                if (!await HasTableAsync(connection, "ApplicationLogs", cancellationToken, logger))
                     return (true, "ApplicationLogs table not present");
 
                 await using var command = connection.CreateCommand();
@@ -260,7 +260,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     INSERT INTO "__LocalGptIntegrityProbe" ("CheckedAtUtc") VALUES (datetime('now'));
                     DELETE FROM "__LocalGptIntegrityProbe";
                     """,
-                    cancellationToken);
+                    cancellationToken, logger);
 
                 if (await HasColumnAsync(connection, transaction, "CouncilKnowledgeEntries", "LastUsedAtUtc", cancellationToken,logger))
                 {
@@ -272,7 +272,7 @@ namespace LocalGPT.Extensions.PlainStatics
                         SET "LastUsedAtUtc" = datetime('now')
                         WHERE "Id" IN (SELECT "Id" FROM "CouncilKnowledgeEntries" LIMIT 1);
                         """,
-                        cancellationToken);
+                        cancellationToken, logger);
                 }
 
                 await transaction.RollbackAsync(cancellationToken);
@@ -398,7 +398,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     "LocalGPT preserved malformed SQLite files in {BackupDirectory}. A clean database will be created on next access.",
                     backupDirectory);
 
-                if (!AnyDatabaseFiles(databasePath))
+                if (!AnyDatabaseFiles(databasePath, logger))
                     TryDeleteRecoveryMarker(databasePath, logger);
 
                 return Task.CompletedTask;
@@ -497,7 +497,7 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                File.Delete(GetRecoveryMarkerPath(databasePath));
+                File.Delete(GetRecoveryMarkerPath(databasePath, logger));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -574,51 +574,51 @@ namespace LocalGPT.Extensions.PlainStatics
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "IsUserApproved" INTEGER NOT NULL DEFAULT 0;""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "VerificationStatus" TEXT NOT NULL DEFAULT 'NeedsVerification';""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "ReviewStatus" TEXT NOT NULL DEFAULT 'NeedsUserReview';""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "ExpiresAtUtc" TEXT NULL;""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "LastVerifiedAtUtc" TEXT NULL;""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "LastUsedAtUtc" TEXT NULL;""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "SupersededByKnowledgeId" TEXT NULL;""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "StalenessReason" TEXT NOT NULL DEFAULT '';""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "StalenessDetectedAtUtc" TEXT NULL;""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "StalenessDetectedBy" TEXT NOT NULL DEFAULT '';""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "SourceHash" TEXT NOT NULL DEFAULT '';""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await TryAddColumnAsync(
                     db,
                     """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "SourceDateUtc" TEXT NULL;""",
-                    cancellationToken);
+                    cancellationToken, logger);
 
                 await db.Database.ExecuteSqlRawAsync(
                     """
@@ -634,7 +634,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     END
                 WHERE "VerificationStatus" IS NULL OR trim("VerificationStatus") = '';
                 """,
-                    cancellationToken);
+                    cancellationToken, logger);
 
                 await db.Database.ExecuteSqlRawAsync(
                     """
@@ -650,38 +650,38 @@ namespace LocalGPT.Extensions.PlainStatics
                     END
                 WHERE "ReviewStatus" IS NULL OR trim("ReviewStatus") = '' OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview');
                 """,
-                    cancellationToken);
+                    cancellationToken, logger);
 
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("UpdatedAtUtc");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_IsUserApproved_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("IsUserApproved", "UpdatedAtUtc");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_IsPinned_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("IsPinned", "UpdatedAtUtc");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_VerificationStatus" ON "CouncilKnowledgeEntries" ("VerificationStatus");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_ReviewStatus" ON "CouncilKnowledgeEntries" ("ReviewStatus");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_ExpiresAtUtc" ON "CouncilKnowledgeEntries" ("ExpiresAtUtc");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_LastVerifiedAtUtc" ON "CouncilKnowledgeEntries" ("LastVerifiedAtUtc");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_LastUsedAtUtc" ON "CouncilKnowledgeEntries" ("LastUsedAtUtc");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_SupersededByKnowledgeId" ON "CouncilKnowledgeEntries" ("SupersededByKnowledgeId");""",
-                    cancellationToken);
+                    cancellationToken, logger);
                 await db.Database.ExecuteSqlRawAsync(
                     """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_Scope" ON "CouncilKnowledgeEntries" ("Scope");""",
-                    cancellationToken);
+                    cancellationToken, logger);
             }
             catch (Exception ex)
             {

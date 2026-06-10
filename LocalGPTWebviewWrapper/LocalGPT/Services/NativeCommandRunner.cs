@@ -1,11 +1,12 @@
+using DevExpress.XtraRichEdit;
+using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.EFCore;
+using LocalGPT.Extensions.PlainStatics;
+using LocalGPT.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using LocalGPT.BusinessObjects;
-using LocalGPT.BusinessObjects.EFCore;
-using LocalGPT.Extensions.PlainStatics.CouncilData.Data;
-using LocalGPT.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services
 {
@@ -14,7 +15,7 @@ namespace LocalGPT.Services
         IMinecraftModWorkspaceService workspaceService,
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory) : INativeCommandRunner
     {
-        private static readonly HashSet<string> AllowedExecutables = new(StringComparer.OrdinalIgnoreCase)
+        public static readonly HashSet<string> AllowedExecutables = new(StringComparer.OrdinalIgnoreCase)
         {
             "powershell.exe",
             "pwsh.exe",
@@ -26,142 +27,167 @@ namespace LocalGPT.Services
             "java.exe"
         };
 
-        public async Task<CommandExecutionResult> RunAsync(string fileName, string arguments, string workingDirectory, CancellationToken cancellationToken = default)
+        public async Task<CommandExecutionResult?> RunAsync(string fileName, string arguments, string workingDirectory, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(fileName))
-                throw new ArgumentException("Command is required.", nameof(fileName));
-
-            var startedAt = DateTime.UtcNow;
-            var policy = ValidatePolicy(fileName, arguments, workingDirectory);
-            if (!policy.Allowed)
+            try
             {
-                await SaveCommandLogAsync(fileName, arguments, workingDirectory, startedAt, DateTime.UtcNow, -1, string.Empty, string.Empty, policy, cancellationToken);
-                throw new InvalidOperationException(policy.Reason);
+                if (string.IsNullOrWhiteSpace(fileName))
+                    throw new ArgumentException("Command is required.", nameof(fileName));
+
+                var startedAt = DateTime.UtcNow;
+                var policy = ValidatePolicy(fileName, arguments, workingDirectory);
+                if (!policy.Allowed)
+                {
+                    await SaveCommandLogAsync(fileName, arguments, workingDirectory, startedAt, DateTime.UtcNow, -1, string.Empty, string.Empty, policy, cancellationToken);
+                    throw new InvalidOperationException(policy.Reason);
+                }
+
+                if (!Directory.Exists(workingDirectory))
+                    throw new DirectoryNotFoundException($"Working directory does not exist: {workingDirectory}");
+
+                if (!workspaceService.IsPathInsideWorkspaceRoot(workingDirectory))
+                    throw new InvalidOperationException("Commands can only run inside the LocalGPT Minecraft workspace root.");
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = fileName,
+                    Arguments = arguments,
+                    WorkingDirectory = workingDirectory,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+                logger.LogInformation(
+                    "Running native command: {FileName} {Arguments} in {WorkingDirectory}. Profile: {CommandProfile}. Policy: {PolicyReason}",
+                    fileName,
+                    arguments,
+                    workingDirectory,
+                    policy.Profile,
+                    policy.Reason);
+
+                process.Start();
+                var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+                var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+                await process.WaitForExitAsync(cancellationToken);
+
+                var completedAt = DateTime.UtcNow;
+                var output = await outputTask;
+                var error = await errorTask;
+                var (stdoutPath, stderrPath) = await WriteCommandOutputAsync(
+                    workingDirectory,
+                    fileName,
+                    startedAt,
+                    output,
+                    error,
+                    cancellationToken);
+                await SaveCommandLogAsync(
+                    fileName,
+                    arguments,
+                    workingDirectory,
+                    startedAt,
+                    completedAt,
+                    process.ExitCode,
+                    stdoutPath,
+                    stderrPath,
+                    policy,
+                    cancellationToken);
+
+                return new CommandExecutionResult
+                {
+                    FileName = fileName,
+                    Arguments = arguments,
+                    WorkingDirectory = workingDirectory,
+                    StartedAtUtc = startedAt,
+                    CompletedAtUtc = completedAt,
+                    ExitCode = process.ExitCode,
+                    StandardOutput = output,
+                    StandardError = error,
+                    Duration = completedAt - startedAt,
+                    StdoutPath = stdoutPath,
+                    StderrPath = stderrPath,
+                    CommandProfile = policy.Profile,
+                    PolicyDecision = policy.Decision,
+                    PolicyReason = policy.Reason
+                };
             }
-
-            if (!Directory.Exists(workingDirectory))
-                throw new DirectoryNotFoundException($"Working directory does not exist: {workingDirectory}");
-
-            if (!workspaceService.IsPathInsideWorkspaceRoot(workingDirectory))
-                throw new InvalidOperationException("Commands can only run inside the LocalGPT Minecraft workspace root.");
-
-            var startInfo = new ProcessStartInfo
+            catch (Exception ex)
             {
-                FileName = fileName,
-                Arguments = arguments,
-                WorkingDirectory = workingDirectory,
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
-            logger.LogInformation(
-                "Running native command: {FileName} {Arguments} in {WorkingDirectory}. Profile: {CommandProfile}. Policy: {PolicyReason}",
-                fileName,
-                arguments,
-                workingDirectory,
-                policy.Profile,
-                policy.Reason);
-
-            process.Start();
-            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
-
-            var completedAt = DateTime.UtcNow;
-            var output = await outputTask;
-            var error = await errorTask;
-            var (stdoutPath, stderrPath) = await WriteCommandOutputAsync(
-                workingDirectory,
-                fileName,
-                startedAt,
-                output,
-                error,
-                cancellationToken);
-            await SaveCommandLogAsync(
-                fileName,
-                arguments,
-                workingDirectory,
-                startedAt,
-                completedAt,
-                process.ExitCode,
-                stdoutPath,
-                stderrPath,
-                policy,
-                cancellationToken);
-
-            return new CommandExecutionResult
-            {
-                FileName = fileName,
-                Arguments = arguments,
-                WorkingDirectory = workingDirectory,
-                StartedAtUtc = startedAt,
-                CompletedAtUtc = completedAt,
-                ExitCode = process.ExitCode,
-                StandardOutput = output,
-                StandardError = error,
-                Duration = completedAt - startedAt,
-                StdoutPath = stdoutPath,
-                StderrPath = stderrPath,
-                CommandProfile = policy.Profile,
-                PolicyDecision = policy.Decision,
-                PolicyReason = policy.Reason
-            };
+                logger.LogError(ex, $"Error in RunAsync fileName {fileName} arguments {arguments} workingDirectory {workingDirectory}");
+                return null;
+            }
         }
 
-        private CommandPolicyDecision ValidatePolicy(string fileName, string arguments, string workingDirectory)
+        public CommandPolicyDecision? ValidatePolicy(string fileName, string arguments, string workingDirectory)
         {
-            var executable = Path.GetFileName(fileName.Trim());
-            if (!AllowedExecutables.Contains(executable))
-                return CommandPolicyDecision.Denied(
-                    $"Executable '{executable}' is not allowed by LocalGPT native command policy.");
-
-            if (ContainsPathSegment(fileName))
+            try
             {
-                var executablePath = Path.GetFullPath(Path.Combine(workingDirectory, fileName));
-                if (!workspaceService.IsPathInsideWorkspaceRoot(executablePath))
+                var executable = Path.GetFileName(fileName.Trim());
+                if (!AllowedExecutables.Contains(executable))
                     return CommandPolicyDecision.Denied(
-                        "Executable paths must stay inside the LocalGPT Minecraft workspace root.");
+                        $"Executable '{executable}' is not allowed by LocalGPT native command policy.");
+
+                if (ContainsPathSegment(fileName, logger))
+                {
+                    var executablePath = Path.GetFullPath(Path.Combine(workingDirectory, fileName));
+                    if (!workspaceService.IsPathInsideWorkspaceRoot(executablePath))
+                        return CommandPolicyDecision.Denied(
+                            "Executable paths must stay inside the LocalGPT Minecraft workspace root.");
+                }
+
+                if (IsPowerShell(executable, logger))
+                    return ValidatePowerShellPolicy(arguments, workingDirectory) ?? null;
+
+                var profile = ClassifyCommandProfile(executable, arguments, logger);
+                return CommandPolicyDecision.Allow(
+                    profile,
+                    $"Profile '{profile}' selected for allowlisted executable '{executable}'.");
             }
-
-            if (IsPowerShell(executable))
-                return ValidatePowerShellPolicy(arguments, workingDirectory);
-
-            var profile = ClassifyCommandProfile(executable, arguments);
-            return CommandPolicyDecision.Allow(
-                profile,
-                $"Profile '{profile}' selected for allowlisted executable '{executable}'.");
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ValidatePolicy fileName {fileName} arguments {arguments} workingDirectory {workingDirectory}");
+                return null;
+            }
+            
         }
 
-        private CommandPolicyDecision ValidatePowerShellPolicy(string arguments, string workingDirectory)
+        public CommandPolicyDecision? ValidatePowerShellPolicy(string arguments, string workingDirectory)
         {
-            if (Regex.IsMatch(arguments, @"(?i)(^|\s)-EncodedCommand(\s|$)|(^|\s)-Command(\s|$)|(^|\s)-c(\s|$)"))
-                return CommandPolicyDecision.Denied(
-                    "PowerShell inline commands are blocked; use -File with a workspace script.");
+            try
+            {
+                if (Regex.IsMatch(arguments, @"(?i)(^|\s)-EncodedCommand(\s|$)|(^|\s)-Command(\s|$)|(^|\s)-c(\s|$)"))
+                    return CommandPolicyDecision.Denied(
+                        "PowerShell inline commands are blocked; use -File with a workspace script.");
 
-            var match = Regex.Match(arguments, @"(?i)(^|\s)-File\s+(?:""(?<path>[^""]+)""|'(?<path>[^']+)'|(?<path>\S+))");
-            if (!match.Success)
-                return CommandPolicyDecision.Denied("PowerShell commands must use -File with a workspace script.");
+                var match = Regex.Match(arguments, @"(?i)(^|\s)-File\s+(?:""(?<path>[^""]+)""|'(?<path>[^']+)'|(?<path>\S+))");
+                if (!match.Success)
+                    return CommandPolicyDecision.Denied("PowerShell commands must use -File with a workspace script.");
 
-            var scriptPath = match.Groups["path"].Value;
-            if (!scriptPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
-                return CommandPolicyDecision.Denied("PowerShell -File must target a .ps1 script.");
+                var scriptPath = match.Groups["path"].Value;
+                if (!scriptPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
+                    return CommandPolicyDecision.Denied("PowerShell -File must target a .ps1 script.");
 
-            var fullScriptPath = Path.GetFullPath(Path.Combine(workingDirectory, scriptPath));
-            if (!workspaceService.IsPathInsideWorkspaceRoot(fullScriptPath))
-                return CommandPolicyDecision.Denied("PowerShell script paths must stay inside the LocalGPT Minecraft workspace root.");
+                var fullScriptPath = Path.GetFullPath(Path.Combine(workingDirectory, scriptPath));
+                if (!workspaceService.IsPathInsideWorkspaceRoot(fullScriptPath))
+                    return CommandPolicyDecision.Denied("PowerShell script paths must stay inside the LocalGPT Minecraft workspace root.");
 
-            if (!File.Exists(fullScriptPath))
-                return CommandPolicyDecision.Denied($"PowerShell script does not exist: {fullScriptPath}");
+                if (!File.Exists(fullScriptPath))
+                    return CommandPolicyDecision.Denied($"PowerShell script does not exist: {fullScriptPath}");
 
-            return CommandPolicyDecision.Allow(
-                "PowerShellWorkspaceScript",
-                "PowerShell -File script is inside the LocalGPT Minecraft workspace root.");
+                return CommandPolicyDecision.Allow(
+                    "PowerShellWorkspaceScript",
+                    "PowerShell -File script is inside the LocalGPT Minecraft workspace root.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ValidatePowerShellPolicy arguments {arguments} workingDirectory {workingDirectory}");
+                return null;
+            }
         }
 
-        private async Task<(string StdoutPath, string StderrPath)> WriteCommandOutputAsync(
+        public async Task<(string StdoutPath, string StderrPath)> WriteCommandOutputAsync(
             string workingDirectory,
             string fileName,
             DateTime startedAt,
@@ -169,20 +195,28 @@ namespace LocalGPT.Services
             string stderr,
             CancellationToken cancellationToken)
         {
-            var logDirectory = Path.Combine(workingDirectory, ".localgpt", "command-logs");
-            Directory.CreateDirectory(logDirectory);
+            try
+            {
+                var logDirectory = Path.Combine(workingDirectory, ".localgpt", "command-logs");
+                Directory.CreateDirectory(logDirectory);
 
-            var safeName = SanitizeFileName(Path.GetFileNameWithoutExtension(fileName));
-            var stamp = startedAt.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
-            var stdoutPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stdout.txt");
-            var stderrPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stderr.txt");
+                var safeName = SanitizeFileName(Path.GetFileNameWithoutExtension(fileName), logger);
+                var stamp = startedAt.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
+                var stdoutPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stdout.txt");
+                var stderrPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stderr.txt");
 
-            await File.WriteAllTextAsync(stdoutPath, stdout, cancellationToken);
-            await File.WriteAllTextAsync(stderrPath, stderr, cancellationToken);
-            return (stdoutPath, stderrPath);
+                await File.WriteAllTextAsync(stdoutPath, stdout, cancellationToken);
+                await File.WriteAllTextAsync(stderrPath, stderr, cancellationToken);
+                return (stdoutPath, stderrPath);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ValidatePowerShellPolicy workingDirectory {workingDirectory} fileName {fileName} startedAt {startedAt.ToString()} stdout {stdout} stderr {stderr}");
+                return (string.Empty,string.Empty);
+            }
         }
 
-        private async Task SaveCommandLogAsync(
+        public async Task SaveCommandLogAsync(
             string fileName,
             string arguments,
             string workingDirectory,
@@ -197,7 +231,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-                await NativeCommandLogSchema.EnsureCreatedAsync(db, cancellationToken);
+                await SQLiteTableFunctions.EnsureCreatedNativeCommandLogsAsync(db, logger, cancellationToken);
                 db.NativeCommandLogs.Add(new NativeCommandLogEntry
                 {
                     StartedAtUtc = startedAt,
@@ -217,57 +251,99 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Could not persist native command ledger entry for {FileName}.", fileName);
+                logger.LogError(ex, $"Error in ValidatePowerShellPolicy fileName {fileName} arguments {arguments} workingDirectory {workingDirectory.ToString()} startedAt {startedAt.ToString()} completedAt {completedAt.ToString()} exitCode {exitCode.ToString()} stdoutPath {stdoutPath.ToString()} stderrPath {stderrPath.ToString()} policy.Decision {policy.Decision.ToString()} policy.Reason {policy.Reason.ToString()}");
+         
             }
         }
 
-        private static bool IsPowerShell(string executable)
+        public static bool IsPowerShell(string executable, ILogger logger)
         {
-            return executable.Equals("powershell.exe", StringComparison.OrdinalIgnoreCase) ||
+            try
+            {
+                return executable.Equals("powershell.exe", StringComparison.OrdinalIgnoreCase) ||
                 executable.Equals("pwsh.exe", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsPowerShell executable {executable}");
+                return false;
+            }
         }
 
-        private static bool IsGradle(string executable)
+        public static bool IsGradle(string executable, ILogger logger)
         {
-            return executable.Equals("gradle", StringComparison.OrdinalIgnoreCase) ||
+            try
+            {
+                return executable.Equals("gradle", StringComparison.OrdinalIgnoreCase) ||
                 executable.Equals("gradle.bat", StringComparison.OrdinalIgnoreCase) ||
                 executable.Equals("gradlew", StringComparison.OrdinalIgnoreCase) ||
                 executable.Equals("gradlew.bat", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static string ClassifyCommandProfile(string executable, string arguments)
-        {
-            if (IsGradle(executable))
-            {
-                return arguments.Contains("runClient", StringComparison.OrdinalIgnoreCase)
-                    ? "GradleRunClient"
-                    : "GradleBuildOnly";
             }
-
-            if (executable.Equals("java", StringComparison.OrdinalIgnoreCase) ||
-                executable.Equals("java.exe", StringComparison.OrdinalIgnoreCase))
+            catch (Exception ex)
             {
-                var normalized = arguments.Trim();
-                return normalized.Equals("-version", StringComparison.OrdinalIgnoreCase) ||
-                    normalized.Equals("--version", StringComparison.OrdinalIgnoreCase)
-                    ? "JavaVersionOnly"
-                    : "JavaAllowlistedCommand";
+                logger.LogError(ex, $"Error in IsPowerShell executable {executable}");
+                return false;
             }
-
-            return "CustomAllowlistedCommand";
         }
 
-        private static bool ContainsPathSegment(string fileName)
+        public static string ClassifyCommandProfile(string executable, string arguments, ILogger logger)
         {
-            return fileName.Contains(Path.DirectorySeparatorChar) ||
-                fileName.Contains(Path.AltDirectorySeparatorChar);
+            try
+            {
+                if (IsGradle(executable, logger))
+                {
+                    return arguments.Contains("runClient", StringComparison.OrdinalIgnoreCase)
+                        ? "GradleRunClient"
+                        : "GradleBuildOnly";
+                }
+
+                if (executable.Equals("java", StringComparison.OrdinalIgnoreCase) ||
+                    executable.Equals("java.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    var normalized = arguments.Trim();
+                    return normalized.Equals("-version", StringComparison.OrdinalIgnoreCase) ||
+                        normalized.Equals("--version", StringComparison.OrdinalIgnoreCase)
+                        ? "JavaVersionOnly"
+                        : "JavaAllowlistedCommand";
+                }
+
+                return "CustomAllowlistedCommand";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ClassifyCommandProfile executable {executable} arguments {arguments}");
+                return string.Empty;
+            }
         }
 
-        private static string SanitizeFileName(string value)
+        public static bool ContainsPathSegment(string fileName, ILogger logger)
         {
-            var invalid = Path.GetInvalidFileNameChars();
-            var safe = new string(value.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray()).Trim();
-            return string.IsNullOrWhiteSpace(safe) ? "command" : safe;
+            try
+            {
+                return fileName.Contains(Path.DirectorySeparatorChar) ||
+               fileName.Contains(Path.AltDirectorySeparatorChar);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ClassifyCommandProfile fileName {fileName}");
+                return false;
+            }
+           
+        }
+
+        public static string SanitizeFileName(string value, ILogger logger)
+        {
+            try
+            {
+                var invalid = Path.GetInvalidFileNameChars();
+                var safe = new string(value.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray()).Trim();
+                return string.IsNullOrWhiteSpace(safe) ? "command" : safe;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SanitizeFileName value {value}");
+                return string.Empty;
+            }
         }
 
         public sealed record CommandPolicyDecision(bool Allowed, string Decision, string Reason, string Profile)

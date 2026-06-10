@@ -19,11 +19,11 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-                await ApplicationLogSchema.EnsureCreatedAsync(db, cancellationToken).ConfigureAwait(false);
+                await SQLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Error in EnsureCreatedAsync");
+                logger.LogError(ex, "Error in EnsureCreatedAsync");
             }
         }
 
@@ -32,7 +32,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-                await ApplicationLogSchema.EnsureCreatedAsync(db, cancellationToken).ConfigureAwait(false);
+                await SQLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
 
                 return await db.ApplicationLogs
                     .AsNoTracking()
@@ -53,7 +53,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, $"Error in GetRecentAsync minimumLevel {minimumLevel} take {take}");
+                logger.LogError(ex, $"Error in GetRecentAsync minimumLevel {minimumLevel} take {take}");
                 return new List<ApplicationLogSummary>();
             }
            
@@ -91,7 +91,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, $"BuildAiLogBriefingAsync {minimumLevel} take {take}");
+                logger.LogError(ex, $"BuildAiLogBriefingAsync {minimumLevel} take {take}");
                 return string.Empty;
             }
         }

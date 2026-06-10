@@ -7,6 +7,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Components;
 using LocalGPT.Endpoints;
+using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Helper;
 using LocalGPT.Hubs;
 using LocalGPT.Interfaces;
@@ -257,8 +258,8 @@ namespace LocalGPT
                 var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
                 Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
                 TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
-                LocalGptDatabaseRecovery
-                    .EnsureHealthyOrRecoverAsync(memoryDbPath, logger)
+                SQLiteTableFunctions.EnsureHealthyOrRecoverAsync
+                    (memoryDbPath, logger)
                     .GetAwaiter()
                     .GetResult();
                 TraceStartup("Finished SQLite database health check.", logger);
