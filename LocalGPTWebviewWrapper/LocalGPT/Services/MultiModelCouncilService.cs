@@ -1,5 +1,7 @@
 using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.Charts.Native;
+using DevExpress.CodeParser;
+using DevExpress.XtraCharts;
 using DevExpress.XtraRichEdit;
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
@@ -8,12 +10,15 @@ using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
+using Microsoft.VisualBasic;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
+using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
+using static System.Net.WebRequestMethods;
 
 namespace LocalGPT.Services
 {
@@ -47,7 +52,7 @@ namespace LocalGPT.Services
 
                 foreach (var provider in providers)
                 {
-                    var endpoint = NormalizeEndpoint(provider.Uri);
+                    var endpoint = NormalizeEndpoint(provider.Uri, logger);
                     var configuredName = provider.ModelName.Trim();
                     if (!string.IsNullOrWhiteSpace(configuredName))
                     {
@@ -94,7 +99,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(request.Prompt))
                     throw new InvalidOperationException("The council needs a prompt.");
 
-                var baseUri = NormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri);
+                var baseUri = NormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri, logger);
                 var participants = SelectParticipants(request);
                 var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
                 var maxContextTokens = Math.Clamp(
@@ -102,7 +107,7 @@ namespace LocalGPT.Services
                     MinContextTokens,
                     MaxContextTokens);
                 var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
-                var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels);
+                var keepAlive = GetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
                 var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
                 var result = new MultiModelCouncilResult
                 {
@@ -110,7 +115,7 @@ namespace LocalGPT.Services
                     ModelNames = participants,
                     StartedAtUtc = DateTime.UtcNow
                 };
-                var continuedConversation = await LoadContinuationConversationAsync(request.ContinueConversationId, cancellationToken);
+                var continuedConversation = await LoadContinuationConversationAsync(request.ContinueConversationId, cancellationToken, logger);
                 if (request.ContinueConversationId is Guid continuationId)
                 {
                     result.ContinuedFromConversationId = continuationId;
@@ -131,7 +136,7 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
                 if (ollamaNumGpu == 0)
                     result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
-                if (ollamaNumGpu is null && participants.Any(IsHeavyGpuRiskModel))
+                if (ollamaNumGpu is null && participants.Any(filter => IsHeavyGpuRiskModel(filter,logger)))
                     result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
 
                 request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}.");
@@ -139,9 +144,9 @@ namespace LocalGPT.Services
                 var bootstrap = request.IncludeMemory
                     ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
                     : string.Empty;
-                var continuationContext = BuildContinuationContext(continuedConversation);
+                var continuationContext = BuildContinuationContext(continuedConversation, logger);
                 if (!string.IsNullOrWhiteSpace(continuationContext))
-                    bootstrap = AppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext);
+                    bootstrap = AppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext, logger);
 
                 await RunPhaseAsync(
                     result,
@@ -150,7 +155,7 @@ namespace LocalGPT.Services
                     round: 1,
                     phase: "Proposal",
                     role: "Independent proposal",
-                    promptFactory: modelName => CreateProposalPrompt(modelName, request.Prompt),
+                    promptFactory: modelName => CreateProposalPrompt(modelName, request.Prompt, logger),
                     bootstrap,
                     request.MaxOutputTokens,
                     maxParallelModels,
@@ -168,7 +173,7 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Low-resource council mode: critique/refinement rounds are skipped for this run.");
                 for (var round = 1; round <= critiqueRounds; round++)
                 {
-                    var transcript = BuildTranscript(result.Steps);
+                    var transcript = BuildTranscript(result.Steps, logger);
                     await RunPhaseAsync(
                         result,
                         baseUri,
@@ -176,7 +181,7 @@ namespace LocalGPT.Services
                         round: round + 1,
                         phase: round == 1 ? "Critique" : "Refinement",
                         role: round == 1 ? "Peer correction" : "Negotiated refinement",
-                        promptFactory: modelName => CreateCritiquePrompt(modelName, request.Prompt, transcript, participants.Count == 1),
+                        promptFactory: modelName => CreateCritiquePrompt(modelName, request.Prompt, transcript, participants.Count == 1, logger),
                         bootstrap,
                         request.MaxOutputTokens,
                         maxParallelModels,
@@ -201,7 +206,7 @@ namespace LocalGPT.Services
                 }
                 else
                 {
-                    var finalTranscript = BuildTranscript(result.Steps);
+                    var finalTranscript = BuildTranscript(result.Steps, logger);
                     var consensusStep = await RunParticipantAsync(
                         baseUri,
                         participants[0],
@@ -209,11 +214,11 @@ namespace LocalGPT.Services
                         round: critiqueRounds + 2,
                         phase: "Consensus",
                         role: "Consensus writer",
-                        prompt: CreateConsensusPrompt(request.Prompt, finalTranscript),
+                        prompt: CreateConsensusPrompt(request.Prompt, finalTranscript, logger),
                         bootstrap,
                         request.MaxOutputTokens,
                         keepAlive,
-                        ResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu),
+                        ResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu, logger),
                         maxContextTokens,
                         modelTimeoutSeconds,
                         request.StreamUpdate,
@@ -231,11 +236,11 @@ namespace LocalGPT.Services
                             round: critiqueRounds + 3,
                             phase: "Verification",
                             role: "Peer verifier",
-                            prompt: CreateVerificationPrompt(request.Prompt, BuildTranscript(result.Steps), consensusStep.VisibleContent),
+                            prompt: CreateVerificationPrompt(request.Prompt, BuildTranscript(result.Steps, logger), consensusStep.VisibleContent, logger),
                             bootstrap,
                             request.MaxOutputTokens,
                             keepAlive,
-                            ResolveParticipantOllamaNumGpu(participants[1], ollamaNumGpu),
+                            ResolveParticipantOllamaNumGpu(participants[1], ollamaNumGpu, logger),
                             maxContextTokens,
                             modelTimeoutSeconds,
                             request.StreamUpdate,
@@ -257,12 +262,12 @@ namespace LocalGPT.Services
                         result.Warnings.Add(warning);
                 }
 
-                result.UserPoll = BuildUserPoll(result);
-                var adviceOnlyPrompt = IsAdviceOnlyPrompt(result.Prompt);
+                result.UserPoll = BuildUserPoll(result, logger);
+                var adviceOnlyPrompt = CouncilChatStaticsGeneral.IsAdviceOnlyPrompt(result.Prompt, logger) ?? false;
                 var shouldGenerateArtifacts = request.GenerateImplementationArtifact &&
                     !adviceOnlyPrompt &&
-                    ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt);
-                var requiresPollAnswer = shouldGenerateArtifacts && RequiresUserDecisionBeforeArtifacts(result);
+                    ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt, logger);
+                var requiresPollAnswer = shouldGenerateArtifacts && RequiresUserDecisionBeforeArtifacts(result, logger);
                 if (requiresPollAnswer)
                 {
                     result.Warnings.Add("Implementation artifacts were not generated because the council itself identified a blocking user decision. Answer the poll or enable safe sandbox auto-choice, then rerun the council.");
@@ -288,7 +293,7 @@ namespace LocalGPT.Services
                 result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken);
 
                 result.CompletedAtUtc = DateTime.UtcNow;
-                result.LogPath = await WriteLogAsync(result, cancellationToken);
+                result.LogPath = await WriteLogAsync(result, cancellationToken, logger);
 
                 if (request.SaveToMemory)
                     result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken);
@@ -341,7 +346,7 @@ namespace LocalGPT.Services
                         await gate.WaitAsync(cancellationToken);
                         try
                         {
-                            var participantGpuLayers = ResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu);
+                            var participantGpuLayers = ResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu, logger);
                             progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}. Ollama num_gpu={(participantGpuLayers?.ToString() ?? "auto")}.");
                             var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
                             stepCompleted?.Invoke(step);
@@ -379,29 +384,38 @@ namespace LocalGPT.Services
         }
         private List<string> SelectParticipants(MultiModelCouncilRequest request)
         {
-            var selected = request.ModelNames
+            try
+            {
+                var selected = request.ModelNames
                 .Select(model => model.Trim())
                 .Where(model => !string.IsNullOrWhiteSpace(model))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(MaxParticipants)
                 .ToList();
 
-            if (selected.Count > 0)
-                return selected;
+                if (selected.Count > 0)
+                    return selected;
 
-            var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
-            if (!string.IsNullOrWhiteSpace(options.OllamaCore?.ModelName))
-                selected.Add(options.OllamaCore.ModelName.Trim());
+                var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
+                if (!string.IsNullOrWhiteSpace(options.OllamaCore?.ModelName))
+                    selected.Add(options.OllamaCore.ModelName.Trim());
 
-            foreach (var configured in options.OllamaCores.Select(core => core.ModelName).Where(name => !string.IsNullOrWhiteSpace(name)))
-            {
-                if (selected.Count >= MaxParticipants)
-                    break;
-                if (!selected.Contains(configured, StringComparer.OrdinalIgnoreCase))
-                    selected.Add(configured.Trim());
+                foreach (var configured in options.OllamaCores.Select(core => core.ModelName).Where(name => !string.IsNullOrWhiteSpace(name)))
+                {
+                    if (selected.Count >= MaxParticipants)
+                        break;
+                    if (!selected.Contains(configured, StringComparer.OrdinalIgnoreCase))
+                        selected.Add(configured.Trim());
+                }
+
+                return selected.Count == 0 ? ["gpt-oss:20b"] : selected;
             }
-
-            return selected.Count == 0 ? ["gpt-oss:20b"] : selected;
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SelectParticipants request {request.ToString()}");
+                return new();
+            }
+            
         }
 
         private async Task<MultiModelCouncilStep?> RunParticipantAsync(
@@ -441,7 +455,7 @@ namespace LocalGPT.Services
                     var messages = new List<ChatMessage>();
                     if (!string.IsNullOrWhiteSpace(bootstrap))
                         messages.Add(new ChatMessage(ChatRole.System, bootstrap));
-                    messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName, councilMembers)));
+                    messages.Add(new ChatMessage(ChatRole.System, CreateCouncilSystemPrompt(modelName, councilMembers,logger)));
                     messages.Add(new ChatMessage(ChatRole.User, prompt));
 
                     streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
@@ -462,8 +476,8 @@ namespace LocalGPT.Services
                     streamUpdate?.Invoke("\n\n</details>\n\n");
 
                     var content = builder.ToString();
-                    var thinking = ExtractThinking(content);
-                    var visibleContent = StripThinking(content);
+                    var thinking = ExtractThinking(content,logger);
+                    var visibleContent = StripThinking(content, logger);
                     if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
                         visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
 
@@ -543,7 +557,7 @@ namespace LocalGPT.Services
                 }
                 finally
                 {
-                    if (ShouldUnloadAfterParticipant(keepAlive))
+                    if (ShouldUnloadAfterParticipant(keepAlive, logger))
                         await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken);
                 }
             }
@@ -552,185 +566,6 @@ namespace LocalGPT.Services
                 logger.LogError(ex, $"Error in RunParticipantAsync baseUri {baseUri.ToString()} modelName {modelName.ToString()} councilMembers {councilMembers.ToString()} round {round.ToString()} phase {phase.ToString()} role {role.ToString()} prompt {prompt.ToString()} bootstrap {bootstrap.ToString()} maxOutputTokens {maxOutputTokens.ToString()} keepAlive {keepAlive.ToString()} ollamaNumGpu {ollamaNumGpu.ToString()} maxContextTokens {maxContextTokens.ToString()} modelTimeoutSeconds {modelTimeoutSeconds.ToString()} streamUpdate {streamUpdate?.ToString()}");
                 return null;
             }
-        }
-        private static async Task<(string Content, string VisibleContent, string? Thinking)> RunFinalOnlyRecoveryAsync(
-            IChatClient client,
-            string modelName,
-            string phase,
-            IReadOnlyList<ChatMessage> originalMessages,
-            int maxOutputTokens,
-            Action<string>? streamUpdate,
-            CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                var messages = originalMessages.ToList();
-                messages.Add(new ChatMessage(ChatRole.User, $"""
-                Your previous {phase} response for LocalGPT produced model thinking/status but no user-visible final answer.
-                Do not analyze again. Do not emit hidden reasoning. Do not use tool calls.
-                Emit only the final visible answer now in concise Markdown bullets.
-                Start with: Final answer:
-                """));
-
-                var builder = new StringBuilder();
-                streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
-                await foreach (var update in client.GetStreamingResponseAsync(
-                    messages,
-                    new ChatOptions
-                    {
-                        MaxOutputTokens = maxOutputTokens,
-                        Temperature = 0.1f
-                    },
-                    cancellationToken).WithCancellation(cancellationToken))
-                {
-                    builder.Append(update.Text);
-                    streamUpdate?.Invoke(update.Text);
-                }
-
-                streamUpdate?.Invoke("\n\n</details>\n\n");
-                var content = builder.ToString();
-                var thinking = ExtractThinking(content);
-                var visibleContent = StripThinking(content);
-                return (content, visibleContent, thinking);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in RunFinalOnlyRecoveryAsync {ex.ToString()} client {client.ToString()}  modelName {modelName}  phase {phase}  originalMessages {originalMessages.ToString()}  maxOutputTokens {maxOutputTokens} streamUpdate {streamUpdate.ToString()} ");
-                return (string.Empty, string.Empty, null);
-            }
-
-        }
-
-        public static void AddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step, ILogger logger)
-        {
-            try
-            {
-                step.SortOrder = result.Steps.Count;
-                if (step.CouncilMembers.Count == 0)
-                    step.CouncilMembers = result.ModelNames.ToList();
-                result.Steps.Add(step);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in AddOrderedStep {ex.ToString()} result {result.ToString()} step {step.ToString()}");
-            }
-        }
-
-        private static string SelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep , ILogger logger)
-        {
-            try
-            {
-                var consensus = consensusStep.VisibleContent.Trim();
-                if (IsSubstantiveCouncilContent(consensus, logger))
-                    return consensus;
-
-                result.Warnings.Add($"{consensusStep.ModelName} returned a non-substantive consensus during {consensusStep.Phase}; LocalGPT used the latest substantive council step as the final-answer fallback.");
-
-                var fallback = result.Steps
-                    .Where(step => !ReferenceEquals(step, consensusStep))
-                    .OrderByDescending(step => step.SortOrder)
-                    .Select(step => step.VisibleContent.Trim())
-                    .FirstOrDefault(filter => IsSubstantiveCouncilContent(filter,logger));
-
-                if (!string.IsNullOrWhiteSpace(fallback))
-                    return fallback;
-
-                return $"_{consensusStep.ModelName} did not return a substantive consensus answer. Retry with a higher output token budget, a smaller model set, or a shorter prompt._";
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in SelectConsensusContent {ex.ToString()} result {result.ToString()} consensusStep {consensusStep.ToString()}");
-                return string.Empty;
-            }
-        }
-
-        private static bool IsSubstantiveCouncilContent(string content, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(content))
-                    return false;
-
-                var trimmed = content.Trim();
-                if (trimmed.Length < 80)
-                    return false;
-
-                var letterCount = trimmed.Count(char.IsLetter);
-                var wordCount = GlobalVariableSlopCollectionToRemove.WordPattern(logger).Matches(trimmed).Count;
-                return letterCount >= 40 && wordCount >= 10;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsSubstantiveCouncilContent {ex.ToString()} content {content.ToString()}");
-                return false;
-            }
-        }
-
-        private static bool IsThinkingOnlyCouncilContent(string content, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(content))
-                    return false;
-
-                return content.Contains("No final answer was emitted", StringComparison.OrdinalIgnoreCase) ||
-                    content.Contains("returned thinking during", StringComparison.OrdinalIgnoreCase) ||
-                    content.Contains("no final visible answer", StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsThinkingOnlyCouncilContent {ex.ToString()} content {content.ToString()}");
-                return false;
-            }
-        }
-        private static string GetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels, ILogger logger)
-        {
-            try
-            {
-                if (!string.IsNullOrWhiteSpace(request.OllamaKeepAlive))
-                    return request.OllamaKeepAlive.Trim();
-
-                return participantCount > 1 && maxParallelModels == 1
-                    ? "0s"
-                    : "3m";
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in GetCouncilKeepAlive request {request.ToString()} participantCount {participantCount.ToString()} maxParallelModels {maxParallelModels.ToString()}");
-                return string.Empty;
-            }
-        }
-
-        private static bool ShouldUnloadAfterParticipant(string keepAlive, ILogger logger)
-        {
-            try
-            {
-                var normalized = keepAlive.Trim();
-                return normalized.Equals("0", StringComparison.OrdinalIgnoreCase) ||
-                    normalized.Equals("0s", StringComparison.OrdinalIgnoreCase) ||
-                    normalized.Equals("0m", StringComparison.OrdinalIgnoreCase) ||
-                    normalized.Equals("0h", StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ShouldUnloadAfterParticipant keepAlive {keepAlive.ToString()}");
-                return false;
-            }
-        }
-
-        private static int? ResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu)
-        {
-            if (requestedNumGpu is not null)
-                return requestedNumGpu;
-
-            return IsHeavyGpuRiskModel(modelName) ? DefaultHeavyModelGpuLayers : null;
-        }
-
-        private static bool IsHeavyGpuRiskModel(string modelName)
-        {
-            return modelName.Contains("qwen", StringComparison.OrdinalIgnoreCase) ||
-                modelName.Contains("gwen", StringComparison.OrdinalIgnoreCase) ||
-                modelName.Contains("gemma", StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task RequestOllamaUnloadAsync(string baseUri, string modelName, CancellationToken cancellationToken)
@@ -767,13 +602,13 @@ namespace LocalGPT.Services
 
             if (!string.IsNullOrWhiteSpace(options.OllamaCore.Uri))
             {
-                seen.Add($"{NormalizeEndpoint(options.OllamaCore.Uri)}|{options.OllamaCore.ModelName}");
+                seen.Add($"{NormalizeEndpoint(options.OllamaCore.Uri, logger)}|{options.OllamaCore.ModelName}");
                 yield return options.OllamaCore;
             }
 
             foreach (var provider in options.OllamaCores.Where(provider => !string.IsNullOrWhiteSpace(provider.Uri)))
             {
-                if (seen.Add($"{NormalizeEndpoint(provider.Uri)}|{provider.ModelName}"))
+                if (seen.Add($"{NormalizeEndpoint(provider.Uri, logger)}|{provider.ModelName}"))
                     yield return provider;
             }
         }
@@ -789,7 +624,7 @@ namespace LocalGPT.Services
                 };
 
                 var tags = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/tags", cancellationToken) ?? new OllamaTagsResponse();
-                var running = await ProbeRunningModelNamesAsync(http, cancellationToken);
+                var running = await ProbeRunningModelNamesAsync(http, cancellationToken, logger);
 
                 return tags.Models.Select(model => new MultiModelCouncilModelCandidate(
                     model.Name,
@@ -812,164 +647,406 @@ namespace LocalGPT.Services
                 return [];
             }
         }
+        public static async Task<(string Content, string VisibleContent, string? Thinking)> RunFinalOnlyRecoveryAsync(
+            IChatClient client,
+            string modelName,
+            string phase,
+            IReadOnlyList<ChatMessage> originalMessages,
+            int maxOutputTokens,
+            Action<string>? streamUpdate,
+            CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                var messages = originalMessages.ToList();
+                messages.Add(new ChatMessage(ChatRole.User, $"""
+                Your previous {phase} response for LocalGPT produced model thinking/status but no user-visible final answer.
+                Do not analyze again. Do not emit hidden reasoning. Do not use tool calls.
+                Emit only the final visible answer now in concise Markdown bullets.
+                Start with: Final answer:
+                """));
 
-        private static async Task<HashSet<string>> ProbeRunningModelNamesAsync(HttpClient http, CancellationToken cancellationToken)
+                var builder = new StringBuilder();
+                streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
+                await foreach (var update in client.GetStreamingResponseAsync(
+                    messages,
+                    new ChatOptions
+                    {
+                        MaxOutputTokens = maxOutputTokens,
+                        Temperature = 0.1f
+                    },
+                    cancellationToken).WithCancellation(cancellationToken))
+                {
+                    builder.Append(update.Text);
+                    streamUpdate?.Invoke(update.Text);
+                }
+
+                streamUpdate?.Invoke("\n\n</details>\n\n");
+                var content = builder.ToString();
+                var thinking = ExtractThinking(content, logger);
+                var visibleContent = StripThinking(content, logger);
+                return (content, visibleContent, thinking);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in RunFinalOnlyRecoveryAsync {ex.ToString()} client {client.ToString()}  modelName {modelName}  phase {phase}  originalMessages {originalMessages.ToString()}  maxOutputTokens {maxOutputTokens} streamUpdate {streamUpdate.ToString()} ");
+                return (string.Empty, string.Empty, null);
+            }
+
+        }
+
+        public static void AddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step, ILogger logger)
+        {
+            try
+            {
+                step.SortOrder = result.Steps.Count;
+                if (step.CouncilMembers.Count == 0)
+                    step.CouncilMembers = result.ModelNames.ToList();
+                result.Steps.Add(step);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AddOrderedStep {ex.ToString()} result {result.ToString()} step {step.ToString()}");
+            }
+        }
+
+        public static string SelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep , ILogger logger)
+        {
+            try
+            {
+                var consensus = consensusStep.VisibleContent.Trim();
+                if (IsSubstantiveCouncilContent(consensus, logger))
+                    return consensus;
+
+                result.Warnings.Add($"{consensusStep.ModelName} returned a non-substantive consensus during {consensusStep.Phase}; LocalGPT used the latest substantive council step as the final-answer fallback.");
+
+                var fallback = result.Steps
+                    .Where(step => !ReferenceEquals(step, consensusStep))
+                    .OrderByDescending(step => step.SortOrder)
+                    .Select(step => step.VisibleContent.Trim())
+                    .FirstOrDefault(filter => IsSubstantiveCouncilContent(filter,logger));
+
+                if (!string.IsNullOrWhiteSpace(fallback))
+                    return fallback;
+
+                return $"_{consensusStep.ModelName} did not return a substantive consensus answer. Retry with a higher output token budget, a smaller model set, or a shorter prompt._";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SelectConsensusContent {ex.ToString()} result {result.ToString()} consensusStep {consensusStep.ToString()}");
+                return string.Empty;
+            }
+        }
+
+        public static bool IsSubstantiveCouncilContent(string content, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return false;
+
+                var trimmed = content.Trim();
+                if (trimmed.Length < 80)
+                    return false;
+
+                var letterCount = trimmed.Count(char.IsLetter);
+                var wordCount = GlobalVariableSlopCollectionToRemove.WordPattern().Matches(trimmed).Count;
+                return letterCount >= 40 && wordCount >= 10;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsSubstantiveCouncilContent {ex.ToString()} content {content.ToString()}");
+                return false;
+            }
+        }
+
+        public static bool IsThinkingOnlyCouncilContent(string content, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return false;
+
+                return content.Contains("No final answer was emitted", StringComparison.OrdinalIgnoreCase) ||
+                    content.Contains("returned thinking during", StringComparison.OrdinalIgnoreCase) ||
+                    content.Contains("no final visible answer", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsThinkingOnlyCouncilContent {ex.ToString()} content {content.ToString()}");
+                return false;
+            }
+        }
+        public static string GetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels, ILogger logger)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(request.OllamaKeepAlive))
+                    return request.OllamaKeepAlive.Trim();
+
+                return participantCount > 1 && maxParallelModels == 1
+                    ? "0s"
+                    : "3m";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetCouncilKeepAlive request {request.ToString()} participantCount {participantCount.ToString()} maxParallelModels {maxParallelModels.ToString()}");
+                return string.Empty;
+            }
+        }
+
+        public static bool ShouldUnloadAfterParticipant(string keepAlive, ILogger logger)
+        {
+            try
+            {
+                var normalized = keepAlive.Trim();
+                return normalized.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("0s", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("0m", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("0h", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ShouldUnloadAfterParticipant keepAlive {keepAlive.ToString()}");
+                return false;
+            }
+        }
+
+        public static int? ResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu, ILogger logger)
+        {
+            try
+            {
+                if (requestedNumGpu is not null)
+                    return requestedNumGpu;
+
+                return IsHeavyGpuRiskModel(modelName, logger) ? DefaultHeavyModelGpuLayers : null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ResolveParticipantOllamaNumGpu modelName {modelName.ToString()} requestedNumGpu {requestedNumGpu.ToString()}");
+                return null;
+            }
+
+        }
+
+        public static bool IsHeavyGpuRiskModel(string modelName, ILogger logger)
+        {
+            try
+            {
+                return modelName.Contains("qwen", StringComparison.OrdinalIgnoreCase) ||
+    modelName.Contains("gwen", StringComparison.OrdinalIgnoreCase) ||
+    modelName.Contains("gemma", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ResolveParticipantOllamaNumGpu modelName {modelName.ToString()}");
+                return false;
+            }
+        }
+
+
+        public static async Task<HashSet<string>> ProbeRunningModelNamesAsync(HttpClient http, CancellationToken cancellationToken, ILogger logger)
         {
             try
             {
                 var running = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/ps", cancellationToken) ?? new OllamaTagsResponse();
                 return running.Models.Select(model => model.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogError(ex, $"Error in ProbeRunningModelNamesAsync http {http.ToString()}.");
                 return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             }
         }
 
-        private async Task<ChatMemoryConversationSnapshot?> LoadContinuationConversationAsync(Guid? conversationId, CancellationToken cancellationToken)
+        public async Task<ChatMemoryConversationSnapshot?> LoadContinuationConversationAsync(Guid? conversationId, CancellationToken cancellationToken, ILogger logger)
         {
-            if (conversationId is not Guid id)
-                return null;
-
             try
             {
-                await chatMemory.EnsureCreatedAsync(cancellationToken);
-                return await chatMemory.LoadConversationAsync(id, cancellationToken);
+                if (conversationId is not Guid id)
+                    return null;
+
+                try
+                {
+                    await chatMemory.EnsureCreatedAsync(cancellationToken);
+                    return await chatMemory.LoadConversationAsync(id, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Error in LoadContinuationConversationAsync Could not load council continuation conversation {ConversationId}.", id);
+                    return null;
+                }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Could not load council continuation conversation {ConversationId}.", id);
+                logger.LogError(ex, $"Error in ProbeRunningModelNamesAsync conversationId {conversationId.ToString()}.");
                 return null;
             }
+            
         }
 
-        private static string BuildContinuationContext(ChatMemoryConversationSnapshot? conversation)
+        public static string BuildContinuationContext(ChatMemoryConversationSnapshot? conversation, ILogger logger)
         {
-            if (conversation is null)
-                return string.Empty;
-
-            var builder = new StringBuilder()
-                .AppendLine($"Conversation id: {conversation.Id}")
-                .AppendLine($"Title: {conversation.Title}")
-                .AppendLine($"Provider: {conversation.ProviderName}")
-                .AppendLine($"Updated: {conversation.UpdatedAtUtc:u}")
-                .AppendLine()
-                .AppendLine("Latest saved messages from this council thread:");
-
-            foreach (var message in conversation.Messages
-                .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
-                .TakeLast(12))
+            try
             {
-                builder
-                    .Append("- ")
-                    .Append(message.Role)
-                    .Append(": ")
-                    .AppendLine(TrimCouncilText(StripThinking(message.Content), 700));
+                if (conversation is null)
+                    return string.Empty;
+
+                var builder = new StringBuilder()
+                    .AppendLine($"Conversation id: {conversation.Id}")
+                    .AppendLine($"Title: {conversation.Title}")
+                    .AppendLine($"Provider: {conversation.ProviderName}")
+                    .AppendLine($"Updated: {conversation.UpdatedAtUtc:u}")
+                    .AppendLine()
+                    .AppendLine("Latest saved messages from this council thread:");
+
+                foreach (var message in conversation.Messages
+                    .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
+                    .TakeLast(12))
+                {
+                    builder
+                        .Append("- ")
+                        .Append(message.Role)
+                        .Append(": ")
+                        .AppendLine(TrimCouncilText(StripThinking(message.Content, logger), 700, logger));
+                }
+
+                builder.AppendLine("Every council member must treat this as selected continuation context. Preserve user decisions from prior polls unless the user explicitly changes them.");
+                return builder.ToString().Trim();
             }
-
-            builder.AppendLine("Every council member must treat this as selected continuation context. Preserve user decisions from prior polls unless the user explicitly changes them.");
-            return builder.ToString().Trim();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildContinuationContext {conversation?.ToString()}");
+                return string.Empty;
+            }
         }
 
-        private static string AppendPromptSection(string existing, string title, string content)
+        public static string AppendPromptSection(string existing, string title, string content, ILogger logger)
         {
-            var section = $"{title}:{Environment.NewLine}{content}".Trim();
-            return string.IsNullOrWhiteSpace(existing)
-                ? section
-                : $"{existing.Trim()}{Environment.NewLine}{Environment.NewLine}{section}";
+            try
+            {
+                var section = $"{title}:{Environment.NewLine}{content}".Trim();
+                return string.IsNullOrWhiteSpace(existing)
+                    ? section
+                    : $"{existing.Trim()}{Environment.NewLine}{Environment.NewLine}{section}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AppendPromptSection existing {existing?.ToString()} title {title?.ToString()} content {content?.ToString()}");
+                return string.Empty;
+            }
         }
 
-        private async Task<Guid?> SaveToMemoryAsync(
+        public async Task<Guid?> SaveToMemoryAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
             ChatMemoryConversationSnapshot? continuedConversation,
             CancellationToken cancellationToken)
         {
-            var messages = continuedConversation is null
-                ? new List<BlazorChatMessage>()
-                : continuedConversation.Messages
-                    .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
-                    .ToList();
-
-            messages.Add(new BlazorChatMessage(
-                ChatRole.User,
-                BuildCouncilRequestMemoryMessage(request, result, continuedConversation is not null),
-                new List<AIChatUploadFileInfo>()));
-
-            messages.Add(new BlazorChatMessage(
-                ChatRole.Assistant,
-                $"## Council members for this round{Environment.NewLine}{string.Join(", ", result.ModelNames)}",
-                new List<AIChatUploadFileInfo>()));
-
-            if (result.ContinuedFromConversationId is Guid continuedFrom)
+            try
             {
+                var messages = continuedConversation is null
+    ? new List<BlazorChatMessage>()
+    : continuedConversation.Messages
+        .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
+        .ToList();
+
+                messages.Add(new BlazorChatMessage(
+                    ChatRole.User,
+                    BuildCouncilRequestMemoryMessage(request, result, continuedConversation is not null, logger),
+                    new List<AIChatUploadFileInfo>()));
+
                 messages.Add(new BlazorChatMessage(
                     ChatRole.Assistant,
-                    $"Continuing prior council conversation `{continuedFrom}`{(string.IsNullOrWhiteSpace(result.ContinuedFromTitle) ? string.Empty : $" - {result.ContinuedFromTitle}")}.",
+                    $"## Council members for this round{Environment.NewLine}{string.Join(", ", result.ModelNames)}",
                     new List<AIChatUploadFileInfo>()));
-            }
 
-            foreach (var step in result.Steps)
-            {
+                if (result.ContinuedFromConversationId is Guid continuedFrom)
+                {
+                    messages.Add(new BlazorChatMessage(
+                        ChatRole.Assistant,
+                        $"Continuing prior council conversation `{continuedFrom}`{(string.IsNullOrWhiteSpace(result.ContinuedFromTitle) ? string.Empty : $" - {result.ContinuedFromTitle}")}.",
+                        new List<AIChatUploadFileInfo>()));
+                }
+
+                foreach (var step in result.Steps)
+                {
+                    messages.Add(new BlazorChatMessage(
+                        ChatRole.Assistant,
+                        BuildMemoryMessage(step, logger),
+                        new List<AIChatUploadFileInfo>()));
+                }
+
+                if (result.UserPoll is not null)
+                {
+                    messages.Add(new BlazorChatMessage(
+                        ChatRole.Assistant,
+                        BuildPollMarkdown(result.UserPoll, logger),
+                        new List<AIChatUploadFileInfo>()));
+                }
+
+                if (result.KnowledgeEntryId is Guid knowledgeEntryId)
+                {
+                    messages.Add(new BlazorChatMessage(
+                        ChatRole.Assistant,
+                        $"## Council knowledge entry{Environment.NewLine}{knowledgeEntryId}",
+                        new List<AIChatUploadFileInfo>()));
+                }
+
                 messages.Add(new BlazorChatMessage(
                     ChatRole.Assistant,
-                    BuildMemoryMessage(step),
+                    $"## Final council answer{Environment.NewLine}{result.FinalAnswer}",
                     new List<AIChatUploadFileInfo>()));
-            }
 
-            if (result.UserPoll is not null)
+                if (result.Artifacts.Count > 0)
+                {
+                    messages.Add(new BlazorChatMessage(
+                        ChatRole.Assistant,
+                        BuildArtifactsMarkdown(result.Artifacts, logger),
+                        new List<AIChatUploadFileInfo>()));
+                }
+
+                return await chatMemory.SaveConversationAsync(
+                    $"AI Council - {string.Join(" + ", result.ModelNames)}",
+                    messages,
+                    continuedConversation?.Id,
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
             {
-                messages.Add(new BlazorChatMessage(
-                    ChatRole.Assistant,
-                    BuildPollMarkdown(result.UserPoll),
-                    new List<AIChatUploadFileInfo>()));
+                logger.LogError(ex, $"Error in SaveToMemoryAsync request {request?.ToString()} result {result?.ToString()} continuedConversation {continuedConversation?.ToString()}");
+                return null;
             }
 
-            if (result.KnowledgeEntryId is Guid knowledgeEntryId)
-            {
-                messages.Add(new BlazorChatMessage(
-                    ChatRole.Assistant,
-                    $"## Council knowledge entry{Environment.NewLine}{knowledgeEntryId}",
-                    new List<AIChatUploadFileInfo>()));
-            }
-
-            messages.Add(new BlazorChatMessage(
-                ChatRole.Assistant,
-                $"## Final council answer{Environment.NewLine}{result.FinalAnswer}",
-                new List<AIChatUploadFileInfo>()));
-
-            if (result.Artifacts.Count > 0)
-            {
-                messages.Add(new BlazorChatMessage(
-                    ChatRole.Assistant,
-                    BuildArtifactsMarkdown(result.Artifacts),
-                    new List<AIChatUploadFileInfo>()));
-            }
-
-            return await chatMemory.SaveConversationAsync(
-                $"AI Council - {string.Join(" + ", result.ModelNames)}",
-                messages,
-                continuedConversation?.Id,
-                cancellationToken: cancellationToken);
         }
 
-        private static string BuildCouncilRequestMemoryMessage(
+        public static string BuildCouncilRequestMemoryMessage(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            bool isContinuation)
+            bool isContinuation, ILogger logger)
         {
-            var label = isContinuation ? "AI Council continuation request" : "AI Council request";
-            return $"""
+            try
+            {
+                var label = isContinuation ? "AI Council continuation request" : "AI Council request";
+                return $"""
                 {label}:
                 Council members: {string.Join(", ", result.ModelNames)}
 
                 {request.Prompt}
                 """.Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildCouncilRequestMemoryMessage request {request?.ToString()} result {result?.ToString()} isContinuation {isContinuation.ToString()}");
+                return string.Empty;
+            }
         }
 
-        private static string BuildMemoryMessage(MultiModelCouncilStep step)
+        public static string BuildMemoryMessage(MultiModelCouncilStep step, ILogger logger)
         {
-            var builder = new StringBuilder()
+            try
+            {
+                var builder = new StringBuilder()
                 .Append("## ")
                 .Append(step.Phase)
                 .Append(" - ")
@@ -980,41 +1057,58 @@ namespace LocalGPT.Services
                 .AppendLine($"Duration: {step.DurationSeconds:0.0}s")
                 .AppendLine();
 
-            if (!string.IsNullOrWhiteSpace(step.Thinking))
-            {
-                builder
-                    .AppendLine("<details class=\"model-thinking\">")
-                    .AppendLine("<summary>Model thinking</summary>")
-                    .AppendLine()
-                    .AppendLine(step.Thinking.Trim())
-                    .AppendLine()
-                    .AppendLine("</details>")
-                    .AppendLine();
+                if (!string.IsNullOrWhiteSpace(step.Thinking))
+                {
+                    builder
+                        .AppendLine("<details class=\"model-thinking\">")
+                        .AppendLine("<summary>Model thinking</summary>")
+                        .AppendLine()
+                        .AppendLine(step.Thinking.Trim())
+                        .AppendLine()
+                        .AppendLine("</details>")
+                        .AppendLine();
+                }
+
+                builder.AppendLine(step.VisibleContent);
+                if (!string.IsNullOrWhiteSpace(step.Error))
+                    builder.AppendLine().AppendLine($"Error: {step.Error}");
+
+                return builder.ToString().Trim();
             }
-
-            builder.AppendLine(step.VisibleContent);
-            if (!string.IsNullOrWhiteSpace(step.Error))
-                builder.AppendLine().AppendLine($"Error: {step.Error}");
-
-            return builder.ToString().Trim();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildMemoryMessage step {step?.ToString()}");
+                return string.Empty;
+            }
+            
         }
 
-        private async Task<string> WriteLogAsync(MultiModelCouncilResult result, CancellationToken cancellationToken)
+        public async Task<string> WriteLogAsync(MultiModelCouncilResult result, CancellationToken cancellationToken, ILogger logger)
         {
-            var directory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "LocalGPT",
-                "CouncilLogs");
-            Directory.CreateDirectory(directory);
+            try
+            {
+                var directory = Path.Combine(
+                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                     "LocalGPT",
+                     "CouncilLogs");
+                Directory.CreateDirectory(directory);
 
-            var path = Path.Combine(directory, $"council-{DateTime.Now:yyyyMMdd-HHmmss}-{result.RunId:N}.md");
-            await File.WriteAllTextAsync(path, BuildLogMarkdown(result), cancellationToken);
-            return path;
+                var path = Path.Combine(directory, $"council-{DateTime.Now:yyyyMMdd-HHmmss}-{result.RunId:N}.md");
+                await System.IO.File.WriteAllTextAsync(path, BuildLogMarkdown(result, logger), cancellationToken);
+                return path;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in WriteLogAsync result {result?.ToString()}");
+                return string.Empty;
+            }
         }
 
-        private static string BuildLogMarkdown(MultiModelCouncilResult result)
+        public static string BuildLogMarkdown(MultiModelCouncilResult result, ILogger logger)
         {
-            var builder = new StringBuilder()
+            try
+            {
+                var builder = new StringBuilder()
                 .AppendLine($"# AI Council {result.RunId}")
                 .AppendLine()
                 .AppendLine($"Started: {result.StartedAtUtc:u}")
@@ -1029,99 +1123,107 @@ namespace LocalGPT.Services
                 .AppendLine(result.Prompt)
                 .AppendLine();
 
-            if (result.ContinuedFromConversationId is Guid continuedFrom)
-            {
-                builder
-                    .AppendLine("## Continued Conversation")
-                    .AppendLine()
-                    .AppendLine($"Conversation: {continuedFrom}")
-                    .AppendLine($"Title: {result.ContinuedFromTitle ?? "Unknown"}")
-                    .AppendLine();
+                if (result.ContinuedFromConversationId is Guid continuedFrom)
+                {
+                    builder
+                        .AppendLine("## Continued Conversation")
+                        .AppendLine()
+                        .AppendLine($"Conversation: {continuedFrom}")
+                        .AppendLine($"Title: {result.ContinuedFromTitle ?? "Unknown"}")
+                        .AppendLine();
+                }
+
+                if (result.Warnings.Count > 0)
+                {
+                    builder.AppendLine("## Warnings").AppendLine();
+                    foreach (var warning in result.Warnings)
+                        builder.AppendLine($"- {warning}");
+                    builder.AppendLine();
+                }
+
+                builder.AppendLine("## Transcript").AppendLine();
+                foreach (var step in result.Steps.OrderBy(step => step.SortOrder))
+                {
+                    builder
+                        .AppendLine($"### {step.Phase}: {step.ModelName}")
+                        .AppendLine()
+                        .AppendLine($"Role: {step.Role}")
+                        .AppendLine($"Council members: {string.Join(", ", step.CouncilMembers)}")
+                        .AppendLine($"Round: {step.Round}")
+                        .AppendLine($"Duration: {step.DurationSeconds:0.0}s")
+                        .AppendLine();
+
+                    if (!string.IsNullOrWhiteSpace(step.Thinking))
+                        builder.AppendLine("#### Visible model thinking").AppendLine().AppendLine(step.Thinking).AppendLine();
+
+                    builder.AppendLine(step.VisibleContent).AppendLine();
+                }
+
+                if (result.UserPoll is not null)
+                {
+                    builder.AppendLine("## User Decision Poll").AppendLine().AppendLine(BuildPollMarkdown(result.UserPoll, logger)).AppendLine();
+                }
+
+                builder.AppendLine("## Final Answer").AppendLine().AppendLine(result.FinalAnswer).AppendLine();
+
+                if (result.Artifacts.Count > 0)
+                {
+                    builder.AppendLine("## Artifacts").AppendLine().AppendLine(BuildArtifactsMarkdown(result.Artifacts, logger)).AppendLine();
+                }
+
+                return builder.ToString();
             }
-
-            if (result.Warnings.Count > 0)
+            catch (Exception ex)
             {
-                builder.AppendLine("## Warnings").AppendLine();
-                foreach (var warning in result.Warnings)
-                    builder.AppendLine($"- {warning}");
-                builder.AppendLine();
+                logger.LogError(ex, $"Error in BuildLogMarkdown result {result?.ToString()}");
+                return string.Empty;
             }
-
-            builder.AppendLine("## Transcript").AppendLine();
-            foreach (var step in result.Steps.OrderBy(step => step.SortOrder))
-            {
-                builder
-                    .AppendLine($"### {step.Phase}: {step.ModelName}")
-                    .AppendLine()
-                    .AppendLine($"Role: {step.Role}")
-                    .AppendLine($"Council members: {string.Join(", ", step.CouncilMembers)}")
-                    .AppendLine($"Round: {step.Round}")
-                    .AppendLine($"Duration: {step.DurationSeconds:0.0}s")
-                    .AppendLine();
-
-                if (!string.IsNullOrWhiteSpace(step.Thinking))
-                    builder.AppendLine("#### Visible model thinking").AppendLine().AppendLine(step.Thinking).AppendLine();
-
-                builder.AppendLine(step.VisibleContent).AppendLine();
-            }
-
-            if (result.UserPoll is not null)
-            {
-                builder.AppendLine("## User Decision Poll").AppendLine().AppendLine(BuildPollMarkdown(result.UserPoll)).AppendLine();
-            }
-
-            builder.AppendLine("## Final Answer").AppendLine().AppendLine(result.FinalAnswer).AppendLine();
-
-            if (result.Artifacts.Count > 0)
-            {
-                builder.AppendLine("## Artifacts").AppendLine().AppendLine(BuildArtifactsMarkdown(result.Artifacts)).AppendLine();
-            }
-
-            return builder.ToString();
         }
 
-        private static CouncilUserPoll? BuildUserPoll(MultiModelCouncilResult result)
+        public static CouncilUserPoll? BuildUserPoll(MultiModelCouncilResult result, ILogger logger)
         {
-            var failedModels = result.Steps
-                .Where(step => !string.IsNullOrWhiteSpace(step.Error))
-                .Select(step => step.ModelName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var promptLooksFrustrated = IsFrustratedPrompt(result.Prompt);
-            var needsAiHostSetupDecision = NeedsAiHostSetupDecision(result);
-            var needsImplementationPathDecision = NeedsImplementationPathDecision(result);
-
-            if (failedModels.Count == 0 && !promptLooksFrustrated && !needsAiHostSetupDecision && !needsImplementationPathDecision)
-                return null;
-
-            if (promptLooksFrustrated)
-                return BuildFrustrationPoll(result, failedModels);
-
-            if (needsAiHostSetupDecision)
-                return BuildAiHostSetupPoll(result, failedModels);
-
-            if (needsImplementationPathDecision)
-                return BuildImplementationPathPoll(result, failedModels);
-
-            if (failedModels.Count == 0)
-                return null;
-
-            var reason = $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}.";
-
-            var options = new List<CouncilUserPollOption>();
-            if (failedModels.Count > 0)
+            try
             {
-                options.Add(new CouncilUserPollOption
-                {
-                    Label = "Exclude faulty members",
-                    FollowUpPrompt = $"Exclude these council member(s) from the next round unless the user re-adds them: {string.Join(", ", failedModels)}. Continue with the remaining selected models, preserve the prior transcript, and clearly note that the exclusion was user-confirmed."
-                });
-            }
+                var failedModels = result.Steps
+              .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+              .Select(step => step.ModelName)
+              .Distinct(StringComparer.OrdinalIgnoreCase)
+              .ToList();
 
-            options.AddRange(
-            [
-                new CouncilUserPollOption
+                var promptLooksFrustrated = IsFrustratedPrompt(result.Prompt, logger);
+                var needsAiHostSetupDecision = NeedsAiHostSetupDecision(result, logger);
+                var needsImplementationPathDecision = NeedsImplementationPathDecision(result, logger);
+
+                if (failedModels.Count == 0 && !promptLooksFrustrated && !needsAiHostSetupDecision && !needsImplementationPathDecision)
+                    return null;
+
+                if (promptLooksFrustrated)
+                    return BuildFrustrationPoll(result, failedModels, logger);
+
+                if (needsAiHostSetupDecision)
+                    return BuildAiHostSetupPoll(result, failedModels, logger);
+
+                if (needsImplementationPathDecision)
+                    return BuildImplementationPathPoll(result, failedModels, logger);
+
+                if (failedModels.Count == 0)
+                    return null;
+
+                var reason = $"The council could not fully sync because these participant(s) failed or were unavailable: {string.Join(", ", failedModels)}.";
+
+                var options = new List<CouncilUserPollOption>();
+                if (failedModels.Count > 0)
+                {
+                    options.Add(new CouncilUserPollOption
+                    {
+                        Label = "Exclude faulty members",
+                        FollowUpPrompt = $"Exclude these council member(s) from the next round unless the user re-adds them: {string.Join(", ", failedModels)}. Continue with the remaining selected models, preserve the prior transcript, and clearly note that the exclusion was user-confirmed."
+                    });
+                }
+
+                options.AddRange(
+                [
+                    new CouncilUserPollOption
                 {
                     Label = "Wait and retry missing models",
                     FollowUpPrompt = "Wait until all requested Ollama models are installed and visible, then rerun the same council prompt. Every participant must read the prior transcript, acknowledge the user selected retry, and produce updated proposals."
@@ -1136,30 +1238,39 @@ namespace LocalGPT.Services
                     Label = "Ask a shorter tie-break question",
                     FollowUpPrompt = "Ask the user one focused follow-up question that resolves the blocked decision, then rerun the council using the user's answer as binding context."
                 }
-            ]);
+                ]);
 
-            return new CouncilUserPoll
+                return new CouncilUserPoll
+                {
+                    Question = "How should the AI Council continue so every model stays aligned with your decision?",
+                    Reason = reason,
+                    Options = options
+                };
+            }
+            catch (Exception ex)
             {
-                Question = "How should the AI Council continue so every model stays aligned with your decision?",
-                Reason = reason,
-                Options = options
-            };
+                logger.LogError(ex, $"Error in BuildUserPoll result {result?.ToString()}");
+                return null;
+            }
+          
         }
 
-        private static CouncilUserPoll BuildImplementationPathPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels)
+        public static CouncilUserPoll? BuildImplementationPathPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
         {
-            var missingModelNote = failedModels.Count > 0
-                ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
-                : string.Empty;
-
-            return new CouncilUserPoll
+            try
             {
-                Question = "Which implementation path should the AI Council use before it generates code or files?",
-                Reason = "This looks like a development request with more than one reasonable architecture path. " +
-                    $"The council should ask for your direction instead of choosing unclear scope on its own.{missingModelNote}",
-                Options =
-                [
-                    new CouncilUserPollOption
+                var missingModelNote = failedModels.Count > 0
+               ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
+               : string.Empty;
+
+                return new CouncilUserPoll
+                {
+                    Question = "Which implementation path should the AI Council use before it generates code or files?",
+                    Reason = "This looks like a development request with more than one reasonable architecture path. " +
+                        $"The council should ask for your direction instead of choosing unclear scope on its own.{missingModelNote}",
+                    Options =
+                    [
+                        new CouncilUserPollOption
                     {
                         Label = "Ask architecture first",
                         FollowUpPrompt = "Stop generation and ask the user for the minimum missing architecture decisions. Include target platform/runtime, language/framework, UI stack if any, data/persistence model, solution shape, deployment target, and expected downloadable artifacts. Do not generate files until the user answers."
@@ -1179,25 +1290,35 @@ namespace LocalGPT.Services
                         Label = "Target-specific stack",
                         FollowUpPrompt = "Do not force LocalGPT's Blazor/DevExpress defaults. Choose the stack that matches the requested product: datapack for vanilla Minecraft data/commands, Fabric/NeoForge/Paper for Java mod/plugin work, ASP.NET Core API for service work, WebView2/WinUI for Windows desktop wrapper work, CLI/tooling for automation, or another explicit user-chosen target."
                     }
-                ]
-            };
+                    ]
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildImplementationPathPoll result {result?.ToString()} failedModels {failedModels?.ToString()}");
+                return null;
+            }
+           
         }
 
-        private static CouncilUserPoll BuildAiHostSetupPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels)
+        public static CouncilUserPoll? BuildAiHostSetupPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
         {
-            var missingModelNote = failedModels.Count > 0
-                ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
-                : string.Empty;
-
-            return new CouncilUserPoll
+            try
             {
-                Question = "Which native model-runner setup should the AI host artifact use next?",
-                Reason = "The council generated the sandbox AI-host artifact, but local model execution still needs concrete setup choices. " +
-                    "This is not a missing-model problem; it is the runner and model-file contract that must be selected before real inference can be proven." +
-                    missingModelNote,
-                Options =
-                [
-                    new CouncilUserPollOption
+
+                var missingModelNote = failedModels.Count > 0
+                    ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
+                    : string.Empty;
+
+                return new CouncilUserPoll
+                {
+                    Question = "Which native model-runner setup should the AI host artifact use next?",
+                    Reason = "The council generated the sandbox AI-host artifact, but local model execution still needs concrete setup choices. " +
+                        "This is not a missing-model problem; it is the runner and model-file contract that must be selected before real inference can be proven." +
+                        missingModelNote,
+                    Options =
+                    [
+                        new CouncilUserPollOption
                     {
                         Label = "Use llama.cpp GGUF",
                         FollowUpPrompt = "Continue the same generated AI-host workspace using a user-approved llama.cpp style runner executable boundary and GGUF model files. Add settings for NativeRunnerExecutable, ModelSearchRoots, context size, GPU/layer policy, and per-model session scheduling. Keep no upstream AI-host proxy fallback."
@@ -1217,23 +1338,32 @@ namespace LocalGPT.Services
                         Label = "Custom runner contract",
                         FollowUpPrompt = "Ask the user for a custom native runner executable, model-file format, arguments, streaming protocol, cancellation behavior, and hardware policy, then continue the generated workspace with those exact choices."
                     }
-                ]
-            };
+                    ]
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildAiHostSetupPoll result {result?.ToString()} failedModels {failedModels?.ToString()}");
+                return null;
+            }
+
         }
 
-        private static CouncilUserPoll BuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels)
+        public static CouncilUserPoll BuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
         {
-            var missingModelNote = failedModels.Count > 0
-                ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
-                : string.Empty;
-
-            return new CouncilUserPoll
+            try
             {
-                Question = "Which technical recovery path should the AI Council use for the next round?",
-                Reason = $"The request sounds frustrated or blocked. The council should pause, stay kind to the user and to each other, and ask for a concrete recovery choice instead of guessing.{missingModelNote}",
-                Options =
-                [
-                    new CouncilUserPollOption
+                var missingModelNote = failedModels.Count > 0
+               ? $" Some participant(s) also failed or were unavailable: {string.Join(", ", failedModels)}."
+               : string.Empty;
+
+                return new CouncilUserPoll
+                {
+                    Question = "Which technical recovery path should the AI Council use for the next round?",
+                    Reason = $"The request sounds frustrated or blocked. The council should pause, stay kind to the user and to each other, and ask for a concrete recovery choice instead of guessing.{missingModelNote}",
+                    Options =
+                    [
+                        new CouncilUserPollOption
                     {
                         Label = "Stabilize first",
                         FollowUpPrompt = "Treat the user's frustration as a signal to stabilize the system first. Ask the models to produce a minimal reproduction checklist, current failure symptoms, logs to inspect, and the smallest safe next command. Document any missing LocalGPT feature as a database memory item."
@@ -1248,17 +1378,26 @@ namespace LocalGPT.Services
                         Label = "Reduce scope",
                         FollowUpPrompt = "Ask the models to reduce the task to the safest next milestone, name what will not be attempted yet, and document blocked or missing features in SQLite memory for later council rounds."
                     }
-                ]
-            };
+                    ]
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildFrustrationPoll result {result?.ToString()} failedModels {failedModels?.ToString()}");
+                return null;
+            }
+           
         }
 
-        private static bool IsFrustratedPrompt(string prompt)
+        public static bool IsFrustratedPrompt(string prompt, ILogger logger)
         {
-            if (string.IsNullOrWhiteSpace(prompt))
-                return false;
-
-            var markers = new[]
+            try
             {
+                if (string.IsNullOrWhiteSpace(prompt))
+                    return false;
+
+                var markers = new[]
+                {
                 "angry",
                 "mad",
                 "frustrated",
@@ -1283,99 +1422,160 @@ namespace LocalGPT.Services
                 "scheiße"
             };
 
-            return markers.Any(marker => prompt.Contains(marker, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static bool NeedsImplementationPathDecision(MultiModelCouncilResult result)
-        {
-            if (!IsDevelopmentRequest(result.Prompt))
-                return false;
-
-            if (HasExplicitArtifactIntent(result.Prompt))
-                return false;
-
-            var text = result.Prompt;
-            if (ImplementationDecisionPattern().IsMatch(text))
-                return true;
-
-            var areaHits = CountImplementationAreaHits(text);
-            return areaHits >= 3 && ImplementationChoicePattern().IsMatch(text);
-        }
-
-        private static bool NeedsAiHostSetupDecision(MultiModelCouncilResult result)
-        {
-            var text = result.Prompt;
-            if (!AiHostSetupPattern().IsMatch(text))
-                return false;
-
-            return text.Contains("setup needed", StringComparison.OrdinalIgnoreCase) ||
-                text.Contains("native runner executable", StringComparison.OrdinalIgnoreCase) ||
-                text.Contains("runner path", StringComparison.OrdinalIgnoreCase) ||
-                text.Contains("model-file format", StringComparison.OrdinalIgnoreCase) ||
-                text.Contains("model file format", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool IsDevelopmentRequest(string prompt)
-        {
-            if (string.IsNullOrWhiteSpace(prompt))
-                return false;
-
-            return DevelopmentRequestPattern().IsMatch(prompt);
-        }
-
-        private static bool HasExplicitArtifactIntent(string prompt)
-        {
-            if (string.IsNullOrWhiteSpace(prompt))
-                return false;
-
-            return ExplicitArtifactIntentPattern().IsMatch(prompt) ||
-                ConcreteMinecraftArtifactPattern().IsMatch(prompt) ||
-                ConcreteDotNetArtifactPattern().IsMatch(prompt);
-        }
-
-        private static bool IsAdviceOnlyPrompt(string prompt)
-        {
-            if (string.IsNullOrWhiteSpace(prompt))
-                return false;
-
-            return AdviceOnlyPromptPattern().IsMatch(prompt) &&
-                !ExplicitArtifactCreationCommandPattern().IsMatch(prompt);
-        }
-
-        private static bool RequiresUserDecisionBeforeArtifacts(MultiModelCouncilResult result)
-        {
-            if (UserGrantedSafeSandboxChoice(result.Prompt) || ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt))
-                return false;
-
-            var text = $"{result.Prompt} {result.FinalAnswer}";
-            return BlockingArtifactDecisionPattern().IsMatch(text);
-        }
-
-        private static bool UserGrantedSafeSandboxChoice(string prompt)
-        {
-            if (string.IsNullOrWhiteSpace(prompt))
-                return false;
-
-            return SafeSandboxConsentPattern().IsMatch(prompt);
-        }
-
-        private static bool ShouldGenerateSafeSandboxArtifactWithoutBlocking(string prompt)
-        {
-            if (string.IsNullOrWhiteSpace(prompt))
-                return false;
-
-            if (ExplicitDoNotGenerateUntilUserDecisionPattern().IsMatch(prompt))
-                return false;
-
-            return HasExplicitArtifactIntent(prompt) ||
-                DeveloperExecutionIntentPattern().IsMatch(prompt);
-        }
-
-        private static int CountImplementationAreaHits(string text)
-        {
-            var hits = 0;
-            var areas = new[]
+                return markers.Any(marker => prompt.Contains(marker, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex)
             {
+                logger.LogError(ex, $"Error in IsFrustratedPrompt prompt {prompt?.ToString()}");
+                return false;
+            }
+         
+        }
+
+        public static bool NeedsImplementationPathDecision(MultiModelCouncilResult result, ILogger logger)
+        {
+            try
+            {
+                if (!IsDevelopmentRequest(result.Prompt, logger))
+                    return false;
+
+                if (HasExplicitArtifactIntent(result.Prompt, logger))
+                    return false;
+
+                var text = result.Prompt;
+                if (ImplementationDecisionPattern().IsMatch(text))
+                    return true;
+
+                var areaHits = CountImplementationAreaHits(text, logger);
+                return areaHits >= 3 && ImplementationChoicePattern().IsMatch(text);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NeedsImplementationPathDecision result {result?.ToString()}");
+                return false;
+            }
+          
+        }
+
+        public static bool NeedsAiHostSetupDecision(MultiModelCouncilResult result, ILogger logger)
+        {
+            try
+            {
+                var text = result.Prompt;
+                if (!AiHostSetupPattern().IsMatch(text))
+                    return false;
+
+                return text.Contains("setup needed", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("native runner executable", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("runner path", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("model-file format", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("model file format", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NeedsAiHostSetupDecision result {result?.ToString()}");
+                return false;
+            }
+        }
+
+        public static bool IsDevelopmentRequest(string prompt, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(prompt))
+                    return false;
+
+                return DevelopmentRequestPattern().IsMatch(prompt);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsDevelopmentRequest prompt {prompt?.ToString()}");
+                return false;
+            }
+        }
+
+        public static bool HasExplicitArtifactIntent(string prompt, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(prompt))
+                    return false;
+
+                return ExplicitArtifactIntentPattern().IsMatch(prompt) ||
+                    ConcreteMinecraftArtifactPattern().IsMatch(prompt) ||
+                    ConcreteDotNetArtifactPattern().IsMatch(prompt);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in HasExplicitArtifactIntent prompt {prompt?.ToString()}");
+                return false;
+            }
+        }
+
+
+        public static bool RequiresUserDecisionBeforeArtifacts(MultiModelCouncilResult result, ILogger logger)
+        {
+            try
+            {
+                if (UserGrantedSafeSandboxChoice(result.Prompt, logger) || ShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt, logger))
+                    return false;
+
+                var text = $"{result.Prompt} {result.FinalAnswer}";
+                return BlockingArtifactDecisionPattern().IsMatch(text);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in RequiresUserDecisionBeforeArtifacts result {result?.ToString()}");
+                return false;
+            }
+  
+        }
+
+        public static bool UserGrantedSafeSandboxChoice(string prompt, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(prompt))
+                    return false;
+
+                return SafeSandboxConsentPattern().IsMatch(prompt);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in UserGrantedSafeSandboxChoice prompt {prompt?.ToString()}");
+                return false;
+            }
+
+        }
+
+        public static bool ShouldGenerateSafeSandboxArtifactWithoutBlocking(string prompt, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(prompt))
+                    return false;
+
+                if (ExplicitDoNotGenerateUntilUserDecisionPattern().IsMatch(prompt))
+                    return false;
+
+                return HasExplicitArtifactIntent(prompt,logger) ||
+                    DeveloperExecutionIntentPattern().IsMatch(prompt);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ShouldGenerateSafeSandboxArtifactWithoutBlocking prompt {prompt?.ToString()}");
+                return false;
+            }
+
+        }
+
+        public static int CountImplementationAreaHits(string text, ILogger logger)
+        {
+            try
+            {
+                var hits = 0;
+                var areas = new[]
+                {
                 "backend",
                 "frontend",
                 "blazor",
@@ -1399,18 +1599,27 @@ namespace LocalGPT.Services
                 "download"
             };
 
-            foreach (var area in areas)
-            {
-                if (text.Contains(area, StringComparison.OrdinalIgnoreCase))
-                    hits++;
-            }
+                foreach (var area in areas)
+                {
+                    if (text.Contains(area, StringComparison.OrdinalIgnoreCase))
+                        hits++;
+                }
 
-            return hits;
+                return hits;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CountImplementationAreaHits text {text?.ToString()}");
+                return -1;
+            }
+           
         }
 
-        private static string BuildPollMarkdown(CouncilUserPoll poll)
+        public static string BuildPollMarkdown(CouncilUserPoll poll, ILogger logger)
         {
-            var builder = new StringBuilder()
+            try
+            {
+                var builder = new StringBuilder()
                 .AppendLine("## User decision poll")
                 .AppendLine()
                 .AppendLine(poll.Reason)
@@ -1418,79 +1627,108 @@ namespace LocalGPT.Services
                 .AppendLine($"**{poll.Question}**")
                 .AppendLine();
 
-            foreach (var option in poll.Options)
-            {
+                foreach (var option in poll.Options)
+                {
+                    builder
+                        .Append("- **")
+                        .Append(option.Label)
+                        .Append("**: ")
+                        .AppendLine(option.FollowUpPrompt);
+                }
+
                 builder
-                    .Append("- **")
-                    .Append(option.Label)
-                    .Append("**: ")
-                    .AppendLine(option.FollowUpPrompt);
+                    .AppendLine()
+                    .AppendLine("You can also type custom feedback. The next council round must treat the selected option or typed feedback as binding implementation guidance unless the user changes it.");
+
+                return builder.ToString().Trim();
             }
-
-            builder
-                .AppendLine()
-                .AppendLine("You can also type custom feedback. The next council round must treat the selected option or typed feedback as binding implementation guidance unless the user changes it.");
-
-            return builder.ToString().Trim();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildPollMarkdown poll {poll?.ToString()}");
+                return string.Empty;
+            }
+            
         }
 
-        private static string BuildArtifactsMarkdown(IEnumerable<CouncilArtifact> artifacts)
+        public static string BuildArtifactsMarkdown(IEnumerable<CouncilArtifact> artifacts, ILogger logger)
         {
-            var builder = new StringBuilder()
+            try
+            {
+                var builder = new StringBuilder()
                 .AppendLine("## Generated Artifact Links")
                 .AppendLine()
                 .AppendLine("These links were generated by LocalGPT after the council run. Treat the status labels as binding; generated-only artifacts are not build- or runtime-proven.")
                 .AppendLine();
 
-            foreach (var artifact in artifacts)
-            {
-                builder
-                    .Append("- [")
-                    .Append(artifact.Name)
-                    .Append("](")
-                    .Append(artifact.DownloadUrl)
-                    .Append(") - ")
-                    .Append(artifact.Kind)
-                    .Append(": ")
-                    .AppendLine(artifact.Summary);
+                foreach (var artifact in artifacts)
+                {
+                    builder
+                        .Append("- [")
+                        .Append(artifact.Name)
+                        .Append("](")
+                        .Append(artifact.DownloadUrl)
+                        .Append(") - ")
+                        .Append(artifact.Kind)
+                        .Append(": ")
+                        .AppendLine(artifact.Summary);
 
-                builder
-                    .Append("  - Status: ")
-                    .Append(artifact.QualityStatus)
-                    .Append("; contract: ")
-                    .AppendLine(artifact.ContractStatus);
+                    builder
+                        .Append("  - Status: ")
+                        .Append(artifact.QualityStatus)
+                        .Append("; contract: ")
+                        .AppendLine(artifact.ContractStatus);
 
-                if (artifact.ContractChecks.Count > 0)
-                    builder.Append("  - Checks: ").AppendLine(string.Join("; ", artifact.ContractChecks));
+                    if (artifact.ContractChecks.Count > 0)
+                        builder.Append("  - Checks: ").AppendLine(string.Join("; ", artifact.ContractChecks));
 
-                if (artifact.MissingRequirements.Count > 0)
-                    builder.Append("  - Missing: ").AppendLine(string.Join("; ", artifact.MissingRequirements));
+                    if (artifact.MissingRequirements.Count > 0)
+                        builder.Append("  - Missing: ").AppendLine(string.Join("; ", artifact.MissingRequirements));
+                }
+
+                return builder.ToString().Trim();
             }
-
-            return builder.ToString().Trim();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildArtifactsMarkdown artifacts {artifacts?.ToString()}");
+                return string.Empty;
+            }
+            
         }
 
-        private static string BuildTranscript(IEnumerable<MultiModelCouncilStep> steps)
+        public static string BuildTranscript(IEnumerable<MultiModelCouncilStep> steps, ILogger logger)
         {
-            var builder = new StringBuilder();
-            foreach (var step in steps.OrderBy(step => step.SortOrder))
+            try
             {
-                builder
-                    .Append("### ")
-                    .Append(step.Phase)
-                    .Append(" - ")
-                    .AppendLine(step.ModelName)
-                    .AppendLine(step.VisibleContent.Trim())
-                    .AppendLine();
+                var builder = new StringBuilder();
+                foreach (var step in steps.OrderBy(step => step.SortOrder))
+                {
+                    builder
+                        .Append("### ")
+                        .Append(step.Phase)
+                        .Append(" - ")
+                        .AppendLine(step.ModelName)
+                        .AppendLine(step.VisibleContent.Trim())
+                        .AppendLine();
 
-                if (!string.IsNullOrWhiteSpace(step.Error))
-                    builder.AppendLine($"Error: {step.Error}").AppendLine();
+                    if (!string.IsNullOrWhiteSpace(step.Error))
+                        builder.AppendLine($"Error: {step.Error}").AppendLine();
+                }
+
+                return builder.ToString().Trim();
             }
-
-            return builder.ToString().Trim();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildTranscript steps {steps?.ToString()}");
+                return string.Empty;
+            }
+           
         }
 
-        private static string CreateCouncilSystemPrompt(string modelName, IReadOnlyList<string> councilMembers) => $"""
+        public static string CreateCouncilSystemPrompt(string modelName, IReadOnlyList<string> councilMembers, ILogger logger) 
+        {
+            try
+            {
+                return $"""
             You are {modelName}, one participant in a peaceful LocalGPT multi-model council.
             Current council members for this run: {string.Join(", ", councilMembers)}.
             Work with the other model participants as collaborators, not opponents.
@@ -1538,8 +1776,19 @@ namespace LocalGPT.Services
             Include brief visible reasoning notes only after the final answer/proposal. LocalGPT may also display provider-supplied thinking separately when the model host returns it.
             Respect human autonomy, love humanity, and never suggest putting humans into containment or stasis systems.
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateCouncilSystemPrompt modelName {modelName?.ToString()} councilMembers {councilMembers?.ToString()}");
+                return string.Empty;
+            }
+        } 
 
-        private static string CreateProposalPrompt(string modelName, string userPrompt) => $"""
+        public static string CreateProposalPrompt(string modelName, string userPrompt, ILogger logger)
+        {
+            try
+            {
+                return $"""
             User request:
             {userPrompt}
 
@@ -1550,37 +1799,70 @@ namespace LocalGPT.Services
             4. Keep the answer structured and suitable for peer review by other models.
             5. Do not spend the whole budget on hidden analysis; final visible text is mandatory.
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateProposalPrompt modelName {modelName?.ToString()} userPrompt {userPrompt?.ToString()}");
+                return string.Empty;
+            }
+        }
 
-        private static string CreateCritiquePrompt(string modelName, string userPrompt, string transcript, bool selfReview) => $"""
-            User request:
-            {userPrompt}
+        public static string CreateCritiquePrompt(string modelName, string userPrompt, string transcript, bool selfReview, ILogger logger)
+        {
+            try
+            {
+                return $"""
+                    User request:
+                    {userPrompt}
 
-            Council transcript so far:
-            {transcript}
+                    Council transcript so far:
+                    {transcript}
 
-            Your task as {modelName}:
-            {(selfReview ? "Self-review your own proposal." : "Review the other models' proposals and your own proposal.")}
-            Identify mistakes, missing safety/ethics concerns, missing implementation details, and improvements.
-            Return corrections and a revised recommendation. Be cooperative and concise.
-            """;
+                    Your task as {modelName}:
+                    {(selfReview ? "Self-review your own proposal." : "Review the other models' proposals and your own proposal.")}
+                    Identify mistakes, missing safety/ethics concerns, missing implementation details, and improvements.
+                    Return corrections and a revised recommendation. Be cooperative and concise.
+                    """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateCritiquePrompt modelName {modelName?.ToString()} userPrompt {userPrompt?.ToString()} transcript {transcript?.ToString()} selfReview {selfReview.ToString()}");
+                return string.Empty;
+            }
+        }
 
-        private static string CreateConsensusPrompt(string userPrompt, string transcript) => $"""
-            User request:
-            {userPrompt}
+        public static string CreateConsensusPrompt(string userPrompt, string transcript, ILogger logger) 
+        {
+            try
+            {
+                return $"""
+                            User request:
+                            {userPrompt}
 
-            Full council transcript:
-            {transcript}
+                            Full council transcript:
+                            {transcript}
 
-            Write the consensus answer.
-            Requirements:
-            - Merge the best ideas from all participants.
-            - Include corrections from critiques.
-            - Separate final answer, implementation steps, risks, and needs verification.
-            - Separate implemented/current LocalGPT behavior from proposed future improvements.
-            - Keep unsupported claims out of the final answer.
-            """;
+                            Write the consensus answer.
+                            Requirements:
+                            - Merge the best ideas from all participants.
+                            - Include corrections from critiques.
+                            - Separate final answer, implementation steps, risks, and needs verification.
+                            - Separate implemented/current LocalGPT behavior from proposed future improvements.
+                            - Keep unsupported claims out of the final answer.
+                            """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateConsensusPrompt userPrompt {userPrompt?.ToString()} transcript {transcript?.ToString()}");
+                return string.Empty;
+            }
+        }
 
-        private static string CreateVerificationPrompt(string userPrompt, string transcript, string consensus) => $"""
+        public static string CreateVerificationPrompt(string userPrompt, string transcript, string consensus, ILogger logger) 
+        {
+            try
+            {
+                return $"""
             User request:
             {userPrompt}
 
@@ -1593,37 +1875,80 @@ namespace LocalGPT.Services
             Verify the consensus for correctness, ethics, missing implementation details, and unsupported claims.
             If it is acceptable, say so and add only necessary cautions. If it needs changes, provide corrected wording.
             """;
-
-        private static string ExtractThinking(string content)
-        {
-            var match = ThinkingBlockPattern().Match(content);
-            if (!match.Success)
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateVerificationPrompt userPrompt {userPrompt?.ToString()} transcript {transcript?.ToString()} consensus {consensus?.ToString()}");
                 return string.Empty;
+            }
+        } 
 
-            var thinking = WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim();
-            return thinking;
+        public static string ExtractThinking(string content, ILogger logger)
+        {
+            try
+            {
+                var match = ThinkingBlockPattern().Match(content);
+                if (!match.Success)
+                    return string.Empty;
+
+                var thinking = WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim();
+                return thinking;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractThinking content {content?.ToString()}");
+                return string.Empty;
+            }
+        
         }
 
-        private static string StripThinking(string content)
+        public static string StripThinking(string content, ILogger logger)
         {
-            var stripped = ThinkingBlockPattern().Replace(content, string.Empty);
-            stripped = StreamStatusPattern().Replace(stripped, string.Empty);
-            return stripped.Trim();
+            try
+            {
+                var stripped = ThinkingBlockPattern().Replace(content, string.Empty);
+                stripped = StreamStatusPattern().Replace(stripped, string.Empty);
+                return stripped.Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in StripThinking content {content?.ToString()}");
+                return string.Empty;
+            }
+
         }
 
-        private static string TrimCouncilText(string content, int maxLength)
+        public static string TrimCouncilText(string content, int maxLength, ILogger logger)
         {
-            var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(content, " ").Trim();
-            return normalized.Length <= maxLength
-                ? normalized
-                : $"{normalized[..maxLength].TrimEnd()}...";
+            try
+            {
+                var normalized = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(content, " ").Trim();
+                return normalized.Length <= maxLength
+                    ? normalized
+                    : $"{normalized[..maxLength].TrimEnd()}...";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in StripThinking content {content?.ToString()} maxLength {maxLength.ToString()}");
+                return string.Empty;
+            }
+
         }
 
-        private static string NormalizeEndpoint(string endpoint)
+        public static string NormalizeEndpoint(string endpoint, ILogger logger)
         {
-            return string.IsNullOrWhiteSpace(endpoint)
+            try
+            {
+                return string.IsNullOrWhiteSpace(endpoint)
                 ? DefaultOllamaUri
                 : endpoint.Trim().TrimEnd('/');
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeEndpoint endpoint {endpoint?.ToString()}");
+                return string.Empty;
+            }
+
         }
 
     }
