@@ -4,6 +4,7 @@ using LocalGPT.BusinessObjects;
 using Markdig;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
@@ -11,6 +12,63 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+
+        public static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            WriteIndented = true
+        };
+
+        public static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".txt",
+            ".md",
+            ".json",
+            ".xml",
+            ".csv",
+            ".cs",
+            ".razor",
+            ".cshtml",
+            ".css",
+            ".scss",
+            ".js",
+            ".ts",
+            ".tsx",
+            ".html",
+            ".htm",
+            ".xaml",
+            ".sln",
+            ".csproj",
+            ".vbproj",
+            ".fsproj",
+            ".props",
+            ".targets",
+            ".config",
+            ".editorconfig",
+            ".yml",
+            ".yaml",
+            ".toml",
+            ".sql",
+            ".ps1",
+            ".cmd",
+            ".bat",
+            ".sh",
+            ".java",
+            ".kt",
+            ".gradle",
+            ".mcfunction",
+            ".mcmeta",
+            ".properties"
+        };
+
+        public static readonly HashSet<string> BinaryDiagnosticExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".dll",
+            ".exe",
+            ".pdb",
+            ".appxsym",
+            ".nupkg",
+            ".wasm"
+        };
         [GeneratedRegex("<TargetFrameworks?>(?<value>[^<]+)</TargetFrameworks?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         public static partial Regex TargetFrameworkPattern();
 

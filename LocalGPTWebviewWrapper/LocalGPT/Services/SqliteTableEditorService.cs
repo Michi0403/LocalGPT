@@ -10,7 +10,7 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace LocalGPT.Services
 {
-    public sealed class SqliteTableEditorService(ILogger logger) : ISqliteTableEditorService
+    public sealed class SqliteTableEditorService/*(ILogger logger)*/ : ISqliteTableEditorService
     {
         private const int MaxRows = 500;
 
@@ -44,8 +44,8 @@ namespace LocalGPT.Services
                 var tables = new List<SqliteTableSummary>();
                 foreach (var name in names)
                 {
-                    var columns = await SQLLiteFunctions.GetColumnsAsync(connection, name, cancellationToken, logger);
-                    var rowCount = await SQLLiteFunctions.GetRowCountAsync(connection, name, cancellationToken, logger);
+                    var columns = await SQLLiteFunctions.GetColumnsAsync(connection, name, cancellationToken);
+                    var rowCount = await SQLLiteFunctions.GetRowCountAsync(connection, name, cancellationToken);
                     tables.Add(new SqliteTableSummary(
                         name,
                         columns.Count,
@@ -57,7 +57,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetTablesAsync");
+                Console.WriteLine( $"Error in GetTablesAsync ex {ex.ToString()}");
                 return new List<SqliteTableSummary>();
             }
         }
@@ -69,16 +69,16 @@ namespace LocalGPT.Services
                 await EnsureDatabaseFileAsync(cancellationToken);
                 await using var connection = await OpenConnectionAsync(cancellationToken);
                 ArgumentNullException.ThrowIfNull(connection);
-                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken, logger);
+                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken);
 
                 var safeTake = Math.Clamp(take, 1, MaxRows);
-                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken, logger);
+                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken);
                 var rows = new List<SqliteRowSnapshot>();
 
                 await using var command = connection.CreateCommand();
                 command.CommandText = $"""
                 SELECT rowid AS "__rowid", *
-                FROM {SQLLiteFunctions.QuoteIdentifier(tableName, logger)}
+                FROM {SQLLiteFunctions.QuoteIdentifier(tableName)}
                 ORDER BY rowid DESC
                 LIMIT $take;
                 """;
@@ -113,7 +113,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetTablesAsync");
+                Console.WriteLine($"Error in GetTableAsync ex {ex.ToString()}");
                 return null;
             }
             
@@ -129,9 +129,9 @@ namespace LocalGPT.Services
                 await EnsureDatabaseFileAsync(cancellationToken);
                 await using var connection = await OpenConnectionAsync(cancellationToken);
                 ArgumentNullException.ThrowIfNull(connection);
-                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken, logger);
+                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken);
 
-                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken, logger);
+                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken);
                 var editableColumns = columns
                     .Where(column => !column.IsPrimaryKey)
                     .Select(column => column.Name)
@@ -146,19 +146,19 @@ namespace LocalGPT.Services
                 if (sanitizedUpdates.Count == 0)
                     return;
 
-                SQLLiteFunctions.ValidateRequiredColumnUpdates(columns, sanitizedUpdates, logger);
+                SQLLiteFunctions.ValidateRequiredColumnUpdates(columns, sanitizedUpdates);
 
                 await using var command = connection.CreateCommand();
                 var assignments = new List<string>();
                 for (var index = 0; index < sanitizedUpdates.Count; index++)
                 {
                     var parameterName = $"$value{index}";
-                    assignments.Add($"{SQLLiteFunctions.QuoteIdentifier(sanitizedUpdates[index].ColumnName, logger)} = {parameterName}");
-                    command.Parameters.AddWithValue(parameterName, SQLLiteFunctions.ToSqliteValue(sanitizedUpdates[index].Value, logger));
+                    assignments.Add($"{SQLLiteFunctions.QuoteIdentifier(sanitizedUpdates[index].ColumnName)} = {parameterName}");
+                    command.Parameters.AddWithValue(parameterName, SQLLiteFunctions.ToSqliteValue(sanitizedUpdates[index].Value));
                 }
 
                 command.CommandText = $"""
-                UPDATE {SQLLiteFunctions.QuoteIdentifier(tableName, logger)}
+                UPDATE {SQLLiteFunctions.QuoteIdentifier(tableName)}
                 SET {string.Join(", ", assignments)}
                 WHERE rowid = $rowid;
                 """;
@@ -169,12 +169,12 @@ namespace LocalGPT.Services
                 }
                 catch (SqliteException ex)
                 {
-                    throw new InvalidOperationException(SQLLiteFunctions.CreateSqliteEditError("update", tableName, ex, logger), ex);
+                    throw new InvalidOperationException(SQLLiteFunctions.CreateSqliteEditError("update", tableName, ex), ex);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in UpdateRowAsync tableName {tableName} rowId {rowId} updates {updates.ToString()}");
+                Console.WriteLine($"Error in UpdateRowAsync ex tableName {tableName} rowId {rowId} updates {updates.ToString()}");
             }
         }
 
@@ -185,9 +185,9 @@ namespace LocalGPT.Services
                 await EnsureDatabaseFileAsync(cancellationToken);
                 await using var connection = await OpenConnectionAsync(cancellationToken);
                 ArgumentNullException.ThrowIfNull(connection);
-                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken, logger);
+                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken);
 
-                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken, logger);
+                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken);
                 var allowedColumns = columns
                     .Where(column => !column.IsPrimaryKey)
                     .Select(column => column.Name)
@@ -202,7 +202,7 @@ namespace LocalGPT.Services
                 if (sanitizedValues.Count == 0)
                     throw new InvalidOperationException("Enter at least one editable value before inserting a row.");
 
-                SQLLiteFunctions.ValidateRequiredInsertColumns(columns, sanitizedValues, logger);
+                SQLLiteFunctions.ValidateRequiredInsertColumns(columns, sanitizedValues);
 
                 await using var command = connection.CreateCommand();
                 var columnNames = new List<string>();
@@ -210,13 +210,13 @@ namespace LocalGPT.Services
                 for (var index = 0; index < sanitizedValues.Count; index++)
                 {
                     var parameterName = $"$value{index}";
-                    columnNames.Add(SQLLiteFunctions.QuoteIdentifier(sanitizedValues[index].Key, logger));
+                    columnNames.Add(SQLLiteFunctions.QuoteIdentifier(sanitizedValues[index].Key));
                     parameterNames.Add(parameterName);
-                    command.Parameters.AddWithValue(parameterName, SQLLiteFunctions.ToSqliteValue(sanitizedValues[index].Value, logger));
+                    command.Parameters.AddWithValue(parameterName, SQLLiteFunctions.ToSqliteValue(sanitizedValues[index].Value));
                 }
 
                 command.CommandText = $"""
-                INSERT INTO {SQLLiteFunctions.QuoteIdentifier(tableName, logger)} ({string.Join(", ", columnNames)})
+                INSERT INTO {SQLLiteFunctions.QuoteIdentifier(tableName)} ({string.Join(", ", columnNames)})
                 VALUES ({string.Join(", ", parameterNames)});
                 """;
                 try
@@ -225,12 +225,12 @@ namespace LocalGPT.Services
                 }
                 catch (SqliteException ex)
                 {
-                    throw new InvalidOperationException(SQLLiteFunctions.CreateSqliteEditError("insert", tableName, ex, logger), ex);
+                    throw new InvalidOperationException(SQLLiteFunctions.CreateSqliteEditError("insert", tableName, ex), ex);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in InsertRowAsync tableName {tableName} values {values.ToString()}");
+                Console.WriteLine($"Error in InsertRowAsync tableName {tableName} values {values.ToString()}");
             }
            
         }
@@ -242,10 +242,10 @@ namespace LocalGPT.Services
                 await EnsureDatabaseFileAsync(cancellationToken);
                 await using var connection = await OpenConnectionAsync(cancellationToken);
                 ArgumentNullException.ThrowIfNull(connection);
-                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken, logger);
+                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken);
 
                 await using var command = connection.CreateCommand();
-                command.CommandText = $"DELETE FROM {SQLLiteFunctions.QuoteIdentifier(tableName, logger)} WHERE rowid = $rowid;";
+                command.CommandText = $"DELETE FROM {SQLLiteFunctions.QuoteIdentifier(tableName)} WHERE rowid = $rowid;";
                 command.Parameters.AddWithValue("$rowid", rowId);
                 try
                 {
@@ -253,12 +253,12 @@ namespace LocalGPT.Services
                 }
                 catch (SqliteException ex)
                 {
-                    throw new InvalidOperationException(SQLLiteFunctions.CreateSqliteEditError("delete", tableName, ex, logger), ex);
+                    throw new InvalidOperationException(SQLLiteFunctions.CreateSqliteEditError("delete", tableName, ex), ex);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in DeleteRowAsync tableName {tableName} rowId {rowId.ToString()}");
+                Console.WriteLine($"Error in DeleteRowAsync tableName {tableName} rowId {rowId.ToString()}");
             }
         }
 
@@ -275,7 +275,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in EnsureDatabaseFileAsync");
+                Console.WriteLine($"Error in EnsureDatabaseFileAsync");
             }
 
         }
@@ -290,7 +290,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in OpenConnectionAsync");
+                Console.WriteLine($"Error in OpenConnectionAsync");
                 return null;
             }
         }

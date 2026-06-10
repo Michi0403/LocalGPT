@@ -266,7 +266,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
         }
 
-        public static CouncilUserPoll MultiModelCouncilServiceBuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
+        public static CouncilUserPoll? MultiModelCouncilServiceBuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
         {
             try
             {

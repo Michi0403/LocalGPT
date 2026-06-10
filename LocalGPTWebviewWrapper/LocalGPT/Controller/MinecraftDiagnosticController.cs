@@ -158,6 +158,8 @@ namespace LocalGPT.Endpoints
                     .Order(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
                 var referenceComparison = CouncilChatStaticsGeneral.BuildDatapackReferenceComparison(workspace.RootPath,logger);
+                ArgumentNullException.ThrowIfNull(build);
+                ArgumentNullException.ThrowIfNull(build.StandardOutput);
                 var knowledgeEntry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
                 {
                     Topic = "Living Cities datapack benchmark",
@@ -169,9 +171,9 @@ namespace LocalGPT.Endpoints
                     "Goal: vanilla Minecraft Java datapack for Living Cities 0.1 with city aggregate simulation, no full-world scans, town hall/admin UI, population, food, security, personalities, chronicle, and quests.",
                     "Reference zip traits: legacy pack_format 61 for 1.21.4, namespace living_cities, singular data/<namespace>/function folders, core/load and core/tick tags, early placeholders that should become real .mcfunction files. Current default generation targets Minecraft Java 26.1 pack_format 101.1 unless the user requests an older version.",
                     $"Latest generated workspace: {workspace.RootPath}",
-                    $"Build succeeded: {build.Succeeded}; exit code {build.ExitCode}.",
+                    $"Build succeeded: {build?.Succeeded}; exit code {build?.ExitCode}.",
                     $"Function files: {files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase))}.",
-                    $"Build output: {CouncilChatStringFunctions.TrimForKnowledge(build.StandardOutput, 700,logger)}",
+                    $"Build output: {CouncilChatStringFunctions.TrimForKnowledge(build?.StandardOutput, 700,logger)}",
                     $"Reference comparison: {referenceComparison?.Summary}",
                     $"Reference placeholders: {referenceComparison?.ReferencePlaceholderCount}; generated placeholders: {referenceComparison?.GeneratedPlaceholderCount}.",
                     $"Root pack.mcmeta: generated={referenceComparison?.GeneratedHasRootPackMcmeta}, reference={referenceComparison?.ReferenceHasRootPackMcmeta}, reference nested={referenceComparison?.ReferenceHasNestedPackMcmeta}.",

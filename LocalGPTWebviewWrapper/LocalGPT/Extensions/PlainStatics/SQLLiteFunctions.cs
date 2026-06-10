@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace LocalGPT.Extensions.PlainStatics
 {
@@ -101,7 +102,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 return string.Empty;
             }
         }
-        public static async Task EnsureValidTableAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger logger)
+        public static async Task EnsureValidTableAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
             try
             {
@@ -123,11 +124,18 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in EnsureValidTableAsync connection {connection.ToString()} tableName {tableName}");
+                if(logger is not null)
+                {
+                    logger.LogError(ex, $"Error in EnsureValidTableAsync connection {connection.ToString()} tableName {tableName}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in EnsureValidTableAsync connection {connection.ToString()} tableName {tableName} ex {ex}");
+                }
             }
         }
 
-        public static async Task<List<SqliteColumnSummary>> GetColumnsAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger logger)
+        public static async Task<List<SqliteColumnSummary>> GetColumnsAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
             try
             {
@@ -158,12 +166,23 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetColumnsAsync connection {connection.ToString()} tableName {tableName}");
+                if(logger is not null)
+                {
+                    logger.LogError(ex, $"Error in GetColumnsAsync connection {connection.ToString()} tableName {tableName}");
+
+                }
+                else
+                {
+                    Console.WriteLine($"Error in GetColumnsAsync connection {connection.ToString()} tableName {tableName}");
+
+                }
+
                 return new();
+
             }
         }
 
-        public static async Task<long> GetRowCountAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger logger)
+        public static async Task<long> GetRowCountAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
             try
             {
@@ -175,12 +194,20 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetRowCountAsync connection {connection.ToString()} tableName {tableName}");
+                if(logger is not null)
+                {
+
+                    logger.LogError(ex, $"Error in GetRowCountAsync connection {connection.ToString()} tableName {tableName}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in GetRowCountAsync connection {connection.ToString()} tableName {tableName}");
+                }
                 return -1;
             }
         }
 
-        public static object? ToSqliteValue(string? value, ILogger logger)
+        public static object? ToSqliteValue(string? value, ILogger? logger = null)
         {
             try
             {
@@ -188,7 +215,16 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ToSqliteValue value {value.ToString()}");
+                if (logger is not null)
+                {
+
+
+                    logger.LogError(ex, $"Error in ToSqliteValue value {value?.ToString()}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in ToSqliteValue value {value?.ToString()} ex {ex.ToString()}");
+                }
                 return null;
             }
 
@@ -196,7 +232,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
         public static void ValidateRequiredColumnUpdates(
             IReadOnlyList<SqliteColumnSummary> columns,
-            IReadOnlyList<SqliteCellUpdate> updates, ILogger logger)
+            IReadOnlyList<SqliteCellUpdate> updates, ILogger? logger=null)
         {
             try
             {
@@ -217,14 +253,23 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ValidateRequiredColumnUpdates columns {columns.ToString()} updates {updates.ToString()}");
+                if (logger is not null)
+                {
+
+
+                    logger.LogError(ex, $"Error in ValidateRequiredColumnUpdates columns {columns.ToString()} updates {updates.ToString()}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in ValidateRequiredColumnUpdates columns {columns.ToString()} ex {ex.ToString()}");
+                }
             }
 
         }
 
         public static void ValidateRequiredInsertColumns(
             IReadOnlyList<SqliteColumnSummary> columns,
-            IReadOnlyList<KeyValuePair<string, string?>> values, ILogger logger)
+            IReadOnlyList<KeyValuePair<string, string?>> values, ILogger? logger = null)
         {
             try
             {
@@ -245,11 +290,19 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ValidateRequiredInsertColumns columns {columns.ToString()} values {values.ToString()}");
+                if (logger is not null)
+                {
+                    logger.LogError(ex, $"Error in ValidateRequiredInsertColumns columns {columns.ToString()} values {values.ToString()}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in ValidateRequiredInsertColumns columns {columns.ToString()} values {values.ToString()} ex {ex.ToString()}");
+                }
+            
             }
         }
 
-        public static bool IsRequiredEditableColumn(SqliteColumnSummary column, ILogger logger)
+        public static bool IsRequiredEditableColumn(SqliteColumnSummary column, ILogger? logger = null)
         {
             try
             {
@@ -259,13 +312,20 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsRequiredEditableColumn column {column.ToString()}");
+                if (logger is not null)
+                {
+                    logger.LogError(ex, $"Error in IsRequiredEditableColumn column {column.ToString()}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in IsRequiredEditableColumn column {column.ToString()} column {column.ToString()} ex {ex.ToString()}");
+                }
                 return false;
             }
         }
 
 
-        public static string CreateSqliteEditError(string operation, string tableName, SqliteException exception, ILogger logger)
+        public static string CreateSqliteEditError(string operation, string tableName, SqliteException exception, ILogger? logger = null)
         {
             try
             {
@@ -273,12 +333,19 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in CreateSqliteEditError operation {operation.ToString()} tableName {tableName.ToString()} exception {exception.ToString()}");
+                if (logger is not null)
+                {
+                    logger.LogError(ex, $"Error in CreateSqliteEditError operation {operation.ToString()} tableName {tableName.ToString()} exception {exception.ToString()}");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in CreateSqliteEditError operation {operation.ToString()} tableName {tableName.ToString()} exception {exception.ToString()} ex {ex.ToString()}");
+                }
                 return string.Empty;
             }
         }
 
-        public static string QuoteIdentifier(string identifier, ILogger logger)
+        public static string QuoteIdentifier(string identifier, ILogger? logger = null)
         {
             try
             {
@@ -293,7 +360,16 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in QuoteIdentifier identifier {identifier.ToString()}");
+                if(logger is not null)
+                {
+
+                    logger.LogError(ex, $"Error in QuoteIdentifier identifier {identifier.ToString()}");
+                }
+                else
+                {
+
+                    Console.WriteLine($"Error in QuoteIdentifier identifier {identifier.ToString()} ex {ex.ToString()}");
+                }
                 return string.Empty;
             }
         }

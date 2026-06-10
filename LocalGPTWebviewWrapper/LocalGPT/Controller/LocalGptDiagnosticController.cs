@@ -110,8 +110,8 @@ namespace LocalGPT.Controller
                         MaxOutputTokens = Math.Clamp(maxOutputTokens ?? 128, 64, 4096),
                         Temperature = 0.1f
                     },
-                    ct).ConfigureAwait(false); 
-
+                    ct).ConfigureAwait(false);
+                ArgumentNullException.ThrowIfNull(response);
                 return Results.Ok(new
                 {
                     Source = "LocalGPT OllamaThinkingChatClient",
@@ -787,8 +787,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in PostChatUploadWorkspaceSmoke {ex.ToString()} uploads {uploads.ToString()} prompt {prompt.ToString()}");
-                return Results.InternalServerError($"Error in PostChatUploadWorkspaceSmoke {ex.ToString()} uploads {uploads.ToString()} prompt {prompt.ToString()}");
+                logger.LogError(ex, $"Error in PostChatUploadWorkspaceSmoke {ex.ToString()} uploads {uploads.ToString()} prompt {prompt?.ToString()}");
+                return Results.InternalServerError($"Error in PostChatUploadWorkspaceSmoke {ex.ToString()} uploads {uploads.ToString()} prompt {prompt?.ToString()}");
             }     
         }
 
@@ -1378,8 +1378,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetCouncilDevelopmentFeedbackTalk {ex.ToString()} modelNames {modelNames.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxContextTokens {maxContextTokens.ToString()} maxRounds {maxRounds.ToString()} ollamaNumGpu {ollamaNumGpu?.ToString()} council {council.ToString()}");
-                return Results.InternalServerError($"Error in GetCouncilDevelopmentFeedbackTalk {ex.ToString()} modelNames {modelNames.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxContextTokens {maxContextTokens.ToString()} maxRounds {maxRounds.ToString()} ollamaNumGpu {ollamaNumGpu?.ToString()} council {council.ToString()}");
+                logger.LogError(ex, $"Error in GetCouncilDevelopmentFeedbackTalk {ex.ToString()} modelNames {modelNames?.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxContextTokens {maxContextTokens.ToString()} maxRounds {maxRounds.ToString()} ollamaNumGpu {ollamaNumGpu?.ToString()} council {council.ToString()}");
+                return Results.InternalServerError($"Error in GetCouncilDevelopmentFeedbackTalk {ex.ToString()} modelNames {modelNames?.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxContextTokens {maxContextTokens.ToString()} maxRounds {maxRounds.ToString()} ollamaNumGpu {ollamaNumGpu?.ToString()} council {council.ToString()}");
             }       
         }
 

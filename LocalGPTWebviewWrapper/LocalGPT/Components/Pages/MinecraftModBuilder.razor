@@ -395,6 +395,7 @@
                 throw new InvalidOperationException("Create a workspace first.");
 
             lastCommandResult = await CommandRunner.RunAsync(commandFileName, commandArguments, workspace.RootPath).ConfigureAwait(false);
+            ArgumentNullException.ThrowIfNull(lastCommandResult);
             if (lastCommandResult.Succeeded)
             {
                 SetDownloadArtifact(workspace.RootPath);
