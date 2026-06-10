@@ -231,7 +231,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-                await SQLiteTableFunctions.EnsureCreatedNativeCommandLogsAsync(db, logger, cancellationToken);
+                await SQLLiteTableFunctions.EnsureCreatedNativeCommandLogsAsync(db, logger, cancellationToken);
                 db.NativeCommandLogs.Add(new NativeCommandLogEntry
                 {
                     StartedAtUtc = startedAt,

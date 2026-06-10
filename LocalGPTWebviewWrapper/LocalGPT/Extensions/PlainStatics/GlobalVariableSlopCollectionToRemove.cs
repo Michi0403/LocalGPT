@@ -976,7 +976,8 @@ namespace LocalGPT.Extensions.PlainStatics
 
         [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
         public static partial Regex WhitespacePattern();
-
+        [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?<line>(?:helpful sources?|source request|needed sources?|references?|docs?|documentation|official docs?|examples?|sample projects?|spec(?:ification)?s?|tutorials?)\\s*[:\\-].+)$", RegexOptions.CultureInvariant)]
+        public static partial Regex HelpfulSourceLinePattern();
         public sealed record ArtifactContractReport(
             string QualityStatus,
             string ContractStatus,

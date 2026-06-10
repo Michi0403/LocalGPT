@@ -258,7 +258,7 @@ namespace LocalGPT
                 var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
                 Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
                 TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
-                SQLiteTableFunctions.EnsureHealthyOrRecoverAsync
+                SQLLiteTableFunctions.EnsureHealthyOrRecoverAsync
                     (memoryDbPath, logger)
                     .GetAwaiter()
                     .GetResult();

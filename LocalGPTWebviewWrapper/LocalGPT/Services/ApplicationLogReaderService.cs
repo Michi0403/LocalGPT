@@ -19,7 +19,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-                await SQLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
+                await SQLLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -32,7 +32,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-                await SQLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
+                await SQLLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
 
                 return await db.ApplicationLogs
                     .AsNoTracking()
