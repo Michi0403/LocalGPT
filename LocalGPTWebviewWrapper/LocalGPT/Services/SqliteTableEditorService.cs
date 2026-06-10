@@ -10,11 +10,11 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace LocalGPT.Services
 {
-    public sealed class SqliteTableEditorService/*(ILogger logger)*/ : ISqliteTableEditorService
+    public sealed class SqliteTableEditorService : ISqliteTableEditorService
     {
         private const int MaxRows = 500;
 
-        public string DatabasePath => EfChatMemoryService.GetDefaultDatabasePath();
+        public string DatabasePath => CouncilChatStaticsGeneral.GetDefaultDatabasePath();
 
         public async Task<IReadOnlyList<SqliteTableSummary>> GetTablesAsync(CancellationToken cancellationToken = default)
         {

@@ -1,4 +1,5 @@
 using DevExpress.AIIntegration.Blazor.Chat;
+using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Extensions.PlainStatics;
@@ -6,7 +7,9 @@ using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.VisualBasic;
+using System.Data;
 using System.Net;
+using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -16,55 +19,78 @@ namespace LocalGPT.Services
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         ILogger<EfChatMemoryService> logger) : IChatMemoryService
     {
-        public string DatabasePath { get; } = GetDefaultDatabasePath();
+        public string DatabasePath { get; } = CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
 
         public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
         {
-            await using var db = await CreateDbContextAsync(cancellationToken);
-            await db.Database.EnsureCreatedAsync(cancellationToken);
+            try
+            {
+                await using var db = await CreateDbContextAsync(cancellationToken);
+                await db.Database.EnsureCreatedAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in EnsureCreatedAsync");
+            }
         }
 
         public async Task<IReadOnlyList<ChatMemoryConversationSummary>> GetConversationsAsync(int take = 50, CancellationToken cancellationToken = default)
         {
-            await using var db = await CreateDbContextAsync(cancellationToken);
-            return await db.Conversations
-                .AsNoTracking()
-                .OrderByDescending(conversation => conversation.UpdatedAtUtc)
-                .Take(Math.Clamp(take, 1, 200))
-                .Select(conversation => new ChatMemoryConversationSummary(
+            try
+            {
+                await using var db = await CreateDbContextAsync(cancellationToken);
+                return await db.Conversations
+                    .AsNoTracking()
+                    .OrderByDescending(conversation => conversation.UpdatedAtUtc)
+                    .Take(Math.Clamp(take, 1, 200))
+                    .Select(conversation => new ChatMemoryConversationSummary(
+                        conversation.Id,
+                        conversation.Title,
+                        conversation.ProviderName,
+                        conversation.CreatedAtUtc,
+                        conversation.UpdatedAtUtc,
+                        conversation.Messages.Count))
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetConversationsAsync take {take}");
+                return new List<ChatMemoryConversationSummary>();
+            }
+        }
+
+        public async Task<ChatMemoryConversationSnapshot?> LoadConversationAsync(Guid conversationId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await using var db = await CreateDbContextAsync(cancellationToken);
+                var conversation = await db.Conversations
+                    .AsNoTracking()
+                    .Include(item => item.Messages)
+                    .SingleOrDefaultAsync(item => item.Id == conversationId, cancellationToken);
+
+                if (conversation is null)
+                    return null;
+
+                var messages = conversation.Messages
+                    .OrderBy(message => message.SortOrder)
+                    .Select(filter => DevExpressFunctions.ToBlazorChatMessage(filter,logger))
+                    .ToList();
+                messages = DevExpressFunctions.EnsureVisibleCouncilPrompt(conversation, messages, logger) ?? new List<BlazorChatMessage>();
+
+                return new ChatMemoryConversationSnapshot(
                     conversation.Id,
                     conversation.Title,
                     conversation.ProviderName,
                     conversation.CreatedAtUtc,
                     conversation.UpdatedAtUtc,
-                    conversation.Messages.Count))
-                .ToListAsync(cancellationToken);
-        }
-
-        public async Task<ChatMemoryConversationSnapshot?> LoadConversationAsync(Guid conversationId, CancellationToken cancellationToken = default)
-        {
-            await using var db = await CreateDbContextAsync(cancellationToken);
-            var conversation = await db.Conversations
-                .AsNoTracking()
-                .Include(item => item.Messages)
-                .SingleOrDefaultAsync(item => item.Id == conversationId, cancellationToken);
-
-            if (conversation is null)
+                    messages);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in LoadConversationAsync conversationId {conversationId}");
                 return null;
-
-            var messages = conversation.Messages
-                .OrderBy(message => message.SortOrder)
-                .Select(ToBlazorChatMessage)
-                .ToList();
-            messages = EnsureVisibleCouncilPrompt(conversation, messages);
-
-            return new ChatMemoryConversationSnapshot(
-                conversation.Id,
-                conversation.Title,
-                conversation.ProviderName,
-                conversation.CreatedAtUtc,
-                conversation.UpdatedAtUtc,
-                messages);
+            }
         }
 
         public async Task<Guid?> SaveConversationAsync(
@@ -73,53 +99,61 @@ namespace LocalGPT.Services
             Guid? conversationId = null,
             CancellationToken cancellationToken = default)
         {
-            var completeMessages = messages
+            try
+            {
+                var completeMessages = messages
                 .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
                 .ToList();
 
-            if (completeMessages.Count == 0)
-                return conversationId;
+                if (completeMessages.Count == 0)
+                    return conversationId;
 
-            await using var db = await CreateDbContextAsync(cancellationToken);
-            var now = DateTime.UtcNow;
-            ChatMemoryConversation conversation;
+                await using var db = await CreateDbContextAsync(cancellationToken);
+                var now = DateTime.UtcNow;
+                ChatMemoryConversation conversation;
 
-            if (conversationId is Guid id)
-            {
-                conversation = await db.Conversations
-                    .Include(item => item.Messages)
-                    .SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
-                    ?? new ChatMemoryConversation { Id = id, CreatedAtUtc = now };
-            }
-            else
-            {
-                conversation = new ChatMemoryConversation { CreatedAtUtc = now };
-            }
-
-            conversation.Title = BuildTitle(completeMessages);
-            conversation.ProviderName = string.IsNullOrWhiteSpace(providerName) ? "Unknown" : providerName.Trim();
-            conversation.UpdatedAtUtc = now;
-            conversation.Messages.Clear();
-
-            var index = 0;
-            foreach (var message in completeMessages)
-            {
-                conversation.Messages.Add(new ChatMemoryMessage
+                if (conversationId is Guid id)
                 {
-                    SortOrder = index++,
-                    Role = ToRoleName(message.Role),
-                    Content = message.Content,
-                    Thinking = ExtractThinking(message.Content),
-                    CreatedAtUtc = now
-                });
+                    conversation = await db.Conversations
+                        .Include(item => item.Messages)
+                        .SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
+                        ?? new ChatMemoryConversation { Id = id, CreatedAtUtc = now };
+                }
+                else
+                {
+                    conversation = new ChatMemoryConversation { CreatedAtUtc = now };
+                }
+
+                conversation.Title = DevExpressFunctions.BuildTitle(completeMessages, logger);
+                conversation.ProviderName = string.IsNullOrWhiteSpace(providerName) ? "Unknown" : providerName.Trim();
+                conversation.UpdatedAtUtc = now;
+                conversation.Messages.Clear();
+
+                var index = 0;
+                foreach (var message in completeMessages)
+                {
+                    conversation.Messages.Add(new ChatMemoryMessage
+                    {
+                        SortOrder = index++,
+                        Role = DevExpressFunctions.ToRoleName(message.Role, logger),
+                        Content = message.Content,
+                        Thinking = CouncilChatStringFunctions.ExtractThinking(message.Content,logger),
+                        CreatedAtUtc = now
+                    });
+                }
+
+                if (db.Entry(conversation).State == EntityState.Detached)
+                    db.Conversations.Add(conversation);
+
+                await db.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("Saved chat memory conversation {ConversationId} with {MessageCount} messages.", conversation.Id, completeMessages.Count);
+                return conversation.Id;
             }
-
-            if (db.Entry(conversation).State == EntityState.Detached)
-                db.Conversations.Add(conversation);
-
-            await db.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Saved chat memory conversation {ConversationId} with {MessageCount} messages.", conversation.Id, completeMessages.Count);
-            return conversation.Id;
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SaveConversationAsync providerName {providerName} messages {messages.ToString()} conversationId {conversationId?.ToString()}");
+                return null;
+            }
         }
 
         public async Task<IReadOnlyList<ChatMemoryThought>> GetRecentThoughtsAsync(int take = 12, CancellationToken cancellationToken = default)
@@ -200,159 +234,5 @@ namespace LocalGPT.Services
                 return null;
             }
         }
-
-        private static BlazorChatMessage ToBlazorChatMessage(ChatMemoryMessage message)
-        {
-            return new BlazorChatMessage(new ChatRole(message.Role), message.Content, new List<AIChatUploadFileInfo>());
-        }
-
-        private static List<BlazorChatMessage> EnsureVisibleCouncilPrompt(
-            ChatMemoryConversation conversation,
-            List<BlazorChatMessage> messages)
-        {
-            if (messages.Count == 0 ||
-                messages.Any(message => message.Role == ChatMessageRole.User && !string.IsNullOrWhiteSpace(message.Content)))
-            {
-                return messages;
-            }
-
-            if (!IsCouncilConversation(conversation, messages))
-                return messages;
-
-            var prompt = TryExtractPromptFromAssistantMessages(messages)
-                ?? TryRecoverPromptFromTitle(conversation.Title);
-            if (string.IsNullOrWhiteSpace(prompt))
-                return messages;
-
-            messages.Insert(0, new BlazorChatMessage(
-                ChatRole.User,
-                prompt,
-                new List<AIChatUploadFileInfo>()));
-            return messages;
-        }
-
-        private static bool IsCouncilConversation(
-            ChatMemoryConversation conversation,
-            IReadOnlyList<BlazorChatMessage> messages)
-        {
-            return conversation.ProviderName.Contains("AI Council", StringComparison.OrdinalIgnoreCase) ||
-                conversation.Title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase) ||
-                conversation.Title.Contains("Council members:", StringComparison.OrdinalIgnoreCase) ||
-                messages.Any(message => message.Content.Contains("Council members:", StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static string? TryExtractPromptFromAssistantMessages(IReadOnlyList<BlazorChatMessage> messages)
-        {
-            foreach (var message in messages)
-            {
-                var content = WebUtility.HtmlDecode(message.Content);
-                var promptSection = TryFindCouncilPromptSection(content);
-                if (!string.IsNullOrWhiteSpace(promptSection))
-                {
-                    var fencedPrompt = CouncilPromptFencePattern().Match(promptSection);
-                    if (fencedPrompt.Success)
-                        return NormalizeRecoveredPrompt(fencedPrompt.Groups["prompt"].Value);
-                }
-
-                var requestBlock = CouncilRequestBlockPattern().Match(content);
-                if (requestBlock.Success)
-                    return NormalizeRecoveredPrompt(requestBlock.Groups["prompt"].Value);
-            }
-
-            return null;
-        }
-
-        private static string? TryFindCouncilPromptSection(string content)
-        {
-            var markerIndex = content.IndexOf("## Original request", StringComparison.OrdinalIgnoreCase);
-            if (markerIndex < 0)
-                markerIndex = content.IndexOf("Prompt sent to the AI Council", StringComparison.OrdinalIgnoreCase);
-            if (markerIndex < 0)
-                return null;
-
-            return content[markerIndex..];
-        }
-
-        private static string? TryRecoverPromptFromTitle(string title)
-        {
-            if (string.IsNullOrWhiteSpace(title) ||
-                !title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            return $"""
-                Recovered legacy council prompt:
-                {title}
-
-                LocalGPT recovered this from the saved conversation title because this older memory row did not store a separate user prompt message. New council saves keep the full original prompt visible in DXAiChat and CouncilLogs.
-                """.Trim();
-        }
-
-        private static string NormalizeRecoveredPrompt(string prompt)
-        {
-            var normalized = prompt.Trim();
-            return normalized.Length <= 60000
-                ? normalized
-                : $"{normalized[..60000].TrimEnd()}{Environment.NewLine}... prompt truncated while reconstructing legacy DXAiChat memory ...";
-        }
-
-        private static string BuildTitle(IReadOnlyList<BlazorChatMessage> messages)
-        {
-            var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Content
-                ?? messages.First().Content;
-            var title = GlobalVariableSlopCollectionToRemove.WhitespacePattern().Replace(StripThinking(firstUserMessage), " ").Trim();
-
-            if (string.IsNullOrWhiteSpace(title))
-                return "New conversation";
-
-            return title.Length <= 90 ? title : $"{title[..87].TrimEnd()}...";
-        }
-
-        private static string? ExtractThinking(string content)
-        {
-            var match = ThinkingBlockPattern().Match(content);
-            if (!match.Success)
-                return null;
-
-            var thinking = WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim();
-            return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
-        }
-
-        private static string StripThinking(string content)
-        {
-            return ThinkingBlockPattern().Replace(content, string.Empty);
-        }
-
-
-
-        private static string ToRoleName(ChatMessageRole role)
-        {
-            return role switch
-            {
-                ChatMessageRole.Assistant => "assistant",
-                ChatMessageRole.System => "system",
-                ChatMessageRole.Error => "error",
-                _ => "user"
-            };
-        }
-
-        public static string GetDefaultDatabasePath()
-        {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "LocalGPT",
-                "localgpt-memory.db");
-        }
-
-        [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        private static partial Regex ThinkingBlockPattern();
-
-        [GeneratedRegex("```text\\s*(?<prompt>.*?)\\s*```", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        private static partial Regex CouncilPromptFencePattern();
-
-        [GeneratedRegex("AI Council (?:continuation )?request:\\s*(?<prompt>.*?)(?:\\n\\s*##|\\z)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        private static partial Regex CouncilRequestBlockPattern();
-
     }
 }

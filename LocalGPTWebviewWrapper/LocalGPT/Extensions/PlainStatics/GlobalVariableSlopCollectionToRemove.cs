@@ -12,7 +12,14 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex ThinkingBlockPattern();
 
+        [GeneratedRegex("```text\\s*(?<prompt>.*?)\\s*```", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex CouncilPromptFencePattern();
+
+        [GeneratedRegex("AI Council (?:continuation )?request:\\s*(?<prompt>.*?)(?:\\n\\s*##|\\z)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex CouncilRequestBlockPattern();
         public static readonly JsonSerializerOptions JsonOptions = new()
         {
             WriteIndented = true
@@ -170,8 +177,7 @@ namespace LocalGPT.Extensions.PlainStatics
         public const int MaxContextTokens = 262144;
         public const int MinOutputTokens = 64;
         public const int MaxOutputTokens = 262144;
-        [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        public static partial Regex ThinkingBlockPattern();
+
 
         [GeneratedRegex("<p\\s+class=\"localgpt-stream-status\"[^>]*>.*?</p>\\s*", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         public static partial Regex StreamStatusPattern();

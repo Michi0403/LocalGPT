@@ -255,7 +255,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
                 builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
 
-                var memoryDbPath = EfChatMemoryService.GetDefaultDatabasePath();
+                var memoryDbPath = CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
                 Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
                 //TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
                 SQLLiteTableFunctions.EnsureHealthyOrRecoverAsync

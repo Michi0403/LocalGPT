@@ -15,7 +15,7 @@ namespace LocalGPT.Services
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         ILogger<CouncilKnowledgeService> logger) : ICouncilKnowledgeService
     {
-        public string DatabasePath => EfChatMemoryService.GetDefaultDatabasePath();
+        public string DatabasePath => CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
 
         public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
         {

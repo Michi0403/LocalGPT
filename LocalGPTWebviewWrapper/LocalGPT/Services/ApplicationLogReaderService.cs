@@ -12,7 +12,7 @@ namespace LocalGPT.Services
     public partial class ApplicationLogReaderService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory, ILogger<ApplicationLogReaderService>logger) : IApplicationLogReaderService
     {
-        public string DatabasePath => EfChatMemoryService.GetDefaultDatabasePath();
+        public string DatabasePath => CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
 
         public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
         {

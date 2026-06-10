@@ -29,6 +29,238 @@ namespace LocalGPT.Extensions.PlainStatics
     
     public  static partial class CouncilChatStringFunctions
     {
+        public static string NormalizeRecoveredPrompt(string prompt, ILogger logger)
+        {
+            try
+            {
+                var normalized = prompt.Trim();
+                return normalized.Length <= 60000
+                    ? normalized
+                    : $"{normalized[..60000].TrimEnd()}{Environment.NewLine}... prompt truncated while reconstructing legacy DXAiChat memory ...";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeRecoveredPrompt prompt {prompt.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static string? TryFindCouncilPromptSection(string content, ILogger logger)
+        {
+            try
+            {
+                var markerIndex = content.IndexOf("## Original request", StringComparison.OrdinalIgnoreCase);
+                if (markerIndex < 0)
+                    markerIndex = content.IndexOf("Prompt sent to the AI Council", StringComparison.OrdinalIgnoreCase);
+                if (markerIndex < 0)
+                    return null;
+
+                return content[markerIndex..];
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TryFindCouncilPromptSection content {content.ToString()}");
+                return null;
+            }
+        }
+        public static string? TryRecoverPromptFromTitle(string title, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(title) ||
+                !title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+
+                return $"""
+                Recovered legacy council prompt:
+                {title}
+
+                LocalGPT recovered this from the saved conversation title because this older memory row did not store a separate user prompt message. New council saves keep the full original prompt visible in DXAiChat and CouncilLogs.
+                """.Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TryRecoverPromptFromTitle title {title.ToString()}");
+                return null;
+            }
+        }
+        public static string? ExtractThinking(string content, ILogger logger)
+        {
+            try
+            {
+                var match = GlobalVariableSlopCollectionToRemove.ThinkingBlockPattern().Match(content);
+                if (!match.Success)
+                    return null;
+
+                var thinking = WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim();
+                return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractThinking content {content.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static string StripThinking(string content, ILogger logger)
+        {
+            try
+            {
+                return GlobalVariableSlopCollectionToRemove.ThinkingBlockPattern().Replace(content, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in StripThinking content {content.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static string DecodeText(byte[] bytes, ILogger logger)
+        {
+            try
+            {
+                return CouncilChatStaticsGeneral.SanitizeForPrompt(Encoding.UTF8.GetString(bytes), logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, $"Error DecodeText return SanitizeForPrompt(Encoding.UTF8.GetString(bytes), logger); bytes {bytes.ToString()}");
+                try
+                {
+
+                    return CouncilChatStaticsGeneral.SanitizeForPrompt(Encoding.Latin1.GetString(bytes), logger);
+                }
+                catch (Exception ex2)
+                {
+
+                    logger.LogError(ex2, $"Error DecodeText bytes {bytes.ToString()}");
+                    return string.Empty;
+                }
+
+            }
+        }
+
+        public static string ExtractPrintableStrings(byte[] bytes, int maxCharacters, ILogger logger)
+        {
+            try
+            {
+                var builder = new StringBuilder();
+                var current = new StringBuilder();
+
+                foreach (var value in bytes)
+                {
+                    var printable = value is >= 32 and <= 126 || value is 9;
+                    if (printable)
+                    {
+                        current.Append((char)value);
+                        continue;
+                    }
+
+                    FlushCurrentString(builder, current, maxCharacters, logger);
+                    if (builder.Length >= maxCharacters)
+                        break;
+                }
+
+                FlushCurrentString(builder, current, maxCharacters, logger);
+                return CouncilChatStaticsGeneral.SanitizeForPrompt(builder.ToString(), logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error DecodeText bytes {bytes.ToString()} maxCharacters {maxCharacters.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static string ToForwardSlash(string path, ILogger logger)
+        {
+            try
+            {
+                return path.Replace('\\', '/');
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToForwardSlash path {path}");
+                return string.Empty;
+            }
+        }
+        public static void FlushCurrentString(StringBuilder builder, StringBuilder current, int maxCharacters, ILogger logger)
+        {
+            try
+            {
+                if (current.Length >= 4 && builder.Length < maxCharacters)
+                {
+                    builder.AppendLine(current.ToString());
+                }
+
+                current.Clear();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error FlushCurrentString builder {builder.ToString()} current {current.ToString()} maxCharacters {maxCharacters.ToString()}");
+            }
+
+        }
+        public static string BuildUniqueFileName(string directory, string fileName, ILogger logger)
+        {
+            try
+            {
+                var safe = SanitizeFileName(fileName, logger);
+                var candidate = Path.Combine(directory, safe);
+                if (!System.IO.File.Exists(candidate))
+                    return safe;
+
+                var name = Path.GetFileNameWithoutExtension(safe);
+                var extension = Path.GetExtension(safe);
+                for (var i = 1; i < 1000; i++)
+                {
+                    candidate = Path.Combine(directory, $"{name}-{i}{extension}");
+                    if (!System.IO.File.Exists(candidate))
+                        return Path.GetFileName(candidate);
+                }
+
+                return $"{name}-{Guid.NewGuid():N}{extension}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error BuildUniqueFileName directory {directory} fileName {fileName}");
+                return string.Empty;
+            }
+        }
+
+        public static string SanitizeFileName(string fileName, ILogger logger)
+        {
+            try
+            {
+                var safe = Path.GetFileName(fileName);
+                foreach (var invalid in Path.GetInvalidFileNameChars())
+                    safe = safe.Replace(invalid, '_');
+
+                return string.IsNullOrWhiteSpace(safe) ? "upload.bin" : safe;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error SanitizeFileName fileName {fileName}");
+                return string.Empty;
+            }
+        }
+
+        public static string? BuildSafeZipRelativePath(string fullName, ILogger logger)
+        {
+            try
+            {
+                var parts = fullName
+                .Replace('\\', '/')
+                .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(part => part is not "." and not "..")
+                .Select(filter => SanitizeFileName(filter, logger))
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToArray();
+
+                return parts.Length == 0 ? null : Path.Combine(parts);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error BuildSafeZipRelativePath fullName {fullName}");
+                return null;
+            }
+        }
 
         public static string MultiModelCouncilServiceBuildPollMarkdown(CouncilUserPoll poll, ILogger logger)
         {
@@ -364,18 +596,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return string.Empty;
             }
 
-        }
-        public static string ToForwardSlash(string path, ILogger logger)
-        {
-            try
-            {
-                return path.Replace('\\', '/');
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in StripModelThinking path {path}");
-                return string.Empty;
-            }
         }
         public static string ExtractModelThinking(string content, ILogger logger)
         {

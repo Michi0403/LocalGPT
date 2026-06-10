@@ -13,6 +13,7 @@ using System.Security.AccessControl;
 using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 using static LocalGPT.Endpoints.MinecraftDiagnosticController;
 using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
@@ -21,6 +22,364 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
+        public static string GetDefaultDatabasePath(ILogger? logger = null)
+        {
+            try
+            {
+                return Path.Combine(
+               Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+               "LocalGPT",
+               "localgpt-memory.db");
+            }
+            catch (Exception ex)
+            {
+                if(logger is not null)
+                {
+                    logger.LogError(ex, $"Error in GetDefaultDatabasePath");
+                }
+                else
+                {
+                    Console.WriteLine($"Error in GetDefaultDatabasePath {ex.ToString()}");
+                }
+                return string.Empty;
+            }
+        }
+        public static AnalyzedUploadFile? BuildSummary(
+    string relativePath,
+    long length,
+    string kind,
+    bool includedInPrompt,
+    string note,
+    string excerpt, ILogger logger)
+        {
+            try
+            {
+                return new AnalyzedUploadFile(
+                new ChatUploadWorkspaceFileSummary(
+                    relativePath,
+                    kind,
+                    length,
+                    DateTime.UtcNow,
+                    includedInPrompt,
+                    note),
+                CouncilChatStringFunctions.TrimForPrompt(excerpt, MaxExcerptCharactersPerFile, logger));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildSummary relativePath {relativePath} length {length} kind {kind} includedInPrompt {includedInPrompt} note {note} excerpt {excerpt}");
+                return null;
+            }
+        }
+
+        public static AnalyzedUploadFile? BuildBinarySummary(
+            string relativePath,
+            long length,
+            string kind,
+            bool includedInPrompt,
+            string note, ILogger logger)
+        {
+            try
+            {
+                return BuildSummary(relativePath, length, kind, includedInPrompt, note, string.Empty, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildBinarySummary relativePath {relativePath} length {length} kind {kind} includedInPrompt {includedInPrompt} note {note}");
+                return null;
+            }
+        }
+
+
+        public static string SanitizeForPrompt(string text, ILogger logger)
+        {
+            try
+            {
+                var userName = Environment.UserName;
+                if (!string.IsNullOrWhiteSpace(userName))
+                    text = text.Replace(userName, "%USER%", StringComparison.OrdinalIgnoreCase);
+
+                return text.Replace("\0", string.Empty, StringComparison.Ordinal);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SanitizeForPrompt text {text}");
+                return string.Empty;
+            }
+        }
+        public static AnalyzedUploadFile? AnalyzeBytes(string relativePath, byte[] bytes, ILogger logger)
+        {
+            try
+            {
+                if (IsZip(relativePath, logger))
+                {
+                    return BuildBinarySummary(
+                        relativePath,
+                        bytes.Length,
+                        "zip",
+                        false,
+                        "Zip file saved as uploaded. Extracted safe entries are represented separately.", logger);
+                }
+
+                var isText = IsTextLike(relativePath, logger) || LooksLikeText(bytes, logger);
+                if (isText)
+                {
+                    var text = CouncilChatStringFunctions.DecodeText(bytes, logger);
+                    return BuildSummary(relativePath, bytes.Length, "text", true, "Text excerpt included.", text, logger);
+                }
+
+                var extension = Path.GetExtension(relativePath);
+                if (BinaryDiagnosticExtensions.Contains(extension))
+                {
+                    var strings = CouncilChatStringFunctions.ExtractPrintableStrings(bytes, MaxBinaryStringCharacters, logger);
+                    var note = extension.Equals(".pdb", StringComparison.OrdinalIgnoreCase)
+                        ? "PDB/debug file summarized with printable strings only."
+                        : "Binary file summarized with printable strings only.";
+                    return BuildSummary(relativePath, bytes.Length, "binary-strings", true, note, strings, logger);
+                }
+
+                return BuildBinarySummary(
+                    relativePath,
+                    bytes.Length,
+                    "binary",
+                    false,
+                    "Binary file saved but not included in prompt context.", logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AnalyzeBytes relativePath: {relativePath.ToString()} bytes: {bytes.ToString()}");
+                return null;
+            }
+        }
+        public static string BuildContextMarkdown(
+            string workspaceName,
+            string root,
+            string prompt,
+            IReadOnlyList<AnalyzedUploadFile> analyzedFiles,
+            IReadOnlyList<string> warnings, ILogger logger)
+        {
+            try
+            {
+                var builder = new StringBuilder()
+              .AppendLine("# LocalGPT Chat Upload Workspace")
+              .AppendLine()
+              .AppendLine($"Workspace: `{workspaceName}`")
+              .AppendLine($"Root path: `{root}`")
+              .AppendLine($"Created UTC: {DateTimeOffset.UtcNow:O}")
+              .AppendLine()
+              .AppendLine("## Prompt")
+              .AppendLine(CouncilChatStringFunctions.TrimForPrompt(prompt, 4_000, logger))
+              .AppendLine()
+              .AppendLine("## AI workflow instructions")
+              .AppendLine("- Use this workspace as uploaded user evidence for the current DXAiChat prompt.")
+              .AppendLine("- Read files through chat.upload_workspace_* DXAiFunctions instead of asking for huge pasted context.")
+              .AppendLine("- Zips are extracted safely; skipped entries are listed as warnings.")
+              .AppendLine("- PDB, DLL, EXE, WASM, and other binaries are never executed; only bounded printable strings are shown.")
+              .AppendLine("- Generated or edited code belongs in a council artifact workspace, then a refreshed zip download.")
+              .AppendLine();
+
+                if (warnings.Count > 0)
+                {
+                    builder.AppendLine("## Warnings");
+                    foreach (var warning in warnings)
+                        builder.AppendLine($"- {warning}");
+                    builder.AppendLine();
+                }
+
+                builder.AppendLine("## Files");
+                foreach (var file in analyzedFiles.Select(file => file.Summary))
+                {
+                    builder
+                        .Append("- ")
+                        .Append(file.RelativePath)
+                        .Append(" (")
+                        .Append(file.Kind)
+                        .Append(", ")
+                        .Append(file.Length)
+                        .Append(" bytes): ")
+                        .AppendLine(file.Note);
+                }
+
+                builder.AppendLine();
+                builder.AppendLine("## Extracted context");
+
+                var remainingCharacters = MaxContextCharacters - builder.Length;
+                foreach (var file in analyzedFiles.Where(file => file.Summary.IncludedInPrompt))
+                {
+                    if (remainingCharacters <= 0)
+                        break;
+
+                    var excerpt = CouncilChatStringFunctions.TrimForPrompt(file.Excerpt, Math.Min(MaxExcerptCharactersPerFile, remainingCharacters), logger);
+                    if (string.IsNullOrWhiteSpace(excerpt))
+                        continue;
+
+                    var section = new StringBuilder()
+                        .AppendLine()
+                        .AppendLine($"### {file.Summary.RelativePath}")
+                        .AppendLine($"Kind: {file.Summary.Kind}. {file.Summary.Note}")
+                        .AppendLine()
+                        .AppendLine("```text")
+                        .AppendLine(excerpt)
+                        .AppendLine("```")
+                        .ToString();
+
+                    if (section.Length > remainingCharacters)
+                        section = CouncilChatStringFunctions.TrimForPrompt(section, remainingCharacters, logger);
+
+                    builder.Append(section);
+                    remainingCharacters -= section.Length;
+                }
+
+                return CouncilChatStringFunctions.TrimForPrompt(builder.ToString(), MaxContextCharacters, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error inBuildContextMarkdown workspaceName {workspaceName} root {root} prompt {prompt} analyzedFiles {analyzedFiles.ToString()} warnings {warnings.ToString()}");
+                return string.Empty;
+            }
+
+        }
+
+        public static string? ResolveWorkspaceFile(string workspace, string relativePath, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(relativePath))
+                    return null;
+
+                var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
+                if (Path.IsPathRooted(normalized))
+                    return null;
+
+                var root = Path.GetFullPath(workspace);
+                var file = Path.GetFullPath(Path.Combine(root, normalized));
+                return IsInsideRoot(root, file, logger) ? file : null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error ResolveWorkspaceFile workspace {workspace} relativePath {relativePath}");
+                return null;
+            }
+        }
+
+        public static bool IsInsideRoot(string root, string path, ILogger logger)
+        {
+            try
+            {
+                var normalizedRoot = Path.GetFullPath(root)
+      .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+      Path.DirectorySeparatorChar;
+                var normalizedPath = Path.GetFullPath(path);
+                return normalizedPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error IsInsideRoot root {root} path {path}");
+                return false;
+            }
+        }
+
+        public static string BuildWorkspaceName(
+            string prompt,
+            IReadOnlyList<ChatUploadWorkspaceInputFile> files, ILogger logger)
+        {
+            try
+            {
+                var source = files.FirstOrDefault()?.Name;
+                if (string.IsNullOrWhiteSpace(source))
+                    source = prompt;
+
+                var slug = Regex.Replace(source ?? "prompt", "[^A-Za-z0-9]+", "-")
+                    .Trim('-')
+                    .ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(slug))
+                    slug = "prompt";
+                if (slug.Length > 24)
+                    slug = slug[..24].Trim('-');
+
+                var suffix = Guid.NewGuid().ToString("N")[..8];
+                return $"chat-upload-{DateTimeOffset.Now:yyyyMMdd-HHmmss}-{slug}-{suffix}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error BuildWorkspaceName prompt {prompt} files {files}");
+                return string.Empty;
+            }
+        }
+
+        public static bool IsZip(string path, ILogger logger)
+        {
+            try
+            {
+                return Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error IsZip path {path}");
+                return false;
+            }
+        }
+
+
+        public static bool IsTextLike(string path, ILogger logger)
+        {
+            try
+            {
+                return TextExtensions.Contains(Path.GetExtension(path));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error IsTextLike path {path}");
+                return false;
+            }
+        }
+
+        public static string DetermineFileKind(string path, ILogger logger)
+        {
+            try
+            {
+                if (IsZip(path, logger))
+                    return "zip";
+                if (IsTextLike(path, logger))
+                    return "text";
+                return BinaryDiagnosticExtensions.Contains(Path.GetExtension(path))
+                    ? "binary-diagnostic"
+                    : "binary";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error DetermineFileKind path {path}");
+                return string.Empty;
+            }
+        }
+
+        public static bool LooksLikeText(byte[] bytes, ILogger logger)
+        {
+            try
+            {
+                if (bytes.Length == 0)
+                    return true;
+
+                var sampleLength = Math.Min(bytes.Length, 8192);
+                var controlCount = 0;
+                for (var i = 0; i < sampleLength; i++)
+                {
+                    var value = bytes[i];
+                    if (value == 0)
+                        return false;
+
+                    if (value < 9 || (value > 13 && value < 32))
+                        controlCount++;
+                }
+
+                return controlCount <= sampleLength / 20;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error LooksLikeText bytes {bytes.ToString()}");
+                return false;
+            }
+
+        }
         public static string MultiModelCouncilServiceBuildLogMarkdown(MultiModelCouncilResult result, ILogger logger)
         {
             try
