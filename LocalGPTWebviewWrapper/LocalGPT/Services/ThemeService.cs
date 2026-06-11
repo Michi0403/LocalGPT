@@ -5,7 +5,7 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services
 {
-    public class ThemeService
+    public class ThemeService()
     {
         public static readonly string DEFAULT_THEME_NAME = "office-white";
         static readonly string[] NEW_BLAZOR_THEMES = [DEFAULT_THEME_NAME, "blazing-dark", "purple", "office-white", "fluent-light", "fluent-dark"];
@@ -22,7 +22,7 @@ namespace LocalGPT.Services
         public IThemeChangeRequestDispatcher? ThemeChangeRequestDispatcher { get; set; }
         public IThemeLoadNotifier? ThemeLoadNotifier { get; set; }
         private readonly ILogger<ThemeService> logger;
-        public ThemeService(ILogger<ThemeService> logger)
+        public ThemeService(ILogger<ThemeService> logger) : this()
         {
             this.logger = logger;
             ThemeSets = CreateSets(this, logger);
