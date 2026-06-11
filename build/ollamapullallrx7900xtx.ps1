@@ -51,6 +51,7 @@ $models = @(
   "deepseek-v2:16b",
   "deepscaler:1.5b",
   "openthinker:7b",
+  "qwen3-coder:30b",
   "openthinker:32b"
 )
 
