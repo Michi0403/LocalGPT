@@ -29,6 +29,57 @@ namespace LocalGPT.Extensions.PlainStatics
     
     public  static partial class CouncilChatStringFunctions
     {
+        public static string TrimForDisplay(string text, int maxCharacters, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                    return string.Empty;
+
+                var trimmed = text.Trim();
+                return trimmed.Length <= maxCharacters
+                    ? trimmed
+                    : $"{trimmed[..maxCharacters].TrimEnd()}{Environment.NewLine}... prompt truncated for display; full prompt is stored in the CouncilLogs markdown file and SQLite user message ...";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TrimForDisplay text {text.ToString()} maxCharacters {maxCharacters.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static bool LooksLikelyTruncated(string text, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                    return false;
+
+                var trimmed = text.TrimEnd();
+                if (trimmed.Length < 1000)
+                    return false;
+
+                if (trimmed.EndsWith("...", StringComparison.Ordinal) ||
+                    trimmed.EndsWith("…", StringComparison.Ordinal) ||
+                    trimmed.EndsWith(".", StringComparison.Ordinal) ||
+                    trimmed.EndsWith("!", StringComparison.Ordinal) ||
+                    trimmed.EndsWith("?", StringComparison.Ordinal) ||
+                    trimmed.EndsWith("]", StringComparison.Ordinal) ||
+                    trimmed.EndsWith(")", StringComparison.Ordinal) ||
+                    trimmed.EndsWith("}", StringComparison.Ordinal) ||
+                    trimmed.EndsWith("```", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                return GlobalVariableSlopCollectionToRemove.TruncatedTailPattern().IsMatch(trimmed) ||
+                    !char.IsPunctuation(trimmed[^1]);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in LooksLikelyTruncated text {text.ToString()}");
+                return false;
+            }
+        }
         public static string NormalizeRecoveredPrompt(string prompt, ILogger logger)
         {
             try
@@ -5696,27 +5747,5 @@ namespace LocalGPT.Extensions.PlainStatics
             }
 
         }
-        
-        public static string TrimForDisplay(string value, int maxCharacters, ILogger logger)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    return string.Empty;
-
-                var trimmed = value.Trim();
-                return trimmed.Length <= maxCharacters
-                    ? trimmed
-                    : $"{trimmed[..maxCharacters].TrimEnd()}{Environment.NewLine}... prompt truncated for display; full prompt is stored in the CouncilLogs markdown file and SQLite user message ...";
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in TrimForDisplay value:{value} maxCharacters:{maxCharacters}");
-                return string.Empty;
-            }
-           
-        }
-
     }
-
 }

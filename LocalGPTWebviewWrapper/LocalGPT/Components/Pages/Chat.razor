@@ -639,7 +639,7 @@
             EnsureDiagnosticOllamaSession(previousMessages);
        
             var councilSession = new ChatClientSession(
-                new CouncilChatClient(CouncilService, CreateCouncilRequest, ResolveCouncilDownloadUrl),
+                new CouncilChatClient(CouncilService, CreateCouncilRequest,Logger, ResolveCouncilDownloadUrl),
                 GlobalVariableSlopCollectionToRemove.CouncilSessionName);
             if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
                 councilSession.Messages.AddRange(councilMessages);

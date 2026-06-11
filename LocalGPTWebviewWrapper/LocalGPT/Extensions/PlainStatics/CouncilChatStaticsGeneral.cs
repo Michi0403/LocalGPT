@@ -22,6 +22,87 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
+        public static string BuildPrompt(IEnumerable<ChatMessage> messages, ILogger logger)
+        {
+            try
+            {
+                var builder = new StringBuilder()
+               .AppendLine("Answer this DXAiChat conversation as the LocalGPT AI Council.")
+               .AppendLine("Use the selected members, preserve user intent, and include a concise consensus.")
+               .AppendLine();
+
+                foreach (var message in messages.Where(message => message.Role != ChatRole.System))
+                {
+                    var text = message.Text?.Trim();
+                    if (string.IsNullOrWhiteSpace(text))
+                        continue;
+
+                    builder
+                        .Append(message.Role == ChatRole.Assistant ? "Assistant" : "User")
+                        .AppendLine(":")
+                        .AppendLine(text)
+                        .AppendLine();
+                }
+
+                var prompt = builder.ToString().Trim();
+                return prompt.Length <= MaxDxAiChatPromptCharacters
+                    ? prompt
+                    : prompt[^MaxDxAiChatPromptCharacters..];
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildPrompt messages {messages.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static string FormatStepProgress(MultiModelCouncilStep step, ILogger logger)
+        {
+            try
+            {
+                var builder = new StringBuilder()
+                .AppendLine()
+                .AppendLine("<p class=\"localgpt-stream-status\"><em>")
+                .Append(WebUtility.HtmlEncode($"{step.ModelName} finished {step.Phase} / {step.Role} in {step.DurationSeconds:n1}s. Step details were streamed above; final consensus appears below."))
+                .AppendLine("</em></p>")
+                .AppendLine();
+
+                if (!string.IsNullOrWhiteSpace(step.Error))
+                {
+                    builder
+                        .AppendLine($"<details class=\"council-step\" open>")
+                        .Append("<summary>")
+                        .Append(WebUtility.HtmlEncode($"{step.ModelName} error during {step.Phase}"))
+                        .AppendLine("</summary>")
+                        .AppendLine()
+                        .AppendLine("**Error:**")
+                        .AppendLine()
+                        .AppendLine(step.Error.Trim())
+                        .AppendLine()
+                        .AppendLine("</details>")
+                        .AppendLine();
+                }
+
+                return builder.ToString();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FormatStepProgress step {step.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static ChatResponseUpdate? CreateUpdate(string text, ILogger logger)
+        {
+            try
+            {
+
+                return new(ChatRole.Assistant, [new TextContent(text)]);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateUpdate text {text.ToString()}");
+                return null;
+            }
+        }
         public static string GetDefaultDatabasePath(ILogger? logger = null)
         {
             try
