@@ -5,7 +5,140 @@
     [string]$inputversion = "0.0.8-alpha1" 
 
 )
+function New-DevMicroserviceCertificate {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
 
+        [string[]]$DnsNames = @("localhost"),
+
+        [string]$Password = "3xtremelytycruelSaaS4bus4l!",
+
+        [int]$ValidYears = 3,
+
+        [switch]$TrustLocally,
+
+        [ValidateSet("CurrentUser", "LocalMachine")]
+        [string]$CertStoreLocation = "CurrentUser",
+
+        [switch]$Force
+    )
+    try
+    {
+        $ErrorActionPreference = "Stop"
+
+    if (-not (Test-Path $OutputRoot)) {
+        New-Item -ItemType Directory -Path $OutputRoot | Out-Null
+    }
+
+    $storePath = "Cert:\$CertStoreLocation\My"
+    $subject = "CN=$Name"
+
+    $existingCert = Get-ChildItem $storePath |
+        Where-Object {
+            $_.Subject -eq $subject -and
+            $_.NotAfter -gt (Get-Date) -and
+            $_.HasPrivateKey
+        } |
+        Sort-Object NotAfter -Descending |
+        Select-Object -First 1
+
+    if ($existingCert -and -not $Force) {
+        $safeName = $Name -replace '[^a-zA-Z0-9\-_]', '_'
+        $pfxPath = Join-Path $OutputRoot "$safeName.pfx"
+        $cerPath = Join-Path $OutputRoot "$safeName.cer"
+
+        [PSCustomObject]@{
+            Name              = $Name
+            Subject           = $existingCert.Subject
+            Thumbprint        = $existingCert.Thumbprint
+            DnsNames          = $DnsNames
+            StoreLocation     = $storePath
+            PfxPath           = $pfxPath
+            CerPath           = $cerPath
+            TrustedLocally    = $false
+            Password          = $Password
+            ValidUntil        = $existingCert.NotAfter
+            ReusedExisting    = $true
+        }
+
+        return
+    }
+
+    $securePassword = ConvertTo-SecureString `
+        -String $Password `
+        -Force `
+        -AsPlainText
+
+    # Enhanced Key Usages:
+    # 1.3.6.1.5.5.7.3.1 = Server Authentication
+    # 1.3.6.1.5.5.7.3.2 = Client Authentication
+    # 1.3.6.1.5.5.7.3.3 = Code Signing
+    $ekuExtension = @(
+        "2.5.29.37={text}1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2,1.3.6.1.5.5.7.3.3"
+    )
+
+    $cert = New-SelfSignedCertificate `
+        -Subject $subject `
+        -DnsName $DnsNames `
+        -CertStoreLocation $storePath `
+        -KeyAlgorithm RSA `
+        -KeyLength 3072 `
+        -HashAlgorithm SHA256 `
+        -KeyExportPolicy Exportable `
+        -KeySpec Signature `
+        -NotAfter (Get-Date).AddYears($ValidYears) `
+        -TextExtension $ekuExtension `
+        -FriendlyName $Name
+
+    $safeName = $Name -replace '[^a-zA-Z0-9\-_]', '_'
+
+    $pfxPath = Join-Path $OutputRoot "$safeName.pfx"
+    $cerPath = Join-Path $OutputRoot "$safeName.cer"
+
+    Export-PfxCertificate `
+        -Cert $cert `
+        -FilePath $pfxPath `
+        -Password $securePassword | Out-Null
+
+    Export-Certificate `
+        -Cert $cert `
+        -FilePath $cerPath | Out-Null
+
+    if ($TrustLocally) {
+        $rootStore = "Cert:\$CertStoreLocation\Root"
+
+        Import-Certificate `
+            -FilePath $cerPath `
+            -CertStoreLocation $rootStore | Out-Null
+    }
+
+    [PSCustomObject]@{
+        Name              = $Name
+        Subject           = $cert.Subject
+        Thumbprint        = $cert.Thumbprint
+        DnsNames          = $DnsNames
+        StoreLocation     = $storePath
+        PfxPath           = $pfxPath
+        CerPath           = $cerPath
+        TrustedLocally    = [bool]$TrustLocally
+        Password          = $Password
+        ValidUntil        = $cert.NotAfter
+        ReusedExisting    = $false
+        EnhancedKeyUsages = @(
+            "Server Authentication",
+            "Client Authentication",
+            "Code Signing"
+        )
+    }
+    }
+    catch
+    {
+
+    }
+
+}
 function Assert-ReleaseVersionIsNewerThanPublished {
     param([string]$ReleaseVersion)
 
@@ -180,6 +313,11 @@ function PublishThingsToGithub {
     # Ausführen
     Invoke-CheckedNative $ghCommand $ghArgs
 }
+Set-ExecutionPolicy Bypass -Scope Process
+New-DevMicroserviceCertificate `
+    -Name "localgptbymichi0403.local" `
+    -DnsNames @("localhost", "localgptbymichi0403.local","127.0.0.1") `
+    -TrustLocally
 # -----------------------------
 # 1. Liste der Publish-Profile
 # -----------------------------
@@ -312,6 +450,40 @@ if ($AddBrain -match '^(Y|y|1|J|j)$') {
 try 
 {
     Copy-Item ".\*.ps1" "$OutputRoot"
+    try
+    {
+        $cert = Get-ChildItem Cert:\CurrentUser\My |
+        Where-Object {
+            $_.Subject -eq "CN=$localgptbymichi0403.local" -and
+            $_.HasPrivateKey -and
+            $_.NotAfter -gt (Get-Date) -and
+            $_.EnhancedKeyUsageList.FriendlyName -contains "Code Signing"
+        } |
+        Sort-Object NotAfter -Descending |
+        Select-Object -First 1
+
+        if (-not $cert) {
+            throw "No valid code-signing certificate found for CN=$certName"
+        }
+
+        Get-ChildItem -Path $OutputRoot -Recurse -Include *.ps1, *.psm1, *.psd1, *.ps1xml |
+            ForEach-Object {
+            Write-Host "Signing $($_.FullName)"
+
+            $signature = Set-AuthenticodeSignature `
+                -FilePath $_.FullName `
+                -Certificate $cert `
+                -TimestampServer "http://timestamp.digicert.com"
+
+            if ($signature.Status -ne "Valid") {
+                Write-Warning "Signing may have failed for $($_.FullName): $($signature.Status)"
+            }
+        }
+    }
+    catch
+    {
+    
+    }
 }
 catch
 {
