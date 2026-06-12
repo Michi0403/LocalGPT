@@ -2,7 +2,8 @@
   "profiles": {
     "LocalGPTInstallerConsole": {
       "commandName": "Project",
-      "commandLineArgs": "--all --range Slim --force"
+      "commandLineArgs": "--all --range Slim --force",
+      "workingDirectory": "C:\\Users\\micha\\Documents\\Codex\\2026-06-01\\can-we-work-my-own-repository\\localgpt\\LocalGPTWebviewWrapper\\LocalGPTInstallerConsole\\bin\\Debug\\net10.0"
     }
   }
 }

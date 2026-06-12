@@ -529,107 +529,105 @@ internal static class Program
                         ? $"Remote size: {FormatBytes(contentLength.Value, logger)}"
                         : "Remote size: unknown");
 
-                    await using var input = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
-                    await using var output = new FileStream(
+                    await using (var input = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false))
+                    await using (var output = new FileStream(
                         tempFile,
                         FileMode.Create,
                         FileAccess.Write,
                         FileShare.None,
-                        bufferSize: 1024 * 1024,
-                        useAsync: true);
-
-                    var buffer = new byte[1024 * 1024];
-                    long totalRead = 0;
-                    long lastLoggedBytes = 0;
-                    var lastProgress = DateTimeOffset.UtcNow;
-                    var lastLog = DateTimeOffset.UtcNow;
-
-                    while (true)
+                        bufferSize: 4 * 1024 * 1024,
+                        useAsync: true))
                     {
-                        using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
-                        readTimeout.CancelAfter(TimeSpan.FromSeconds(45));
+                        var buffer = new byte[4 * 1024 * 1024];
+                        long totalRead = 0;
+                        var lastLog = DateTimeOffset.UtcNow;
 
-                        var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), readTimeout.Token).ConfigureAwait(false);
-                        if (read == 0)
-                            break;
-
-                        await output.WriteAsync(buffer.AsMemory(0, read), cts.Token).ConfigureAwait(false);
-                        totalRead += read;
-
-                        var now = DateTimeOffset.UtcNow;
-
-                        if (totalRead != lastLoggedBytes)
+                        while (true)
                         {
-                            lastProgress = now;
+                            var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cts.Token)
+                                .ConfigureAwait(false);
+
+                            if (read == 0)
+                                break;
+
+                            await output.WriteAsync(buffer.AsMemory(0, read), cts.Token)
+                                .ConfigureAwait(false);
+
+                            totalRead += read;
+
+                            var now = DateTimeOffset.UtcNow;
+                            if (now - lastLog >= TimeSpan.FromSeconds(5))
+                            {
+                                if (contentLength.HasValue && contentLength.Value > 0)
+                                {
+                                    var percent = totalRead * 100.0 / contentLength.Value;
+                                    logger.LogInformation(
+                                        $"Downloaded {FormatBytes(totalRead, logger)} / {FormatBytes(contentLength.Value, logger)} ({percent:F1}%)");
+                                }
+                                else
+                                {
+                                    logger.LogInformation($"Downloaded {FormatBytes(totalRead, logger)}");
+                                }
+
+                                lastLog = now;
+                            }
                         }
 
-                        if (now - lastLog > TimeSpan.FromSeconds(1))
-                        {
-                            if (contentLength.HasValue && contentLength.Value > 0)
-                            {
-                                var percent = totalRead * 100.0 / contentLength.Value;
-                                logger.LogInformation($"Downloaded {FormatBytes(totalRead, logger)} / {FormatBytes(contentLength.Value, logger)} ({percent:F1}%)");
-                            }
-                            else
-                            {
-                                logger.LogInformation($"Downloaded {FormatBytes(totalRead, logger)}");
-                            }
+                        await output.FlushAsync(cts.Token).ConfigureAwait(false);
 
-                            lastLoggedBytes = totalRead;
-                            lastLog = now;
+                        if (contentLength.HasValue && totalRead != contentLength.Value)
+                        {
+                            var missing = contentLength.Value - totalRead;
+                            throw new IOException(
+                                $"Incomplete download. Got {totalRead:N0} bytes, expected {contentLength.Value:N0} bytes. Missing {missing:N0} bytes.");
                         }
 
-                        if (now - lastProgress > TimeSpan.FromSeconds(60))
-                            throw new TimeoutException($"Download stalled for 60 seconds at {FormatBytes(totalRead, logger)}.");
+                        if (totalRead == 0)
+                            throw new IOException("Downloaded file is empty.");
                     }
 
-                    await output.FlushAsync(cts.Token);
 
-                    if (contentLength.HasValue && totalRead != contentLength.Value)
-                        throw new IOException($"Incomplete download. Got {totalRead} bytes, expected {contentLength.Value} bytes.");
-
-                    if (totalRead == 0)
-                        throw new IOException("Downloaded file is empty.");
+                    // output/input are closed here. Now moving is legal.
 
                     if (File.Exists(outFile))
                         File.Delete(outFile);
 
-                    File.Move(tempFile, outFile);
-
-                    logger.LogInformation($"Download complete: {outFile} ({FormatBytes(totalRead, logger)})");
-                    return;
+                    File.Move(tempFile, outFile, overwrite: true);
+                    await MoveFileWithRetryAsync(tempFile, outFile, logger).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, $"Download attempt {attempt}/{maxAttempts} failed.");
-
-                    try
-                    {
-                        if (File.Exists(tempFile))
-                            File.Delete(tempFile);
-                    }
-                    catch
-                    {
-                        // best effort cleanup
-                    }
-
-                    if (attempt == maxAttempts)
-                    {
-                        logger.LogError(ex, $"Download failed permanently. url {url} outFile {outFile}");
-                        throw;
-                    }
-
-                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
+                    logger.LogError(ex, $"Error in DownloadFileAsync. url {url.ToString()} outFile {outFile.ToString()} {ex.ToString()}");
                 }
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in DownloadFileAsync. url {url.ToString()} outFile {outFile.ToString()}");
+            logger.LogError(ex, $"Error in DownloadFileAsync. url {url.ToString()} outFile {outFile.ToString()} {ex.ToString()}");
         }
 
     }
+    private static async Task MoveFileWithRetryAsync(string source, string destination, ILogger logger)
+    {
+        for (var i = 1; i <= 10; i++)
+        {
+            try
+            {
+                if (File.Exists(destination))
+                    File.Delete(destination);
 
+                File.Move(source, destination, overwrite: true);
+                return;
+            }
+            catch (IOException ex) when (i < 10)
+            {
+                logger.LogWarning(ex, $"Move failed because file is locked. Retry {i}/10...");
+                await Task.Delay(300).ConfigureAwait(false);
+            }
+        }
+
+        File.Move(source, destination, overwrite: true);
+    }
     private static string FormatBytes(long bytes, ILogger logger)
     {
         try
