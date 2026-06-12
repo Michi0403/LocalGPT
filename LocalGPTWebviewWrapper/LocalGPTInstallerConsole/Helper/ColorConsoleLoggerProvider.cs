@@ -17,10 +17,9 @@ namespace LocalGPT.Helper
             new(StringComparer.OrdinalIgnoreCase);
 
         public ColorConsoleLoggerProvider(
-            IOptionsMonitor<ColorConsoleLoggerConfiguration> config)
+            ColorConsoleLoggerConfiguration config)
         {
-            _currentConfig = config.CurrentValue;
-            _onChangeToken = config.OnChange(updatedConfig => _currentConfig = updatedConfig);
+            _currentConfig = config;
         }
 
         public ILogger CreateLogger(string categoryName) =>

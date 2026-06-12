@@ -101,10 +101,14 @@ internal static class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         FileLoggerCoreOptions fileLoggerProviderOptions = new FileLoggerCoreOptions() { CoreLogLevel = CoreLogLevel.Debug, FilePath = Path.Combine(Environment.CurrentDirectory, "installlog.log") };
         FileLoggerProvider fileLoggerProvider = new FileLoggerProvider(fileLoggerProviderOptions);
+        ColorConsoleLoggerConfiguration colorLoggerProviderOptions = new ColorConsoleLoggerConfiguration() { EventId = 0 };
+        ColorConsoleLoggerProvider colorLoggerProvider = new ColorConsoleLoggerProvider(colorLoggerProviderOptions);
 
 
         using var loggerFactory = LoggerFactory.Create(configure => 
-        { 
+        {
+            configure.ClearProviders();
+            configure.AddProvider(colorLoggerProvider);
             configure.AddProvider(fileLoggerProvider);
             //configure.AddProvider()
         });
@@ -114,7 +118,7 @@ internal static class Program
         var options = CliOptions.Parse(args);
         if (options.ShowHelp)
         {
-            CliOptions.PrintHelp();
+            CliOptions.PrintHelp(logger);
             return 0;
         }
 
@@ -195,7 +199,7 @@ internal static class Program
         {
             logger.LogError(ex,$"Error in Setup: {ex.ToString()}");
             if (options.Verbose)
-                Console.Error.WriteLine(ex);
+                logger.LogWarning(ex.ToString());
             return 1;
         }
     }
@@ -515,8 +519,8 @@ internal static class Program
                 CreateNoWindow = false
             };
 
-            process.OutputDataReceived += (_, e) => { if (e.Data is not null) Console.WriteLine(e.Data); };
-            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) Console.Error.WriteLine(e.Data); };
+            process.OutputDataReceived += (_, e) => { if (e.Data is not null) logger.LogInformation(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) logger.LogError(e.Data); };
 
             if (!process.Start())
                 throw new InvalidOperationException($"Could not start process: {fileName}");
@@ -623,7 +627,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in CreateHttpClient.");
+            Console.WriteLine($"Error in CreateHttpClient. {ex.ToString()}");
             return null;
         }
     }
@@ -728,9 +732,9 @@ internal sealed class CliOptions
         return options;
     }
 
-    public static void PrintHelp()
+    public static void PrintHelp(ILogger logger)
     {
-        Console.WriteLine("""
+        logger.LogInformation("""
 LocalGPT setup helper
 
 Usage:

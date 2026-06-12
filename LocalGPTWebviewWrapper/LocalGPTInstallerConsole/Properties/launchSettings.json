@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "LocalGPTInstallerConsole": {
+      "commandName": "Project",
+      "commandLineArgs": "--all --range Slim --force"
+    }
+  }
+}
