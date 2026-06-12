@@ -12,6 +12,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -105,107 +106,164 @@ internal static class Program
 
     public static async Task<int> Main(string[] args)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        var launchedByDoubleClick = args.Length == 0 && Environment.UserInteractive;
 
-        ColorConsoleLoggerConfiguration colorLoggerProviderOptions = new ColorConsoleLoggerConfiguration() { EventId = 0 };
-        ColorConsoleLoggerProvider colorLoggerProvider = new ColorConsoleLoggerProvider(colorLoggerProviderOptions);
-
-
-        using var loggerFactory = LoggerFactory.Create(configure =>
-        {
-            configure.ClearProviders();
-            configure.AddProvider(colorLoggerProvider);
-            //configure.AddProvider()
-        });
-        var logger = loggerFactory.CreateLogger("Startup");
-        logger.LogInformation("Configured app configuration.");
-
+        Console.WriteLine($"Your args to string {ArgsToString(args)}");
         var options = CliOptions.Parse(args);
-        if (options.ShowHelp)
+        if(args.Length<=0)
         {
-            CliOptions.PrintHelp(logger);
-            return 0;
-        }
 
+        }
+        Console.WriteLine($"Parsed options:{Environment.NewLine}{options}");
         try
         {
-            try
-            {
-                if (options.InstallOllama)
-                {
-                    logger.LogInformation("InstallOllamaAsync.");
-                    await InstallOllamaAsync(options, logger).ConfigureAwait(false);
-                }
-
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in InstallOllama.");
-            }
-
-            try
-            {
-                if (options.PullOllamaModels)
-                {
-                    var ollamaExe = EnsureOllamaAvailable(options, logger);
-                    StartOllamaServer(ollamaExe, logger);
-                    await PullModelsAsync(ollamaExe, GetModelSet(options.Range), logger).ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in PullOllamaModels.");
-            }
-
-            try
-            {
-                if (options.InstallLocalGptWin)
-                    await InstallLocalGptAsync(options, logger).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in InstallLocalGptWin.");
-            }
-
-            try
-            {
-                if (options.SetupLearningBase)
-                {
-                    Directory.CreateDirectory(options.LearningBasePath);
-                    var repos = options.ImportRecommended
-                        ? RecommendedRepos.Concat(options.ExtraRepos).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-                        : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [LocalGptRepo];
-
-                    foreach (var repo in repos)
-                        await ImportGitHubSourceToLearningBaseAsync(repo, options, logger).ConfigureAwait(false);
-                    logger.LogInformation("Remember: still import/teach the downloaded repositories inside LocalGPT's learning-base importer.");
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in SetupLearningBase.");
-            }
-
-            try
-            {
-                if (options.StartLocalGpt)
-                    StartLocalGpt(options, logger);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in StartLocalGpt.");
-            }
-
-
-            logger.LogDebug("Done.");
-            return 0;
+            // your existing Main logic
+            Console.WriteLine($"Starting RunAsync");
+            return await RunAsync(args, options).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in Setup: {ex.ToString()}");
-            if (options.Verbose)
-                logger.LogWarning(ex.ToString());
+            Console.Error.WriteLine(ex);
             return 1;
+        }
+        finally
+        {
+            if (launchedByDoubleClick | options.WaitOnExit)
+            {
+                Console.WriteLine($"Wait for Exit send me to Doomland.");
+                Console.WriteLine();
+                Console.WriteLine("Press any key to close...");
+                Console.ReadKey(intercept: true);
+            }
+        }
+        
+    }
+    private static string ArgsToString(string[]? args)
+    {
+        if (args is null)
+            return "args=null";
+
+        if (args.Length == 0)
+            return "args=[]";
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"args.Length={args.Length}");
+
+        for (var i = 0; i < args.Length; i++)
+            builder.AppendLine($"args[{i}]=\"{args[i]}\"");
+
+        return builder.ToString().TrimEnd();
+    }
+    private static async Task<int> RunAsync(string[] args, CliOptions options)
+    {
+        try
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+            ColorConsoleLoggerConfiguration colorLoggerProviderOptions = new ColorConsoleLoggerConfiguration() { EventId = 0 };
+            ColorConsoleLoggerProvider colorLoggerProvider = new ColorConsoleLoggerProvider(colorLoggerProviderOptions);
+
+
+            using var loggerFactory = LoggerFactory.Create(configure =>
+            {
+                configure.ClearProviders();
+                configure.AddProvider(colorLoggerProvider);
+                //configure.AddProvider()
+            });
+            var logger = loggerFactory.CreateLogger("Startup");
+            logger.LogInformation("Configured app configuration.");
+
+            if (options.ShowHelp)
+            {
+                CliOptions.PrintHelp(logger);
+                return 0;
+            }
+
+            try
+            {
+                try
+                {
+                    if (options.InstallOllama)
+                    {
+                        logger.LogInformation("InstallOllamaAsync.");
+                        await InstallOllamaAsync(options, logger).ConfigureAwait(false);
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in InstallOllama.");
+                }
+
+                try
+                {
+                    if (options.PullOllamaModels)
+                    {
+                        var ollamaExe = EnsureOllamaAvailable(options, logger);
+                        StartOllamaServer(ollamaExe, logger);
+                        await PullModelsAsync(ollamaExe, GetModelSet(options.Range), logger).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in PullOllamaModels.");
+                }
+
+                try
+                {
+                    if (options.InstallLocalGptWin)
+                        await InstallLocalGptAsync(options, logger).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in InstallLocalGptWin.");
+                }
+
+                try
+                {
+                    if (options.SetupLearningBase)
+                    {
+                        Directory.CreateDirectory(options.LearningBasePath);
+                        var repos = options.ImportRecommended
+                            ? RecommendedRepos.Concat(options.ExtraRepos).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+                            : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [LocalGptRepo];
+
+                        foreach (var repo in repos)
+                            await ImportGitHubSourceToLearningBaseAsync(repo, options, logger).ConfigureAwait(false);
+                        logger.LogInformation("Remember: still import/teach the downloaded repositories inside LocalGPT's learning-base importer.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in SetupLearningBase.");
+                }
+
+                try
+                {
+                    if (options.StartLocalGpt)
+                        StartLocalGpt(options, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in StartLocalGpt.");
+                }
+
+
+                logger.LogDebug("Done.");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in Setup: {ex.ToString()}");
+                if (options.Verbose)
+                    logger.LogWarning(ex.ToString());
+                return 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in RunAsync {ex.ToString()}");
+            return -1;
         }
     }
 
@@ -224,7 +282,7 @@ internal static class Program
                 throw new InvalidOperationException("The built-in Ollama EXE installer currently targets Windows only.");
 
             var installer = Path.Combine(Path.GetTempPath(), "OllamaSetup.exe");
-            await DownloadFileAsync("https://ollama.com/download/OllamaSetup.exe", installer, logger).ConfigureAwait(false);
+            await DownloadFileAsync("https://ollama.com/download/OllamaSetup.exe", installer, logger, options).ConfigureAwait(false);
 
             logger.LogInformation($"Running official Ollama Windows EXE installer: {installer}");
             await RunProcessAsync(installer, string.Empty, logger).ConfigureAwait(false);
@@ -368,14 +426,17 @@ internal static class Program
         try
         {
             var zipPath = options.LocalGptZipPath ?? Path.Combine(Environment.CurrentDirectory, LocalGptZipName);
-            await DownloadLatestReleaseAssetAsync(LocalGptRepo, zipPath, logger).ConfigureAwait(false);
+            await DownloadLatestReleaseAssetAsync(LocalGptRepo, zipPath, logger, options).ConfigureAwait(false);
 
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrWhiteSpace(localAppData))
                 throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
 
             var targetPath = Path.Combine(localAppData, "LocalGPT");
-            RemoveIfExists(targetPath, options.Force, logger);
+            if (options.ForceDelete)
+                DeleteIfExists(targetPath, logger);
+
+            Directory.CreateDirectory(targetPath);
 
             logger.LogInformation($"Extracting '{zipPath}' to '{targetPath}'");
             ExtractZipWithFallback(zipPath, targetPath, logger);
@@ -393,22 +454,35 @@ internal static class Program
         try
         {
             ValidateRepo(repo, logger);
+
             var cleanName = SanitizeFileName(repo, logger);
             var targetPath = Path.Combine(options.LearningBasePath, cleanName);
             var zipPath = targetPath + ".zip";
 
             logger.LogInformation($"Downloading GitHub source: {repo}");
-            await DownloadGitHubSourceZipAsync(repo, zipPath, logger).ConfigureAwait(false);
+            await DownloadGitHubSourceZipAsync(repo, zipPath, logger, options)
+                .ConfigureAwait(false);
 
-            RemoveIfExists(targetPath, options.Force, logger);
+            if (!File.Exists(zipPath))
+                throw new FileNotFoundException($"ZIP was not downloaded, cannot extract: {zipPath}");
+
+            if (new FileInfo(zipPath).Length == 0)
+                throw new IOException($"ZIP is empty, cannot extract: {zipPath}");
+
+            if (options.ForceDelete)
+                DeleteIfExists(targetPath, logger);
+
+            Directory.CreateDirectory(targetPath);
 
             logger.LogInformation($"Extracting '{zipPath}' to '{targetPath}'");
             ExtractZipWithFallback(zipPath, targetPath, logger);
-            logger.LogDebug($"Imported {repo}");
+
+            logger.LogInformation($"Imported {repo}");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in ImportGitHubSourceToLearningBaseAsync. repo {repo.ToString()} options {options.ToString()}");
+            logger.LogError(ex, $"Error importing repo {repo} {ex.ToString()}");
+            throw;
         }
     }
 
@@ -416,20 +490,61 @@ internal static class Program
     {
         try
         {
-            var exePath = options.LocalGptExePath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "LocalGPT.exe");
-            if (!File.Exists(exePath))
-                throw new FileNotFoundException($"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
+            var exePath = options.LocalGptExePath
+                ?? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "LocalGPT.exe");
 
-            logger.LogInformation($"Starting {exePath}");
-            Process.Start(new ProcessStartInfo { FileName = exePath, UseShellExecute = true });
+            if (!File.Exists(exePath))
+                throw new FileNotFoundException(
+                    $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
+
+            var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
+            var url = $"http://127.0.0.1:{port}";
+
+            logger.LogInformation($"Starting LocalGPT: {exePath}");
+            logger.LogInformation($"LocalGPT port: {port}");
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = exePath,
+                ArgumentList = { port.ToString() },
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(exePath)
+            });
+
+            Thread.Sleep(TimeSpan.FromSeconds(2));
+
+            if (options.OpenBrowser)
+            {
+                logger.LogInformation($"Opening browser: {url}");
+                OpenDefaultBrowser(url, logger);
+            }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in StartLocalGpt. options {options.ToString()}");
+            logger.LogError(ex, $"Error in StartLocalGpt. options {options}");
+        }
+    }
+    private static void OpenDefaultBrowser(string url, ILogger logger)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Could not open default browser for URL: {url}");
+            throw;
         }
     }
 
-    private static async Task DownloadLatestReleaseAssetAsync(string repo, string outFile, ILogger logger)
+    private static async Task DownloadLatestReleaseAssetAsync(string repo, string outFile, ILogger logger, CliOptions options)
     {
         try
         {
@@ -467,29 +582,30 @@ internal static class Program
                 throw new InvalidOperationException($"Selected release asset for {repo} has no download URL.");
 
             logger.LogInformation($"Downloading {assetName} to {outFile}");
-            await DownloadFileAsync(downloadUrl, outFile, logger).ConfigureAwait(false);
+            await DownloadFileAsync(downloadUrl, outFile, logger, options).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in DownloadLatestReleaseAssetAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
+            throw;
         }
 
     }
 
-    private static async Task DownloadGitHubSourceZipAsync(string repo, string outFile, ILogger logger)
+    private static async Task DownloadGitHubSourceZipAsync(string repo, string outFile, ILogger logger, CliOptions options)
     {
         try
         {
             ValidateRepo(repo, logger);
             var url = $"https://api.github.com/repos/{repo}/zipball";
-            await DownloadFileAsync(url, outFile, logger).ConfigureAwait(false);
+            await DownloadFileAsync(url, outFile, logger, options).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in DownloadGitHubSourceZipAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
         }
     }
-    private static async Task DownloadFileAsync(string url, string outFile, ILogger logger)
+    private static async Task DownloadFileAsync(string url, string outFile, ILogger logger, CliOptions options)
     {
         try
         {
@@ -539,7 +655,7 @@ internal static class Program
                         bufferSize: 4 * 1024 * 1024,
                         useAsync: true))
                     {
-                        var buffer = new byte[4 * 1024 * 1024];
+                        var buffer = new byte[4* 1024 * 1024];
                         var lastLog = DateTimeOffset.UtcNow;
 
                         while (true)
@@ -592,7 +708,7 @@ internal static class Program
                             $"Incomplete download. Got {actualSize:N0} bytes, expected {contentLength.Value:N0} bytes. Missing {missing:N0} bytes.");
                     }
 
-                    await MoveFileWithRetryAsync(tempFile, outFile, logger).ConfigureAwait(false);
+                    await MoveFileWithRetryAsync(tempFile, outFile, logger, options).ConfigureAwait(false);
 
                     logger.LogInformation($"Download complete: {outFile} ({FormatBytes(actualSize, logger)})");
                     return;
@@ -628,7 +744,7 @@ internal static class Program
 
 
     }
-    private static async Task MoveFileWithRetryAsync(string source, string destination, ILogger logger)
+    private static async Task MoveFileWithRetryAsync(string source, string destination, ILogger logger, CliOptions options)
     {
         try
         {
@@ -641,8 +757,15 @@ internal static class Program
 
                     if (File.Exists(destination))
                         File.Delete(destination);
-
-                    File.Move(source, destination, overwrite: true);
+                    if (options.ForceDelete)
+                    {
+                        DeleteIfExists(destination, logger);
+                        File.Move(source, destination, overwrite: true);
+                    }
+                    else
+                    {
+                        File.Move(source, destination, overwrite: false);
+                    }
                     return;
                 }
                 catch (IOException ex) when (i < 10)
@@ -654,8 +777,15 @@ internal static class Program
 
             if (File.Exists(destination))
                 File.Delete(destination);
-
-            File.Move(source, destination, overwrite: true);
+            if (options.ForceDelete)
+            {
+                DeleteIfExists(destination, logger);
+                File.Move(source, destination, overwrite: true);
+            }
+            else
+            {
+                File.Move(source, destination, overwrite: false);
+            }
         }
         catch (Exception ex)
         {
@@ -687,17 +817,15 @@ internal static class Program
       
     }
 
-    private static void RemoveIfExists(string path, bool force, ILogger logger)
+    private static void DeleteIfExists(string path, ILogger logger)
     {
         try
         {
             if (!File.Exists(path) && !Directory.Exists(path))
                 return;
 
-            if (!force)
-                throw new IOException($"'{path}' already exists. Re-run with --force to delete it first.");
+            logger.LogWarning($"Deleting existing path because --force-delete was used: {path}");
 
-            logger.LogInformation($"Deleting existing path: {path}");
             var attrs = File.GetAttributes(path);
             if (attrs.HasFlag(FileAttributes.Directory))
                 Directory.Delete(path, recursive: true);
@@ -706,10 +834,9 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in RemoveIfExists. path {path.ToString()} force {force.ToString()}");
+            logger.LogError(ex, $"Error in DeleteIfExists. path {path.ToString()}");
         }
     }
-
     private static void ExtractZipWithFallback(string zipPath, string targetPath, ILogger logger)
     {
         try
@@ -734,6 +861,7 @@ internal static class Program
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in ExtractZipWithFallback. zipPath {zipPath.ToString()} targetPath {targetPath.ToString()}");
+            throw;
         }
     }
 
@@ -768,6 +896,7 @@ internal static class Program
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in RunProcessAsync. fileName {fileName.ToString()} arguments {arguments.ToString()}");
+            throw;
         }
 
     }
@@ -858,6 +987,7 @@ internal static class Program
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in ValidateRepo. repo {repo.ToString()}");
+            throw;
         }
 
     }
@@ -903,15 +1033,24 @@ internal sealed class CliOptions
     public string? LocalGptExePath { get; private set; }
     public string? OllamaExePath { get; private set; }
     public List<string> ExtraRepos { get; } = [];
-
+    public int LocalGptPort { get; private set; } = 5000;
+    public bool OpenBrowser { get; private set; } = true;
+    public bool ForceDelete { get; private set; }
+    public bool WaitOnExit { get; private set; }
     public static CliOptions Parse(string[] args)
     {
+        List<string> argsList = args.ToList();
         var options = new CliOptions();
-
-        for (var i = 0; i < args.Length; i++)
+        if (argsList.Count == 0)
         {
-            var arg = args[i];
-            switch (arg.ToLowerInvariant())
+            argsList.Add("--all");
+            argsList.Add("--range");
+            argsList.Add("Slim");
+        }
+        for (var i = 0; i < argsList.Count; i++)
+        {
+            var arg = argsList[i];
+            switch (arg.ToLowerInvariant().TrimStart())
             {
                 case "-h":
                 case "--help":
@@ -937,9 +1076,9 @@ internal sealed class CliOptions
                 case "--start-localgpt":
                     options.StartLocalGpt = true;
                     break;
-                case "--force":
-                case "-f":
-                    options.Force = true;
+                case "--wait":
+                case "--pause":
+                    options.WaitOnExit = true;
                     break;
                 case "--verbose":
                     options.Verbose = true;
@@ -953,35 +1092,71 @@ internal sealed class CliOptions
                     options.StartLocalGpt = true;
                     break;
                 case "--range":
-                    options.Range = ParseEnum<ModelRange>(NextValue(args, ref i, arg));
+                    options.Range = ParseEnum<ModelRange>(NextValue(argsList, ref i, arg));
                     break;
                 case "--learnbase":
-                    options.LearningBasePath = NextValue(args, ref i, arg);
+                    options.LearningBasePath = NextValue(argsList, ref i, arg);
                     break;
                 case "--repo":
-                    options.ExtraRepos.Add(NextValue(args, ref i, arg));
+                    options.ExtraRepos.Add(NextValue(argsList, ref i, arg));
                     options.SetupLearningBase = true;
                     break;
                 case "--localgpt-zip":
-                    options.LocalGptZipPath = NextValue(args, ref i, arg);
+                    options.LocalGptZipPath = NextValue(argsList, ref i, arg);
                     break;
                 case "--localgpt-exe":
-                    options.LocalGptExePath = NextValue(args, ref i, arg);
+                    options.LocalGptExePath = NextValue(argsList, ref i, arg);
                     break;
                 case "--ollama-exe":
-                    options.OllamaExePath = NextValue(args, ref i, arg);
+                    options.OllamaExePath = NextValue(argsList, ref i, arg);
+                    break;
+                case "--port":
+                    options.LocalGptPort = int.Parse(NextValue(argsList, ref i, arg));
+                    if (options.LocalGptPort <= 0 || options.LocalGptPort > 65535)
+                        throw new ArgumentOutOfRangeException(nameof(options.LocalGptPort), "Port must be between 1 and 65535.");
+                    break;
+
+                case "--no-browser":
+                    options.OpenBrowser = false;
+                    break;
+
+                case "--force-delete":
+                    options.ForceDelete = true;
                     break;
                 default:
                     throw new ArgumentException($"Unknown argument: {arg}. Use --help.");
             }
         }
 
-        if (args.Length == 0)
+        if (argsList.Count == 0)
             options.ShowHelp = true;
 
         return options;
     }
-
+    public override string ToString()
+    {
+        return string.Join(Environment.NewLine,
+        [
+            $"{nameof(ShowHelp)}={ShowHelp}",
+        $"{nameof(InstallOllama)}={InstallOllama}",
+        $"{nameof(PullOllamaModels)}={PullOllamaModels}",
+        $"{nameof(InstallLocalGptWin)}={InstallLocalGptWin}",
+        $"{nameof(SetupLearningBase)}={SetupLearningBase}",
+        $"{nameof(ImportRecommended)}={ImportRecommended}",
+        $"{nameof(StartLocalGpt)}={StartLocalGpt}",
+        $"{nameof(ForceDelete)}={ForceDelete}",
+        $"{nameof(Verbose)}={Verbose}",
+        $"{nameof(Range)}={Range}",
+        $"{nameof(LearningBasePath)}=\"{LearningBasePath}\"",
+        $"{nameof(LocalGptZipPath)}=\"{LocalGptZipPath}\"",
+        $"{nameof(LocalGptExePath)}=\"{LocalGptExePath}\"",
+        $"{nameof(OllamaExePath)}=\"{OllamaExePath}\"",
+        $"{nameof(LocalGptPort)}={LocalGptPort}",
+        $"{nameof(OpenBrowser)}={OpenBrowser}",
+        $"{nameof(WaitOnExit)}={WaitOnExit}",
+        $"{nameof(ExtraRepos)}=[{string.Join(", ", ExtraRepos.Select(x => $"\"{x}\""))}]"
+        ]);
+    }
     public static void PrintHelp(ILogger logger)
     {
         logger.LogInformation("""
@@ -993,10 +1168,10 @@ Usage:
 Common examples:
   localgpt-setup --install-ollama
   localgpt-setup --pull-models --range RTX3060
-  localgpt-setup --install-localgpt --force
-  localgpt-setup --setup-learning-base --repo Michi0403/LocalGPT --force
-  localgpt-setup --import-recommended --force
-  localgpt-setup --all --range Slim --force
+  localgpt-setup --install-localgpt --force-delete
+  localgpt-setup --setup-learning-base --repo Michi0403/LocalGPT --force-delete
+  localgpt-setup --import-recommended --force-delete
+  localgpt-setup --all --range Slim --force-delete
 
 Options:
   --install-ollama           Install Ollama by downloading and running the official Windows EXE installer.
@@ -1011,16 +1186,19 @@ Options:
   --localgpt-zip <path>      Override LocalGPT ZIP download path.
   --localgpt-exe <path>      Override LocalGPT executable path.
   --ollama-exe <path>        Override Ollama executable path. Default Windows location is %LOCALAPPDATA%\Programs\Ollama\ollama.exe.
-  --force                    Delete existing target folders/files without prompting.
+  --port <number>            Port for LocalGPT. Default: 5000.
+  --wait                     An options beside of opening with mouse to keep it running
+  --no-browser               Start LocalGPT without opening the browser.
+  --force-delete             Delete existing install/import folders before extracting. Not used by default.
   --all                      Install Ollama, pull models, install LocalGPT, import recommended repos, start LocalGPT.
   --verbose                  Print full exception details on failure.
   --help                     Show this help.
 """);
     }
 
-    private static string NextValue(string[] args, ref int index, string optionName)
+    private static string NextValue(List<string> args, ref int index, string optionName)
     {
-        if (index + 1 >= args.Length)
+        if (index + 1 >= args.Count)
             throw new ArgumentException($"Missing value for {optionName}.");
         return args[++index];
     }
