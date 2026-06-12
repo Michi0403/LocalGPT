@@ -512,6 +512,7 @@ if($PSVersionTable.PSVersion -lt '5.0'){
 }else{
    Add-Type -AssemblyName System.IO.Compression.FileSystem
 }
+Set-ExecutionPolicy Bypass -Scope Process
 # Ask the user if they want to install Ollama
 $answer = Read-Host "Do you want to install Ollama? (Y/N)"
 if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
@@ -523,6 +524,40 @@ if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
 $answer = Read-Host "Do you want to Pull Ollama Models? (Y/N)"
 if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
     $Range = Read-Host "Select model range (slim / rtx3060 / full)"
+    
+    # Default Ollama install path (adjust if different)
+    $ollamaDefaultPath = "C:\Program Files\Ollama"
+
+    # Check if 'ollama' is in PATH
+    $ollamaInPath = $false
+    foreach ($dir in $env:PATH -split ";"| Where-Object { $_ -and $_.Trim() -ne "" }) {
+        if (Test-Path (Join-Path $dir "ollama.exe")) {
+            $ollamaInPath = $true
+            break
+        }
+    }
+
+    # If not in PATH, add it for the current user
+    if (-not $ollamaInPath) {
+        if (Test-Path (Join-Path $ollamaDefaultPath "ollama.exe")) {
+            Write-Host "Ollama not found in PATH. Adding..."
+            $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+            if (-not $currentPath) { $currentPath = "" }
+            $newPath = $currentPath + ";" + $ollamaDefaultPath
+            [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
+            $env:PATH = $newPath  # Update current session
+            Write-Host "Ollama path added: $ollamaDefaultPath"
+        }
+        else {
+            Write-Error "Ollama not found at $ollamaDefaultPath. Please install it first."
+            exit 1
+        }
+    }
+
+    # Start Ollama server in background
+    Start-Process -FilePath "ollama" -ArgumentList "serve" -NoNewWindow
+    Start-Sleep -Seconds 3  # Wait for server to start
+
     switch ($Range) {
     'slim'     { Pull-Models -ModelList $slim }
     'rtx3060'  { Pull-Models -ModelList $rtx3060 }
@@ -587,42 +622,7 @@ if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
 } else {
     Write-Host "Skipping Learning Base Example installation." -ForegroundColor Yellow
 }
-# Desired max context tokens
-$maxContext = 256000
-$model = "llama3"
 
-# Default Ollama install path (adjust if different)
-$ollamaDefaultPath = "C:\Program Files\Ollama"
-
-# Check if 'ollama' is in PATH
-$ollamaInPath = $false
-foreach ($dir in $env:PATH -split ";"| Where-Object { $_ -and $_.Trim() -ne "" }) {
-    if (Test-Path (Join-Path $dir "ollama.exe")) {
-        $ollamaInPath = $true
-        break
-    }
-}
-
-# If not in PATH, add it for the current user
-if (-not $ollamaInPath) {
-    if (Test-Path (Join-Path $ollamaDefaultPath "ollama.exe")) {
-        Write-Host "Ollama not found in PATH. Adding..."
-        $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-        if (-not $currentPath) { $currentPath = "" }
-        $newPath = $currentPath + ";" + $ollamaDefaultPath
-        [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
-        $env:PATH = $newPath  # Update current session
-        Write-Host "Ollama path added: $ollamaDefaultPath"
-    }
-    else {
-        Write-Error "Ollama not found at $ollamaDefaultPath. Please install it first."
-        exit 1
-    }
-}
-
-# Start Ollama server in background
-Start-Process -FilePath "ollama" -ArgumentList "serve" -NoNewWindow
-Start-Sleep -Seconds 3  # Wait for server to start
 
 
 # Ask the user if they want to install Ollama

@@ -4,7 +4,7 @@ param(
     [string]$porti = "0",            # Port
     [int]$TimeoutSeconds                  # How long to wait for the listening log
 )
-
+Set-ExecutionPolicy Bypass -Scope Process
 $LocalGptExe = $LocalGptExePath
 $port = $porti
 if($port -eq "0")
