@@ -42,3 +42,9 @@ LocalGPTWebviewWrapper/**/*.local.props
 
 # Local release packages and smoke artifacts
 artifacts/
+build/LocalGPTByMichi0403.zip
+build/LocalGPTByMichi0403/
+build/publish-output/linux64.zip
+build/publish-output/
+images/
+build/Michi0403_LocalGPT

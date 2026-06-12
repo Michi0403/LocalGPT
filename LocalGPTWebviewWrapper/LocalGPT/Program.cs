@@ -2,6 +2,7 @@ using Azure;
 using Azure.AI.OpenAI;
 using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.CodeParser;
+using DevExpress.DataProcessing.InMemoryDataProcessor;
 using DevExpress.XtraCharts;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
@@ -41,6 +42,17 @@ namespace LocalGPT
         [STAThread]
         static void Main(string[] args)
         {
+            if (args.Length > 0)
+            {
+                if (int.TryParse(args[0], out int parsedPort) && parsedPort > 0 && parsedPort <= int.MaxValue)
+                {
+                    Program.Port = parsedPort;
+                }
+                else
+                {
+                    Console.WriteLine($"Warning: Invalid port '{args[0]}'. Using default port {Program.Port}.");
+                }
+            }
             var app = BuildWebApp(args);
 
             app.Run();
@@ -312,7 +324,8 @@ namespace LocalGPT
         {
             try
             {
-                Port = GetFreePort(logger);
+                if(Port == 0)
+                    Port = GetFreePort(logger);
                 builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{Port}");
             }
             catch (Exception ex)

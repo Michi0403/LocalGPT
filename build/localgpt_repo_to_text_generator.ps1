@@ -19,12 +19,12 @@ function Test-CommandExists {
 if (-not (Test-CommandExists git)) {
     throw "git.exe was not found. Install Git for Windows first: https://git-scm.com/download/win"
 }
-
+$now = Get-Date
 $RepoDir = Join-Path $randomString "LocalGPT"
 $WorkDir = (Get-Location).Path
 $OutputDirectory = Join-Path $WorkDir $RepoDir 
 $RepoDirOuter = Join-Path $WorkDir $randomString
-$OutputFile = Join-Path $OutputDirectory "repoastext"
+$OutputFile = Join-Path $OutputDirectory "repoastext.txt"
 if (Test-Path $RepoDir) {
     Remove-Item $RepoDir -Recurse -Force
 }
@@ -69,13 +69,12 @@ function Is-TextWanted {
     return $true
 }
 
-
 $files = Get-ChildItem -Path $RepoDirOuter -Recurse -File |
     Where-Object { Is-TextWanted $_ } |
 #    Where-Object { -not (Looks-Binary $_) } |
     Sort-Object FullName
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-$writer = New-Object System.IO.StreamWriter($OutputDirectory, $false, $utf8NoBom)
+$writer = New-Object System.IO.StreamWriter($OutputDirectory + ".txt", $false, $utf8NoBom)
 
 try {
 
