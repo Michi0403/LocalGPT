@@ -514,7 +514,6 @@ internal static class Program
 
                     using var request = new HttpRequestMessage(HttpMethod.Get, url);
                     request.Headers.UserAgent.ParseAdd("LocalGptSetupTool/1.0");
-                    request.Headers.Accept.ParseAdd("application/octet-stream");
                     request.Headers.Accept.ParseAdd("*/*");
 
                     using var response = await Http.SendAsync(
@@ -529,6 +528,8 @@ internal static class Program
                         ? $"Remote size: {FormatBytes(contentLength.Value, logger)}"
                         : "Remote size: unknown");
 
+                    long totalRead = 0;
+
                     await using (var input = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false))
                     await using (var output = new FileStream(
                         tempFile,
@@ -539,7 +540,6 @@ internal static class Program
                         useAsync: true))
                     {
                         var buffer = new byte[4 * 1024 * 1024];
-                        long totalRead = 0;
                         var lastLog = DateTimeOffset.UtcNow;
 
                         while (true)
@@ -574,59 +574,94 @@ internal static class Program
                         }
 
                         await output.FlushAsync(cts.Token).ConfigureAwait(false);
-
-                        if (contentLength.HasValue && totalRead != contentLength.Value)
-                        {
-                            var missing = contentLength.Value - totalRead;
-                            throw new IOException(
-                                $"Incomplete download. Got {totalRead:N0} bytes, expected {contentLength.Value:N0} bytes. Missing {missing:N0} bytes.");
-                        }
-
-                        if (totalRead == 0)
-                            throw new IOException("Downloaded file is empty.");
                     }
 
+                    // Streams are closed here. Now the file must exist.
+                    if (!File.Exists(tempFile))
+                        throw new FileNotFoundException($"Temporary download file does not exist after download: {tempFile}");
 
-                    // output/input are closed here. Now moving is legal.
+                    var actualSize = new FileInfo(tempFile).Length;
 
-                    if (File.Exists(outFile))
-                        File.Delete(outFile);
+                    if (actualSize == 0)
+                        throw new IOException("Downloaded file is empty.");
 
-                    File.Move(tempFile, outFile, overwrite: true);
+                    if (contentLength.HasValue && actualSize != contentLength.Value)
+                    {
+                        var missing = contentLength.Value - actualSize;
+                        throw new IOException(
+                            $"Incomplete download. Got {actualSize:N0} bytes, expected {contentLength.Value:N0} bytes. Missing {missing:N0} bytes.");
+                    }
+
                     await MoveFileWithRetryAsync(tempFile, outFile, logger).ConfigureAwait(false);
+
+                    logger.LogInformation($"Download complete: {outFile} ({FormatBytes(actualSize, logger)})");
+                    return;
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, $"Error in DownloadFileAsync. url {url.ToString()} outFile {outFile.ToString()} {ex.ToString()}");
+                    logger.LogWarning(ex, $"Download attempt {attempt}/{maxAttempts} failed.");
+
+                    try
+                    {
+                        if (File.Exists(tempFile))
+                            File.Delete(tempFile);
+                    }
+                    catch
+                    {
+                        // best effort cleanup
+                    }
+
+                    if (attempt == maxAttempts)
+                    {
+                        logger.LogError(ex, $"Download failed permanently. url {url} outFile {outFile}");
+                        throw;
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
                 }
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in DownloadFileAsync. url {url.ToString()} outFile {outFile.ToString()} {ex.ToString()}");
+            logger.LogError(ex, $"Error in DownloadFileAsync. url {url} outFile {outFile}");
         }
+
 
     }
     private static async Task MoveFileWithRetryAsync(string source, string destination, ILogger logger)
     {
-        for (var i = 1; i <= 10; i++)
+        try
         {
-            try
+            for (var i = 1; i <= 10; i++)
             {
-                if (File.Exists(destination))
-                    File.Delete(destination);
+                try
+                {
+                    if (!File.Exists(source))
+                        throw new FileNotFoundException($"Source file for move does not exist: {source}", source);
 
-                File.Move(source, destination, overwrite: true);
-                return;
+                    if (File.Exists(destination))
+                        File.Delete(destination);
+
+                    File.Move(source, destination, overwrite: true);
+                    return;
+                }
+                catch (IOException ex) when (i < 10)
+                {
+                    logger.LogWarning(ex, $"Move failed because file is locked. Retry {i}/10...");
+                    await Task.Delay(300).ConfigureAwait(false);
+                }
             }
-            catch (IOException ex) when (i < 10)
-            {
-                logger.LogWarning(ex, $"Move failed because file is locked. Retry {i}/10...");
-                await Task.Delay(300).ConfigureAwait(false);
-            }
+
+            if (File.Exists(destination))
+                File.Delete(destination);
+
+            File.Move(source, destination, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in MoveFileWithRetryAsync. source {source} destination {destination}");
         }
 
-        File.Move(source, destination, overwrite: true);
     }
     private static string FormatBytes(long bytes, ILogger logger)
     {
