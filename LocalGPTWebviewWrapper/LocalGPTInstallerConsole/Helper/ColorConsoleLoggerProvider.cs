@@ -1,6 +1,7 @@
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
 using System.Collections.Concurrent;
 ///
 ///https://github.com/dotnet/docs/tree/main/docs/core/extensions/snippets/configuration/console-custom-logging
@@ -11,7 +12,6 @@ namespace LocalGPT.Helper
     [ProviderAlias("ColorConsole")]
     public sealed class ColorConsoleLoggerProvider : ILoggerProvider
     {
-        private readonly IDisposable? _onChangeToken;
         private ColorConsoleLoggerConfiguration _currentConfig;
         private readonly ConcurrentDictionary<string, ColorConsoleLogger> _loggers =
             new(StringComparer.OrdinalIgnoreCase);
@@ -30,7 +30,6 @@ namespace LocalGPT.Helper
         public void Dispose()
         {
             _loggers.Clear();
-            _onChangeToken?.Dispose();
         }
     }
 }

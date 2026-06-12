@@ -2,12 +2,19 @@
 using LocalGPT.Helper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 internal static class Program
 {
@@ -127,7 +134,7 @@ internal static class Program
                 if (options.InstallOllama)
                 {
                     logger.LogInformation("InstallOllamaAsync.");
-                    await InstallOllamaAsync(options, logger);
+                    await InstallOllamaAsync(options, logger).ConfigureAwait(false);
                 }
 
             }
@@ -142,7 +149,7 @@ internal static class Program
                 {
                     var ollamaExe = EnsureOllamaAvailable(options, logger);
                     StartOllamaServer(ollamaExe, logger);
-                    await PullModelsAsync(ollamaExe, GetModelSet(options.Range), logger);
+                    await PullModelsAsync(ollamaExe, GetModelSet(options.Range), logger).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -153,7 +160,7 @@ internal static class Program
             try
             {
                 if (options.InstallLocalGptWin)
-                    await InstallLocalGptAsync(options, logger);
+                    await InstallLocalGptAsync(options, logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -170,7 +177,7 @@ internal static class Program
                         : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [LocalGptRepo];
 
                     foreach (var repo in repos)
-                        await ImportGitHubSourceToLearningBaseAsync(repo, options, logger);
+                        await ImportGitHubSourceToLearningBaseAsync(repo, options, logger).ConfigureAwait(false);
                     logger.LogInformation("Remember: still import/teach the downloaded repositories inside LocalGPT's learning-base importer.");
                 }
             }
@@ -217,10 +224,10 @@ internal static class Program
                 throw new InvalidOperationException("The built-in Ollama EXE installer currently targets Windows only.");
 
             var installer = Path.Combine(Path.GetTempPath(), "OllamaSetup.exe");
-            await DownloadFileAsync("https://ollama.com/download/OllamaSetup.exe", installer, logger);
+            await DownloadFileAsync("https://ollama.com/download/OllamaSetup.exe", installer, logger).ConfigureAwait(false);
 
             logger.LogInformation($"Running official Ollama Windows EXE installer: {installer}");
-            await RunProcessAsync(installer, string.Empty, logger);
+            await RunProcessAsync(installer, string.Empty, logger).ConfigureAwait(false);
 
             existing = FindOllamaExecutable(options, logger);
             if (string.IsNullOrWhiteSpace(existing) || !File.Exists(existing))
@@ -345,7 +352,7 @@ internal static class Program
             foreach (var model in models)
             {
                 logger.LogInformation($"Pulling {model}");
-                await RunProcessAsync(ollamaExe, $"pull {model}", logger);
+                await RunProcessAsync(ollamaExe, $"pull {model}", logger).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -361,7 +368,7 @@ internal static class Program
         try
         {
             var zipPath = options.LocalGptZipPath ?? Path.Combine(Environment.CurrentDirectory, LocalGptZipName);
-            await DownloadLatestReleaseAssetAsync(LocalGptRepo, zipPath, logger);
+            await DownloadLatestReleaseAssetAsync(LocalGptRepo, zipPath, logger).ConfigureAwait(false);
 
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrWhiteSpace(localAppData))
@@ -391,7 +398,7 @@ internal static class Program
             var zipPath = targetPath + ".zip";
 
             logger.LogInformation($"Downloading GitHub source: {repo}");
-            await DownloadGitHubSourceZipAsync(repo, zipPath, logger);
+            await DownloadGitHubSourceZipAsync(repo, zipPath, logger).ConfigureAwait(false);
 
             RemoveIfExists(targetPath, options.Force, logger);
 
@@ -428,8 +435,8 @@ internal static class Program
         {
             ValidateRepo(repo, logger);
             var latestUrl = $"https://api.github.com/repos/{repo}/releases/latest";
-            using var stream = await Http.GetStreamAsync(latestUrl);
-            using var json = await JsonDocument.ParseAsync(stream);
+            using var stream = await Http.GetStreamAsync(latestUrl).ConfigureAwait(false);
+            using var json = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
 
             var root = json.RootElement;
             var tagName = root.TryGetProperty("tag_name", out var tag) ? tag.GetString() : "unknown";
@@ -460,7 +467,7 @@ internal static class Program
                 throw new InvalidOperationException($"Selected release asset for {repo} has no download URL.");
 
             logger.LogInformation($"Downloading {assetName} to {outFile}");
-            await DownloadFileAsync(downloadUrl, outFile, logger);
+            await DownloadFileAsync(downloadUrl, outFile, logger).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -475,7 +482,7 @@ internal static class Program
         {
             ValidateRepo(repo, logger);
             var url = $"https://api.github.com/repos/{repo}/zipball";
-            await DownloadFileAsync(url, outFile, logger);
+            await DownloadFileAsync(url, outFile, logger).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -513,7 +520,7 @@ internal static class Program
                     using var response = await Http.SendAsync(
                         request,
                         HttpCompletionOption.ResponseHeadersRead,
-                        cts.Token);
+                        cts.Token).ConfigureAwait(false);
 
                     response.EnsureSuccessStatusCode();
 
@@ -522,16 +529,16 @@ internal static class Program
                         ? $"Remote size: {FormatBytes(contentLength.Value, logger)}"
                         : "Remote size: unknown");
 
-                    await using var input = await response.Content.ReadAsStreamAsync(cts.Token);
+                    await using var input = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
                     await using var output = new FileStream(
                         tempFile,
                         FileMode.Create,
                         FileAccess.Write,
                         FileShare.None,
-                        bufferSize: 1024 * 128,
+                        bufferSize: 1024 * 1024,
                         useAsync: true);
 
-                    var buffer = new byte[1024 * 128];
+                    var buffer = new byte[1024 * 1024];
                     long totalRead = 0;
                     long lastLoggedBytes = 0;
                     var lastProgress = DateTimeOffset.UtcNow;
@@ -542,11 +549,11 @@ internal static class Program
                         using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
                         readTimeout.CancelAfter(TimeSpan.FromSeconds(45));
 
-                        var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), readTimeout.Token);
+                        var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), readTimeout.Token).ConfigureAwait(false);
                         if (read == 0)
                             break;
 
-                        await output.WriteAsync(buffer.AsMemory(0, read), cts.Token);
+                        await output.WriteAsync(buffer.AsMemory(0, read), cts.Token).ConfigureAwait(false);
                         totalRead += read;
 
                         var now = DateTimeOffset.UtcNow;
@@ -612,7 +619,7 @@ internal static class Program
                         throw;
                     }
 
-                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
+                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
                 }
             }
         }
@@ -720,7 +727,7 @@ internal static class Program
 
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            await process.WaitForExitAsync();
+            await process.WaitForExitAsync().ConfigureAwait(false);
 
             if (process.ExitCode != 0)
                 throw new InvalidOperationException($"Command failed with exit code {process.ExitCode}: {fileName} {arguments}");
