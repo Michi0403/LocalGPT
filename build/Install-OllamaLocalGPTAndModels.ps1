@@ -137,6 +137,49 @@ function Expand-ZipRelative {
     }
 }
 
+
+function Get-GitHubLatestSRC {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,   # Format: owner/repository
+
+        [string]$OutFile # Optional: where to save the ZIP
+    )
+
+    try {
+        # GitHub API endpoint for latest source ZIP
+        $apiUrl = "https://api.github.com/repos/$Repo/zipball"
+
+        Write-Host "Fetching latest source for $Repo..." -ForegroundColor Cyan
+
+        # HEAD request to get filename from Content-Disposition
+        $response = Invoke-WebRequest -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell" } -Method Head -ErrorAction Stop
+
+        # Extract filename from headers
+        $contentDisp = $response.Headers["Content-Disposition"]
+        $fileName = ($contentDisp -replace '.*filename="?([^"]+)"?', '$1')
+
+        if (-not $OutFile) {
+            $OutFile = Join-Path $PWD $fileName
+        }
+
+        Write-Host "Downloading latest source ZIP..." -ForegroundColor Cyan
+        Write-Host "From: $apiUrl"
+        Write-Host "To:   $OutFile"
+
+        if (Test-Path $OutFile) {
+            Remove-Item $OutFile -Force
+        }
+
+        Invoke-WebRequest -Uri $apiUrl -OutFile $OutFile -Headers @{ "User-Agent" = "PowerShell" } -ErrorAction Stop
+
+        Write-Host "Downloaded latest source to: $OutFile" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Error: $_" -ForegroundColor Red
+    }
+}
+
 function Get-GitHubLatestRelease {
     param(
         [Parameter(Mandatory)]
@@ -295,14 +338,20 @@ function Pull-LocalGPTByMichi0403 {
   Install-LocalGPT("LocalGPTByMichi0403.zip")
 }
 
-function Pull-GitsToLearningBaseImporter {
-  Write-Host "Starting Learning Base Example installation." -ForegroundColor Yellow
-  while ($true) {
-    $input = Read-Host "Enter command (type 'exit' to quit)"
-
-    if ($input -eq "exit") {
-        break
+function Pull-GitsToLearningBaseImporter {    
+param(
+        [string]$inputLearnBase,   # Format: owner/repository
+        [bool]$forceDeleteSwitch = $true
+    )
+    $input = $inputLearnBase
+    Write-Host "Pulling Git $input" -ForegroundColor Yellow
+    Write-Host "Starting Learning Base Example installation." -ForegroundColor Yellow
+ 
+    if ([string]::IsNullOrEmpty($input)) 
+    {
+        $input = Read-Host "Enter command (type 'exit' to quit)"
     }
+
     Write-Host "If you leave the string Empty and press Enter you pull LocalGPT's Repo for selfawareness teachings." -ForegroundColor Yellow
     Write-Host "The downloaded repo will gets places in the default learningbase Path and extracted there to a sanitized subfoldername." -ForegroundColor Yellow
     if ([string]::IsNullOrEmpty($input) -or $input -eq "0") {
@@ -323,26 +372,26 @@ function Pull-GitsToLearningBaseImporter {
     }
     Write-Host "You typed: $input"
     $cleanforDirectory = $input -replace '[\\\/:\*\?"<>\|]', '_'
-    
-    Get-GitHubLatestRelease -Repo $input -OutFile $cleanforDirectory
-    $ZipPath = $cleanforDirectory
+    $ZipPath = Join-Path "C:\learnbaseforlocalgpt" $cleanforDirectory
     $TargetPath = Join-Path "C:\learnbaseforlocalgpt" $cleanforDirectory
+    $ZipWithEnding = "$ZipPath.zip"
+    Get-GitHubLatestSRC -Repo $input -OutFile $ZipWithEnding
      # Step 2: Remove old installation if needed
-    if (-not (Remove-IfExists -Path $TargetPath -Force:$ForceDelete)) {
+    if (-not (Remove-IfExists -Path $TargetPath -Force:$forceDeleteSwitch)) {
         return
     }
      # Step 3: Extract ZIP
-    Write-Host "Extracting '$ZipPath' to learnbase importer default folder (for now)...$TargetPath" -ForegroundColor Cyan
+    Write-Host "Extracting '$ZipWithEnding' to learnbase importer default folder (for now)...$TargetPath" -ForegroundColor Cyan
     try {
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($ZipPath, $TargetPath)
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($ZipWithEnding, $TargetPath)
         #Expand-Archive -Path $ZipPath -DestinationPath $TempExtractPath -Force
     }
     catch {
         Write-Host "Built-in unzip failed (possibly due to long paths)." -ForegroundColor Yellow
         $sevenZip = "${env:ProgramFiles}\7-Zip\7z.exe"
         if (Test-Path $sevenZip) {
-             Write-Host "trying .$sevenZip x $ZipPath "-o$TargetPath" -y"
-            .$sevenZip x $ZipPath "-o$TargetPath" -y
+             Write-Host "trying .$sevenZip x $ZipWithEnding "-o$TargetPath" -y"
+            .$sevenZip x $ZipWithEnding "-o$TargetPath" -y
             if ($LASTEXITCODE -ne 0) {
                 throw "7-Zip extraction failed with exit code $LASTEXITCODE"
             }
@@ -354,7 +403,7 @@ function Pull-GitsToLearningBaseImporter {
         }
     }
     Remove-IfExists($cleanforDirectory,$false)
-    }
+    
 }
 
 function Pull-Models {
@@ -493,15 +542,94 @@ if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
 # Ask the user if they want to install Ollama
 $answer = Read-Host "Do you want to setup default learning base (hardcoded path now due to the accident) for the learning base importer C:\learnbaseforlocalgpt for LocalGPTWin by Michi0403 ? (Y/N)"
 if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
-    Pull-GitsToLearningBaseImporter
+    $answerGitDefaultListImport = Read-Host "Do you want import recommended Gits ? (Y/N)"
+    if ($answerGitDefaultListImport -match '^(Y|Yes|Ja|y|1|J|j)$')
+    {
+        try
+        {
+            Pull-GitsToLearningBaseImporter "Michi0403/LocalGPT"
+            Pull-GitsToLearningBaseImporter "TelegramBots/Telegram.Bot"
+            Pull-GitsToLearningBaseImporter "Michi0403/TacosPortalOpen"
+            Pull-GitsToLearningBaseImporter "Michi0403/OpenMorph.NET"
+            Pull-GitsToLearningBaseImporter "Michi0403/AutomatedDiscordLogin"
+            Pull-GitsToLearningBaseImporter "Michi0403/3DOpenScad"
+            #Pull-GitsToLearningBaseImporter "MicrosoftDocs/learn"
+            Pull-GitsToLearningBaseImporter "dotnet/docs"
+            Pull-GitsToLearningBaseImporter "MicrosoftDocs/windows-dev-docs"
+            Pull-GitsToLearningBaseImporter "MicrosoftDocs/microsoftgraph-docs-powershell"
+            Pull-GitsToLearningBaseImporter "MicrosoftDocs/windows-dev-docs"
+            Pull-GitsToLearningBaseImporter "Mojang/bedrock-samples"
+            Pull-GitsToLearningBaseImporter "Mojang/bedrock-protocol-docs"
+            Pull-GitsToLearningBaseImporter "Mojang/minecraft-editor"
+            Pull-GitsToLearningBaseImporter "Mojang/minecraft-debugger"
+            Pull-GitsToLearningBaseImporter "Mojang/minecraft-editor-extension-starter-kit"
+            Pull-GitsToLearningBaseImporter "Mojang/minecraft-editor-extension-samples"
+            Pull-GitsToLearningBaseImporter "Mojang/minecraft-scripting-libraries"
+            Pull-GitsToLearningBaseImporter "Mojang/minecraft-creator-tools"
+            Pull-GitsToLearningBaseImporter "Mojang/bedrock-schemas"
+            Pull-GitsToLearningBaseImporter "DevExpress/Blazor"
+            Pull-GitsToLearningBaseImporter "DevExpress/DevExtreme"
+            Pull-GitsToLearningBaseImporter "DevExpress/devextreme-documentation"
+            Pull-GitsToLearningBaseImporter "DevExpress-Examples/XAF_Security_E4908"
+            Write-Host "Remember to still teach it to the AI Council and import it via the learnbase importer" -ForegroundColor Yellow
+        }
+        catch
+        {
+
+        }
+         
+    }
+    else
+    {
+        Pull-GitsToLearningBaseImporter("");
+    }
+    
 } else {
     Write-Host "Skipping Learning Base Example installation." -ForegroundColor Yellow
 }
+# Desired max context tokens
+$maxContext = 256000
+$model = "llama3"
+
+# Default Ollama install path (adjust if different)
+$ollamaDefaultPath = "C:\Program Files\Ollama"
+
+# Check if 'ollama' is in PATH
+$ollamaInPath = $false
+foreach ($dir in $env:PATH -split ";"| Where-Object { $_ -and $_.Trim() -ne "" }) {
+    if (Test-Path (Join-Path $dir "ollama.exe")) {
+        $ollamaInPath = $true
+        break
+    }
+}
+
+# If not in PATH, add it for the current user
+if (-not $ollamaInPath) {
+    if (Test-Path (Join-Path $ollamaDefaultPath "ollama.exe")) {
+        Write-Host "Ollama not found in PATH. Adding..."
+        $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+        if (-not $currentPath) { $currentPath = "" }
+        $newPath = $currentPath + ";" + $ollamaDefaultPath
+        [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
+        $env:PATH = $newPath  # Update current session
+        Write-Host "Ollama path added: $ollamaDefaultPath"
+    }
+    else {
+        Write-Error "Ollama not found at $ollamaDefaultPath. Please install it first."
+        exit 1
+    }
+}
+
+# Start Ollama server in background
+Start-Process -FilePath "ollama" -ArgumentList "serve" -NoNewWindow
+Start-Sleep -Seconds 3  # Wait for server to start
+
+
 # Ask the user if they want to install Ollama
 $answer = Read-Host "Do you want to start LocalGPTWin by Michi0403 ? (Y/N)"
 if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
     Write-Host "`nStarting LocalGPT now."
-     $LocalGptExe = Join-Path $env:LOCALAPPDATA "LocalGPT\winx64\LocalGPT.exe"
+     $LocalGptExe = Join-Path $env:LOCALAPPDATA "LocalGPT\LocalGPT.exe"
     Start-Process powershell -ArgumentList "-Command", ".\Start‑LocalGPT.ps1 $LocalGPTexepath"
     #powershell -NoExit -File .\Start‑LocalGPT.ps1 $LocalGPTexepath 
 } else {
