@@ -104,7 +104,7 @@ internal static class Program
         ColorConsoleLoggerProvider colorLoggerProvider = new ColorConsoleLoggerProvider(colorLoggerProviderOptions);
 
 
-        using var loggerFactory = LoggerFactory.Create(configure => 
+        using var loggerFactory = LoggerFactory.Create(configure =>
         {
             configure.ClearProviders();
             configure.AddProvider(colorLoggerProvider);
@@ -133,21 +133,21 @@ internal static class Program
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,"Error in InstallOllama.");
+                logger.LogError(ex, "Error in InstallOllama.");
             }
 
             try
             {
                 if (options.PullOllamaModels)
                 {
-                    EnsureOllamaAvailable(options, logger);
-                    StartOllamaServer( logger);
-                    await PullModelsAsync(GetModelSet(options.Range), logger);
+                    var ollamaExe = EnsureOllamaAvailable(options, logger);
+                    StartOllamaServer(ollamaExe, logger);
+                    await PullModelsAsync(ollamaExe, GetModelSet(options.Range), logger);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,"Error in PullOllamaModels.");
+                logger.LogError(ex, "Error in PullOllamaModels.");
             }
 
             try
@@ -157,7 +157,7 @@ internal static class Program
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,"Error in InstallLocalGptWin.");
+                logger.LogError(ex, "Error in InstallLocalGptWin.");
             }
 
             try
@@ -170,23 +170,23 @@ internal static class Program
                         : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [LocalGptRepo];
 
                     foreach (var repo in repos)
-                        await ImportGitHubSourceToLearningBaseAsync(repo, options , logger);
+                        await ImportGitHubSourceToLearningBaseAsync(repo, options, logger);
                     logger.LogInformation("Remember: still import/teach the downloaded repositories inside LocalGPT's learning-base importer.");
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,"Error in SetupLearningBase.");
+                logger.LogError(ex, "Error in SetupLearningBase.");
             }
 
             try
             {
                 if (options.StartLocalGpt)
-                    StartLocalGpt(options , logger);
+                    StartLocalGpt(options, logger);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,"Error in StartLocalGpt.");
+                logger.LogError(ex, "Error in StartLocalGpt.");
             }
 
 
@@ -195,7 +195,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,$"Error in Setup: {ex.ToString()}");
+            logger.LogError(ex, $"Error in Setup: {ex.ToString()}");
             if (options.Verbose)
                 logger.LogWarning(ex.ToString());
             return 1;
@@ -206,58 +206,111 @@ internal static class Program
     {
         try
         {
-            var installPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Ollama", "ollama.exe");
-            if (File.Exists(installPath))
+            var existing = FindOllamaExecutable(options, logger);
+            if (!string.IsNullOrWhiteSpace(existing) && File.Exists(existing))
             {
-                logger.LogDebug("Ollama already appears to be installed.");
+                logger.LogInformation($"Ollama already appears to be installed: {existing}");
                 return;
             }
 
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                throw new InvalidOperationException("The built-in Ollama installer path currently targets Windows only.");
+                throw new InvalidOperationException("The built-in Ollama EXE installer currently targets Windows only.");
 
             var installer = Path.Combine(Path.GetTempPath(), "OllamaSetup.exe");
-            await DownloadFileAsync("https://ollama.com/download/OllamaSetup.exe", installer,logger);
+            await DownloadFileAsync("https://ollama.com/download/OllamaSetup.exe", installer, logger);
 
-            logger.LogInformation("Running official Ollama Windows installer...");
-            await RunProcessAsync(installer, string.Empty,logger);
-            logger.LogInformation("Ollama installer finished. Check the output above if Windows got dramatic.");
+            logger.LogInformation($"Running official Ollama Windows EXE installer: {installer}");
+            await RunProcessAsync(installer, string.Empty, logger);
+
+            existing = FindOllamaExecutable(options, logger);
+            if (string.IsNullOrWhiteSpace(existing) || !File.Exists(existing))
+                throw new FileNotFoundException(@"Ollama installer finished, but ollama.exe was not found. Check the installer output and %LOCALAPPDATA%\Ollama\server.log if needed.");
+
+            AddDirectoryToUserPathIfMissing(Path.GetDirectoryName(existing)!, logger);
+            logger.LogInformation($"Ollama installer finished. Resolved ollama.exe: {existing}");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,$"Error in InstallOllamaAsync. options {options.ToString()}");
+            logger.LogError(ex, $"Error in InstallOllamaAsync. options {options.ToString()}");
+            throw;
         }
     }
 
-    private static void EnsureOllamaAvailable(CliOptions options, ILogger logger)
+    private static string EnsureOllamaAvailable(CliOptions options, ILogger logger)
     {
         try
         {
-            if (CommandExists("ollama", logger))
-                return;
-
-            var defaultDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Ollama");
-            var exe = Path.Combine(defaultDir, RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ollama.exe" : "ollama");
-
-            if (!File.Exists(exe))
-                throw new FileNotFoundException($"Ollama was not found in PATH or at '{exe}'. Install Ollama first or add it to PATH.");
-
-            var currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? string.Empty;
-            if (!currentPath.Split(Path.PathSeparator).Any(p => string.Equals(p.TrimEnd(Path.DirectorySeparatorChar), defaultDir, StringComparison.OrdinalIgnoreCase)))
+            var exe = FindOllamaExecutable(options, logger);
+            if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe))
             {
-                var newPath = string.IsNullOrWhiteSpace(currentPath) ? defaultDir : currentPath + Path.PathSeparator + defaultDir;
-                Environment.SetEnvironmentVariable("PATH", newPath, EnvironmentVariableTarget.User);
-                Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + Path.PathSeparator + defaultDir);
-                logger.LogInformation($"Added Ollama to user PATH: {defaultDir}");
+                throw new FileNotFoundException(
+                    @"Ollama was not found. Install it first or pass --ollama-exe. Expected Windows default: %LOCALAPPDATA%\Programs\Ollama\ollama.exe");
             }
+
+            AddDirectoryToUserPathIfMissing(Path.GetDirectoryName(exe)!, logger);
+            logger.LogInformation($"Using Ollama executable: {exe}");
+            return exe;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in EnsureOllamaAvailable. options {options.ToString()}");
+            throw;
         }
     }
 
-    private static void StartOllamaServer(ILogger logger)
+    private static string? FindOllamaExecutable(CliOptions options, ILogger logger)
+    {
+        var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ollama.exe" : "ollama";
+
+        if (!string.IsNullOrWhiteSpace(options.OllamaExePath))
+        {
+            var explicitPath = Environment.ExpandEnvironmentVariables(options.OllamaExePath);
+            if (File.Exists(explicitPath))
+                return Path.GetFullPath(explicitPath);
+            logger.LogWarning($"--ollama-exe was provided but does not exist: {explicitPath}");
+        }
+
+        var fromPath = FindCommandOnPath("ollama", logger);
+        if (!string.IsNullOrWhiteSpace(fromPath))
+            return fromPath;
+
+        var candidates = new List<string>();
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrWhiteSpace(localAppData))
+            candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", exeName));
+
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        if (!string.IsNullOrWhiteSpace(programFiles))
+            candidates.Add(Path.Combine(programFiles, "Ollama", exeName));
+
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        if (!string.IsNullOrWhiteSpace(programFilesX86))
+            candidates.Add(Path.Combine(programFilesX86, "Ollama", exeName));
+
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    private static void AddDirectoryToUserPathIfMissing(string directory, ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+            return;
+
+        var userPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? string.Empty;
+        var parts = userPath.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+
+        if (!parts.Any(p => string.Equals(p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)))
+        {
+            var newUserPath = string.IsNullOrWhiteSpace(userPath) ? directory : userPath + Path.PathSeparator + directory;
+            Environment.SetEnvironmentVariable("PATH", newUserPath, EnvironmentVariableTarget.User);
+            logger.LogInformation($"Added Ollama directory to user PATH: {directory}");
+        }
+
+        var processPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        if (!processPath.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries).Any(p => string.Equals(p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)))
+            Environment.SetEnvironmentVariable("PATH", processPath + Path.PathSeparator + directory);
+    }
+
+    private static void StartOllamaServer(string ollamaExe, ILogger logger)
     {
         try
         {
@@ -266,7 +319,7 @@ internal static class Program
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "ollama",
+                    FileName = ollamaExe,
                     ArgumentList = { "serve" },
                     UseShellExecute = false,
                     CreateNoWindow = true
@@ -275,28 +328,30 @@ internal static class Program
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex,$"Could not start 'ollama serve'. Continuing anyway: {ex.Message}");
+                logger.LogWarning(ex, $"Could not start 'ollama serve'. Continuing anyway: {ex.Message}");
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in StartOllamaServer.");
+            throw;
         }
     }
 
-    private static async Task PullModelsAsync(string[] models, ILogger logger)
+    private static async Task PullModelsAsync(string ollamaExe, string[] models, ILogger logger)
     {
         try
         {
             foreach (var model in models)
             {
                 logger.LogInformation($"Pulling {model}");
-                await RunProcessAsync("ollama", $"pull {model}",logger);
+                await RunProcessAsync(ollamaExe, $"pull {model}", logger);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in PullModelsAsync. models {models.ToString()}");
+            logger.LogError(ex, $"Error in PullModelsAsync. models {string.Join(", ", models)}");
+            throw;
         }
 
     }
@@ -323,7 +378,7 @@ internal static class Program
         {
             logger.LogError(ex, $"Error in InstallLocalGptAsync. options {options.ToString()}");
         }
-       
+
     }
 
     private static async Task ImportGitHubSourceToLearningBaseAsync(string repo, CliOptions options, ILogger logger)
@@ -411,7 +466,7 @@ internal static class Program
         {
             logger.LogError(ex, $"Error in DownloadLatestReleaseAssetAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
         }
-      
+
     }
 
     private static async Task DownloadGitHubSourceZipAsync(string repo, string outFile, ILogger logger)
@@ -427,27 +482,167 @@ internal static class Program
             logger.LogError(ex, $"Error in DownloadGitHubSourceZipAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
         }
     }
-
     private static async Task DownloadFileAsync(string url, string outFile, ILogger logger)
     {
         try
         {
-            var directory = Path.GetDirectoryName(Path.GetFullPath(outFile));
-            if (!string.IsNullOrWhiteSpace(directory))
-                Directory.CreateDirectory(directory);
+            const int maxAttempts = 3;
+            var tempFile = outFile + ".part";
 
-            if (File.Exists(outFile))
-                File.Delete(outFile);
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    var directory = Path.GetDirectoryName(Path.GetFullPath(outFile));
+                    if (!string.IsNullOrWhiteSpace(directory))
+                        Directory.CreateDirectory(directory);
 
-            using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-            await using var input = await response.Content.ReadAsStreamAsync();
-            await using var output = File.Create(outFile);
-            await input.CopyToAsync(output);
+                    if (File.Exists(tempFile))
+                        File.Delete(tempFile);
+
+                    logger.LogInformation($"Downloading attempt {attempt}/{maxAttempts}: {url}");
+                    logger.LogInformation($"Target: {outFile}");
+
+                    using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+
+                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    request.Headers.UserAgent.ParseAdd("LocalGptSetupTool/1.0");
+                    request.Headers.Accept.ParseAdd("application/octet-stream");
+                    request.Headers.Accept.ParseAdd("*/*");
+
+                    using var response = await Http.SendAsync(
+                        request,
+                        HttpCompletionOption.ResponseHeadersRead,
+                        cts.Token);
+
+                    response.EnsureSuccessStatusCode();
+
+                    var contentLength = response.Content.Headers.ContentLength;
+                    logger.LogInformation(contentLength.HasValue
+                        ? $"Remote size: {FormatBytes(contentLength.Value, logger)}"
+                        : "Remote size: unknown");
+
+                    await using var input = await response.Content.ReadAsStreamAsync(cts.Token);
+                    await using var output = new FileStream(
+                        tempFile,
+                        FileMode.Create,
+                        FileAccess.Write,
+                        FileShare.None,
+                        bufferSize: 1024 * 128,
+                        useAsync: true);
+
+                    var buffer = new byte[1024 * 128];
+                    long totalRead = 0;
+                    long lastLoggedBytes = 0;
+                    var lastProgress = DateTimeOffset.UtcNow;
+                    var lastLog = DateTimeOffset.UtcNow;
+
+                    while (true)
+                    {
+                        using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+                        readTimeout.CancelAfter(TimeSpan.FromSeconds(45));
+
+                        var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), readTimeout.Token);
+                        if (read == 0)
+                            break;
+
+                        await output.WriteAsync(buffer.AsMemory(0, read), cts.Token);
+                        totalRead += read;
+
+                        var now = DateTimeOffset.UtcNow;
+
+                        if (totalRead != lastLoggedBytes)
+                        {
+                            lastProgress = now;
+                        }
+
+                        if (now - lastLog > TimeSpan.FromSeconds(1))
+                        {
+                            if (contentLength.HasValue && contentLength.Value > 0)
+                            {
+                                var percent = totalRead * 100.0 / contentLength.Value;
+                                logger.LogInformation($"Downloaded {FormatBytes(totalRead, logger)} / {FormatBytes(contentLength.Value, logger)} ({percent:F1}%)");
+                            }
+                            else
+                            {
+                                logger.LogInformation($"Downloaded {FormatBytes(totalRead, logger)}");
+                            }
+
+                            lastLoggedBytes = totalRead;
+                            lastLog = now;
+                        }
+
+                        if (now - lastProgress > TimeSpan.FromSeconds(60))
+                            throw new TimeoutException($"Download stalled for 60 seconds at {FormatBytes(totalRead, logger)}.");
+                    }
+
+                    await output.FlushAsync(cts.Token);
+
+                    if (contentLength.HasValue && totalRead != contentLength.Value)
+                        throw new IOException($"Incomplete download. Got {totalRead} bytes, expected {contentLength.Value} bytes.");
+
+                    if (totalRead == 0)
+                        throw new IOException("Downloaded file is empty.");
+
+                    if (File.Exists(outFile))
+                        File.Delete(outFile);
+
+                    File.Move(tempFile, outFile);
+
+                    logger.LogInformation($"Download complete: {outFile} ({FormatBytes(totalRead, logger)})");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, $"Download attempt {attempt}/{maxAttempts} failed.");
+
+                    try
+                    {
+                        if (File.Exists(tempFile))
+                            File.Delete(tempFile);
+                    }
+                    catch
+                    {
+                        // best effort cleanup
+                    }
+
+                    if (attempt == maxAttempts)
+                    {
+                        logger.LogError(ex, $"Download failed permanently. url {url} outFile {outFile}");
+                        throw;
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
+                }
+            }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in DownloadFileAsync. url {url.ToString()} outFile {outFile.ToString()}");
+        }
+
+    }
+
+    private static string FormatBytes(long bytes, ILogger logger)
+    {
+        try
+        {
+            string[] units = ["B", "KB", "MB", "GB", "TB"];
+            double value = bytes;
+            var unit = 0;
+
+            while (value >= 1024 && unit < units.Length - 1)
+            {
+                value /= 1024;
+                unit++;
+            }
+
+            return $"{value:F2} {units[unit]}";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in FormatBytes. bytes {bytes.ToString()}");
+            throw;
         }
       
     }
@@ -487,7 +682,7 @@ internal static class Program
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex,$".NET ZIP extraction failed: {ex.Message}");
+                logger.LogWarning(ex, $".NET ZIP extraction failed: {ex.Message}");
             }
 
             var sevenZip = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "7-Zip", "7z.exe");
@@ -534,26 +729,39 @@ internal static class Program
         {
             logger.LogError(ex, $"Error in RunProcessAsync. fileName {fileName.ToString()} arguments {arguments.ToString()}");
         }
-       
+
     }
 
-    private static bool CommandExists(string command, ILogger logger)
+    private static string? FindCommandOnPath(string command, ILogger logger)
     {
         try
         {
             var paths = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
             var extensions = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE;.BAT;.CMD").Split(';')
+                ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE;.BAT;.CMD").Split(';', StringSplitOptions.RemoveEmptyEntries)
                 : [string.Empty];
 
-            return paths.Any(path => extensions.Any(ext => File.Exists(Path.Combine(path, command + ext))));
+            foreach (var path in paths)
+            {
+                foreach (var ext in extensions)
+                {
+                    var candidate = Path.Combine(path.Trim(), command + ext.ToLowerInvariant());
+                    if (File.Exists(candidate))
+                        return Path.GetFullPath(candidate);
+
+                    candidate = Path.Combine(path.Trim(), command + ext.ToUpperInvariant());
+                    if (File.Exists(candidate))
+                        return Path.GetFullPath(candidate);
+                }
+            }
+
+            return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in CommandExists. command {command.ToString()}");
-            return false;
+            logger.LogError(ex, $"Error in FindCommandOnPath. command {command.ToString()}");
+            return null;
         }
-    
     }
 
     private static string[] GetModelSet(ModelRange range) => range switch
@@ -597,7 +805,7 @@ internal static class Program
             logger.LogError(ex, $"Error in SanitizeFileName. value {value.ToString()}");
             return string.Empty;
         }
-   
+
     }
 
     private static void ValidateRepo(string repo, ILogger logger)
@@ -611,10 +819,10 @@ internal static class Program
         {
             logger.LogError(ex, $"Error in ValidateRepo. repo {repo.ToString()}");
         }
-    
+
     }
 
-    private static HttpClient? CreateHttpClient( )
+    private static HttpClient? CreateHttpClient()
     {
         try
         {
@@ -653,6 +861,7 @@ internal sealed class CliOptions
     public string LearningBasePath { get; private set; } = @"C:\learnbaseforlocalgpt";
     public string? LocalGptZipPath { get; private set; }
     public string? LocalGptExePath { get; private set; }
+    public string? OllamaExePath { get; private set; }
     public List<string> ExtraRepos { get; } = [];
 
     public static CliOptions Parse(string[] args)
@@ -719,6 +928,9 @@ internal sealed class CliOptions
                 case "--localgpt-exe":
                     options.LocalGptExePath = NextValue(args, ref i, arg);
                     break;
+                case "--ollama-exe":
+                    options.OllamaExePath = NextValue(args, ref i, arg);
+                    break;
                 default:
                     throw new ArgumentException($"Unknown argument: {arg}. Use --help.");
             }
@@ -747,7 +959,7 @@ Common examples:
   localgpt-setup --all --range Slim --force
 
 Options:
-  --install-ollama           Install Ollama by running the official Windows install script.
+  --install-ollama           Install Ollama by downloading and running the official Windows EXE installer.
   --pull-models              Pull Ollama models.
   --range <Slim|RTX3060|Full> Model set to pull. Default: Slim.
   --install-localgpt         Download and install latest LocalGPT Windows release.
@@ -758,6 +970,7 @@ Options:
   --start-localgpt           Start LocalGPT.exe from %LOCALAPPDATA%\LocalGPT.
   --localgpt-zip <path>      Override LocalGPT ZIP download path.
   --localgpt-exe <path>      Override LocalGPT executable path.
+  --ollama-exe <path>        Override Ollama executable path. Default Windows location is %LOCALAPPDATA%\Programs\Ollama\ollama.exe.
   --force                    Delete existing target folders/files without prompting.
   --all                      Install Ollama, pull models, install LocalGPT, import recommended repos, start LocalGPT.
   --verbose                  Print full exception details on failure.
@@ -779,3 +992,4 @@ Options:
         throw new ArgumentException($"Invalid value '{value}' for {typeof(T).Name}.");
     }
 }
+
