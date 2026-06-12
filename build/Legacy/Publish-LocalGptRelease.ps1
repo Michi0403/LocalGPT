@@ -506,8 +506,9 @@ if ($CreateGitHubRelease) {
     }
 
     $ghArgs += "--title"
-    $ghArgs += "LocalGPT $Version"
+    $ghArgs += "--title LocalGPT $Version"
     $ghArgs += "--notes-file"
+    $ghArgs += "--draft"
     $ghArgs += $releaseNotesPath
     $ghArgs += (Get-ChildItem $releaseRoot -Filter "*.zip").FullName
     $ghArgs += $manifestPath

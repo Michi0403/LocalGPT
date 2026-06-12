@@ -18,7 +18,7 @@ namespace LocalGPT.Services
             CancellationToken cancellationToken = default)
         {
             var rootPath = string.IsNullOrWhiteSpace(request.RootPath)
-                ? @"C:\tmpselectedcodexlearnbaseforlocalgpt"
+                ? @"C:\learnbaseforlocalgpt"
                 : request.RootPath.Trim();
             var result = new LearnBaseImportResult
             {
@@ -574,7 +574,7 @@ namespace LocalGPT.Services
                 Scope = "Selected local project learn-base",
                 Source = $"Local learn-base scan: {sanitizedSourcePath}",
                 Content = content,
-                HelpfulSources = "Local user-selected source folder C:\\tmpselectedcodexlearnbaseforlocalgpt. Import stores compact fingerprints only; inspect source directly before copying exact code. Legacy offensive names are sanitized before teaching.",
+                HelpfulSources = "Local user-selected source folder C:\\learnbaseforlocalgpt. Import stores compact fingerprints only; inspect source directly before copying exact code. Legacy offensive names are sanitized before teaching.",
                 Tags = BuildTags(summary),
                 Confidence = 78,
                 VerificationStatus = "SourceBacked",

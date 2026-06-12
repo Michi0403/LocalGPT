@@ -164,7 +164,8 @@ function PublishThingsToGithub {
     $ghArgs = @(
         "release", "create", $tag,
         "--latest",
-        "--title", "LocalGPT $inputversion",
+        "--title", ,#"--title LocalGPT $Version"
+        "LocalGPT $inputversion",
         "--notes-file", $notesFile
     )
 

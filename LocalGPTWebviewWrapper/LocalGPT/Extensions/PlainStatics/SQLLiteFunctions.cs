@@ -463,7 +463,7 @@ namespace LocalGPT.Extensions.PlainStatics
                         "The useful pattern is a multi-project .NET/Blazor solution with a shared/core layer, server-interactive host, optional WASM client, WinUI/WebView2 wrapper boundary, Telegram or message-event ingestion, update handlers, service/API boundaries, normalized persistence, worker/polling services, notifications/logging, custom security/admin screens, and build/deploy diagnostics. " +
                         "A generic taco menu, order queue, and reservation app is the wrong template unless the user explicitly asks for only restaurant CRUD. " +
                         "Generated replacements should include a Source Fidelity page/service/doc explaining which original-system workflows are represented, boundary-only, or missing.",
-                    HelpfulSources = "- Local learn-base: C:\\tmpselectedcodexlearnbaseforlocalgpt\\TacosPortalOpen.\n- Local docs: docs/GENERATION_ARCHETYPE_CONTRACTS.md.\n- Local generator files: CouncilArtifactService source-fidelity artifact contract and EngineeringBenchmarkService replacement tasks.",
+                    HelpfulSources = "- Local learn-base: C:\\learnbaseforlocalgpt\\TacosPortalOpen.\n- Local docs: docs/GENERATION_ARCHETYPE_CONTRACTS.md.\n- Local generator files: CouncilArtifactService source-fidelity artifact contract and EngineeringBenchmarkService replacement tasks.",
                     Tags = "seed; tacosportalopen; source-fidelity; replacement; telegram; workers; webview2; wasm; devexpress; blazor",
                     Confidence = 94,
                     IsUserApproved = true,
@@ -615,7 +615,7 @@ namespace LocalGPT.Extensions.PlainStatics
                         "For documentation generation, use Microsoft Learn/DocFX-style Markdown with normal physical line breaks, front matter, title and description metadata, ms.topic/ms.date fields, includes, images, relative links, and TOC-aware structure. " +
                         "For software support and generation, use it as a source map for Windows App SDK, WinUI, WebView2, MSIX packaging/deployment, Developer Mode, Device Portal/discovery, winget, Terminal, Dev Drive, PowerToys, Arm64 compatibility, diagnostics, certificates, accessibility, and Windows app design. " +
                         "LocalGPT should teach this through compact knowledge entries and DocFX-ready docs rather than stuffing large Markdown files into model context.",
-                    HelpfulSources = "- Local learn-base: C:\\tmpselectedcodexlearnbaseforlocalgpt\\windows-dev-docs-docs.\n- Local importer: LearnBaseKnowledgeImporterService Windows docs corpus entries.\n- Microsoft Learn Windows app design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/guidelines-overview.",
+                    HelpfulSources = "- Local learn-base: C:\\learnbaseforlocalgpt\\windows-dev-docs-docs.\n- Local importer: LearnBaseKnowledgeImporterService Windows docs corpus entries.\n- Microsoft Learn Windows app design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/guidelines-overview.",
                     Tags = "seed; docfx; windows-dev-docs; microsoft-learn; winui; webview2; msix; windowsappsdk; accessibility",
                     Confidence = 90,
                     IsUserApproved = true,
@@ -1041,7 +1041,7 @@ namespace LocalGPT.Extensions.PlainStatics
                         "It can call /health, /__diag, /__diag/dxaichat-functions, Minecraft 26.x datapack version checks, deterministic council artifact smoke routes, and learn-base imports, then show JSON and extracted /__artifacts download links. " +
                         "For the actual WinUI WebView2 wrapper, Microsoft documents two Selenium/Microsoft Edge WebDriver approaches: launch the WebView2 app with EdgeOptions.UseWebView and BinaryLocation, or attach to a running WebView2 instance with a remote debugging port and EdgeOptions.DebuggerAddress. " +
                         "Browser automation source such as AutomatedDiscordLogin should be imported as compact architecture fingerprints, not pasted wholesale into prompts. Optional Python.NET/Python browser automation can be added as a workbench only behind explicit user permission gates, safe working directories, typed options, logging, and visible run controls.",
-                    HelpfulSources = "- Microsoft Learn: Automate and test WebView2 apps with Microsoft Edge WebDriver, https://learn.microsoft.com/microsoft-edge/webview2/how-to/webdriver\n- Local page: Components/Pages/TestLab.razor.\n- Local route: /__diag/frontend-test-guidance.\n- Local learn-base request: C:\\tmpselectedcodexlearnbaseforlocalgpt\\AutomatedDiscordLogin-master.",
+                    HelpfulSources = "- Microsoft Learn: Automate and test WebView2 apps with Microsoft Edge WebDriver, https://learn.microsoft.com/microsoft-edge/webview2/how-to/webdriver\n- Local page: Components/Pages/TestLab.razor.\n- Local route: /__diag/frontend-test-guidance.\n- Local learn-base request: C:\\learnbaseforlocalgpt\\AutomatedDiscordLogin-master.",
                     Tags = "seed; frontend; test-lab; webview2; selenium; webdriver; pythonnet; browser-automation; diagnostics",
                     Confidence = 90,
                     IsUserApproved = true,

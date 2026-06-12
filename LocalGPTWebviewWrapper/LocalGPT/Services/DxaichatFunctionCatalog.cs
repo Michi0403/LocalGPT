@@ -59,7 +59,7 @@ public static class DxaichatFunctionCatalog
             "GET",
             "/__diag/learn-base/import?maxProjects=40&saveToKnowledge=true",
             "Import compact architecture fingerprints from the user-selected learn-base folder into CouncilKnowledgeEntries.",
-            "rootPath optional, defaults to C:\\tmpselectedcodexlearnbaseforlocalgpt; maxProjects optional; saveToKnowledge optional.",
+            "rootPath optional, defaults to C:\\learnbaseforlocalgpt; maxProjects optional; saveToKnowledge optional.",
             "Reads local source fingerprints and skips raw binaries/build folders. It teaches architecture, protocols, host wiring, libraries, and interop patterns rather than names or branding."),
         new(
             "localgpt.engineering_benchmark",

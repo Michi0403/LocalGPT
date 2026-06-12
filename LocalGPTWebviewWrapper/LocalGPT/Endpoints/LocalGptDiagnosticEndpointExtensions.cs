@@ -894,7 +894,7 @@
 //                return Results.Ok(await importer.ImportAsync(new LearnBaseImportRequest
 //                {
 //                    RootPath = string.IsNullOrWhiteSpace(rootPath)
-//                        ? @"C:\tmpselectedcodexlearnbaseforlocalgpt"
+//                        ? @"C:\learnbaseforlocalgpt"
 //                        : rootPath,
 //                    MaxProjects = maxProjects ?? 40,
 //                    SaveToKnowledge = saveToKnowledge != false

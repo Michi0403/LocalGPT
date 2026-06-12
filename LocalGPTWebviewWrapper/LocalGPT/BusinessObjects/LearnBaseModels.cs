@@ -2,7 +2,7 @@ namespace LocalGPT.BusinessObjects
 {
     public sealed class LearnBaseImportRequest
     {
-        public string RootPath { get; set; } = @"C:\tmpselectedcodexlearnbaseforlocalgpt";
+        public string RootPath { get; set; } = @"C:\learnbaseforlocalgpt";
 
         public int MaxProjects { get; set; } = 40;
 

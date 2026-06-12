@@ -308,13 +308,25 @@ function Pull-GitsToLearningBaseImporter {
     if ([string]::IsNullOrEmpty($input) -or $input -eq "0") {
         $input = "Michi0403/LocalGPT"
         Write-Host "Input $input was empty set default Michi0403/LocalGPT"
+        Write-Host "Also recommended TelegramBots/Telegram.Bot by https://github.com/wiz0u to train generate telegram bots or and control them"
+        Write-Host "Also recommended Michi0403/TacosPortalOpen Dx WebApi Including WASM Client and Server + backend structure adaptable to microservices"
+        Write-Host "Also recommended Michi0403/OpenMorph.NET To train 3D Open Scad generation"
+        Write-Host "Michi0403/AutomatedDiscordLogin"
+        Write-Host "Michi0403/3DOpenScad To train 3D Open Scad generation"
+        Write-Host "ollama/ollama by Ollama To help it get it along with host and protocol"
+        Write-Host "MicrosoftDocs/PowerShell-Docs by Microsoft"
+        Write-Host "MicrosoftDocs/learn by Microsoft"
+        Write-Host "dotnet/docs by Dotnet Microsoft"
+        Write-Host "MicrosoftDocs/windows-dev-docs by Microsoft"
+        Write-Host "MicrosoftDocs/microsoftgraph-docs-powershell"
+        Write-Host "MicrosoftDocs/windowsserverdocs by Microsoft"
     }
     Write-Host "You typed: $input"
     $cleanforDirectory = $input -replace '[\\\/:\*\?"<>\|]', '_'
     
     Get-GitHubLatestRelease -Repo $input -OutFile $cleanforDirectory
     $ZipPath = $cleanforDirectory
-    $TargetPath = Join-Path "C:\tmpselectedcodexlearnbaseforlocalgpt" $cleanforDirectory
+    $TargetPath = Join-Path "C:\learnbaseforlocalgpt" $cleanforDirectory
      # Step 2: Remove old installation if needed
     if (-not (Remove-IfExists -Path $TargetPath -Force:$ForceDelete)) {
         return
@@ -479,7 +491,7 @@ if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
     Write-Host "Skipping LocalGPTWin installation." -ForegroundColor Yellow
 }
 # Ask the user if they want to install Ollama
-$answer = Read-Host "Do you want to setup default learning base (hardcoded path now due to the accident) for the learning base importer C:\tmpselectedcodexlearnbaseforlocalgpt for LocalGPTWin by Michi0403 ? (Y/N)"
+$answer = Read-Host "Do you want to setup default learning base (hardcoded path now due to the accident) for the learning base importer C:\learnbaseforlocalgpt for LocalGPTWin by Michi0403 ? (Y/N)"
 if ($answer -match '^(Y|Yes|Ja|y|1|J|j)$') {
     Pull-GitsToLearningBaseImporter
 } else {

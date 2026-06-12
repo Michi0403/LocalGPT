@@ -14,7 +14,7 @@ namespace LocalGPT.BusinessObjects
 
         public string TaskSet { get; set; } = "engineering";
 
-        public string LearnBaseRootPath { get; set; } = @"C:\tmpselectedcodexlearnbaseforlocalgpt";
+        public string LearnBaseRootPath { get; set; } = @"C:\learnbaseforlocalgpt";
     }
 
     public sealed class EngineeringBenchmarkResult

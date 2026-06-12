@@ -408,32 +408,32 @@ namespace LocalGPT.Extensions.PlainStatics
    [
        new(
             "All selected local learn-base",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt",
+            @"C:\learnbaseforlocalgpt",
             "Scans the curated local learn-base root and auto-detects known docs corpora plus project architecture roots.",
             80),
         new(
             "Microsoft .NET docs + C# compiler",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt\docs-main\docs-main",
+            @"C:\learnbaseforlocalgpt\docs-main\docs-main",
             "Teaches source maps for .NET architecture, C# language/compiler diagnostics, C# 12-era syntax, ASP.NET Core, Blazor, data, and DocFX/Microsoft Learn authoring.",
             30),
         new(
             "Windows developer docs",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt\windows-dev-docs-docs",
+            @"C:\learnbaseforlocalgpt\windows-dev-docs-docs",
             "Teaches source maps for Windows App SDK, WinUI, WebView2, MSIX, Windows setup/support, design, accessibility, and technician workflows.",
             24),
         new(
             "DevExpress Blazor 25.2 samples",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt\Blazor-25.2\Blazor-25.2",
+            @"C:\learnbaseforlocalgpt\Blazor-25.2\Blazor-25.2",
             "Scans DevExpress Blazor demos and examples so generated pages can choose real components, services, layout patterns, and file/download workflows.",
             60),
         new(
             "DevExpress examples",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt\DevExpress-Examples",
+            @"C:\learnbaseforlocalgpt\DevExpress-Examples",
             "Scans local DevExpress example repositories for reusable component and service wiring patterns.",
             60),
         new(
             "Custom path",
-            @"C:\tmpselectedcodexlearnbaseforlocalgpt",
+            @"C:\learnbaseforlocalgpt",
             "Use this when you want to paste or edit a specific local source/docs folder path.",
             40)
    ];
