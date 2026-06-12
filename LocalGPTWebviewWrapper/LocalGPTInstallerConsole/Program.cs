@@ -99,8 +99,7 @@ internal static class Program
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
-        FileLoggerCoreOptions fileLoggerProviderOptions = new FileLoggerCoreOptions() { CoreLogLevel = CoreLogLevel.Debug, FilePath = Path.Combine(Environment.CurrentDirectory, "installlog.log") };
-        FileLoggerProvider fileLoggerProvider = new FileLoggerProvider(fileLoggerProviderOptions);
+
         ColorConsoleLoggerConfiguration colorLoggerProviderOptions = new ColorConsoleLoggerConfiguration() { EventId = 0 };
         ColorConsoleLoggerProvider colorLoggerProvider = new ColorConsoleLoggerProvider(colorLoggerProviderOptions);
 
@@ -109,7 +108,6 @@ internal static class Program
         {
             configure.ClearProviders();
             configure.AddProvider(colorLoggerProvider);
-            configure.AddProvider(fileLoggerProvider);
             //configure.AddProvider()
         });
         var logger = loggerFactory.CreateLogger("Startup");
