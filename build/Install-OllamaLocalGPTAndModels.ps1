@@ -104,39 +104,6 @@ function Remove-IfExists {
         }
         return $true
     }
-function Expand-ZipRelative {
-    param(
-        [Parameter(Mandatory)]
-        [string]$ZipPath,   # Path to the zip file (can be relative)
-
-        [Parameter(Mandatory)]
-        [string]$TargetDir  # Name of the subdirectory to extract into
-    )
-
-    try {
-        # Resolve the zip path to an absolute path
-        $zipFullPath = Resolve-Path $ZipPath -ErrorAction Stop
-
-        # Create the target directory path (relative, one level deeper)
-        $destPath = Join-Path -Path (Get-Location) -ChildPath $TargetDir
-
-        # Create the directory if it doesn't exist
-        if (-not (Test-Path $destPath)) {
-            New-Item -ItemType Directory -Path $destPath | Out-Null
-        }
-
-        Write-Host "Extracting '$zipFullPath' to '$destPath'..." -ForegroundColor Cyan
-
-        # Use built-in Expand-Archive (PowerShell 5+)
-        Expand-Archive -Path $zipFullPath -DestinationPath $destPath -Force
-
-        Write-Host "Extraction complete." -ForegroundColor Green
-    }
-    catch {
-        Write-Host "Error: $_" -ForegroundColor Red
-    }
-}
-
 
 function Get-GitHubLatestSRC {
     param(
@@ -295,7 +262,16 @@ function Install-LocalGPT {
 
     # Step 3: Extract ZIP
     Write-Host "Extracting '$ZipPath' to Final folder...$TargetPath" -ForegroundColor Cyan
-    try {
+    try
+    {
+        Expand-Archive -Path $ZipPath -DestinationPath $TargetPath -Force
+
+    }
+    catch
+    {
+        Write-Host "Built-in unzip failed (possibly due to long paths)." -ForegroundColor Yellow
+        Write-Host "Trying next one." -ForegroundColor Yellow
+        try {
         [System.IO.Compression.ZipFile]::ExtractToDirectory($ZipPath, $TargetPath)
         #Expand-Archive -Path $ZipPath -DestinationPath $TempExtractPath -Force
     }
@@ -314,7 +290,9 @@ function Install-LocalGPT {
             Write-Host "7-Zip not found. Please install it or enable long path support." -ForegroundColor Red
             return
         }
+        }
     }
+    
     Write-Host "✅ LocalGPT installed successfully to '$TargetPath'" -ForegroundColor Green
 }
 
@@ -382,16 +360,25 @@ param(
     }
      # Step 3: Extract ZIP
     Write-Host "Extracting '$ZipWithEnding' to learnbase importer default folder (for now)...$TargetPath" -ForegroundColor Cyan
-    try {
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($ZipWithEnding, $TargetPath)
+    try
+    {
+        Expand-Archive -Path $ZipPath -DestinationPath $TargetPath -Force
+
+    }
+    catch
+    {
+        Write-Host "Built-in unzip failed (possibly due to long paths)." -ForegroundColor Yellow
+        Write-Host "Trying next one." -ForegroundColor Yellow
+        try {
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($ZipPath, $TargetPath)
         #Expand-Archive -Path $ZipPath -DestinationPath $TempExtractPath -Force
     }
     catch {
         Write-Host "Built-in unzip failed (possibly due to long paths)." -ForegroundColor Yellow
         $sevenZip = "${env:ProgramFiles}\7-Zip\7z.exe"
         if (Test-Path $sevenZip) {
-             Write-Host "trying .$sevenZip x $ZipWithEnding "-o$TargetPath" -y"
-            .$sevenZip x $ZipWithEnding "-o$TargetPath" -y
+             Write-Host "trying .$sevenZip x $ZipPath "-o$TargetPath" -y"
+            .$sevenZip x $ZipPath "-o$TargetPath" -y
             if ($LASTEXITCODE -ne 0) {
                 throw "7-Zip extraction failed with exit code $LASTEXITCODE"
             }
@@ -400,6 +387,7 @@ param(
         else {
             Write-Host "7-Zip not found. Please install it or enable long path support." -ForegroundColor Red
             return
+        }
         }
     }
     Remove-IfExists($cleanforDirectory,$false)

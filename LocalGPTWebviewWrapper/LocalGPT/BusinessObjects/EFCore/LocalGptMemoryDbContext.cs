@@ -23,7 +23,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasMany(conversation => conversation.Messages)
                     .WithOne(message => message.Conversation)
                     .HasForeignKey(message => message.ConversationId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<ChatMemoryMessage>(entity =>
