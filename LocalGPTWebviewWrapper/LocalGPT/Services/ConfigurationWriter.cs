@@ -38,7 +38,7 @@ namespace LocalGPT.Services
                 SetSection(settings, nameof(root.LoggingCore), root.LoggingCore, serializerOptions, _logger);
                 SetSection(settings, nameof(root.PythonCore), root.PythonCore, serializerOptions, _logger);
                 SetSection(settings, nameof(root.ConnectionStringsCore), root.ConnectionStringsCore, serializerOptions, _logger);
-                SetSection(settings, nameof(root.AICore), root.AICore, serializerOptionsm_logger);
+                SetSection(settings, nameof(root.AICore), root.AICore, serializerOptions,_logger);
 
                 var tempFile = file + ".tmp";
                 await File.WriteAllTextAsync(tempFile, settings.ToJsonString(serializerOptions), ct);

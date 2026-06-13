@@ -1,4 +1,5 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.Options;
 using System.ServiceModel.Channels;
@@ -84,7 +85,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var endpoint = NormalizeOpenAIEndpoint(o.Endpoint, logger);
+                var endpoint = CouncilChatStringFunctions.NormalizeOpenAIEndpoint(o.Endpoint, logger);
                 var http = new HttpClient { BaseAddress = new Uri(endpoint) };
                 if (!string.IsNullOrWhiteSpace(o.ApiKey))
                     http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
@@ -138,16 +139,15 @@ namespace LocalGPT.Services
                 return (false, ex.Message);
             }
         }
-
         public async Task<IReadOnlyList<LocalAiHostDiscoveryResult>> DiscoverLocalHostsAsync(CancellationToken ct)
         {
             try
             {
                 var probes = new[]
        {
-                ProbeOllamaAsync("http://localhost:11434", ct,logger),
-                ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", ct,logger),
-                ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", ct,logger)
+                HttpAIStaticsGeneral.ProbeOllamaAsync("http://localhost:11434", ct,logger),
+                HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", ct,logger),
+                HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", ct,logger)
             };
 
                 return await Task.WhenAll(probes);
@@ -159,222 +159,5 @@ namespace LocalGPT.Services
             }
         }
 
-        private static async Task<LocalAiHostDiscoveryResult> ProbeOllamaAsync(string endpoint, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
-        {
-            var result = new LocalAiHostDiscoveryResult
-            {
-                Provider = "Ollama",
-                Endpoint = endpoint
-            };
-
-            try
-            {
-                using var http = CreateDiscoveryClient(endpoint, logger);
-                using var tagsResponse = await http.GetAsync("/api/tags", ct);
-                var tagsBody = await tagsResponse.Content.ReadAsStringAsync(ct);
-                if (!tagsResponse.IsSuccessStatusCode)
-                {
-                    result.Status = $"{(int)tagsResponse.StatusCode} {tagsResponse.ReasonPhrase}";
-                    return result;
-                }
-
-                result.IsReachable = true;
-                var installed = JsonSerializer.Deserialize<OllamaTagsResponse>(tagsBody, JsonOptions)?.Models ?? new();
-                foreach (var model in installed)
-                {
-                    var name = FirstText(logger,model.Model, model.Name);
-                    if (string.IsNullOrWhiteSpace(name))
-                        continue;
-
-                    result.Models.Add(new LocalAiModelInfo
-                    {
-                        Name = name,
-                        Details = BuildOllamaDetails(model.Details, logger)
-                    });
-                }
-
-                using var psResponse = await http.GetAsync("/api/ps", ct);
-                if (psResponse.IsSuccessStatusCode)
-                {
-                    var psBody = await psResponse.Content.ReadAsStringAsync(ct);
-                    var loaded = JsonSerializer.Deserialize<OllamaTagsResponse>(psBody, JsonOptions)?.Models ?? new();
-                    var loadedNames = loaded
-                        .Select(m => FirstText(logger,m.Model, m.Name))
-                        .Where(n => !string.IsNullOrWhiteSpace(n))
-                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                    foreach (var model in result.Models)
-                        model.IsLoaded = loadedNames.Contains(model.Name);
-
-                    foreach (var loadedModel in loaded)
-                    {
-                        var name = FirstText( logger,loadedModel.Model, loadedModel.Name);
-                        if (!string.IsNullOrWhiteSpace(name) &&
-                            result.Models.All(m => !string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            result.Models.Add(new LocalAiModelInfo
-                            {
-                                Name = name,
-                                IsLoaded = true,
-                                Details = BuildOllamaDetails(loadedModel.Details, logger)
-                            });
-                        }
-                    }
-                }
-
-                result.Status = result.Models.Count == 0
-                    ? "Ollama is reachable, but no models are installed yet."
-                    : $"Found {result.Models.Count} Ollama model(s).";
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ProbeOllamaAsync endpoint {endpoint?.ToString()}");
-                result.Status = ex.Message;
-            }
-
-            return result;
-        }
-
-        private static async Task<LocalAiHostDiscoveryResult> ProbeOpenAICompatibleAsync(string provider, string endpoint, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
-        {
-            var result = new LocalAiHostDiscoveryResult
-            {
-                Provider = provider,
-                Endpoint = endpoint
-            };
-
-            try
-            {
-                using var http = CreateDiscoveryClient(endpoint, logger);
-                using var response = await http.GetAsync("/v1/models", ct);
-                var body = await response.Content.ReadAsStringAsync(ct);
-                if (!response.IsSuccessStatusCode)
-                {
-                    result.Status = $"{(int)response.StatusCode} {response.ReasonPhrase}";
-                    return result;
-                }
-
-                result.IsReachable = true;
-                var models = JsonSerializer.Deserialize<OpenAIModelsResponse>(body, JsonOptions)?.Data ?? new();
-                result.Models = models
-                    .Where(m => !string.IsNullOrWhiteSpace(m.Id))
-                    .Select(m => new LocalAiModelInfo
-                    {
-                        Name = m.Id,
-                        IsLoaded = true,
-                        Details = provider
-                    })
-                    .ToList();
-
-                result.Status = result.Models.Count == 0
-                    ? $"{provider} is reachable, but returned no models."
-                    : $"Found {result.Models.Count} {provider} model(s).";
-            }
-            catch (Exception ex)
-            { 
-                logger.LogError(ex, $"Error in ProbeOpenAICompatibleAsync provider {provider.ToString()} endpoint {endpoint?.ToString()}");
-                result.Status = ex.Message;
-            }
-
-            return result;
-           
-        }
-
-        private static HttpClient? CreateDiscoveryClient(string endpoint, ILogger<AiConnectivityProbe> logger)
-        {
-            try
-            {
-                return new HttpClient
-                {
-                    BaseAddress = new Uri(endpoint.TrimEnd('/')),
-                    Timeout = TimeSpan.FromSeconds(3)
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CreateDiscoveryClient endpoint {endpoint.ToString()}");
-                return null;
-            }
-        }
-
-        private static string NormalizeOpenAIEndpoint(string endpoint, ILogger<AiConnectivityProbe> logger)
-        {
-            try
-            {
-                var normalized = endpoint.Trim().TrimEnd('/');
-                return normalized.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
-                    ? normalized[..^3]
-                    : normalized;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in NormalizeOpenAIEndpoint endpoint {endpoint.ToString()}");
-                return string.Empty;
-            }
-          
-        }
-
-        private static string FirstText(ILogger<AiConnectivityProbe> logger, params string?[] values)
-        {
-            try
-            {
-
-                return values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? string.Empty;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in FirstText values {values.ToString()}");
-                return string.Empty;
-            }
-        }
-
-        private static string? BuildOllamaDetails(OllamaModelDetails? details, ILogger<AiConnectivityProbe> logger)
-        {
-            try
-            {
-                if (details is null)
-                    return null;
-
-                var parts = new[] { details.Family, details.ParameterSize, details.QuantizationLevel }
-                    .Where(p => !string.IsNullOrWhiteSpace(p));
-                var text = string.Join(", ", parts);
-                return string.IsNullOrWhiteSpace(text) ? null : text;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in BuildOllamaDetails details {details?.ToString()}");
-                return null;
-            }
-       
-        }
-
-        public sealed class OllamaTagsResponse
-        {
-            public List<OllamaModelEntry> Models { get; set; } = new();
-        }
-
-        public sealed class OllamaModelEntry
-        {
-            public string? Name { get; set; }
-            public string? Model { get; set; }
-            public OllamaModelDetails? Details { get; set; }
-        }
-
-        public sealed class OllamaModelDetails
-        {
-            public string? Family { get; set; }
-            public string? ParameterSize { get; set; }
-            public string? QuantizationLevel { get; set; }
-        }
-
-        public sealed class OpenAIModelsResponse
-        {
-            public List<OpenAIModelEntry> Data { get; set; } = new();
-        }
-
-        public sealed class OpenAIModelEntry
-        {
-            public string Id { get; set; } = string.Empty;
-        }
     }
 }

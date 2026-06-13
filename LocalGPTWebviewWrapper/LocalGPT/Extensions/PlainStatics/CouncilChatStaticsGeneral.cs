@@ -22,6 +22,20 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
+        public static string FirstText(ILogger<AiConnectivityProbe> logger, params string?[] values)
+        {
+            try
+            {
+
+                return values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FirstText values {values.ToString()}");
+                return string.Empty;
+            }
+        }
+
         public static string BuildPrompt(IEnumerable<ChatMessage> messages, ILogger logger)
         {
             try

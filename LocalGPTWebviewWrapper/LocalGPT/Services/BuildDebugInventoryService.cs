@@ -44,7 +44,7 @@ namespace LocalGPT.Services
 
                     string? copiedPath = null;
                     if (captureRoot is not null)
-                        copiedPath = await CopyDebugFileAsync(item.File, item.SourceArea, captureRoot, cancellationToken);
+                        copiedPath = await CopyDebugFileAsync(item.File, item.SourceArea, captureRoot, cancellationToken, logger);
 
                     inventory.Files.Add(new BuildDebugFileSummary
                     {
@@ -110,7 +110,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                foreach (var target in GetSearchRoots())
+                foreach (var target in GetSearchRoots(logger))
                 {
                     if (!Directory.Exists(target.Path))
                         continue;
@@ -157,7 +157,7 @@ namespace LocalGPT.Services
             {
                 yield return ("runtime", AppContext.BaseDirectory);
 
-                var root = FindRepositoryRoot();
+                var root = FindRepositoryRoot(logger);
                 if (root is null)
                     yield break;
 
@@ -178,7 +178,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var area = SanitizeFileName(sourceArea);
+                var area = SanitizeFileName(sourceArea, logger);
                 var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(file.FullName)))[..12];
                 var destination = Path.Combine(captureRoot, $"{area}-{hash}-{file.Name}");
 

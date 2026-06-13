@@ -12,6 +12,30 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+
+        public sealed class OllamaTagsResponse
+        {
+            public List<OllamaModelEntry> Models { get; set; } = new();
+        }
+
+        public sealed class OllamaModelEntry
+        {
+            public string? Name { get; set; }
+            public string? Model { get; set; }
+            public OllamaModelDetails? Details { get; set; }
+        }
+
+ 
+
+        public sealed class OpenAIModelsResponse
+        {
+            public List<OpenAIModelEntry> Data { get; set; } = new();
+        }
+
+        public sealed class OpenAIModelEntry
+        {
+            public string Id { get; set; } = string.Empty;
+        }
         public const int MaxDxAiChatPromptCharacters = 60000;
         public const int MaxVisiblePromptCharacters = 12000;
         [GeneratedRegex(@"\b(?:with|and|or|the|a|an|for|to|in|of|by|as|if|when|once|then|because|from|into|that|this|which|th)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -228,11 +252,7 @@ namespace LocalGPT.Extensions.PlainStatics
         [GeneratedRegex("(work as (?:the )?developers|you are the developers|continue until (?:you )?(?:produce|create|generate)|develop and debug|produce .* artifact|generate .* artifact|create .* artifact)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         public static partial Regex DeveloperExecutionIntentPattern();
 
-        public sealed class OllamaTagsResponse
-        {
-            public List<OllamaModelResponse> Models { get; set; } = [];
-        }
-
+ 
         public sealed class OllamaModelResponse
         {
             public string Name { get; set; } = string.Empty;

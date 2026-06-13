@@ -29,6 +29,44 @@ namespace LocalGPT.Extensions.PlainStatics
     
     public  static partial class CouncilChatStringFunctions
     {
+
+        public static string NormalizeOpenAIEndpoint(string endpoint, ILogger<AiConnectivityProbe> logger)
+        {
+            try
+            {
+                var normalized = endpoint.Trim().TrimEnd('/');
+                return normalized.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
+                    ? normalized[..^3]
+                    : normalized;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeOpenAIEndpoint endpoint {endpoint.ToString()}");
+                return string.Empty;
+            }
+
+        }
+
+
+        public static string? BuildOllamaDetails(GlobalVariableSlopCollectionToRemove.OllamaModelDetails? details, ILogger<AiConnectivityProbe> logger)
+        {
+            try
+            {
+                if (details is null)
+                    return null;
+
+                var parts = new[] { details.Family, details.ParameterSize, details.QuantizationLevel }
+                    .Where(p => !string.IsNullOrWhiteSpace(p));
+                var text = string.Join(", ", parts);
+                return string.IsNullOrWhiteSpace(text) ? null : text;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildOllamaDetails details {details?.ToString()}");
+                return null;
+            }
+
+        }
         public static string TrimForDisplay(string text, int maxCharacters, ILogger logger)
         {
             try
