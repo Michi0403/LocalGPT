@@ -207,7 +207,15 @@ internal static class Program
                 {
                     logger.LogError(ex, "Error in InstallOllama.");
                 }
-
+                try
+                {
+                    if (options.DesktopShortcuts || options.StartMenuShortcuts)
+                        ProvisionWindowsShortcuts(options, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in ProvisionWindowsShortcuts.");
+                }
                 try
                 {
                     if (options.PullOllamaModels)
@@ -551,10 +559,12 @@ internal static class Program
 
             var desktop = GetDesktopFolder(logger);
 
-            foreach (var launcherName in GetLauncherDefinitions().Keys)
+            var shortcutDefinitions = GetShortcutTargets(localGptRoot, logger);
+
+            foreach (var shortcut in shortcutDefinitions)
             {
-                var shortcutName = Path.GetFileNameWithoutExtension(launcherName) + ".lnk";
-                targets.Add(Path.Combine(desktop, shortcutName));
+                var shortcutFileName = Path.ChangeExtension(shortcut.ShortcutName, ".url");
+                targets.Add(Path.Combine(desktop, shortcutFileName));
             }
 
             // Since this is now explicit destructive uninstall, learning base can be included.
@@ -568,6 +578,229 @@ internal static class Program
         {
             logger.LogError(ex, $"Error in GetLocalGptUninstallTargets. options {options.ToString()}");
             return new List<string>();
+        }
+    }
+
+    private static void ProvisionWindowsShortcuts(CliOptions options, ILogger logger)
+    {
+        try
+        {
+            EnsureWindowsOnly(nameof(ProvisionWindowsShortcuts), logger);
+
+            var localGptRoot = GetLocalGptInstallRoot(logger);
+
+            if (string.IsNullOrWhiteSpace(localGptRoot) || !Directory.Exists(localGptRoot))
+                throw new DirectoryNotFoundException($"LocalGPT directory was not found: {localGptRoot}");
+
+            logger.LogInformation($"Provisioning Windows shortcuts from LocalGPT directory: {localGptRoot}");
+
+            var shortcuts = GetShortcutTargets(localGptRoot, logger);
+
+            if (shortcuts.Count == 0)
+            {
+                logger.LogWarning($"No shortcut targets found in LocalGPT directory: {localGptRoot}");
+                return;
+            }
+
+            if (options.DesktopShortcuts)
+            {
+                var desktop = GetDesktopFolder(logger);
+                logger.LogInformation($"Creating Desktop shortcuts in: {desktop}");
+                CreateShortcutSet(shortcuts, desktop, logger);
+            }
+
+            if (options.StartMenuShortcuts)
+            {
+                var startMenuFolder = GetStartMenuFolder(logger);
+                Directory.CreateDirectory(startMenuFolder);
+
+                logger.LogInformation($"Creating Start Menu shortcuts in: {startMenuFolder}");
+                CreateShortcutSet(shortcuts, startMenuFolder, logger);
+            }
+
+            logger.LogInformation("Windows shortcut provisioning finished.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in ProvisionWindowsShortcuts. options {options}");
+            throw;
+        }
+    }
+    private static List<ShortcutDefinition> GetShortcutTargets(string localGptRoot, ILogger logger)
+    {
+        try
+        {
+            var shortcuts = new List<ShortcutDefinition>();
+
+            shortcuts.Add(new ShortcutDefinition(
+                ShortcutName: "LocalGPT Folder.lnk",
+                TargetPath: localGptRoot,
+                Arguments: string.Empty,
+                WorkingDirectory: localGptRoot));
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Start.cmd",
+                "LocalGPT Start.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Pull-Models-Slim.cmd",
+                "LocalGPT Pull Models Slim.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Pull-Models-RTX306012GSet.cmd",
+                "LocalGPT Pull Models RTX3060 12G Set.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Pull-Models-RX7900XTXSet.cmd",
+                "LocalGPT Pull Models RX7900XTX Set.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Force-Delete-Repull-LB-Slim-Model.cmd",
+                "LocalGPT Force Delete Repull Learnbase Slim Model.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Install-Force-Delete-Start.cmd",
+                "LocalGPT Install Force Delete Start.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "LocalGPT-Install-Start.cmd",
+                "LocalGPT Install Start.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Update-Default-Learnbase.cmd",
+                "LocalGPT Update Default Learnbase.url",
+                logger);
+
+            return shortcuts;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in GetShortcutTargets. localGptRoot {localGptRoot}");
+            return new List<ShortcutDefinition>();
+        }
+    }
+    private static void CreateShortcutSet(
+    List<ShortcutDefinition> shortcuts,
+    string targetDirectory,
+    ILogger logger)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(targetDirectory))
+                throw new InvalidOperationException("Shortcut target directory is empty.");
+
+            Directory.CreateDirectory(targetDirectory);
+
+            foreach (var shortcut in shortcuts)
+            {
+                var shortcutPath = Path.Combine(
+                    targetDirectory,
+                    Path.ChangeExtension(shortcut.ShortcutName, ".url"));
+
+                CreateWindowsUrlShortcut(
+                    shortcutPath,
+                    shortcut.TargetPath,
+                    logger);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in CreateShortcutSet. targetDirectory {targetDirectory}");
+            throw;
+        }
+    }
+    private static void CreateWindowsUrlShortcut(
+    string shortcutPath,
+    string targetPath,
+    ILogger logger)
+    {
+        try
+        {
+            EnsureWindowsOnly(nameof(CreateWindowsUrlShortcut), logger);
+
+            if (string.IsNullOrWhiteSpace(shortcutPath))
+                throw new ArgumentException("Shortcut path is empty.", nameof(shortcutPath));
+
+            if (string.IsNullOrWhiteSpace(targetPath))
+                throw new ArgumentException("Target path is empty.", nameof(targetPath));
+
+            var fullTargetPath = Path.GetFullPath(targetPath);
+            var targetUri = new Uri(fullTargetPath).AbsoluteUri;
+
+            logger.LogInformation($"Creating URL shortcut: {shortcutPath}");
+            logger.LogInformation($"URL shortcut target path: {fullTargetPath}");
+            logger.LogInformation($"URL shortcut target uri: {targetUri}");
+
+            var directory = Path.GetDirectoryName(Path.GetFullPath(shortcutPath));
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var content = $"""
+[InternetShortcut]
+URL={targetUri}
+""";
+
+            File.WriteAllText(shortcutPath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            logger.LogInformation($"URL shortcut created: {shortcutPath}");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in CreateWindowsUrlShortcut. shortcutPath {shortcutPath} targetPath {targetPath}");
+            throw;
+        }
+    }
+    private static void AddCmdShortcutIfExists(
+        List<ShortcutDefinition> shortcuts,
+        string localGptRoot,
+        string cmdFileName,
+        string shortcutName,
+        ILogger logger)
+    {
+        try
+        {
+            var cmdPath = Path.Combine(localGptRoot, cmdFileName);
+
+            if (!File.Exists(cmdPath))
+            {
+                logger.LogWarning($"Shortcut target CMD not found, skipping: {cmdPath}");
+                return;
+            }
+
+            shortcuts.Add(new ShortcutDefinition(
+                ShortcutName: shortcutName,
+                TargetPath: cmdPath,
+                Arguments: string.Empty,
+                WorkingDirectory: localGptRoot));
+
+            logger.LogInformation($"Shortcut target found: {cmdPath}");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in AddCmdShortcutIfExists. cmdFileName {cmdFileName}");
         }
     }
     private static void EnsureWindowsOnly(string featureName, ILogger logger)
@@ -1434,41 +1667,6 @@ internal static class Program
             return null;
         }
     }
-    private static IReadOnlyDictionary<string, string> GetLauncherDefinitions()
-    {
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Force-Delete-Repull-LB-Slim-Model.cmd"] =
-                "--install-ollama --install-localgpt --setup-learning-base --import-recommended --force-delete --pull-models --range Slim",
-
-            ["Install-Force-Delete-Start.cmd"] =
-                "--install-ollama --install-localgpt --force-delete --start-localgpt",
-
-            ["LocalGPT-Install-Start.cmd"] =
-                "--install-ollama --install-localgpt --start-localgpt",
-
-            ["Pull-Models-RTX306012GSet.cmd"] =
-                "--pull-models --range RTX3060",
-
-            ["Pull-Models-RX7900XTXSet.cmd"] =
-                "--pull-models --range Full",
-
-            ["Pull-Models-Slim.cmd"] =
-                "--pull-models --range Slim",
-
-            ["Update-Default-Learnbase.cmd"] =
-                "--setup-learning-base --import-recommended",
-
-            ["Start.cmd"] =
-                "--start-localgpt",
-
-            ["Uninstall-LocalGPT-DryRun.cmd"] =
-                "--uninstall",
-
-            ["Uninstall-LocalGPT-Force-Delete.cmd"] =
-                "--uninstall --force-delete"
-        };
-    }
 }
 
 
@@ -1479,6 +1677,13 @@ internal enum ModelRange
     Full
 }
 //To not download already downloaded again and again and again and again and get banned by githubs rate limit
+internal sealed record ShortcutDefinition(
+    string ShortcutName,
+    string TargetPath,
+    string Arguments,
+    string WorkingDirectory
+);
+
 internal sealed record GitHubSourceCacheManifest(
     string Repo,
     string CommitSha,
@@ -1508,6 +1713,8 @@ internal sealed class CliOptions
     public bool ForceDelete { get; private set; }
     public bool WaitOnExit { get; private set; }
     public bool Uninstall { get; private set; }
+    public bool DesktopShortcuts { get; private set; }
+    public bool StartMenuShortcuts { get; private set; }
     public static CliOptions Parse(string[] args)
     {
         List<string> argsList = args.ToList();
@@ -1581,6 +1788,18 @@ internal sealed class CliOptions
                 case "--ollama-exe":
                     options.OllamaExePath = NextValue(argsList, ref i, arg);
                     break;
+                case "--desktop-shortcuts":
+                    options.DesktopShortcuts = true;
+                    break;
+
+                case "--startmenu-shortcuts":
+                    options.StartMenuShortcuts = true;
+                    break;
+
+                case "--shortcuts":
+                    options.DesktopShortcuts = true;
+                    options.StartMenuShortcuts = true;
+                    break;
                 case "--port":
                     options.LocalGptPort = int.Parse(NextValue(argsList, ref i, arg));
                     if (options.LocalGptPort <= 0 || options.LocalGptPort > 65535)
@@ -1630,6 +1849,8 @@ internal sealed class CliOptions
         $"{nameof(OpenBrowser)}={OpenBrowser}",
         $"{nameof(WaitOnExit)}={WaitOnExit}",
         $"{nameof(Uninstall)}={Uninstall}",
+        $"{nameof(DesktopShortcuts)}={DesktopShortcuts}",
+        $"{nameof(StartMenuShortcuts)}={StartMenuShortcuts}",
         $"{nameof(ExtraRepos)}=[{string.Join(", ", ExtraRepos.Select(x => $"\"{x}\""))}]"
         ]);
     }
@@ -1669,6 +1890,9 @@ Options:
   --all                      Install Ollama, pull models, install LocalGPT, import recommended repos, start LocalGPT.
   --verbose                  Print full exception details on failure.
   --help                     Show this help.
+  --desktop-shortcuts        Create Desktop shortcuts to selected LocalGPT command files.
+  --startmenu-shortcuts      Create Start Menu shortcuts to selected LocalGPT command files.
+  --shortcuts                Create both Desktop and Start Menu shortcuts.
   --uninstall                Preview LocalGPT uninstall. Shows what would be removed, deletes nothing. DOESN'T TOUCH OLLAMA OR IT'S MODELS
   --uninstall --force-delete Actually remove LocalGPT files, launchers, shortcuts, and learning base. DOESN'T TOUCH OLLAMA OR IT'S MODELS
 """);
