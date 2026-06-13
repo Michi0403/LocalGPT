@@ -567,7 +567,7 @@ internal static class Program
             foreach (var asset in assets.EnumerateArray())
             {
                 var name = asset.GetProperty("name").GetString() ?? string.Empty;
-                if (name.Contains(platform, StringComparison.OrdinalIgnoreCase) && name.Contains(arch, StringComparison.OrdinalIgnoreCase))
+                if (name.Contains(platform, StringComparison.OrdinalIgnoreCase) && name.Contains(arch, StringComparison.OrdinalIgnoreCase) && !name.Contains("setup", StringComparison.OrdinalIgnoreCase))
                 {
                     selected = asset;
                     break;
