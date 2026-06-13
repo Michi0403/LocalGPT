@@ -324,38 +324,38 @@ New-DevMicroserviceCertificate `
 $profiles = @(
     # linux64
     @{
-        Name = "linux64"
-        Path = "../LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/linux64.pubxml"
+        arch = "linux-x64"
+        PublishDir = "../build/publish-output/linux64"
     }
 
     # linuxarm64
     @{
-        Name = "linuxarm64"
-        Path = "../LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/linuxarm64.pubxml"
+        arch = "linux-arm64"
+        PublishDir = "../build/publish-output/linuxarm64"
     }
 
     # maxosx64
     @{
-        Name = "maxosx64"
-        Path = "../LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/maxosx64.pubxml"
+        arch = "osx-x64"
+        PublishDir = "../build/publish-output/maxosx64"
     }
 
     # maxosx64arm
     @{
-        Name = "maxosx64arm"
-        Path = "../LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/maxosx64arm.pubxml"
+        arch = "osx-arm64"
+        PublishDir = "../build/publish-output/maxosx64arm"
     }
 
     # winarm64
     @{
-        Name = "winarm64"
-        Path = "../LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/winarm64.pubxml"
+        arch = "win-arm64"
+        PublishDir = "../build/publish-output/winarm64"
     }
 
     # linuxarm64
     @{
-        Name = "winx64"
-        Path = "../LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/x64.pubxml"
+        arch = "win-x64"
+        PublishDir = "../build/publish-output/winx64"
     }
 )
 
@@ -366,23 +366,21 @@ Write-Host "Starting multi-profile publish..." -ForegroundColor Cyan
 
 foreach ($profile in $profiles) {
 
-    $name = $profile.Name
-    $profilePath = $profile.Path
+    $arch = $profile.arch
+    $publishDir = $profile.PublishDir
 
     if (-not (Test-Path $profilePath)) {
         Write-Host "❌ Profile not found: $profilePath" -ForegroundColor Red
         continue
     }
 
-    # Zielordner pro Profil
-    $targetDir = Join-Path $OutputRoot $name
 
-    if ($Overwrite -and (Test-Path $targetDir)) {
-        Remove-Item -Recurse -Force $targetDir
+    if ($Overwrite -and (Test-Path $publishDir)) {
+        Remove-Item -Recurse -Force $publishDir
     }
     $projectPath = "../LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj"
     # dotnet publish Befehl
-    $cmd = "dotnet publish $projectPath -p:PublishProfileFullPath=$profilePath -o:$targetDir"
+    $cmd = "dotnet publish $projectPath -c Release -f net10.0 -r $arch --self-contained true -p:PublishTrimmed=false -p:PublishDir=$publishDir -p:DeleteExistingFiles=true -p:ExcludeApp_Data=false -p:LaunchSiteAfterPublish=true -o $publishDir"
 
 
     Write-Host "📦 Publishing $name..." -ForegroundColor Yellow
@@ -396,9 +394,9 @@ foreach ($profile in $profiles) {
         continue
     }
 
-    Write-Host "✅ Done: $name → $targetDir" -ForegroundColor Green
+    Write-Host "✅ Done: $name → $publishDir" -ForegroundColor Green
     $targetZip = Join-Path $OutputRoot "$name.zip"
-    Compress-Archive -Path "$targetDir\*" -DestinationPath $targetZip -Force
+    Compress-Archive -Path "$publishDir\*" -DestinationPath $targetZip -Force
     Write-Host "✅ Done ZIP: $name → $targetZip" -ForegroundColor Green
 }
 
