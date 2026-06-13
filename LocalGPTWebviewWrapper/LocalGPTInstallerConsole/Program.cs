@@ -21,6 +21,7 @@ internal static class Program
 {
     private const string LocalGptRepo = "Michi0403/LocalGPT";
     private const string LocalGptZipName = "LocalGPTByMichi0403.zip";
+    private const string LocalGptSetupZipName = "LocalGPTSetupByMichi0403.zip";
     private static readonly HttpClient Http = CreateHttpClient();
 
     private static readonly string[] SlimModels =
@@ -177,6 +178,18 @@ internal static class Program
             {
                 CliOptions.PrintHelp(logger);
                 return 0;
+            }
+            try
+            {
+                if (options.Uninstall)
+                {
+                    UninstallLocalGptWindows(options, logger);
+                    return 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error in InstallOllama.");
             }
 
             try
@@ -443,29 +456,187 @@ internal static class Program
         try
         {
             var zipPath = options.LocalGptZipPath ?? Path.Combine(Environment.CurrentDirectory, LocalGptZipName);
-            await DownloadLatestReleaseAssetAsync(LocalGptRepo, zipPath, logger, options).ConfigureAwait(false);
+
+            await DownloadLatestReleaseAssetAsync(
+                LocalGptRepo,
+                zipPath,
+                logger,
+                options,
+                setupAsset: false).ConfigureAwait(false);
 
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrWhiteSpace(localAppData))
                 throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
 
             var targetPath = Path.Combine(localAppData, "LocalGPT");
+
             if (options.ForceDelete)
                 DeleteIfExists(targetPath, logger);
 
             Directory.CreateDirectory(targetPath);
 
-            logger.LogInformation($"Extracting '{zipPath}' to '{targetPath}'");
+            logger.LogInformation($"Extracting LocalGPT app '{zipPath}' to '{targetPath}'");
             ExtractZipWithFallback(zipPath, targetPath, logger);
+
+            var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
+
+            await DownloadLatestReleaseAssetAsync(
+                LocalGptRepo,
+                setupZipPath,
+                logger,
+                options,
+                setupAsset: true).ConfigureAwait(false);
+
+            logger.LogInformation($"Extracting LocalGPT setup/bootstrap '{setupZipPath}' to '{targetPath}'");
+            ExtractZipWithFallback(setupZipPath, targetPath, logger);
+
             logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
+            logger.LogInformation($"LocalGPT app and setup/bootstrap files now reside in '{targetPath}'.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in InstallLocalGptAsync. options {options.ToString()}");
+            logger.LogError(ex, $"Error in InstallLocalGptAsync. options {options}");
+        }
+    }
+
+    private static void UninstallLocalGptWindows(CliOptions options, ILogger logger)
+    {
+        try
+        {
+            EnsureWindowsOnly(nameof(UninstallLocalGptWindows), logger);
+
+            var targets = GetLocalGptUninstallTargets(options, logger);
+
+            logger.LogWarning("LocalGPT uninstall preview:");
+            logger.LogWarning("Ollama and Ollama models are not touched.");
+
+            foreach (var target in targets)
+            {
+                var exists = File.Exists(target) || Directory.Exists(target);
+                logger.LogInformation($"{(exists ? "[exists]" : "[missing]")} {target}");
+            }
+
+            if (!options.ForceDelete)
+            {
+                logger.LogWarning("Dry run only. Nothing was deleted.");
+                logger.LogWarning("Run again with --uninstall --force-delete to delete the listed LocalGPT files.");
+                return;
+            }
+
+            logger.LogWarning("--force-delete was used. Removing listed LocalGPT files.");
+
+            foreach (var target in targets)
+            {
+                DeleteIfExists(target, logger);
+            }
+
+            logger.LogInformation("LocalGPT uninstall finished.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in UninstallLocalGptWindows. options {options.ToString()}");
+        }
+    }
+    private static List<string> GetLocalGptUninstallTargets(CliOptions options, ILogger logger)
+    {
+        try
+        {
+            var targets = new List<string>();
+
+            var localGptRoot = GetLocalGptInstallRoot( logger);
+            targets.Add(localGptRoot);
+
+            var startMenuFolder = GetStartMenuFolder(logger);
+            targets.Add(startMenuFolder);
+
+            var desktop = GetDesktopFolder(logger);
+
+            foreach (var launcherName in GetLauncherDefinitions().Keys)
+            {
+                var shortcutName = Path.GetFileNameWithoutExtension(launcherName) + ".lnk";
+                targets.Add(Path.Combine(desktop, shortcutName));
+            }
+
+            // Since this is now explicit destructive uninstall, learning base can be included.
+            targets.Add(options.LearningBasePath);
+
+            return targets
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in GetLocalGptUninstallTargets. options {options.ToString()}");
+            return new List<string>();
+        }
+    }
+    private static void EnsureWindowsOnly(string featureName, ILogger logger)
+    {
+        try
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                throw new PlatformNotSupportedException($"{featureName} is Windows-only.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in EnsureWindowsOnly. featureName {featureName.ToString()}");
+        }
+    }
+
+    private static string GetLocalGptInstallRoot( ILogger logger)
+    {
+        try
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+            if (string.IsNullOrWhiteSpace(localAppData))
+                throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
+
+            return Path.Combine(localAppData, "LocalGPT");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in GetLocalGptInstallRoot.  {ex.ToString()}");
+            return string.Empty;
         }
 
     }
 
+    private static string GetStartMenuFolder( ILogger logger)
+    {
+        try
+        {
+            var startMenu = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
+
+            if (string.IsNullOrWhiteSpace(startMenu))
+                throw new InvalidOperationException("Start Menu folder could not be resolved.");
+
+            return Path.Combine(startMenu, "Programs", "LocalGPT");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in GetStartMenuFolder. {ex.ToString()}");
+            return string.Empty;
+        }
+    }
+
+    private static string GetDesktopFolder(ILogger logger)
+    {
+        try
+        {
+            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+
+            if (string.IsNullOrWhiteSpace(desktop))
+                throw new InvalidOperationException("Desktop folder could not be resolved.");
+
+            return desktop;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in GetDesktopFolder. {ex.ToString()}");
+            return string.Empty;
+        }
+    }
     private static async Task ImportGitHubSourceToLearningBaseAsync(
         string repo,
         CliOptions options,
@@ -654,7 +825,12 @@ internal static class Program
         }
     }
 
-    private static async Task DownloadLatestReleaseAssetAsync(string repo, string outFile, ILogger logger, CliOptions options)
+    private static async Task DownloadLatestReleaseAssetAsync(
+    string repo,
+    string outFile,
+    ILogger logger,
+    CliOptions options,
+    bool setupAsset)
     {
         try
         {
@@ -674,32 +850,70 @@ internal static class Program
             var arch = GetArchitectureToken();
 
             JsonElement? selected = null;
+
             foreach (var asset in assets.EnumerateArray())
             {
                 var name = asset.GetProperty("name").GetString() ?? string.Empty;
-                if (name.Contains(platform, StringComparison.OrdinalIgnoreCase) && name.Contains(arch, StringComparison.OrdinalIgnoreCase) && !name.Contains("setup", StringComparison.OrdinalIgnoreCase))
+
+                var isPlatformMatch =
+                    name.Contains(platform, StringComparison.OrdinalIgnoreCase)
+                    && name.Contains(arch, StringComparison.OrdinalIgnoreCase);
+
+                var isSetupAsset =
+                    name.Contains("setup", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("installer", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("bootstrap", StringComparison.OrdinalIgnoreCase);
+
+                logger.LogInformation(
+                    $"Checking asset '{name}'. PlatformMatch={isPlatformMatch}, SetupAsset={isSetupAsset}, WantedSetupAsset={setupAsset}");
+
+                if (isPlatformMatch && isSetupAsset == setupAsset)
                 {
                     selected = asset;
                     break;
                 }
             }
 
+            if (selected is null)
+            {
+                logger.LogWarning(
+                    $"No exact asset match found for setupAsset={setupAsset}, platform={platform}, arch={arch}. Falling back to first matching setup mode.");
+
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    var name = asset.GetProperty("name").GetString() ?? string.Empty;
+
+                    var isSetupAsset =
+                        name.Contains("setup", StringComparison.OrdinalIgnoreCase)
+                        || name.Contains("installer", StringComparison.OrdinalIgnoreCase)
+                        || name.Contains("bootstrap", StringComparison.OrdinalIgnoreCase);
+
+                    if (isSetupAsset == setupAsset)
+                    {
+                        selected = asset;
+                        break;
+                    }
+                }
+            }
+
             selected ??= assets.EnumerateArray().First();
+
             var downloadUrl = selected.Value.GetProperty("browser_download_url").GetString();
             var assetName = selected.Value.GetProperty("name").GetString();
 
             if (string.IsNullOrWhiteSpace(downloadUrl))
                 throw new InvalidOperationException($"Selected release asset for {repo} has no download URL.");
 
+            logger.LogInformation($"Selected asset: {assetName}");
             logger.LogInformation($"Downloading {assetName} to {outFile}");
+
             await DownloadFileAsync(downloadUrl, outFile, logger, options).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in DownloadLatestReleaseAssetAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
+            logger.LogError(ex, $"Error in DownloadLatestReleaseAssetAsync. repo {repo} outFile {outFile} setupAsset={setupAsset}");
             throw;
         }
-
     }
 
     private static async Task DownloadGitHubSourceZipAsync(string repo, string outFile, ILogger logger, CliOptions options)
@@ -1094,7 +1308,7 @@ internal static class Program
             };
 
             process.OutputDataReceived += (_, e) => { if (e.Data is not null) logger.LogInformation(e.Data); };
-            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) logger.LogError(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) logger.LogWarning(e.Data); };
 
             if (!process.Start())
                 throw new InvalidOperationException($"Could not start process: {fileName}");
@@ -1220,7 +1434,43 @@ internal static class Program
             return null;
         }
     }
+    private static IReadOnlyDictionary<string, string> GetLauncherDefinitions()
+    {
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Force-Delete-Repull-LB-Slim-Model.cmd"] =
+                "--install-ollama --install-localgpt --setup-learning-base --import-recommended --force-delete --pull-models --range Slim",
+
+            ["Install-Force-Delete-Start.cmd"] =
+                "--install-ollama --install-localgpt --force-delete --start-localgpt",
+
+            ["LocalGPT-Install-Start.cmd"] =
+                "--install-ollama --install-localgpt --start-localgpt",
+
+            ["Pull-Models-RTX306012GSet.cmd"] =
+                "--pull-models --range RTX3060",
+
+            ["Pull-Models-RX7900XTXSet.cmd"] =
+                "--pull-models --range Full",
+
+            ["Pull-Models-Slim.cmd"] =
+                "--pull-models --range Slim",
+
+            ["Update-Default-Learnbase.cmd"] =
+                "--setup-learning-base --import-recommended",
+
+            ["Start.cmd"] =
+                "--start-localgpt",
+
+            ["Uninstall-LocalGPT-DryRun.cmd"] =
+                "--uninstall",
+
+            ["Uninstall-LocalGPT-Force-Delete.cmd"] =
+                "--uninstall --force-delete"
+        };
+    }
 }
+
 
 internal enum ModelRange
 {
@@ -1257,6 +1507,7 @@ internal sealed class CliOptions
     public bool OpenBrowser { get; private set; } = true;
     public bool ForceDelete { get; private set; }
     public bool WaitOnExit { get; private set; }
+    public bool Uninstall { get; private set; }
     public static CliOptions Parse(string[] args)
     {
         List<string> argsList = args.ToList();
@@ -1343,6 +1594,10 @@ internal sealed class CliOptions
                 case "--force-delete":
                     options.ForceDelete = true;
                     break;
+
+                case "--uninstall":
+                    options.Uninstall = true;
+                    break;
                 default:
                     throw new ArgumentException($"Unknown argument: {arg}. Use --help.");
             }
@@ -1374,6 +1629,7 @@ internal sealed class CliOptions
         $"{nameof(LocalGptPort)}={LocalGptPort}",
         $"{nameof(OpenBrowser)}={OpenBrowser}",
         $"{nameof(WaitOnExit)}={WaitOnExit}",
+        $"{nameof(Uninstall)}={Uninstall}",
         $"{nameof(ExtraRepos)}=[{string.Join(", ", ExtraRepos.Select(x => $"\"{x}\""))}]"
         ]);
     }
@@ -1413,6 +1669,8 @@ Options:
   --all                      Install Ollama, pull models, install LocalGPT, import recommended repos, start LocalGPT.
   --verbose                  Print full exception details on failure.
   --help                     Show this help.
+  --uninstall                Preview LocalGPT uninstall. Shows what would be removed, deletes nothing. DOESN'T TOUCH OLLAMA OR IT'S MODELS
+  --uninstall --force-delete Actually remove LocalGPT files, launchers, shortcuts, and learning base. DOESN'T TOUCH OLLAMA OR IT'S MODELS
 """);
     }
 
