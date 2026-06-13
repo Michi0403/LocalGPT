@@ -1,3 +1,7 @@
+IMPORTANT NOTICE YOU NEED TO USE THE INSTALLER.EXE IT BOOTSTRAPS EVERYTHING..
+https://github.com/Michi0403/LocalGPT/releases/download/v0.8.5aWorkingInstaller/LocalGPTInstallerConsole.exe
+THE .CMD Files are ENTRY POINTS FOR THAT.
+
 Sending the first version of the universal installer and boot mechanism now.
 
 Helps also with bootstrapping and updating any kind of Git repository or Release.
