@@ -2,6 +2,21 @@ IMPORTANT NOTICE YOU NEED TO USE THE INSTALLER.EXE IT BOOTSTRAPS EVERYTHING..
 https://github.com/Michi0403/LocalGPT/releases/download/v0.8.5aWorkingInstaller/LocalGPTInstallerConsole.exe
 THE .CMD Files are ENTRY POINTS FOR THAT.
 
+When the application enters you can go anywhere but you should go to the Main Chat (A look in the diag panel to start feed and in the SQL Editor to revise knowledge is necessary as well but you will understand through use, the Council can tell you that as well).
+
+Head for that Chat
+<img width="276" height="260" alt="Screenshot 2026-06-13 215155" src="https://github.com/user-attachments/assets/ad6cf3ac-6245-4087-8cbd-5142a81540a8" />
+
+When Ollama connected successfully you will see all members , can select your team for your next council learning mission or building project, really whatever.
+
+@Thanks to memo for testing all for me, insane work
+<img width="1275" height="648" alt="tutorial1" src="https://github.com/user-attachments/assets/eb9160a0-03b4-4f35-acf3-6c475ad7f07c" />
+
+1. Setup your council members
+2. select council instead of single chat
+3. press new chat with your settings setted up before in that page
+4. Don't destroy humanity
+
 Sending the first version of the universal installer and boot mechanism now.
 
 Helps also with bootstrapping and updating any kind of Git repository or Release.
