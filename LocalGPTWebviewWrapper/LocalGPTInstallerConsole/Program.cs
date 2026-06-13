@@ -490,37 +490,77 @@ internal static class Program
     {
         try
         {
-            var exePath = options.LocalGptExePath
-                ?? Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "LocalGPT",
-                    "LocalGPT.exe");
-
-            if (!File.Exists(exePath))
-                throw new FileNotFoundException(
-                    $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
-
-            var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
-            var url = $"http://127.0.0.1:{port}";
-
-            logger.LogInformation($"Starting LocalGPT: {exePath}");
-            logger.LogInformation($"LocalGPT port: {port}");
-
-            Process.Start(new ProcessStartInfo
+            try
             {
-                FileName = exePath,
-                ArgumentList = { port.ToString() },
-                UseShellExecute = true,
-                WorkingDirectory = Path.GetDirectoryName(exePath)
-            });
+                var exePath = options.LocalGptExePath
+             ?? Path.Combine(
+                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                 "LocalGPT",
+                 "LocalGPT.exe");
 
-            Thread.Sleep(TimeSpan.FromSeconds(2));
+                if (!File.Exists(exePath))
+                    throw new FileNotFoundException(
+                        $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
 
-            if (options.OpenBrowser)
-            {
-                logger.LogInformation($"Opening browser: {url}");
-                OpenDefaultBrowser(url, logger);
+                var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
+                var url = $"http://127.0.0.1:{port}";
+
+                logger.LogInformation($"Starting LocalGPT: {exePath}");
+                logger.LogInformation($"LocalGPT port: {port}");
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    ArgumentList = { port.ToString() },
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetDirectoryName(exePath)
+                });
+
+                Thread.Sleep(TimeSpan.FromSeconds(2));
+
+                if (options.OpenBrowser)
+                {
+                    logger.LogInformation($"Opening browser: {url}");
+                    OpenDefaultBrowser(url, logger);
+                }
+
             }
+            catch (Exception ex)
+            {
+                var exePath = options.LocalGptExePath
+            ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LocalGPT", "winx64",
+                "LocalGPT.exe");
+
+                if (!File.Exists(exePath))
+                    throw new FileNotFoundException(
+                        $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
+
+                var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
+                var url = $"http://127.0.0.1:{port}";
+
+                logger.LogInformation($"Starting LocalGPT: {exePath}");
+                logger.LogInformation($"LocalGPT port: {port}");
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    ArgumentList = { port.ToString() },
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetDirectoryName(exePath)
+                });
+
+                Thread.Sleep(TimeSpan.FromSeconds(2));
+
+                if (options.OpenBrowser)
+                {
+                    logger.LogInformation($"Opening browser: {url}");
+                    OpenDefaultBrowser(url, logger);
+                }
+            }
+         
+
         }
         catch (Exception ex)
         {
