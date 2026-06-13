@@ -129,11 +129,20 @@ public class CompositeChatClient : IChatClient
     }
 
 
-    private ChatOptions ApplyDefaultOptions(ChatOptions? options)
+    private ChatOptions? ApplyDefaultOptions(ChatOptions? options)
     {
-        options ??= new ChatOptions();
-        options.MaxOutputTokens ??= ForcedMaxOutputTokens ?? GlobalVariableSlopCollectionToRemove.DefaultMaxOutputTokens;
-        return options;
+        try
+        {
+            options ??= new ChatOptions();
+            options.MaxOutputTokens ??= ForcedMaxOutputTokens ?? GlobalVariableSlopCollectionToRemove.DefaultMaxOutputTokens;
+            return options;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error in ApplyDefaultOptions options {options?.ToString()}");
+            return null;
+        }
+
     }
 
     private ChatClientSession? ResolveSelectedSession()

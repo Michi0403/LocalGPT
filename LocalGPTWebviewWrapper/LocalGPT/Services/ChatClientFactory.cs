@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using OpenAI;
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.ServiceModel.Channels;
 namespace LocalGPT.Services
 {
 
@@ -31,7 +32,7 @@ namespace LocalGPT.Services
                 logger.LogInformation("🔧 Building chat clients from configuration: {Json}", options.ToJsonString());
 
                 // --- Ollama (Microsoft.Extensions.AI.Ollama) ---
-                foreach (var ollama in GetConfiguredOllamaProviders(options))
+                foreach (var ollama in GetConfiguredOllamaProviders(options, logger))
                 {
                     logger.LogInformation("⚙️ Found Ollama configuration: {Json}", ollama.ToJsonString());
 
@@ -76,7 +77,7 @@ namespace LocalGPT.Services
                 }
 
                 // --- OpenAI cloud (OpenAI SDK) ---
-                if (options.OpenAICore is { ModelName.Length: > 0 } openai && HasRealApiKey(openai.ApiKey))
+                if (options.OpenAICore is { ModelName.Length: > 0 } openai && HasRealApiKey(openai.ApiKey, logger))
                 {
                     logger.LogInformation("⚙️ Found OpenAI configuration: {Json}", openai.ToJsonString());
 
@@ -155,30 +156,47 @@ namespace LocalGPT.Services
             }
         }
 
-        private static IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders(AICoreOptions options)
+        private static IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders(AICoreOptions options, ILogger<ChatClientFactory> logger)
         {
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            if (options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 } primary)
+            try
             {
-                seen.Add($"{primary.Uri.TrimEnd('/')}|{primary.ModelName}");
-                yield return primary;
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                if (options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 } primary)
+                {
+                    seen.Add($"{primary.Uri.TrimEnd('/')}|{primary.ModelName}");
+                    yield return primary;
+                }
+
+                foreach (var ollama in options.OllamaCores.Where(o => !string.IsNullOrWhiteSpace(o.Uri) && !string.IsNullOrWhiteSpace(o.ModelName)))
+                {
+                    if (seen.Add($"{ollama.Uri.TrimEnd('/')}|{ollama.ModelName}"))
+                        yield return ollama;
+                }
+            }
+          finally
+            {
+                logger.LogInformation($"Get Configured Ollama Providers finished with options {options.ToString()}");
             }
 
-            foreach (var ollama in options.OllamaCores.Where(o => !string.IsNullOrWhiteSpace(o.Uri) && !string.IsNullOrWhiteSpace(o.ModelName)))
-            {
-                if (seen.Add($"{ollama.Uri.TrimEnd('/')}|{ollama.ModelName}"))
-                    yield return ollama;
-            }
         }
 
-        private static bool HasRealApiKey(string? apiKey)
+        private static bool HasRealApiKey(string? apiKey, ILogger<ChatClientFactory> logger)
         {
-            if (string.IsNullOrWhiteSpace(apiKey))
-                return false;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(apiKey))
+                    return false;
 
-            var trimmed = apiKey.Trim();
-            return trimmed != "---" && !trimmed.Equals("local-key", StringComparison.OrdinalIgnoreCase);
+                var trimmed = apiKey.Trim();
+                return trimmed != "---" && !trimmed.Equals("local-key", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"💥 HasRealApiKey failed: {apiKey?.ToString()}");
+                return false;
+            }
+
         }
     }
 }

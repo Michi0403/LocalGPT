@@ -1,17 +1,20 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using Microsoft.Extensions.Options;
+using System.ServiceModel.Channels;
 using System.Text.Json;
+using static System.Net.WebRequestMethods;
 
 namespace LocalGPT.Services
 {
-    public class AiConnectivityProbe : IAiConnectivityProbe
+    public class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : IAiConnectivityProbe
     {
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
         {
             PropertyNameCaseInsensitive = true
         };
 
-        private static async Task<(bool ok, string msg)> GetAsync(HttpClient http, string path, CancellationToken ct)
+        private static async Task<(bool ok, string msg)> GetAsync(HttpClient http, string path, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             try
             {
@@ -21,6 +24,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, $"Error in GetAsync http {http.ToString()} path {path?.ToString()}");
                 return (false, ex.Message);
             }
         }
@@ -34,38 +38,65 @@ namespace LocalGPT.Services
             {
                 var http = new HttpClient { BaseAddress = new Uri(o.Endpoint) };
                 http.DefaultRequestHeaders.Add("api-key", o.Key);
-                return await GetAsync(http, "/", ct);
+                return await GetAsync(http, "/", ct, logger);
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, $"Error in TestAzureAsync o {o.ToString()}");
                 return (false, ex.Message);
             }
         }
 
         public async Task<(bool ok, string message)> TestOpenAIAsync(OpenAICompatOptions o, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(o.ApiKey))
-                return (false, "Missing API key.");
+            try
+            {
+                if (string.IsNullOrWhiteSpace(o.ApiKey))
+                    return (false, "Missing API key.");
 
-            var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
-            http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
-            return await GetAsync(http, "models", ct);
+                var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
+                http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
+                return await GetAsync(http, "models", ct,logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TestOpenAIAsync o {o.ToString()}");
+                return (false, ex.Message);
+            }
+
         }
 
         public async Task<(bool ok, string message)> TestOllamaAsync(OllamaCoreOptions o, CancellationToken ct)
         {
-            var http = new HttpClient { BaseAddress = new Uri(o.Uri) };
-            return await GetAsync(http, "/api/tags", ct);
+            try
+            {
+                var http = new HttpClient { BaseAddress = new Uri(o.Uri) };
+                return await GetAsync(http, "/api/tags", ct,logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TestOllamaAsync o {o.ToString()}");
+                return (false, ex.Message);
+            }
         }
 
         public async Task<(bool ok, string message)> TestLocalOpenAICompatAsync(ChatGPTLocalCoreOptions o, CancellationToken ct)
         {
-            var endpoint = NormalizeOpenAIEndpoint(o.Endpoint);
-            var http = new HttpClient { BaseAddress = new Uri(endpoint) };
-            if (!string.IsNullOrWhiteSpace(o.ApiKey))
-                http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
+            try
+            {
+                var endpoint = NormalizeOpenAIEndpoint(o.Endpoint, logger);
+                var http = new HttpClient { BaseAddress = new Uri(endpoint) };
+                if (!string.IsNullOrWhiteSpace(o.ApiKey))
+                    http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
 
-            return await GetAsync(http, "/v1/models", ct);
+                return await GetAsync(http, "/v1/models", ct,logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TestLocalOpenAICompatAsync o {o.ToString()}");
+                return (false, ex.Message);
+            }
+
         }
 
         public async Task<(bool ok, string message)> TryStartLocalAsync(ChatGPTLocalCoreOptions o, CancellationToken ct)
@@ -103,23 +134,32 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, $"Error in TryStartLocalAsync o {o.ToString()}");
                 return (false, ex.Message);
             }
         }
 
         public async Task<IReadOnlyList<LocalAiHostDiscoveryResult>> DiscoverLocalHostsAsync(CancellationToken ct)
         {
-            var probes = new[]
+            try
             {
-                ProbeOllamaAsync("http://localhost:11434", ct),
-                ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", ct),
-                ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", ct)
+                var probes = new[]
+       {
+                ProbeOllamaAsync("http://localhost:11434", ct,logger),
+                ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", ct,logger),
+                ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", ct,logger)
             };
 
-            return await Task.WhenAll(probes);
+                return await Task.WhenAll(probes);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in DiscoverLocalHostsAsync");
+                return new List<LocalAiHostDiscoveryResult>();
+            }
         }
 
-        private static async Task<LocalAiHostDiscoveryResult> ProbeOllamaAsync(string endpoint, CancellationToken ct)
+        private static async Task<LocalAiHostDiscoveryResult> ProbeOllamaAsync(string endpoint, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             var result = new LocalAiHostDiscoveryResult
             {
@@ -129,7 +169,7 @@ namespace LocalGPT.Services
 
             try
             {
-                using var http = CreateDiscoveryClient(endpoint);
+                using var http = CreateDiscoveryClient(endpoint, logger);
                 using var tagsResponse = await http.GetAsync("/api/tags", ct);
                 var tagsBody = await tagsResponse.Content.ReadAsStringAsync(ct);
                 if (!tagsResponse.IsSuccessStatusCode)
@@ -142,14 +182,14 @@ namespace LocalGPT.Services
                 var installed = JsonSerializer.Deserialize<OllamaTagsResponse>(tagsBody, JsonOptions)?.Models ?? new();
                 foreach (var model in installed)
                 {
-                    var name = FirstText(model.Model, model.Name);
+                    var name = FirstText(logger,model.Model, model.Name);
                     if (string.IsNullOrWhiteSpace(name))
                         continue;
 
                     result.Models.Add(new LocalAiModelInfo
                     {
                         Name = name,
-                        Details = BuildOllamaDetails(model.Details)
+                        Details = BuildOllamaDetails(model.Details, logger)
                     });
                 }
 
@@ -159,7 +199,7 @@ namespace LocalGPT.Services
                     var psBody = await psResponse.Content.ReadAsStringAsync(ct);
                     var loaded = JsonSerializer.Deserialize<OllamaTagsResponse>(psBody, JsonOptions)?.Models ?? new();
                     var loadedNames = loaded
-                        .Select(m => FirstText(m.Model, m.Name))
+                        .Select(m => FirstText(logger,m.Model, m.Name))
                         .Where(n => !string.IsNullOrWhiteSpace(n))
                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -168,7 +208,7 @@ namespace LocalGPT.Services
 
                     foreach (var loadedModel in loaded)
                     {
-                        var name = FirstText(loadedModel.Model, loadedModel.Name);
+                        var name = FirstText( logger,loadedModel.Model, loadedModel.Name);
                         if (!string.IsNullOrWhiteSpace(name) &&
                             result.Models.All(m => !string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase)))
                         {
@@ -176,7 +216,7 @@ namespace LocalGPT.Services
                             {
                                 Name = name,
                                 IsLoaded = true,
-                                Details = BuildOllamaDetails(loadedModel.Details)
+                                Details = BuildOllamaDetails(loadedModel.Details, logger)
                             });
                         }
                     }
@@ -188,13 +228,14 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, $"Error in ProbeOllamaAsync endpoint {endpoint?.ToString()}");
                 result.Status = ex.Message;
             }
 
             return result;
         }
 
-        private static async Task<LocalAiHostDiscoveryResult> ProbeOpenAICompatibleAsync(string provider, string endpoint, CancellationToken ct)
+        private static async Task<LocalAiHostDiscoveryResult> ProbeOpenAICompatibleAsync(string provider, string endpoint, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             var result = new LocalAiHostDiscoveryResult
             {
@@ -204,7 +245,7 @@ namespace LocalGPT.Services
 
             try
             {
-                using var http = CreateDiscoveryClient(endpoint);
+                using var http = CreateDiscoveryClient(endpoint, logger);
                 using var response = await http.GetAsync("/v1/models", ct);
                 var body = await response.Content.ReadAsStringAsync(ct);
                 if (!response.IsSuccessStatusCode)
@@ -230,44 +271,81 @@ namespace LocalGPT.Services
                     : $"Found {result.Models.Count} {provider} model(s).";
             }
             catch (Exception ex)
-            {
+            { 
+                logger.LogError(ex, $"Error in ProbeOpenAICompatibleAsync provider {provider.ToString()} endpoint {endpoint?.ToString()}");
                 result.Status = ex.Message;
             }
 
             return result;
+           
         }
 
-        private static HttpClient CreateDiscoveryClient(string endpoint)
+        private static HttpClient? CreateDiscoveryClient(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
-            return new HttpClient
+            try
             {
-                BaseAddress = new Uri(endpoint.TrimEnd('/')),
-                Timeout = TimeSpan.FromSeconds(3)
-            };
-        }
-
-        private static string NormalizeOpenAIEndpoint(string endpoint)
-        {
-            var normalized = endpoint.Trim().TrimEnd('/');
-            return normalized.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
-                ? normalized[..^3]
-                : normalized;
-        }
-
-        private static string FirstText(params string?[] values)
-        {
-            return values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? string.Empty;
-        }
-
-        private static string? BuildOllamaDetails(OllamaModelDetails? details)
-        {
-            if (details is null)
+                return new HttpClient
+                {
+                    BaseAddress = new Uri(endpoint.TrimEnd('/')),
+                    Timeout = TimeSpan.FromSeconds(3)
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateDiscoveryClient endpoint {endpoint.ToString()}");
                 return null;
+            }
+        }
 
-            var parts = new[] { details.Family, details.ParameterSize, details.QuantizationLevel }
-                .Where(p => !string.IsNullOrWhiteSpace(p));
-            var text = string.Join(", ", parts);
-            return string.IsNullOrWhiteSpace(text) ? null : text;
+        private static string NormalizeOpenAIEndpoint(string endpoint, ILogger<AiConnectivityProbe> logger)
+        {
+            try
+            {
+                var normalized = endpoint.Trim().TrimEnd('/');
+                return normalized.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
+                    ? normalized[..^3]
+                    : normalized;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeOpenAIEndpoint endpoint {endpoint.ToString()}");
+                return string.Empty;
+            }
+          
+        }
+
+        private static string FirstText(ILogger<AiConnectivityProbe> logger, params string?[] values)
+        {
+            try
+            {
+
+                return values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FirstText values {values.ToString()}");
+                return string.Empty;
+            }
+        }
+
+        private static string? BuildOllamaDetails(OllamaModelDetails? details, ILogger<AiConnectivityProbe> logger)
+        {
+            try
+            {
+                if (details is null)
+                    return null;
+
+                var parts = new[] { details.Family, details.ParameterSize, details.QuantizationLevel }
+                    .Where(p => !string.IsNullOrWhiteSpace(p));
+                var text = string.Join(", ", parts);
+                return string.IsNullOrWhiteSpace(text) ? null : text;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildOllamaDetails details {details?.ToString()}");
+                return null;
+            }
+       
         }
 
         public sealed class OllamaTagsResponse
