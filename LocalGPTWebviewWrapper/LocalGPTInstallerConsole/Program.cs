@@ -112,7 +112,7 @@ internal static class Program
         var options = CliOptions.Parse(args);
         if(args.Length<=0)
         {
-
+            Console.WriteLine($"args were initially empty !");
         }
         Console.WriteLine($"Parsed options:{Environment.NewLine}{options}");
         try
@@ -325,54 +325,71 @@ internal static class Program
 
     private static string? FindOllamaExecutable(CliOptions options, ILogger logger)
     {
-        var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ollama.exe" : "ollama";
-
-        if (!string.IsNullOrWhiteSpace(options.OllamaExePath))
+        try
         {
-            var explicitPath = Environment.ExpandEnvironmentVariables(options.OllamaExePath);
-            if (File.Exists(explicitPath))
-                return Path.GetFullPath(explicitPath);
-            logger.LogWarning($"--ollama-exe was provided but does not exist: {explicitPath}");
+            var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ollama.exe" : "ollama";
+
+            if (!string.IsNullOrWhiteSpace(options.OllamaExePath))
+            {
+                var explicitPath = Environment.ExpandEnvironmentVariables(options.OllamaExePath);
+                if (File.Exists(explicitPath))
+                    return Path.GetFullPath(explicitPath);
+                logger.LogWarning($"--ollama-exe was provided but does not exist: {explicitPath}");
+            }
+
+            var fromPath = FindCommandOnPath("ollama", logger);
+            if (!string.IsNullOrWhiteSpace(fromPath))
+                return fromPath;
+
+            var candidates = new List<string>();
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (!string.IsNullOrWhiteSpace(localAppData))
+                candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", exeName));
+
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            if (!string.IsNullOrWhiteSpace(programFiles))
+                candidates.Add(Path.Combine(programFiles, "Ollama", exeName));
+
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            if (!string.IsNullOrWhiteSpace(programFilesX86))
+                candidates.Add(Path.Combine(programFilesX86, "Ollama", exeName));
+
+            return candidates.FirstOrDefault(File.Exists);
         }
-
-        var fromPath = FindCommandOnPath("ollama", logger);
-        if (!string.IsNullOrWhiteSpace(fromPath))
-            return fromPath;
-
-        var candidates = new List<string>();
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrWhiteSpace(localAppData))
-            candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", exeName));
-
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        if (!string.IsNullOrWhiteSpace(programFiles))
-            candidates.Add(Path.Combine(programFiles, "Ollama", exeName));
-
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        if (!string.IsNullOrWhiteSpace(programFilesX86))
-            candidates.Add(Path.Combine(programFilesX86, "Ollama", exeName));
-
-        return candidates.FirstOrDefault(File.Exists);
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in FindOllamaExecutable. options {options.ToString()}");
+            return null;
+        }
     }
 
     private static void AddDirectoryToUserPathIfMissing(string directory, ILogger logger)
     {
-        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
-            return;
-
-        var userPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? string.Empty;
-        var parts = userPath.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
-
-        if (!parts.Any(p => string.Equals(p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)))
+        try
         {
-            var newUserPath = string.IsNullOrWhiteSpace(userPath) ? directory : userPath + Path.PathSeparator + directory;
-            Environment.SetEnvironmentVariable("PATH", newUserPath, EnvironmentVariableTarget.User);
-            logger.LogInformation($"Added Ollama directory to user PATH: {directory}");
+            if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+                return;
+
+            var userPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? string.Empty;
+            var parts = userPath.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+
+            if (!parts.Any(p => string.Equals(p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)))
+            {
+                var newUserPath = string.IsNullOrWhiteSpace(userPath) ? directory : userPath + Path.PathSeparator + directory;
+                Environment.SetEnvironmentVariable("PATH", newUserPath, EnvironmentVariableTarget.User);
+                logger.LogInformation($"Added Ollama directory to user PATH: {directory}");
+            }
+
+            var processPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            if (!processPath.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries).Any(p => string.Equals(p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)))
+                Environment.SetEnvironmentVariable("PATH", processPath + Path.PathSeparator + directory);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in AddDirectoryToUserPathIfMissing. directory {directory.ToString()}");
+            throw;
         }
 
-        var processPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        if (!processPath.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries).Any(p => string.Equals(p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)))
-            Environment.SetEnvironmentVariable("PATH", processPath + Path.PathSeparator + directory);
     }
 
     private static void StartOllamaServer(string ollamaExe, ILogger logger)
@@ -398,7 +415,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in StartOllamaServer.");
+            logger.LogError(ex, $"Error in StartOllamaServer. ollamaExe {ollamaExe.ToString()}");
             throw;
         }
     }
@@ -415,7 +432,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in PullModelsAsync. models {string.Join(", ", models)}");
+            logger.LogError(ex, $"Error in PullModelsAsync. ollamaExe {ollamaExe.ToString()} models {string.Join(", ", models)}");
             throw;
         }
 
@@ -449,7 +466,10 @@ internal static class Program
 
     }
 
-    private static async Task ImportGitHubSourceToLearningBaseAsync(string repo, CliOptions options, ILogger logger)
+    private static async Task ImportGitHubSourceToLearningBaseAsync(
+        string repo,
+        CliOptions options,
+        ILogger logger)
     {
         try
         {
@@ -458,13 +478,45 @@ internal static class Program
             var cleanName = SanitizeFileName(repo, logger);
             var targetPath = Path.Combine(options.LearningBasePath, cleanName);
             var zipPath = targetPath + ".zip";
+            var manifestPath = targetPath + ".manifest.json";
 
-            logger.LogInformation($"Downloading GitHub source: {repo}");
-            await DownloadGitHubSourceZipAsync(repo, zipPath, logger, options)
+            var remoteSha = await GetGitHubDefaultBranchCommitShaAsync(repo, logger)
                 .ConfigureAwait(false);
 
+            var manifest = ReadGitHubSourceCacheManifest(manifestPath, logger);
+
+            var sameVersionAlreadyExtracted =
+                manifest is not null
+                && string.Equals(manifest.Repo, repo, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(manifest.CommitSha, remoteSha, StringComparison.OrdinalIgnoreCase)
+                && DirectoryHasFiles(targetPath,logger);
+
+            if (sameVersionAlreadyExtracted && !options.ForceDelete)
+            {
+                logger.LogInformation($"Skipping {repo}. Same commit already extracted: {remoteSha}");
+                return;
+            }
+
+            var sameVersionZipAlreadyExists =
+                manifest is not null
+                && string.Equals(manifest.Repo, repo, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(manifest.CommitSha, remoteSha, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(zipPath)
+                && new FileInfo(zipPath).Length > 0;
+
+            if (!sameVersionZipAlreadyExists || options.ForceDelete)
+            {
+                logger.LogInformation($"Downloading GitHub source: {repo}");
+                await DownloadGitHubSourceZipAsync(repo, zipPath, logger, options)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                logger.LogInformation($"Reusing cached ZIP for {repo}: {zipPath}");
+            }
+
             if (!File.Exists(zipPath))
-                throw new FileNotFoundException($"ZIP was not downloaded, cannot extract: {zipPath}");
+                throw new FileNotFoundException($"ZIP is missing, cannot extract: {zipPath}");
 
             if (new FileInfo(zipPath).Length == 0)
                 throw new IOException($"ZIP is empty, cannot extract: {zipPath}");
@@ -472,16 +524,33 @@ internal static class Program
             if (options.ForceDelete)
                 DeleteIfExists(targetPath, logger);
 
-            Directory.CreateDirectory(targetPath);
+            if (!DirectoryHasFiles(targetPath,logger))
+            {
+                Directory.CreateDirectory(targetPath);
 
-            logger.LogInformation($"Extracting '{zipPath}' to '{targetPath}'");
-            ExtractZipWithFallback(zipPath, targetPath, logger);
+                logger.LogInformation($"Extracting '{zipPath}' to '{targetPath}'");
+                ExtractZipWithFallback(zipPath, targetPath, logger);
+            }
+            else
+            {
+                logger.LogInformation($"Target already contains files, not extracting again: {targetPath}");
+            }
 
-            logger.LogInformation($"Imported {repo}");
+            WriteGitHubSourceCacheManifest(
+                manifestPath,
+                new GitHubSourceCacheManifest(
+                    Repo: repo,
+                    CommitSha: remoteSha,
+                    ZipPath: zipPath,
+                    TargetPath: targetPath,
+                    CachedAtUtc: DateTimeOffset.UtcNow),
+                logger);
+
+            logger.LogInformation($"Imported {repo} at commit {remoteSha}");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error importing repo {repo} {ex.ToString()}");
+            logger.LogError(ex, $"Error importing repo {repo} {ex}");
             throw;
         }
     }
@@ -493,10 +562,11 @@ internal static class Program
             try
             {
                 var exePath = options.LocalGptExePath
-             ?? Path.Combine(
-                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                 "LocalGPT",
-                 "LocalGPT.exe");
+         ?? Path.Combine(
+             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+             "LocalGPT", "winx64",
+             "LocalGPT.exe");
+                
 
                 if (!File.Exists(exePath))
                     throw new FileNotFoundException(
@@ -528,10 +598,10 @@ internal static class Program
             catch (Exception ex)
             {
                 var exePath = options.LocalGptExePath
-            ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "LocalGPT", "winx64",
-                "LocalGPT.exe");
+             ?? Path.Combine(
+                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                 "LocalGPT",
+                 "LocalGPT.exe");
 
                 if (!File.Exists(exePath))
                     throw new FileNotFoundException(
@@ -644,6 +714,109 @@ internal static class Program
         {
             logger.LogError(ex, $"Error in DownloadGitHubSourceZipAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
         }
+    }
+    private static async Task<string?> GetGitHubDefaultBranchCommitShaAsync(
+    string repo,
+    ILogger logger)
+    {
+        try
+        {
+            ValidateRepo(repo, logger);
+
+            var repoUrl = $"https://api.github.com/repos/{repo}";
+
+            using var repoResponse = await Http.GetAsync(repoUrl).ConfigureAwait(false);
+            repoResponse.EnsureSuccessStatusCode();
+
+            using var repoStream = await repoResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var repoJson = await JsonDocument.ParseAsync(repoStream).ConfigureAwait(false);
+
+            var defaultBranch = repoJson.RootElement.GetProperty("default_branch").GetString();
+
+            if (string.IsNullOrWhiteSpace(defaultBranch))
+                throw new InvalidOperationException($"Could not resolve default branch for {repo}.");
+
+            var branchUrl = $"https://api.github.com/repos/{repo}/branches/{defaultBranch}";
+
+            using var branchResponse = await Http.GetAsync(branchUrl).ConfigureAwait(false);
+            branchResponse.EnsureSuccessStatusCode();
+
+            using var branchStream = await branchResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var branchJson = await JsonDocument.ParseAsync(branchStream).ConfigureAwait(false);
+
+            var sha = branchJson.RootElement
+                .GetProperty("commit")
+                .GetProperty("sha")
+                .GetString();
+
+            if (string.IsNullOrWhiteSpace(sha))
+                throw new InvalidOperationException($"Could not resolve commit SHA for {repo} branch {defaultBranch}.");
+
+            logger.LogInformation($"Resolved {repo}@{defaultBranch}: {sha}");
+            return sha;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError($"Error in GetGitHubDefaultBranchCommitShaAsync repo {repo.ToString()}");
+            return null;
+        }
+       
+    }
+    private static GitHubSourceCacheManifest? ReadGitHubSourceCacheManifest(
+    string manifestPath,
+    ILogger logger)
+    {
+        try
+        {
+            if (!File.Exists(manifestPath))
+                return null;
+
+            var json = File.ReadAllText(manifestPath);
+            return JsonSerializer.Deserialize<GitHubSourceCacheManifest>(json);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, $"Could not read cache manifest: {manifestPath}");
+            return null;
+        }
+    }
+
+    private static void WriteGitHubSourceCacheManifest(
+        string manifestPath,
+        GitHubSourceCacheManifest manifest,
+        ILogger logger)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(Path.GetFullPath(manifestPath));
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var json = JsonSerializer.Serialize(
+                manifest,
+                new JsonSerializerOptions { WriteIndented = true });
+
+            File.WriteAllText(manifestPath, json);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, $"Could not write cache manifest: {manifestPath}");
+        }
+    }
+
+    private static bool DirectoryHasFiles(string path, ILogger logger)
+    {
+        try
+        {
+            return Directory.Exists(path)
+           && Directory.EnumerateFileSystemEntries(path).Any();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, $"Error in DirectoryHasFiles path: {path}");
+            return false;
+        }
+       
     }
     private static async Task DownloadFileAsync(string url, string outFile, ILogger logger, CliOptions options)
     {
@@ -1055,7 +1228,14 @@ internal enum ModelRange
     RTX3060,
     Full
 }
-
+//To not download already downloaded again and again and again and again and get banned by githubs rate limit
+internal sealed record GitHubSourceCacheManifest(
+    string Repo,
+    string CommitSha,
+    string ZipPath,
+    string TargetPath,
+    DateTimeOffset CachedAtUtc
+);
 internal sealed class CliOptions
 {
     public bool ShowHelp { get; private set; }
@@ -1083,9 +1263,9 @@ internal sealed class CliOptions
         var options = new CliOptions();
         if (argsList.Count == 0)
         {
-            argsList.Add("--all");
-            argsList.Add("--range");
-            argsList.Add("Slim");
+            argsList.Add("--install-ollama");
+            argsList.Add("--install-localgpt");
+            argsList.Add("--start-localgpt");
         }
         for (var i = 0; i < argsList.Count; i++)
         {
