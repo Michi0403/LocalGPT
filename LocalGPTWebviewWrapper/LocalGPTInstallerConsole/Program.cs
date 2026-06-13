@@ -714,6 +714,9 @@ internal static class Program
 
             Directory.CreateDirectory(targetDirectory);
 
+            var localGptRoot = GetLocalGptInstallRoot(logger);
+            var iconPath = Path.Combine(localGptRoot, "favicon.ico");
+
             foreach (var shortcut in shortcuts)
             {
                 var shortcutPath = Path.Combine(
@@ -723,7 +726,7 @@ internal static class Program
                 CreateWindowsUrlShortcut(
                     shortcutPath,
                     shortcut.TargetPath,
-                    logger);
+                     "favicon.ico", logger);
             }
         }
         catch (Exception ex)
@@ -735,6 +738,7 @@ internal static class Program
     private static void CreateWindowsUrlShortcut(
     string shortcutPath,
     string targetPath,
+      string iconPath,
     ILogger logger)
     {
         try
@@ -753,17 +757,27 @@ internal static class Program
             logger.LogInformation($"Creating URL shortcut: {shortcutPath}");
             logger.LogInformation($"URL shortcut target path: {fullTargetPath}");
             logger.LogInformation($"URL shortcut target uri: {targetUri}");
-
+            logger.LogInformation($"adding shortcut to iconPath uri: {iconPath} if empty then not");
             var directory = Path.GetDirectoryName(Path.GetFullPath(shortcutPath));
             if (!string.IsNullOrWhiteSpace(directory))
                 Directory.CreateDirectory(directory);
+            var builder = new StringBuilder();
+            builder.AppendLine("[InternetShortcut]");
+            builder.AppendLine($"URL={targetUri}");
+            if (!string.IsNullOrWhiteSpace(iconPath) && File.Exists(iconPath))
+            {
+                var fullIconPath = Path.GetFullPath(iconPath);
 
-            var content = $"""
-[InternetShortcut]
-URL={targetUri}
-""";
+                logger.LogInformation($"URL shortcut icon: {fullIconPath}");
 
-            File.WriteAllText(shortcutPath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                builder.AppendLine($"IconFile={fullIconPath}");
+                builder.AppendLine("IconIndex=0");
+            }
+            else
+            {
+                logger.LogWarning($"Shortcut icon not found, creating shortcut without custom icon: {iconPath}");
+            }
+            File.WriteAllText(shortcutPath, builder.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
             logger.LogInformation($"URL shortcut created: {shortcutPath}");
         }
