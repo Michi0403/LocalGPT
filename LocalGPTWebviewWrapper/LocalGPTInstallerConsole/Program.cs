@@ -207,15 +207,7 @@ internal static class Program
                 {
                     logger.LogError(ex, "Error in InstallOllama.");
                 }
-                try
-                {
-                    if (options.DesktopShortcuts || options.StartMenuShortcuts)
-                        ProvisionWindowsShortcuts(options, logger);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error in ProvisionWindowsShortcuts.");
-                }
+               
                 try
                 {
                     if (options.PullOllamaModels)
@@ -239,7 +231,15 @@ internal static class Program
                 {
                     logger.LogError(ex, "Error in InstallLocalGptWin.");
                 }
-
+                try
+                {
+                    if (options.DesktopShortcuts || options.StartMenuShortcuts)
+                        ProvisionWindowsShortcuts(options, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in ProvisionWindowsShortcuts.");
+                }
                 try
                 {
                     if (options.SetupLearningBase)
@@ -606,6 +606,7 @@ internal static class Program
             {
                 var desktop = GetDesktopFolder(logger);
                 logger.LogInformation($"Creating Desktop shortcuts in: {desktop}");
+             
                 CreateShortcutSet(shortcuts, desktop, logger);
             }
 
@@ -715,7 +716,7 @@ internal static class Program
             Directory.CreateDirectory(targetDirectory);
 
             var localGptRoot = GetLocalGptInstallRoot(logger);
-            var iconPath = Path.Combine(localGptRoot, "favicon.ico");
+            var iconPath = FindLocalGptIcon(logger);
 
             foreach (var shortcut in shortcuts)
             {
@@ -726,7 +727,7 @@ internal static class Program
                 CreateWindowsUrlShortcut(
                     shortcutPath,
                     shortcut.TargetPath,
-                     "favicon.ico", logger);
+                    iconPath, logger);
             }
         }
         catch (Exception ex)
@@ -785,6 +786,171 @@ internal static class Program
         {
             logger.LogError(ex, $"Error in CreateWindowsUrlShortcut. shortcutPath {shortcutPath} targetPath {targetPath}");
             throw;
+        }
+    }
+    private static IEnumerable<string> EnumerateFilesSafe(
+    string root,
+    string searchPattern,
+    ILogger logger)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+                return Enumerable.Empty<string>();
+
+            return Directory.EnumerateFiles(
+                root,
+                searchPattern,
+                new EnumerationOptions
+                {
+                    RecurseSubdirectories = true,
+                    IgnoreInaccessible = true,
+                    MatchCasing = MatchCasing.CaseInsensitive
+                });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in EnumerateFilesSafe. root {root} searchPattern {searchPattern}");
+            return Enumerable.Empty<string>();
+        }
+    }
+    private static string? FindLocalGptIcon(ILogger logger)
+    {
+        try
+        {
+            var localGptRoot = GetLocalGptInstallRoot(logger);
+
+            if (string.IsNullOrWhiteSpace(localGptRoot) || !Directory.Exists(localGptRoot))
+            {
+                logger.LogWarning($"LocalGPT root does not exist while resolving icon: {localGptRoot}");
+                return null;
+            }
+
+            var knownCandidates = new[]
+            {
+            Path.Combine(localGptRoot, "favicon.ico"),
+            Path.Combine(localGptRoot, "winx64", "favicon.ico")
+        };
+
+            foreach (var candidate in knownCandidates)
+            {
+                logger.LogInformation($"Checking LocalGPT icon candidate: {candidate}");
+
+                if (File.Exists(candidate))
+                {
+                    logger.LogInformation($"Resolved LocalGPT icon from known path: {candidate}");
+                    return candidate;
+                }
+            }
+
+            logger.LogWarning($"Known favicon.ico paths failed. Searching recursively under: {localGptRoot}");
+
+            var favicon = EnumerateFilesSafe(localGptRoot, "favicon.ico", logger)
+                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
+                .ThenBy(path => path.Length)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(favicon) && File.Exists(favicon))
+            {
+                logger.LogInformation($"Resolved LocalGPT favicon recursively: {favicon}");
+                return favicon;
+            }
+
+            logger.LogWarning($"favicon.ico not found. Falling back to any .ico under: {localGptRoot}");
+
+            var anyIcon = EnumerateFilesSafe(localGptRoot, "*.ico", logger)
+                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
+                .ThenBy(path => path.Length)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(anyIcon) && File.Exists(anyIcon))
+            {
+                logger.LogInformation($"Resolved LocalGPT icon recursively: {anyIcon}");
+                return anyIcon;
+            }
+
+            logger.LogWarning($"No .ico file found under: {localGptRoot}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in FindLocalGptIcon.");
+            return null;
+        }
+    }
+    private static string? FindLocalGptExecutable(CliOptions options, ILogger logger)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(options.LocalGptExePath))
+            {
+                var explicitPath = Environment.ExpandEnvironmentVariables(options.LocalGptExePath);
+
+                logger.LogInformation($"Checking explicit LocalGPT executable path: {explicitPath}");
+
+                if (File.Exists(explicitPath))
+                    return Path.GetFullPath(explicitPath);
+
+                logger.LogWarning($"--localgpt-exe was provided but does not exist: {explicitPath}");
+            }
+
+            var localGptRoot = GetLocalGptInstallRoot(logger);
+
+            if (string.IsNullOrWhiteSpace(localGptRoot) || !Directory.Exists(localGptRoot))
+            {
+                logger.LogWarning($"LocalGPT root does not exist: {localGptRoot}");
+                return null;
+            }
+
+            var knownCandidates = new[]
+            {
+            Path.Combine(localGptRoot, "winx64", "LocalGPT.exe"),
+            Path.Combine(localGptRoot, "LocalGPT.exe")
+        };
+
+            foreach (var candidate in knownCandidates)
+            {
+                logger.LogInformation($"Checking LocalGPT executable candidate: {candidate}");
+
+                if (File.Exists(candidate))
+                {
+                    logger.LogInformation($"Resolved LocalGPT executable from known path: {candidate}");
+                    return candidate;
+                }
+            }
+
+            logger.LogWarning($"Known LocalGPT executable paths failed. Searching recursively under: {localGptRoot}");
+
+            var recursiveCandidate = EnumerateFilesSafe(localGptRoot, "LocalGPT.exe", logger)
+                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
+                .ThenBy(path => path.Length)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(recursiveCandidate) && File.Exists(recursiveCandidate))
+            {
+                logger.LogInformation($"Resolved LocalGPT executable recursively: {recursiveCandidate}");
+                return recursiveCandidate;
+            }
+
+            logger.LogWarning($"Could not find LocalGPT.exe under: {localGptRoot}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in FindLocalGptExecutable. options {options}");
+            return null;
+        }
+    }
+    private static int GetRelativePathDepth(string root, string path)
+    {
+        try
+        {
+            var relative = Path.GetRelativePath(root, path);
+            return relative.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar);
+        }
+        catch
+        {
+            return int.MaxValue;
         }
     }
     private static void AddCmdShortcutIfExists(
@@ -977,78 +1143,34 @@ internal static class Program
     {
         try
         {
-            try
+            var exePath = FindLocalGptExecutable(options, logger);
+
+
+            if (!File.Exists(exePath))
+                throw new FileNotFoundException(
+                    $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
+
+            var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
+            var url = $"http://127.0.0.1:{port}";
+
+            logger.LogInformation($"Starting LocalGPT: {exePath}");
+            logger.LogInformation($"LocalGPT port: {port}");
+
+            Process.Start(new ProcessStartInfo
             {
-                var exePath = options.LocalGptExePath
-         ?? Path.Combine(
-             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-             "LocalGPT", "winx64",
-             "LocalGPT.exe");
-                
+                FileName = exePath,
+                ArgumentList = { port.ToString() },
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(exePath)
+            });
 
-                if (!File.Exists(exePath))
-                    throw new FileNotFoundException(
-                        $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
+            Thread.Sleep(TimeSpan.FromSeconds(2));
 
-                var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
-                var url = $"http://127.0.0.1:{port}";
-
-                logger.LogInformation($"Starting LocalGPT: {exePath}");
-                logger.LogInformation($"LocalGPT port: {port}");
-
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = exePath,
-                    ArgumentList = { port.ToString() },
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(exePath)
-                });
-
-                Thread.Sleep(TimeSpan.FromSeconds(2));
-
-                if (options.OpenBrowser)
-                {
-                    logger.LogInformation($"Opening browser: {url}");
-                    OpenDefaultBrowser(url, logger);
-                }
-
-            }
-            catch (Exception ex)
+            if (options.OpenBrowser)
             {
-                var exePath = options.LocalGptExePath
-             ?? Path.Combine(
-                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                 "LocalGPT",
-                 "LocalGPT.exe");
-
-                if (!File.Exists(exePath))
-                    throw new FileNotFoundException(
-                        $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
-
-                var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
-                var url = $"http://127.0.0.1:{port}";
-
-                logger.LogInformation($"Starting LocalGPT: {exePath}");
-                logger.LogInformation($"LocalGPT port: {port}");
-
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = exePath,
-                    ArgumentList = { port.ToString() },
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(exePath)
-                });
-
-                Thread.Sleep(TimeSpan.FromSeconds(2));
-
-                if (options.OpenBrowser)
-                {
-                    logger.LogInformation($"Opening browser: {url}");
-                    OpenDefaultBrowser(url, logger);
-                }
+                logger.LogInformation($"Opening browser: {url}");
+                OpenDefaultBrowser(url, logger);
             }
-         
-
         }
         catch (Exception ex)
         {
