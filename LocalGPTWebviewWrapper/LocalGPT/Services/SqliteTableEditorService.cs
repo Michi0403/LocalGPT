@@ -249,6 +249,8 @@ namespace LocalGPT.Services
                 command.Parameters.AddWithValue("$rowid", rowId);
                 try
                 {
+
+                    Console.WriteLine($"Dangerous delete can cause inconsistence in {tableName} rowId {rowId.ToString()}");
                     await command.ExecuteNonQueryAsync(cancellationToken);
                 }
                 catch (SqliteException ex)

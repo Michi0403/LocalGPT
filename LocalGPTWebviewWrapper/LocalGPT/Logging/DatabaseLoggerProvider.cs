@@ -124,20 +124,20 @@ namespace LocalGPT.Logging
             await SQLLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db,  cancellationToken:cancellationToken);
             db.ApplicationLogs.AddRange(batch);
             await db.SaveChangesAsync(cancellationToken);
-            await PruneOldLogsAsync(db, cancellationToken);
+            //await PruneOldLogsAsync(db, cancellationToken);
         }
 
-        private async Task PruneOldLogsAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
-        {
-            var retentionDays = options.CurrentValue.RetentionDays;
-            if (retentionDays <= 0)
-                return;
+        //private async Task PruneOldLogsAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
+        //{
+        //    var retentionDays = options.CurrentValue.RetentionDays;
+        //    if (retentionDays <= 0)
+        //        return;
 
-            var cutoff = DateTime.UtcNow.AddDays(-Math.Clamp(retentionDays, 1, 3660));
-            await db.ApplicationLogs
-                .Where(log => log.TimestampUtc < cutoff)
-                .ExecuteDeleteAsync(cancellationToken);
-        }
+        //    var cutoff = DateTime.UtcNow.AddDays(-Math.Clamp(retentionDays, 1, 3660));
+        //    await db.ApplicationLogs
+        //        .Where(log => log.TimestampUtc < cutoff)
+        //        .ExecuteDeleteAsync(cancellationToken);
+        //}
 
         public void Dispose()
         {
