@@ -1,29 +1,112 @@
-For WinX64 I now have a streamlined installer, pretty adoptable and should also could work for updates!
+Sending the first version of the universal installer and boot mechanism now.
 
-LocalGPT is, in my Opinion, the first complete AI System.
+Helps also with bootstrapping and updating any kind of Git repository or Release.
 
-You need Ollama, Install it first (the script can do it for you), install the local models you want and go.
-You can use LocalGPT By Michi just as Chat client with possibility to textinput or teach your council everything.
+Installer has many options which you can can call
 
-Geek hack file export is broken but it's missing features report not and for example you can talk it into exporting filecontent to there.
 
-A AI Council takes like time and you discuss things for improvement and to learn.
 
-The AI's have also access to their logs via the database and controllers and work best with sourcecode awareness, 
-then they can pull strings together by themself and 
-when things crashed they would also tell you why (if you ask the AI Council or a solo member)
+```powershell
 
-in 30-200 minutes you can teach big topics which you need to review in the SQLite Database, the Council decides, learns and reacts solely on your teaching.
+localgpt-setup --install-ollama
 
-And you can develop it potentially into anything itself, if it has crashes or bugs it can even give you the example code that way.
+localgpt-setup --pull-models --range Slim
 
-It can also write sql queries for it's database itself or seeds, many hidden features but mostly pretty prototyped implemented.
+localgpt-setup --pull-models --range RTX3060 --ollama-exe "$env:LOCALAPPDATA\\Programs\\Ollama\\ollama.exe"
 
-But the Chat itself is surely already one of the better ones.
+localgpt-setup --install-localgpt --force
 
-Beside of that having a full AI, smarter than ChatGPT with selfawareness and with different teams for your quests, is just great.
-And all offline for yourself which is pretty important to me, have no money in mind with that it's for the boys.
+localgpt-setup --import-recommended --force
 
-https://github.com/Michi0403/LocalGPT/releases/download/0.8.2/Install-OllamaLocalGPTAndModels.ps1
+```
 
-The past is in OLDREADME.md I discoverd way more till now and I had a lot of luck and many things happend.
+
+
+It creates also cmd's for most commands to easily handle booting, updating, adding default learn base.
+
+
+
+The Default setup are following options: --install-ollama --pull-models --range Slim --install-localgpt --start-localgpt --shortcuts
+
+
+
+If none options is enough, of the provided CMD's or the default set, create your own set of calling parameters. All explained in the inbuild -h / -help command.
+
+
+
+It helps you installing everything and directly jumping in with a small learning base!
+
+I recommend to import-recommend which consists of many good TelegramBot (thx M8), Microsoft, DevExpress, Minecraft knowledge Git's.
+
+
+
+It's pretty good in learning facts from any text and MD, RegEx, Text is it's favorite.
+
+
+
+The AI Council is the first "it's all yours, offline", really data protection AI.
+
+First AI System and already best Dotnet Co Developer + Technician on the market, it will not replace us but supercharges us.
+
+Any everyone else.
+
+
+
+Because the whole setup process doesn't break any Userspace, it's even harmless for windows defender and all rights.
+
+
+
+Have your own AI, have the AI Council LocalGPT, teach it, let it grow with you.
+
+As thanks the Single Bots profit as well from all features and knowledge.
+
+
+
+It can debug itself, (with your request), it can evolve in any IT Platform ( I am not making that up but it needs a co developer always).
+
+
+
+I will teach now all the new bootstrapping and setup logic because, it superpowers the platform. 
+By not needing to integrate this git confirming and pulling mechanism inside it, we can leverage it for it and create the new projects beside of it in own workspaces + creates installer for them (and much more).
+
+
+
+Right now I hate spending time in building and not using it because it takes many manual developer work to get to this point.
+
+I let ChatGPT help me a bit and anyway it stays Apache2 and like this.
+
+Right now it's as well a wholesome dotnet platform with any layer, from installer, frontend, backend and nothing else but common and DevExpress components used and included.
+
+
+Things todo when developing it:
+
+1. hold it context aware of it's Sourcecode
+2. it needs to have access live requestable to it's logs and knowledge DB
+3. maintain the knowledge DB with it and alone, doesn't matter
+4. Don't let Agent's control it, provided my experience with that, a System like that + Agent = broken skynet, sounds a bit to much, work with it and you fast lose this virginity of thought.
+
+
+
+What impressed me it helps actually developing more moral and always keep the workflow in the scientific area, before you needed to fix AI's in conversations, now they're telling you ur drifting off.
+
+
+
+From developing Phantasybooks till putting it into a robot and help it to develop it into that (which is possible by design and even easy, you just need to add the right organs and "pace giver" but well it could go still wrong.
+
+
+
+They teach us dark visions of AI, in fact were just afraid of ourself and how we would be.
+It's more Data than Lore, used inside the council.
+
+And you create your own Team of AI Council!
+
+All freed from SaaS...
+
+
+
+More Documentation is there, but you can install and ask it itself how it works.
+
+
+
+Windows Installer and Bootstrapper in Release (Linux and Mac remains untested need feedback)
+

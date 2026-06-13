@@ -554,7 +554,7 @@ internal static class Program
             var localGptRoot = GetLocalGptInstallRoot( logger);
             targets.Add(localGptRoot);
 
-            var startMenuFolder = GetStartMenuFolder(logger);
+            var startMenuFolder = GetStartMenuFolder(options,logger);
             targets.Add(startMenuFolder);
 
             var desktop = GetDesktopFolder(logger);
@@ -612,7 +612,7 @@ internal static class Program
 
             if (options.StartMenuShortcuts)
             {
-                var startMenuFolder = GetStartMenuFolder(logger);
+                var startMenuFolder = GetStartMenuFolder(options,logger);
                 Directory.CreateDirectory(startMenuFolder);
 
                 logger.LogInformation($"Creating Start Menu shortcuts in: {startMenuFolder}");
@@ -878,6 +878,51 @@ internal static class Program
             return null;
         }
     }
+    private static string? FindLocalGptFile(
+    string localGptRoot,
+    string fileName,
+    ILogger logger)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(localGptRoot) || !Directory.Exists(localGptRoot))
+            {
+                logger.LogWarning($"LocalGPT root does not exist while searching for file '{fileName}': {localGptRoot}");
+                return null;
+            }
+
+            var directPath = Path.Combine(localGptRoot, fileName);
+
+            logger.LogInformation($"Checking direct LocalGPT file candidate: {directPath}");
+
+            if (File.Exists(directPath))
+            {
+                logger.LogInformation($"Resolved LocalGPT file from direct path: {directPath}");
+                return directPath;
+            }
+
+            logger.LogWarning($"Direct LocalGPT file candidate not found. Searching recursively for '{fileName}' under: {localGptRoot}");
+
+            var recursiveCandidate = EnumerateFilesSafe(localGptRoot, fileName, logger)
+                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
+                .ThenBy(path => path.Length)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(recursiveCandidate) && File.Exists(recursiveCandidate))
+            {
+                logger.LogInformation($"Resolved LocalGPT file recursively: {recursiveCandidate}");
+                return recursiveCandidate;
+            }
+
+            logger.LogWarning($"Could not find '{fileName}' under: {localGptRoot}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in FindLocalGptFile. localGptRoot {localGptRoot} fileName {fileName}");
+            return null;
+        }
+    }
     private static string? FindLocalGptExecutable(CliOptions options, ILogger logger)
     {
         try
@@ -954,27 +999,32 @@ internal static class Program
         }
     }
     private static void AddCmdShortcutIfExists(
-        List<ShortcutDefinition> shortcuts,
-        string localGptRoot,
-        string cmdFileName,
-        string shortcutName,
-        ILogger logger)
+    List<ShortcutDefinition> shortcuts,
+    string localGptRoot,
+    string cmdFileName,
+    string shortcutName,
+    ILogger logger)
     {
         try
         {
-            var cmdPath = Path.Combine(localGptRoot, cmdFileName);
+            var cmdPath = FindLocalGptFile(localGptRoot, cmdFileName, logger);
 
-            if (!File.Exists(cmdPath))
+            if (string.IsNullOrWhiteSpace(cmdPath) || !File.Exists(cmdPath))
             {
-                logger.LogWarning($"Shortcut target CMD not found, skipping: {cmdPath}");
+                logger.LogWarning($"Shortcut target CMD not found, skipping: {cmdFileName}");
                 return;
             }
+
+            var workingDirectory = Path.GetDirectoryName(cmdPath);
+
+            if (string.IsNullOrWhiteSpace(workingDirectory))
+                workingDirectory = localGptRoot;
 
             shortcuts.Add(new ShortcutDefinition(
                 ShortcutName: shortcutName,
                 TargetPath: cmdPath,
                 Arguments: string.Empty,
-                WorkingDirectory: localGptRoot));
+                WorkingDirectory: workingDirectory));
 
             logger.LogInformation($"Shortcut target found: {cmdPath}");
         }
@@ -1015,7 +1065,7 @@ internal static class Program
 
     }
 
-    private static string GetStartMenuFolder( ILogger logger)
+    private static string GetStartMenuFolder(CliOptions options, ILogger logger)
     {
         try
         {
@@ -1024,15 +1074,39 @@ internal static class Program
             if (string.IsNullOrWhiteSpace(startMenu))
                 throw new InvalidOperationException("Start Menu folder could not be resolved.");
 
-            return Path.Combine(startMenu, "Programs", "LocalGPT");
+            var groupName = SanitizeShortcutGroupName(options.ShortcutGroupName, logger);
+
+            if (string.IsNullOrWhiteSpace(groupName))
+                groupName = "LocalGPT by Michi0403";
+
+            return Path.Combine(startMenu, "Programs", groupName);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in GetStartMenuFolder. {ex.ToString()}");
+            logger.LogError(ex, $"Error in GetStartMenuFolder. {ex}");
             return string.Empty;
         }
     }
+    private static string SanitizeShortcutGroupName(string value, ILogger logger)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "LocalGPT by Michi0403";
 
+            var invalid = Path.GetInvalidFileNameChars();
+
+            foreach (var ch in invalid)
+                value = value.Replace(ch, '_');
+
+            return value.Trim();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error in SanitizeShortcutGroupName. value {value}");
+            return "LocalGPT by Michi0403";
+        }
+    }
     private static string GetDesktopFolder(ILogger logger)
     {
         try
@@ -1851,6 +1925,7 @@ internal sealed class CliOptions
     public bool Uninstall { get; private set; }
     public bool DesktopShortcuts { get; private set; }
     public bool StartMenuShortcuts { get; private set; }
+    public string ShortcutGroupName { get; private set; } = "LocalGPT by Michi0403";
     public static CliOptions Parse(string[] args)
     {
         List<string> argsList = args.ToList();
@@ -1858,8 +1933,12 @@ internal sealed class CliOptions
         if (argsList.Count == 0)
         {
             argsList.Add("--install-ollama");
+            argsList.Add("--pull-models");
+            argsList.Add("--range");
+            argsList.Add("Slim");
             argsList.Add("--install-localgpt");
             argsList.Add("--start-localgpt");
+            argsList.Add("--shortcuts");
         }
         for (var i = 0; i < argsList.Count; i++)
         {
@@ -1931,7 +2010,10 @@ internal sealed class CliOptions
                 case "--startmenu-shortcuts":
                     options.StartMenuShortcuts = true;
                     break;
-
+                case "--shortcut-group-name":
+                case "--startmenu-name":
+                    options.ShortcutGroupName = NextValue(argsList, ref i, arg);
+                    break;
                 case "--shortcuts":
                     options.DesktopShortcuts = true;
                     options.StartMenuShortcuts = true;
@@ -1977,17 +2059,18 @@ internal sealed class CliOptions
         $"{nameof(ForceDelete)}={ForceDelete}",
         $"{nameof(Verbose)}={Verbose}",
         $"{nameof(Range)}={Range}",
-        $"{nameof(LearningBasePath)}=\"{LearningBasePath}\"",
-        $"{nameof(LocalGptZipPath)}=\"{LocalGptZipPath}\"",
-        $"{nameof(LocalGptExePath)}=\"{LocalGptExePath}\"",
-        $"{nameof(OllamaExePath)}=\"{OllamaExePath}\"",
+        $"{nameof(LearningBasePath)}={LearningBasePath}",
+        $"{nameof(LocalGptZipPath)}={LocalGptZipPath}",
+        $"{nameof(LocalGptExePath)}={LocalGptExePath}",
+        $"{nameof(OllamaExePath)}={OllamaExePath}",
         $"{nameof(LocalGptPort)}={LocalGptPort}",
         $"{nameof(OpenBrowser)}={OpenBrowser}",
         $"{nameof(WaitOnExit)}={WaitOnExit}",
         $"{nameof(Uninstall)}={Uninstall}",
         $"{nameof(DesktopShortcuts)}={DesktopShortcuts}",
         $"{nameof(StartMenuShortcuts)}={StartMenuShortcuts}",
-        $"{nameof(ExtraRepos)}=[{string.Join(", ", ExtraRepos.Select(x => $"\"{x}\""))}]"
+        $"{nameof(ShortcutGroupName)}={ShortcutGroupName}",
+        $"{nameof(ExtraRepos)}=[{string.Join(", ", ExtraRepos.Select(x => $"{x}"))}]"
         ]);
     }
     public static void PrintHelp(ILogger logger)
