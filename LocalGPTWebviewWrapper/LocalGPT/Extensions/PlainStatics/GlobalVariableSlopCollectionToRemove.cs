@@ -13,6 +13,10 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public static bool EnsureCreatedMemoryDbTable { get; set; } = false;
+        public static bool EnsureCreatedLogsDbTable { get; set; } = false;
+        public static bool EnsureCreatedKnowledgeDbTable { get; set; } = false;
+
         public const string DefaultGradleVersion = "8.14.2";
         public static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 

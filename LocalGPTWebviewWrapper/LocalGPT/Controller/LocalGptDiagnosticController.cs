@@ -21,6 +21,32 @@ namespace LocalGPT.Controller
     [Route("")]
     public class LocalGptDiagnosticController(ILogger<LocalGptDiagnosticController> logger) : ControllerBase
     {
+        private async Task RunEnsureCreateAsyncOnce(IChatMemoryService? iChatMemoryService, IApplicationLogReaderService? iApplicationLogReaderService, ICouncilKnowledgeService? iCouncilKnowledgeService  )
+        {
+            try
+            {
+                if(GlobalVariableSlopCollectionToRemove.EnsureCreatedMemoryDbTable!= true && iChatMemoryService != null)
+                {
+                    await iChatMemoryService.EnsureCreatedAsync();
+                    GlobalVariableSlopCollectionToRemove.EnsureCreatedMemoryDbTable = true;
+                }
+                if (GlobalVariableSlopCollectionToRemove.EnsureCreatedLogsDbTable != true && iApplicationLogReaderService != null)
+                {
+                    await iApplicationLogReaderService.EnsureCreatedAsync();
+                    GlobalVariableSlopCollectionToRemove.EnsureCreatedLogsDbTable = true;
+                }
+                if (GlobalVariableSlopCollectionToRemove.EnsureCreatedKnowledgeDbTable != true && iCouncilKnowledgeService != null)
+                {
+                    await iCouncilKnowledgeService.EnsureCreatedAsync();
+                    GlobalVariableSlopCollectionToRemove.EnsureCreatedKnowledgeDbTable = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in RunEnsureCreateAsyncOnce {ex.ToString()}");
+            }
+
+        }
         [HttpGet("/__diag")]
         public IResult GetRoot(
             [FromServices] IWebHostEnvironment env)
@@ -164,9 +190,8 @@ namespace LocalGPT.Controller
                         Temperature = 0.2f
                     },
                     ct).ConfigureAwait(false);
-
-                await memory.EnsureCreatedAsync(ct).ConfigureAwait(false);
-
+                await RunEnsureCreateAsyncOnce(memory,null,null);
+              
                 Guid? savedConversationId = null;
                 if (request.SaveToMemory)
                 {
@@ -210,7 +235,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await memory.EnsureCreatedAsync(ct).ConfigureAwait(false);
+                await RunEnsureCreateAsyncOnce(memory, null, null);
                 var conversations = await memory.GetConversationsAsync(20, ct).ConfigureAwait(false);
                 var thoughts = await memory.GetRecentThoughtsAsync(5, ct).ConfigureAwait(false);
 
@@ -277,7 +302,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await logs.EnsureCreatedAsync(ct).ConfigureAwait(false);
+                await RunEnsureCreateAsyncOnce(null, logs, null);
                 var parsedLevel = Enum.TryParse<LogLevel>(minimumLevel, ignoreCase: true, out var level)
                     ? level
                     : LogLevel.Warning;
@@ -318,7 +343,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await knowledge.EnsureCreatedAsync(ct).ConfigureAwait(false);
+                await RunEnsureCreateAsyncOnce(null, null, knowledge);
                 var entries = await knowledge.GetEntriesAsync(includeArchived == true, take ?? 50, ct).ConfigureAwait(false);
                 return Results.Ok(new
                 {
@@ -346,9 +371,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await memory.EnsureCreatedAsync(ct).ConfigureAwait(false);
-                await logs.EnsureCreatedAsync(ct).ConfigureAwait(false);
-                await knowledge.EnsureCreatedAsync(ct).ConfigureAwait(false);
+                await RunEnsureCreateAsyncOnce(memory, logs, knowledge);
                 var tables = await tableEditor.GetTablesAsync(ct).ConfigureAwait(false);
                 return Results.Ok(new
                 {
@@ -377,9 +400,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await memory.EnsureCreatedAsync(ct).ConfigureAwait(false);
-                await logs.EnsureCreatedAsync(ct).ConfigureAwait(false);
-                await knowledge.EnsureCreatedAsync(ct).ConfigureAwait(false);
+                await RunEnsureCreateAsyncOnce(memory, logs, knowledge);
                 return Results.Ok(await tableEditor.GetTableAsync(tableName, take ?? 100, ct).ConfigureAwait(false));
             }
             catch (Exception ex)
@@ -800,7 +821,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await memory.EnsureCreatedAsync(ct).ConfigureAwait(false);
+                await RunEnsureCreateAsyncOnce(memory, null, null);
 
                 var seedMessages = new List<BlazorChatMessage>
             {
@@ -844,7 +865,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await memory.EnsureCreatedAsync(ct).ConfigureAwait(false);
+                await RunEnsureCreateAsyncOnce(memory, null, null);
 
                 var facts = request.Facts
                     .Where(fact => !string.IsNullOrWhiteSpace(fact))
