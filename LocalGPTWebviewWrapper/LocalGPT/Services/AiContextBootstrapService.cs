@@ -43,7 +43,7 @@ namespace LocalGPT.Services
                .AppendLine("Capability gap protocol: if you lack a LocalGPT function, version-specific source, local project evidence, or domain knowledge needed to fulfill the user request, still produce the safest useful downloadable milestone when scope is concrete, then add a Capability gap report and a <localgpt-capability-gap> block. Include requested languages, frameworks, versions, domain knowledge, local sources, external official sources, missing LocalGPT functions, and the next artifact plan.")
                .AppendLine("When you want to store reusable knowledge, append a <localgpt-knowledge> block with topic:, scope:, confidence:, tags:, helpful-sources:, and content:. LocalGPT stores model-written knowledge as unapproved until Michi0403 marks it user-approved in SQLite.")
                .AppendLine("Available LocalGPT DXAiFunctions are local diagnostic/tool routes the frontend or user can call when a compact tool result is better than a huge prompt:")
-               .AppendLine(DxaichatFunctionCatalog.BuildPromptBriefing())
+               .AppendLine(DevExpressFunctions.BuildPromptBriefing())
                .AppendLine();
 
                 var runtimeIdentity = BuildRuntimeIdentityBriefing();
@@ -119,7 +119,7 @@ namespace LocalGPT.Services
                 var builder = new StringBuilder();
                 var request = httpContextAccessor.HttpContext?.Request;
                 var baseUrl = request is null
-                    ? ReadRuntimeServerBaseUrl(logger)
+                    ? CouncilChatStaticsGeneral.ReadRuntimeServerBaseUrl(logger)
                     : $"{request.Scheme}://{request.Host}";
 
                 if (!string.IsNullOrWhiteSpace(baseUrl))
@@ -186,29 +186,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static string ReadRuntimeServerBaseUrl(ILogger logger)
-        {
-            try
-            {
-                var path = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "LocalGPT",
-                    "runtime",
-                    "server.json");
-                if (!File.Exists(path))
-                    return string.Empty;
-
-                using var json = JsonDocument.Parse(File.ReadAllText(path));
-                return json.RootElement.TryGetProperty("BaseUrl", out var value)
-                    ? value.GetString() ?? string.Empty
-                    : string.Empty;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ReadRuntimeServerBaseUrl");
-                return string.Empty;
-            }
-        }
+ 
 
         private DirectoryInfo? FindLatestArtifactWorkspace()
         {
@@ -234,7 +212,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var root = FindRepositoryRoot(logger);
+                var root = CouncilChatStaticsGeneral.FindRepositoryRoot(logger);
                 if (root is null)
                     return string.Empty;
 
@@ -271,38 +249,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static string? FindRepositoryRoot(ILogger logger)
-        {
-            try
-            {
-                foreach (var start in new[]
-           {
-                Directory.GetCurrentDirectory(),
-                AppContext.BaseDirectory
-            })
-                {
-                    var directory = new DirectoryInfo(start);
-                    while (directory is not null)
-                    {
-                        if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md")) ||
-                            Directory.Exists(Path.Combine(directory.FullName, ".git")))
-                        {
-                            return directory.FullName;
-                        }
-
-                        directory = directory.Parent;
-                    }
-                }
-
-                return null;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in ReadProjectKnowledgeIndexAsync");
-                return string.Empty;
-            }
-        }
-
+    
 
     }
 }

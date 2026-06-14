@@ -29,6 +29,36 @@ namespace LocalGPT.Extensions.PlainStatics
     
     public  static partial class CouncilChatStringFunctions
     {
+        public static bool LooksLikeMissingFeatureReport(string text, ILogger<AiFeatureReportService> logger)
+        {
+            try
+            {
+                return GlobalVariableSlopCollectionToRemove.MissingFeaturePattern().IsMatch(text);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in LooksLikeMissingFeatureReport text {text.ToString()}");
+                return false;
+            }
+        }
+        public static string SanitizeFileName(string value, ILogger<BuildDebugInventoryService> logger)
+        {
+            try
+            {
+                var invalid = Path.GetInvalidFileNameChars();
+                var builder = new StringBuilder(value.Length);
+                foreach (var character in value)
+                    builder.Append(invalid.Contains(character) || char.IsWhiteSpace(character) ? '-' : character);
+
+                return builder.ToString().Trim('-');
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SanitizeFileName value {value.ToString()}");
+                return string.Empty;
+            }
+
+        }
 
         public static string NormalizeOpenAIEndpoint(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
@@ -285,6 +315,100 @@ namespace LocalGPT.Extensions.PlainStatics
                 logger.LogError(ex, $"Error FlushCurrentString builder {builder.ToString()} current {current.ToString()} maxCharacters {maxCharacters.ToString()}");
             }
 
+        }
+
+        public static string ExtractCapabilityGapSummary(string text, ILogger<AiFeatureReportService> logger)
+        {
+            try
+            {
+                var match = GlobalVariableSlopCollectionToRemove.CapabilityGapBlockPattern().Match(text);
+                if (!match.Success)
+                {
+                    return "- No structured <localgpt-capability-gap> block was provided. Ask the model to include requested language, framework, version, local sources, external sources, missing LocalGPT functions, safe workflow, and artifact plan.";
+                }
+
+                var body = match.Groups["body"].Value.Trim();
+                var fields = new[]
+                {
+                "user-request-summary",
+                "missing-capability",
+                "owning-area",
+                "target-deliverable",
+                "requested-languages",
+                "requested-frameworks",
+                "requested-versions",
+                "requested-domain-knowledge",
+                "local-knowledge-sources",
+                "external-knowledge-sources",
+                "missing-localgpt-functions",
+                "safe-workflow",
+                "artifact-plan",
+                "investigation-status",
+                "next-localgpt-improvement",
+                "confidence",
+                "tags"
+            };
+
+                var builder = new StringBuilder();
+                foreach (var field in fields)
+                {
+                    var value = ExtractField(body, field, logger);
+                    if (!string.IsNullOrWhiteSpace(value))
+                        builder.Append("- ").Append(field).Append(": ").AppendLine(value);
+                }
+
+                return builder.Length == 0
+                    ? "- Structured block was present but no recognized fields were filled."
+                    : builder.ToString().TrimEnd();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractCapabilityGapSummary text {text.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static string ExtractHelpfulSources(string text, ILogger<AiFeatureReportService> logger)
+        {
+            try
+            {
+                var matches = GlobalVariableSlopCollectionToRemove.HelpfulSourceLinePattern()
+                .Matches(text)
+                .Select(match => match.Groups["line"].Value.Trim())
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(12)
+                .ToList();
+
+                if (matches.Count == 0)
+                {
+                    return "- None explicitly requested. If this missing feature depends on external APIs, ask the user for official docs, example projects, or versioned package references before implementation.";
+                }
+
+                var builder = new StringBuilder();
+                foreach (var match in matches)
+                    builder.Append("- ").AppendLine(match);
+
+                return builder.ToString().TrimEnd();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractHelpfulSources text {text.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static string ExtractField(string body, string name, ILogger<AiFeatureReportService> logger)
+        {
+            try
+            {
+                var pattern = $@"(?ims)^\s*{Regex.Escape(name)}\s*:\s*(?<value>.*?)(?=^\s*(?:user-request-summary|missing-capability|owning-area|target-deliverable|requested-languages|requested-frameworks|requested-versions|requested-domain-knowledge|local-knowledge-sources|external-knowledge-sources|missing-localgpt-functions|safe-workflow|artifact-plan|investigation-status|next-localgpt-improvement|confidence|tags)\s*:|\z)";
+                var match = Regex.Match(body, pattern, RegexOptions.CultureInvariant);
+                return match.Success ? match.Groups["value"].Value.Trim() : string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error ExtractField body {body.ToString()} name {name.ToString()}");
+                return string.Empty;
+            }
         }
         public static string BuildUniqueFileName(string directory, string fileName, ILogger logger)
         {

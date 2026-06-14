@@ -1033,7 +1033,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return Results.Ok(DxaichatFunctionCatalog.GetFunctions());
+                return Results.Ok(DevExpressFunctions.GetFunctions());
             }
             catch (Exception ex)
             {

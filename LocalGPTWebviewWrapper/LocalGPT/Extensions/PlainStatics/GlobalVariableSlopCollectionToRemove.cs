@@ -38,6 +38,11 @@ namespace LocalGPT.Extensions.PlainStatics
         }
         public const int MaxDxAiChatPromptCharacters = 60000;
         public const int MaxVisiblePromptCharacters = 12000;
+        [GeneratedRegex("(missing feature|missing capability|not implemented|not yet implemented|blocked by|cannot build|requires implementation|feature gap|capability gap|<localgpt-capability-gap>)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        public static partial Regex MissingFeaturePattern();
+
+        [GeneratedRegex("<localgpt-capability-gap>(?<body>.*?)</localgpt-capability-gap>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        public static partial Regex CapabilityGapBlockPattern();
         [GeneratedRegex(@"\b(?:with|and|or|the|a|an|for|to|in|of|by|as|if|when|once|then|because|from|into|that|this|which|th)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         public static partial Regex TruncatedTailPattern();
         [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
@@ -48,11 +53,13 @@ namespace LocalGPT.Extensions.PlainStatics
 
         [GeneratedRegex("AI Council (?:continuation )?request:\\s*(?<prompt>.*?)(?:\\n\\s*##|\\z)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         public static partial Regex CouncilRequestBlockPattern();
-        public static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            WriteIndented = true
-        };
 
+        public static readonly HashSet<string> DebugExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".pdb",
+            ".pdg",
+            ".appxsym"
+        };
         public static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".txt",
@@ -1243,7 +1250,11 @@ namespace LocalGPT.Extensions.PlainStatics
         public static partial Regex LoggingPattern();
 
 
-
+        public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+        {
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true
+        };
         [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
         public static partial Regex WhitespacePattern();
         [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?<line>(?:helpful sources?|source request|needed sources?|references?|docs?|documentation|official docs?|examples?|sample projects?|spec(?:ification)?s?|tutorials?)\\s*[:\\-].+)$", RegexOptions.CultureInvariant)]

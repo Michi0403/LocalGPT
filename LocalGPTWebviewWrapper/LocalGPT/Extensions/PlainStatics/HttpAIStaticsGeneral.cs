@@ -7,6 +7,20 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class HttpAIStaticsGeneral
     {
+        public static async Task<(bool ok, string msg)> GetAsync(HttpClient http, string path, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
+        {
+            try
+            {
+                using var res = await http.GetAsync(path, ct);
+                var body = await res.Content.ReadAsStringAsync(ct);
+                return (res.IsSuccessStatusCode, $"{(int)res.StatusCode} {res.ReasonPhrase}: {body}");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetAsync http {http.ToString()} path {path?.ToString()}");
+                return (false, ex.Message);
+            }
+        }
         public static HttpClient? CreateDiscoveryClient(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
             try

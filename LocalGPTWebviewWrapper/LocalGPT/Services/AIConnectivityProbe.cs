@@ -10,25 +10,9 @@ namespace LocalGPT.Services
 {
     public class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : IAiConnectivityProbe
     {
-        private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-        {
-            PropertyNameCaseInsensitive = true
-        };
+ 
 
-        private static async Task<(bool ok, string msg)> GetAsync(HttpClient http, string path, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
-        {
-            try
-            {
-                using var res = await http.GetAsync(path, ct);
-                var body = await res.Content.ReadAsStringAsync(ct);
-                return (res.IsSuccessStatusCode, $"{(int)res.StatusCode} {res.ReasonPhrase}: {body}");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in GetAsync http {http.ToString()} path {path?.ToString()}");
-                return (false, ex.Message);
-            }
-        }
+   
 
         public async Task<(bool ok, string message)> TestAzureAsync(OpenAIServiceCoreOptions o, CancellationToken ct)
         {
@@ -39,7 +23,7 @@ namespace LocalGPT.Services
             {
                 var http = new HttpClient { BaseAddress = new Uri(o.Endpoint) };
                 http.DefaultRequestHeaders.Add("api-key", o.Key);
-                return await GetAsync(http, "/", ct, logger);
+                return await HttpAIStaticsGeneral.GetAsync(http, "/", ct, logger);
             }
             catch (Exception ex)
             {
@@ -57,7 +41,7 @@ namespace LocalGPT.Services
 
                 var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
                 http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
-                return await GetAsync(http, "models", ct,logger);
+                return await HttpAIStaticsGeneral.GetAsync(http, "models", ct,logger);
             }
             catch (Exception ex)
             {
@@ -72,7 +56,7 @@ namespace LocalGPT.Services
             try
             {
                 var http = new HttpClient { BaseAddress = new Uri(o.Uri) };
-                return await GetAsync(http, "/api/tags", ct,logger);
+                return await HttpAIStaticsGeneral.GetAsync(http, "/api/tags", ct,logger);
             }
             catch (Exception ex)
             {
@@ -90,7 +74,7 @@ namespace LocalGPT.Services
                 if (!string.IsNullOrWhiteSpace(o.ApiKey))
                     http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
 
-                return await GetAsync(http, "/v1/models", ct,logger);
+                return await HttpAIStaticsGeneral.GetAsync(http, "/v1/models", ct,logger);
             }
             catch (Exception ex)
             {

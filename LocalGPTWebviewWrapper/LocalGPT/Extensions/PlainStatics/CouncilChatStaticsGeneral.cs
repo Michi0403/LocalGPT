@@ -10,6 +10,7 @@ using System.Drawing;
 using System.IO.Compression;
 using System.Net;
 using System.Security.AccessControl;
+using System.Security.Cryptography;
 using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.Json;
@@ -22,6 +23,144 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
+
+
+        private static string? FindRepositoryRoot(ILogger<BuildDebugInventoryService> logger)
+        {
+            try
+            {
+                foreach (var start in new[]
+ {
+                Directory.GetCurrentDirectory(),
+                AppContext.BaseDirectory
+            })
+                {
+                    var directory = new DirectoryInfo(start);
+                    while (directory is not null)
+                    {
+                        if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md")) ||
+                            Directory.Exists(Path.Combine(directory.FullName, ".git")))
+                        {
+                            return directory.FullName;
+                        }
+
+                        directory = directory.Parent;
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in FindRepositoryRoot");
+                return string.Empty;
+            }
+        }
+        public static IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders(AICoreOptions options, ILogger<ChatClientFactory> logger)
+        {
+            try
+            {
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                if (options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 } primary)
+                {
+                    seen.Add($"{primary.Uri.TrimEnd('/')}|{primary.ModelName}");
+                    yield return primary;
+                }
+
+                foreach (var ollama in options.OllamaCores.Where(o => !string.IsNullOrWhiteSpace(o.Uri) && !string.IsNullOrWhiteSpace(o.ModelName)))
+                {
+                    if (seen.Add($"{ollama.Uri.TrimEnd('/')}|{ollama.ModelName}"))
+                        yield return ollama;
+                }
+            }
+            finally
+            {
+                logger.LogInformation($"Get Configured Ollama Providers finished with options {options.ToString()}");
+            }
+
+        }
+        public static async Task<string> CopyDebugFileAsync(FileInfo file, string sourceArea, string captureRoot, CancellationToken cancellationToken, ILogger<BuildDebugInventoryService> logger)
+        {
+            try
+            {
+                var area = CouncilChatStringFunctions.SanitizeFileName(sourceArea, logger);
+                var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(file.FullName)))[..12];
+                var destination = Path.Combine(captureRoot, $"{area}-{hash}-{file.Name}");
+
+                await using var read = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                await using var write = File.Open(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+                await read.CopyToAsync(write, cancellationToken);
+                return destination;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CopyDebugFileAsync file {file.ToString()} sourceArea {sourceArea?.ToString()} captureRoot {captureRoot?.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static bool HasRealApiKey(string? apiKey, ILogger<ChatClientFactory> logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(apiKey))
+                    return false;
+
+                var trimmed = apiKey.Trim();
+                return trimmed != "---" && !trimmed.Equals("local-key", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"💥 HasRealApiKey failed: {apiKey?.ToString()}");
+                return false;
+            }
+
+        }
+        public static IEnumerable<(string Area, string Path)> GetSearchRoots(ILogger<BuildDebugInventoryService> logger)
+        {
+            try
+            {
+                yield return ("runtime", AppContext.BaseDirectory);
+
+                var root = FindRepositoryRoot(logger);
+                if (root is null)
+                    yield break;
+
+                yield return ("LocalGPT bin", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "bin"));
+                yield return ("LocalGPT obj", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "obj"));
+                yield return ("WebView2 wrapper bin", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPTWebviewWrapper", "bin"));
+                yield return ("WebView2 wrapper obj", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPTWebviewWrapper", "obj"));
+                yield return ("MSIX package bin", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPTWebviewWrapper (Package)", "bin"));
+                yield return ("MSIX package obj", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPTWebviewWrapper (Package)", "obj"));
+            }
+            finally
+            {
+                logger.LogInformation($"Finished GetSearchRoots");
+            }
+        }
+        public static string ReadRuntimeServerBaseUrl(ILogger logger)
+        {
+            try
+            {
+                var path = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "runtime",
+                    "server.json");
+                if (!File.Exists(path))
+                    return string.Empty;
+
+                using var json = JsonDocument.Parse(File.ReadAllText(path));
+                return json.RootElement.TryGetProperty("BaseUrl", out var value)
+                    ? value.GetString() ?? string.Empty
+                    : string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ReadRuntimeServerBaseUrl");
+                return string.Empty;
+            }
+        }
         public static string FirstText(ILogger<AiConnectivityProbe> logger, params string?[] values)
         {
             try

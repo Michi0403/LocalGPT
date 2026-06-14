@@ -1,3 +1,4 @@
+using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -35,10 +36,10 @@ namespace LocalGPT.Services
                     settings = new JsonObject();
                 }
 
-                SetSection(settings, nameof(root.LoggingCore), root.LoggingCore, serializerOptions, _logger);
-                SetSection(settings, nameof(root.PythonCore), root.PythonCore, serializerOptions, _logger);
-                SetSection(settings, nameof(root.ConnectionStringsCore), root.ConnectionStringsCore, serializerOptions, _logger);
-                SetSection(settings, nameof(root.AICore), root.AICore, serializerOptions,_logger);
+                JsonFunctions.SetSection(settings, nameof(root.LoggingCore), root.LoggingCore, serializerOptions, _logger);
+                JsonFunctions.SetSection(settings, nameof(root.PythonCore), root.PythonCore, serializerOptions, _logger);
+                JsonFunctions.SetSection(settings, nameof(root.ConnectionStringsCore), root.ConnectionStringsCore, serializerOptions, _logger);
+                JsonFunctions.SetSection(settings, nameof(root.AICore), root.AICore, serializerOptions,_logger);
 
                 var tempFile = file + ".tmp";
                 await File.WriteAllTextAsync(tempFile, settings.ToJsonString(serializerOptions), ct);
@@ -47,25 +48,11 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error in ConfigurationWriter.SaveAsync {ex.ToString()}");
-                throw;
+                _logger.LogError(ex, $"Error in ConfigurationWriter.SaveAsync {ex.ToString()} root {root.ToString()}");
+                
             }
         }
 
-        private static void SetSection<T>(JsonObject settings, string sectionName, T? value, JsonSerializerOptions serializerOptions, ILogger logger)
-        {
-            try
-            {
-                if (value is null)
-                    return;
 
-                settings[sectionName] = JsonSerializer.SerializeToNode(value, serializerOptions);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ConfigurationWriter.SaveAsync {ex.ToString()}");
-            }
-    
-        }
     }
 }
