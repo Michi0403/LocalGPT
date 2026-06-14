@@ -1409,7 +1409,8 @@ namespace LocalGPT.Extensions.PlainStatics
             "text/markdown",
             "application/sql",
             "application/x-sh",
-            "application/x-perl"
+            "application/x-perl",
+            "application/x-bat"
         ];
         public const string OllamaModeAutoGpu = "auto-gpu";
         public const string OllamaModeSafeCpu = "safe-cpu";
