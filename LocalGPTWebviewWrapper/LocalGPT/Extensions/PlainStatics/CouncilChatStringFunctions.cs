@@ -10,6 +10,7 @@ using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.CSharp;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.AI;
 using SQLitePCL;
@@ -52,26 +53,53 @@ namespace LocalGPT.Extensions.PlainStatics
             return parts.Length == 0 ? "com.localgpt.livingcities" : string.Join(".", parts);
         }
 
-        public static string NormalizeLoader(string loader)
+        public static string NormalizeLoader(string loader, ILogger logger)
         {
-            if (loader.Contains("data", StringComparison.OrdinalIgnoreCase))
-                return "Datapack";
-            if (loader.Contains("paper", StringComparison.OrdinalIgnoreCase) ||
-                loader.Contains("plugin", StringComparison.OrdinalIgnoreCase) ||
-                loader.Contains("bukkit", StringComparison.OrdinalIgnoreCase) ||
-                loader.Contains("spigot", StringComparison.OrdinalIgnoreCase))
-                return "Paper";
-            if (loader.Contains("neo", StringComparison.OrdinalIgnoreCase))
-                return "NeoForge";
-            if (loader.Contains("bedrock", StringComparison.OrdinalIgnoreCase))
-                return "Bedrock";
-            return "Fabric";
+            try
+            {
+                if (loader.Contains("data", StringComparison.OrdinalIgnoreCase)||
+                    loader.Contains("plugin", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("vanilla datapack", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("data pack", StringComparison.OrdinalIgnoreCase))
+                    return "Datapack";
+                if (loader.Contains("paper", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("plugin", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("paper plugin", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("bukkit", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("spigot", StringComparison.OrdinalIgnoreCase))
+                    return "Paper";
+                if (loader.Contains("neo", StringComparison.OrdinalIgnoreCase)||
+                    loader.Contains("neoforge", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("neo forge", StringComparison.OrdinalIgnoreCase))
+                    return "NeoForge";
+                if (loader.Contains("bedrock", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("bedrock addon", StringComparison.OrdinalIgnoreCase) ||
+                    loader.Contains("bedrock add-on", StringComparison.OrdinalIgnoreCase))
+                    return "Bedrock";
+                if (loader.Contains("fabric", StringComparison.OrdinalIgnoreCase))
+                    return "Fabric";
+                return "Fabric";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeLoader loader {loader.ToString()}");
+                return string.Empty;
+            }
         }
 
-        private static string ToPascalCase(string value)
+        public static string ToPascalCase(string value, ILogger logger)
         {
-            var words = value.Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return string.Join("", words.Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
+            try
+            {
+                var words = value.Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                return string.Join("", words.Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToPascalCase value {value.ToString()} return normal value");
+                return value;
+            }
+        
         }
 
         public static string EscapeJson(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
@@ -567,12 +595,20 @@ namespace LocalGPT.Extensions.PlainStatics
               }
             }
             """;
-        public static string GetPackFormatJsonValue(string minecraftVersion)
+        public static string GetPackFormatJsonValue(string minecraftVersion, ILogger logger)
         {
-            var packFormat = MinecraftDatapackVersionCatalog.Resolve(minecraftVersion).PackFormat;
-            return packFormat.Contains('.', StringComparison.Ordinal)
-                ? $"\"{packFormat}\""
-                : packFormat;
+            try
+            {
+                var packFormat = CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoResolve(minecraftVersion, logger).PackFormat;
+                return packFormat.Contains('.', StringComparison.Ordinal)
+                    ? $"\"{packFormat}\""
+                    : packFormat;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetPackFormatJsonValue minecraftVersion {minecraftVersion.ToString()}");
+                return string.Empty;
+            }
         }
 
         public static string CreateFunctionTag(string modId, string functionName) =>
@@ -655,7 +691,7 @@ namespace LocalGPT.Extensions.PlainStatics
             execute unless data storage {{{context.ModId}}}:city {founded:1b} run function {{{context.ModId}}}:city/check_villagers
             """;
 
-        private static string CreateDatapackCityCheckVillagersFunction(WorkspaceContext context) =>
+        public static string CreateDatapackCityCheckVillagersFunction(WorkspaceContext context) =>
             $$$"""
             scoreboard players set #nearby_villagers lc_tmp 0
             execute store result score #nearby_villagers lc_tmp if entity @e[type=minecraft:villager,distance=..96]
@@ -840,7 +876,7 @@ namespace LocalGPT.Extensions.PlainStatics
             tellraw @s [{"storage":"{{{context.ModId}}}:chronicle","nbt":"events"}]
             """;
 
-        private static string CreateDatapackQuestUpdateFunction(WorkspaceContext context) =>
+        public static string CreateDatapackQuestUpdateFunction(WorkspaceContext context) =>
             $$$"""
             function {{{context.ModId}}}:quests/generate
             """;
@@ -1179,18 +1215,7 @@ namespace LocalGPT.Extensions.PlainStatics
             - Add version-aware datapack `pack_format` lookup from the installed Minecraft version manifest.
             - Add Bedrock behavior/resource pack exporter as a separate target, not mixed into Java mod generation.
             """;
-        public static string NormalizeLoader(string? loader)
-        {
-            return (loader ?? string.Empty).Trim().ToLowerInvariant() switch
-            {
-                "fabric" => "Fabric",
-                "neoforge" or "neo forge" => "NeoForge",
-                "paper" or "paper plugin" => "Paper",
-                "datapack" or "data pack" or "vanilla datapack" => "Datapack",
-                "bedrock" or "bedrock addon" or "bedrock add-on" => "Bedrock",
-                _ => "Fabric"
-            };
-        }
+
         public static bool LooksLikeMissingFeatureReport(string text, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -5256,7 +5281,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 var match = GlobalVariableSlopCollectionToRemove.MinecraftVersionPattern().Match(text);
                 return match.Success
                     ? match.Groups["version"].Value
-                    : MinecraftDatapackVersionCatalog.DefaultMinecraftVersion;
+                    : GlobalVariableSlopCollectionToRemove.DefaultMinecraftVersion;
             }
             catch (Exception ex)
             {

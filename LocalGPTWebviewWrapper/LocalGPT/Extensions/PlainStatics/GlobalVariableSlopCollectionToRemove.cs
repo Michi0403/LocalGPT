@@ -13,6 +13,8 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
+        public const string DefaultGradleVersion = "8.14.2";
+        public static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
         [GeneratedRegex("[^a-zA-Z0-9_.-]")]
         public static partial Regex NameCleaner();
@@ -79,7 +81,6 @@ namespace LocalGPT.Extensions.PlainStatics
         public const string DefaultMinecraftVersion = "26.1";
 
         public const string DefaultJavaVersion = "25";
-        public const string DefaultGradleVersion = "8.14.2";
         public const string FabricLoaderVersion = "0.16.9";
         public sealed record MinecraftDatapackVersionInfo(
     string RequestedVersion,

@@ -24,10 +24,12 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
-        public static string CreatePaperGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context)
+        public static string CreatePaperGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context,ILogger logger)
         {
-            var versions = ResolveDependencyVersions(request, "Paper");
-            return $$"""
+            try
+            {
+                var versions = ResolveDependencyVersions(request, logger, "Paper");
+                return $$"""
             org.gradle.jvmargs=-Xmx2G
             org.gradle.daemon=false
             org.gradle.parallel=false
@@ -38,22 +40,28 @@ namespace LocalGPT.Extensions.PlainStatics
             plugin_version=0.1.0
             plugin_main={{context.PackageName}}.{{context.MainClassName}}
             plugin_authors=LocalGPT, Michi0403
-            plugin_description={{NormalizeDescription(request.Description)}}
+            plugin_description={{CouncilChatStringFunctions.NormalizeDescription(request.Description)}}
             maven_group={{context.PackageName}}
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreatePaperGradleProperties request {request.ToString()} context {context.ToString()}");
+                return string.Empty;
+            }
         }
 
-        public static string CreateCommonGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context)
+        public static string CreateCommonGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context, ILogger logger)
         {
-            var versions = ResolveDependencyVersions(request);
-            var fabricApiVersion = versions.FabricApiVersion ?? MinecraftDependencyVersionCatalog
-                .Resolve("Fabric", request.MinecraftVersion, request.JavaVersion, request.GradleVersion)
-                .FabricApiVersion;
-            var neoForgeVersion = versions.NeoForgeVersion ?? MinecraftDependencyVersionCatalog
-                .Resolve("NeoForge", request.MinecraftVersion, request.JavaVersion, request.GradleVersion)
-                .NeoForgeVersion;
+            try
+            {
+                var versions = ResolveDependencyVersions(request, logger);
+                var fabricApiVersion = versions.FabricApiVersion ?? ResolveMinecraftDependencyVersionInfo("Fabric", request.MinecraftVersion, logger, request.JavaVersion, request.GradleVersion)
+                    .FabricApiVersion;
+                var neoForgeVersion = versions.NeoForgeVersion ?? ResolveMinecraftDependencyVersionInfo("NeoForge", request.MinecraftVersion, logger, request.JavaVersion, request.GradleVersion)
+                    .NeoForgeVersion;
 
-            return $$"""
+                return $$"""
             org.gradle.jvmargs=-Xmx3G
             org.gradle.daemon=false
             org.gradle.parallel=false
@@ -72,23 +80,44 @@ namespace LocalGPT.Extensions.PlainStatics
             mod_group_id={{context.PackageName}}
             maven_group={{context.PackageName}}
             mod_authors=LocalGPT, Michi0403
-            mod_description={{NormalizeDescription(request.Description)}}
+            mod_description={{CouncilChatStringFunctions.NormalizeDescription(request.Description)}}
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateCommonGradleProperties request {request.ToString()} context {context.ToString()}");
+                return string.Empty;
+            }
         }
-        public static MinecraftDependencyVersionInfo ResolveDependencyVersions(
-          MinecraftModBuildRequest request,
-          string? loaderOverride = null) =>
-          MinecraftDependencyVersionCatalog.Resolve(
+        public static MinecraftDependencyVersionInfo? ResolveDependencyVersions(
+          MinecraftModBuildRequest request, 
+          ILogger logger,
+          string? loaderOverride = null) 
+        {
+            try
+            {
+                return ResolveMinecraftDependencyVersionInfo(
               loaderOverride ?? request.Loader,
-              request.MinecraftVersion,
+              request.MinecraftVersion, 
+              logger,
               request.JavaVersion,
               request.GradleVersion);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ResolveDependencyVersions request {request.ToString()} loaderOverride {loaderOverride.ToString()}");
+                return null;
+            }
+        }
+          
 
-        public static string CreateBuildLocalScript(MinecraftModBuildRequest request)
+        public static string CreateBuildLocalScript(MinecraftModBuildRequest request, ILogger logger)
         {
-            var versions = ResolveDependencyVersions(request);
-            var gradleVersion = versions.GradleVersion;
-            return $$"""
+            try
+            {
+                var versions = CouncilChatStaticsGeneral.ResolveDependencyVersions(request,logger);
+                var gradleVersion = versions.GradleVersion;
+                return $$"""
             [CmdletBinding()]
             param(
                 [string]$Task = "build"
@@ -125,16 +154,33 @@ namespace LocalGPT.Extensions.PlainStatics
 
             throw "Gradle {{gradleVersion}} was not found. Run LocalGPTWebviewWrapper\build\Setup-MinecraftModToolchain.ps1 -InstallGradle."
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateBuildLocalScript request {request.ToString()}");
+                return string.Empty;
+            }
         }
-        public static string CreateDatapackMcmeta(MinecraftModBuildRequest request, WorkspaceContext context) =>
-       $$"""
+        public static string CreateDatapackMcmeta(MinecraftModBuildRequest request, WorkspaceContext context, ILogger logger)
+        {
+            try
+            {
+                return $$"""
             {
               "pack": {
-                "pack_format": {{GetPackFormatJsonValue(request.MinecraftVersion)}},
-                "description": "{{EscapeJson(context.ProjectName)}} - LocalGPT generated Living Cities datapack"
+                "pack_format": {{CouncilChatStringFunctions.GetPackFormatJsonValue(request.MinecraftVersion, logger)}},
+                "description": "{{CouncilChatStringFunctions.EscapeJson(context.ProjectName)}} - LocalGPT generated Living Cities datapack"
               }
             }
             """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateDatapackMcmeta request {request.ToString()} context {context.ToString()}");
+                return string.Empty;
+            }
+        }
+       
         public static async Task WriteDatapackFunctionAsync(
     WorkspaceContext context,
     string functionPath,
@@ -225,12 +271,12 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var normalizedLoader = CouncilChatStringFunctions.NormalizeLoader(loader);
+                var normalizedLoader = CouncilChatStringFunctions.NormalizeLoader(loader, logger);
                 var requestedMinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion)
                     ? GlobalVariableSlopCollectionToRemove.DefaultMinecraftVersion
                     : minecraftVersion.Trim();
                 var requestedGradleVersion = string.IsNullOrWhiteSpace(gradleVersion)
-                    ? DefaultGradleVersion
+                    ? GlobalVariableSlopCollectionToRemove.DefaultGradleVersion
                     : gradleVersion.Trim();
                 var knownDependencyVersions = KnownDependencyVersionInfoVersions(logger);
                 var entry = knownDependencyVersions.FirstOrDefault(item =>

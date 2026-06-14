@@ -54,7 +54,7 @@ namespace LocalGPT.Endpoints
         {
             try
             {
-                return Results.Ok(MinecraftDatapackVersionCatalog.Resolve(minecraftVersion));
+                return Results.Ok(CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoResolve(minecraftVersion,logger));
             }
             catch (Exception ex)
             {
@@ -72,7 +72,7 @@ namespace LocalGPT.Endpoints
         {
             try
             {
-                return Results.Ok(MinecraftDependencyVersionCatalog.Resolve(loader, minecraftVersion, javaVersion, gradleVersion));
+                return Results.Ok(CouncilChatStaticsGeneral.ResolveMinecraftDependencyVersionInfo(loader, minecraftVersion,logger, javaVersion, gradleVersion));
             }
             catch (Exception ex)
             {
@@ -95,7 +95,7 @@ namespace LocalGPT.Endpoints
                     ModId = "living_cities_smoke",
                     PackageName = "com.localgpt.livingcitiessmoke",
                     Loader = string.IsNullOrWhiteSpace(loader) ? "Fabric" : loader,
-                    MinecraftVersion = MinecraftDatapackVersionCatalog.DefaultMinecraftVersion,
+                    MinecraftVersion = GlobalVariableSlopCollectionToRemove.DefaultMinecraftVersion,
                     JavaVersion = "25",
                     GradleVersion = "8.14.2",
                     Ide = "Eclipse",
@@ -139,7 +139,7 @@ namespace LocalGPT.Endpoints
                     ModId = "living_cities",
                     PackageName = "com.localgpt.livingcities",
                     Loader = "Datapack",
-                    MinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion) ? MinecraftDatapackVersionCatalog.DefaultMinecraftVersion : minecraftVersion,
+                    MinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion) ? GlobalVariableSlopCollectionToRemove.DefaultMinecraftVersion : minecraftVersion,
                     JavaVersion = "25",
                     GradleVersion = "8.14.2",
                     Ide = "Eclipse",
