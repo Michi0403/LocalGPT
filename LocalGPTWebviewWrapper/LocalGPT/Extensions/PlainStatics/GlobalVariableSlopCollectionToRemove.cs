@@ -295,11 +295,11 @@ namespace LocalGPT.Extensions.PlainStatics
             ".tmpl"
         };
         public const string DefaultOllamaUri = "http://localhost:11434";
-        public const int MaxParticipants = 100;
+        public const int MaxParticipants = int.MaxValue;
         public const int DefaultMaxParallelModels = 1;
         public const int DefaultHeavyModelGpuLayers = 20;
         public const int MinContextTokens = 2048;
-        public const int DefaultContextTokens = 32768;
+        public const int DefaultContextTokens = 65536;
         public const int MaxContextTokens = 262144;
         public const int MinOutputTokens = 64;
         public const int MaxOutputTokens = 262144;
@@ -1375,8 +1375,8 @@ namespace LocalGPT.Extensions.PlainStatics
         public static readonly MarkdownPipeline ChatMarkdownPipeline = new MarkdownPipelineBuilder()
     .UseAdvancedExtensions()
     .Build();
-        public const int MaxUploadFiles = 12;
-        public const int MaxUploadBytes = 32 * 1024 * 1024;
+        public const int MaxUploadFiles = int.MaxValue;
+        public const int MaxUploadBytes = int.MaxValue;
         public static readonly List<string> AllowedUploadExtensions =
         [
             ".txt", ".md", ".json", ".xml", ".csv", ".cs", ".razor", ".cshtml", ".css", ".scss",
@@ -1400,8 +1400,7 @@ namespace LocalGPT.Extensions.PlainStatics
         public const string OllamaModeLimitedGpu = "limited-gpu";
  
         public const string DetectedOllamaSessionPrefix = "Ollama detected — ";
-      
-        public const string DefaultOllamaEndpoint = "http://127.0.0.1:11434";
+        public static string DefaultOllamaEndpoint { get; set; }= "http://127.0.0.1:11434";
         public static readonly string[] ArchitectureUiStackOptions =
 [
     "Ask me before choosing UI stack",
@@ -1437,11 +1436,11 @@ namespace LocalGPT.Extensions.PlainStatics
         "Functional prototype first",
         "No visual reference"
         ];
-        public const int DefaultMaxOutputTokens = 65536;
-        public const int DefaultMaxPromptCharacters = 250000;
-        public const int MaxPromptCharacters = 1_000_000;
+        public const int DefaultMaxOutputTokens = 262144;
+        public const int DefaultMaxPromptCharacters = int.MaxValue;
+        public const int MaxPromptCharacters = int.MaxValue;
         public const int MaxBootstrapCharacters = 6000;
-        public const int MaxSingleConversationMessageCharacters = 5000;
+        public const int MaxSingleConversationMessageCharacters = int.MaxValue;
         public const string RuntimeDecisionPolicy =
             "LocalGPT runtime decision policy: When the user asks to generate, scaffold, implement, modify, or package code/artifacts and important architecture choices are unresolved, do not start coding yet. " +
             "First return a short section titled \"Decision poll required\" with concrete choices and tradeoffs, then stop and wait for the user's answer. " +
