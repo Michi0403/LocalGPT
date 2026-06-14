@@ -7,12 +7,89 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using static LocalGPT.Services.MinecraftModWorkspaceService;
 
 namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
 
+        [GeneratedRegex("[^a-zA-Z0-9_.-]")]
+        public static partial Regex NameCleaner();
+
+        [GeneratedRegex("[^a-z0-9_]")]
+        public static partial Regex ModIdCleaner();
+
+        [GeneratedRegex("[^a-z0-9_]")]
+        public static partial Regex PackagePartCleaner();
+
+        public sealed record WorkspaceContext(
+            string ProjectName,
+            string ModId,
+            string PackageName,
+            string MainClassName,
+            string ProjectRoot,
+            string JavaRoot,
+            string ResourceRoot,
+            string AssetsRoot,
+            string BuildFilePath,
+            string MainClassPath,
+            string MetadataPath,
+            string ReadmePath);
+        public sealed class WorkspaceLayout(WorkspaceContext context)
+        {
+            public WorkspaceContext Context { get; } = context;
+
+            public MinecraftModWorkspace ToResult(
+                string buildCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
+                string eclipseImportHint = "File > Import > Gradle > Existing Gradle Project") => new()
+                {
+                    ProjectName = Context.ProjectName,
+                    RootPath = Context.ProjectRoot,
+                    MainClassPath = Context.MainClassPath,
+                    MetadataPath = Context.MetadataPath,
+                    BuildFilePath = Context.BuildFilePath,
+                    ReadmePath = Context.ReadmePath,
+                    BuildCommand = buildCommand,
+                    EclipseImportHint = eclipseImportHint
+                };
+        }
+        public sealed record MinecraftDependencyVersionInfo(
+    string Loader,
+    string RequestedMinecraftVersion,
+    string MatchedMinecraftVersion,
+    string JavaVersion,
+    string GradleVersion,
+    string? FabricLoaderVersion,
+    string? FabricApiVersion,
+    string? NeoForgeVersion,
+    string? PaperApiVersion,
+    string? DatapackPackFormat,
+    bool IsExactMatch,
+    bool NeedsVerification,
+    string Notes,
+    string Source);
+        public sealed record CatalogEntry(
+    string MinecraftVersion,
+    string? FabricApiVersion,
+    string? NeoForgeVersion,
+    string? PaperApiVersion,
+    string? JavaVersion,
+    string Notes);
+        public const string DefaultMinecraftVersion = "26.1";
+
+        public const string DefaultJavaVersion = "25";
+        public const string DefaultGradleVersion = "8.14.2";
+        public const string FabricLoaderVersion = "0.16.9";
+        public sealed record MinecraftDatapackVersionInfo(
+    string RequestedVersion,
+    string MatchedVersion,
+    string PackFormat,
+    string FunctionRegistryFolder,
+    bool IsExactMatch,
+    bool NeedsVerification,
+    string Notes,
+    string Source);
         public sealed class OllamaTagsResponse
         {
             public List<OllamaModelEntry> Models { get; set; } = new();

@@ -24,8 +24,349 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class CouncilChatStaticsGeneral
     {
+        public static string CreatePaperGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context)
+        {
+            var versions = ResolveDependencyVersions(request, "Paper");
+            return $$"""
+            org.gradle.jvmargs=-Xmx2G
+            org.gradle.daemon=false
+            org.gradle.parallel=false
 
+            paper_api_version={{versions.PaperApiVersion}}
+            plugin_id={{context.ModId}}
+            plugin_name={{context.ProjectName}}
+            plugin_version=0.1.0
+            plugin_main={{context.PackageName}}.{{context.MainClassName}}
+            plugin_authors=LocalGPT, Michi0403
+            plugin_description={{NormalizeDescription(request.Description)}}
+            maven_group={{context.PackageName}}
+            """;
+        }
 
+        public static string CreateCommonGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context)
+        {
+            var versions = ResolveDependencyVersions(request);
+            var fabricApiVersion = versions.FabricApiVersion ?? MinecraftDependencyVersionCatalog
+                .Resolve("Fabric", request.MinecraftVersion, request.JavaVersion, request.GradleVersion)
+                .FabricApiVersion;
+            var neoForgeVersion = versions.NeoForgeVersion ?? MinecraftDependencyVersionCatalog
+                .Resolve("NeoForge", request.MinecraftVersion, request.JavaVersion, request.GradleVersion)
+                .NeoForgeVersion;
+
+            return $$"""
+            org.gradle.jvmargs=-Xmx3G
+            org.gradle.daemon=false
+            org.gradle.parallel=false
+
+            minecraft_version={{versions.RequestedMinecraftVersion}}
+            minecraft_version_range=[{{versions.RequestedMinecraftVersion}},)
+            loader_version={{versions.FabricLoaderVersion ?? "0.16.9"}}
+            fabric_version={{fabricApiVersion}}
+            neo_version={{neoForgeVersion}}
+            neo_version_range=[{{neoForgeVersion}},)
+
+            mod_id={{context.ModId}}
+            mod_name={{context.ProjectName}}
+            mod_license=MIT
+            mod_version=0.1.0
+            mod_group_id={{context.PackageName}}
+            maven_group={{context.PackageName}}
+            mod_authors=LocalGPT, Michi0403
+            mod_description={{NormalizeDescription(request.Description)}}
+            """;
+        }
+        public static MinecraftDependencyVersionInfo ResolveDependencyVersions(
+          MinecraftModBuildRequest request,
+          string? loaderOverride = null) =>
+          MinecraftDependencyVersionCatalog.Resolve(
+              loaderOverride ?? request.Loader,
+              request.MinecraftVersion,
+              request.JavaVersion,
+              request.GradleVersion);
+
+        public static string CreateBuildLocalScript(MinecraftModBuildRequest request)
+        {
+            var versions = ResolveDependencyVersions(request);
+            var gradleVersion = versions.GradleVersion;
+            return $$"""
+            [CmdletBinding()]
+            param(
+                [string]$Task = "build"
+            )
+
+            $ErrorActionPreference = "Stop"
+
+            $javaHome = $env:JAVA_HOME
+            if ([string]::IsNullOrWhiteSpace($javaHome) -or -not (Test-Path (Join-Path $javaHome "bin\java.exe"))) {
+                $javaCandidate = Join-Path $env:ProgramFiles "Microsoft\jdk-21.0.11.10-hotspot"
+                if (Test-Path (Join-Path $javaCandidate "bin\java.exe")) {
+                    $javaHome = $javaCandidate
+                }
+            }
+
+            if ([string]::IsNullOrWhiteSpace($javaHome) -or -not (Test-Path (Join-Path $javaHome "bin\java.exe"))) {
+                throw "JDK 21 was not found. Install Microsoft.OpenJDK.21 or run LocalGPTWebviewWrapper\build\Setup-MinecraftModToolchain.ps1 -Install."
+            }
+
+            $env:JAVA_HOME = $javaHome
+            $env:Path = "$(Join-Path $javaHome "bin");$env:Path"
+
+            $localGradle = Join-Path $env:LOCALAPPDATA "LocalGPT\Tools\gradle-{{gradleVersion}}\bin\gradle.bat"
+            if (Test-Path $localGradle) {
+                & $localGradle $Task
+                exit $LASTEXITCODE
+            }
+
+            $globalGradle = Get-Command gradle -ErrorAction SilentlyContinue
+            if ($null -ne $globalGradle) {
+                & $globalGradle.Source $Task
+                exit $LASTEXITCODE
+            }
+
+            throw "Gradle {{gradleVersion}} was not found. Run LocalGPTWebviewWrapper\build\Setup-MinecraftModToolchain.ps1 -InstallGradle."
+            """;
+        }
+        public static string CreateDatapackMcmeta(MinecraftModBuildRequest request, WorkspaceContext context) =>
+       $$"""
+            {
+              "pack": {
+                "pack_format": {{GetPackFormatJsonValue(request.MinecraftVersion)}},
+                "description": "{{EscapeJson(context.ProjectName)}} - LocalGPT generated Living Cities datapack"
+              }
+            }
+            """;
+        public static async Task WriteDatapackFunctionAsync(
+    WorkspaceContext context,
+    string functionPath,
+    string content,
+    CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                var normalizedPath = functionPath.Replace('/', Path.DirectorySeparatorChar);
+                var path = Path.Combine(context.ProjectRoot, "data", context.ModId, "function", $"{normalizedPath}.mcfunction");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                await File.WriteAllTextAsync(path, content, Utf8NoBom, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in WriteDatapackFunctionAsync context {context?.ToString()} functionPath {functionPath?.ToString()} content {content?.ToString()}");
+            }
+        }
+        public static  List<CatalogEntry> KnownDependencyVersionInfoVersions (ILogger logger)
+        {
+            try
+            {
+                return new List<CatalogEntry>()
+                {
+                    new(
+            MinecraftVersion: "26.1.2",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT datapack-first mapping for the Minecraft Java 26.1 stable family. Java mods/plugins need official Fabric, NeoForge, or Paper version checks before release."),
+        new(
+            MinecraftVersion: "26.1.1",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT datapack-first mapping for the Minecraft Java 26.1 stable family. Java mods/plugins need official Fabric, NeoForge, or Paper version checks before release."),
+        new(
+            MinecraftVersion: "26.1",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT datapack-first mapping for Minecraft Java 26.1. Java mods/plugins need official Fabric, NeoForge, or Paper version checks before release."),
+        new(
+            MinecraftVersion: "26.2-snapshot-6",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT snapshot datapack mapping for Minecraft Java 26.2 Snapshot 6. Use only for snapshot worlds and verify loader APIs before Java mod/plugin release."),
+        new(
+            MinecraftVersion: "26.2",
+            FabricApiVersion: null,
+            NeoForgeVersion: null,
+            PaperApiVersion: null,
+            JavaVersion: "25",
+            Notes: "Curated LocalGPT snapshot datapack mapping for Minecraft Java 26.2. Use only for snapshot worlds and verify loader APIs before Java mod/plugin release."),
+        new(
+            MinecraftVersion: "1.21.4",
+            FabricApiVersion: "0.116.9+1.21.4",
+            NeoForgeVersion: "21.1.231",
+            PaperApiVersion: "1.21.4-R0.1-SNAPSHOT",
+            JavaVersion: "21",
+            Notes: "Curated LocalGPT 1.21.4 mapping; NeoForge value is a cautious 1.21.x fallback and should be source-checked before release."),
+        new(
+            MinecraftVersion: "1.21.1",
+            FabricApiVersion: "0.116.9+1.21.1",
+            NeoForgeVersion: "21.1.231",
+            PaperApiVersion: "1.21.1-R0.1-SNAPSHOT",
+            JavaVersion: "21",
+            Notes: "Curated LocalGPT 1.21.1 mapping used by Java workspace smoke tests.")
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in KnownDependencyVersionInfoVersions");
+                return new() ;
+            }
+        }
+        public static MinecraftDependencyVersionInfo? ResolveMinecraftDependencyVersionInfo(
+    string? loader,
+    string? minecraftVersion,
+    ILogger logger,
+    string? javaVersion = null,
+    string? gradleVersion = null)
+        {
+            try
+            {
+                var normalizedLoader = CouncilChatStringFunctions.NormalizeLoader(loader);
+                var requestedMinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion)
+                    ? GlobalVariableSlopCollectionToRemove.DefaultMinecraftVersion
+                    : minecraftVersion.Trim();
+                var requestedGradleVersion = string.IsNullOrWhiteSpace(gradleVersion)
+                    ? DefaultGradleVersion
+                    : gradleVersion.Trim();
+                var knownDependencyVersions = KnownDependencyVersionInfoVersions(logger);
+                var entry = knownDependencyVersions.FirstOrDefault(item =>
+                    requestedMinecraftVersion.Equals(item.MinecraftVersion, StringComparison.OrdinalIgnoreCase));
+                var exact = entry is not null;
+                entry ??= knownDependencyVersions
+                    .Where(item => requestedMinecraftVersion.StartsWith(item.MinecraftVersion, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(item => item.MinecraftVersion.Length)
+                    .FirstOrDefault();
+                entry ??= requestedMinecraftVersion.StartsWith("26.", StringComparison.OrdinalIgnoreCase)
+                    ? knownDependencyVersions.First(item => item.MinecraftVersion == "26.1")
+                    : requestedMinecraftVersion.StartsWith("1.21", StringComparison.OrdinalIgnoreCase)
+                    ? knownDependencyVersions.First(item => item.MinecraftVersion == "1.21.4")
+                    : knownDependencyVersions.First(item => item.MinecraftVersion == "26.1");
+
+                var requestedJavaVersion = string.IsNullOrWhiteSpace(javaVersion)
+                    ? entry.JavaVersion ?? DefaultJavaVersion
+                    : javaVersion.Trim();
+
+                var datapack = CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoResolve(requestedMinecraftVersion, logger);
+                var needsVerification = !exact ||
+                    datapack.NeedsVerification ||
+                    (normalizedLoader is "Fabric" or "NeoForge" or "Paper") &&
+                    (entry.FabricApiVersion is null || entry.NeoForgeVersion is null || entry.PaperApiVersion is null) ||
+                    normalizedLoader.Equals("NeoForge", StringComparison.OrdinalIgnoreCase) && !requestedMinecraftVersion.Equals("1.21.1", StringComparison.OrdinalIgnoreCase);
+
+                var notes = exact
+                    ? entry.Notes
+                    : $"No exact curated Java-loader mapping for Minecraft {requestedMinecraftVersion}; using {entry.MinecraftVersion} as a fallback. Verify loader/API versions against official Fabric, NeoForge, and Paper sources before release.";
+
+                return new MinecraftDependencyVersionInfo(
+                    Loader: normalizedLoader,
+                    RequestedMinecraftVersion: requestedMinecraftVersion,
+                    MatchedMinecraftVersion: entry.MinecraftVersion,
+                    JavaVersion: requestedJavaVersion,
+                    GradleVersion: requestedGradleVersion,
+                    FabricLoaderVersion: normalizedLoader is "Fabric" or "NeoForge" ? FabricLoaderVersion : null,
+                    FabricApiVersion: normalizedLoader is "Fabric" ? entry.FabricApiVersion : null,
+                    NeoForgeVersion: normalizedLoader is "NeoForge" ? entry.NeoForgeVersion : null,
+                    PaperApiVersion: normalizedLoader is "Paper" ? entry.PaperApiVersion : null,
+                    DatapackPackFormat: normalizedLoader is "Datapack" ? datapack.PackFormat : null,
+                    IsExactMatch: exact && !datapack.NeedsVerification,
+                    NeedsVerification: needsVerification,
+                    Notes: notes,
+                    Source: "LocalGPT curated Minecraft dependency catalog. Verify unknown versions with official Fabric, NeoForge, Paper, Gradle, and Minecraft version sources.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ResolveMinecraftDependencyVersionInfo loader {loader?.ToString()} minecraftVersion {minecraftVersion?.ToString()} javaVersion {javaVersion?.ToString()} gradleVersion {gradleVersion?.ToString()}");
+                return null;
+            }
+        }
+
+        public static MinecraftDatapackVersionInfo? MinecraftDatapackVersionInfoResolve(string? minecraftVersion, ILogger logger)
+        {
+            try
+            {
+                var requested = string.IsNullOrWhiteSpace(minecraftVersion)
+                ? DefaultMinecraftVersion
+                : minecraftVersion.Trim();
+                var knownVersions = MinecraftDatapackVersionKnownVersions(logger);
+                var exact = knownVersions.FirstOrDefault(item =>
+                    requested.Equals(item.MatchedVersion, StringComparison.OrdinalIgnoreCase));
+                if (exact is not null)
+                    return exact with { RequestedVersion = requested };
+
+                var prefix = knownVersions
+                    .Where(item => requested.StartsWith(item.MatchedVersion, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(item => item.MatchedVersion.Length)
+                    .FirstOrDefault();
+                if (prefix is not null)
+                    return prefix with { RequestedVersion = requested, IsExactMatch = false, NeedsVerification = true, Notes = $"{prefix.Notes} Version matched by prefix; verify against the official Minecraft version manifest before friend testing." };
+
+                var fallback = requested.StartsWith("26.", StringComparison.OrdinalIgnoreCase)
+                    ? knownVersions.First(item => item.MatchedVersion == DefaultMinecraftVersion)
+                    : requested.StartsWith("1.21", StringComparison.OrdinalIgnoreCase)
+                    ? knownVersions.First(item => item.MatchedVersion == "1.21.4")
+                    : knownVersions.First(item => item.MatchedVersion == DefaultMinecraftVersion);
+
+                return fallback with
+                {
+                    RequestedVersion = requested,
+                    IsExactMatch = false,
+                    NeedsVerification = true,
+                    Notes = $"No exact LocalGPT mapping for Minecraft {requested}. Using {fallback.MatchedVersion} as a cautious fallback; verify pack_format with the official version manifest."
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in MinecraftDatapackVersionInfoResolve minecraftVersion {minecraftVersion?.ToString()}");
+                return null;
+            }
+        }
+        public static List< MinecraftDatapackVersionInfo> MinecraftDatapackVersionKnownVersions (ILogger logger)
+        {
+            try
+            {
+                return new()
+                {
+                         CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("26.2", "105.0", "function", "Minecraft Java 26.2 snapshot family. Use only for snapshot worlds and verify against the installed launcher build.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("26.2-snapshot-6", "105.0", "function", "Minecraft Java 26.2 Snapshot 6 datapack format.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("26.1.2", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("26.1.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("26.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("1.21.4", 61.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "LocalGPT Living Cities benchmark target.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("1.21.3", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("1.21.2", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("1.21.1", 48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger),
+        CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoKnown("1.21",48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger)
+                };
+            }
+            catch (Exception)
+            {
+                return new();
+            }
+        }
+        public static MinecraftDatapackVersionInfo? MinecraftDatapackVersionInfoKnown(string version, string packFormat, string functionRegistryFolder, string notes, ILogger logger) 
+        {
+            try
+            {
+                return new(
+                RequestedVersion: version,
+                MatchedVersion: version,
+                PackFormat: packFormat,
+                FunctionRegistryFolder: functionRegistryFolder,
+                IsExactMatch: true,
+                NeedsVerification: false,
+                Notes: notes,
+                Source: "LocalGPT curated datapack version catalog; verify unknown versions with the official Minecraft version manifest.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in MinecraftDatapackVersionInfoKnown version {version} packFormat {packFormat} functionRegistryFolder {functionRegistryFolder} notes {notes}");
+                return null;
+            }
+        }
         private static string? FindRepositoryRoot(ILogger<BuildDebugInventoryService> logger)
         {
             try
