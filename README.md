@@ -10,6 +10,7 @@ Self Awareness works always best if you feed the most recent versions of whateve
 Reviewtalks, feedbalk talks, letting the AI Review the process and everything is quite important but the AI Council helps you instruction you, no tutorial necessary you learn by doing.
 
 Example Powershell to Blob a Git ( I will built that into the Setup as well but.. yeah no time.
+https://github.com/Michi0403/LocalGPT/releases/download/v0.8.7-FirstCleanAndFastRelease/localgpt_repo_to_text_generator.ps1
 
 When the application enters you can go anywhere but you should go to the Main Chat (A look in the diag panel to start feed and in the SQL Editor to revise knowledge is necessary as well but you will understand through use, the Council can tell you that as well).
 
