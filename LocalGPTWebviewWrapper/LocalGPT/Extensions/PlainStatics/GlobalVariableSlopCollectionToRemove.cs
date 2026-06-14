@@ -25,7 +25,16 @@ namespace LocalGPT.Extensions.PlainStatics
             public OllamaModelDetails? Details { get; set; }
         }
 
- 
+        public sealed record BenchmarkTaskDefinition(
+                   string Id,
+                   string Name,
+                   string Prompt,
+                   string ManualExpectedOutput,
+                   string LocalGptFinalAnswer,
+                   int LocalGptBuildabilityScore,
+                   IReadOnlyList<string> RequiredArtifactEntries,
+                   IReadOnlyList<string> ArchitectureEvidence,
+                   IReadOnlyList<string> WrongTemplateGuards);
 
         public sealed class OpenAIModelsResponse
         {

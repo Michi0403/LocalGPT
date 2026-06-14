@@ -23,6 +23,7 @@ using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.RegularExpressions;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
+using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 namespace LocalGPT.Extensions.PlainStatics
 {
@@ -59,7 +60,272 @@ namespace LocalGPT.Extensions.PlainStatics
             }
 
         }
+        public static IEnumerable<string> BuildImportDirectories(string rootPath, int maxProjects, ILogger logger)
+        {
+            try
+            {
+                var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+                foreach (var directory in CouncilChatStringFunctions.EnumerateImportDirectoryCandidates(rootPath, logger))
+                {
+                    if (emitted.Count >= maxProjects)
+                        yield break;
+
+                    var directoryName = Path.GetFileName(directory);
+                    if (GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Contains(directoryName) || !emitted.Add(directory))
+                        continue;
+
+                    yield return directory;
+                }
+            }
+            finally
+            {
+                logger.LogInformation($"Ended BuildImportDirectories rootPath {rootPath?.ToString()} maxProjects {maxProjects.ToString()}");
+            }
+        }
+        public static IEnumerable<string> EnumerateImportDirectoryCandidates(string rootPath, ILogger logger)
+        {
+            try
+            {
+                if (CouncilChatStaticsGeneral.LooksLikeArchitectureRoot(rootPath, logger))
+                    yield return rootPath;
+
+                foreach (var directory in CouncilChatStaticsGeneral.SafeEnumerateDirectories(rootPath, logger))
+                    yield return directory;
+
+                foreach (var directory in CouncilChatStaticsGeneral.EnumerateNestedArchitectureRoots(rootPath, logger))
+                    yield return directory;
+            }
+            finally
+            {
+                logger.LogInformation($"Ended EnumerateImportDirectoryCandidates rootPath {rootPath?.ToString()}");
+            }
+        }
+        public static IEnumerable<string> ExtractDistinct(string text, Regex pattern, ILogger logger)
+        {
+            try
+            {
+                return pattern.Matches(text)
+       .Select(match => match.Groups["value"].Value.Trim())
+       .Where(value => !string.IsNullOrWhiteSpace(value))
+       .Distinct(StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ExtractDistinct text {text?.ToString()} pattern {pattern?.ToString()}");
+                return new List<string>();
+            }
+        }
+        public static bool IsImportantFile(string fileName, string extension, ILogger logger)
+        {
+            try
+            {
+                return IsProjectRootFile(fileName, extension, logger) ||
+    extension is ".razor" or ".xaml" or ".py" or ".json" or ".sql" or ".md" or ".mdx" or ".go" or ".gotmpl" ||
+    fileName.Equals("Program.cs", StringComparison.OrdinalIgnoreCase) ||
+    fileName.StartsWith("Startup.", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("Startup.cs", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("App.razor", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("_Imports.razor", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("Routes.razor", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("package.json", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsImportantFile fileName {fileName?.ToString()} extension {extension?.ToString()}");
+                return false;
+            }
+
+        }
+        public static bool IsProjectRootFile(string fileName, string extension, ILogger logger)
+        {
+            try
+            {
+                return extension is ".sln" or ".csproj" or ".fsproj" or ".vbproj" ||
+    fileName.Equals("go.mod", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("go.sum", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("Directory.Packages.props", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("Dockerfile", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("CMakeLists.txt", StringComparison.OrdinalIgnoreCase) ||
+    fileName.Equals("package.json", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in IsProjectRootFile fileName {fileName?.ToString()} extension {extension?.ToString()}");
+                return false;
+            }
+        }
+        public static bool ContainsZipEntry(HashSet<string> zipEntries, string required, ILogger logger)
+        {
+            try
+            {
+                var normalized = required.Replace('\\', '/').Trim('/');
+                return zipEntries.Any(entry =>
+                    string.Equals(entry.Trim('/'), normalized, StringComparison.OrdinalIgnoreCase) ||
+                    entry.Contains($"/{normalized}", StringComparison.OrdinalIgnoreCase) ||
+                    entry.StartsWith($"{normalized}/", StringComparison.OrdinalIgnoreCase) ||
+                    entry.Contains($"{normalized}/", StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Outer Error in ContainsZipEntry zipEntries {zipEntries.ToString()} required {required.ToString()}");
+                return false;
+            }
+
+        }
+        public static string RedactSensitiveName(string value, ILogger logger)
+        {
+            try
+            {
+
+                return GlobalVariableSlopCollectionToRemove.SensitiveNamePattern().Replace(value, "[redacted-name]");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in RedactSensitiveName value {value?.ToString()}");
+                return string.Empty;
+            }
+        }
+  
+        public static string BuildFilePolicySummary(ILogger logger)
+        {
+            try
+            {
+                var sourceExtensions = string.Join(", ", GlobalVariableSlopCollectionToRemove.SourceExtensions.Order(StringComparer.OrdinalIgnoreCase));
+                var binaryExtensions = string.Join(", ", GlobalVariableSlopCollectionToRemove.BinaryExtensions.Order(StringComparer.OrdinalIgnoreCase));
+                var excludedDirectories = string.Join(", ", GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Order(StringComparer.OrdinalIgnoreCase));
+                return "Reads source/documentation-like files: " + sourceExtensions +
+                    ". Counts but does not store binary/package files: " + binaryExtensions +
+                    ". Skips noisy build/cache directories: " + excludedDirectories + ".";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildFilePolicySummary");
+                return string.Empty;
+            }
+        }
+        public static string NormalizeTaskSet(string? taskSet, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(taskSet))
+                    return "engineering";
+
+                return taskSet.Trim().ToLowerInvariant() switch
+                {
+                    "replacement" or "replacements" or "apps" or "app-replacements" => "replacement",
+                    "all" or "full" => "all",
+                    _ => "engineering"
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NormalizeTaskSet taskSet {taskSet?.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static IReadOnlyList<BenchmarkTaskDefinition> BuildEngineeringTasks()
+        {
+            return
+            [
+                new(
+                    "devexpress-webshop-efcore",
+                    "DevExpress Blazor webshop with EF Core",
+                    "Generate a downloadable whole solution zip for a DevExpress Blazor webshop with EF Core, SQLite seed data, products, carts, orders, admin CRUD grid, detail form, Bootstrap v5 layout, and README.",
+                    "A strong answer contains a .NET solution, EF Core DbContext/entities/migration guidance, DevExpress product/admin grids, cart/order services, seed data, app navigation, build/run steps, and no client-side privileged commands.",
+                    "Benchmark answer: create a full solution zip with DevExpress Blazor pages, EF Core entities, services, product/cart/order workflows, and README. Include Implementation artifact request.",
+                    6,
+                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/"],
+                    ["DevExpress", "Blazor", "service", "model"],
+                    ["Components/Pages", "Services", "Models"]),
+                new(
+                    "blazor-admin-crud-dashboard",
+                    "Blazor admin dashboard with CRUD grid and detail form",
+                    "Generate a downloadable whole solution zip for a Blazor admin dashboard with DevExpress DxGrid CRUD, detail form, validation, SQLite persistence, audit log, and Bootstrap v5 navigation.",
+                    "A strong answer contains DxGrid, EditForm/DxFormLayout detail editing, validation, EF Core persistence, audit logging, clear service boundaries, and buildable project files.",
+                    "Benchmark answer: create a full solution zip with DxGrid CRUD, detail form, validation, SQLite persistence, audit notes, and README. Include Implementation artifact request.",
+                    6,
+                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/"],
+                    ["DevExpress", "Blazor", "grid"],
+                    ["Components/Pages", "Services", "Models"]),
+                new(
+                    "msix-winui-blazor-packaging",
+                    "MSIX/WinUI/Blazor packaging error diagnosis",
+                    "Diagnose and produce a downloadable LocalGPT-style implementation note for an MSIX WinUI WebView2 Blazor packaging error involving static web assets, LocalGPT.deps.json, IncludeLocalGptPublishedPayload, and APPX1111 duplicate paths.",
+                    "A strong answer separates SDK dotnet build from Visual Studio MSBuild, preserves thin WinUI wrapper, explains IncludeLocalGptPublishedPayload=false for Debug/F5 and release opt-in, and names static web asset payload risks.",
+                    "Benchmark answer: produce a concise .cs artifact note and optional solution zip explaining DesktopBridge diagnosis, package-map duplicate risks, and verification commands. Include Implementation artifact request.",
+                    5,
+                    [],
+                    ["MSIX", "WebView2", "WinUI"],
+                    []),
+                new(
+                    "minecraft-datapack-workspace",
+                    "Minecraft datapack workspace",
+                    "Generate a downloadable Minecraft Java datapack zip for a prompt-driven city simulation datapack named Benchmark Borough with scoreboards, storage, load/tick tags, debug function, docs, and Minecraft 1.21.4 pack format.",
+                    "A strong answer contains zip root pack.mcmeta and data/ directly, singular 1.21 function folders, valid load/tick tags, lowercase namespace, no .mcfunction.txt files, no leading slash commands, and install/test steps.",
+                    "Benchmark answer: generate a prompt-driven datapack zip for Benchmark Borough, not a hard-coded Living Cities artifact. Include pack.mcmeta and data/ at zip root.",
+                    9,
+                    ["pack.mcmeta", "data/minecraft/tags/function/load.json", "data/minecraft/tags/function/tick.json"],
+                    ["datapack", "pack.mcmeta"],
+                    ["pack.mcmeta", "data/"]),
+                new(
+                    "minecraft-loader-skeletons",
+                    "Fabric/Paper/NeoForge project skeleton distinction",
+                    "Generate a downloadable Minecraft Java project skeleton distinction zip that contains separate Fabric, Paper, and NeoForge skeletons for Minecraft 1.21.4, with each loader using its own metadata and Gradle dependency conventions.",
+                    "A strong answer keeps Fabric metadata, Paper plugin.yml, and NeoForge mods.toml/dependencies separate; it does not reuse one loader template for all three.",
+                    "Benchmark answer: create a loader matrix zip with distinct Fabric, Paper, and NeoForge workspaces. Include project skeleton distinction in the answer.",
+                    8,
+                    ["fabric/", "paper/", "neoforge/"],
+                    ["Fabric", "Paper", "NeoForge"],
+                    ["fabric", "paper", "neoforge"])
+            ];
+        }
+        public static IReadOnlyList<BenchmarkTaskDefinition> BuildReplacementTasks()
+        {
+            return
+            [
+                new(
+                    "localgpt-replacement",
+                    "LocalGPT replacement workbench",
+                    "Generate a downloadable whole solution zip that can stand in for LocalGPT as a local-first AI workbench. It must include DXAiChat, AI Council with minimum two-member feedback talk, SQLite memory and knowledge approval markers, artifact download routes, Minecraft builder, install/setup, and Test Lab surfaces. No missing feature is acceptable; if a capability is not implemented, represent it as a visible backend service boundary and capability gap.",
+                    "A strong answer is a buildable .NET/Blazor/DevExpress solution with recognizable LocalGPT navigation: DXAiChat, AI Council, SQLite Database, Minecraft Mod Builder, Install, Help/Test Lab, artifact routes, memory/knowledge services, logs, and missing-feature feedback capture.",
+                    "Benchmark answer: create a full LocalGPT-like workbench solution zip with distinct pages for DXAiChat, AI Council, SQLite, Minecraft, Install, and Test Lab. Include Implementation artifact request.",
+                    7,
+                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Components/Pages/MinecraftModBuilder.razor", "Components/Pages/TestLab.razor", "Components/Pages/Install.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
+                    ["DXAiChat", "AI Council", "SQLite", "Minecraft", "Test Lab", "Source Fidelity", "Artifact"],
+                    ["Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Services/GeneratedSourceFidelityService.cs"]),
+                new(
+                    "tacosportalopen-replacement",
+                    "TacosPortalOpen replacement portal",
+                    "Generate a downloadable whole solution zip that can stand in for TacosPortalOpen as a server-interactive DevExpress/Blazor system. It must represent the real architecture: multi-project/core service topology, Telegram or message-event ingestion, normalized persistence, worker services, notifications/logging, custom security/admin UI, optional WASM client, WinUI/WebView2 wrapper boundary, and a sanitized simpler bot backend implementation.",
+                    "A strong answer is a buildable .NET/Blazor/DevExpress solution with pages and service boundaries for Telegram ingestion, persistence, workers, admin/security, client shells, notification/logging, EF/SQLite or provider-backed data, validation, and build/run docs. A generic menu/orders/reservations restaurant portal is the wrong template.",
+                    "Benchmark answer: create a full TacosPortalOpen-style multi-host/event-ingestion solution zip with Telegram ingestion, persistence, workers, admin, client-shell boundaries, and source-fidelity docs. Include Implementation artifact request.",
+                    7,
+                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/TelegramIngestion.razor", "Components/Pages/Persistence.razor", "Components/Pages/Workers.razor", "Components/Pages/Admin.razor", "Components/Pages/ClientShells.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
+                    ["Telegram", "Persistence", "Workers", "WebView2", "WASM", "DevExpress", "Source Fidelity"],
+                    ["Components/Pages/TelegramIngestion.razor", "Components/Pages/Persistence.razor", "Components/Pages/Workers.razor", "Services/GeneratedSourceFidelityService.cs"]),
+                new(
+                    "ai-host-replacement",
+                    "Provider-compatible AI host replacement",
+                    "Generate a downloadable whole solution zip for a provider-neutral AI host replacement in .NET 10, ASP.NET Core, Blazor, and DevExpress. It must include model catalog, chat, downloads, running models, API console, logs, settings, templates, hardware, runner/plugins, /api/version, /api/tags, /api/ps, /api/chat, /api/generate, OpenAI-compatible routes, direct local model-file runner interfaces, Python.NET/PowerShell extension boundaries, and SQLite/appsettings state.",
+                    "A strong answer is a buildable AI-host solution with provider-compatible routes, DevExpress navigation, model/download/runtime pages, native local-model-file runner interfaces, no upstream provider proxying, and explicit runner setup/status.",
+                    "Benchmark answer: create a buildable AI-host replacement solution zip with DevExpress pages, provider-compatible routes, runner/plugin service contracts, and no Go dependency. Include Implementation artifact request.",
+                    9,
+                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/RunningModels.razor", "Components/Pages/ModelDownloads.razor", "Components/Pages/RunnerPlugins.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedAiHostArchitectureServices.cs", "Services/GeneratedSourceFidelityService.cs"],
+                    ["IInferenceProvider", "IInferenceRunner", "RunnerPlugins", "/api/chat", "Source Fidelity"],
+                    ["Components/Pages/RunnerPlugins.razor", "Services/GeneratedAiHostArchitectureServices.cs", "Services/GeneratedSourceFidelityService.cs"]),
+                new(
+                    "simple-bot-backend",
+                    "Simpler bot backend implementation",
+                    "Generate a downloadable whole solution zip for a simpler bot backend inspired by legacy Telegram-style integrations, but sanitized. It must include webhooks, conversation state, command routing, moderation/retry queues, optional Python.NET boundary for speech/translation/media helpers, settings, logs, EF/SQLite, and a DevExpress Blazor operator UI.",
+                    "A strong answer is a buildable .NET/Blazor/DevExpress bot backend with Webhooks, Conversations, Bot Settings, Python Interop pages, services, safe permission gates, and no private database dump requirement.",
+                    "Benchmark answer: create a simple bot backend solution zip with webhook/conversation/settings/python-interop pages and safe backend service boundaries. Include Implementation artifact request.",
+                    7,
+                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Webhooks.razor", "Components/Pages/Conversations.razor", "Components/Pages/BotSettings.razor", "Components/Pages/PythonInterop.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
+                    ["Webhooks", "Conversations", "Python Interop", "SQLite"],
+                    ["Components/Pages/Webhooks.razor", "Components/Pages/PythonInterop.razor", "Services/GeneratedSourceFidelityService.cs"])
+            ];
+        }
         public static string NormalizeOpenAIEndpoint(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
             try

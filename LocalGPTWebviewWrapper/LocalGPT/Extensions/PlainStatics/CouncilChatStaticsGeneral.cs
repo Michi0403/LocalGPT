@@ -6,6 +6,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO.Compression;
 using System.Net;
@@ -54,6 +55,1203 @@ namespace LocalGPT.Extensions.PlainStatics
             {
                 logger.LogError(ex, $"Error in FindRepositoryRoot");
                 return string.Empty;
+            }
+        }
+        public static async Task<EngineeringBenchmarkBuildCheck?> ValidateBuildableArtifactAsync(
+            CouncilArtifact artifact,
+            CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                var started = DateTime.UtcNow;
+                var root = Path.Combine(
+                    Path.GetTempPath(),
+                    "LocalGPT",
+                    "EngineeringBenchmarkBuilds",
+                    $"{Path.GetFileNameWithoutExtension(artifact.Name)}-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(root);
+
+                var check = new EngineeringBenchmarkBuildCheck
+                {
+                    ArtifactName = artifact.Name,
+                    ExtractedRoot = root
+                };
+                try
+                {
+                    ZipFile.ExtractToDirectory(artifact.FilePath, root, overwriteFiles: true);
+                    var solutionPath = Directory
+                        .EnumerateFiles(root, "*.sln", SearchOption.AllDirectories)
+                        .OrderBy(path => path.Length)
+                        .FirstOrDefault();
+
+                    if (solutionPath is null)
+                    {
+                        check.Status = "NoSolution";
+                        check.OutputPreview = "No .sln file found. This artifact is not a .NET build target.";
+                        return check;
+                    }
+
+                    check.SolutionPath = solutionPath;
+                    var startInfo = new ProcessStartInfo
+                    {
+                        FileName = "dotnet",
+                        Arguments = $"build \"{solutionPath}\" -c Debug /nologo /p:UseSharedCompilation=false",
+                        WorkingDirectory = Path.GetDirectoryName(solutionPath) ?? root,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    timeoutCts.CancelAfter(TimeSpan.FromMinutes(3));
+
+                    using var process = Process.Start(startInfo);
+                    if (process is null)
+                    {
+                        check.Status = "ProcessNotStarted";
+                        return check;
+                    }
+
+                    var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+                    var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
+                    await process.WaitForExitAsync(timeoutCts.Token);
+                    var output = await outputTask;
+                    var error = await errorTask;
+
+                    check.ExitCode = process.ExitCode;
+                    check.Status = process.ExitCode == 0 ? "BuildPassed" : "BuildFailed";
+                    check.OutputPreview = CouncilChatStringFunctions.TrimForPrompt(output, 1800, logger);
+                    check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(error, 1200, logger);
+                    return check;
+                }
+                catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    check.Status = "TimedOut";
+                    check.ErrorPreview = "dotnet build exceeded the 3 minute benchmark timeout.";
+                    logger.LogError(ex, $"Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
+                    return check;
+                }
+                catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+                {
+                    check.Status = "BuildCheckError";
+                    check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(ex.Message, 1200, logger);
+                    logger.LogError(ex, $"Inner Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
+                    return check;
+                }
+                finally
+                {
+                    check.Duration = DateTime.UtcNow - started;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Outer Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
+            }
+            return null;
+        }
+        public static EngineeringBenchmarkLaneResult? BuildManualExpectedLane(BenchmarkTaskDefinition task, ILogger logger)
+        {
+            try
+            {
+                var lane = new EngineeringBenchmarkLaneResult
+                {
+                    Lane = "D. manual expected output",
+                    Status = "Reference",
+                    ValidArchitectureScore = 10,
+                    BuildabilityScore = 10,
+                    MissingFilesScore = 10,
+                    WrongPackagesTemplatesScore = 10,
+                    TimeToUsableOutputScore = 0,
+                    RepairPromptsScore = 10,
+                    DownloadableArtifactScore = 0,
+                    RepairPromptCount = 0,
+                    Notes = task.ManualExpectedOutput
+                };
+                lane.TotalScore = SumScores(lane, logger);
+                return lane;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildManualExpectedLane task {task.ToString()}");
+                return null;
+            }
+        }
+        public static EngineeringBenchmarkLaneResult? NotRunLane(string laneName, string notes, ILogger logger)
+        {
+            try
+            {
+                return new EngineeringBenchmarkLaneResult
+                {
+                    Lane = laneName,
+                    Status = "NotRun",
+                    Notes = notes
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in NotRunLane laneName {laneName.ToString()} notes {notes.ToString()}");
+                return null;
+            }
+        }
+        public static async Task<IReadOnlyList<EngineeringBenchmarkBuildCheck>> ValidateBuildableArtifactsAsync(
+      IReadOnlyList<CouncilArtifact> artifacts,
+      int maxBuildArtifacts,
+      CancellationToken cancellationToken, ILogger logger)
+        {
+            try
+            {
+                var checks = new List<EngineeringBenchmarkBuildCheck>();
+                var zipArtifacts = artifacts
+                    .Where(artifact => artifact.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+                        File.Exists(artifact.FilePath))
+                    .Take(Math.Clamp(maxBuildArtifacts, 1, 8))
+                    .ToArray();
+
+                foreach (var artifact in zipArtifacts)
+                {
+                    var item = await ValidateBuildableArtifactAsync(artifact, cancellationToken, logger);
+                    ArgumentNullException.ThrowIfNull(item);
+                    checks.Add(item);
+                }
+
+                return checks;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"ValidateBuildableArtifactsAsync artifacts {artifacts.ToString()}");
+                return new List<EngineeringBenchmarkBuildCheck>();
+            }
+        }
+
+        public static int ScoreArchitecture(
+    BenchmarkTaskDefinition task,
+    HashSet<string> zipEntries,
+    IReadOnlyList<CouncilArtifact> artifacts, ILogger logger)
+        {
+            try
+            {
+                if (artifacts.Count == 0)
+                    return 0;
+
+                var hits = task.ArchitectureEvidence.Count(evidence =>
+                    zipEntries.Any(entry => entry.Contains(evidence, StringComparison.OrdinalIgnoreCase)) ||
+                    artifacts.Any(artifact => artifact.Summary.Contains(evidence, StringComparison.OrdinalIgnoreCase) ||
+                        artifact.Kind.Contains(evidence, StringComparison.OrdinalIgnoreCase)));
+
+                return task.ArchitectureEvidence.Count == 0
+                    ? 7
+                    : Math.Clamp(4 + hits * 2, 0, 10);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Outer Error in ScoreArchitecture task {task.ToString()} zipEntries {zipEntries.ToString()} artifacts {artifacts.ToString()}");
+                return -1;
+            }
+
+        }
+        public static int ScoreWrongTemplateRisk(BenchmarkTaskDefinition task, HashSet<string> zipEntries, ILogger logger)
+        {
+            try
+            {
+                if (task.WrongTemplateGuards.Count == 0)
+                    return 8;
+
+                var guardHits = task.WrongTemplateGuards.Count(guard => CouncilChatStringFunctions.ContainsZipEntry(zipEntries, guard, logger));
+                return guardHits == task.WrongTemplateGuards.Count ? 10 : Math.Max(0, 10 - (task.WrongTemplateGuards.Count - guardHits) * 3);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Outer Error in ScoreWrongTemplateRisk task {task.ToString()} zipEntries {zipEntries.ToString()}");
+                return -1;
+            }
+
+        }
+        public static int ScoreBuildability(
+      BenchmarkTaskDefinition task,
+      IReadOnlyList<CouncilArtifact> artifacts,
+      IReadOnlyList<EngineeringBenchmarkBuildCheck> buildChecks,
+      bool validateBuildableArtifacts, ILogger logger)
+        {
+            try
+            {
+                if (artifacts.Count == 0)
+                    return 0;
+
+                if (!validateBuildableArtifacts)
+                    return task.LocalGptBuildabilityScore;
+
+                var dotnetChecks = buildChecks
+                    .Where(check => !check.Status.Equals("NoSolution", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+
+                if (dotnetChecks.Length == 0)
+                    return task.LocalGptBuildabilityScore;
+
+                return dotnetChecks.All(check => check.Status.Equals("BuildPassed", StringComparison.OrdinalIgnoreCase))
+                    ? 10
+                    : 0;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Outer Error in ScoreBuildability task {task.ToString()} artifacts {artifacts.ToString()} buildChecks {buildChecks.ToString()} validateBuildableArtifacts {validateBuildableArtifacts.ToString()}");
+                return -1;
+            }
+
+        }
+        public static IReadOnlyList<string> ReadZipEntriesSafe(CouncilArtifact artifact, ILogger logger)
+        {
+
+            if (!File.Exists(artifact.FilePath))
+                return [];
+
+            try
+            {
+                using var archive = ZipFile.OpenRead(artifact.FilePath);
+                return archive.Entries
+                    .Select(entry => entry.FullName.Replace('\\', '/'))
+                    .Where(entry => !string.IsNullOrWhiteSpace(entry))
+                    .ToArray();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Outer Error in ReadZipEntriesSafe artifact {artifact.ToString()}");
+                return new List<string>();
+            }
+        }
+        public static int SumScores(EngineeringBenchmarkLaneResult lane, ILogger logger)
+        {
+            try
+            {
+                return lane.ValidArchitectureScore +
+                lane.BuildabilityScore +
+                lane.MissingFilesScore +
+                lane.WrongPackagesTemplatesScore +
+                lane.TimeToUsableOutputScore +
+                lane.RepairPromptsScore +
+                lane.DownloadableArtifactScore;
+
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SumScores lane {lane.ToString()}");
+                return -1;
+            }
+
+        }
+        public static string ReadSmallText(FileInfo file, ILogger logger)
+        {
+            try
+            {
+                return System.IO.File.ReadAllText(file.FullName);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ReadSmallText file {file?.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static void AddIf(string text, List<string> signals, string label, ILogger logger, params string[] needles)
+        {
+            try
+            {
+                if (needles.Any(needle => text.Contains(needle, StringComparison.OrdinalIgnoreCase)))
+                    signals.Add(label);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in AddIf text {text?.ToString()} signals {signals?.ToString()} label {label?.ToString()} needles {needles?.ToString()}");
+
+            }
+        }
+        public static IReadOnlyList<CouncilKnowledgeEntry> BuildWindowsDevDocsEntries(
+            string rootPath,
+            IReadOnlyList<FileInfo> markdownFiles, ILogger logger)
+        {
+            try
+            {
+                var now = DateTime.UtcNow;
+                var docfxSamples = BuildWindowsDocsPathSamples(rootPath, markdownFiles, logger, "docfx", "metadata", "toc", "index", "authoring");
+                var platformSamples = BuildWindowsDocsPathSamples(rootPath, markdownFiles, logger, "windows-app-sdk", "winui", "webview2", "msix", "desktop");
+                var supportSamples = BuildWindowsDocsPathSamples(rootPath, markdownFiles, logger, "developer-mode", "dev-drive", "winget", "terminal", "arm64");
+                var designSamples = BuildWindowsDocsPathSamples(rootPath, markdownFiles, logger, "design", "accessibility", "navigation", "layout", "typography");
+                var frontMatterCount = markdownFiles
+                    .Take(800)
+                    .Select(filter => CouncilChatStaticsGeneral.ReadSmallText(filter, logger))
+                    .Count(text => text.TrimStart().StartsWith("---", StringComparison.Ordinal));
+
+                return StampSourceMetadata(
+                    rootPath,
+                    markdownFiles,
+                    now,
+                [
+                    new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"windows-dev-docs|docfx|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Windows developer docs DocFX and Microsoft Learn authoring",
+                    Scope = "DocFX / developer documentation",
+                    Source = "Local learn-base docs corpus: windows-dev-docs-docs",
+                    Content = "The local Windows developer docs corpus uses Microsoft Learn/DocFX-style Markdown. " +
+                        "Generation should preserve normal physical line breaks, front matter, title/description metadata, ms.topic/ms.date fields, relative links, includes, image references, and table/list readability. " +
+                        "For docfx generation, produce docs that can be indexed by topic, source file, service boundary, build command, troubleshooting case, and related API/platform area. " +
+                        "Do not paste full docs into prompts; summarize source maps and let LocalGPT retrieve narrow entries. " +
+                        $"Sampled {markdownFiles.Count} markdown files; {frontMatterCount} of the first 800 looked like front-matter pages.",
+                    HelpfulSources = docfxSamples,
+                    Tags = "learn-base; windows-dev-docs; docfx; microsoft-learn; markdown; documentation; source-backed",
+                    Confidence = 88,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"windows-dev-docs|platform|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Windows app platform source map for LocalGPT generation",
+                    Scope = "Windows app development",
+                    Source = "Local learn-base docs corpus: windows-dev-docs-docs",
+                    Content = "When generating Windows-capable .NET apps, use the Windows docs corpus as a compact source map for Windows App SDK, WinUI, WebView2, MSIX/package deployment, app lifecycle, desktop integration, and Windows desktop support boundaries. " +
+                        "For LocalGPT-style apps, keep WebView2 wrappers thin, own Blazor/ASP.NET Core work in the backend, and document static assets, package/runtime dependencies, and deploy/debug differences. " +
+                        "Generated projects should include health routes, package diagnostics, build/run docs, and clear user-facing setup checks.",
+                    HelpfulSources = platformSamples,
+                    Tags = "learn-base; windows; winui; windowsappsdk; webview2; msix; deployment; desktop; source-backed",
+                    Confidence = 88,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"windows-dev-docs|support|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Windows technician workflow for developer support",
+                    Scope = "Windows support / operations",
+                    Source = "Local learn-base docs corpus: windows-dev-docs-docs",
+                    Content = "Use the Windows docs corpus to support developer-machine setup and troubleshooting: Developer Mode, Device Portal/discovery, winget, Windows Terminal, Dev Drive, PowerToys, Visual Studio/SDK/runtime checks, Arm64/Arm64EC/Arm64X compatibility, package logs, event logs, certificates, and deployment diagnostics. " +
+                        "LocalGPT should present these as guided checks and repair scripts, not as vague advice. Mark actions that need admin rights, downloads, or package changes before running them.",
+                    HelpfulSources = supportSamples,
+                    Tags = "learn-base; windows-support; winget; terminal; dev-drive; arm64; diagnostics; technician; source-backed",
+                    Confidence = 86,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"windows-dev-docs|design|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Windows design and accessibility guidance for generated Blazor apps",
+                    Scope = "Frontend design / accessibility",
+                    Source = "Local learn-base docs corpus: windows-dev-docs-docs",
+                    Content = "Use Windows design guidance as a source-backed supplement for generated Blazor/DevExpress apps: navigation clarity, command placement, typography, layout, iconography, accessibility, keyboard focus, density, status messages, and responsive behavior. " +
+                        "Generated apps should be understandable without long instructional text, while still surfacing setup state, loading state, errors, empty states, and next actions.",
+                    HelpfulSources = designSamples,
+                    Tags = "learn-base; windows-design; accessibility; blazor; devexpress; ux; source-backed",
+                    Confidence = 86,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                }
+                ], logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildWindowsDevDocsEntries rootPath {rootPath?.ToString()} markdownFiles {markdownFiles?.ToString()}");
+                return new List<CouncilKnowledgeEntry>();
+            }
+
+        }
+        public static IReadOnlyList<CouncilKnowledgeEntry> BuildDotNetDocsEntries(
+     string rootPath,
+     IReadOnlyList<FileInfo> markdownFiles, ILogger logger)
+        {
+            try
+            {
+                var now = DateTime.UtcNow;
+                var docfxSamples = CouncilChatStaticsGeneral.BuildDocsPathSamples(rootPath, markdownFiles, logger, "docfx", "toc", "index", "includes", "samples");
+                var architectureSamples = CouncilChatStaticsGeneral.BuildDocsPathSamples(rootPath, markdownFiles, logger, "architecture", "microservices", "cloud-native", "modern-web-apps");
+                var csharpSamples = CouncilChatStaticsGeneral.BuildDocsPathSamples(rootPath, markdownFiles, logger, "csharp", "language-reference", "compiler", "csharp-12", "language-versioning");
+                var webSamples = CouncilChatStaticsGeneral.BuildDocsPathSamples(rootPath, markdownFiles, logger, "aspnet", "blazor", "web-api", "minimal-api", "dependency-injection");
+                var dataSamples = CouncilChatStaticsGeneral.BuildDocsPathSamples(rootPath, markdownFiles, logger, "entity-framework", "ef-core", "linq", "data", "serialization");
+                var frontMatterCount = markdownFiles
+                    .Take(1000)
+                    .Select(filter => CouncilChatStaticsGeneral.ReadSmallText(filter, logger))
+                    .Count(text => text.TrimStart().StartsWith("---", StringComparison.Ordinal));
+
+                return StampSourceMetadata(
+                    rootPath,
+                    markdownFiles,
+                    now,
+                [
+                    new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"dotnet-docs|docfx|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Microsoft .NET docs corpus source map",
+                    Scope = ".NET / Microsoft Learn / DocFX",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "The local Microsoft .NET docs corpus is a source-backed map for .NET, C#, compiler diagnostics, architecture, libraries, samples, and Microsoft Learn authoring. " +
+                        "Do not paste the full corpus into model prompts. Store concise source maps in SQLite, retrieve narrow entries, and inspect exact files only when a generation task needs exact syntax or version detail. " +
+                        "Generated docs should preserve front matter, relative links, includes, readable tables/lists, normal physical line breaks, and topic/source metadata. " +
+                        $"Sampled {markdownFiles.Count} markdown files; {frontMatterCount} of the first 1000 looked like front-matter pages.",
+                    HelpfulSources = docfxSamples,
+                    Tags = "learn-base; dotnet-docs; microsoft-learn; docfx; markdown; source-backed",
+                    Confidence = 90,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"dotnet-docs|architecture|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "Modern .NET architecture guidance for generated solutions",
+                    Scope = ".NET architecture / application generation",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "Use the Microsoft .NET architecture docs as the source map for generated enterprise solutions: layered or modular monoliths, microservices only when useful, cloud-native boundaries, service ownership, DI/options/logging/configuration, background services, API contracts, resiliency, data access, tests, deployment, and documentation. " +
+                        "When a prompt asks for a whole app, generate projects, services, models, routes/pages, persistence, tests or smoke paths, README, and downloadable artifacts instead of only pages.",
+                    HelpfulSources = architectureSamples,
+                    Tags = "learn-base; dotnet; architecture; microservices; modular-monolith; aspnetcore; source-backed",
+                    Confidence = 90,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"dotnet-docs|csharp-compiler|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "C# language and compiler source map for LocalGPT code generation",
+                    Scope = "C# / compiler diagnostics / language versions",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "Use the C# language reference, language-version docs, compiler options, compiler messages, nullable reference type guidance, pattern matching, records, required members, primary constructors, collection expressions, interceptors where version-supported, generics, LINQ, async, attributes, XML docs, source generators, and analyzers as source-backed input for code generation and repair. " +
+                        "If the requested feature depends on C# 12 or newer syntax, verify the target SDK/langversion and emit buildable code for that version instead of guessing. Compiler diagnostics win over model confidence.",
+                    HelpfulSources = csharpSamples,
+                    Tags = "learn-base; csharp; csharp12; compiler; diagnostics; langversion; roslyn; source-backed",
+                    Confidence = 91,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"dotnet-docs|web-blazor|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = "ASP.NET Core and Blazor source map for generated web apps",
+                    Scope = "ASP.NET Core / Blazor",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "Use Microsoft docs as a source map for ASP.NET Core hosting, minimal APIs/controllers, routing, middleware, configuration, DI, authentication/authorization, SignalR where relevant, Blazor component rendering modes, forms, validation, static assets, file uploads/downloads, testing, publishing, and diagnostics. " +
+                        "For LocalGPT-style apps, generate backend services and safe HTTP download routes for generated files; Blazor pages should present state, controls, and validation rather than owning privileged execution.",
+                    HelpfulSources = webSamples,
+                    Tags = "learn-base; aspnetcore; blazor; minimal-api; middleware; static-assets; source-backed",
+                    Confidence = 88,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                },
+                new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"dotnet-docs|data|{rootPath}",logger),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    Topic = ".NET data, LINQ, serialization, and EF source map",
+                    Scope = ".NET data access / EF / serialization",
+                    Source = "Local learn-base docs corpus: dotnet/docs-main",
+                    Content = "Use Microsoft docs as a source map for LINQ, serialization, configuration binding, EF-style data modeling when present, migrations/schema evolution, nullable columns for populated databases, DTOs, validation, and database-backed application state. " +
+                        "When DevExpress Web API/XAF/OData compatibility is requested, combine this with LocalGPT's DevExpress business-object guidance instead of inventing shadow properties or ambiguous relationships.",
+                    HelpfulSources = dataSamples,
+                    Tags = "learn-base; dotnet-data; linq; serialization; efcore; database; source-backed",
+                    Confidence = 87,
+                    VerificationStatus = "SourceBacked",
+                    IsUserApproved = true,
+                    IsPinned = true
+                }
+                ], logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildDotNetDocsEntries rootPath {rootPath?.ToString()} markdownFiles {markdownFiles?.ToString()}");
+                return new List<CouncilKnowledgeEntry>();
+            }
+        }
+        public static CouncilKnowledgeEntry? ToKnowledgeEntry(LearnBaseProjectSummary summary, ILogger logger)
+        {
+            try
+            {
+                var sanitizedSourcePath = CouncilChatStringFunctions.RedactSensitiveName(summary.SourcePath, logger);
+                var now = DateTime.UtcNow;
+                var content = new StringBuilder()
+                    .AppendLine("This entry is about reusable architecture and wiring patterns, not about copying names or branding.")
+                    .AppendLine("Learn the functionality, protocols, service boundaries, host wiring, and component usage. Treat source labels as evidence labels, not as target product names.")
+                    .AppendLine($"Architecture fingerprint source label: {summary.Name}")
+                    .AppendLine($"Sanitized source path label: {sanitizedSourcePath}")
+                    .AppendLine($"Architecture signals: {summary.Architecture}")
+                    .AppendLine($"Protocols/components: {summary.ProtocolsAndComponents}")
+                    .AppendLine($"Target frameworks: {CouncilChatStringFunctions.Fallback(summary.TargetFrameworks, "none detected", logger)}")
+                    .AppendLine($"Package references: {CouncilChatStringFunctions.Fallback(summary.PackageReferences, "none detected", logger)}")
+                    .AppendLine($"Important files: {summary.ImportantFiles}")
+                    .AppendLine($"Source files counted: {summary.SourceFileCount}; binary/build artifacts counted but not stored: {summary.BinaryFileCount}.")
+                    .AppendLine("Generation guidance: learn host shapes, protocols, libraries, service boundaries, and solution setup. Do not preserve project names unless the user explicitly asks.")
+                    .AppendLine("Ask for a poll when the user has not selected monolith vs microservice, Blazor vs non-Blazor frontend, DevExpress Web API/security, Python interop, or data persistence style.")
+                    .AppendLine("Legacy offensive names are sanitized in knowledge records; preserve the technical pattern, not the wording.")
+                    .ToString();
+
+                return new CouncilKnowledgeEntry
+                {
+                    Id = CouncilChatStaticsGeneral.CreateStableGuid($"learn-base|{summary.SourcePath}", logger),
+                    Topic = $"Selected learn-base architecture fingerprint: {summary.Architecture}",
+                    Scope = "Selected local project learn-base",
+                    Source = $"Local learn-base scan: {sanitizedSourcePath}",
+                    Content = content,
+                    HelpfulSources = "Local user-selected source folder C:\\learnbaseforlocalgpt. Import stores compact fingerprints only; inspect source directly before copying exact code. Legacy offensive names are sanitized before teaching.",
+                    Tags = CouncilChatStaticsGeneral.BuildTags(summary, logger),
+                    Confidence = 78,
+                    VerificationStatus = "SourceBacked",
+                    ReviewStatus = "NeedsUserReview",
+                    ExpiresAtUtc = now.AddDays(180),
+                    LastVerifiedAtUtc = now,
+                    SourceDateUtc = CouncilChatStaticsGeneral.TryGetLatestSourceDateUtc(summary.SourcePath, logger),
+                    SourceHash = CouncilChatStaticsGeneral.ComputeSummaryHash(summary, logger),
+                    StalenessReason = "Local project fingerprints should be approved or corrected by the user before being treated as durable generation guidance.",
+                    StalenessDetectedBy = "Learn-base importer",
+                    IsUserApproved = false,
+                    IsPinned = summary.Name.Contains("Tacos", StringComparison.OrdinalIgnoreCase) ||
+                        summary.Name.Contains("DevExpress", StringComparison.OrdinalIgnoreCase) ||
+                        summary.Name.Contains("Jezzifa", StringComparison.OrdinalIgnoreCase)
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ToKnowledgeEntry summary {summary?.ToString()}");
+                return null;
+            }
+        }
+        public static string BuildWindowsDocsPathSamples(
+            string rootPath,
+            IReadOnlyList<FileInfo> markdownFiles,
+            ILogger logger,
+            params string[] needles)
+        {
+            try
+            {
+                var samples = CouncilChatStaticsGeneral.BuildDocsPathSamples(rootPath, markdownFiles, logger, needles);
+                if (!samples.StartsWith("No direct sample paths matched", StringComparison.OrdinalIgnoreCase))
+                    return samples;
+
+                return string.Join(
+                    "\n",
+                    markdownFiles
+                        .OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
+                        .Take(16)
+                        .Select(file => "- " + CouncilChatStringFunctions.RedactSensitiveName(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/'), logger)));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildWindowsDocsPathSamples rootPath {rootPath?.ToString()} markdownFiles {markdownFiles?.ToString()} needles {needles?.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static IReadOnlyList<CouncilKnowledgeEntry> StampSourceMetadata(
+    string rootPath,
+    IReadOnlyList<FileInfo> files,
+    DateTime now,
+    IReadOnlyList<CouncilKnowledgeEntry> entries, ILogger logger)
+        {
+            try
+            {
+                var sourceDateUtc = files.Count == 0
+               ? Directory.GetLastWriteTimeUtc(rootPath)
+               : files.Max(file => file.LastWriteTimeUtc);
+                var corpusHash = CouncilChatStaticsGeneral.ComputeCorpusHash(rootPath, files, logger);
+                foreach (var entry in entries)
+                {
+                    entry.ReviewStatus = "Current";
+                    entry.LastVerifiedAtUtc = now;
+                    entry.SourceDateUtc = sourceDateUtc;
+                    entry.SourceHash = corpusHash;
+                }
+
+                return entries;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in StampSourceMetadata rootPath {rootPath?.ToString()} files {files?.ToString()} now {now.ToString()} entries {entries?.ToString()}");
+                return new List<CouncilKnowledgeEntry>();
+            }
+        }
+        public static IEnumerable<string> EnumerateDocumentationCorpusCandidates(string rootPath, ILogger logger)
+        {
+            try
+            {
+                yield return rootPath;
+
+                foreach (var child in CouncilChatStaticsGeneral.SafeEnumerateDirectories(rootPath, logger))
+                {
+                    yield return child;
+
+                    foreach (var grandChild in CouncilChatStaticsGeneral.SafeEnumerateDirectories(child, logger))
+                    {
+                        var name = Path.GetFileName(grandChild);
+                        if (name.Contains("docs", StringComparison.OrdinalIgnoreCase) ||
+                            name.Contains("learn", StringComparison.OrdinalIgnoreCase))
+                        {
+                            yield return grandChild;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                logger.LogInformation($"Ended EnumerateDocumentationCorpusCandidates rootPath {rootPath?.ToString()}");
+
+            }
+        }
+        public static LearnBaseProjectSummary? BuildProjectSummary(string rootPath, string projectDirectory, ILogger logger)
+        {
+            try
+            {
+                var files = CouncilChatStaticsGeneral.EnumerateUsefulFiles(projectDirectory, logger).Take(1600).ToArray();
+                var sourceFiles = files
+                    .Where(file => GlobalVariableSlopCollectionToRemove.SourceExtensions.Contains(file.Extension))
+                    .ToArray();
+                var binaryCount = files.Count(file => GlobalVariableSlopCollectionToRemove.BinaryExtensions.Contains(file.Extension));
+                var textSamples = sourceFiles
+                    .Where(file => file.Length is > 0 and < 256_000)
+                    .Take(80)
+                    .Select(filter => CouncilChatStaticsGeneral.ReadSmallText(filter, logger))
+                    .Where(text => !string.IsNullOrWhiteSpace(text))
+                    .ToArray();
+                var pathSamples = sourceFiles
+                    .Take(700)
+                    .Select(file => Path.GetRelativePath(projectDirectory, file.FullName).Replace('\\', '/'));
+                var combined = string.Join("\n", textSamples.Concat(pathSamples));
+
+                var summary = new LearnBaseProjectSummary
+                {
+                    Name = CouncilChatStringFunctions.RedactSensitiveName(Path.GetFileName(projectDirectory), logger),
+                    SourcePath = projectDirectory,
+                    SourceFileCount = sourceFiles.Length,
+                    BinaryFileCount = binaryCount,
+                    Architecture = CouncilChatStaticsGeneral.InferArchitecture(projectDirectory, files, combined, logger),
+                    ProtocolsAndComponents = CouncilChatStaticsGeneral.InferProtocolsAndComponents(combined, files, logger),
+                    TargetFrameworks = string.Join(", ", CouncilChatStringFunctions.ExtractDistinct(combined, GlobalVariableSlopCollectionToRemove.TargetFrameworkPattern(), logger).Take(12)),
+                    PackageReferences = string.Join(", ", CouncilChatStringFunctions.ExtractDistinct(combined, GlobalVariableSlopCollectionToRemove.PackageReferencePattern(), logger).Take(24)),
+                    ImportantFiles = CouncilChatStaticsGeneral.BuildImportantFileList(rootPath, projectDirectory, sourceFiles, logger)
+                };
+
+                return summary;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildProjectSummary rootPath {rootPath?.ToString()} projectDirectory {projectDirectory?.ToString()}");
+                return null;
+            }
+        }
+        public static string BuildDocsPathSamples(
+            string rootPath,
+            IReadOnlyList<FileInfo> markdownFiles,
+            ILogger logger,
+            params string[] needles)
+        {
+            try
+            {
+                var matches = markdownFiles
+              .Where(file =>
+              {
+                  var relative = Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/');
+                  return needles.Any(needle => relative.Contains(needle, StringComparison.OrdinalIgnoreCase));
+              })
+              .OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
+              .Take(18)
+              .Select(file => "- " + CouncilChatStringFunctions.RedactSensitiveName(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/'), logger))
+              .ToArray();
+
+                if (matches.Length > 0)
+                    return string.Join("\n", matches);
+
+                return "No direct sample paths matched: " + string.Join(", ", needles.Take(8));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildDocsPathSamples rootPath {rootPath?.ToString()} markdownFiles {markdownFiles?.ToString()} needles {needles?.ToString()}");
+                return string.Empty;
+            }
+        }
+
+        public static string ComputeCorpusHash(string rootPath, IReadOnlyList<FileInfo> files, ILogger logger)
+        {
+            try
+            {
+                var builder = new StringBuilder()
+                .AppendLine(Path.GetFileName(rootPath));
+
+                foreach (var file in files.OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase).Take(2000))
+                {
+                    builder
+                        .Append(Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/'))
+                        .Append('|')
+                        .Append(file.Length)
+                        .Append('|')
+                        .AppendLine(file.LastWriteTimeUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+
+                return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ComputeCorpusHash rootPath {rootPath?.ToString()} files {files?.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static IEnumerable<string> BuildDocumentationCorpusCandidates(string rootPath, ILogger logger)
+        {
+            try
+            {
+                var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var candidate in EnumerateDocumentationCorpusCandidates(rootPath, logger))
+                {
+                    if (Directory.Exists(candidate) && emitted.Add(Path.GetFullPath(candidate)))
+                        yield return Path.GetFullPath(candidate);
+                }
+            }
+            finally
+            {
+                logger.LogInformation("Ended BuildDocumentationCorpusCandidates rootPath {rootPath?.ToString()}");
+
+            }
+        }
+        public static DateTime? TryGetLatestSourceDateUtc(string sourcePath, ILogger logger)
+        {
+            try
+            {
+                return Directory.Exists(sourcePath)
+                    ? CouncilChatStaticsGeneral.EnumerateUsefulFiles(sourcePath, logger).Take(2000).DefaultIfEmpty().Max(file => file?.LastWriteTimeUtc)
+                    : null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in TryGetLatestSourceDateUtc sourcePath {sourcePath?.ToString()}");
+                return null;
+            }
+        }
+        public static IEnumerable<FileInfo> EnumerateUsefulFiles(string directory, ILogger logger)
+        {
+            try
+            {
+                var stack = new Stack<DirectoryInfo>();
+                stack.Push(new DirectoryInfo(directory));
+                while (stack.Count > 0)
+                {
+                    var current = stack.Pop();
+                    DirectoryInfo[] subdirectories;
+                    FileInfo[] files;
+                    try
+                    {
+                        subdirectories = current.GetDirectories();
+                        files = current.GetFiles();
+                    }
+                    catch (IOException)
+                    {
+                        continue;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        continue;
+                    }
+
+                    foreach (var subdirectory in subdirectories)
+                    {
+                        if (!GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Contains(subdirectory.Name))
+                            stack.Push(subdirectory);
+                    }
+
+                    foreach (var file in files)
+                    {
+                        if (GlobalVariableSlopCollectionToRemove.SourceExtensions.Contains(file.Extension) || GlobalVariableSlopCollectionToRemove.BinaryExtensions.Contains(file.Extension))
+                            yield return file;
+                    }
+                }
+            }
+            finally
+            {
+                logger.LogInformation($"Ended  EnumerateUsefulFiles directory {directory?.ToString()}");
+
+            }
+        }
+        public static string ComputeSummaryHash(LearnBaseProjectSummary summary, ILogger logger)
+        {
+            try
+            {
+                var material = string.Join(
+               "\n",
+               summary.Name,
+               summary.SourcePath,
+               summary.Architecture,
+               summary.ProtocolsAndComponents,
+               summary.TargetFrameworks,
+               summary.PackageReferences,
+               summary.ImportantFiles,
+               summary.SourceFileCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(material)));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ComputeSummaryHash summary {summary?.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static string InferArchitecture(string projectDirectory, IReadOnlyList<FileInfo> files, string combined, ILogger logger)
+        {
+            try
+            {
+                var signals = new List<string>();
+                if (files.Any(file => file.Extension.Equals(".sln", StringComparison.OrdinalIgnoreCase)))
+                    signals.Add("Visual Studio solution");
+                if (combined.Contains("DevExpress", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("DevExpress components");
+                if (combined.Contains("DxGrid", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("DevExpress grid/forms");
+                if (combined.Contains("@rendermode", StringComparison.OrdinalIgnoreCase) || combined.Contains("RazorComponents", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("server-interactive Blazor");
+                if (combined.Contains("EntityFramework", StringComparison.OrdinalIgnoreCase) || combined.Contains("DbContext", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("EF Core/data model");
+                if (combined.Contains("OData", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("OData/Web API");
+                if (combined.Contains("XAF", StringComparison.OrdinalIgnoreCase) || combined.Contains("SecuritySystem", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("DevExpress security/business objects");
+                if (combined.Contains("DevExpress.ExpressApp.Security", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("SecurityStrategy", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("DevExpress Security Web API backend");
+                if (combined.Contains("Telegram", StringComparison.OrdinalIgnoreCase) || combined.Contains("Bot", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("bot/messaging integration");
+                if (combined.Contains("Python.Runtime", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("PythonEngine", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("pythonnet", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("Python.NET C# and Python interop");
+                if (files.Any(file => file.Name.Equals("package.json", StringComparison.OrdinalIgnoreCase)))
+                    signals.Add("JavaScript/Electron or web frontend");
+                if (files.Any(file => file.Extension.Equals(".py", StringComparison.OrdinalIgnoreCase)))
+                    signals.Add("Python integration");
+                if (files.Count(file => file.Extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase)) >= 3)
+                    signals.Add("multi-project solution topology");
+                if (combined.Contains("AddControllers", StringComparison.OrdinalIgnoreCase) &&
+                    combined.Contains("MapRazorComponents", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("mixed ASP.NET Core API and Blazor host");
+                if (combined.Contains("WebApplication.CreateBuilder", StringComparison.OrdinalIgnoreCase) &&
+                    combined.Contains("BackgroundService", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("microservice/background worker host");
+                if (combined.Contains("WinUI", StringComparison.OrdinalIgnoreCase) || combined.Contains("WindowsAppSDK", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("WinUI/Windows app");
+                if (combined.Contains("Wasm", StringComparison.OrdinalIgnoreCase) || combined.Contains("BlazorWebAssembly", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("WebAssembly frontend");
+                if (combined.Contains("IHostedService", StringComparison.OrdinalIgnoreCase) || combined.Contains("ServiceBase", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("service/background worker");
+                if (files.Any(file => file.Extension.Equals(".go", StringComparison.OrdinalIgnoreCase)) ||
+                    files.Any(file => file.Name.Equals("go.mod", StringComparison.OrdinalIgnoreCase)))
+                    signals.Add("Go API/runtime source to translate into .NET control-plane patterns");
+                if (combined.Contains("/api/generate", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("/api/chat", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("/api/tags", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("AI-host-compatible API route surface");
+                if (combined.Contains("OpenAI", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("anthropic", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("AI provider compatibility adapters");
+                if (combined.Contains("manifest", StringComparison.OrdinalIgnoreCase) &&
+                    combined.Contains("model", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("model registry and manifest lifecycle");
+                if (combined.Contains("llama", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("runner", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("kvcache", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("inference runner/runtime orchestration");
+                if (combined.Contains("tokenizer", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("template", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("harmony", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("thinking", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("chat template tokenizer and thinking-format handling");
+                if (combined.Contains("ffmpeg", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("moviepy", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("pydub", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("media processing pipeline");
+                if (combined.Contains("midi", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("wave", StringComparison.OrdinalIgnoreCase) ||
+                    combined.Contains("audio", StringComparison.OrdinalIgnoreCase))
+                    signals.Add("audio/MIDI processing");
+
+                return signals.Count == 0
+                    ? $"Mixed or legacy project under {CouncilChatStringFunctions.RedactSensitiveName(Path.GetFileName(projectDirectory), logger)}"
+                    : string.Join("; ", signals.Distinct(StringComparer.OrdinalIgnoreCase));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in InferArchitecture projectDirectory {projectDirectory?.ToString()} files {files?.ToString()} combined {combined?.ToString()}");
+                return string.Empty;
+            }
+
+        }
+        public static string InferProtocolsAndComponents(string combined, IReadOnlyList<FileInfo> files, ILogger logger)
+        {
+            try
+            {
+                var signals = new List<string>();
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "HTTP API", logger, "HttpClient", "ControllerBase", "MapGet", "WebApplication");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "OData", logger, "OData", "EnableQuery");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "SQLite", logger, "Sqlite", "SQLite", "sqlite");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "SQL Server", logger, "SqlServer", "UseSqlServer");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "Telegram Bot API", logger, "Telegram", "BotClient");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "Whisper/audio", logger, "Whisper", "NAudio", "WaveIn");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "Python.NET interop", logger, "Python.Runtime", "PythonEngine", "Py.GIL", "pythonnet");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "DevExpress Blazor", logger, "DxGrid", "DxFormLayout", "AddDevExpressBlazor");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "DevExpress Web API/security", logger, "DevExpress.ExpressApp.Security", "SecurityStrategy", "AddXafWebApi", "UseMiddleTier");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "DevExpress reports/documents", logger, "XtraReport", "RichEdit", "PdfViewer", "Spreadsheet");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "MSIX/DesktopBridge", logger, "wapproj", "AppxPackage", "DesktopBridge");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "Authentication/authorization", logger, "AuthorizeView", "AddAuthentication", "Identity");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "multi-host ASP.NET/Blazor", logger, "MapRazorComponents", "MapControllers", "AddRazorPages", "AddServerSideBlazor");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "AI host API", logger, "/api/generate", "/api/chat", "/api/tags", "/api/pull", "/api/embed");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "OpenAI/Anthropic compatibility", logger, "OpenAI", "anthropic", "/v1/chat/completions", "/v1/models");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "model manifest/download lifecycle", logger, "manifest", "digest", "download", "transfer", "progress");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "inference runtime", logger, "llama", "runner", "kvcache", "tokenizer", "sampling");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "chat format parsing", logger, "template", "gotmpl", "harmony", "thinking");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "WebView/desktop tray shell", logger, "WebView2", "wintray", "notifyicon");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "DevExpress AI Chat/function calling", logger, "DxAIChat", "AI-Chat-FunctionCalling", "AI-Chat-GridFunctionCalling");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "DevExpress upload/file workflow", logger, "DxUpload", "DxFileInput", "ChunkUpload");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "DevExpress reporting/document workflow", logger, "AddDevExpressBlazorReporting", "RichEdit", "PdfViewer", "Spreadsheet");
+                CouncilChatStaticsGeneral.AddIf(combined, signals, "Python media tooling", logger, "ffmpeg", "moviepy", "pydub", "youtube", "midi", "wave");
+                if (files.Any(file => file.Name.Equals("app.py", StringComparison.OrdinalIgnoreCase)))
+                    signals.Add("Flask/Python web app");
+                if (files.Any(file => file.Name.Equals("package.json", StringComparison.OrdinalIgnoreCase)))
+                    signals.Add("npm package frontend");
+
+                return signals.Count == 0
+                    ? "No dominant protocol/component detected"
+                    : string.Join("; ", signals.Distinct(StringComparer.OrdinalIgnoreCase));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in InferProtocolsAndComponents combined {combined?.ToString()} files {files?.ToString()}");
+                return string.Empty;
+            }
+
+        }
+        public static string BuildImportantFileList(string rootPath, string projectDirectory, IReadOnlyList<FileInfo> sourceFiles, ILogger logger)
+        {
+            try
+            {
+                var important = sourceFiles
+             .Where(file => CouncilChatStringFunctions.IsImportantFile(file.Name, file.Extension, logger))
+             .OrderBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
+             .Take(28)
+             .Select(file => CouncilChatStringFunctions.RedactSensitiveName(Path.GetRelativePath(projectDirectory, file.FullName).Replace('\\', '/'), logger));
+
+                return string.Join("; ", important);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildImportantFileList rootPath {rootPath?.ToString()} projectDirectory {projectDirectory?.ToString()} sourceFiles {sourceFiles?.ToString()}");
+                return string.Empty;
+            }
+
+        }
+        public static IEnumerable<string> EnumerateNestedArchitectureRoots(string rootPath, ILogger logger)
+        {
+            try
+            {
+                var stack = new Stack<DirectoryInfo>(CouncilChatStaticsGeneral.SafeEnumerateDirectoryInfos(rootPath, logger).Reverse());
+                while (stack.Count > 0)
+                {
+                    var current = stack.Pop();
+                    if (GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Contains(current.Name))
+                        continue;
+
+                    if (CouncilChatStaticsGeneral.LooksLikeArchitectureRoot(current.FullName, logger))
+                        yield return current.FullName;
+
+                    foreach (var child in CouncilChatStaticsGeneral.SafeEnumerateDirectoryInfos(current.FullName, logger).Reverse())
+                        stack.Push(child);
+                }
+            }
+            finally
+            {
+                logger.LogInformation($"Ended EnumerateNestedArchitectureRoots rootPath {rootPath?.ToString()}");
+            }
+        }
+        public static IEnumerable<string> SafeEnumerateDirectories(string rootPath, ILogger logger)
+        {
+            try
+            {
+                return Directory.EnumerateDirectories(rootPath).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SafeEnumerateDirectories rootPath {rootPath?.ToString()}");
+                return new List<string>();
+            }
+        }
+        public static IEnumerable<DirectoryInfo> SafeEnumerateDirectoryInfos(string rootPath, ILogger logger)
+        {
+            try
+            {
+                return new DirectoryInfo(rootPath)
+                    .EnumerateDirectories()
+                    .Where(directory => !GlobalVariableSlopCollectionToRemove.ExcludedDirectoryNames.Contains(directory.Name))
+                    .OrderBy(directory => directory.FullName, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in SafeEnumerateDirectoryInfos rootPath {rootPath?.ToString()}");
+                return new List<DirectoryInfo>();
+            }
+        }
+        public static bool LooksLikeWindowsDevDocsRoot(string rootPath, ILogger logger)
+        {
+            try
+            {
+                var directory = new DirectoryInfo(rootPath);
+                if (!directory.Exists)
+                    return false;
+
+                if (directory.Name.Equals("windows-dev-docs-docs", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                try
+                {
+                    var childNames = directory.GetDirectories()
+                        .Select(child => child.Name)
+                        .ToArray();
+                    return childNames.Any(name => name.Contains("windows", StringComparison.OrdinalIgnoreCase)) &&
+                        childNames.Any(name => name.Contains("windows-app", StringComparison.OrdinalIgnoreCase) ||
+                            name.Contains("uwp", StringComparison.OrdinalIgnoreCase) ||
+                            name.Contains("design", StringComparison.OrdinalIgnoreCase));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in LooksLikeWindowsDevDocsRoot rootPath {rootPath?.ToString()}");
+                return false;
+            }
+        }
+        public static bool LooksLikeDotNetDocsRoot(string rootPath, ILogger logger)
+        {
+            try
+            {
+                var directory = new DirectoryInfo(rootPath);
+                if (!directory.Exists)
+                    return false;
+
+                var docsDirectory = Path.Combine(rootPath, "docs");
+                if (!System.IO.File.Exists(Path.Combine(rootPath, "docfx.json")) || !Directory.Exists(docsDirectory))
+                    return false;
+
+                return Directory.Exists(Path.Combine(docsDirectory, "csharp")) ||
+                    Directory.Exists(Path.Combine(docsDirectory, "core")) ||
+                    Directory.Exists(Path.Combine(docsDirectory, "architecture")) ||
+                    Directory.Exists(Path.Combine(docsDirectory, "standard"));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in LooksLikeDotNetDocsRoot rootPath {rootPath?.ToString()}");
+                return false;
+            }
+        }
+        public static bool LooksLikeArchitectureRoot(string rootPath, ILogger logger)
+        {
+            try
+            {
+                var directory = new DirectoryInfo(rootPath);
+                if (!directory.Exists)
+                    return false;
+
+                if (directory.GetFiles().Any(file => CouncilChatStringFunctions.IsProjectRootFile(file.Name, file.Extension, logger)))
+                    return true;
+
+                var childNames = directory.GetDirectories()
+                    .Select(child => child.Name)
+                    .ToArray();
+                var distinctiveChildren = childNames.Count(name =>
+                    name.Equals("api", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("server", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("cmd", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("llm", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("runner", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("manifest", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("BlazorDemo.ServerSide", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("BlazorDemo.Wasm", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("VideoShredGUI", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("python-midi", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("JessiferBlazorWASM", StringComparison.OrdinalIgnoreCase));
+                return distinctiveChildren >= 2;
+
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in LooksLikeArchitectureRoot rootPath {rootPath?.ToString()}");
+                return false;
+            }
+
+        }
+        public static Guid CreateStableGuid(string value, ILogger logger)
+        {
+            try
+            {
+                var hash = MD5.HashData(Encoding.UTF8.GetBytes(value.ToLowerInvariant()));
+                return new Guid(hash);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in CreateStableGuid value {value}");
+                return Guid.Empty;
+            }
+        }
+        public static string BuildTags(LearnBaseProjectSummary summary, ILogger logger)
+        {
+            try
+            {
+                var tags = new List<string> { "learn-base", "source-backed", "architecture-fingerprint" };
+                foreach (var token in Regex.Split($"{summary.Architecture};{summary.ProtocolsAndComponents}", @"[^A-Za-z0-9]+"))
+                {
+                    if (token.Length is >= 3 and <= 28)
+                        tags.Add(token.ToLowerInvariant());
+                }
+
+                return string.Join("; ", tags.Distinct(StringComparer.OrdinalIgnoreCase).Take(24));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildTags summary {summary?.ToString()}");
+                return string.Empty;
+            }
+        }
+        public static IReadOnlyList<BenchmarkTaskDefinition> BuildTasks(string taskSet, ILogger logger)
+        {
+            try
+            {
+                var engineering = CouncilChatStringFunctions.BuildEngineeringTasks();
+                var replacements = CouncilChatStringFunctions.BuildReplacementTasks();
+
+                return taskSet switch
+                {
+                    "replacement" => replacements,
+                    "all" => engineering.Concat(replacements).ToArray(),
+                    _ => engineering
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in BuildTasks taskSet {taskSet?.ToString()}");
+                return new List<BenchmarkTaskDefinition>();
             }
         }
         public static IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders(AICoreOptions options, ILogger<ChatClientFactory> logger)
