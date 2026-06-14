@@ -1,6 +1,15 @@
 IMPORTANT NOTICE YOU NEED TO USE THE INSTALLER.EXE IT BOOTSTRAPS EVERYTHING..
-https://github.com/Michi0403/LocalGPT/releases/download/v0.8.5aWorkingInstaller/LocalGPTInstallerConsole.exe
-THE .CMD Files are ENTRY POINTS FOR THAT.
+Quickstart
+
+https://github.com/Michi0403/LocalGPT/releases/download/v0.8.7-FirstCleanAndFastRelease/LocalGPTInstallerConsole.exe
+
+THE .CMD Files are ENTRY POINTS FOR THAT, the installer will download itself (since one day .cmd files are blocked in the internet and on github, thanks? Am I the reason? I used it and it worked till yesterday, if yeah just another angry company, who cares?
+
+Self Awareness works always best if you feed the most recent versions of whatever GIT directly in the text because in Knowledge DB Usually no whole sourcecode (WORKS WELL JUST PASTE THE BLOB IN) is created at least by the AI Itself, architecture, guides, cowork guidelines and much more, but not that.
+
+Reviewtalks, feedbalk talks, letting the AI Review the process and everything is quite important but the AI Council helps you instruction you, no tutorial necessary you learn by doing.
+
+Example Powershell to Blob a Git ( I will built that into the Setup as well but.. yeah no time.
 
 When the application enters you can go anywhere but you should go to the Main Chat (A look in the diag panel to start feed and in the SQL Editor to revise knowledge is necessary as well but you will understand through use, the Council can tell you that as well).
 
@@ -16,7 +25,10 @@ When Ollama connected successfully you will see all members , can select your te
 2. select council instead of single chat
 3. press new chat with your settings setted up before in that page
 4. Don't destroy humanity
+5. You still have to teach your teams and the knowledge DB anything it's not smarter than you, (at least initially), if you're not smart initially it won't help you.
+6. If you're smart with to less time, that's for you. This is the best AI I've ever worked with and I paid for quite some + I made it opensource based on OfflineAI's (but with DX Frontend Components for the Chat Integration).
 
+---
 Sending the first version of the universal installer and boot mechanism now.
 
 Helps also with bootstrapping and updating any kind of Git repository or Release.
