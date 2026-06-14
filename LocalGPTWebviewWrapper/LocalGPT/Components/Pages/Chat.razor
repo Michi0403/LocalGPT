@@ -256,8 +256,8 @@
                 <AIChatSettings>
                     <DxAIChatFileUploadSettings MaxFileCount="@GlobalVariableSlopCollectionToRemove.MaxUploadFiles"
                                                 MaxFileSize="@GlobalVariableSlopCollectionToRemove.MaxUploadBytes"
-                                               AllowedFileExtensions="@GlobalVariableSlopCollectionToRemove.AllowedUploadExtensions"
-                                                FileTypeFilter="@GlobalVariableSlopCollectionToRemove.AllowedUploadMimeTypes" />
+                                                FileTypeFilter="@GlobalVariableSlopCollectionToRemove.AllowedUploadMimeTypes" 
+                                               />
                 </AIChatSettings>
 
             </DxAIChat>
@@ -271,6 +271,8 @@
 </div>
 
 @code {
+    /*in razor can render as html..  AllowedFileExtensions="@GlobalVariableSlopCollectionToRemove.AllowedUploadExtensions"
+                                                FileTypeFilter="@GlobalVariableSlopCollectionToRemove.AllowedUploadMimeTypes"*/
     [Inject]
     IChatClient? ChatClient { get; set; }
     CompositeChatClient? ChatClientProvider => ChatClient as CompositeChatClient;
