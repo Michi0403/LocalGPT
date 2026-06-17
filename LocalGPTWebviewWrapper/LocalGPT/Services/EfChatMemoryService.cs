@@ -21,20 +21,6 @@ namespace LocalGPT.Services
     {
         public string DatabasePath { get; } = CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
 
-        public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                await using var db = await CreateDbContextAsync(cancellationToken);
-                ArgumentNullException.ThrowIfNull(db);
-                await db.Database.EnsureCreatedAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in EnsureCreatedAsync");
-            }
-        }
-
         public async Task<IReadOnlyList<ChatMemoryConversationSummary>> GetConversationsAsync(int take = 50, CancellationToken cancellationToken = default)
         {
             try
@@ -223,7 +209,7 @@ namespace LocalGPT.Services
             }
             
         }
-
+        //Todo get rid of it centralize
         private async Task<LocalGptMemoryDbContext?> CreateDbContextAsync(CancellationToken cancellationToken)
         {
             try

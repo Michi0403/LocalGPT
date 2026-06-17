@@ -13,26 +13,11 @@ namespace LocalGPT.Services
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory, ILogger<ApplicationLogReaderService>logger) : IApplicationLogReaderService
     {
         public string DatabasePath => CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
-
-        public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-                await SQLLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in EnsureCreatedAsync");
-            }
-        }
-
         public async Task<IReadOnlyList<ApplicationLogSummary>> GetRecentAsync(LogLevel minimumLevel = LogLevel.Warning, int take = 20, CancellationToken cancellationToken = default)
         {
             try
             {
                 await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-                await SQLLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
 
                 return await db.ApplicationLogs
                     .AsNoTracking()

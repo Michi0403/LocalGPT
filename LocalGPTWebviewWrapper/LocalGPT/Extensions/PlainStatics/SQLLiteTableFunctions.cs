@@ -8,7 +8,6 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class SQLLiteTableFunctions
     {
-
         public static void Normalize(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -37,7 +36,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 logger.LogError(ex, $"Error in Normalize entry {entry.ToString()}");
             }
         }
-
         public static string BuildTrustLabel(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -74,7 +72,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return string.Empty;
             }
         }
-
         public static string NormalizeVerificationStatus(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -103,7 +100,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return string.Empty;
             }
         }
-
         public static bool IsKnownVerificationStatus(string value, ILogger logger)
         {
             try
@@ -115,9 +111,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 logger.LogError(ex, $"Error in IsKnownVerificationStatus value {value.ToString()}");
                 return false;
             }
-
         }
-
         public static string NormalizeReviewStatus(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -159,9 +153,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 logger.LogError(ex, $"Error in NormalizeReviewStatus entry {entry.ToString()}");
                 return string.Empty;
             }
-
         }
-
         public static bool IsKnownReviewStatus(string value, ILogger logger)
         {
             try
@@ -174,7 +166,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return false;
             }
         }
-
         public static bool IsUsableForBriefing(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -193,59 +184,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return false;
             }
         }
-
-
-        public static async Task EnsureCreatedNativeCommandLogsAsync(LocalGptMemoryDbContext db, ILogger logger, CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                await db.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
-                await db.Database.ExecuteSqlRawAsync(
-                    """
-                CREATE TABLE IF NOT EXISTS "NativeCommandLogs" (
-                    "Id" INTEGER NOT NULL CONSTRAINT "PK_NativeCommandLogs" PRIMARY KEY AUTOINCREMENT,
-                    "StartedAtUtc" TEXT NOT NULL,
-                    "CompletedAtUtc" TEXT NOT NULL,
-                    "FeatureName" TEXT NOT NULL,
-                    "RequestedBy" TEXT NOT NULL,
-                    "CommandProfile" TEXT NOT NULL DEFAULT 'CustomAllowlistedCommand',
-                    "Executable" TEXT NOT NULL,
-                    "Arguments" TEXT NOT NULL,
-                    "WorkingDirectory" TEXT NOT NULL,
-                    "ExitCode" INTEGER NOT NULL,
-                    "DurationMilliseconds" REAL NOT NULL,
-                    "StdoutPath" TEXT NOT NULL,
-                    "StderrPath" TEXT NOT NULL,
-                    "PolicyDecision" TEXT NOT NULL,
-                    "PolicyReason" TEXT NOT NULL
-                );
-                """,
-                    cancellationToken).ConfigureAwait(false);
-
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "NativeCommandLogs" ADD COLUMN "CommandProfile" TEXT NOT NULL DEFAULT 'CustomAllowlistedCommand';""",
-                    cancellationToken, logger).ConfigureAwait(false);
-
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_NativeCommandLogs_StartedAtUtc" ON "NativeCommandLogs" ("StartedAtUtc");""",
-                    cancellationToken).ConfigureAwait(false);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_NativeCommandLogs_Executable" ON "NativeCommandLogs" ("Executable");""",
-                    cancellationToken).ConfigureAwait(false);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_NativeCommandLogs_PolicyDecision" ON "NativeCommandLogs" ("PolicyDecision");""",
-                    cancellationToken).ConfigureAwait(false);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_NativeCommandLogs_CommandProfile" ON "NativeCommandLogs" ("CommandProfile");""",
-                    cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in EnsureCreatedAsync db: {db.ToString()}");
-            }
-        }
-
         public static async Task EnsureHealthyOrRecoverAsync(
             string databasePath,
             ILogger logger,
@@ -451,18 +389,16 @@ namespace LocalGPT.Extensions.PlainStatics
                     """,
                     cancellationToken, logger);
 
-                if (await HasColumnAsync(connection, transaction, "CouncilKnowledgeEntries", "LastUsedAtUtc", cancellationToken,logger))
-                {
-                    await ExecuteNonQueryAsync(
-                        connection,
-                        transaction,
-                        """
-                        UPDATE "CouncilKnowledgeEntries"
-                        SET "LastUsedAtUtc" = datetime('now')
-                        WHERE "Id" IN (SELECT "Id" FROM "CouncilKnowledgeEntries" LIMIT 1);
-                        """,
-                        cancellationToken, logger);
-                }
+                await ExecuteNonQueryAsync(
+                    connection,
+                    transaction,
+                    """
+                    UPDATE "CouncilKnowledgeEntries"
+                    SET "LastUsedAtUtc" = datetime('now')
+                    WHERE "Id" IN (SELECT "Id" FROM "CouncilKnowledgeEntries" LIMIT 1);
+                    """,
+                    cancellationToken, logger);
+                
 
                 await transaction.RollbackAsync(cancellationToken);
                 return (true, "ok");
@@ -477,38 +413,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return (false, $"Error in TryFindCorruptionLogEvidenceAsync databasePath: {databasePath.ToString()} ex {ex.ToString()}");
             }
         }
-
-        public static async Task<bool> HasColumnAsync(
-            SqliteConnection connection,
-            SqliteTransaction transaction,
-            string tableName,
-            string columnName,
-            CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                await using var command = connection.CreateCommand();
-                command.Transaction = transaction;
-                command.CommandTimeout = GlobalVariableSlopCollectionToRemove.ProbeCommandTimeoutSeconds;
-                command.CommandText = $"PRAGMA table_info(\"{tableName}\");";
-
-                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                while (await reader.ReadAsync(cancellationToken))
-                {
-                    if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
-                        return true;
-                }
-
-                return false;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in HasColumnAsync connection: {connection.ToString()} transaction {transaction.ToString()} tableName {tableName.ToString()} columnName {columnName.ToString()}");
-                return false;
-            }
-          
-        }
-
         public static async Task<bool> HasTableAsync(
             SqliteConnection connection,
             string tableName,
@@ -702,21 +606,21 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                File.Delete(sourcePath);
-            }
-            catch (Exception deleteException) when (deleteException is IOException or UnauthorizedAccessException)
-            {
                 try
                 {
                     File.Move(sourcePath, fallbackPath, overwrite: true);
                 }
                 catch (Exception moveException)
                 {
-                    logger.LogWarning(
-                        moveException,
-                        "Could not remove malformed SQLite file {SourcePath}. Delete failed with: {DeleteMessage}",
-                        sourcePath,
-                        deleteException.Message);
+                    logger.LogWarning(moveException,$"Could not move malformed SQLite file {sourcePath}. Move failed to {fallbackPath} {moveException.ToString()}");
+                    try
+                    {
+                        File.Delete(sourcePath);
+                    }
+                    catch (Exception deleteException) when (deleteException is IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogError(deleteException, $"Error in TryDeleteOrRename delete failed sourcePath: {sourcePath.ToString()} fallbackPath: {fallbackPath.ToString()} {deleteException.ToString()}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -727,88 +631,7 @@ namespace LocalGPT.Extensions.PlainStatics
         public static async Task EnsureCreatedCouncilKnowledgeTableAsync(LocalGptMemoryDbContext db, ILogger logger, CancellationToken cancellationToken = default)
         {
             try
-            {
-                await db.Database.EnsureCreatedAsync(cancellationToken);
-                await db.Database.ExecuteSqlRawAsync(
-                    """
-                CREATE TABLE IF NOT EXISTS "CouncilKnowledgeEntries" (
-                    "Id" TEXT NOT NULL CONSTRAINT "PK_CouncilKnowledgeEntries" PRIMARY KEY,
-                    "CreatedAtUtc" TEXT NOT NULL,
-                    "UpdatedAtUtc" TEXT NOT NULL,
-                    "Topic" TEXT NOT NULL,
-                    "Scope" TEXT NOT NULL,
-                    "Content" TEXT NOT NULL,
-                    "Source" TEXT NOT NULL,
-                    "HelpfulSources" TEXT NOT NULL,
-                    "Tags" TEXT NOT NULL,
-                    "Confidence" INTEGER NOT NULL,
-                    "VerificationStatus" TEXT NOT NULL DEFAULT 'NeedsVerification',
-                    "ReviewStatus" TEXT NOT NULL DEFAULT 'NeedsUserReview',
-                    "ExpiresAtUtc" TEXT NULL,
-                    "LastVerifiedAtUtc" TEXT NULL,
-                    "LastUsedAtUtc" TEXT NULL,
-                    "SupersededByKnowledgeId" TEXT NULL,
-                    "StalenessReason" TEXT NOT NULL DEFAULT '',
-                    "StalenessDetectedAtUtc" TEXT NULL,
-                    "StalenessDetectedBy" TEXT NOT NULL DEFAULT '',
-                    "SourceHash" TEXT NOT NULL DEFAULT '',
-                    "SourceDateUtc" TEXT NULL,
-                    "IsUserApproved" INTEGER NOT NULL DEFAULT 0,
-                    "IsPinned" INTEGER NOT NULL,
-                    "IsArchived" INTEGER NOT NULL
-                );
-                """,
-                    cancellationToken);
-
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "IsUserApproved" INTEGER NOT NULL DEFAULT 0;""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "VerificationStatus" TEXT NOT NULL DEFAULT 'NeedsVerification';""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "ReviewStatus" TEXT NOT NULL DEFAULT 'NeedsUserReview';""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "ExpiresAtUtc" TEXT NULL;""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "LastVerifiedAtUtc" TEXT NULL;""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "LastUsedAtUtc" TEXT NULL;""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "SupersededByKnowledgeId" TEXT NULL;""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "StalenessReason" TEXT NOT NULL DEFAULT '';""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "StalenessDetectedAtUtc" TEXT NULL;""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "StalenessDetectedBy" TEXT NOT NULL DEFAULT '';""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "SourceHash" TEXT NOT NULL DEFAULT '';""",
-                    cancellationToken, logger);
-                await TryAddColumnAsync(
-                    db,
-                    """ALTER TABLE "CouncilKnowledgeEntries" ADD COLUMN "SourceDateUtc" TEXT NULL;""",
-                    cancellationToken, logger);
-
+            { 
                 await db.Database.ExecuteSqlRawAsync(
                     """
                 UPDATE "CouncilKnowledgeEntries"
@@ -840,105 +663,10 @@ namespace LocalGPT.Extensions.PlainStatics
                 WHERE "ReviewStatus" IS NULL OR trim("ReviewStatus") = '' OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview');
                 """,
                     cancellationToken, logger);
-
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("UpdatedAtUtc");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_IsUserApproved_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("IsUserApproved", "UpdatedAtUtc");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_IsPinned_UpdatedAtUtc" ON "CouncilKnowledgeEntries" ("IsPinned", "UpdatedAtUtc");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_VerificationStatus" ON "CouncilKnowledgeEntries" ("VerificationStatus");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_ReviewStatus" ON "CouncilKnowledgeEntries" ("ReviewStatus");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_ExpiresAtUtc" ON "CouncilKnowledgeEntries" ("ExpiresAtUtc");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_LastVerifiedAtUtc" ON "CouncilKnowledgeEntries" ("LastVerifiedAtUtc");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_LastUsedAtUtc" ON "CouncilKnowledgeEntries" ("LastUsedAtUtc");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_SupersededByKnowledgeId" ON "CouncilKnowledgeEntries" ("SupersededByKnowledgeId");""",
-                    cancellationToken, logger);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_CouncilKnowledgeEntries_Scope" ON "CouncilKnowledgeEntries" ("Scope");""",
-                    cancellationToken, logger);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in EnsureCreatedCouncilKnowledgeTableAsync db: {db.ToString()}");
-            }
-        }
-
-        public static async Task TryAddColumnAsync(LocalGptMemoryDbContext db, string sql, CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
-            }
-            catch (Exception ex) when (ex.Message.Contains("duplicate column", StringComparison.OrdinalIgnoreCase))
-            {
-                logger.LogWarning(
-                      ex,
-                      $"Duplicate Exception db {db.ToString()} sql {sql.ToString()}", db, sql);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in EnsureCreatedCouncilKnowledgeTableAsync db: {db.ToString()}");
-            }
-        }
-        public static async Task EnsureCreatedApplicationLogSchemaAsync(LocalGptMemoryDbContext db, ILogger? logger = null, CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                await db.Database.EnsureCreatedAsync(cancellationToken);
-                await db.Database.ExecuteSqlRawAsync(
-                    """
-                CREATE TABLE IF NOT EXISTS "ApplicationLogs" (
-                    "Id" INTEGER NOT NULL CONSTRAINT "PK_ApplicationLogs" PRIMARY KEY AUTOINCREMENT,
-                    "TimestampUtc" TEXT NOT NULL,
-                    "Level" TEXT NOT NULL,
-                    "LogLevelValue" INTEGER NOT NULL,
-                    "Category" TEXT NOT NULL,
-                    "EventId" INTEGER NOT NULL,
-                    "EventName" TEXT NULL,
-                    "Message" TEXT NOT NULL,
-                    "Exception" TEXT NULL,
-                    "MachineName" TEXT NOT NULL,
-                    "ProcessId" INTEGER NOT NULL,
-                    "ThreadId" INTEGER NOT NULL
-                );
-                """,
-                    cancellationToken);
-
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_TimestampUtc" ON "ApplicationLogs" ("TimestampUtc");""",
-                    cancellationToken);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_LogLevelValue" ON "ApplicationLogs" ("LogLevelValue");""",
-                    cancellationToken);
-                await db.Database.ExecuteSqlRawAsync(
-                    """CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_LogLevelValue_TimestampUtc" ON "ApplicationLogs" ("LogLevelValue", "TimestampUtc");""",
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                if(logger is not null)
-                {
-                    logger.LogError(ex, $"Error in EnsureCreatedApplicationLogSchemaAsync db: {db.ToString()}");
-                }
-                else
-                {
-                    Console.WriteLine($"Error in EnsureCreatedApplicationLogSchemaAsync db: {db.ToString()} ex: {ex.ToString()}");
-                }
             }
         }
     }

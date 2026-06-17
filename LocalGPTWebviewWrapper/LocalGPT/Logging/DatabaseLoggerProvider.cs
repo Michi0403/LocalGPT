@@ -121,7 +121,6 @@ namespace LocalGPT.Logging
                 return;
 
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await SQLLiteTableFunctions.EnsureCreatedApplicationLogSchemaAsync(db,  cancellationToken:cancellationToken);
             db.ApplicationLogs.AddRange(batch);
             await db.SaveChangesAsync(cancellationToken);
             //await PruneOldLogsAsync(db, cancellationToken);

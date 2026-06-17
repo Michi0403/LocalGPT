@@ -344,9 +344,6 @@
         {
             await RunUiActionAsync(async () =>
      {
-         await ChatMemory.EnsureCreatedAsync();
-         await ApplicationLogs.EnsureCreatedAsync();
-         await CouncilKnowledge.EnsureCreatedAsync();
          KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
          Tables = (await TableEditor.GetTablesAsync()).ToList();
          SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();

@@ -25,16 +25,14 @@ namespace LocalGPT.Controller
         {
             try
             {
-                if(GlobalVariableSlopCollectionToRemove.EnsureCreatedMemoryDbTable!= true && iChatMemoryService != null)
-                {
-                    await iChatMemoryService.EnsureCreatedAsync();
-                    GlobalVariableSlopCollectionToRemove.EnsureCreatedMemoryDbTable = true;
-                }
-                if (GlobalVariableSlopCollectionToRemove.EnsureCreatedLogsDbTable != true && iApplicationLogReaderService != null)
-                {
-                    await iApplicationLogReaderService.EnsureCreatedAsync();
-                    GlobalVariableSlopCollectionToRemove.EnsureCreatedLogsDbTable = true;
-                }
+                //if(GlobalVariableSlopCollectionToRemove.EnsureCreatedMemoryDbTable!= true && iChatMemoryService != null)
+                //{
+                //    GlobalVariableSlopCollectionToRemove.EnsureCreatedMemoryDbTable = true;
+                //}
+                //if (GlobalVariableSlopCollectionToRemove.EnsureCreatedLogsDbTable != true && iApplicationLogReaderService != null)
+                //{
+                //    GlobalVariableSlopCollectionToRemove.EnsureCreatedLogsDbTable = true;
+                //}
                 if (GlobalVariableSlopCollectionToRemove.EnsureCreatedKnowledgeDbTable != true && iCouncilKnowledgeService != null)
                 {
                     await iCouncilKnowledgeService.EnsureCreatedAsync();
@@ -559,6 +557,7 @@ namespace LocalGPT.Controller
                 return Results.InternalServerError($"Error in GetArtifactWorkspaceWorkspaceNameFile {ex.ToString()} workspaceName {workspaceName.ToString()} path {path.ToString()} artifacts {artifacts.ToString()}");
             }          
         }
+
 
         [HttpPost("/__diag/artifact-workspace/{workspaceName}/file")]
         public async Task<IResult> PostArtifactWorkspaceWorkspaceNameFile(

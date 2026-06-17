@@ -875,7 +875,6 @@ namespace LocalGPT.Services
 
                 try
                 {
-                    await chatMemory.EnsureCreatedAsync(cancellationToken);
                     return await chatMemory.LoadConversationAsync(id, cancellationToken);
                 }
                 catch (Exception ex)

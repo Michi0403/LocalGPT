@@ -146,8 +146,6 @@ namespace LocalGPT.Services
                 if (sanitizedUpdates.Count == 0)
                     return;
 
-                SQLLiteFunctions.ValidateRequiredColumnUpdates(columns, sanitizedUpdates);
-
                 await using var command = connection.CreateCommand();
                 var assignments = new List<string>();
                 for (var index = 0; index < sanitizedUpdates.Count; index++)
@@ -201,8 +199,6 @@ namespace LocalGPT.Services
 
                 if (sanitizedValues.Count == 0)
                     throw new InvalidOperationException("Enter at least one editable value before inserting a row.");
-
-                SQLLiteFunctions.ValidateRequiredInsertColumns(columns, sanitizedValues);
 
                 await using var command = connection.CreateCommand();
                 var columnNames = new List<string>();
