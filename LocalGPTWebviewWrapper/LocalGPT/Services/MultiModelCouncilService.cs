@@ -466,7 +466,7 @@ namespace LocalGPT.Services
                             MaxOutputTokens = Math.Clamp(maxOutputTokens, MinOutputTokens, MaxOutputTokens),
                             Temperature = 0.2f
                         },
-                        participantCts.Token).WithCancellation(participantCts.Token))
+                        participantCts.Token).WithCancellation(participantCts.Token).ConfigureAwait(true))
                     {
                         builder.Append(update.Text);
                         streamUpdate?.Invoke(update.Text);
