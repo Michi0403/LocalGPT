@@ -344,7 +344,7 @@
         {
             await RunUiActionAsync(async () =>
      {
-         KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger).ConfigureAwait(false);
+         KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
          Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
          SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
          if (SelectedKnowledgeEntry is not null)
@@ -405,7 +405,7 @@
             await RunUiActionAsync(async () =>
        {
            KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit).ConfigureAwait(false);
-           KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger).ConfigureAwait(false);
+           KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
            if (SelectedKnowledgeEntry is not null)
                KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(SelectedKnowledgeEntry, Logger) ?? new();
@@ -434,7 +434,7 @@
                 await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id).ConfigureAwait(false);
                 SelectedKnowledgeEntry = null;
                 KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
-                KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger).ConfigureAwait(false);
+                KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
                 await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
                 statusText = "Deleted council knowledge note.";
                 Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");

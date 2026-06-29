@@ -240,7 +240,7 @@ namespace LocalGPT.Services
                             cancellationToken);
                         ArgumentNullException.ThrowIfNull(verificationStep);
                         MultiModelCouncilServiceAddOrderedStep(result, verificationStep, logger);
-                        request.StepCompleted?.Invoke(verificationStep).ConfigureAwait(false);
+                        request.StepCompleted?.Invoke(verificationStep);
                         result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
                     }
                     else

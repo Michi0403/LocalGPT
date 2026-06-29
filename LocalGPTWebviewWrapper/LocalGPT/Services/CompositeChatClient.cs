@@ -354,11 +354,11 @@ public class CompositeChatClient : IChatClient
                 var result = await _chatUploadWorkspaces.CreateWorkspaceAsync(
                     latestUserMessage.Text ?? string.Empty,
                     files,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation(
                     "Created DXAiChat native attachment workspace {WorkspaceName} with {FileCount} files.",
                     result.WorkspaceName,
-                    result.FileCount).ConfigureAwait(false);
+                    result.FileCount);
 
                 return CouncilChatStringFunctions.BuildUploadWorkspaceSystemPrompt(result, _logger);
             }

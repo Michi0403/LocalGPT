@@ -460,7 +460,7 @@ namespace LocalGPT.Services
 
                     var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
                     var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
-                    await process.WaitForExitAsync(timeoutCts.Token.ConfigureAwait(false);
+                    await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
                     var output = await outputTask;
                     var error = await errorTask;
 
