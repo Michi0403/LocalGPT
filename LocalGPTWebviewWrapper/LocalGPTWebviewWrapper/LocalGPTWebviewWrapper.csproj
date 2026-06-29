@@ -26,9 +26,11 @@
 
 	
   <ProjectReference Include="..\LocalGPT\LocalGPT.csproj">
-      <ReferenceOutputAssembly>True</ReferenceOutputAssembly>
-      <CopyLocalSatelliteAssemblies>True</CopyLocalSatelliteAssemblies>
-      <Private>True</Private>
+	  <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+	  <Private>true</Private>
+	  <IncludeAssets>all</IncludeAssets>
+	  <ExcludeAssets>none</ExcludeAssets>
+	  <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
     </ProjectReference>
   </ItemGroup>
 </Project>
