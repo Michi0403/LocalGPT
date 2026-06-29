@@ -552,7 +552,7 @@
         try
         {
             isBusy = true;
-            await action();
+            await action().ConfigureAwait(false);
         }
         catch (Exception ex)
         {

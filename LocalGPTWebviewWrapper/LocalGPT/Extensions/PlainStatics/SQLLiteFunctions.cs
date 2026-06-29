@@ -118,7 +118,7 @@ namespace LocalGPT.Extensions.PlainStatics
                   AND name NOT LIKE 'sqlite_%';
                 """;
                 command.Parameters.AddWithValue("$name", tableName);
-                var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+                var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture);
                 if (count == 0)
                     throw new InvalidOperationException($"SQLite table '{tableName}' was not found or is not editable.");
             }
@@ -139,14 +139,14 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                await EnsureValidTableAsync(connection, tableName, cancellationToken, logger);
+                await EnsureValidTableAsync(connection, tableName, cancellationToken, logger).ConfigureAwait(false);
 
                 await using var command = connection.CreateCommand();
                 command.CommandText = $"PRAGMA table_info({QuoteIdentifier(tableName, logger)});";
 
                 var columns = new List<SqliteColumnSummary>();
-                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                while (await reader.ReadAsync(cancellationToken))
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
                     var nameOrdinal = reader.GetOrdinal("name");
                     var typeOrdinal = reader.GetOrdinal("type");
@@ -186,11 +186,11 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                await EnsureValidTableAsync(connection, tableName, cancellationToken, logger);
+                await EnsureValidTableAsync(connection, tableName, cancellationToken, logger).ConfigureAwait(false);
 
                 await using var command = connection.CreateCommand();
                 command.CommandText = $"SELECT COUNT(*) FROM {QuoteIdentifier(tableName, logger)};";
-                return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+                return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture);
             }
             catch (Exception ex)
             {
@@ -298,7 +298,7 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                await SeedSqlKnowledgeAsync(db, cancellationToken, logger);
+                await SeedSqlKnowledgeAsync(db, cancellationToken, logger).ConfigureAwait(false);
              
             }
             catch (Exception ex)
@@ -1049,11 +1049,11 @@ namespace LocalGPT.Extensions.PlainStatics
                 if (path is null)
                     return;
 
-                var sql = await File.ReadAllTextAsync(path, cancellationToken);
+                var sql = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(sql))
                     return;
 
-                await db.Database.ExecuteSqlRawAsync(EscapeSqlFormatBraces(sql, logger), cancellationToken);
+                await db.Database.ExecuteSqlRawAsync(EscapeSqlFormatBraces(sql, logger), cancellationToken).ConfigureAwait(false);
                 await db.Database.ExecuteSqlRawAsync(
                     """
                 UPDATE "CouncilKnowledgeEntries"
@@ -1071,7 +1071,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 )
                   AND ("VerificationStatus" IS NULL OR trim("VerificationStatus") = '' OR "VerificationStatus" = 'NeedsVerification');
                 """,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
                 await db.Database.ExecuteSqlRawAsync(
                     """
                 UPDATE "CouncilKnowledgeEntries"
@@ -1084,7 +1084,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 )
                   AND ("ReviewStatus" IS NULL OR trim("ReviewStatus") = '' OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview'));
                 """,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

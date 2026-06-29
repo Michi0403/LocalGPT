@@ -21,9 +21,9 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-                await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken);
-                await SQLLiteFunctions.SeedKnowledgeAsync(db, cancellationToken,logger);
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
+                await SQLLiteFunctions.SeedKnowledgeAsync(db, cancellationToken,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -35,9 +35,9 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-                await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken);
-                await SQLLiteFunctions.SeedKnowledgeAsync(db, cancellationToken, logger);
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
+                await SQLLiteFunctions.SeedKnowledgeAsync(db, cancellationToken, logger).ConfigureAwait(false);
 
                 var now = DateTime.UtcNow;
                 var query = db.CouncilKnowledgeEntries.AsNoTracking();
@@ -56,7 +56,7 @@ namespace LocalGPT.Services
                     .ThenBy(entry => entry.ReviewStatus)
                     .ThenByDescending(entry => entry.UpdatedAtUtc)
                     .Take(Math.Clamp(take, 1, 500))
-                    .ToListAsync(cancellationToken);
+                    .ToListAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -69,12 +69,12 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger,cancellationToken);
                 await SQLLiteFunctions.SeedKnowledgeAsync(db, cancellationToken, logger);
 
                 var now = DateTime.UtcNow;
-                var existing = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == entry.Id, cancellationToken);
+                var existing = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == entry.Id, cancellationToken).ConfigureAwait(false);
                 if (existing is null)
                 {
                     entry.CreatedAtUtc = entry.CreatedAtUtc == default ? now : entry.CreatedAtUtc;
@@ -110,7 +110,7 @@ namespace LocalGPT.Services
                     entry = existing;
                 }
 
-                await db.SaveChangesAsync(cancellationToken);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 return entry;
             }
             catch (Exception ex)
@@ -125,15 +125,15 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-                await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken);
-                await SQLLiteFunctions.SeedKnowledgeAsync(db, cancellationToken, logger);
-                var entry = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
+                await SQLLiteFunctions.SeedKnowledgeAsync(db, cancellationToken, logger).ConfigureAwait(false);
+                var entry = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == id, cancellationToken).ConfigureAwait(false);
                 if (entry is null)
                     return;
 
                 db.CouncilKnowledgeEntries.Remove(entry);
-                await db.SaveChangesAsync(cancellationToken);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -164,7 +164,7 @@ namespace LocalGPT.Services
                     IsArchived = nonSubstantive
                 };
 
-                await SaveEntryAsync(entry, cancellationToken);
+                await SaveEntryAsync(entry, cancellationToken).ConfigureAwait(false);
                 logger.LogInformation("Saved council knowledge entry {KnowledgeEntryId} for council run {RunId}.", entry.Id, result.RunId);
                 return entry.Id;
             }
@@ -180,7 +180,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var entries = await GetEntriesAsync(includeArchived: false, take, cancellationToken);
+                var entries = await GetEntriesAsync(includeArchived: false, take, cancellationToken).ConfigureAwait(false);
                 if (entries.Count == 0)
                     return string.Empty;
 
@@ -198,7 +198,7 @@ namespace LocalGPT.Services
                 if (briefingEntries.Count == 0)
                     return string.Empty;
 
-                await MarkEntriesUsedAsync(briefingEntries.Select(entry => entry.Id), cancellationToken, logger);
+                await MarkEntriesUsedAsync(briefingEntries.Select(entry => entry.Id), cancellationToken, logger).ConfigureAwait(false);
 
                 foreach (var entry in briefingEntries)
                 {
@@ -238,21 +238,21 @@ namespace LocalGPT.Services
                 try
                 {
                     await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-                    await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken);
+                    await SQLLiteTableFunctions.EnsureCreatedCouncilKnowledgeTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
                     var entries = await db.CouncilKnowledgeEntries
                         .Where(entry => ids.Contains(entry.Id))
-                        .ToListAsync(cancellationToken);
+                        .ToListAsync(cancellationToken).ConfigureAwait(false);
                     var now = DateTime.UtcNow;
                     foreach (var entry in entries)
                         entry.LastUsedAtUtc = now;
 
-                    await db.SaveChangesAsync(cancellationToken);
+                    await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is DbUpdateException or DbUpdateConcurrencyException or IOException)
                 {
                     if (SQLLiteTableFunctions.IsSqliteCorruption(ex, logger))
                     {
-                        await SQLLiteTableFunctions.RecoverMalformedDatabaseAsync(DatabasePath, logger, cancellationToken);
+                        await SQLLiteTableFunctions.RecoverMalformedDatabaseAsync(DatabasePath, logger, cancellationToken).ConfigureAwait(false);
                     }
                     logger.LogWarning(ex, "Could not update LastUsedAtUtc for council knowledge entries. Knowledge briefing will continue with read-only data.");
                 }

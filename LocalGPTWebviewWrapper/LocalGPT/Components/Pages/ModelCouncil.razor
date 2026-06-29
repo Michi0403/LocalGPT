@@ -482,7 +482,7 @@
         {
             await RunUiActionAsync(async () =>
        {
-           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100))
+           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100).ConfigureAwait(false))
                .Where(conversation => conversation.ProviderName.StartsWith("AI Council", StringComparison.OrdinalIgnoreCase))
                .ToList();
 
@@ -492,7 +492,7 @@
 
            if (showStatus)
                statusText = $"Loaded {SavedCouncilConversations.Count} saved council conversation(s).";
-       }, "LoadSavedCouncilConversationsAsync");
+       }, "LoadSavedCouncilConversationsAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -787,7 +787,7 @@
         try
         {
             isBusy = true;
-            await action();
+            await action().ConfigureAwait(false);
         }
         catch (Exception ex)
         {

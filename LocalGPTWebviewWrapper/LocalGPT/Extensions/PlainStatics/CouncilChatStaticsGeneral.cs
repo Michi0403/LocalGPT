@@ -192,7 +192,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 var normalizedPath = functionPath.Replace('/', Path.DirectorySeparatorChar);
                 var path = Path.Combine(context.ProjectRoot, "data", context.ModId, "function", $"{normalizedPath}.mcfunction");
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                await File.WriteAllTextAsync(path, content, Utf8NoBom, cancellationToken);
+                await File.WriteAllTextAsync(path, content, Utf8NoBom, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -502,7 +502,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
                     var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
                     var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
-                    await process.WaitForExitAsync(timeoutCts.Token);
+                    await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
                     var output = await outputTask;
                     var error = await errorTask;
 
@@ -597,7 +597,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
                 foreach (var artifact in zipArtifacts)
                 {
-                    var item = await ValidateBuildableArtifactAsync(artifact, cancellationToken, logger);
+                    var item = await ValidateBuildableArtifactAsync(artifact, cancellationToken, logger).ConfigureAwait(false);
                     ArgumentNullException.ThrowIfNull(item);
                     checks.Add(item);
                 }
@@ -1675,7 +1675,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
                 await using var read = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 await using var write = File.Open(destination, FileMode.Create, FileAccess.Write, FileShare.None);
-                await read.CopyToAsync(write, cancellationToken);
+                await read.CopyToAsync(write, cancellationToken).ConfigureAwait(false);
                 return destination;
             }
             catch (Exception ex)
@@ -2716,7 +2716,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 if (response.IsSuccessStatusCode)
                     return;
 
-                var body = await OllamaThinkingChatClientReadErrorBodyAsync(response, cancellationToken, logger);
+                var body = await OllamaThinkingChatClientReadErrorBodyAsync(response, cancellationToken, logger).ConfigureAwait(false);
                 var message = string.IsNullOrWhiteSpace(body)
                     ? $"Ollama returned {(int)response.StatusCode} {response.StatusCode}."
                     : $"Ollama returned {(int)response.StatusCode} {response.StatusCode}: {body}";
@@ -2733,7 +2733,7 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(body))
                     return string.Empty;
 
@@ -2853,7 +2853,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 if (!File.Exists(importsPath))
                     return;
 
-                var text = await File.ReadAllTextAsync(importsPath, cancellationToken);
+                var text = await File.ReadAllTextAsync(importsPath, cancellationToken).ConfigureAwait(false);
                 var imports = GlobalVariableSlopCollectionToRemove.DevExpressImportPattern()
                     .Matches(text)
                     .Select(match => match.Groups["namespace"].Value.Trim())
@@ -2883,7 +2883,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 if (!File.Exists(programPath))
                     return;
 
-                var text = await File.ReadAllTextAsync(programPath, cancellationToken);
+                var text = await File.ReadAllTextAsync(programPath, cancellationToken).ConfigureAwait(false);
                 var registrations = GlobalVariableSlopCollectionToRemove.DevExpressRegistrationPattern()
                     .Matches(text)
                     .Select(match => match.Value.TrimEnd('('))
@@ -3418,7 +3418,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     if (path is null)
                         continue;
 
-                    var text = await System.IO.File.ReadAllTextAsync(path, cancellationToken);
+                    var text = await System.IO.File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
                     foundFiles.Add(new
                     {
                         RelativePath = relativePath.Replace('\\', '/'),

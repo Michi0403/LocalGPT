@@ -44,17 +44,17 @@ namespace LocalGPT.Services
                 var workspace = CreateWorkspaceLayout(request);
                 var context = workspace.Context;
 
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), CouncilChatStringFunctions.CreateFabricSettingsGradle(context.ProjectName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.BuildFilePath, CouncilChatStringFunctions.CreateFabricBuildGradle(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), CouncilChatStaticsGeneral.CreateCommonGradleProperties(request, context, logger), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? CouncilChatStringFunctions.CreateFabricMainClass(context) : CouncilChatStringFunctions.CreateFabricEmptyMainClass(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), CouncilChatStringFunctions.CreateFabricSettingsGradle(context.ProjectName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.BuildFilePath, CouncilChatStringFunctions.CreateFabricBuildGradle(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), CouncilChatStaticsGeneral.CreateCommonGradleProperties(request, context, logger), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? CouncilChatStringFunctions.CreateFabricMainClass(context) : CouncilChatStringFunctions.CreateFabricEmptyMainClass(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
-                    await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), CouncilChatStringFunctions.CreateLivingCitiesReportClass(context.PackageName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                    await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), CouncilChatStringFunctions.CreateLivingCitiesReportClass(context.PackageName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 await File.WriteAllTextAsync(context.MetadataPath, CouncilChatStringFunctions.CreateFabricMetadata(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
                 if (request.IncludeLivingCitiesStarter)
-                    await WriteCommonResourceFilesAsync(request, context, cancellationToken);
-                await WriteBuildHelperAsync(request, context, cancellationToken);
-                await File.WriteAllTextAsync(context.ReadmePath, CouncilChatStringFunctions.CreateWorkspaceReadme(request, context, "Fabric"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                    await WriteCommonResourceFilesAsync(request, context, cancellationToken).ConfigureAwait(false);
+                await WriteBuildHelperAsync(request, context, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.ReadmePath, CouncilChatStringFunctions.CreateWorkspaceReadme(request, context, "Fabric"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Fabric Minecraft mod workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
@@ -73,14 +73,14 @@ namespace LocalGPT.Services
                 var workspace = CreateWorkspaceLayout(request);
                 var context = workspace.Context;
 
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), CouncilChatStringFunctions.CreatePaperSettingsGradle(context.ProjectName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.BuildFilePath, CouncilChatStringFunctions.CreatePaperBuildGradle(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), CouncilChatStaticsGeneral.CreatePaperGradleProperties(request, context,logger), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.MainClassPath, CouncilChatStringFunctions.CreatePaperMainClass(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.MetadataPath, CouncilChatStringFunctions.CreatePaperPluginYaml(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), CouncilChatStringFunctions.CreateLivingCitiesReportClass(context.PackageName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await WriteBuildHelperAsync(request, context, cancellationToken);
-                await File.WriteAllTextAsync(context.ReadmePath, CouncilChatStringFunctions.CreateWorkspaceReadme(request, context, "Paper plugin"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), CouncilChatStringFunctions.CreatePaperSettingsGradle(context.ProjectName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.BuildFilePath, CouncilChatStringFunctions.CreatePaperBuildGradle(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), CouncilChatStaticsGeneral.CreatePaperGradleProperties(request, context,logger), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MainClassPath, CouncilChatStringFunctions.CreatePaperMainClass(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MetadataPath, CouncilChatStringFunctions.CreatePaperPluginYaml(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), CouncilChatStringFunctions.CreateLivingCitiesReportClass(context.PackageName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await WriteBuildHelperAsync(request, context, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.ReadmePath, CouncilChatStringFunctions.CreateWorkspaceReadme(request, context, "Paper plugin"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Paper plugin workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
@@ -104,45 +104,45 @@ namespace LocalGPT.Services
                 Directory.CreateDirectory(minecraftTagsRoot);
                 Directory.CreateDirectory(Path.Combine(context.ProjectRoot, "docs"));
 
-                await File.WriteAllTextAsync(context.MetadataPath, CouncilChatStaticsGeneral.CreateDatapackMcmeta(request, context,logger), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "load.json"), CouncilChatStringFunctions.CreateFunctionTag(context.ModId, "core/load"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "tick.json"), CouncilChatStringFunctions.CreateFunctionTag(context.ModId, "core/tick"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "core/load", CouncilChatStringFunctions.CreateDatapackLoadFunction(context), cancellationToken,logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "core/tick", CouncilChatStringFunctions.CreateDatapackTickFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "core/schedule", CouncilChatStringFunctions.CreateDatapackScheduleFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/create", CouncilChatStringFunctions.CreateDatapackCityCreateFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/check_villagers", CouncilChatStringFunctions.CreateDatapackCityCheckVillagersFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/create_new", CouncilChatStringFunctions.CreateDatapackCityCreateNewFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/already_exists", CouncilChatStringFunctions.CreateDatapackCityAlreadyExistsFunction(), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/register_banner", CouncilChatStringFunctions.CreateDatapackRegisterBannerFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/update_population", CouncilChatStringFunctions.CreateDatapackUpdatePopulationFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/register", CouncilChatStringFunctions.CreateDatapackCitizenRegisterFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/detect_new", CouncilChatStringFunctions.CreateDatapackCitizenDetectNewFunction(), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/aging", CouncilChatStringFunctions.CreateDatapackCitizenAgingFunction(), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/personalities", CouncilChatStringFunctions.CreateDatapackCitizenPersonalitiesFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/status", CouncilChatStringFunctions.CreateDatapackCitizenStatusFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "food/update", CouncilChatStringFunctions.CreateDatapackFoodUpdateFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "food/production", CouncilChatStringFunctions.CreateDatapackFoodProductionFunction(), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "food/consumption", CouncilChatStringFunctions.CreateDatapackFoodConsumptionFunction(), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "security/update", CouncilChatStringFunctions.CreateDatapackSecurityUpdateFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "security/golems", CouncilChatStringFunctions.CreateDatapackSecurityGolemsFunction(), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "security/nightwatch", CouncilChatStringFunctions.CreateDatapackSecurityNightwatchFunction(), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "chronicle/add_event", CouncilChatStringFunctions.CreateDatapackChronicleAddEventFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "chronicle/update", CouncilChatStringFunctions.CreateDatapackChronicleUpdateFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "ui/give_admin_book", CouncilChatStringFunctions.CreateDatapackAdminBookFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "ui/townhall", CouncilChatStringFunctions.CreateDatapackTownHallFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "ui/status", CouncilChatStringFunctions.CreateDatapackReportFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "ui/chronicle", CouncilChatStringFunctions.CreateDatapackChronicleUiFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "quests/update", CouncilChatStringFunctions.CreateDatapackQuestUpdateFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "quests/generate", CouncilChatStringFunctions.CreateDatapackQuestGenerateFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "buildings/init", CouncilChatStringFunctions.CreateDatapackBuildingsInitFunction(), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "buildings/register_house", CouncilChatStringFunctions.CreateDatapackRegisterHouseFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "buildings/debug_list", CouncilChatStringFunctions.CreateDatapackBuildingDebugListFunction(context), cancellationToken, logger);
-                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "debug/reset_city", CouncilChatStringFunctions.CreateDatapackResetCityFunction(context), cancellationToken, logger);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "living-cities-0.1-plan.md"), CouncilChatStringFunctions.CreateLivingCitiesPlan(request), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "reference-benchmark.md"), CouncilChatStringFunctions.CreateDatapackBenchmarkNotes(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "build-local.ps1"), CouncilChatStringFunctions.CreateDatapackBuildScript(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.ReadmePath, CouncilChatStringFunctions.CreateDatapackReadme(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                await File.WriteAllTextAsync(context.MetadataPath, CouncilChatStaticsGeneral.CreateDatapackMcmeta(request, context,logger), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "load.json"), CouncilChatStringFunctions.CreateFunctionTag(context.ModId, "core/load"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "tick.json"), CouncilChatStringFunctions.CreateFunctionTag(context.ModId, "core/tick"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "core/load", CouncilChatStringFunctions.CreateDatapackLoadFunction(context), cancellationToken,logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "core/tick", CouncilChatStringFunctions.CreateDatapackTickFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "core/schedule", CouncilChatStringFunctions.CreateDatapackScheduleFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/create", CouncilChatStringFunctions.CreateDatapackCityCreateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/check_villagers", CouncilChatStringFunctions.CreateDatapackCityCheckVillagersFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/create_new", CouncilChatStringFunctions.CreateDatapackCityCreateNewFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/already_exists", CouncilChatStringFunctions.CreateDatapackCityAlreadyExistsFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/register_banner", CouncilChatStringFunctions.CreateDatapackRegisterBannerFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "city/update_population", CouncilChatStringFunctions.CreateDatapackUpdatePopulationFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/register", CouncilChatStringFunctions.CreateDatapackCitizenRegisterFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/detect_new", CouncilChatStringFunctions.CreateDatapackCitizenDetectNewFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/aging", CouncilChatStringFunctions.CreateDatapackCitizenAgingFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/personalities", CouncilChatStringFunctions.CreateDatapackCitizenPersonalitiesFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "citizens/status", CouncilChatStringFunctions.CreateDatapackCitizenStatusFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "food/update", CouncilChatStringFunctions.CreateDatapackFoodUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "food/production", CouncilChatStringFunctions.CreateDatapackFoodProductionFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "food/consumption", CouncilChatStringFunctions.CreateDatapackFoodConsumptionFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "security/update", CouncilChatStringFunctions.CreateDatapackSecurityUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "security/golems", CouncilChatStringFunctions.CreateDatapackSecurityGolemsFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "security/nightwatch", CouncilChatStringFunctions.CreateDatapackSecurityNightwatchFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "chronicle/add_event", CouncilChatStringFunctions.CreateDatapackChronicleAddEventFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "chronicle/update", CouncilChatStringFunctions.CreateDatapackChronicleUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "ui/give_admin_book", CouncilChatStringFunctions.CreateDatapackAdminBookFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "ui/townhall", CouncilChatStringFunctions.CreateDatapackTownHallFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "ui/status", CouncilChatStringFunctions.CreateDatapackReportFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "ui/chronicle", CouncilChatStringFunctions.CreateDatapackChronicleUiFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "quests/update", CouncilChatStringFunctions.CreateDatapackQuestUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "quests/generate", CouncilChatStringFunctions.CreateDatapackQuestGenerateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "buildings/init", CouncilChatStringFunctions.CreateDatapackBuildingsInitFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "buildings/register_house", CouncilChatStringFunctions.CreateDatapackRegisterHouseFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "buildings/debug_list", CouncilChatStringFunctions.CreateDatapackBuildingDebugListFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.WriteDatapackFunctionAsync(context, "debug/reset_city", CouncilChatStringFunctions.CreateDatapackResetCityFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "living-cities-0.1-plan.md"), CouncilChatStringFunctions.CreateLivingCitiesPlan(request), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "reference-benchmark.md"), CouncilChatStringFunctions.CreateDatapackBenchmarkNotes(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "build-local.ps1"), CouncilChatStringFunctions.CreateDatapackBuildScript(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.ReadmePath, CouncilChatStringFunctions.CreateDatapackReadme(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Minecraft datapack workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult("powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1", "Copy the zip from build\\ to a world's datapacks folder, then run /reload.");
@@ -162,17 +162,17 @@ namespace LocalGPT.Services
                 var workspace = CreateWorkspaceLayout(request);
                 var context = workspace.Context;
 
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), CouncilChatStringFunctions.CreateNeoForgeSettingsGradle(context.ProjectName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.BuildFilePath, CouncilChatStringFunctions.CreateNeoForgeBuildGradle(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), CouncilChatStaticsGeneral.CreateCommonGradleProperties(request, context,logger), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? CouncilChatStringFunctions.CreateNeoForgeMainClass(context) : CouncilChatStringFunctions.CreateNeoForgeEmptyMainClass(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), CouncilChatStringFunctions.CreateNeoForgeSettingsGradle(context.ProjectName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.BuildFilePath, CouncilChatStringFunctions.CreateNeoForgeBuildGradle(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), CouncilChatStaticsGeneral.CreateCommonGradleProperties(request, context,logger), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? CouncilChatStringFunctions.CreateNeoForgeMainClass(context) : CouncilChatStringFunctions.CreateNeoForgeEmptyMainClass(context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
-                    await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), CouncilChatStringFunctions.CreateLivingCitiesReportClass(context.PackageName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(context.MetadataPath, CouncilChatStringFunctions.CreateNeoForgeMetadata(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                    await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), CouncilChatStringFunctions.CreateLivingCitiesReportClass(context.PackageName), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MetadataPath, CouncilChatStringFunctions.CreateNeoForgeMetadata(request, context), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
-                    await WriteCommonResourceFilesAsync(request, context, cancellationToken);
-                await WriteBuildHelperAsync(request, context, cancellationToken);
-                await File.WriteAllTextAsync(context.ReadmePath, CouncilChatStringFunctions.CreateWorkspaceReadme(request, context, "NeoForge"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                    await WriteCommonResourceFilesAsync(request, context, cancellationToken).ConfigureAwait(false);
+                await WriteBuildHelperAsync(request, context, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.ReadmePath, CouncilChatStringFunctions.CreateWorkspaceReadme(request, context, "NeoForge"), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created NeoForge Minecraft mod workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
@@ -297,9 +297,9 @@ namespace LocalGPT.Services
                 var itemModelPath = Path.Combine(context.AssetsRoot, "models", "item", "city_charter.json");
                 var planPath = Path.Combine(context.ProjectRoot, "docs", "living-cities-0.1-plan.md");
 
-                await File.WriteAllTextAsync(langPath, CouncilChatStringFunctions.CreateEnglishLang(context.ModId), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(itemModelPath, CouncilChatStringFunctions.CreateCityCharterModel(), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
-                await File.WriteAllTextAsync(planPath, CouncilChatStringFunctions.CreateLivingCitiesPlan(request), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken);
+                await File.WriteAllTextAsync(langPath, CouncilChatStringFunctions.CreateEnglishLang(context.ModId), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(itemModelPath, CouncilChatStringFunctions.CreateCityCharterModel(), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(planPath, CouncilChatStringFunctions.CreateLivingCitiesPlan(request), GlobalVariableSlopCollectionToRemove.Utf8NoBom, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -312,7 +312,7 @@ namespace LocalGPT.Services
             try
             {
                 var scriptPath = Path.Combine(context.ProjectRoot, "build-local.ps1");
-                await File.WriteAllTextAsync(scriptPath, CouncilChatStaticsGeneral.CreateBuildLocalScript(request,logger), Utf8NoBom, cancellationToken);
+                await File.WriteAllTextAsync(scriptPath, CouncilChatStaticsGeneral.CreateBuildLocalScript(request,logger), Utf8NoBom, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

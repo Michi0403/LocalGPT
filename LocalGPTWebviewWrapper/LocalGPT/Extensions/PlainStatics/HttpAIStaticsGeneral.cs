@@ -11,8 +11,8 @@ namespace LocalGPT.Extensions.PlainStatics
         {
             try
             {
-                using var res = await http.GetAsync(path, ct);
-                var body = await res.Content.ReadAsStringAsync(ct);
+                using var res = await http.GetAsync(path, ct).ConfigureAwait(false);
+                var body = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return (res.IsSuccessStatusCode, $"{(int)res.StatusCode} {res.ReasonPhrase}: {body}");
             }
             catch (Exception ex)
@@ -48,8 +48,8 @@ namespace LocalGPT.Extensions.PlainStatics
             try
             {
                 using var http = CreateDiscoveryClient(endpoint, logger);
-                using var response = await http.GetAsync("/v1/models", ct);
-                var body = await response.Content.ReadAsStringAsync(ct);
+                using var response = await http.GetAsync("/v1/models", ct).ConfigureAwait(false); 
+                var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
                     result.Status = $"{(int)response.StatusCode} {response.ReasonPhrase}";
@@ -93,8 +93,8 @@ namespace LocalGPT.Extensions.PlainStatics
             try
             {
                 using var http = CreateDiscoveryClient(endpoint, logger);
-                using var tagsResponse = await http.GetAsync("/api/tags", ct);
-                var tagsBody = await tagsResponse.Content.ReadAsStringAsync(ct);
+                using var tagsResponse = await http.GetAsync("/api/tags", ct).ConfigureAwait(false);
+                var tagsBody = await tagsResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 if (!tagsResponse.IsSuccessStatusCode)
                 {
                     result.Status = $"{(int)tagsResponse.StatusCode} {tagsResponse.ReasonPhrase}";
@@ -116,10 +116,10 @@ namespace LocalGPT.Extensions.PlainStatics
                     });
                 }
 
-                using var psResponse = await http.GetAsync("/api/ps", ct);
+                using var psResponse = await http.GetAsync("/api/ps", ct).ConfigureAwait(false);
                 if (psResponse.IsSuccessStatusCode)
                 {
-                    var psBody = await psResponse.Content.ReadAsStringAsync(ct);
+                    var psBody = await psResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                     var loaded = JsonSerializer.Deserialize<OllamaTagsResponse>(psBody, JsonOptions)?.Models ?? new();
                     var loadedNames = loaded
                         .Select(m => CouncilChatStaticsGeneral.FirstText(logger, m.Model, m.Name))

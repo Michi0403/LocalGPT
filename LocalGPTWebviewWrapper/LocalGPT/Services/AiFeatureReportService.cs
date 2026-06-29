@@ -40,7 +40,7 @@ namespace LocalGPT.Services
                     .AppendLine(responseText)
                     .ToString();
 
-                await File.WriteAllTextAsync(path, content, Encoding.UTF8, cancellationToken);
+                await File.WriteAllTextAsync(path, content, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
                 logger.LogInformation("Wrote AI missing feature report to {Path}", path);
                 return path;
             }

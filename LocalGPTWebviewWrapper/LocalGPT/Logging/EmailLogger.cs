@@ -27,7 +27,7 @@ namespace LocalGPT.Logging
                 {
                     foreach (var logItem in _logQueue.GetConsumingEnumerable(cts.Token))
                     {
-                        await SendEmailAsync(logItem.message, logItem.exception);
+                        await SendEmailAsync(logItem.message, logItem.exception).ConfigureAwait(false);
                     }
                 }
 

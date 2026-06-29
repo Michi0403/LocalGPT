@@ -344,8 +344,8 @@
         {
             await RunUiActionAsync(async () =>
      {
-         KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
-         Tables = (await TableEditor.GetTablesAsync()).ToList();
+         KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger).ConfigureAwait(false);
+         Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
          SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
          if (SelectedKnowledgeEntry is not null)
              SelectKnowledgeEntry(SelectedKnowledgeEntry);
@@ -356,7 +356,7 @@
              SelectedTable = Tables.FirstOrDefault(table => table.Name.Equals(SelectedTable.Name, StringComparison.OrdinalIgnoreCase));
          SelectedTable ??= Tables.FirstOrDefault(table => table.Name.Equals("CouncilKnowledgeEntries", StringComparison.OrdinalIgnoreCase)) ?? Tables.FirstOrDefault();
          if (SelectedTable is not null)
-             await LoadTableAsync(SelectedTable);
+             await LoadTableAsync(SelectedTable).ConfigureAwait(false);
 
          statusText = $"Loaded {Tables.Count} table(s) and {KnowledgeEntries.Count} knowledge note(s).";
      }, "RefreshAllAsync").ConfigureAwait(false);
@@ -404,12 +404,12 @@
         {
             await RunUiActionAsync(async () =>
        {
-           KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit);
-           KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
+           KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit).ConfigureAwait(false);
+           KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger).ConfigureAwait(false);
            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
            if (SelectedKnowledgeEntry is not null)
                KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(SelectedKnowledgeEntry, Logger) ?? new();
-           await RefreshTablesOnlyAsync(loadSelectedTable: true);
+           await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
            statusText = $"Saved knowledge note: {KnowledgeEdit.Topic}";
            Notifier.ShowSuccess(toastName, "Council knowledge saved to SQLite.", "Knowledge saved");
        }, "SaveKnowledgeAsync").ConfigureAwait(false);
@@ -431,14 +431,14 @@
 
             await RunUiActionAsync(async () =>
             {
-                await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id);
+                await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id).ConfigureAwait(false);
                 SelectedKnowledgeEntry = null;
                 KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
-                KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
-                await RefreshTablesOnlyAsync(loadSelectedTable: true);
+                KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger).ConfigureAwait(false);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
                 statusText = "Deleted council knowledge note.";
                 Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");
-            }, "DeleteKnowledgeAsync");
+            }, "DeleteKnowledgeAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -592,7 +592,7 @@
             await RunUiActionAsync(async () =>
         {
             SelectedTable = table;
-            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
+            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
             GridRows.Clear();
             foreach (var row in CurrentTable.Rows)
             {
@@ -616,7 +616,7 @@
             else
                 NewSqliteRow();
             statusText = $"Loaded {CurrentTable.Rows.Count} row(s) from {CurrentTable.TableName}.";
-        }, "LoadTableAsync");
+        }, "LoadTableAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -680,7 +680,7 @@
 
                 if (SelectedRow is null)
                 {
-                    await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues);
+                    await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues).ConfigureAwait(false);
                     statusText = $"Inserted row into {CurrentTable.TableName}.";
                 }
                 else
@@ -688,11 +688,11 @@
                     var updates = editableValues
                         .Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value })
                         .ToList();
-                    await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates);
+                    await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates).ConfigureAwait(false);
                     statusText = $"Updated row {SelectedRow.RowId} in {CurrentTable.TableName}.";
                 }
 
-                await RefreshTablesOnlyAsync(loadSelectedTable: true);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "SQLite row saved.", "Database saved");
             }, "SaveSqliteRowAsync").ConfigureAwait(false);
         }
@@ -713,9 +713,9 @@
 
             await RunUiActionAsync(async () =>
             {
-                await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId);
+                await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId).ConfigureAwait(false);
                 statusText = $"Deleted row {SelectedRow.RowId} from {CurrentTable.TableName}.";
-                await RefreshTablesOnlyAsync(loadSelectedTable: true);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "SQLite row deleted.", "Database saved");
             }, "DeleteSqliteRowAsync");
         }
@@ -731,7 +731,7 @@
     {
         try
         {
-            Tables = (await TableEditor.GetTablesAsync()).ToList();
+            Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
             if (!loadSelectedTable || CurrentTable is null)
                 return;
 
@@ -739,7 +739,7 @@
             if (table is not null)
             {
                 SelectedTable = table;
-                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
+                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
                 GridRows.Clear();
                 foreach (var row in CurrentTable.Rows)
                 {
@@ -806,7 +806,7 @@
         try
         {
             isBusy = true;
-            await action();
+            await action().ConfigureAwait(false);
         }
         catch (Exception ex)
         {

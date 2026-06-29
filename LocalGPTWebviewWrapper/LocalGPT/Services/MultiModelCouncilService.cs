@@ -58,7 +58,7 @@ namespace LocalGPT.Services
                             Details: null);
                     }
 
-                    foreach (var installed in await ProbeOllamaModelsAsync(endpoint, cancellationToken))
+                    foreach (var installed in await ProbeOllamaModelsAsync(endpoint, cancellationToken).ConfigureAwait(false))
                     {
                         var key = $"{endpoint}|{installed.ModelName}";
                         var isConfigured = candidates.TryGetValue(key, out var existing) && existing.IsConfigured;
@@ -107,7 +107,7 @@ namespace LocalGPT.Services
                     ModelNames = participants,
                     StartedAtUtc = DateTime.UtcNow
                 };
-                var continuedConversation = await LoadContinuationConversationAsync(request.ContinueConversationId, cancellationToken, logger);
+                var continuedConversation = await LoadContinuationConversationAsync(request.ContinueConversationId, cancellationToken, logger).ConfigureAwait(false);
                 if (request.ContinueConversationId is Guid continuationId)
                 {
                     result.ContinuedFromConversationId = continuationId;
@@ -134,7 +134,7 @@ namespace LocalGPT.Services
                 request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}.");
 
                 var bootstrap = request.IncludeMemory
-                    ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken)
+                    ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken).ConfigureAwait(false)
                     : string.Empty;
                 var continuationContext = MultiModelCouncilServiceBuildContinuationContext(continuedConversation, logger);
                 if (!string.IsNullOrWhiteSpace(continuationContext))
@@ -158,7 +158,7 @@ namespace LocalGPT.Services
                     request.ProgressMessage,
                     request.StreamUpdate,
                     request.StepCompleted,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
 
                 var critiqueRounds = Math.Clamp(request.MaxRounds, 0, 3);
                 if (critiqueRounds == 0)
@@ -184,7 +184,7 @@ namespace LocalGPT.Services
                         request.ProgressMessage,
                         request.StreamUpdate,
                         request.StepCompleted,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 if (critiqueRounds == 0 && participants.Count == 1)
@@ -214,7 +214,7 @@ namespace LocalGPT.Services
                         maxContextTokens,
                         modelTimeoutSeconds,
                         request.StreamUpdate,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                     ArgumentNullException.ThrowIfNull(consensusStep);
                     MultiModelCouncilServiceAddOrderedStep(result, consensusStep,logger);
                     request.StepCompleted?.Invoke(consensusStep);
@@ -240,7 +240,7 @@ namespace LocalGPT.Services
                             cancellationToken);
                         ArgumentNullException.ThrowIfNull(verificationStep);
                         MultiModelCouncilServiceAddOrderedStep(result, verificationStep, logger);
-                        request.StepCompleted?.Invoke(verificationStep);
+                        request.StepCompleted?.Invoke(verificationStep).ConfigureAwait(false);
                         result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}".Trim();
                     }
                     else
@@ -273,7 +273,7 @@ namespace LocalGPT.Services
                         result.Warnings.Add("A non-blocking coordination poll is included for follow-up choices, but LocalGPT generated the requested sandbox artifact because no unresolved architecture gate remained.");
                     }
 
-                    result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken));
+                    result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken).ConfigureAwait(false));
                 }
                 else if (request.GenerateImplementationArtifact && adviceOnlyPrompt)
                 {
@@ -284,13 +284,13 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Implementation artifacts were not generated because the user prompt did not explicitly ask LocalGPT to generate, create, or continue a downloadable/code artifact. This prevents normal advice, review, or release-readiness chats from producing unrelated zip files.");
                 }
 
-                result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken);
+                result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken).ConfigureAwait(false);
 
                 result.CompletedAtUtc = DateTime.UtcNow;
-                result.LogPath = await WriteLogAsync(result, cancellationToken, logger);
+                result.LogPath = await WriteLogAsync(result, cancellationToken, logger).ConfigureAwait(false);
 
                 if (request.SaveToMemory)
-                    result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken);
+                    result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation(
                     "Multi-model council {RunId} completed with {ParticipantCount} participant(s), {StepCount} step(s), memory {MemoryConversationId}, knowledge {KnowledgeEntryId}, log {LogPath}.",
@@ -337,12 +337,12 @@ namespace LocalGPT.Services
                 var tasks = participants
                     .Select(async modelName =>
                     {
-                        await gate.WaitAsync(cancellationToken);
+                        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try
                         {
                             var participantGpuLayers = MultiModelCouncilServiceResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu, logger);
                             progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}. Ollama num_gpu={(participantGpuLayers?.ToString() ?? "auto")}.");
-                            var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken);
+                            var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken).ConfigureAwait(false);
                             ArgumentNullException.ThrowIfNull(step);
                             stepCompleted?.Invoke(step);
                             return step;
@@ -358,7 +358,7 @@ namespace LocalGPT.Services
                 var steps = new List<MultiModelCouncilStep>();
                 while (pending.Count > 0)
                 {
-                    var completed = await Task.WhenAny(pending);
+                    var completed = await Task.WhenAny(pending).ConfigureAwait(false);
                     pending.Remove(completed);
                     var step = await completed.ConfigureAwait(false);
                     ArgumentNullException.ThrowIfNull(step);
@@ -489,7 +489,7 @@ namespace LocalGPT.Services
                             messages,
                             Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 2048), 8192), MinOutputTokens, MaxOutputTokens),
                             streamUpdate,
-                            participantCts.Token,logger);
+                            participantCts.Token,logger).ConfigureAwait(false);
 
                         if (!string.IsNullOrWhiteSpace(recovery.Content))
                             content = $"{content}{Environment.NewLine}{Environment.NewLine}{recovery.Content}";
@@ -557,7 +557,7 @@ namespace LocalGPT.Services
                 finally
                 {
                     if (MultiModelCouncilServiceShouldUnloadAfterParticipant(keepAlive, logger))
-                        await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken);
+                        await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -583,7 +583,7 @@ namespace LocalGPT.Services
                 using var response = await http.PostAsJsonAsync(
                     "/api/generate",
                     new OllamaUnloadRequest { Model = modelName },
-                    unloadCts.Token);
+                    unloadCts.Token).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                     logger.LogDebug("Ollama unload request for {ModelName} returned HTTP {StatusCode}.", modelName, response.StatusCode);
@@ -630,8 +630,8 @@ namespace LocalGPT.Services
                     Timeout = TimeSpan.FromSeconds(10)
                 };
 
-                var tags = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/tags", cancellationToken) ?? new OllamaTagsResponse();
-                var running = await MultiModelCouncilServiceProbeRunningModelNamesAsync(http, cancellationToken, logger);
+                var tags = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/tags", cancellationToken).ConfigureAwait(false) ?? new OllamaTagsResponse();
+                var running = await MultiModelCouncilServiceProbeRunningModelNamesAsync(http, cancellationToken, logger).ConfigureAwait(false);
 
                 return tags.Models.Select(model => new MultiModelCouncilModelCandidate(
                     model.Name,
@@ -856,7 +856,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var running = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/ps", cancellationToken) ?? new OllamaTagsResponse();
+                var running = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/ps", cancellationToken).ConfigureAwait(false) ?? new OllamaTagsResponse();
                 return running.Models.Select(model => model.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)
@@ -875,7 +875,7 @@ namespace LocalGPT.Services
 
                 try
                 {
-                    return await chatMemory.LoadConversationAsync(id, cancellationToken);
+                    return await chatMemory.LoadConversationAsync(id, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -1016,7 +1016,7 @@ namespace LocalGPT.Services
                     $"AI Council - {string.Join(" + ", result.ModelNames)}",
                     messages,
                     continuedConversation?.Id,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1100,7 +1100,7 @@ namespace LocalGPT.Services
                 Directory.CreateDirectory(directory);
 
                 var path = Path.Combine(directory, $"council-{DateTime.Now:yyyyMMdd-HHmmss}-{result.RunId:N}.md");
-                await System.IO.File.WriteAllTextAsync(path, CouncilChatStaticsGeneral.MultiModelCouncilServiceBuildLogMarkdown(result, logger), cancellationToken);
+                await System.IO.File.WriteAllTextAsync(path, CouncilChatStaticsGeneral.MultiModelCouncilServiceBuildLogMarkdown(result, logger), cancellationToken).ConfigureAwait(false);
                 return path;
             }
             catch (Exception ex)

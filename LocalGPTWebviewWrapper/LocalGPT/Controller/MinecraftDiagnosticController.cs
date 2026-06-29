@@ -103,7 +103,7 @@ namespace LocalGPT.Endpoints
                     Description = "Smoke-test the LocalGPT Minecraft Mod Builder with a small Living Cities starter item and report command."
                 };
 
-                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct);
+                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct).ConfigureAwait(false); ;
                 return Results.Ok(new
                 {
                     workspace.ProjectName,
@@ -147,12 +147,12 @@ namespace LocalGPT.Endpoints
                     Description = "Generate and validate the Living Cities 0.1 vanilla datapack benchmark from the provided design plan and early reference zip."
                 };
 
-                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct);
+                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct).ConfigureAwait(false); ;
                 var build = await commandRunner.RunAsync(
                     "powershell.exe",
                     "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
                     workspace.RootPath,
-                    ct);
+                    ct).ConfigureAwait(false); 
                 var files = Directory.GetFiles(workspace.RootPath, "*", SearchOption.AllDirectories)
                     .Select(path => Path.GetRelativePath(workspace.RootPath, path).Replace('\\', '/'))
                     .Order(StringComparer.OrdinalIgnoreCase)
@@ -185,7 +185,7 @@ namespace LocalGPT.Endpoints
                     Tags = "minecraft; datapack; living-cities; benchmark; low-context",
                     Confidence = build.Succeeded ? 78 : 45,
                     IsPinned = true
-                }, ct);
+                }, ct).ConfigureAwait(false);
 
                 return Results.Ok(new
                 {

@@ -65,15 +65,15 @@ namespace LocalGPT.Logging
             {
                 try
                 {
-                    if (!await channel.Reader.WaitToReadAsync(stop.Token))
+                    if (!await channel.Reader.WaitToReadAsync(stop.Token).ConfigureAwait(false))
                         break;
 
                     DrainBatch(batch);
                     if (batch.Count < Math.Clamp(options.CurrentValue.BatchSize, 1, 500))
-                        await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(options.CurrentValue.FlushIntervalSeconds, 1, 30)), stop.Token);
+                        await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(options.CurrentValue.FlushIntervalSeconds, 1, 30)), stop.Token).ConfigureAwait(false);
 
                     DrainBatch(batch);
-                    await FlushAsync(batch, stop.Token);
+                    await FlushAsync(batch, stop.Token).ConfigureAwait(false);
                     batch.Clear();
                 }
                 catch (OperationCanceledException)
@@ -86,7 +86,7 @@ namespace LocalGPT.Logging
                     batch.Clear();
                     try
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(5), stop.Token);
+                        await Task.Delay(TimeSpan.FromSeconds(5), stop.Token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
@@ -98,7 +98,7 @@ namespace LocalGPT.Logging
             try
             {
                 DrainBatch(batch, maxItems: 1000);
-                await FlushAsync(batch, CancellationToken.None);
+                await FlushAsync(batch, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -120,9 +120,9 @@ namespace LocalGPT.Logging
             if (batch.Count == 0)
                 return;
 
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             db.ApplicationLogs.AddRange(batch);
-            await db.SaveChangesAsync(cancellationToken);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             //await PruneOldLogsAsync(db, cancellationToken);
         }
 

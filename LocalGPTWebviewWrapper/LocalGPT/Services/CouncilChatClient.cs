@@ -30,7 +30,7 @@ public sealed partial class CouncilChatClient(
     {
         try
         {
-            var text = await RunCouncilAsync(messages, cancellationToken);
+            var text = await RunCouncilAsync(messages, cancellationToken).ConfigureAwait(false);
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, [new TextContent(text)]));
         }
         catch (Exception ex)
@@ -83,7 +83,7 @@ public sealed partial class CouncilChatClient(
 
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+                    await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -127,7 +127,7 @@ public sealed partial class CouncilChatClient(
             if (request.ModelNames.Count == 0)
                 return "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.";
 
-            var result = await councilService.RunAsync(request, cancellationToken);
+            var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
             return FormatResult(result, includeProcess: true);
         }
         catch (Exception ex)

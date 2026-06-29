@@ -25,7 +25,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await CreateDbContextAsync(cancellationToken);
+                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
                 return await db.Conversations
                     .AsNoTracking()
@@ -38,7 +38,7 @@ namespace LocalGPT.Services
                         conversation.CreatedAtUtc,
                         conversation.UpdatedAtUtc,
                         conversation.Messages.Count))
-                    .ToListAsync(cancellationToken);
+                    .ToListAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -51,11 +51,11 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await CreateDbContextAsync(cancellationToken);
+                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 var conversation = await db.Conversations
                     .AsNoTracking()
                     .Include(item => item.Messages)
-                    .SingleOrDefaultAsync(item => item.Id == conversationId, cancellationToken);
+                    .SingleOrDefaultAsync(item => item.Id == conversationId, cancellationToken).ConfigureAwait(false);
 
                 if (conversation is null)
                     return null;
@@ -97,7 +97,7 @@ namespace LocalGPT.Services
                 if (completeMessages.Count == 0)
                     return conversationId;
 
-                await using var db = await CreateDbContextAsync(cancellationToken);
+                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
                 var now = DateTime.UtcNow;
                 ChatMemoryConversation conversation;
@@ -106,7 +106,7 @@ namespace LocalGPT.Services
                 {
                     conversation = await db.Conversations
                         .Include(item => item.Messages)
-                        .SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
+                        .SingleOrDefaultAsync(item => item.Id == id, cancellationToken).ConfigureAwait(false)
                         ?? new ChatMemoryConversation { Id = id, CreatedAtUtc = now };
                 }
                 else
@@ -135,7 +135,7 @@ namespace LocalGPT.Services
                 if (db.Entry(conversation).State == EntityState.Detached)
                     db.Conversations.Add(conversation);
 
-                await db.SaveChangesAsync(cancellationToken);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 logger.LogInformation("Saved chat memory conversation {ConversationId} with {MessageCount} messages.", conversation.Id, completeMessages.Count);
                 return conversation.Id;
             }
@@ -150,7 +150,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await CreateDbContextAsync(cancellationToken);
+                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
                 return await db.Messages
                     .AsNoTracking()
@@ -162,7 +162,7 @@ namespace LocalGPT.Services
                         message.Conversation.Title,
                         message.CreatedAtUtc,
                         message.Thinking!))
-                    .ToListAsync(cancellationToken);
+                    .ToListAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -175,8 +175,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                var conversations = await GetConversationsAsync(conversationTake, cancellationToken);
-                var thoughts = await GetRecentThoughtsAsync(thoughtTake, cancellationToken);
+                var conversations = await GetConversationsAsync(conversationTake, cancellationToken).ConfigureAwait(false);
+                var thoughts = await GetRecentThoughtsAsync(thoughtTake, cancellationToken).ConfigureAwait(false);
 
                 if (conversations.Count == 0 && thoughts.Count == 0)
                     return string.Empty;
@@ -215,8 +215,8 @@ namespace LocalGPT.Services
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
-                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-                await db.Database.EnsureCreatedAsync(cancellationToken);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await db.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
                 return db;
             }
             catch (Exception ex)

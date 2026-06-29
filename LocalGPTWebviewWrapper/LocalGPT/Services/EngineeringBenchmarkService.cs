@@ -33,7 +33,7 @@ namespace LocalGPT.Services
                         RootPath = request.LearnBaseRootPath,
                         SaveToKnowledge = true,
                         MaxProjects = 40
-                    }, cancellationToken);
+                    }, cancellationToken).ConfigureAwait(false);
 
                 foreach (var task in CouncilChatStaticsGeneral.BuildTasks(result.TaskSet, logger))
                 {
@@ -47,7 +47,7 @@ namespace LocalGPT.Services
                     taskResult.Lanes.Add(CouncilChatStaticsGeneral.NotRunLane("A. raw Ollama model", "Live raw Ollama call intentionally not run in this deterministic benchmark. Run later with GPU-safe caps and record the transcript.",logger));
                     if (request.RunLocalGptArtifacts)
                     {
-                        var runLocalGptLaneAsync = await RunLocalGptLaneAsync(task, request, cancellationToken, logger);
+                        var runLocalGptLaneAsync = await RunLocalGptLaneAsync(task, request, cancellationToken, logger).ConfigureAwait(false);
                         ArgumentNullException.ThrowIfNull(runLocalGptLaneAsync);
                         taskResult.Lanes.Add(runLocalGptLaneAsync);
                     }
@@ -61,7 +61,7 @@ namespace LocalGPT.Services
 
                 result.CompletedAtUtc = DateTime.UtcNow;
                 if (request.SaveToKnowledge)
-                    result.KnowledgeEntryId = await SaveBenchmarkKnowledgeAsync(result, cancellationToken);
+                    result.KnowledgeEntryId = await SaveBenchmarkKnowledgeAsync(result, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Engineering benchmark {RunId} completed with {TaskCount} task(s).", result.RunId, result.Tasks.Count);
                 return result;
@@ -103,7 +103,7 @@ namespace LocalGPT.Services
                     Confidence = 70,
                     VerificationStatus = "SourceBacked",
                     IsPinned = true
-                }, cancellationToken);
+                }, cancellationToken).ConfigureAwait(false);
 
                 return entry.Id;
             }
@@ -137,7 +137,7 @@ namespace LocalGPT.Services
                     MaxRounds = 0
                 };
 
-                var artifacts = await artifactService.CreateImplementationArtifactsAsync(councilRequest, councilResult, cancellationToken);
+                var artifacts = await artifactService.CreateImplementationArtifactsAsync(councilRequest, councilResult, cancellationToken).ConfigureAwait(false);
                 stopwatch.Stop();
 
                 var lane = new EngineeringBenchmarkLaneResult

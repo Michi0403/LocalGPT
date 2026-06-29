@@ -58,7 +58,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var response = await SendAsync(messages, options, stream: false, cancellationToken);
+                var response = await SendAsync(messages, options, stream: false, cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(response);
                 return new ChatResponse(new ChatMessage(ChatRole.Assistant, CreateContents(response)));
             }
@@ -90,7 +90,7 @@ namespace LocalGPT.Services
                 HttpResponseMessage response;
                 try
                 {
-                    response = await http.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    response = await http.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -99,7 +99,7 @@ namespace LocalGPT.Services
 
                 using (response)
                 {
-                    await CouncilChatStaticsGeneral.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger);
+                    await CouncilChatStaticsGeneral.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger).ConfigureAwait(false);
                     var statusUpdate = CouncilChatStaticsGeneral.OllamaThinkingChatClientCreateStreamingStatusUpdate("Ollama accepted the request. Waiting for streamed model output...", logger);
                     ArgumentNullException.ThrowIfNull(statusUpdate);
                     yield return statusUpdate;
@@ -107,7 +107,7 @@ namespace LocalGPT.Services
                     Stream stream;
                     try
                     {
-                        stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                        stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
@@ -122,7 +122,7 @@ namespace LocalGPT.Services
                             string? line;
                             try
                             {
-                                line = await reader.ReadLineAsync(cancellationToken);
+                                line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                             }
                             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                             {
@@ -168,7 +168,7 @@ namespace LocalGPT.Services
             }
             finally 
             {
-                logger.LogInformation($"Error in GetStreamingResponseAsync messages {messages.ToString()} options {options?.ToString()}");
+                logger.LogInformation($"Ended GetStreamingResponseAsync messages {messages.ToString()} options {options?.ToString()}");
                
             }
             
@@ -205,7 +205,7 @@ namespace LocalGPT.Services
                 HttpResponseMessage response;
                 try
                 {
-                    response = await http.PostAsJsonAsync("/api/chat", request, JsonOptions, cancellationToken);
+                    response = await http.PostAsJsonAsync("/api/chat", request, JsonOptions, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -214,9 +214,9 @@ namespace LocalGPT.Services
 
                 using (response)
                 {
-                    await CouncilChatStaticsGeneral.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger);
+                    await CouncilChatStaticsGeneral.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger).ConfigureAwait(false);
 
-                    var ollama = await response.Content.ReadFromJsonAsync<OllamaChatResponse>(JsonOptions, cancellationToken);
+                    var ollama = await response.Content.ReadFromJsonAsync<OllamaChatResponse>(JsonOptions, cancellationToken).ConfigureAwait(false);
                     return ollama ?? new OllamaChatResponse();
                 }
             }

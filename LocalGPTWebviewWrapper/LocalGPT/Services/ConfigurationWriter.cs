@@ -29,7 +29,7 @@ namespace LocalGPT.Services
                 if (File.Exists(file))
                 {
                     await using var readStream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    settings = await JsonNode.ParseAsync(readStream, cancellationToken: ct) as JsonObject ?? new JsonObject();
+                    settings = await JsonNode.ParseAsync(readStream, cancellationToken: ct).ConfigureAwait(false) as JsonObject ?? new JsonObject();
                 }
                 else
                 {
@@ -42,7 +42,7 @@ namespace LocalGPT.Services
                 JsonFunctions.SetSection(settings, nameof(root.AICore), root.AICore, serializerOptions,_logger);
 
                 var tempFile = file + ".tmp";
-                await File.WriteAllTextAsync(tempFile, settings.ToJsonString(serializerOptions), ct);
+                await File.WriteAllTextAsync(tempFile, settings.ToJsonString(serializerOptions), ct).ConfigureAwait(false);
                 File.Copy(tempFile, file, overwrite: true);
                 File.Delete(tempFile);
             }

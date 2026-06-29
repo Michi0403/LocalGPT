@@ -40,7 +40,7 @@ namespace LocalGPT.Services
 
                     string? copiedPath = null;
                     if (captureRoot is not null)
-                        copiedPath = await CouncilChatStaticsGeneral.CopyDebugFileAsync(item.File, item.SourceArea, captureRoot, cancellationToken, logger);
+                        copiedPath = await CouncilChatStaticsGeneral.CopyDebugFileAsync(item.File, item.SourceArea, captureRoot, cancellationToken, logger).ConfigureAwait(false);
 
                     inventory.Files.Add(new BuildDebugFileSummary
                     {
@@ -68,7 +68,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var inventory = await CaptureAsync(copyFiles: false, cancellationToken);
+                var inventory = await CaptureAsync(copyFiles: false, cancellationToken).ConfigureAwait(false);
                 if (inventory.Files.Count == 0)
                     return "No build debug symbol files (.pdb, .pdg, .appxsym) were found in the current LocalGPT output paths.";
 

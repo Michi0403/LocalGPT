@@ -60,7 +60,7 @@ public class CompositeChatClient : IChatClient
             if (selectedSession is null)
                 throw new InvalidOperationException("No chat client session is selected.");
 
-            var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
+            var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken).ConfigureAwait(false);
             return await GetResponseAndReportAsync(selectedSession, enrichedMessages, ApplyDefaultOptions(options), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -174,9 +174,9 @@ public class CompositeChatClient : IChatClient
     {
         try
         {
-            var response = await session.Client.GetResponseAsync(messages, options, cancellationToken);
-            await WriteMissingFeatureReportIfNeededAsync(session.Name, response.Text, cancellationToken);
-            await WriteKnowledgeRequestsIfNeededAsync(session.Name, response.Text, cancellationToken);
+            var response = await session.Client.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
+            await WriteMissingFeatureReportIfNeededAsync(session.Name, response.Text, cancellationToken).ConfigureAwait(false);
+            await WriteKnowledgeRequestsIfNeededAsync(session.Name, response.Text, cancellationToken).ConfigureAwait(false);
             return response;
         }
         catch (Exception ex)
@@ -198,7 +198,7 @@ public class CompositeChatClient : IChatClient
             IReadOnlyList<ChatMessage> enrichedMessages;
             try
             {
-                enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken);
+                enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -214,7 +214,7 @@ public class CompositeChatClient : IChatClient
                     ChatResponseUpdate update;
                     try
                     {
-                        if (!await updates.MoveNextAsync())
+                        if (!await updates.MoveNextAsync().ConfigureAwait(false))
                             break;
 
                         update = updates.Current;
@@ -230,7 +230,7 @@ public class CompositeChatClient : IChatClient
             }
             finally
             {
-                await updates.DisposeAsync();
+                await updates.DisposeAsync().ConfigureAwait(false);
             }
 
             if (cancellationToken.IsCancellationRequested)
@@ -239,8 +239,8 @@ public class CompositeChatClient : IChatClient
             var text = responseText.ToString();
             try
             {
-                await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken);
-                await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken);
+                await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
+                await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -254,7 +254,7 @@ public class CompositeChatClient : IChatClient
             if (_featureReportService is null)
                 return;
 
-            var path = await _featureReportService.WriteIfMissingFeatureReportAsync(source, responseText, cancellationToken);
+            var path = await _featureReportService.WriteIfMissingFeatureReportAsync(source, responseText, cancellationToken).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(path))
                 _logger.LogInformation("AI missing feature report written: {Path}", path);
         }
@@ -277,7 +277,7 @@ public class CompositeChatClient : IChatClient
 
             foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText, _logger) ?? new List<CouncilKnowledgeEntry>())
             {
-                var saved = await _knowledgeService.SaveEntryAsync(entry, cancellationToken);
+                var saved = await _knowledgeService.SaveEntryAsync(entry, cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("AI requested unapproved knowledge entry {KnowledgeEntryId} from {Source}.", saved.Id, source);
             }
         }
@@ -298,7 +298,7 @@ public class CompositeChatClient : IChatClient
         try
         {
             var messageList = messages.ToList();
-            var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, cancellationToken);
+            var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, cancellationToken).ConfigureAwait(false);
             var policyMessage = new ChatMessage(ChatRole.System, GlobalVariableSlopCollectionToRemove.RuntimeDecisionPolicy);
 
             var systemMessages = new List<ChatMessage> { policyMessage };
@@ -308,7 +308,7 @@ public class CompositeChatClient : IChatClient
                 return CouncilChatStaticsGeneral.LimitPromptSize([.. systemMessages, .. messageList], _logger, ForcedMaxPromptCharacters );
             }
 
-            var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken);
+            var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(bootstrapPrompt))
             {
                 CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
@@ -358,7 +358,7 @@ public class CompositeChatClient : IChatClient
                 _logger.LogInformation(
                     "Created DXAiChat native attachment workspace {WorkspaceName} with {FileCount} files.",
                     result.WorkspaceName,
-                    result.FileCount);
+                    result.FileCount).ConfigureAwait(false);
 
                 return CouncilChatStringFunctions.BuildUploadWorkspaceSystemPrompt(result, _logger);
             }

@@ -20,8 +20,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                await EnsureDatabaseFileAsync(cancellationToken);
-                await using var connection = await OpenConnectionAsync(cancellationToken);
+                await EnsureDatabaseFileAsync(cancellationToken).ConfigureAwait(false);
+                await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(connection);
                 var names = new List<string>();
                 await using (var command = connection.CreateCommand())
@@ -34,8 +34,8 @@ namespace LocalGPT.Services
                     ORDER BY name;
                     """;
 
-                    await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                    while (await reader.ReadAsync(cancellationToken))
+                    await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         names.Add(reader.GetString(0));
                     }
@@ -44,8 +44,8 @@ namespace LocalGPT.Services
                 var tables = new List<SqliteTableSummary>();
                 foreach (var name in names)
                 {
-                    var columns = await SQLLiteFunctions.GetColumnsAsync(connection, name, cancellationToken);
-                    var rowCount = await SQLLiteFunctions.GetRowCountAsync(connection, name, cancellationToken);
+                    var columns = await SQLLiteFunctions.GetColumnsAsync(connection, name, cancellationToken).ConfigureAwait(false);
+                    var rowCount = await SQLLiteFunctions.GetRowCountAsync(connection, name, cancellationToken).ConfigureAwait(false);
                     tables.Add(new SqliteTableSummary(
                         name,
                         columns.Count,
@@ -66,13 +66,13 @@ namespace LocalGPT.Services
         {
             try
             {
-                await EnsureDatabaseFileAsync(cancellationToken);
-                await using var connection = await OpenConnectionAsync(cancellationToken);
+                await EnsureDatabaseFileAsync(cancellationToken).ConfigureAwait(false);
+                await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(connection);
-                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken);
+                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
 
                 var safeTake = Math.Clamp(take, 1, MaxRows);
-                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken);
+                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
                 var rows = new List<SqliteRowSnapshot>();
 
                 await using var command = connection.CreateCommand();
@@ -80,12 +80,12 @@ namespace LocalGPT.Services
                 SELECT rowid AS "__rowid", *
                 FROM {SQLLiteFunctions.QuoteIdentifier(tableName)}
                 ORDER BY rowid DESC
-                LIMIT $take;
+                LIMIT $take 
                 """;
                 command.Parameters.AddWithValue("$take", safeTake);
 
-                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                while (await reader.ReadAsync(cancellationToken))
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
                     var row = new SqliteRowSnapshot
                     {
@@ -126,12 +126,12 @@ namespace LocalGPT.Services
                 if (updates.Count == 0)
                     return;
 
-                await EnsureDatabaseFileAsync(cancellationToken);
-                await using var connection = await OpenConnectionAsync(cancellationToken);
+                await EnsureDatabaseFileAsync(cancellationToken).ConfigureAwait(false);
+                await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(connection);
                 await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken);
 
-                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken);
+                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
                 var editableColumns = columns
                     .Where(column => !column.IsPrimaryKey)
                     .Select(column => column.Name)
@@ -163,7 +163,7 @@ namespace LocalGPT.Services
                 command.Parameters.AddWithValue("$rowid", rowId);
                 try
                 {
-                    await command.ExecuteNonQueryAsync(cancellationToken);
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (SqliteException ex)
                 {
@@ -180,12 +180,12 @@ namespace LocalGPT.Services
         {
             try
             {
-                await EnsureDatabaseFileAsync(cancellationToken);
-                await using var connection = await OpenConnectionAsync(cancellationToken);
+                await EnsureDatabaseFileAsync(cancellationToken).ConfigureAwait(false);
+                await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(connection);
-                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken);
+                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
 
-                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken);
+                var columns = await SQLLiteFunctions.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
                 var allowedColumns = columns
                     .Where(column => !column.IsPrimaryKey)
                     .Select(column => column.Name)
@@ -217,7 +217,7 @@ namespace LocalGPT.Services
                 """;
                 try
                 {
-                    await command.ExecuteNonQueryAsync(cancellationToken);
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (SqliteException ex)
                 {
@@ -235,10 +235,10 @@ namespace LocalGPT.Services
         {
             try
             {
-                await EnsureDatabaseFileAsync(cancellationToken);
-                await using var connection = await OpenConnectionAsync(cancellationToken);
+                await EnsureDatabaseFileAsync(cancellationToken).ConfigureAwait(false);
+                await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(connection);
-                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken);
+                await SQLLiteFunctions.EnsureValidTableAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
 
                 await using var command = connection.CreateCommand();
                 command.CommandText = $"DELETE FROM {SQLLiteFunctions.QuoteIdentifier(tableName)} WHERE rowid = $rowid;";
@@ -247,7 +247,7 @@ namespace LocalGPT.Services
                 {
 
                     Console.WriteLine($"Dangerous delete can cause inconsistence in {tableName} rowId {rowId.ToString()}");
-                    await command.ExecuteNonQueryAsync(cancellationToken);
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (SqliteException ex)
                 {
@@ -269,7 +269,7 @@ namespace LocalGPT.Services
                     Directory.CreateDirectory(directory);
 
                 await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
-                await connection.OpenAsync(cancellationToken);
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -283,7 +283,7 @@ namespace LocalGPT.Services
             try
             {
                 var connection = new SqliteConnection($"Data Source={DatabasePath}");
-                await connection.OpenAsync(cancellationToken);
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
                 return connection;
             }
             catch (Exception ex)

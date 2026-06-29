@@ -40,7 +40,7 @@ namespace LocalGPT.Services
                 ArgumentNullException.ThrowIfNull(policy);
                 if (!policy.Allowed)
                 {
-                    await SaveCommandLogAsync(fileName, arguments, workingDirectory, startedAt, DateTime.UtcNow, -1, string.Empty, string.Empty, policy, cancellationToken);
+                    await SaveCommandLogAsync(fileName, arguments, workingDirectory, startedAt, DateTime.UtcNow, -1, string.Empty, string.Empty, policy, cancellationToken).ConfigureAwait(false);
                     throw new InvalidOperationException(policy.Reason);
                 }
 
@@ -73,7 +73,7 @@ namespace LocalGPT.Services
                 process.Start();
                 var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
                 var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-                await process.WaitForExitAsync(cancellationToken);
+                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
                 var completedAt = DateTime.UtcNow;
                 var output = await outputTask;
@@ -84,7 +84,7 @@ namespace LocalGPT.Services
                     startedAt,
                     output,
                     error,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
                 await SaveCommandLogAsync(
                     fileName,
                     arguments,
@@ -95,7 +95,7 @@ namespace LocalGPT.Services
                     stdoutPath,
                     stderrPath,
                     policy,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
 
                 return new CommandExecutionResult
                 {
@@ -207,8 +207,8 @@ namespace LocalGPT.Services
                 var stdoutPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stdout.txt");
                 var stderrPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stderr.txt");
 
-                await File.WriteAllTextAsync(stdoutPath, stdout, cancellationToken);
-                await File.WriteAllTextAsync(stderrPath, stderr, cancellationToken);
+                await File.WriteAllTextAsync(stdoutPath, stdout, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(stderrPath, stderr, cancellationToken).ConfigureAwait(false);
                 return (stdoutPath, stderrPath);
             }
             catch (Exception ex)
@@ -232,7 +232,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 db.NativeCommandLogs.Add(new NativeCommandLogEntry
                 {
                     StartedAtUtc = startedAt,
@@ -248,7 +248,7 @@ namespace LocalGPT.Services
                     PolicyDecision = policy.Decision,
                     PolicyReason = policy.Reason
                 });
-                await db.SaveChangesAsync(cancellationToken);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

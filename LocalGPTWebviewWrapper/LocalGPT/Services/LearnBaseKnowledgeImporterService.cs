@@ -40,8 +40,8 @@ namespace LocalGPT.Services
                     return result;
                 }
 
-                await knowledgeService.EnsureCreatedAsync(cancellationToken);
-                await ImportKnownDocumentationCorporaAsync(rootPath, request, result, cancellationToken);
+                await knowledgeService.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
+                await ImportKnownDocumentationCorporaAsync(rootPath, request, result, cancellationToken).ConfigureAwait(false);
 
                 var projectDirectories = CouncilChatStringFunctions.BuildImportDirectories(rootPath, Math.Clamp(request.MaxProjects, 1, 120), logger)
                     .ToArray();
@@ -54,7 +54,7 @@ namespace LocalGPT.Services
                         var summary = CouncilChatStaticsGeneral.BuildProjectSummary(rootPath, projectDirectory, logger);
                         if (request.SaveToKnowledge)
                         {
-                            var entry = await knowledgeService.SaveEntryAsync(CouncilChatStaticsGeneral.ToKnowledgeEntry(summary,logger), cancellationToken);
+                            var entry = await knowledgeService.SaveEntryAsync(CouncilChatStaticsGeneral.ToKnowledgeEntry(summary,logger), cancellationToken).ConfigureAwait(false);
                             summary.KnowledgeEntryId = entry.Id;
                             result.SavedKnowledgeCount++;
                         }
@@ -91,10 +91,10 @@ namespace LocalGPT.Services
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     if (CouncilChatStaticsGeneral.LooksLikeWindowsDevDocsRoot(candidate, logger))
-                        await ImportWindowsDevDocsCorpusAsync(candidate, request, result, cancellationToken);
+                        await ImportWindowsDevDocsCorpusAsync(candidate, request, result, cancellationToken).ConfigureAwait(false);
 
                     if (CouncilChatStaticsGeneral.LooksLikeDotNetDocsRoot(candidate, logger))
-                        await ImportDotNetDocsCorpusAsync(candidate, request, result, cancellationToken);
+                        await ImportDotNetDocsCorpusAsync(candidate, request, result, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -124,7 +124,7 @@ namespace LocalGPT.Services
                     Guid? knowledgeEntryId = null;
                     if (request.SaveToKnowledge)
                     {
-                        var saved = await knowledgeService.SaveEntryAsync(entry, cancellationToken);
+                        var saved = await knowledgeService.SaveEntryAsync(entry, cancellationToken).ConfigureAwait(false);
                         knowledgeEntryId = saved.Id;
                         result.SavedKnowledgeCount++;
                     }
@@ -171,7 +171,7 @@ namespace LocalGPT.Services
                     Guid? knowledgeEntryId = null;
                     if (request.SaveToKnowledge)
                     {
-                        var saved = await knowledgeService.SaveEntryAsync(entry, cancellationToken);
+                        var saved = await knowledgeService.SaveEntryAsync(entry, cancellationToken).ConfigureAwait(false);
                         knowledgeEntryId = saved.Id;
                         result.SavedKnowledgeCount++;
                     }

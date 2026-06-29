@@ -23,7 +23,7 @@ namespace LocalGPT.Services
             {
                 var http = new HttpClient { BaseAddress = new Uri(o.Endpoint) };
                 http.DefaultRequestHeaders.Add("api-key", o.Key);
-                return await HttpAIStaticsGeneral.GetAsync(http, "/", ct, logger);
+                return await HttpAIStaticsGeneral.GetAsync(http, "/", ct, logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -41,7 +41,7 @@ namespace LocalGPT.Services
 
                 var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
                 http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
-                return await HttpAIStaticsGeneral.GetAsync(http, "models", ct,logger);
+                return await HttpAIStaticsGeneral.GetAsync(http, "models", ct,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -56,7 +56,7 @@ namespace LocalGPT.Services
             try
             {
                 var http = new HttpClient { BaseAddress = new Uri(o.Uri) };
-                return await HttpAIStaticsGeneral.GetAsync(http, "/api/tags", ct,logger);
+                return await HttpAIStaticsGeneral.GetAsync(http, "/api/tags", ct,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -74,7 +74,7 @@ namespace LocalGPT.Services
                 if (!string.IsNullOrWhiteSpace(o.ApiKey))
                     http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
 
-                return await HttpAIStaticsGeneral.GetAsync(http, "/v1/models", ct,logger);
+                return await HttpAIStaticsGeneral.GetAsync(http, "/v1/models", ct,logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -105,14 +105,14 @@ namespace LocalGPT.Services
                 var deadline = DateTime.UtcNow.AddSeconds(Math.Max(5, o.HealthTimeoutSeconds));
                 while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
                 {
-                    var (ok, _) = await TestLocalOpenAICompatAsync(o, ct);
+                    var (ok, _) = await TestLocalOpenAICompatAsync(o, ct).ConfigureAwait(false);
                     if (ok)
                     {
                         started = true;
                         break;
                     }
 
-                    await Task.Delay(1000, ct);
+                    await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
 
                 return started ? (true, "Local server is responding.") : (false, "Local server did not respond in time.");
@@ -134,7 +134,7 @@ namespace LocalGPT.Services
                 HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", ct,logger)
             };
 
-                return await Task.WhenAll(probes);
+                return await Task.WhenAll(probes).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

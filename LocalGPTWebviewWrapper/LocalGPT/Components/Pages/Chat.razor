@@ -322,9 +322,9 @@
         try
         {
             PromptSuggestions = GlobalVariableSlopCollectionToRemove.GetSuggestion();
-            await RefreshMemoryAsync();
+            await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
-            await RefreshOllamaModelsAsync(showToast: false);
+            await RefreshOllamaModelsAsync(showToast: false).ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: true);
             if (UseFreshDiagnosticChat)
             {
@@ -333,7 +333,7 @@
             }
             else if (AutoLoadLatestConversation)
             {
-                await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
+                await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false).ConfigureAwait(false);
             }
             else if (SavedConversations.Count > 0)
             {
@@ -357,7 +357,7 @@
 
             try
             {
-                await JS.InvokeVoidAsync("localGptReady.markInteractive");
+                await JS.InvokeVoidAsync("localGptReady.markInteractive").ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -396,7 +396,7 @@
             if (ChatClientProvider?.SelectedSession is null || DxAiChat is null)
                 return;
 
-            await PersistCurrentConversationAsync(force: true, showToast: false);
+            await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
             ChatClientProvider.SelectedSession.Messages.Clear();
             ActiveConversationId = null;
             SelectedConversation = null;
@@ -425,7 +425,7 @@
             ChatClientProvider.SelectedSession.Messages.Clear();
             ChatClientProvider.SelectedSession.Messages.AddRange(messages);
             DxAiChat.LoadMessages(messages);
-            await PersistMessagesAsync(messages, force: true, showToast: false);
+            await PersistMessagesAsync(messages, force: true, showToast: false).ConfigureAwait(false);
             ArchitecturePollStatus = "Architecture decision guidance was added to the DXAiChat conversation.";
         }
         catch (Exception ex)
@@ -506,7 +506,7 @@
 
             var currentMessages = DxAiChat.SaveMessages().ToList();
             SaveMessagesForSelectedSession(currentMessages);
-            await PersistMessagesAsync(currentMessages, force: true, showToast: false);
+            await PersistMessagesAsync(currentMessages, force: true, showToast: false).ConfigureAwait(false);
 
             ChatClientProvider.LockedSessionName = null;
             ChatClientProvider.ForcedMaxOutputTokens = null;
@@ -531,7 +531,7 @@
     {
         try
         {
-            await RefreshOllamaModelsAsync(showToast: true).ConfigureAwait(false);
+            await RefreshOllamaModelsAsync(showToast: true).ConfigureAwait(false).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -553,7 +553,7 @@
                 if (DxAiChat is not null)
                     SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
 
-                OllamaCandidates = (await CouncilService.GetCandidatesAsync())
+                OllamaCandidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false))
                     .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
                     .OrderByDescending(candidate => candidate.IsLoaded)
                     .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
@@ -1139,7 +1139,7 @@
             if (SavedConversations.Count == 0)
                 return;
 
-            await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat);
+            await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1154,7 +1154,7 @@
     {
         try
         {
-            await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true);
+            await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1173,10 +1173,10 @@
             try
             {
                 if (saveCurrentFirst)
-                    await PersistCurrentConversationAsync(force: true, showToast: false);
+                    await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
 
                 isMemoryBusy = true;
-                var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id);
+                var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id).ConfigureAwait(false);
                 if (snapshot is null)
                     return;
 
@@ -1217,7 +1217,7 @@
 
             var messages = DxAiChat.SaveMessages().ToList();
             SaveMessagesForSelectedSession(messages);
-            await PersistMessagesAsync(messages, force, showToast);
+            await PersistMessagesAsync(messages, force, showToast).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1244,10 +1244,10 @@
                 ActiveConversationId = await ChatMemory.SaveConversationAsync(
                     ChatClientProvider.SelectedSession.Name,
                     messages,
-                    ActiveConversationId);
+                    ActiveConversationId).ConfigureAwait(false);
 
                 lastSavedSignature = signature;
-                await RefreshMemoryAsync();
+                await RefreshMemoryAsync().ConfigureAwait(false);
                 memoryStatus = $"Memory saved at {DateTime.Now:t}.";
 
                 if (showToast)
@@ -1318,7 +1318,7 @@
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken);
+                    await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken).ConfigureAwait(false);
                     await InvokeAsync(async () => await PersistCurrentConversationAsync(force: false, showToast: false).ConfigureAwait(false)).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException ex)

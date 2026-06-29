@@ -54,7 +54,7 @@ namespace LocalGPT.Services
                         .AppendLine();
                 }
 
-                var memoryBriefing = await chatMemory.BuildMemoryBriefingAsync(conversationTake: 3, thoughtTake: 2, cancellationToken: cancellationToken);
+                var memoryBriefing = await chatMemory.BuildMemoryBriefingAsync(conversationTake: 3, thoughtTake: 2, cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(memoryBriefing))
                 {
                     builder.AppendLine("Saved LocalGPT memory:")
@@ -62,7 +62,7 @@ namespace LocalGPT.Services
                         .AppendLine();
                 }
 
-                var knowledgeBriefing = await councilKnowledge.BuildKnowledgeBriefingAsync(cancellationToken: cancellationToken);
+                var knowledgeBriefing = await councilKnowledge.BuildKnowledgeBriefingAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(knowledgeBriefing))
                 {
                     builder.AppendLine("Editable AI Council knowledge database:")
@@ -71,7 +71,7 @@ namespace LocalGPT.Services
                         .AppendLine();
                 }
 
-                var logBriefing = await applicationLogs.BuildAiLogBriefingAsync(cancellationToken: cancellationToken);
+                var logBriefing = await applicationLogs.BuildAiLogBriefingAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(logBriefing))
                 {
                     builder.AppendLine("Recent LocalGPT diagnostic log awareness:")
@@ -79,7 +79,7 @@ namespace LocalGPT.Services
                         .AppendLine();
                 }
 
-                var devExpressBriefing = await libraryInventory.BuildDevExpressBriefingAsync(cancellationToken);
+                var devExpressBriefing = await libraryInventory.BuildDevExpressBriefingAsync(cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(devExpressBriefing))
                 {
                     builder.AppendLine("Local DevExpress library inventory:")
@@ -87,7 +87,7 @@ namespace LocalGPT.Services
                         .AppendLine();
                 }
 
-                var buildDebugBriefing = await buildDebugInventory.BuildBriefingAsync(cancellationToken);
+                var buildDebugBriefing = await buildDebugInventory.BuildBriefingAsync(cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(buildDebugBriefing))
                 {
                     builder.AppendLine("Local build debug symbol inventory:")
@@ -95,7 +95,7 @@ namespace LocalGPT.Services
                         .AppendLine();
                 }
 
-                var projectKnowledge = await ReadProjectKnowledgeIndexAsync(cancellationToken);
+                var projectKnowledge = await ReadProjectKnowledgeIndexAsync(cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(projectKnowledge))
                 {
                     builder.AppendLine("Project AI guidance index:")
@@ -231,12 +231,12 @@ namespace LocalGPT.Services
                         var info = new FileInfo(path);
                         await using var stream = File.OpenRead(path);
                         using var reader = new StreamReader(stream);
-                        var firstLine = (await reader.ReadLineAsync(cancellationToken))?.Trim() ?? string.Empty;
+                        var firstLine = (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false))?.Trim() ?? string.Empty;
                         builder.AppendLine($"- {relativePath} ({info.Length:n0} bytes){(string.IsNullOrWhiteSpace(firstLine) ? string.Empty : $": {CouncilChatStringFunctions.TrimForPrompt(firstLine, 140, logger)}")}");
                     }
                     catch (Exception ex)
                     {
-                        logger.LogWarning(ex, "Could not read AI guidance file {Path}", path);
+                        logger.LogError(ex, "Could not read AI guidance file {Path}", path);
                     }
                 }
 

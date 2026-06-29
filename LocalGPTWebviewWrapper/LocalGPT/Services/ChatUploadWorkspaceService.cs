@@ -65,7 +65,7 @@ namespace LocalGPT.Services
                     var safeName = CouncilChatStringFunctions.BuildUniqueFileName(originalRoot, input.Name, logger);
                     var originalPath = Path.Combine(originalRoot, safeName);
                     var bytes = input.Data.ToArray();
-                    await System.IO.File.WriteAllBytesAsync(originalPath, bytes, cancellationToken);
+                    await System.IO.File.WriteAllBytesAsync(originalPath, bytes, cancellationToken).ConfigureAwait(false);
 
                     var originalRelativePath = CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
                     if (CouncilChatStaticsGeneral.IsZip(input.Name, logger))
@@ -74,7 +74,7 @@ namespace LocalGPT.Services
                             "Original zip saved. Extracted safe entries are listed separately.", logger);
                         ArgumentNullException.ThrowIfNull(buildSummary);
                         analyzedFiles.Add(buildSummary);
-                        await ExtractZipAsync(root, extractedRoot, safeName, bytes, analyzedFiles, warnings, cancellationToken);
+                        await ExtractZipAsync(root, extractedRoot, safeName, bytes, analyzedFiles, warnings, cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
@@ -89,7 +89,7 @@ namespace LocalGPT.Services
 
                 var context = CouncilChatStaticsGeneral.BuildContextMarkdown(workspaceName, root, prompt, analyzedFiles, warnings, logger);
                 var contextPath = Path.Combine(root, "context.md");
-                await System.IO.File.WriteAllTextAsync(contextPath, context, Encoding.UTF8, cancellationToken);
+                await System.IO.File.WriteAllTextAsync(contextPath, context, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
 
                 var manifestPath = Path.Combine(root, "manifest.json");
                 await System.IO.File.WriteAllTextAsync(
@@ -115,7 +115,7 @@ namespace LocalGPT.Services
                         Files = analyzedFiles.Select(file => file.Summary)
                     }, GlobalVariableSlopCollectionToRemove.JsonOptions),
                     Encoding.UTF8,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
 
                 var filesSummary = analyzedFiles
                     .Select(file => file.Summary)
@@ -229,7 +229,7 @@ namespace LocalGPT.Services
                 if (!System.IO.File.Exists(contextPath))
                     return string.Empty;
 
-                var context = await System.IO.File.ReadAllTextAsync(contextPath, cancellationToken);
+                var context = await System.IO.File.ReadAllTextAsync(contextPath, cancellationToken).ConfigureAwait(false);
                 return CouncilChatStringFunctions.TrimForPrompt(context, maxCharacters, logger);
             }
             catch (Exception ex)
@@ -299,7 +299,7 @@ namespace LocalGPT.Services
                         info.Length,
                         "File is too large for inline reading. Use the file summary and inspect it manually.");
 
-                var bytes = await System.IO.File.ReadAllBytesAsync(file, cancellationToken);
+                var bytes = await System.IO.File.ReadAllBytesAsync(file, cancellationToken).ConfigureAwait(false);
                 var analyzed = CouncilChatStaticsGeneral.AnalyzeBytes(CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspace, file), logger), bytes, logger);
                 ArgumentNullException.ThrowIfNull(analyzed);
                 return new ChatUploadWorkspaceFileReadResult(
@@ -436,10 +436,10 @@ namespace LocalGPT.Services
                     await using (var entryStream = entry.Open())
                     await using (var destinationStream = System.IO.File.Create(destination))
                     {
-                        await entryStream.CopyToAsync(destinationStream, cancellationToken);
+                        await entryStream.CopyToAsync(destinationStream, cancellationToken).ConfigureAwait(false);
                     }
 
-                    var bytes = await System.IO.File.ReadAllBytesAsync(destination, cancellationToken);
+                    var bytes = await System.IO.File.ReadAllBytesAsync(destination, cancellationToken).ConfigureAwait(false);
                     var analyzedBytes = CouncilChatStaticsGeneral.AnalyzeBytes(CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger), bytes, logger);
                     ArgumentNullException.ThrowIfNull(analyzedBytes);
                     analyzedFiles.Add(analyzedBytes);

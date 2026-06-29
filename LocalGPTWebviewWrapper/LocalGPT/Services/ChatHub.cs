@@ -17,7 +17,7 @@ namespace LocalGPT.Hubs
             try
             {
                 _logger.LogInformation($"Client connected: {Context.ConnectionId}");
-                await base.OnConnectedAsync();
+                await base.OnConnectedAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -31,7 +31,7 @@ namespace LocalGPT.Hubs
             try
             {
                 _logger.LogInformation($"Client disconnected: {Context.ConnectionId}");
-                await base.OnDisconnectedAsync(exception);
+                await base.OnDisconnectedAsync(exception).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -44,7 +44,7 @@ namespace LocalGPT.Hubs
             try
             {
                 _logger.LogInformation("Broadcasting new message...");
-                await Clients.All.SendAsync("NotifyNewChatbotAnswer", message);
+                await Clients.All.SendAsync("NotifyNewChatbotAnswer", message).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

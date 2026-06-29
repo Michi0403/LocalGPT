@@ -17,9 +17,9 @@ namespace LocalGPT.Services
             var wroteSourceInventory = false;
             if (root is not null)
             {
-                wroteSourceInventory = await AppendProjectPackageReferencesAsync(builder, root, cancellationToken, logger);
-                await CouncilChatStaticsGeneral.AppendDevExpressImportsAsync(builder, root, cancellationToken, logger);
-                await CouncilChatStaticsGeneral.AppendDevExpressRegistrationsAsync(builder, root, cancellationToken, logger);
+                wroteSourceInventory = await AppendProjectPackageReferencesAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.AppendDevExpressImportsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
+                await CouncilChatStaticsGeneral.AppendDevExpressRegistrationsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
             }
 
             CouncilChatStaticsGeneral.AppendLoadedDevExpressAssemblies(builder, logger);
@@ -42,7 +42,7 @@ namespace LocalGPT.Services
             try
             {
                 await using var stream = File.OpenRead(projectPath);
-                var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
+                var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken).ConfigureAwait(false);
                 var packages = document
                     .Descendants()
                     .Where(element => element.Name.LocalName == "PackageReference")

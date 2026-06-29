@@ -35,7 +35,7 @@ namespace LocalGPT.Controller
                 //}
                 if (GlobalVariableSlopCollectionToRemove.EnsureCreatedKnowledgeDbTable != true && iCouncilKnowledgeService != null)
                 {
-                    await iCouncilKnowledgeService.EnsureCreatedAsync();
+                    await iCouncilKnowledgeService.EnsureCreatedAsync().ConfigureAwait(false);
                     GlobalVariableSlopCollectionToRemove.EnsureCreatedKnowledgeDbTable = true;
                 }
             }
@@ -188,7 +188,7 @@ namespace LocalGPT.Controller
                         Temperature = 0.2f
                     },
                     ct).ConfigureAwait(false);
-                await RunEnsureCreateAsyncOnce(memory,null,null);
+                await RunEnsureCreateAsyncOnce(memory,null,null).ConfigureAwait(false);
               
                 Guid? savedConversationId = null;
                 if (request.SaveToMemory)
@@ -300,7 +300,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await RunEnsureCreateAsyncOnce(null, logs, null);
+                await RunEnsureCreateAsyncOnce(null, logs, null).ConfigureAwait(false);
                 var parsedLevel = Enum.TryParse<LogLevel>(minimumLevel, ignoreCase: true, out var level)
                     ? level
                     : LogLevel.Warning;
@@ -369,7 +369,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await RunEnsureCreateAsyncOnce(memory, logs, knowledge);
+                await RunEnsureCreateAsyncOnce(memory, logs, knowledge).ConfigureAwait(false);
                 var tables = await tableEditor.GetTablesAsync(ct).ConfigureAwait(false);
                 return Results.Ok(new
                 {
@@ -398,7 +398,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await RunEnsureCreateAsyncOnce(memory, logs, knowledge);
+                await RunEnsureCreateAsyncOnce(memory, logs, knowledge).ConfigureAwait(false);
                 return Results.Ok(await tableEditor.GetTableAsync(tableName, take ?? 100, ct).ConfigureAwait(false));
             }
             catch (Exception ex)
@@ -820,7 +820,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await RunEnsureCreateAsyncOnce(memory, null, null);
+                await RunEnsureCreateAsyncOnce(memory, null, null).ConfigureAwait(false);
 
                 var seedMessages = new List<BlazorChatMessage>
             {
@@ -828,7 +828,7 @@ namespace LocalGPT.Controller
                 new(ChatRole.Assistant, "<details class=\"model-thinking\" open><summary>Model thinking</summary>Saved memory says LocalGPT should remember previous DXAiChat work, use AI guidance files, support Minecraft mod building, and protect humans including Michi0403.</details>\nMemory captured for debug testing.")
             };
 
-                var conversationId = await memory.SaveConversationAsync("Diagnostic - gpt-oss:20b", seedMessages, cancellationToken: ct);
+                var conversationId = await memory.SaveConversationAsync("Diagnostic - gpt-oss:20b", seedMessages, cancellationToken: ct).ConfigureAwait(false);
                 var response = await chatClient.GetResponseAsync(
                     [
                         new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, "Using your LocalGPT bootstrap, saved memory, and AI guidance files, answer in exactly three bullets: project mission, one Minecraft Mod Builder feature you should support, and the humane safety rule for Michi0403. Mention gpt-oss:20b if you see it in memory.")
@@ -837,7 +837,7 @@ namespace LocalGPT.Controller
                     {
                         MaxOutputTokens = 1024
                     },
-                    ct);
+                    ct).ConfigureAwait(false);
 
                 return Results.Ok(new
                 {
@@ -864,7 +864,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await RunEnsureCreateAsyncOnce(memory, null, null);
+                await RunEnsureCreateAsyncOnce(memory, null, null).ConfigureAwait(false);
 
                 var facts = request.Facts
                     .Where(fact => !string.IsNullOrWhiteSpace(fact))

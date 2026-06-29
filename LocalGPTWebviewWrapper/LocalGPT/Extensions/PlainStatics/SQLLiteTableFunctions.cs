@@ -305,11 +305,11 @@ namespace LocalGPT.Extensions.PlainStatics
                 try
                 {
                     await using var connection = new SqliteConnection($"Data Source={databasePath};Mode=ReadOnly;Cache=Private");
-                    await connection.OpenAsync(cancellationToken);
+                    await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
                     await using var command = connection.CreateCommand();
                     command.CommandTimeout = GlobalVariableSlopCollectionToRemove.ProbeCommandTimeoutSeconds;
                     command.CommandText = "PRAGMA quick_check;";
-                    var result = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken)) ?? string.Empty;
+                    var result = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) ?? string.Empty;
                     return (string.Equals(result.Trim(), "ok", StringComparison.OrdinalIgnoreCase), result);
                 }
                 catch (Exception ex) when (SQLLiteTableFunctions.IsSqliteCorruption(ex,logger))
@@ -332,9 +332,9 @@ namespace LocalGPT.Extensions.PlainStatics
             try
             {
                 await using var connection = new SqliteConnection($"Data Source={databasePath};Mode=ReadOnly;Cache=Private");
-                await connection.OpenAsync(cancellationToken);
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-                if (!await HasTableAsync(connection, "ApplicationLogs", cancellationToken, logger))
+                if (!await HasTableAsync(connection, "ApplicationLogs", cancellationToken, logger).ConfigureAwait(false))
                     return (true, "ApplicationLogs table not present");
 
                 await using var command = connection.CreateCommand();
@@ -350,7 +350,7 @@ namespace LocalGPT.Extensions.PlainStatics
                         "Exception" LIKE '%SQLite Error 11%'
                       );
                     """;
-                var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+                var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
                 return count > 0
                     ? (false, $"{count} recent SQLite corruption log entr{(count == 1 ? "y" : "ies")}")
                     : (true, "ok");
@@ -373,8 +373,8 @@ namespace LocalGPT.Extensions.PlainStatics
             try
             {
                 await using var connection = new SqliteConnection($"Data Source={databasePath};Mode=ReadWrite;Cache=Private");
-                await connection.OpenAsync(cancellationToken);
-                await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+                await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
                 await ExecuteNonQueryAsync(
                     connection,
@@ -387,7 +387,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     INSERT INTO "__LocalGptIntegrityProbe" ("CheckedAtUtc") VALUES (datetime('now'));
                     DELETE FROM "__LocalGptIntegrityProbe";
                     """,
-                    cancellationToken, logger);
+                    cancellationToken, logger).ConfigureAwait(false);
 
                 await ExecuteNonQueryAsync(
                     connection,
@@ -397,10 +397,10 @@ namespace LocalGPT.Extensions.PlainStatics
                     SET "LastUsedAtUtc" = datetime('now')
                     WHERE "Id" IN (SELECT "Id" FROM "CouncilKnowledgeEntries" LIMIT 1);
                     """,
-                    cancellationToken, logger);
+                    cancellationToken, logger).ConfigureAwait(false);
                 
 
-                await transaction.RollbackAsync(cancellationToken);
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
                 return (true, "ok");
             }
             catch (Exception ex) when (SQLLiteTableFunctions.IsSqliteCorruption(ex,logger))
@@ -430,7 +430,7 @@ namespace LocalGPT.Extensions.PlainStatics
                   AND name = $tableName;
                 """;
                 command.Parameters.AddWithValue("$tableName", tableName);
-                var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+                var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
                 return count > 0;
             }
             catch (Exception ex)
@@ -453,7 +453,7 @@ namespace LocalGPT.Extensions.PlainStatics
                 command.Transaction = transaction;
                 command.CommandTimeout = GlobalVariableSlopCollectionToRemove.ProbeCommandTimeoutSeconds;
                 command.CommandText = sql;
-                await command.ExecuteNonQueryAsync(cancellationToken);
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -646,7 +646,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     END
                 WHERE "VerificationStatus" IS NULL OR trim("VerificationStatus") = '';
                 """,
-                    cancellationToken, logger);
+                    cancellationToken, logger).ConfigureAwait(false);
 
                 await db.Database.ExecuteSqlRawAsync(
                     """
@@ -662,7 +662,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     END
                 WHERE "ReviewStatus" IS NULL OR trim("ReviewStatus") = '' OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview');
                 """,
-                    cancellationToken, logger);
+                    cancellationToken, logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
