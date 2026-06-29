@@ -14,22 +14,18 @@
 	  <SelfContained>false</SelfContained>
 	  <PublishTrimmed>false</PublishTrimmed>
 	  <PublishSingleFile>false</PublishSingleFile>
+	  <Optimize>False</Optimize>
+	  <RuntimeIdentifiers>
+		  win-x64;
+		  win-x86;
+		  win-arm64;
+		  linux-x64;
+		  linux-arm64;
+		  osx-x64;
+		  osx-arm64
+	  </RuntimeIdentifiers>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'x64'">
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'arm64'">
-    <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
-    <RuntimeIdentifiers>win-arm64</RuntimeIdentifiers>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'AnyCPU' or '$(Platform)' == 'Any CPU' or '$(Platform)' == ''">
-    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <Optimize>False</Optimize>
-  </PropertyGroup>
-	
+
 	<ItemGroup>
 		
 		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" />
