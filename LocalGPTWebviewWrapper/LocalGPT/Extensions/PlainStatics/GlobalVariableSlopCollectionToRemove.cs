@@ -139,7 +139,7 @@ namespace LocalGPT.Extensions.PlainStatics
         public static partial Regex CapabilityGapBlockPattern();
         [GeneratedRegex(@"\b(?:with|and|or|the|a|an|for|to|in|of|by|as|if|when|once|then|because|from|into|that|this|which|th)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         public static partial Regex TruncatedTailPattern();
-        [GeneratedRegex("<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+        [GeneratedRegex("<details\\s+class=\"model-thinking open\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
         public static partial Regex ThinkingBlockPattern();
 
         [GeneratedRegex("```text\\s*(?<prompt>.*?)\\s*```", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]

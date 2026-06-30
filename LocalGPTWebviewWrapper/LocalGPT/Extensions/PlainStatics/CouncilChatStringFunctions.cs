@@ -2271,7 +2271,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
                 var match = Regex.Match(
                     content,
-                    "<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
+                    "<details\\s+class=\"model-thinking open\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
                     RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
 
                 return match.Success
@@ -2294,7 +2294,7 @@ namespace LocalGPT.Extensions.PlainStatics
 
                 return Regex.Replace(
                         content,
-                        "<details\\s+class=\"model-thinking\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
+                        "<details\\s+class=\"model-thinking open\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>",
                         string.Empty,
                         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)
                     .Trim();
@@ -5658,7 +5658,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     yield break;
 
                 thinkingBlockOpen = true;
-                yield return "<details class=\"model-thinking\"><summary>Model thinking</summary><pre>";
+                yield return "<details class=\"model-thinking open\" ><summary>Model thinking</summary><pre>";
             }
             finally
             {
