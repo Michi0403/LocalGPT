@@ -5,8 +5,8 @@ namespace LocalGPT.Interfaces
 {
     public interface IPromptConfigService
     {
-        Task<string> GetPromptAsync(string key, string language);
+        Task<string> GetPromptAsync(PromptConfigDto dto);
         Task UpdatePromptAsync(PromptConfigDto dto);
-        IEnumerable<PromptConfig> ListPrompts(string language);
+        Task<IEnumerable<PromptConfig>> ListPromptsAsync(string language);
     }
 }

@@ -1,9 +1,10 @@
 ﻿using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.Models;
 using System.Text.RegularExpressions;
 
 public interface IRegexPatternService
 {
-    Task AddOrUpdateAsync(string name, string pattern, string? flags = null);
+    Task AddOrUpdateAsync(RegexPatternDto dto);
 
     Task<Regex> GetRegexAsync(string name);
 

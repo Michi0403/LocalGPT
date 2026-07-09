@@ -274,6 +274,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
                 var memoryDbPath = CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
                 Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
+                builder.Services.AddHostedService<DataMigrationService>();
                 //TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
                 SQLLiteTableFunctions.EnsureHealthyOrRecoverAsync
                     (memoryDbPath, logger)
@@ -471,15 +472,15 @@ namespace LocalGPT
                 app.MapRazorComponents<App>()
                    .AddInteractiveServerRenderMode()
                    .AllowAnonymous();
-                using (var scope = app.Services.CreateScope())
-                {
-                    var migrator = new MigrationMigratorFactory()
-                        .Create<MigrationBuilder>(scope.ServiceProvider);
+                //using (var scope = app.Services.CreateScope())
+                //{
+                //    var migrator = new MigrationMigratorFactory()
+                //        .Create<MigrationBuilder>(scope.ServiceProvider);
 
-                    await migrator.MigrateAsync();
-                    var migrationSvc = scope.ServiceProvider.GetService<DataMigrationService>();
-                    await migrationSvc.RunMigrationsAsync();
-                }
+                //    await migrator.MigrateAsync();
+                //    var migrationSvc = scope.ServiceProvider.GetService<DataMigrationService>();
+                //    await migrationSvc.RunMigrationsAsync();
+                //}
             }
             catch (Exception ex)
             {

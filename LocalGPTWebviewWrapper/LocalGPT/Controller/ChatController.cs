@@ -1,39 +1,29 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using LocalGPT.BusinessObjects.EFCore;
+using LocalGPT.Controller;
+using Microsoft.AspNetCore.Mvc;
 
-public class ChatController : ControllerBase
+namespace LocalGPT.Controller
 {
-    private readonly IRegexPatternService _regexSvc;
-
-    // Constructor injection for all required services
-    public ChatController(
-        ILogger<ChatController> logger,
-        IRegexPatternService regexSvc)
+    public class ChatController(IRegexPatternService regexSvc, LocalGptMemoryDbContext db, ILogger<DatabaseKnowledgeController> logger) : ControllerBase
     {
-        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        RegexSvc = regexSvc ?? throw new ArgumentNullException(nameof(regexSvc));
-
-        _logger = logger;
-        _regexSvc = regexSvc;
-    }
-
-    // New service-based implementation
-    [HttpGet("help-message")]
-    public async Task<IActionResult> GetHelpMessage()
-    {
-        try
+        // New service-based implementation
+        [HttpGet("help-message")]
+        public async Task<IActionResult> GetHelpMessage()
         {
-            var patternName = "HelpMessage";
-            var message = await _regexSvc.GetRegexAsync(patternName);
+            try
+            {
+                var patternName = "HelpMessage";
+                var message = await regexSvc.GetRegexAsync(patternName);
 
-            return Ok(new { content = message });
+                return Ok(new { content = message });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetHelpMessage ex {ex.ToString()}");
+                // Log error and return appropriate response
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
-        catch (Exception ex)
-        {
-            // Log error and return appropriate response
-            return StatusCode(500, new { error = ex.Message });
-        }
+        //Placeholder
     }
-
-    private ILogger Logger { get; set; } = null!;
-    private IRegexPatternService RegexSvc { get; set; } = null!;
 }

@@ -12,7 +12,33 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static class SQLLiteFunctions
     {
-
+        public static T ParseValue<T>(string valueString, string? dataType, ILogger logger)
+        {
+            try
+            {
+                if (typeof(T) == typeof(string))
+                    return (T)(object)valueString;
+                else if (typeof(T) == typeof(int))
+                    return (T)(object)int.Parse(valueString);
+                else if (typeof(T) == typeof(bool))
+                    return (T)(object)bool.Parse(valueString);
+                else if (typeof(T) == typeof(double))
+                    return (T)(object)double.Parse(valueString);
+                else if (typeof(T) == typeof(float))
+                    return (T)(object)float.Parse(valueString);
+                else if (typeof(T) == typeof(DateTime))
+                    return (T)(object)DateTime.Parse(valueString);
+                else
+                    return (T)(object)valueString;
+                // Add more conversions as needed
+                throw new NotSupportedException($"Parsing to {typeof(T)} is not supported");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ParseValue valueString {valueString} dataType {dataType} ex {ex.ToString()}");
+                throw;
+            }
+        }
         public static bool IsPowerShell(string executable, ILogger logger)
         {
             try
