@@ -13,12 +13,15 @@ using LocalGPT.Helper;
 using LocalGPT.Hubs;
 using LocalGPT.Interfaces;
 using LocalGPT.Services;
+using LocalGPT.Services.Migration;
+using LocalGPT.Services.Persistence;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -266,7 +269,9 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IBuildDebugInventoryService, BuildDebugInventoryService>();
                 builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
                 builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
-
+                builder.Services.AddScoped<IRegexPatternService, RegexPatternService>();
+                builder.Services.AddScoped<IPromptConfigService, PromptConfigService>();
+                builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
                 var memoryDbPath = CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
                 Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
                 //TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
@@ -296,6 +301,7 @@ namespace LocalGPT
                     options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 builder.Services.AddOptions();
                 builder.Services.AddHttpContextAccessor();
+
             }
             catch (Exception ex)
             {
@@ -465,6 +471,15 @@ namespace LocalGPT
                 app.MapRazorComponents<App>()
                    .AddInteractiveServerRenderMode()
                    .AllowAnonymous();
+                using (var scope = app.Services.CreateScope())
+                {
+                    var migrator = new MigrationMigratorFactory()
+                        .Create<MigrationBuilder>(scope.ServiceProvider);
+
+                    await migrator.MigrateAsync();
+                    var migrationSvc = scope.ServiceProvider.GetService<DataMigrationService>();
+                    await migrationSvc.RunMigrationsAsync();
+                }
             }
             catch (Exception ex)
             {

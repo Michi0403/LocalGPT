@@ -1,4 +1,5 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.Extensions.PlainStatics;
 using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.BusinessObjects.EFCore
@@ -10,9 +11,49 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<ApplicationLogEntry> ApplicationLogs => Set<ApplicationLogEntry>();
         public DbSet<CouncilKnowledgeEntry> CouncilKnowledgeEntries => Set<CouncilKnowledgeEntry>();
         public DbSet<NativeCommandLogEntry> NativeCommandLogs => Set<NativeCommandLogEntry>();
-
+        public DbSet<RegexPattern> RegexPatterns { get; set; }
+        public DbSet<PromptConfig> Prompts { get; set; }
+        public DbSet<SystemVariable> SystemVariables { get; set; }
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            // Configure the database connection string (replace with your actual path)
+            optionsBuilder.UseSqlite(CouncilChatStaticsGeneral.GetDefaultDatabasePath());
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Configure unique indexes and properties
+            modelBuilder.Entity<RegexPattern>(e =>
+            {
+                e.HasKey(p => p.Id);
+                e.Property(p => p.Name).IsRequired().HasMaxLength(128);
+                e.Property(p => p.Pattern).IsRequired();
+                e.Property(p => p.Flags).HasMaxLength(32);
+                e.Property(p => p.CreatedOn).IsRequired();
+                e.Property(p => p.UpdatedOn).IsRequired();
+                e.HasIndex(p => p.Name).IsUnique();
+            });
+
+
+            modelBuilder.Entity<PromptConfig>(e =>
+            {
+                e.HasKey(p => p.Id);
+                e.Property(p => p.Key).IsRequired().HasMaxLength(128);
+                e.Property(p => p.Language).HasMaxLength(10);
+                e.Property(p => p.Text).IsRequired();
+                e.Property(p => p.LastUpdated).IsRequired();
+                e.HasIndex(pc => new { pc.Key, pc.Language }).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemVariable>(e =>
+            {
+                e.HasKey(sv => sv.Id);
+                e.Property(sv => sv.Name).IsRequired().HasMaxLength(128);
+                e.Property(sv => sv.ValueString).IsRequired();
+                e.Property(sv => sv.DataType).HasMaxLength(32);
+                e.Property(sv => sv.LastUpdated).IsRequired();
+                e.HasIndex(sv => sv.Name).IsUnique();
+            });
+
             modelBuilder.Entity<ChatMemoryConversation>(entity =>
             {
                 entity.ToTable("ChatMemoryConversations");
