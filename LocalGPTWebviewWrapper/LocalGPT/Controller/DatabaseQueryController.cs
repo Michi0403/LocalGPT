@@ -21,9 +21,9 @@ namespace LocalGPT.Controller
             {
                 var result = table.ToLower() switch
                 {
-                    "regexpatterns" => await _db.RegexPatterns.Take(take).ToListAsync(),
-                    "prompts" => await _db.Prompts.Take(take).ToListAsync(),
-                    "systemvariables" => await _db.SystemVariables.Take(take).ToListAsync(),
+                    "regexpatterns" => await db.RegexPatterns.Take(take).ToListAsync(),
+                    "prompts" => await db.Prompts.Take(take).ToListAsync(),
+                    "systemvariables" => await db.SystemVariables.Take(take).ToListAsync(),
                     _ => throw new ArgumentException("Invalid table name")
                 };
 
