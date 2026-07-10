@@ -160,7 +160,7 @@ public class DataMigrationService(ILogger<DataMigrationService> logger, IService
                 var value = field.GetValue(null);
                 if (value != null)
                 {
-                    await _varSvc.SetAsync(field.Name, value);
+                    await varSvc.SetAsync(field.Name, value);
                 }
             }
             catch (Exception ex)
