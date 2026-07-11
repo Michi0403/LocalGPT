@@ -10,7 +10,7 @@ using static System.Net.WebRequestMethods;
 
 namespace LocalGPT.Services
 {
-    public class PromptConfigService(LocalGptMemoryDbContext db, ILogger logger) : IPromptConfigService
+    public class PromptConfigService(LocalGptMemoryDbContext db, ILogger<PromptConfigService> logger) : IPromptConfigService
     {
 
         public async Task<string> GetPromptAsync(string key, string language = "en")

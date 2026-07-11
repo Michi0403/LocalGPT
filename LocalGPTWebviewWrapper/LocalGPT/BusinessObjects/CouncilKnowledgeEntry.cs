@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace LocalGPT.BusinessObjects
 {
     public class CouncilKnowledgeEntry
@@ -7,6 +11,8 @@ namespace LocalGPT.BusinessObjects
         public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
         public string Topic { get; set; } = string.Empty;
         public string Scope { get; set; } = "AI Council";
+        [Required]
+        [Column(TypeName = "TEXT")]
         public string Content { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty;
         public string HelpfulSources { get; set; } = string.Empty;

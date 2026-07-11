@@ -1,7 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace LocalGPT.BusinessObjects
 {
     public class ApplicationLogEntry
     {
+        [Key]
         public long Id { get; set; }
         public DateTime TimestampUtc { get; set; } = DateTime.UtcNow;
         public string Level { get; set; } = "Information";

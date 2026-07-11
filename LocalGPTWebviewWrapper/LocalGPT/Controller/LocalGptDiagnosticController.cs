@@ -1,6 +1,7 @@
 using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.CodeParser;
 using DevExpress.CodeParser.Diagnostics;
+using DevExpress.Xpo.Logger;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
@@ -1061,6 +1062,44 @@ namespace LocalGPT.Controller
                 return Results.InternalServerError($"Error in GetDxaichatFunctions {ex.ToString()}");
             }       
         }
+
+
+        // ✅ New endpoint for AI Council to call DXFunctions directly
+        [HttpPost("/__diag/dxaichat-functions/{functionName}/invoke")]
+        public async Task<IResult> InvokeDxFunction(string functionName, object? parameters)
+        {
+            try
+            {
+
+                logger.LogWarning($"Placeholder in InvokeDxFunction functionName {functionName} parameters {parameters} not wired yet");
+                var function = DevExpressFunctions.GetFunctions()
+                    .FirstOrDefault(f => f.Name == functionName);
+
+                if (function is null)
+                    return Results.NotFound($"DXFunction '{functionName}' not found");
+
+                // Route to appropriate controller action based on DXFunction definition
+                logger.LogInformation("Invoking DXFunction: {Function}", function.Name);
+
+                // Implementation would call the actual service method here
+                var result = await InvokeServiceMethodAsync(function, parameters);
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error invoking DXFunction: {Message}", ex.Message);
+                return Results.InternalServerError($"Invocation failed: {ex.Message}");
+            }
+        }
+        //Todo
+        private async Task<object> InvokeServiceMethodAsync(DxaichatFunctionInfo function, object? parameters)
+        {
+            // This would route to the actual service implementation
+            // For now returning placeholder response
+            logger.LogWarning($"Placeholder in InvokeServiceMethodAsync {function.Name} not wired yet");
+            return new { Function = function.Name, Status = "Executed", Timestamp = DateTime.UtcNow };
+        }
+
 
         [HttpGet("/__diag/blazor-devexpress-guidance")]
         public async Task<IResult> GetBlazorDevexpressGuidance(

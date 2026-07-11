@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services
 {
-    public class VariableStoreService(LocalGptMemoryDbContext db, ILogger logger) : IVariableStoreService
+    public class VariableStoreService(LocalGptMemoryDbContext db, ILogger<VariableStoreService> logger) : IVariableStoreService
     {
         public async Task<T> GetAsync<T>(string name)
         {

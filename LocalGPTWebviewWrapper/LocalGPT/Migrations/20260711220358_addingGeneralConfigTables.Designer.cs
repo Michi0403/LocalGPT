@@ -3,6 +3,7 @@ using System;
 using LocalGPT.BusinessObjects.EFCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LocalGPT.Migrations
 {
     [DbContext(typeof(LocalGptMemoryDbContext))]
-    partial class LocalGptMemoryDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260711220358_addingGeneralConfigTables")]
+    partial class addingGeneralConfigTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.9");

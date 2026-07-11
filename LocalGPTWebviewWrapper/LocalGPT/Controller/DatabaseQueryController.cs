@@ -1,13 +1,13 @@
-﻿using DevExpress.Xpo;
+﻿
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
-
 namespace LocalGPT.Controller
 {
- 
+
 
     [ApiController]
     [Route("__diag/database/[controller]")]
@@ -19,11 +19,16 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var result = table.ToLower() switch
+                object result = table.ToLower() switch
                 {
                     "regexpatterns" => await db.RegexPatterns.Take(take).ToListAsync(),
                     "prompts" => await db.Prompts.Take(take).ToListAsync(),
                     "systemvariables" => await db.SystemVariables.Take(take).ToListAsync(),
+                    "conversations" => await db.Conversations.Take(take).ToListAsync(),
+                    "messages" => await db.Messages.Take(take).ToListAsync(),
+                    "applicationlogs" => await db.ApplicationLogs.Take(take).ToListAsync(),
+                    "councilknowledgeentries" => await db.CouncilKnowledgeEntries.Take(take).ToListAsync(),
+                    "nativecommandlogs" => await db.NativeCommandLogs.Take(take).ToListAsync(),
                     _ => throw new ArgumentException("Invalid table name")
                 };
 
@@ -45,7 +50,8 @@ namespace LocalGPT.Controller
         {
             { "RegexPatterns", await db.RegexPatterns.ToListAsync<RegexPattern>() },
             { "Prompts", await db.Prompts.Where(p => p.Language == "en").ToListAsync<PromptConfig>() },
-            { "SystemVariables", await db.SystemVariables.ToListAsync<SystemVariable>() }
+            { "SystemVariables", await db.SystemVariables.ToListAsync<SystemVariable>() },
+               { "CouncilKnowledgeEntries", await db.CouncilKnowledgeEntries.ToListAsync<CouncilKnowledgeEntry>() }
         };
                 return Ok(result);
             }
@@ -54,37 +60,37 @@ namespace LocalGPT.Controller
                 logger.LogError(ex, $"Error in ListConfigs ex {ex.ToString()}");
                 return BadRequest(new { error = ex.Message });
             }
-          
+
         }
+    }
+        //[HttpGet("configs/{id}")]
+        //public async Task<IActionResult> GetConfigEntry(string id)
+        //{
+        //    try
+        //    {
+        //        var entity = await db.Set<IClaimsIdentity>(id).FirstOrDefaultAsync();
+        //        if (entity == null)
+        //            return NotFound($"No config entry found with ID '{id}'");
 
-        [HttpGet("configs/{id}")]
-        public async Task<IActionResult> GetConfigEntry(string id)
-        {
-            try
-            {
-                var entity = await db.Set<IClaimsIdentity>(id).FirstOrDefaultAsync();
-                if (entity == null)
-                    return NotFound($"No config entry found with ID '{id}'");
-
-                // Return appropriate data based on type
-                switch (entity.Type)
-                {
-                    case "RegexPattern":
-                        return Ok(new Regex(entity.Pattern, entity.Flags));
-                    case "PromptConfig":
-                        return Ok(entity.Text);
-                    default:
-                        return Ok(ParseValue<T>(entity.ValueString, entity.DataType));
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in GetConfigEntry id {id.ToString()} ex {ex.ToString()}");
-                return BadRequest(new { error = ex.Message });
-            }
+        //        // Return appropriate data based on type
+        //        switch (entity.Type)
+        //        {
+        //            case "RegexPattern":
+        //                return Ok(new Regex(entity.Pattern, entity.Flags));
+        //            case "PromptConfig":
+        //                return Ok(entity.Text);
+        //            default:
+        //                return Ok(ParseValue<T>(entity.ValueString, entity.DataType));
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        logger.LogError(ex, $"Error in GetConfigEntry id {id.ToString()} ex {ex.ToString()}");
+        //        return BadRequest(new { error = ex.Message });
+        //    }
           
-        }
+        //}
 
-        private static T ParseValue<T>(string valueString, string dataType) => ... // Implementation omitted
+        //private static T ParseValue<T>(string valueString, string dataType) => ... // Implementation omitted
 
 }

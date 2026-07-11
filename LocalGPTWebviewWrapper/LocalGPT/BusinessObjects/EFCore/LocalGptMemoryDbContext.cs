@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.BusinessObjects.EFCore
@@ -14,10 +15,20 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<RegexPattern> RegexPatterns { get; set; }
         public DbSet<PromptConfig> Prompts { get; set; }
         public DbSet<SystemVariable> SystemVariables { get; set; }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            // Configure the database connection string (replace with your actual path)
-            optionsBuilder.UseSqlite(CouncilChatStaticsGeneral.GetDefaultDatabasePath());
+            if (optionsBuilder.IsConfigured)
+                return;
+
+            var dbPath = CouncilChatStaticsGeneral.GetDefaultDatabasePath();
+
+            var connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = dbPath
+            }.ToString();
+
+            optionsBuilder.UseSqlite(connectionString);
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -97,7 +108,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasKey(entry => entry.Id);
                 entity.Property(entry => entry.Topic).HasMaxLength(240).IsRequired();
                 entity.Property(entry => entry.Scope).HasMaxLength(120).IsRequired();
-                entity.Property(entry => entry.Content).IsRequired();
+                entity.Property(entry => entry.Content).IsRequired() ;
                 entity.Property(entry => entry.Source).HasMaxLength(240).IsRequired();
                 entity.Property(entry => entry.HelpfulSources).IsRequired();
                 entity.Property(entry => entry.Tags).HasMaxLength(400).IsRequired();
