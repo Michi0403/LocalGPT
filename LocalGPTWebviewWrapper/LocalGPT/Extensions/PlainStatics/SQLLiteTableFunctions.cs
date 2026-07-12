@@ -646,7 +646,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     END
                 WHERE "VerificationStatus" IS NULL OR trim("VerificationStatus") = '';
                 """,
-                    cancellationToken, logger).ConfigureAwait(false);
+                    cancellationToken).ConfigureAwait(false);
 
                 await db.Database.ExecuteSqlRawAsync(
                     """
@@ -662,7 +662,7 @@ namespace LocalGPT.Extensions.PlainStatics
                     END
                 WHERE "ReviewStatus" IS NULL OR trim("ReviewStatus") = '' OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview');
                 """,
-                    cancellationToken, logger).ConfigureAwait(false);
+                    cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
