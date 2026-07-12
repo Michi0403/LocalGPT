@@ -32,7 +32,7 @@ Write-Host "Cloning $RepoUrl ..."
 git clone $RepoUrl $randomString
 
 $ExcludeExtensions = @(
-    ".dll", ".exe", ".pdb", ".obj", ".bin", ".zip", ".7z", ".rar", ".tar", ".gz",
+    ".dll", ".exe", ".obj", ".bin", ".zip", ".7z", ".rar", ".tar", ".gz",
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svgz", ".mp4", ".mp3", ".wav",
     ".pdf", ".docx", ".xlsx", ".pptx", ".sqlite", ".db", ".bak", ".log",
     ".nupkg", ".snupkg", ".msix", ".appx", ".cer", ".pfx", ".key", ".jpgux", ".svgux", ".cssux",

@@ -27,7 +27,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var existing = await db.SystemVariables.FindAsync(name);
+                var existing = await db.SystemVariables.FirstOrDefaultAsync(x=> x.Name == name);
                 if (existing == null)
                     await db.SystemVariables.AddAsync(new SystemVariable
                     {
