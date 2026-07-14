@@ -49,18 +49,18 @@ namespace LocalGPT.Services
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    if (input.SizeBytes > MaxSingleFileBytes)
-                    {
-                        warnings.Add($"{input.Name} skipped: file is larger than {MaxSingleFileBytes:n0} bytes.");
-                        continue;
-                    }
+                    //if (input.SizeBytes > MaxSingleFileBytes)
+                    //{
+                    //    warnings.Add($"{input.Name} skipped: file is larger than {MaxSingleFileBytes:n0} bytes.");
+                    //    continue;
+                    //}
 
                     totalUploadedBytes += input.SizeBytes;
-                    if (totalUploadedBytes > MaxTotalFileBytes)
-                    {
-                        warnings.Add("Remaining files skipped: upload batch exceeded the LocalGPT prompt-workspace byte cap.");
-                        break;
-                    }
+                    //if (totalUploadedBytes > MaxTotalFileBytes)
+                    //{
+                    //    warnings.Add("Remaining files skipped: upload batch exceeded the LocalGPT prompt-workspace byte cap.");
+                    //    break;
+                    //}
 
                     var safeName = CouncilChatStringFunctions.BuildUniqueFileName(originalRoot, input.Name, logger);
                     var originalPath = Path.Combine(originalRoot, safeName);

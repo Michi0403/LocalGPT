@@ -235,11 +235,15 @@
         </details>
         <div data-testid="dxaichat-host">
             <DxAIChat Initialized="ChatInitialized"
+                      MaxTokens="int.MaxValue"
                       ResponseContentFormat="ResponseContentFormat.Markdown"
                       UseStreaming="true"
                       FileUploadEnabled="true"
                       @ref="DxAiChat"
-                      CssClass="demo-chat">
+                      CssClass="demo-chat"
+                        IncludeFunctionCallInfo="true"
+                        
+            >
                 <PromptSuggestions>
                     @foreach (var suggestion in PromptSuggestions)
                     {
@@ -248,15 +252,17 @@
                                                   PromptMessage="@suggestion.PromptMessage" />
                     }
                 </PromptSuggestions>
-                <MessageContentTemplate>
+                <MessageContentTemplate >
                     <div class="demo-chat-content">
                         @(new MarkupString(CouncilChatStringFunctions.RenderChatMarkdown(context.Content, Logger)))
                     </div>
                 </MessageContentTemplate>
                 <AIChatSettings>
-                    <DxAIChatFileUploadSettings MaxFileCount="@GlobalVariableSlopCollectionToRemove.MaxUploadFiles"
+                    <DxAIChatFileUploadSettings 
+                        MaxFileCount="@GlobalVariableSlopCollectionToRemove.MaxUploadFiles"
                                                 MaxFileSize="@GlobalVariableSlopCollectionToRemove.MaxUploadBytes"
                                                 FileTypeFilter="@GlobalVariableSlopCollectionToRemove.AllowedUploadMimeTypes" 
+                                                
                                                />
                 </AIChatSettings>
 
@@ -316,11 +322,11 @@
     string lastSavedSignature = string.Empty;
 
 
-
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            
             PromptSuggestions = GlobalVariableSlopCollectionToRemove.GetSuggestion();
             await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);

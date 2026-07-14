@@ -439,15 +439,15 @@ namespace LocalGPT.Extensions.PlainStatics
             string? Content);
 
         public static bool IsHarmonyModel { get; set; } = false;
-        public const int MaxFiles = 12;
-        public const long MaxSingleFileBytes = 32 * 1024 * 1024;
-        public const long MaxTotalFileBytes = 96 * 1024 * 1024;
-        public const int MaxZipEntries = 400;
-        public const long MaxZipEntryBytes = 8 * 1024 * 1024;
-        public const long MaxExtractedBytes = 64 * 1024 * 1024;
-        public const int MaxContextCharacters = 80_000;
-        public const int MaxExcerptCharactersPerFile = 6_000;
-        public const int MaxBinaryStringCharacters = 8_000;
+        public const int MaxFiles = int.MaxValue;
+        public const long MaxSingleFileBytes = int.MaxValue;
+        public const long MaxTotalFileBytes = int.MaxValue;
+        public const int MaxZipEntries = int.MaxValue;
+        public const long MaxZipEntryBytes = int.MaxValue;
+        public const long MaxExtractedBytes = int.MaxValue;
+        public const int MaxContextCharacters = int.MaxValue;
+        public const int MaxExcerptCharactersPerFile = int.MaxValue;
+        public const int MaxBinaryStringCharacters = int.MaxValue;
         public sealed record AnalyzedUploadFile(
     ChatUploadWorkspaceFileSummary Summary,
     string Excerpt);
