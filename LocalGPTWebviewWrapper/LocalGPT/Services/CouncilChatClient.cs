@@ -1,17 +1,11 @@
-using DevExpress.Charts.Native;
-using DevExpress.CodeParser;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Options;
-using System.Collections.Concurrent;
 using System.Net;
 using System.Runtime.CompilerServices;
-using System.ServiceModel.Channels;
 using System.Text;
-using System.Text.RegularExpressions;
-using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
+using System.Threading.Channels;
 
 namespace LocalGPT.Services;
 
@@ -33,9 +27,13 @@ public sealed partial class CouncilChatClient(
             var text = await RunCouncilAsync(messages, cancellationToken).ConfigureAwait(false);
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, [new TextContent(text)]));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex,$"Error in GetResponseAsync messages {messages.ToString()} options {options?.ToString()}");
+            logger.LogError(ex, "AI Council non-streaming response failed.");
             return null;
         }
         
@@ -46,61 +44,82 @@ public sealed partial class CouncilChatClient(
         ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        var updates = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            AllowSynchronousContinuations = false
+        });
+
         try
         {
             var request = CreateRequest(messages);
             ArgumentNullException.ThrowIfNull(request);
             if (request.ModelNames.Count == 0)
             {
-                yield return CouncilChatStaticsGeneral.CreateUpdate("No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.", logger);
+                yield return CouncilChatStaticsGeneral.CreateUpdate(
+                    "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.",
+                    logger);
                 yield break;
             }
 
-            yield return CouncilChatStaticsGeneral.CreateUpdate($"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Local models may take a while; progress/status stays visible, detailed model output is inspectable, and the final result appears in a clean Council result block._\n\n", logger);
+            yield return CouncilChatStaticsGeneral.CreateUpdate(
+                $"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Thinking and answer text are streamed to this panel as soon as each local model emits them._\n\n",
+                logger);
 
-            var updates = new ConcurrentQueue<string>();
-            request.ProgressMessage = message => updates.Enqueue($"_Council status: {message}_\n\n");
+            request.ProgressMessage = message =>
+                updates.Writer.TryWrite($"_Council status: {message}_\n\n");
             request.StreamUpdate = text =>
             {
                 if (!string.IsNullOrEmpty(text))
-                    updates.Enqueue(text);
+                    updates.Writer.TryWrite(text);
             };
-            request.StepCompleted = step => updates.Enqueue(CouncilChatStaticsGeneral.FormatStepProgress(step, logger));
+            request.StepCompleted = step =>
+                updates.Writer.TryWrite(CouncilChatStaticsGeneral.FormatStepProgress(step, logger));
 
             var startedAt = DateTimeOffset.UtcNow;
-            var lastHeartbeat = DateTimeOffset.UtcNow;
             var runTask = councilService.RunAsync(request, cancellationToken);
+
             while (!runTask.IsCompleted)
             {
-                while (updates.TryDequeue(out var update))
+                while (updates.Reader.TryRead(out var update))
                     yield return CouncilChatStaticsGeneral.CreateUpdate(update, logger);
 
-                if (DateTimeOffset.UtcNow - lastHeartbeat > TimeSpan.FromSeconds(20))
-                {
-                    lastHeartbeat = DateTimeOffset.UtcNow;
-                    yield return CouncilChatStaticsGeneral.CreateUpdate($"_Council still running after {(int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds}s. Waiting for local Ollama model output..._\n\n", logger);
-                }
+                using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                var dataAvailable = updates.Reader.WaitToReadAsync(waitCts.Token).AsTask();
+                var heartbeat = Task.Delay(TimeSpan.FromSeconds(20), waitCts.Token);
+                var completed = await Task.WhenAny(runTask, dataAvailable, heartbeat).ConfigureAwait(false);
+                await waitCts.CancelAsync().ConfigureAwait(false);
 
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
+                if (cancellationToken.IsCancellationRequested)
                     yield break;
+
+                if (completed == heartbeat)
+                {
+                    yield return CouncilChatStaticsGeneral.CreateUpdate(
+                        $"_Council still running after {(int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds}s. Waiting for local model output..._\n\n",
+                        logger);
                 }
             }
 
-            while (updates.TryDequeue(out var update))
+            while (updates.Reader.TryRead(out var update))
                 yield return CouncilChatStaticsGeneral.CreateUpdate(update, logger);
 
             MultiModelCouncilResult result;
             try
             {
-                result = await runTask;
+                result = await runTask.ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                yield break;
+            }
+
+            if (result is null)
+            {
+                yield return CouncilChatStaticsGeneral.CreateUpdate(
+                    "The AI Council ended without a result. Review the LocalGPT log for the failed council phase.",
+                    logger);
                 yield break;
             }
 
@@ -108,7 +127,8 @@ public sealed partial class CouncilChatClient(
         }
         finally
         {
-            logger.LogInformation($"Ending GetStreamingResponseAsync messages {messages.ToString()} options {options?.ToString()}");
+            updates.Writer.TryComplete();
+            logger.LogInformation("AI Council streaming response ended.");
         }
     }
 
@@ -130,9 +150,13 @@ public sealed partial class CouncilChatClient(
             var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
             return FormatResult(result, includeProcess: true);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in RunCouncilAsync messages {messages.ToString()}");
+            logger.LogError(ex, "AI Council execution failed.");
             return string.Empty;
         }
        
@@ -148,7 +172,7 @@ public sealed partial class CouncilChatClient(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in CreateRequest messages {messages.ToString()}");
+            logger.LogError(ex, "AI Council request creation failed.");
             return null;
         }
 
@@ -169,7 +193,7 @@ public sealed partial class CouncilChatClient(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in ResolveDownloadUrl downloadUrl {downloadUrl.ToString()}");
+            logger.LogError(ex, "Could not resolve an artifact download URL.");
             return string.Empty;
         }
     }

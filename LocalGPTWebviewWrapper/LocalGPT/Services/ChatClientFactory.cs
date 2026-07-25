@@ -1,4 +1,4 @@
-﻿using Azure;
+using Azure;
 using Azure.AI.OpenAI;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions;
@@ -20,7 +20,11 @@ namespace LocalGPT.Services
           IAiFeatureReportService featureReportService,
           IAiContextBootstrapService bootstrapService,
           ICouncilKnowledgeService knowledgeService,
-          IChatUploadWorkspaceService chatUploadWorkspaces
+          IChatUploadWorkspaceService chatUploadWorkspaces,
+          IPromptConfigService promptConfigService,
+          IVariableStoreService variableStoreService,
+          IChatResponseFormatterFactory formatterFactory,
+          IChatProtocolResolver protocolResolver
       ) : IChatClientFactory
     {
         public CompositeChatClient Build()
@@ -30,12 +34,12 @@ namespace LocalGPT.Services
                 var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
                 var sessions = new List<ChatClientSession>();
 
-                logger.LogInformation("🔧 Building chat clients from configuration: {Json}", options.ToJsonString());
+                logger.LogInformation("Building configured chat provider sessions.");
 
                 // --- Ollama (Microsoft.Extensions.AI.Ollama) ---
                 foreach (var ollama in CouncilChatStaticsGeneral.GetConfiguredOllamaProviders(options, logger))
                 {
-                    logger.LogInformation("⚙️ Found Ollama configuration: {Json}", ollama.ToJsonString());
+                    logger.LogInformation("Found Ollama-compatible provider at {Endpoint} for model {Model}.", ollama.Uri, ollama.ModelName);
 
                     var ollamaChat = new OllamaThinkingChatClient(
                         ollama,
@@ -43,7 +47,10 @@ namespace LocalGPT.Services
                         keepAlive: "2m",
                         contextLength: 65536,
                         timeout: TimeSpan.FromMinutes(30),
-                        numGpu: null);
+                        numGpu: null,
+                        formatterFactory: formatterFactory,
+                        protocolResolver: protocolResolver,
+                        promptConfigService: promptConfigService);
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
@@ -54,15 +61,15 @@ namespace LocalGPT.Services
                 // --- Azure OpenAI (Azure.AI.OpenAI) ---
                 if (options.OpenAIServiceCore is { Endpoint.Length: > 0, Key.Length: > 0, DeploymentName.Length: > 0 } az)
                 {
-                    logger.LogInformation("⚙️ Found Azure OpenAI configuration: {Json}", az.ToJsonString());
+                    logger.LogInformation("Found Azure OpenAI provider for deployment {Deployment}.", az.DeploymentName);
 
                     var azureOptions = new AzureOpenAIClientOptions
                     {
                         ClientLoggingOptions = new ClientLoggingOptions
                         {
                             EnableLogging = true,
-                            EnableMessageLogging = true,
-                            EnableMessageContentLogging = true,
+                            EnableMessageLogging = false,
+                            EnableMessageContentLogging = false,
                             LoggerFactory = loggerFactory
                         }
                     };
@@ -80,7 +87,7 @@ namespace LocalGPT.Services
                 // --- OpenAI cloud (OpenAI SDK) ---
                 if (options.OpenAICore is { ModelName.Length: > 0 } openai && CouncilChatStaticsGeneral.HasRealApiKey(openai.ApiKey, logger))
                 {
-                    logger.LogInformation("⚙️ Found OpenAI configuration: {Json}", openai.ToJsonString());
+                    logger.LogInformation("Found OpenAI-compatible cloud provider for model {Model}.", openai.ModelName);
 
                     // Allow custom endpoint (use default if empty)
                     var configString = openai.Endpoint?.TrimEnd('/');
@@ -94,8 +101,8 @@ namespace LocalGPT.Services
                             ClientLoggingOptions = new ClientLoggingOptions
                             {
                                 EnableLogging = true,
-                                EnableMessageLogging = true,
-                                EnableMessageContentLogging = true,
+                                EnableMessageLogging = false,
+                                EnableMessageContentLogging = false,
                                 LoggerFactory = loggerFactory
                             }
                         });
@@ -109,24 +116,24 @@ namespace LocalGPT.Services
                 }
 
                 // --- Local OpenAI-compatible (LM Studio / vLLM / text-gen-webui) ---
-                if (options.ChatGPTLocalCore is { Endpoint.Length: > 0, ApiKey.Length: > 0, ModelName.Length: > 0 } loc)
+                if (options.ChatGPTLocalCore is { Endpoint.Length: > 0, ModelName.Length: > 0 } loc)
                 {
-                    logger.LogInformation("⚙️ Found Local ChatGPT configuration: {Json}", loc.ToJsonString());
+                    logger.LogInformation("Found local OpenAI-compatible provider at {Endpoint} for model {Model}.", loc.Endpoint, loc.ModelName);
 
                     var endpoint = loc.Endpoint.TrimEnd('/');
                     if (endpoint.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
                         endpoint = endpoint[..^3]; // strip trailing /v1
 
                     var localClient = new OpenAIClient(
-                        new ApiKeyCredential(loc.ApiKey),
+                        new ApiKeyCredential(string.IsNullOrWhiteSpace(loc.ApiKey) ? "local-no-key" : loc.ApiKey),
                         new OpenAIClientOptions
                         {
                             Endpoint = new Uri(endpoint, uriKind: UriKind.Absolute),
                             ClientLoggingOptions = new ClientLoggingOptions
                             {
                                 EnableLogging = true,
-                                EnableMessageLogging = true,
-                                EnableMessageContentLogging = true,
+                                EnableMessageLogging = false,
+                                EnableMessageContentLogging = false,
                                 LoggerFactory = loggerFactory
                             }
                         });
@@ -148,6 +155,8 @@ namespace LocalGPT.Services
                     bootstrapService,
                     knowledgeService,
                     chatUploadWorkspaces,
+                    promptConfigService,
+                    variableStoreService,
                     sessions.ToArray());
             }
             catch (Exception ex)

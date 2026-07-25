@@ -1,12 +1,16 @@
-The following open source libraries are used and included within these sample/demonstration projects:
+LocalGPT project-owned source is licensed under Apache License 2.0.
 
-Bootstrap (Open Source – MIT License)
-Copyright (c) 2011-2021 Twitter, Inc. / Copyright (c) 2011-2021 The Bootstrap Authors
-https://github.com/twbs/bootstrap/blob/main/LICENSE
+Included or referenced third-party software remains under its own terms, including:
 
-open-iconic (Open Source – MIT License and SIL Open Font License)
-Copyright (c) 2014 Waybury
-https://github.com/iconic/open-iconic/blob/master/ICON-LICENSE
-https://github.com/iconic/open-iconic/blob/master/FONT-LICENSE
+- Bootstrap (MIT)
+- Open Iconic icons (MIT) and fonts (SIL Open Font License)
+- Markdig (BSD-2-Clause)
+- MessagePack for C# (MIT)
+- OllamaSharp (MIT)
+- Microsoft .NET/ASP.NET Core/Entity Framework Core/Microsoft.Extensions.AI packages
+- SQLite/SQLitePCLRaw components under their applicable upstream terms
+- proprietary DevExpress packages and assets requiring a valid DevExpress license
 
-The open source libraries included in these sample/demonstration projects are done so pursuant to each individual open source library license and subject to the disclaimers and limitations on liability set forth in each open source library license.
+No DevExpress license, private package-feed credential, generated customer-linked runtime-license key, or proprietary DevExpress binary is granted by this repository.
+
+See the repository-root `THIRD-PARTY-NOTICES.md` and `docs/DEVEXPRESS_ASSETS.md`.

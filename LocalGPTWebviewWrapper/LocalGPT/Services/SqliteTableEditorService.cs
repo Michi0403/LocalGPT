@@ -10,11 +10,14 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace LocalGPT.Services
 {
-    public sealed class SqliteTableEditorService : ISqliteTableEditorService
+    public sealed class SqliteTableEditorService(
+        IDatabaseInitializationService databaseInitializer,
+        LocalGptDatabaseOptions databaseOptions,
+        ILogger<SqliteTableEditorService> logger) : ISqliteTableEditorService
     {
         private const int MaxRows = 500;
 
-        public string DatabasePath => CouncilChatStaticsGeneral.GetDefaultDatabasePath();
+        public string DatabasePath => databaseOptions.DatabasePath;
 
         public async Task<IReadOnlyList<SqliteTableSummary>> GetTablesAsync(CancellationToken cancellationToken = default)
         {
@@ -57,7 +60,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine( $"Error in GetTablesAsync ex {ex.ToString()}");
+                logger.LogError(ex, "Could not read SQLite table summaries.");
                 return new List<SqliteTableSummary>();
             }
         }
@@ -113,7 +116,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetTableAsync ex {ex.ToString()}");
+                logger.LogError(ex, "Could not read SQLite table {TableName}.", tableName);
                 return null;
             }
             
@@ -172,7 +175,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in UpdateRowAsync ex tableName {tableName} rowId {rowId} updates {updates.ToString()} ex {ex.ToString()}");
+                logger.LogError(ex, "Could not update row {RowId} in SQLite table {TableName}.", rowId, tableName);
             }
         }
 
@@ -226,7 +229,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in InsertRowAsync tableName {tableName} values {values.ToString()} ex {ex.ToString()}");
+                logger.LogError(ex, "Could not insert a row into SQLite table {TableName}.", tableName);
             }
            
         }
@@ -246,7 +249,7 @@ namespace LocalGPT.Services
                 try
                 {
 
-                    Console.WriteLine($"Dangerous delete can cause inconsistence in {tableName} rowId {rowId.ToString()}");
+                    logger.LogWarning("Deleting row {RowId} from SQLite table {TableName}; referential consistency is the caller's responsibility.", rowId, tableName);
                     await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (SqliteException ex)
@@ -256,26 +259,13 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in DeleteRowAsync tableName {tableName} rowId {rowId.ToString()} ex {ex.ToString()}");
+                logger.LogError(ex, "Could not delete row {RowId} from SQLite table {TableName}.", rowId, tableName);
             }
         }
 
         private async Task EnsureDatabaseFileAsync(CancellationToken cancellationToken)
         {
-            try
-            {
-                var directory = Path.GetDirectoryName(DatabasePath);
-                if (!string.IsNullOrWhiteSpace(directory))
-                    Directory.CreateDirectory(directory);
-
-                await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
-                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in EnsureDatabaseFileAsync {ex.ToString()}");
-            }
-
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private async Task<SqliteConnection?> OpenConnectionAsync(CancellationToken cancellationToken)
@@ -288,7 +278,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in OpenConnectionAsync {ex.ToString()}");
+                logger.LogError(ex, "Could not open the LocalGPT SQLite database at {DatabasePath}.", DatabasePath);
                 return null;
             }
         }

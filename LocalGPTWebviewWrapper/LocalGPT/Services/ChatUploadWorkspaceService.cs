@@ -9,7 +9,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
-using static System.Net.WebRequestMethods;
 
 namespace LocalGPT.Services
 {
@@ -139,7 +138,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in CreateWorkspaceAsync prompt:{prompt.ToString()} files:{files.ToString()}");
+                logger.LogError(ex, "Could not create the chat upload workspace.");
                 return null;
             }
 

@@ -1,9 +1,8 @@
-﻿using DevExpress.Blazor;
+using DevExpress.Blazor;
 using DevExpress.ClipboardSource.SpreadsheetML;
 using DevExpress.CodeParser;
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
-using Markdig;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -16,9 +15,6 @@ namespace LocalGPT.Extensions.PlainStatics
 {
     public static partial class GlobalVariableSlopCollectionToRemove
     {
-        public static bool EnsureCreatedMemoryDbTable { get; set; } = false;
-        public static bool EnsureCreatedLogsDbTable { get; set; } = false;
-        public static bool EnsureCreatedKnowledgeDbTable { get; set; } = false;
 
         public const string DefaultGradleVersion = "8.14.2";
         public static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
@@ -381,9 +377,6 @@ namespace LocalGPT.Extensions.PlainStatics
             [JsonPropertyName("keep_alive")]
             public string KeepAlive { get; set; } = "0s";
         }
-        public sealed record CommandPolicyDecision(bool Allowed, string Decision, string Reason, string Profile);
-        public const int ProbeCommandTimeoutSeconds = 5;
-        public static readonly string[] SidecarSuffixes = ["", "-wal", "-shm"];
         [GeneratedRegex("^\\s*@using\\s+(?<namespace>DevExpress(?:\\.[A-Za-z0-9_]+)+)", RegexOptions.Multiline | RegexOptions.CultureInvariant)]
         public static partial Regex DevExpressImportPattern();
 
@@ -438,7 +431,6 @@ namespace LocalGPT.Extensions.PlainStatics
             string RelativePath,
             string? Content);
 
-        public static bool IsHarmonyModel { get; set; } = false;
         public const int MaxFiles = int.MaxValue;
         public const long MaxSingleFileBytes = int.MaxValue;
         public const long MaxTotalFileBytes = int.MaxValue;
@@ -454,7 +446,6 @@ namespace LocalGPT.Extensions.PlainStatics
         public static readonly string[] KnowledgeFiles =
        [
            "AGENTS.md",
-            "CLAUDE.md",
             "llms.txt",
             Path.Combine("docs", "ARCHITECTURE_FOR_AI.md"),
             Path.Combine("docs", "COUNCIL_KNOWLEDGE_SEED.sql"),
@@ -479,44 +470,6 @@ namespace LocalGPT.Extensions.PlainStatics
 
         public const string shortOmission =
             "\n... truncated by LocalGPT upload workspace budget ...";
-        public sealed class OllamaChatRequest
-        {
-            public string Model { get; set; } = string.Empty;
-            public bool Stream { get; set; }
-            public string KeepAlive { get; set; } = "10m";
-            public List<OllamaChatMessage> Messages { get; set; } = new();
-            public OllamaRequestOptions? Options { get; set; }
-        }
-
-        public sealed class OllamaRequestOptions
-        {
-            [JsonPropertyName("num_predict")]
-            public int NumPredict { get; set; }
-
-            [JsonPropertyName("num_ctx")]
-            public int? NumCtx { get; set; }
-
-            [JsonPropertyName("num_gpu")]
-            public int? NumGpu { get; set; }
-
-            [JsonPropertyName("temperature")]
-            public double? Temperature { get; set; }
-        }
-
-        public sealed class OllamaChatMessage
-        {
-            public string Role { get; set; } = "user";
-            public string Content { get; set; } = string.Empty;
-            public string? Thinking { get; set; }
-        }
-
-        public sealed class OllamaChatResponse
-        {
-            public OllamaChatMessage? Message { get; set; }
-        }
-
-  
-
         public static readonly Regex DownloadUrlPattern =
      new("\"downloadUrl\"\\s*:\\s*\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         public const string LearnBaseFilePolicySummary =
@@ -1372,17 +1325,20 @@ namespace LocalGPT.Extensions.PlainStatics
         public const int DefaultCouncilContextTokens = 262144;
         public const int MaxCouncilContextTokens = 262144;
         public const string CouncilSessionName = "AI Council — selected Ollama models";
-        public static readonly Regex HarmonyMarkerCleanupRegex = new("<\\|[^|>]+\\|>", RegexOptions.CultureInvariant | RegexOptions.Compiled);
-        public static readonly Regex OpenThinkingDetailsRegex = new("(?i)<details\\s+class=\"model-thinking\"\\s+open>", RegexOptions.CultureInvariant | RegexOptions.Compiled);
-        public static readonly Regex ListAfterHtmlRegex = new("(?i)(</(?:p|details|pre|div)>)\\s*((?:[-*]|\\d+\\.)\\s+)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
-        public static readonly MarkdownPipeline ChatMarkdownPipeline = new MarkdownPipelineBuilder()
-    .UseAdvancedExtensions()
-    .Build();
         public const int MaxUploadFiles = int.MaxValue;
         public const int MaxUploadBytes = int.MaxValue;
         public static readonly List<string> AllowedUploadExtensions =
         [
-            ".7z", ".apk", ".avi", ".bat", ".c", ".cer", ".cmd", ".conf", ".cpp", ".crt", ".cs", ".csproj", ".css", ".csv", ".db", ".deb", ".doc", ".dockerfile", ".dockerignore", ".docx", ".dwg", ".dxf", ".editorconfig", ".env", ".exe", ".gif", ".gitignore", ".go", ".gz", ".h", ".hpp", ".html", ".img", ".ini", ".iso", ".jar", ".java", ".jpeg", ".jpg", ".js", ".json", ".jsx", ".key", ".log", ".md", ".mkv", ".mov", ".mp3", ".mp4", ".msi", ".obj", ".odp", ".ods", ".odt", ".parquet", ".pdf", ".pem", ".pfx", ".php", ".pkl", ".png", ".ppt", ".pptx", ".ps1", ".py", ".qcow2", ".rar", ".rpm", ".rs", ".rtf", ".sh", ".sln", ".sql", ".sqlite", ".srt", ".step", ".stl", ".svg", ".tar", ".tf", ".toml", ".ts", ".tsx", ".txt", ".vhdx", ".vmdk", ".wav", ".webp", ".xls", ".xlsx", ".xml", ".xz", ".yaml", ".yml", ".zip", ".zst"
+            ".7z", ".apk", ".avi", ".bat", ".c", ".cer", ".cmd", ".conf", ".cpp", ".crt",
+            ".cs", ".csproj", ".css", ".csv", ".db", ".deb", ".doc", ".dockerfile", ".dockerignore",
+            ".docx", ".dwg", ".dxf", ".editorconfig", ".env", ".exe", ".gif", ".gitignore", ".go", ".gz",
+            ".h", ".hpp", ".html", ".img", ".ini", ".iso", ".jar", ".java", ".jpeg", ".jpg", ".js",
+            ".json", ".jsx", ".key", ".log", ".md", ".mkv", ".mov", ".mp3", ".mp4", ".msi", ".obj",
+            ".odp", ".ods", ".odt", ".parquet", ".pdf", ".pem", ".pfx", ".php", ".pkl", ".png", ".ppt",
+            ".pptx", ".ps1", ".py", ".qcow2", ".rar", ".rpm", ".rs", ".rtf", ".sh", ".sln", ".sql",
+            ".sqlite", ".srt", ".step", ".stl", ".svg", ".tar", ".tf", ".toml", ".ts", ".tsx", ".txt",
+            ".vhdx", ".vmdk", ".wav", ".webp", ".xls", ".xlsx", ".xml", ".xz", ".yaml", ".yml", ".zip",
+            ".zst"
 
         ];
         public static readonly List<string> AllowedUploadMimeTypes =
@@ -1417,7 +1373,7 @@ namespace LocalGPT.Extensions.PlainStatics
         public const string OllamaModeLimitedGpu = "limited-gpu";
  
         public const string DetectedOllamaSessionPrefix = "Ollama detected — ";
-        public static string DefaultOllamaEndpoint { get; set; }= "http://127.0.0.1:11434";
+        public const string DefaultOllamaEndpoint = "http://127.0.0.1:11434";
         public static readonly string[] ArchitectureUiStackOptions =
 [
     "Ask me before choosing UI stack",
@@ -1453,20 +1409,10 @@ namespace LocalGPT.Extensions.PlainStatics
         "Functional prototype first",
         "No visual reference"
         ];
-        public const int DefaultMaxOutputTokens = 262144;
         public const int DefaultMaxPromptCharacters = int.MaxValue;
         public const int MaxPromptCharacters = int.MaxValue;
         public const int MaxBootstrapCharacters = 6000;
         public const int MaxSingleConversationMessageCharacters = int.MaxValue;
-        public const string RuntimeDecisionPolicy =
-            "LocalGPT runtime decision policy: When the user asks to generate, scaffold, implement, modify, or package code/artifacts and important architecture choices are unresolved, do not start coding yet. " +
-            "First return a short section titled \"Decision poll required\" with concrete choices and tradeoffs, then stop and wait for the user's answer. " +
-            "Ask only for decisions that materially affect the result, such as target platform/runtime, language/framework, UI stack, solution shape, data/persistence model, deployment target, security boundary, reference-app fidelity, and whether downloadable artifacts are expected. " +
-            "If the user explicitly asks for a Minecraft datapack/modpack zip, .cs/.razor/.dll files, a whole .NET solution zip, a local AI host control-plane app, or another concrete downloadable artifact, treat that as supplied scope and generate a safe milestone artifact rather than refusing because the task is large. " +
-            "Never claim the user failed to answer a poll inside the same response that created it; a poll pauses the next step until the next user turn unless the prompt already supplied a concrete artifact target. " +
-            "Do not assume Blazor, DevExpress, ASP.NET Core, or a split frontend/backend unless the user selected it, the existing repository requires it, or the requested target clearly calls for it. " +
-            "If the user already supplied the needed decisions, proceed normally and restate the selected path briefly. " +
-            "If LocalGPT lacks a function, source, version map, or domain knowledge needed to fulfill the request, add a \"Capability gap report\" and a <localgpt-capability-gap> block with requested languages, frameworks, versions, domain knowledge, local sources, external official sources, missing LocalGPT functions, safe workflow, and artifact plan.";
         public enum GeneratedSolutionArchetype
         {
             Generic,
@@ -1475,14 +1421,6 @@ namespace LocalGPT.Extensions.PlainStatics
             BotBackend,
             AiHost
         }
-        public const string HarmonyResponseProtocol =
-           "Response protocol for Harmony/OpenAI-style local models: keep analysis short, " +
-           "emit user-visible final answer text early in the final channel, never spend the whole budget on analysis, and if the request is too large, " +
-           "say what is missing or what to do next in final instead of spending the whole answer budget on analysis.";
-        public const string MissingFinalAnswerNotice =
-            "**No final answer was emitted.** The model only sent thinking. LocalGPT kept the thinking visible and stopped the spinner; " +
-            "send a short \"continue with the final answer\" request or raise the answer-token budget for this model.";
-
         public sealed record GeneratedArchetypePage(string FileName, string Source);
 
         public sealed record GeneratedPromiseModule(

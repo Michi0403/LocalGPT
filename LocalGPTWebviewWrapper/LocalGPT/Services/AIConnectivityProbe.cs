@@ -1,147 +1,137 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
-using Microsoft.Extensions.Options;
-using System.ServiceModel.Channels;
-using System.Text.Json;
-using static System.Net.WebRequestMethods;
 
-namespace LocalGPT.Services
+namespace LocalGPT.Services;
+
+public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : IAiConnectivityProbe
 {
-    public class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : IAiConnectivityProbe
+    public async Task<(bool ok, string message)> TestAzureAsync(OpenAIServiceCoreOptions options, CancellationToken cancellationToken)
     {
- 
+        if (string.IsNullOrWhiteSpace(options.Endpoint) || string.IsNullOrWhiteSpace(options.Key))
+            return (false, "Missing endpoint or key.");
 
-   
-
-        public async Task<(bool ok, string message)> TestAzureAsync(OpenAIServiceCoreOptions o, CancellationToken ct)
+        try
         {
-            if (string.IsNullOrWhiteSpace(o.Endpoint) || string.IsNullOrWhiteSpace(o.Key))
-                return (false, "Missing endpoint or key.");
-
-            try
-            {
-                var http = new HttpClient { BaseAddress = new Uri(o.Endpoint) };
-                http.DefaultRequestHeaders.Add("api-key", o.Key);
-                return await HttpAIStaticsGeneral.GetAsync(http, "/", ct, logger).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in TestAzureAsync o {o.ToString()}");
-                return (false, ex.Message);
-            }
+            using var http = new HttpClient { BaseAddress = new Uri(options.Endpoint) };
+            http.DefaultRequestHeaders.Add("api-key", options.Key);
+            return await HttpAIStaticsGeneral.GetAsync(http, "/", cancellationToken, logger).ConfigureAwait(false);
         }
-
-        public async Task<(bool ok, string message)> TestOpenAIAsync(OpenAICompatOptions o, CancellationToken ct)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(o.ApiKey))
-                    return (false, "Missing API key.");
-
-                var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
-                http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
-                return await HttpAIStaticsGeneral.GetAsync(http, "models", ct,logger).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in TestOpenAIAsync o {o.ToString()}");
-                return (false, ex.Message);
-            }
-
+            throw;
         }
-
-        public async Task<(bool ok, string message)> TestOllamaAsync(OllamaCoreOptions o, CancellationToken ct)
+        catch (Exception ex)
         {
-            try
-            {
-                var http = new HttpClient { BaseAddress = new Uri(o.Uri) };
-                return await HttpAIStaticsGeneral.GetAsync(http, "/api/tags", ct,logger).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in TestOllamaAsync o {o.ToString()}");
-                return (false, ex.Message);
-            }
+            logger.LogError(ex, "Azure connectivity test failed for endpoint host {EndpointHost}.", GetEndpointHost(options.Endpoint));
+            return (false, ex.Message);
         }
+    }
 
-        public async Task<(bool ok, string message)> TestLocalOpenAICompatAsync(ChatGPTLocalCoreOptions o, CancellationToken ct)
+    public async Task<(bool ok, string message)> TestOpenAIAsync(OpenAICompatOptions options, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(options.ApiKey))
+            return (false, "Missing API key.");
+
+        try
         {
-            try
-            {
-                var endpoint = CouncilChatStringFunctions.NormalizeOpenAIEndpoint(o.Endpoint, logger);
-                var http = new HttpClient { BaseAddress = new Uri(endpoint) };
-                if (!string.IsNullOrWhiteSpace(o.ApiKey))
-                    http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", o.ApiKey);
-
-                return await HttpAIStaticsGeneral.GetAsync(http, "/v1/models", ct,logger).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in TestLocalOpenAICompatAsync o {o.ToString()}");
-                return (false, ex.Message);
-            }
-
+            using var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
+            http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
+            return await HttpAIStaticsGeneral.GetAsync(http, "models", cancellationToken, logger).ConfigureAwait(false);
         }
-
-        public async Task<(bool ok, string message)> TryStartLocalAsync(ChatGPTLocalCoreOptions o, CancellationToken ct)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            if (string.IsNullOrWhiteSpace(o.StartCommand))
-                return (false, "StartCommand not set.");
-
-            try
-            {
-                var psi = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = "/c " + o.StartCommand,
-                    WorkingDirectory = string.IsNullOrWhiteSpace(o.WorkingDir) ? null : o.WorkingDir,
-                    UseShellExecute = true,
-                    CreateNoWindow = true
-                };
-                System.Diagnostics.Process.Start(psi);
-
-                var started = false;
-                var deadline = DateTime.UtcNow.AddSeconds(Math.Max(5, o.HealthTimeoutSeconds));
-                while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
-                {
-                    var (ok, _) = await TestLocalOpenAICompatAsync(o, ct).ConfigureAwait(false);
-                    if (ok)
-                    {
-                        started = true;
-                        break;
-                    }
-
-                    await Task.Delay(1000, ct).ConfigureAwait(false);
-                }
-
-                return started ? (true, "Local server is responding.") : (false, "Local server did not respond in time.");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in TryStartLocalAsync o {o.ToString()}");
-                return (false, ex.Message);
-            }
+            throw;
         }
-        public async Task<IReadOnlyList<LocalAiHostDiscoveryResult>> DiscoverLocalHostsAsync(CancellationToken ct)
+        catch (Exception ex)
         {
-            try
+            logger.LogError(ex, "OpenAI connectivity test failed.");
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool ok, string message)> TestOllamaAsync(OllamaCoreOptions options, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var http = new HttpClient { BaseAddress = new Uri(options.Uri) };
+            return await HttpAIStaticsGeneral.GetAsync(http, "/api/tags", cancellationToken, logger).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Ollama connectivity test failed for endpoint host {EndpointHost}.", GetEndpointHost(options.Uri));
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool ok, string message)> TestLocalOpenAICompatAsync(ChatGPTLocalCoreOptions options, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var endpoint = CouncilChatStringFunctions.NormalizeOpenAIEndpoint(options.Endpoint, logger);
+            using var http = new HttpClient { BaseAddress = new Uri(endpoint) };
+            if (!string.IsNullOrWhiteSpace(options.ApiKey))
             {
-                var probes = new[]
-       {
-                HttpAIStaticsGeneral.ProbeOllamaAsync("http://localhost:11434", ct,logger),
-                HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", ct,logger),
-                HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", ct,logger)
+                http.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
+            }
+
+            return await HttpAIStaticsGeneral.GetAsync(http, "/v1/models", cancellationToken, logger).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Local OpenAI-compatible connectivity test failed for endpoint host {EndpointHost}.", GetEndpointHost(options.Endpoint));
+            return (false, ex.Message);
+        }
+    }
+
+    public Task<(bool ok, string message)> TryStartLocalAsync(ChatGPTLocalCoreOptions options, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!options.AutoStartServer)
+            return Task.FromResult((false, "Local server auto-start is disabled in configuration."));
+
+        logger.LogWarning(
+            "Local server auto-start was requested for endpoint host {EndpointHost}, but unrestricted shell launch is disabled. Start the provider manually or add a bounded launcher service.",
+            GetEndpointHost(options.Endpoint));
+        return Task.FromResult((false,
+            "Automatic shell launch is disabled. Start the local provider manually; unrestricted StartCommand execution is no longer permitted."));
+    }
+
+    public async Task<IReadOnlyList<LocalAiHostDiscoveryResult>> DiscoverLocalHostsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var probes = new[]
+            {
+                HttpAIStaticsGeneral.ProbeOllamaAsync("http://localhost:11434", cancellationToken, logger),
+                HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", cancellationToken, logger),
+                HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", cancellationToken, logger)
             };
 
-                return await Task.WhenAll(probes).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in DiscoverLocalHostsAsync");
-                return new List<LocalAiHostDiscoveryResult>();
-            }
+            return await Task.WhenAll(probes).ConfigureAwait(false);
         }
-
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Local AI host discovery failed.");
+            return [];
+        }
     }
+
+    private static string GetEndpointHost(string? endpoint) =>
+        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : "invalid-or-unset";
 }

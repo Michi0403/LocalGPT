@@ -7,7 +7,6 @@ using System.IO.Compression;
 using System.ServiceModel.Channels;
 using System.Text;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
-using static System.Net.WebRequestMethods;
 
 namespace LocalGPT.Services
 {
@@ -15,6 +14,7 @@ namespace LocalGPT.Services
         ICouncilArtifactService artifactService,
         ICouncilKnowledgeService knowledgeService,
         ILearnBaseKnowledgeImporterService learnBaseImporter,
+        IArtifactBuildExecutor artifactBuildExecutor,
         ILogger<EngineeringBenchmarkService> logger) : IEngineeringBenchmarkService
     {
         public async Task<EngineeringBenchmarkResult?> RunAsync(
@@ -162,7 +162,7 @@ namespace LocalGPT.Services
                 lane.MissingFilesScore = lane.MissingFiles.Count == 0 ? 10 : Math.Max(0, 10 - lane.MissingFiles.Count * 2);
                 lane.ValidArchitectureScore = CouncilChatStaticsGeneral.ScoreArchitecture(task, artifactEntries, artifacts, logger);
                 if (request.ValidateBuildableArtifacts)
-                    lane.BuildChecks.AddRange(await CouncilChatStaticsGeneral.ValidateBuildableArtifactsAsync(artifacts, request.MaxBuildArtifacts, cancellationToken,logger).ConfigureAwait(false));
+                    lane.BuildChecks.AddRange(await ValidateBuildableArtifactsAsync(artifacts, request.MaxBuildArtifacts, cancellationToken).ConfigureAwait(false));
 
                 lane.BuildabilityScore = CouncilChatStaticsGeneral.ScoreBuildability(task, artifacts, lane.BuildChecks, request.ValidateBuildableArtifacts, logger);
                 lane.WrongPackagesTemplatesScore = CouncilChatStaticsGeneral.ScoreWrongTemplateRisk(task, artifactEntries, logger);
@@ -180,6 +180,87 @@ namespace LocalGPT.Services
                 return null;
             }
          
+        }
+
+        private async Task<IReadOnlyList<EngineeringBenchmarkBuildCheck>> ValidateBuildableArtifactsAsync(
+            IReadOnlyList<CouncilArtifact> artifacts,
+            int maxBuildArtifacts,
+            CancellationToken cancellationToken)
+        {
+            var checks = new List<EngineeringBenchmarkBuildCheck>();
+            foreach (var artifact in artifacts
+                .Where(item => item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(item.FilePath))
+                .Take(Math.Clamp(maxBuildArtifacts, 1, 8)))
+            {
+                var check = await ValidateBuildableArtifactAsync(artifact, cancellationToken).ConfigureAwait(false);
+                checks.Add(check);
+            }
+            return checks;
+        }
+
+        private async Task<EngineeringBenchmarkBuildCheck> ValidateBuildableArtifactAsync(
+            CouncilArtifact artifact,
+            CancellationToken cancellationToken)
+        {
+            var startedAt = DateTime.UtcNow;
+            var root = Path.Combine(
+                Path.GetTempPath(),
+                "LocalGPT",
+                "EngineeringBenchmarkBuilds",
+                $"{Path.GetFileNameWithoutExtension(artifact.Name)}-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(root);
+
+            var check = new EngineeringBenchmarkBuildCheck
+            {
+                ArtifactName = artifact.Name,
+                ExtractedRoot = root
+            };
+
+            try
+            {
+                ZipFile.ExtractToDirectory(artifact.FilePath, root, overwriteFiles: true);
+                var solutionPath = Directory
+                    .EnumerateFiles(root, "*.sln", SearchOption.AllDirectories)
+                    .OrderBy(path => path.Length)
+                    .FirstOrDefault();
+
+                if (solutionPath is null)
+                {
+                    check.Status = "NoSolution";
+                    check.OutputPreview = "No .sln file found. This artifact is not a .NET build target.";
+                    return check;
+                }
+
+                check.SolutionPath = solutionPath;
+                var build = await artifactBuildExecutor.BuildAsync(
+                    solutionPath,
+                    root,
+                    "Debug",
+                    null,
+                    TimeSpan.FromMinutes(3),
+                    cancellationToken).ConfigureAwait(false);
+
+                check.ExitCode = build.ExitCode ?? 0;
+                check.Status = build.Status;
+                check.OutputPreview = CouncilChatStringFunctions.TrimForPrompt(build.StandardOutput, 1800, logger);
+                check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(build.StandardError, 1200, logger);
+                return check;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                check.Status = "BuildCheckError";
+                check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(ex.Message, 1200, logger);
+                logger.LogWarning(ex, "Artifact build validation failed for {ArtifactName}.", artifact.Name);
+                return check;
+            }
+            finally
+            {
+                check.Duration = DateTime.UtcNow - startedAt;
+            }
         }
     }
 }

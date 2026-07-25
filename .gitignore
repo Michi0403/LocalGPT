@@ -50,3 +50,33 @@ images/
 build/Michi0403_LocalGPT
 build/TelegramBots_Telegram.Bot
 LocalGPTWebviewWrapper/LocalGPT/LocalGPT.log
+
+# Local runtime state and generated diagnostics
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.tmp
+*.bak
+CorruptDatabaseBackups/
+LocalGPTWebviewWrapper/**/LocalGPT.log
+LocalGPTWebviewWrapper/**/FirstVersionlocalgpt-memory.db
+LocalGPTWebviewWrapper/**/localgpt-memory-example-database.db
+
+# AI/tool scratch clones and generated repository snapshots
+build/[A-Za-z0-9]????????/
+build/*_repo_to_text*.txt
+build/*_repo_snapshot*/
+localgpt/
+
+# User- and machine-specific IDE state
+**/*.csproj.user
+**/*.pubxml.user
+**/*.wapproj.user
+**/.cr/
+**/.vs/
+
+# Generated DevExpress/DevExtreme licensed build material
+LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/devextreme-license.js
+**/DevExpress_License*
+**/*devexpress*license*.key

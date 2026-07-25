@@ -106,6 +106,20 @@
     color: var(--bs-secondary-color);
 }
 
+.demo-chat ::deep .model-thinking.open summary::after,
+.demo-chat ::deep .council-live summary::after {
+    content: " · live";
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0.72;
+    animation: localgpt-stream-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes localgpt-stream-pulse {
+    from { opacity: 0.38; }
+    to { opacity: 0.9; }
+}
+
 .demo-chat ::deep .model-thinking pre {
     margin: 0.5rem 0 0;
     white-space: pre-wrap;

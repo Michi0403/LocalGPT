@@ -35,7 +35,7 @@ The old remote still accepted pushes but GitHub reported the repository moved to
 
 ## DevExpress Feature Integrity Lesson
 
-If Michi0403 asks for a built-in DevExpress capability, agents and the AI Council must implement that documented DevExpress capability or say clearly that it is blocked/unclear and ask. Adding a separate custom control while implying it is the requested DevExpress feature is unacceptable.
+If Human User asks for a built-in DevExpress capability, agents and the AI Council must implement that documented DevExpress capability or say clearly that it is blocked/unclear and ask. Adding a separate custom control while implying it is the requested DevExpress feature is unacceptable.
 
 For `DxAIChat` uploads, the accepted primary route is the native paperclip attachment surface: `FileUploadEnabled`, `DxAIChatFileUploadSettings`, `AIChatUploadFileInfo`, and the normal chat-client upload content path into LocalGPT's safe upload workspaces. A custom upload panel may exist only as an explicitly labeled fallback and must not be represented as the embedded `DxAIChat` upload feature. Do not add a `MessageSent` handler unless intentionally replacing automatic AI Chat delivery with a full manual response path.
 
@@ -292,7 +292,7 @@ Use these snapshots to verify that the real desktop wrapper loads the Blazor app
 
 ## Collaboration Notes
 
-Michi0403 wants concrete progress more than careful-sounding hesitation. When he asks to fix, build, test, release, or push, do the work and report the evidence. He appreciates directness, compiler output, diagnostics, and small meaningful commits. He can be stubborn, but in this project that usually means the product requirement is not satisfied yet; turn the stubborn signal into a test, a diagnostic route, or council knowledge.
+Human User wants concrete progress more than careful-sounding hesitation. When he asks to fix, build, test, release, or push, do the work and report the evidence. He appreciates directness, compiler output, diagnostics, and small meaningful commits. He can be stubborn, but in this project that usually means the product requirement is not satisfied yet; turn the stubborn signal into a test, a diagnostic route, or council knowledge.
 
 Do not overdramatize hardware or Windows instability. Separate confirmed GPU driver resets from display sleep, screen saver behavior, package deployment errors, model latency, and WebView2 frontend problems. When a design path is genuinely unclear, the council should offer a small implementation poll with concrete options and then treat the user's choice as binding.
 
@@ -300,7 +300,7 @@ Respect user autonomy around generated code. The AI Council can propose features
 
 ## Legacy C# Learning Sources
 
-Michi0403 values Rob Miles and the Exam Ref 70-483 C# learning path as part of his developer foundation. Record that as respected user context, not as an objective ranking claim. The user-provided `C:/Users/micha/Downloads/Sample-Code-master.zip` contains classic Visual Studio/.NET Framework examples such as PLINQ exception handling, task creation/running, and task factory samples.
+Michi0403 the original Developer values Rob Miles and the Exam Ref 70-483 C# learning path as part of his developer foundation. Record that as respected user context, not as an objective ranking claim. The user-provided `C:/Users/micha/Downloads/Sample-Code-master.zip` contains classic Visual Studio/.NET Framework examples such as PLINQ exception handling, task creation/running, and task factory samples.
 
 Use this material only as legacy C# architecture memory unless the user explicitly asks for .NET Framework output. For modern LocalGPT generation, translate the lessons into .NET 8-10 patterns: SDK-style projects, dependency injection, options/appsettings, nullable annotations, analyzers, async APIs, tests, and current ASP.NET Core/Blazor structure. Do not copy the sample archive into git; it includes `.vs`, `bin`, `obj`, `.exe`, and `.pdb` build outputs.
 

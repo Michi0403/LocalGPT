@@ -320,19 +320,6 @@ namespace LocalGPT.Extensions.PlainStatics
 
         }
 
-        public static async Task SeedKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                await SeedSqlKnowledgeAsync(db, cancellationToken, logger).ConfigureAwait(false);
-             
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in SeedKnowledgeAsync db {db.ToString()}");
-            }
-        }
-
         //Todo Nice but should use the file
         //public static async Task SeedBuiltInKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken, ILogger logger)
         //{
@@ -1067,108 +1054,6 @@ namespace LocalGPT.Extensions.PlainStatics
 
         //}
 
-        public static async Task SeedSqlKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                var path = FindSqlSeedPath(logger, "COUNCIL_KNOWLEDGE_SEED.sql");
-                if (path is null)
-                    return;
-
-                var sql = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-                if (string.IsNullOrWhiteSpace(sql))
-                    return;
-
-                await db.Database.ExecuteSqlRawAsync(EscapeSqlFormatBraces(sql, logger), cancellationToken).ConfigureAwait(false);
-                await db.Database.ExecuteSqlRawAsync(
-                    """
-                UPDATE "CouncilKnowledgeEntries"
-                SET "VerificationStatus" =
-                        CASE
-                            WHEN "Source" = 'User-approved generation advice' THEN 'UserVerified'
-                            ELSE 'SourceBacked'
-                        END,
-                    "ReviewStatus" = 'Current',
-                    "LastVerifiedAtUtc" = COALESCE("LastVerifiedAtUtc", strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-                WHERE "Source" IN (
-                    'LocalGPT SQL seed',
-                    'Microsoft Learn source-backed seed',
-                    'User-approved generation advice'
-                )
-                  AND ("VerificationStatus" IS NULL OR trim("VerificationStatus") = '' OR "VerificationStatus" = 'NeedsVerification');
-                """,
-                    cancellationToken).ConfigureAwait(false);
-                await db.Database.ExecuteSqlRawAsync(
-                    """
-                UPDATE "CouncilKnowledgeEntries"
-                SET "ReviewStatus" = 'Current',
-                    "LastVerifiedAtUtc" = COALESCE("LastVerifiedAtUtc", strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-                WHERE "Source" IN (
-                    'LocalGPT SQL seed',
-                    'Microsoft Learn source-backed seed',
-                    'User-approved generation advice'
-                )
-                  AND ("ReviewStatus" IS NULL OR trim("ReviewStatus") = '' OR "ReviewStatus" IN ('NeedsVerification', 'NeedsUserReview'));
-                """,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in SeedSqlKnowledgeAsync db {db.ToString()}");
-
-            }
-        }
-
-        public static string EscapeSqlFormatBraces(string sql, ILogger logger)
-        {
-            try
-            {
-                return sql.Replace("{", "{{", StringComparison.Ordinal)
-             .Replace("}", "}}", StringComparison.Ordinal);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in SeedSqlKnowledgeAsync sql {sql.ToString()}");
-                return string.Empty;
-            }
-
-        }
-
-        public static string? FindSqlSeedPath(ILogger logger, string fileName = "COUNCIL_KNOWLEDGE_SEED.sql")
-        {
-            try
-            {
-                var candidates = new[]
-                {
-                Path.Combine(AppContext.BaseDirectory, "docs", fileName),
-                Path.Combine(Directory.GetCurrentDirectory(), "docs", fileName)
-            };
-
-                foreach (var candidate in candidates)
-                {
-                    if (File.Exists(candidate))
-                        return candidate;
-                }
-
-                var directory = new DirectoryInfo(AppContext.BaseDirectory);
-                while (directory is not null)
-                {
-                    var candidate = Path.Combine(directory.FullName, "docs", fileName);
-                    if (File.Exists(candidate))
-                        return candidate;
-
-                    directory = directory.Parent;
-                }
-
-                return null;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in FindSqlSeedPath");
-                return null;
-            }
-        }
-
         public static string BuildCouncilKnowledgeContent(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -1216,7 +1101,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in BuildTopic prompt {prompt.ToString()}");
+                logger.LogError(ex, "Could not derive a knowledge topic from the supplied prompt.");
                 return string.Empty;
             }
         }

@@ -46,7 +46,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in WriteIfMissingFeatureReportAsync source {source.ToString()} responseText {responseText?.ToString()}");
+                logger.LogError(ex, "Could not write a missing-feature report for source {Source}.", source);
                 return null;
             }
         }

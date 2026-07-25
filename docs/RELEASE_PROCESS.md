@@ -1,6 +1,6 @@
 # LocalGPT Release Process
 
-This file is the release contract for Codex, Claude, and other coding agents.
+This file documents the release process for maintainers. It is not permission for an automated tool to publish, push, tag, or modify a local machine.
 Do not publish a LocalGPT release by improvising around it.
 
 ## Non-Negotiable Rules

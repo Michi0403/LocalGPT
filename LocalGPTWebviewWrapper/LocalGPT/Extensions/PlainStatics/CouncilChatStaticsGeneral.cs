@@ -1,4 +1,4 @@
-﻿using DevExpress.CodeParser;
+using DevExpress.CodeParser;
 using DevExpress.Xpo;
 using DevExpress.XtraCharts;
 using DevExpress.XtraRichEdit.Import.Html;
@@ -39,7 +39,7 @@ namespace LocalGPT.Extensions.PlainStatics
             plugin_name={{context.ProjectName}}
             plugin_version=0.1.0
             plugin_main={{context.PackageName}}.{{context.MainClassName}}
-            plugin_authors=LocalGPT, Michi0403
+            plugin_authors=LocalGPT, Michi0403, Human User
             plugin_description={{CouncilChatStringFunctions.NormalizeDescription(request.Description)}}
             maven_group={{context.PackageName}}
             """;
@@ -79,7 +79,7 @@ namespace LocalGPT.Extensions.PlainStatics
             mod_version=0.1.0
             mod_group_id={{context.PackageName}}
             maven_group={{context.PackageName}}
-            mod_authors=LocalGPT, Michi0403
+            mod_authors=LocalGPT, Michi0403, Human User
             mod_description={{CouncilChatStringFunctions.NormalizeDescription(request.Description)}}
             """;
             }
@@ -444,99 +444,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return string.Empty;
             }
         }
-        public static async Task<EngineeringBenchmarkBuildCheck?> ValidateBuildableArtifactAsync(
-            CouncilArtifact artifact,
-            CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                var started = DateTime.UtcNow;
-                var root = Path.Combine(
-                    Path.GetTempPath(),
-                    "LocalGPT",
-                    "EngineeringBenchmarkBuilds",
-                    $"{Path.GetFileNameWithoutExtension(artifact.Name)}-{Guid.NewGuid():N}");
-                Directory.CreateDirectory(root);
-
-                var check = new EngineeringBenchmarkBuildCheck
-                {
-                    ArtifactName = artifact.Name,
-                    ExtractedRoot = root
-                };
-                try
-                {
-                    ZipFile.ExtractToDirectory(artifact.FilePath, root, overwriteFiles: true);
-                    var solutionPath = Directory
-                        .EnumerateFiles(root, "*.sln", SearchOption.AllDirectories)
-                        .OrderBy(path => path.Length)
-                        .FirstOrDefault();
-
-                    if (solutionPath is null)
-                    {
-                        check.Status = "NoSolution";
-                        check.OutputPreview = "No .sln file found. This artifact is not a .NET build target.";
-                        return check;
-                    }
-
-                    check.SolutionPath = solutionPath;
-                    var startInfo = new ProcessStartInfo
-                    {
-                        FileName = "dotnet",
-                        Arguments = $"build \"{solutionPath}\" -c Debug /nologo /p:UseSharedCompilation=false",
-                        WorkingDirectory = Path.GetDirectoryName(solutionPath) ?? root,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-
-                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    timeoutCts.CancelAfter(TimeSpan.FromMinutes(3));
-
-                    using var process = Process.Start(startInfo);
-                    if (process is null)
-                    {
-                        check.Status = "ProcessNotStarted";
-                        return check;
-                    }
-
-                    var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
-                    var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
-                    await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
-                    var output = await outputTask;
-                    var error = await errorTask;
-
-                    check.ExitCode = process.ExitCode;
-                    check.Status = process.ExitCode == 0 ? "BuildPassed" : "BuildFailed";
-                    check.OutputPreview = CouncilChatStringFunctions.TrimForPrompt(output, 1800, logger);
-                    check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(error, 1200, logger);
-                    return check;
-                }
-                catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
-                {
-                    check.Status = "TimedOut";
-                    check.ErrorPreview = "dotnet build exceeded the 3 minute benchmark timeout.";
-                    logger.LogError(ex, $"Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
-                    return check;
-                }
-                catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
-                {
-                    check.Status = "BuildCheckError";
-                    check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(ex.Message, 1200, logger);
-                    logger.LogError(ex, $"Inner Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
-                    return check;
-                }
-                finally
-                {
-                    check.Duration = DateTime.UtcNow - started;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Outer Error in ValidateBuildableArtifactAsync artifact {artifact.ToString()}");
-            }
-            return null;
-        }
         public static EngineeringBenchmarkLaneResult? BuildManualExpectedLane(BenchmarkTaskDefinition task, ILogger logger)
         {
             try
@@ -581,36 +488,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return null;
             }
         }
-        public static async Task<IReadOnlyList<EngineeringBenchmarkBuildCheck>> ValidateBuildableArtifactsAsync(
-      IReadOnlyList<CouncilArtifact> artifacts,
-      int maxBuildArtifacts,
-      CancellationToken cancellationToken, ILogger logger)
-        {
-            try
-            {
-                var checks = new List<EngineeringBenchmarkBuildCheck>();
-                var zipArtifacts = artifacts
-                    .Where(artifact => artifact.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
-                        File.Exists(artifact.FilePath))
-                    .Take(Math.Clamp(maxBuildArtifacts, 1, 8))
-                    .ToArray();
-
-                foreach (var artifact in zipArtifacts)
-                {
-                    var item = await ValidateBuildableArtifactAsync(artifact, cancellationToken, logger).ConfigureAwait(false);
-                    ArgumentNullException.ThrowIfNull(item);
-                    checks.Add(item);
-                }
-
-                return checks;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"ValidateBuildableArtifactsAsync artifacts {artifacts.ToString()}");
-                return new List<EngineeringBenchmarkBuildCheck>();
-            }
-        }
-
         public static int ScoreArchitecture(
     BenchmarkTaskDefinition task,
     HashSet<string> zipEntries,
@@ -1661,7 +1538,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             finally
             {
-                logger.LogInformation($"Get Configured Ollama Providers finished with options {options.ToString()}");
+                logger.LogInformation("Finished enumerating configured Ollama providers.");
             }
 
         }
@@ -1696,7 +1573,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"💥 HasRealApiKey failed: {apiKey?.ToString()}");
+                logger.LogError(ex, "API-key presence validation failed.");
                 return false;
             }
 
@@ -1789,7 +1666,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in BuildPrompt messages {messages.ToString()}");
+                logger.LogError(ex, "Could not build the provider prompt from chat messages.");
                 return string.Empty;
             }
         }
@@ -1841,28 +1718,6 @@ namespace LocalGPT.Extensions.PlainStatics
                 return null;
             }
         }
-        public static string GetDefaultDatabasePath(ILogger? logger = null)
-        {
-            try
-            {
-                return Path.Combine(
-               Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-               "LocalGPT",
-               "localgpt-memory.db");
-            }
-            catch (Exception ex)
-            {
-                if(logger is not null)
-                {
-                    logger.LogError(ex, $"Error in GetDefaultDatabasePath");
-                }
-                else
-                {
-                    Console.WriteLine($"Error in GetDefaultDatabasePath {ex.ToString()}");
-                }
-                return string.Empty;
-            }
-        }
         public static AnalyzedUploadFile? BuildSummary(
     string relativePath,
     long length,
@@ -1885,7 +1740,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in BuildSummary relativePath {relativePath} length {length} kind {kind} includedInPrompt {includedInPrompt} note {note} excerpt {excerpt}");
+                logger.LogError(ex, "Could not build the source summary for {RelativePath}; length {Length}; kind {Kind}; included {IncludedInPrompt}.", relativePath, length, kind, includedInPrompt);
                 return null;
             }
         }
@@ -1903,7 +1758,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in BuildBinarySummary relativePath {relativePath} length {length} kind {kind} includedInPrompt {includedInPrompt} note {note}");
+                logger.LogError(ex, "Could not build the binary summary for {RelativePath}; length {Length}; kind {Kind}; included {IncludedInPrompt}.", relativePath, length, kind, includedInPrompt);
                 return null;
             }
         }
@@ -1921,7 +1776,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in SanitizeForPrompt text {text}");
+                logger.LogError(ex, "Could not sanitize text for a prompt.");
                 return string.Empty;
             }
         }
@@ -2052,7 +1907,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error inBuildContextMarkdown workspaceName {workspaceName} root {root} prompt {prompt} analyzedFiles {analyzedFiles.ToString()} warnings {warnings.ToString()}");
+                logger.LogError(ex, "Could not build upload-workspace context Markdown for {WorkspaceName}.", workspaceName);
                 return string.Empty;
             }
 
@@ -2120,7 +1975,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error BuildWorkspaceName prompt {prompt} files {files}");
+                logger.LogError(ex, "Could not build an upload-workspace name.");
                 return string.Empty;
             }
         }
@@ -2521,7 +2376,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsFrustratedPrompt prompt {prompt?.ToString()}");
+                logger.LogError(ex, "Could not classify prompt frustration state.");
                 return false;
             }
 
@@ -2584,7 +2439,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsDevelopmentRequest prompt {prompt?.ToString()}");
+                logger.LogError(ex, "Could not classify a development request.");
                 return false;
             }
         }
@@ -2602,7 +2457,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in HasExplicitArtifactIntent prompt {prompt?.ToString()}");
+                logger.LogError(ex, "Could not classify explicit artifact intent.");
                 return false;
             }
         }
@@ -2637,7 +2492,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in UserGrantedSafeSandboxChoice prompt {prompt?.ToString()}");
+                logger.LogError(ex, "Could not classify sandbox consent.");
                 return false;
             }
 
@@ -2658,7 +2513,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ShouldGenerateSafeSandboxArtifactWithoutBlocking prompt {prompt?.ToString()}");
+                logger.LogError(ex, "Could not classify safe sandbox artifact generation intent.");
                 return false;
             }
 
@@ -2724,7 +2579,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in EnsureSuccessOrThrowAsync response {response.ToString()}");
+                logger.LogError(ex, "Ollama HTTP response validation failed with status {StatusCode}.", response.StatusCode);
 
             }
         }
@@ -2745,7 +2600,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ReadErrorBodyAsync response {response.ToString()}");
+                logger.LogError(ex, "Could not read an Ollama error response body with status {StatusCode}.", response.StatusCode);
                 return string.Empty;
             }
         }
@@ -2773,74 +2628,6 @@ namespace LocalGPT.Extensions.PlainStatics
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in CreateStreamingStatusUpdate text {text.ToString()}");
-                return null;
-            }
-        }
-
-        public static void OllamaThinkingChatClientAddHarmonyResponseProtocol(List<OllamaChatMessage> messages, ILogger logger)
-        {
-            try
-            {
-                if (messages.Count > 0 &&
-          messages[0].Role.Equals("system", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!messages[0].Content.Contains(HarmonyResponseProtocol, StringComparison.Ordinal))
-                        messages[0].Content = $"{HarmonyResponseProtocol}\n\n{messages[0].Content}";
-
-                    return;
-                }
-
-                messages.Insert(0, new OllamaChatMessage
-                {
-                    Role = "system",
-                    Content = HarmonyResponseProtocol
-                });
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in AddHarmonyResponseProtocol messages {messages.ToString()}");
-            }
-        }
-
-        public static OllamaChatMessage? OllamaThinkingChatClientToOllamaMessage(ChatMessage message, ILogger logger)
-        {
-            try
-            {
-                return new OllamaChatMessage
-                {
-                    Role = message.Role == ChatRole.System ? "system"
-                      : message.Role == ChatRole.Assistant ? "assistant"
-                      : "user",
-                    Content = message.Text
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in ToOllamaMessage message {message.ToString()}");
-                return null;
-            }
-        }
-        public static CommandPolicyDecision? CommandPolicyDecisionAllow(string profile, string reason, ILogger logger)
-        {
-            try
-            {
-                return new(true, "Allowed", reason, profile);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CommandPolicyDecisionAllow profile {profile.ToString()} reason {reason.ToString()}");
-                return null;
-            }
-        }
-        public static CommandPolicyDecision? CommandPolicyDecisionDenied(string reason, ILogger logger)
-        {
-            try
-            {
-                return new(false, "Denied", reason, "Denied");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in CommandPolicyDecisionDenied profile {reason}");
                 return null;
             }
         }
@@ -3505,9 +3292,8 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"LimitPromptSize messages {messages.ToString()} forcedMaxPromptCharacters {forcedMaxPromptCharacters}",
-             messages,
-             forcedMaxPromptCharacters);
+                logger.LogError(ex, "Could not limit prompt size to {ForcedMaxPromptCharacters} characters.",
+                    forcedMaxPromptCharacters);
                 return new List<ChatMessage>();
             }
         }
@@ -3539,7 +3325,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsSupportedOllamaMode prompt:{prompt} finalAnswer:{finalAnswer} targetArea:{targetArea}");
+                logger.LogError(ex, "Could not determine whether the target area is Blazor/DevExpress: {TargetArea}.", targetArea);
                 return null;
             }
            
@@ -3555,7 +3341,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsWholeSolutionTarget prompt:{prompt} finalAnswer:{finalAnswer}");
+                logger.LogError(ex, "Could not determine whether the response targets a whole solution.");
                 return null;
             }
         }
@@ -3569,7 +3355,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsAiHostExperimentTarget prompt:{prompt} finalAnswer:{finalAnswer}");
+                logger.LogError(ex, "Could not determine whether the response targets an AI-host experiment.");
                 return null;
             }
         }
@@ -3586,7 +3372,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsAdviceOnlyPrompt prompt:{prompt}");
+                logger.LogError(ex, "Could not determine whether the request is advice-only.");
                 return null;
             }
         }
@@ -3608,7 +3394,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in DetectSolutionArchetype prompt:{prompt} finalAnswer:{finalAnswer}");
+                logger.LogError(ex, "Could not detect the requested solution archetype.");
                 return null;
             }
         }

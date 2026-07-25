@@ -259,7 +259,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in BuildTitle messages {messages.ToString()}");
+                logger.LogError(ex, "Could not build a conversation title from {MessageCount} message(s).", messages.Count);
                 return string.Empty;
             }
         }
@@ -291,7 +291,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in EnsureVisibleCouncilPrompt conversation {conversation.ToString()} messages {messages.ToString()}");
+                logger.LogError(ex, "Could not ensure a visible council prompt for conversation {ConversationId}; message count {MessageCount}.", conversation.Id, messages.Count);
                 return new();
             }
         }
@@ -337,7 +337,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in TryExtractPromptFromAssistantMessages messages {messages.ToString()}");
+                logger.LogError(ex, "Could not extract a council prompt from {MessageCount} assistant message(s).", messages.Count);
                 return null;
             }
         }
@@ -366,7 +366,7 @@ namespace LocalGPT.Extensions.PlainStatics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsCouncilConversation conversation {conversation.ToString()} messages {messages.ToString()}");
+                logger.LogError(ex, "Could not classify conversation {ConversationId} as a council conversation; message count {MessageCount}.", conversation.Id, messages.Count);
                 return new();
             }
         }

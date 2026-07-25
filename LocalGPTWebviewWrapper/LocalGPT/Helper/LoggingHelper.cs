@@ -18,7 +18,7 @@ namespace LocalGPT.Helper
             try
             {
                 Console.WriteLine(
-                  $"Trying configure LoggingCore:EmailCore in {configuration.ToString()}");
+                  "Configuring the optional email logger.");
                 var configRoot = configuration.Get<BusinessObjects.ConfigurationRoot>();
 
                 _ = services.AddOptions<IOptionsMonitor<EmailLoggerCoreOptions>>()
@@ -32,7 +32,7 @@ namespace LocalGPT.Helper
                 if (loggingOptions != null && loggingOptions.EmailCore != null && !string.IsNullOrEmpty(loggingOptions.EmailCore.SenderEmail) && loggingOptions.EmailCore.CoreLogLevel != CoreLogLevel.None)
                 {
 
-                    Console.WriteLine($"EmailCore Sqllogger as singleton in {configuration.ToString()}");
+                    Console.WriteLine("Registering the optional email logger provider.");
                     _ = services.AddSingleton<ILoggerProvider>(
                         provider =>
                         {
@@ -56,7 +56,7 @@ namespace LocalGPT.Helper
             try
             {
                 Console.WriteLine(
-                  $"Trying configure LoggingCore:FileCore in {configuration.ToString()}");
+                  "Configuring the optional file logger.");
                 _ = services.AddOptions<IOptionsMonitor<FileLoggerCoreOptions>>()
                     .Bind(configuration.GetSection("LoggingCore:FileCore"));
                 _ = services.Configure<FileLoggerCoreOptions>(
@@ -68,7 +68,7 @@ namespace LocalGPT.Helper
                 if (loggingOptions != null && loggingOptions?.FileCore != null && loggingOptions.FileCore.CoreLogLevel != CoreLogLevel.None)
                 {
                     Console.WriteLine(
-                  $"Adding Filelogger as singleton in {configuration.ToString()}");
+                  "Registering the optional file logger provider.");
                     _ = services.AddSingleton<ILoggerProvider>(
                         provider =>
                         {
@@ -103,7 +103,7 @@ namespace LocalGPT.Helper
 
                 if (loggingOptions?.DatabaseCore is not null && loggingOptions.DatabaseCore.CoreLogLevel != CoreLogLevel.None)
                 {
-                    Console.WriteLine($"Adding DatabaseLogger as singleton in {configuration}");
+                    Console.WriteLine("Registering the optional database logger provider.");
                     loggingBuilder.AddFilter<DatabaseLoggerProvider>((_, _) => true);
                     _ = services.AddSingleton<ILoggerProvider, DatabaseLoggerProvider>();
                 }
@@ -124,7 +124,7 @@ namespace LocalGPT.Helper
             try
             {
                 Console.WriteLine(
-                    $"Trying configure logging in ConfigureCustomLoggersWithConsoleAndDebug{configuration.ToString()}:{Environment.NewLine}{services}");
+                    "Configuring LocalGPT logging providers.");
                 services.AddOptions<LoggingCoreOptions>()
                     .Bind(configuration.GetSection("LoggingCore"));
                 var loggingOptions = configuration.GetSection("LoggingCore").Get<LoggingCoreOptions>();

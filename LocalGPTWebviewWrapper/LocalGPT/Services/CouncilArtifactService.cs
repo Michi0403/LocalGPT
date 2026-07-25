@@ -18,7 +18,8 @@ namespace LocalGPT.Services
 {
     public partial class CouncilArtifactService(
         ILogger<CouncilArtifactService> logger,
-        IMinecraftModWorkspaceService minecraftWorkspaceService) : ICouncilArtifactService
+        IMinecraftModWorkspaceService minecraftWorkspaceService,
+        IArtifactBuildExecutor artifactBuildExecutor) : ICouncilArtifactService
     {
         public string ArtifactRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -438,76 +439,50 @@ namespace LocalGPT.Services
                 """, cancellationToken).ConfigureAwait(false);
                 await File.WriteAllTextAsync(sourcePath, source, cancellationToken).ConfigureAwait(false);
 
-                var startInfo = new ProcessStartInfo
+                var build = await artifactBuildExecutor.BuildAsync(
+                    projectPath,
+                    projectDirectory,
+                    "Release",
+                    outputDirectory,
+                    TimeSpan.FromSeconds(75),
+                    cancellationToken).ConfigureAwait(false);
+
+                if (!build.Succeeded)
                 {
-                    FileName = "dotnet",
-                    Arguments = $"build \"{projectPath}\" -c Release -o \"{outputDirectory}\" /nologo /p:UseSharedCompilation=false",
-                    WorkingDirectory = projectDirectory,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
+                    logger.LogInformation(
+                        "Council DLL artifact was not produced. Build status: {BuildStatus}; exit code: {ExitCode}.",
+                        build.Status,
+                        build.ExitCode);
+                    return null;
+                }
+
+                var builtDll = Path.Combine(outputDirectory, dllName);
+                if (!File.Exists(builtDll))
+                    return null;
+
+                File.Copy(builtDll, dllPath, overwrite: true);
+                logger.LogInformation("Wrote council DLL artifact to {Path}", dllPath);
+
+                return new CouncilArtifact
+                {
+                    Name = dllName,
+                    Kind = "Sandbox compiled .NET DLL",
+                    FilePath = dllPath,
+                    DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(dllName)}",
+                    Summary = $"Compiled sandbox assembly for {targetArea} implementation ideas.",
+                    QualityStatus = "Compiled sandbox DLL",
+                    ContractStatus = "bounded artifact build succeeded for isolated support-code project",
+                    ContractChecks = ["ArtifactBuildExecutor returned BuildPassed", "DLL exists after build"],
+                    MissingRequirements = ["No application integration or runtime UI proof was produced"]
                 };
-
-                try
-                {
-                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    timeoutCts.CancelAfter(TimeSpan.FromSeconds(75));
-
-                    using var process = Process.Start(startInfo);
-                    if (process is null)
-                        return null;
-
-                    var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
-                    var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
-                    await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
-                    var output = await outputTask;
-                    var error = await errorTask;
-
-                    if (process.ExitCode != 0)
-                    {
-                        logger.LogWarning(
-                            "Council DLL artifact build failed with exit code {ExitCode}. Output: {Output} Error: {Error}",
-                            process.ExitCode,
-                            output,
-                            error);
-                        return null;
-                    }
-
-                    var builtDll = Path.Combine(outputDirectory, dllName);
-                    if (!File.Exists(builtDll))
-                        return null;
-
-                    File.Copy(builtDll, dllPath, overwrite: true);
-                    logger.LogInformation("Wrote council DLL artifact to {Path}", dllPath);
-
-                    return new CouncilArtifact
-                    {
-                        Name = dllName,
-                        Kind = "Sandbox compiled .NET DLL",
-                        FilePath = dllPath,
-                        DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(dllName)}",
-                        Summary = $"Compiled sandbox assembly for {targetArea} implementation ideas.",
-                        QualityStatus = "Compiled sandbox DLL",
-                        ContractStatus = "dotnet build succeeded for isolated support-code project",
-                        ContractChecks = ["dotnet build exited successfully", "DLL exists after build"],
-                        MissingRequirements = ["No application integration or runtime UI proof was produced"]
-                    };
-                }
-                catch (OperationCanceledException ex)
-                {
-                    logger.LogWarning(ex, "Timed out while building council DLL artifact.");
-                    return null;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Could not build council DLL artifact.");
-                    return null;
-                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in TryCreateDllArtifactAsync sourceFileName {sourceFileName.ToString()} source {source?.ToString()} targetArea {targetArea?.ToString()}");
+                logger.LogError(ex, "Could not create the bounded DLL artifact for source file {SourceFileName} and target area {TargetArea}.", sourceFileName, targetArea);
                 return null;
             }
             

@@ -1,4 +1,4 @@
-﻿//-----------------------------------------------------------------------
+//-----------------------------------------------------------------------
 // <copyright file="HttpExtensions.cs" company="https://github.com/Michi0403/TacosPortalOpen as love for blazor WASM and monolithes">
 //     Author: Michael Fleischer
 //     Copyright (c) https://github.com/Michi0403/TacosPortalOpen as love for blazor WASM and monolithes. All rights reserved.
@@ -20,7 +20,7 @@ namespace TacosCore.Extensions
 {
     public static class HttpExtensions
     {
-        public static JsonSerializerOptions jsonSerializerOptions = new()
+        private static readonly JsonSerializerOptions JsonSerializerOptions = new()
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = true,

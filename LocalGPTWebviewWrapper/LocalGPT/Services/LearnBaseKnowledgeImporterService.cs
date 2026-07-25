@@ -7,7 +7,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
-using static System.Net.WebRequestMethods;
 
 namespace LocalGPT.Services
 {

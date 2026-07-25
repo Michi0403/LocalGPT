@@ -48,7 +48,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error in ConfigurationWriter.SaveAsync {ex.ToString()} root {root.ToString()}");
+                _logger.LogError(ex, "Could not save LocalGPT configuration.");
                 
             }
         }

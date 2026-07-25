@@ -1,4 +1,4 @@
-﻿using DevExpress.CodeParser;
+using DevExpress.CodeParser;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.BusinessObjects.Models;
@@ -16,7 +16,7 @@ public class RegexPatternService(LocalGptMemoryDbContext db, ILogger<RegexPatter
     {
         try
         {
-            var entity = await db.RegexPatterns.FindAsync(dto.Name);
+            var entity = await db.RegexPatterns.SingleOrDefaultAsync(x => x.Name == dto.Name);
             if (entity == null)
                 await db.RegexPatterns.AddAsync(new RegexPattern
                 {
@@ -52,12 +52,13 @@ public class RegexPatternService(LocalGptMemoryDbContext db, ILogger<RegexPatter
     {
         try
         {
-            var p = await db.RegexPatterns.FindAsync(name);
+            var p = await db.RegexPatterns.SingleOrDefaultAsync(x => x.Name == name);
 
             if (p == null) throw new KeyNotFoundException($"Regex '{name}' not found");
             var flags = RegExStatics.ParseFlags(p.Flags, logger);
-            ArgumentNullException.ThrowIfNull(flags);
-            return new Regex(p.Pattern, flags.Value);
+            if (flags is null)
+                throw new InvalidOperationException($"Regex '{name}' has invalid flags '{p.Flags}'.");
+            return new Regex(p.Pattern, flags.Value, TimeSpan.FromSeconds(2));
         }
         catch (Exception ex)
         {
@@ -95,7 +96,7 @@ public class RegexPatternService(LocalGptMemoryDbContext db, ILogger<RegexPatter
         {
             if (!confirm) throw new InvalidOperationException("Deletion requires explicit confirmation");
 
-            var entity = await db.RegexPatterns.FindAsync(name);
+            var entity = await db.RegexPatterns.SingleOrDefaultAsync(x => x.Name == name);
 
             if (entity != null)
             {
@@ -127,7 +128,7 @@ public class RegexPatternService(LocalGptMemoryDbContext db, ILogger<RegexPatter
     {
         try
         {
-            var entity = await db.RegexPatterns.FindAsync(name);
+            var entity = await db.RegexPatterns.SingleOrDefaultAsync(x => x.Name == name);
             if (entity != null)
             {
                 db.RegexPatterns.Remove(entity);

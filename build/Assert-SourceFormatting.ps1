@@ -75,9 +75,14 @@ try {
         }
 
         for ($index = 0; $index -lt $lines.Count; $index++) {
-            $lineLength = $lines[$index].Length
+            $line = $lines[$index]
+            $lineLength = $line.Length
             if ($lineLength -gt $MaxLineLength) {
                 $violations.Add("${normalized}:$($index + 1) has $lineLength characters; limit is $MaxLineLength.")
+            }
+
+            if ($extension -eq ".cs" -and $line -match '^\s*using\s+static\s+System\.Net\.WebRequestMethods\s*;') {
+                $violations.Add("${normalized}:$($index + 1) imports System.Net.WebRequestMethods statically. This exposes WebRequestMethods.File and can conflict with System.IO.File.")
             }
         }
 

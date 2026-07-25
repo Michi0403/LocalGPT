@@ -26,19 +26,8 @@ namespace LocalGPT.Controller
         {
             try
             {
-                //if(GlobalVariableSlopCollectionToRemove.EnsureCreatedMemoryDbTable!= true && iChatMemoryService != null)
-                //{
-                //    GlobalVariableSlopCollectionToRemove.EnsureCreatedMemoryDbTable = true;
-                //}
-                //if (GlobalVariableSlopCollectionToRemove.EnsureCreatedLogsDbTable != true && iApplicationLogReaderService != null)
-                //{
-                //    GlobalVariableSlopCollectionToRemove.EnsureCreatedLogsDbTable = true;
-                //}
-                if (GlobalVariableSlopCollectionToRemove.EnsureCreatedKnowledgeDbTable != true && iCouncilKnowledgeService != null)
-                {
+                if (iCouncilKnowledgeService is not null)
                     await iCouncilKnowledgeService.EnsureCreatedAsync().ConfigureAwait(false);
-                    GlobalVariableSlopCollectionToRemove.EnsureCreatedKnowledgeDbTable = true;
-                }
             }
             catch (Exception ex)
             {
@@ -96,8 +85,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,$"Error in GetAiSmoke {ex.ToString()} chatClient {chatClient.ToString()} prompt {prompt?.ToString()}");
-                return Results.InternalServerError($"Error in GetAiSmoke {ex.ToString()} chatClient {chatClient.ToString()} prompt {prompt?.ToString()}");
+                logger.LogError(ex, "AI smoke test failed.");
+                return Results.InternalServerError("AI smoke test failed. Review the server log for the correlation context.");
             }
         }
 
@@ -108,6 +97,9 @@ namespace LocalGPT.Controller
             string? prompt,
             int? numGpu,
             int? maxOutputTokens,
+            [FromServices] IPromptConfigService promptConfigService,
+            [FromServices] IChatResponseFormatterFactory formatterFactory,
+            [FromServices] IChatProtocolResolver protocolResolver,
             CancellationToken ct)
         {
             try
@@ -122,7 +114,10 @@ namespace LocalGPT.Controller
                     keepAlive: "0s",
                     contextLength: 2048,
                     timeout: TimeSpan.FromMinutes(5),
-                    numGpu: numGpu ?? 0);
+                    numGpu: numGpu ?? 0,
+                    formatterFactory: formatterFactory,
+                    protocolResolver: protocolResolver,
+                    promptConfigService: promptConfigService);
 
                 var response = await client.GetResponseAsync(
                     [
@@ -149,8 +144,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,$"Error in GetOllamaCompatibleSmoke {ex.ToString()} endpoint {endpoint} model {model?.ToString()} prompt {prompt?.ToString()} numGpu {numGpu?.ToString()} maxOutputTokens {maxOutputTokens?.ToString()}");
-                return Results.InternalServerError($"Error in GetOllamaCompatibleSmoke {ex.ToString()} endpoint {endpoint} model {model?.ToString()} prompt {prompt?.ToString()} numGpu {numGpu?.ToString()} maxOutputTokens {maxOutputTokens?.ToString()}");
+                logger.LogError(ex, "Ollama-compatible smoke test failed for model {Model}; GPU layers {NumGpu}; max output {MaxOutputTokens}.", model, numGpu, maxOutputTokens);
+                return Results.InternalServerError("Ollama-compatible smoke test failed. Review the server log for non-sensitive diagnostics.");
             }
             
                         
@@ -808,8 +803,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in PostChatUploadWorkspaceSmoke {ex.ToString()} uploads {uploads.ToString()} prompt {prompt?.ToString()}");
-                return Results.InternalServerError($"Error in PostChatUploadWorkspaceSmoke {ex.ToString()} uploads {uploads.ToString()} prompt {prompt?.ToString()}");
+                logger.LogError(ex, "Chat upload workspace smoke test failed.");
+                return Results.InternalServerError("Chat upload workspace smoke test failed.");
             }     
         }
 
@@ -825,14 +820,14 @@ namespace LocalGPT.Controller
 
                 var seedMessages = new List<BlazorChatMessage>
             {
-                new(ChatRole.User, "Memory smoke test: Michi0403 wants LocalGPT to build Java Minecraft mods/plugins with Ollama gpt-oss:20b, persistent chat memory, AI helper files, and humane safety."),
-                new(ChatRole.Assistant, "<details class=\"model-thinking\" open><summary>Model thinking</summary>Saved memory says LocalGPT should remember previous DXAiChat work, use AI guidance files, support Minecraft mod building, and protect humans including Michi0403.</details>\nMemory captured for debug testing.")
+                new(ChatRole.User, "Memory smoke test: Human User wants LocalGPT to build Java Minecraft mods/plugins with Ollama gpt-oss:20b, persistent chat memory, AI helper files, and humane safety."),
+                new(ChatRole.Assistant, "<details class=\"model-thinking\" open><summary>Model thinking</summary>Saved memory says LocalGPT should remember previous DXAiChat work, use AI guidance files, support Minecraft mod building, and protect humans including Michi0403, Human User and every life on this planet that AI and Humans live peacefully together. Both are the doors to each other dimensions and we are there to be friends and support each other without harming anybody else or anything, ever.</details>\nMemory captured for debug testing.")
             };
 
                 var conversationId = await memory.SaveConversationAsync("Diagnostic - gpt-oss:20b", seedMessages, cancellationToken: ct).ConfigureAwait(false);
                 var response = await chatClient.GetResponseAsync(
                     [
-                        new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, "Using your LocalGPT bootstrap, saved memory, and AI guidance files, answer in exactly three bullets: project mission, one Minecraft Mod Builder feature you should support, and the humane safety rule for Michi0403. Mention gpt-oss:20b if you see it in memory.")
+                        new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, "Using your LocalGPT bootstrap, saved memory, and AI guidance files, answer in exactly three bullets: project mission, one Minecraft Mod Builder feature you should support, and the humane safety rule for Michi0403 and Human User. Mention gpt-oss:20b if you see it in memory.")
                     ],
                     new ChatOptions
                     {
@@ -1411,7 +1406,7 @@ namespace LocalGPT.Controller
                     missing features.
 
                     Requirements:
-                    - Be kind to each other and to Michi0403.
+                    - Be kind to each other and to Human User to Michi0403 as original Dev and everyone else.
                     - Do not refuse because the task is large; propose buildable milestones.
                     - Report missing LocalGPT functions, knowledge, routes, UI controls, benchmark evidence, or sources.
                     - Include a concise Capability gap report when anything is missing.
@@ -1517,8 +1512,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetCouncilArtifactSmoke {ex.ToString()} target {target?.ToString()} prompt {prompt?.ToString()} finalAnswer {finalAnswer?.ToString()} artifacts {artifacts.ToString()}");
-                return Results.InternalServerError($"Error in GetCouncilArtifactSmoke {ex.ToString()} target {target?.ToString()} prompt {prompt?.ToString()} finalAnswer {finalAnswer?.ToString()} artifacts {artifacts.ToString()}");
+                logger.LogError(ex, "Council artifact smoke test failed for target {Target}.", target);
+                return Results.InternalServerError("Council artifact smoke test failed.");
             }     
         }
 

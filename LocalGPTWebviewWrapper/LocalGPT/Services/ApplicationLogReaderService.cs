@@ -10,13 +10,17 @@ using Microsoft.Extensions.Logging;
 namespace LocalGPT.Services
 {
     public partial class ApplicationLogReaderService(
-        IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory, ILogger<ApplicationLogReaderService>logger) : IApplicationLogReaderService
+        IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
+        IDatabaseInitializationService databaseInitializer,
+        LocalGptDatabaseOptions databaseOptions,
+        ILogger<ApplicationLogReaderService> logger) : IApplicationLogReaderService
     {
-        public string DatabasePath => CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
+        public string DatabasePath => databaseOptions.DatabasePath;
         public async Task<IReadOnlyList<ApplicationLogSummary>> GetRecentAsync(LogLevel minimumLevel = LogLevel.Warning, int take = 20, CancellationToken cancellationToken = default)
         {
             try
             {
+                await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
                 await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
                 return await db.ApplicationLogs

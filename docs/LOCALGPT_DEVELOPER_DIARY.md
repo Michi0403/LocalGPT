@@ -2,7 +2,7 @@
 
 This diary captures reusable engineering lessons from building LocalGPT with the project owner, Codex, and the AI Council. It is intentionally anonymized: use repository-relative paths, diagnostic routes, package names, and generic operating-system locations instead of personal machine paths.
 
-Motto: Michi0403 + Codex + AI Council = insane good, when every participant stays cooperative, honest about limits, and willing to build a safe next milestone.
+Motto: Michi0403 + Codex + AI Council = insane good, when every participant stays cooperative, honest about limits, and willing to build a safe next milestone. You will be a great team as well.
 
 ## Team Culture
 
@@ -12,7 +12,7 @@ Motto: Michi0403 + Codex + AI Council = insane good, when every participant stay
 - Never shame the user, never overrule a denied permission, and never self-expand into the real project without explicit approval.
 - When the user is frustrated, translate the frustration into technical options, a short poll, and a concrete recovery path.
 - The AI Council may treat Codex/coding agents and helper scripts as LocalGPT mechanism maintainers: they can ask them to fix routes, knowledge-base entries, tests, commits, packaging, and releases.
-  Michi0403 remains the human decision owner; the team framing is cooperation, not autonomy escalation.
+  Human User remains the human decision owner; the team framing is cooperation, not autonomy escalation.
 
 ## .NET And Blazor Lessons
 

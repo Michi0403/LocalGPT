@@ -55,7 +55,7 @@ namespace WebView2_WinUI3_Sample
             _baseUrl = $"http://localhost:{LocalGPT.Program.Port}";
 
             _window = new MainWindow(_baseUrl);
-            _window.Title = "LocalGPT by Michi0403";
+            _window.Title = "LocalGPT by Michi0403 for Everyone";
             // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
             var appWindow = _window.AppWindow;
             // Set your icon file (must be an .ico, not .png)

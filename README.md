@@ -1,4 +1,9 @@
 # LocalGPT AI Council by Michi0403
+
+> **Developer/source safety notice:** LocalGPT is local-first, not a sandbox. Native commands are disabled by default, unrestricted provider `StartCommand` shell launch is disabled, and generated DevExpress license material must not be committed. Start with [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`SECURITY.md`](SECURITY.md), [`RELEASE.md`](RELEASE.md), and [`docs/DEVEXPRESS_ASSETS.md`](docs/DEVEXPRESS_ASSETS.md).
+
+> **Acknowledgment:** LocalGPT is Michi0403's own architecture and implementation, built from personal experience and the evolution of earlier frameworks. It also grew through many co-development sessions with OpenAI's ChatGPT, and **gpt-oss-20b** was instrumental in making the initial working system possible. LocalGPT's own review workflows produced dozens of missing-feature reports that Michi0403 used as working material while improving the project together with ChatGPT. This assistance is credited openly; the design decisions and responsibility remain with Michi0403. The v0.1.1 repository repair was performed through ChatGPT in a cloud chat workspace; Codex did not operate LocalGPT or any localhost service.
+
 IMPORTANT NOTICE YOU NEED TO USE THE INSTALLER.EXE IT BOOTSTRAPS EVERYTHING..
 Quickstart
 

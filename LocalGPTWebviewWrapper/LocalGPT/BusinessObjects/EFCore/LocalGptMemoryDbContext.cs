@@ -1,5 +1,4 @@
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,20 +15,6 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<PromptConfig> Prompts { get; set; }
         public DbSet<SystemVariable> SystemVariables { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            if (optionsBuilder.IsConfigured)
-                return;
-
-            var dbPath = CouncilChatStaticsGeneral.GetDefaultDatabasePath();
-
-            var connectionString = new SqliteConnectionStringBuilder
-            {
-                DataSource = dbPath
-            }.ToString();
-
-            optionsBuilder.UseSqlite(connectionString);
-        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configure unique indexes and properties

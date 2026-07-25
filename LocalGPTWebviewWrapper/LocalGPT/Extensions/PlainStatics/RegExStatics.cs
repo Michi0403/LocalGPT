@@ -1,31 +1,45 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 
-namespace LocalGPT.Extensions.PlainStatics
+namespace LocalGPT.Extensions.PlainStatics;
+
+public static class RegExStatics
 {
-    public class RegExStatics
+    public static RegexOptions? ParseFlags(string? flags, ILogger logger)
     {
-        public static RegexOptions? ParseFlags(string? flags, ILogger logger)
+        try
         {
-            try
-            {
-                var validFlags = "i".ToCharArray().Select(f => (RegexOptions)Enum.Parse(typeof(RegexOptions), f.ToString()));
-
-                if (!string.IsNullOrEmpty(flags))
-                {
-                    foreach (var flag in flags.Split('|'))
-                    {
-                        // Add validation for each regex option
-                    }
-                }
-
+            if (string.IsNullOrWhiteSpace(flags))
                 return RegexOptions.None;
-            }
-            catch (Exception ex)
+
+            var result = RegexOptions.None;
+            foreach (var token in flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                logger.LogError(ex, $"Error in ParseFlags flags {flags.ToString()} ex {ex.ToString()}");
-                return null;
+                result |= token.ToLowerInvariant() switch
+                {
+                    "i" => RegexOptions.IgnoreCase,
+                    "m" => RegexOptions.Multiline,
+                    "s" => RegexOptions.Singleline,
+                    "x" => RegexOptions.IgnorePatternWhitespace,
+                    "n" => RegexOptions.ExplicitCapture,
+                    "compiled" => RegexOptions.Compiled,
+                    "cultureinvariant" => RegexOptions.CultureInvariant,
+                    "ecmascript" => RegexOptions.ECMAScript,
+                    "ignorecase" => RegexOptions.IgnoreCase,
+                    "multiline" => RegexOptions.Multiline,
+                    "singleline" => RegexOptions.Singleline,
+                    "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
+                    "explicitcapture" => RegexOptions.ExplicitCapture,
+                    "none" => RegexOptions.None,
+                    _ when Enum.TryParse<RegexOptions>(token, ignoreCase: true, out var parsed) => parsed,
+                    _ => throw new ArgumentException($"Unknown regular-expression option '{token}'.", nameof(flags))
+                };
             }
-        
+            return result;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not parse regular-expression flags {Flags}.", flags);
+            return null;
         }
     }
 }

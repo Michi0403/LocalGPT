@@ -5,7 +5,7 @@ namespace LocalGPT.Extensions
 {
     public static class StringExtensions
     {
-        private static JsonSerializerOptions jsonSerializerOptions = new()
+        private static readonly JsonSerializerOptions JsonSerializerOptions = new()
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = true,
@@ -30,7 +30,7 @@ namespace LocalGPT.Extensions
                 if (jsonOptions == null)
                 {
 
-                    return JsonSerializer.Serialize(obj, jsonSerializerOptions);
+                    return JsonSerializer.Serialize(obj, JsonSerializerOptions);
                 }
                 else
                 {

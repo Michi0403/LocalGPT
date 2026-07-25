@@ -18,7 +18,6 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
-using static System.Net.WebRequestMethods;
 
 namespace LocalGPT.Services
 {
@@ -28,6 +27,9 @@ namespace LocalGPT.Services
         IChatMemoryService chatMemory,
         ICouncilArtifactService artifactService,
         ICouncilKnowledgeService knowledgeService,
+        IPromptConfigService promptConfigService,
+        IChatResponseFormatterFactory formatterFactory,
+        IChatProtocolResolver protocolResolver,
         ILogger<MultiModelCouncilService> logger) : IMultiModelCouncilService
     {
    
@@ -333,7 +335,11 @@ namespace LocalGPT.Services
             try
             {
                 progressMessage?.Invoke($"Starting council phase: round {round}, {phase}, role {role}.");
-                using var gate = new SemaphoreSlim(maxParallelModels, maxParallelModels);
+                // A single append-only DXAIChat response cannot safely interleave nested
+                // HTML from multiple model streams. Keep streamed presentation ordered;
+                // non-streaming council runs still honor configured model parallelism.
+                var effectiveMaxParallelModels = streamUpdate is null ? maxParallelModels : 1;
+                using var gate = new SemaphoreSlim(effectiveMaxParallelModels, effectiveMaxParallelModels);
                 var tasks = participants
                     .Select(async modelName =>
                     {
@@ -376,7 +382,17 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunPhaseAsync result {result.ToString()} baseUri {baseUri.ToString()} participants {participants.ToString()} round {round.ToString()} role {role.ToString()} promptFactory {promptFactory.ToString()} bootstrap {bootstrap.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxParallelModels {maxParallelModels.ToString()} keepAlive {keepAlive.ToString()} ollamaNumGpu {ollamaNumGpu.ToString()} maxContextTokens {maxContextTokens.ToString()} modelTimeoutSeconds {modelTimeoutSeconds.ToString()} progressMessage {progressMessage?.ToString()} streamUpdate {streamUpdate?.ToString()} stepCompleted {stepCompleted?.ToString()}");
+                logger.LogError(
+                    ex,
+                    "Council phase failed for round {Round}, role {Role}, participant count {ParticipantCount}, " +
+                    "max output {MaxOutputTokens}, max parallel {MaxParallelModels}, max context {MaxContextTokens}, timeout {TimeoutSeconds}s.",
+                    round,
+                    role,
+                    participants.Count,
+                    maxOutputTokens,
+                    maxParallelModels,
+                    maxContextTokens,
+                    modelTimeoutSeconds);
             }
         }
         private List<string> SelectParticipants(MultiModelCouncilRequest request)
@@ -443,7 +459,15 @@ namespace LocalGPT.Services
                     {
                         Uri = baseUri,
                         ModelName = modelName
-                    },logger, keepAlive, maxContextTokens, TimeSpan.FromSeconds(modelTimeoutSeconds + 15), ollamaNumGpu);
+                    },
+                    logger,
+                    keepAlive,
+                    maxContextTokens,
+                    TimeSpan.FromSeconds(modelTimeoutSeconds + 15),
+                    ollamaNumGpu,
+                    formatterFactory,
+                    protocolResolver,
+                    promptConfigService);
 
 
                     using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -455,7 +479,8 @@ namespace LocalGPT.Services
                     messages.Add(new ChatMessage(ChatRole.System, CouncilChatStringFunctions.MultiModelCouncilServiceCreateCouncilSystemPrompt(modelName, councilMembers,logger)));
                     messages.Add(new ChatMessage(ChatRole.User, prompt));
 
-                    streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
+                    var streamId = Guid.NewGuid().ToString("N");
+                    streamUpdate?.Invoke($"<details class=\"council-step council-live\" data-localgpt-stream-id=\"{streamId}\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
                     var builder = new StringBuilder();
                     ArgumentNullException.ThrowIfNull(client);
                     ArgumentNullException.ThrowIfNull(messages);
@@ -472,7 +497,7 @@ namespace LocalGPT.Services
                         streamUpdate?.Invoke(update.Text);
                     }
 
-                    streamUpdate?.Invoke("\n\n</details>\n\n");
+                    streamUpdate?.Invoke($"\n\n</details><!--localgpt-council-stream-complete:{streamId}-->\n\n");
 
                     var content = builder.ToString();
                     var thinking = CouncilChatStringFunctions.MultiModelCouncilServiceExtractThinking(content,logger);
@@ -562,7 +587,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunParticipantAsync baseUri {baseUri.ToString()} modelName {modelName.ToString()} councilMembers {councilMembers.ToString()} round {round.ToString()} phase {phase.ToString()} role {role.ToString()} prompt {prompt.ToString()} bootstrap {bootstrap.ToString()} maxOutputTokens {maxOutputTokens.ToString()} keepAlive {keepAlive.ToString()} ollamaNumGpu {ollamaNumGpu.ToString()} maxContextTokens {maxContextTokens.ToString()} modelTimeoutSeconds {modelTimeoutSeconds.ToString()} streamUpdate {streamUpdate?.ToString()}");
+                logger.LogError(ex, "Council participant failed for model {ModelName}, round {Round}, phase {Phase}, role {Role}, max output {MaxOutputTokens}, max context {MaxContextTokens}, timeout {TimeoutSeconds}s.", modelName, round, phase, role, maxOutputTokens, maxContextTokens, modelTimeoutSeconds);
                 return null;
             }
         }
@@ -674,7 +699,8 @@ namespace LocalGPT.Services
                 """));
 
                 var builder = new StringBuilder();
-                streamUpdate?.Invoke($"<details class=\"council-step council-live\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
+                var streamId = Guid.NewGuid().ToString("N");
+                streamUpdate?.Invoke($"<details class=\"council-step council-live\" data-localgpt-stream-id=\"{streamId}\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
                 await foreach (var update in client.GetStreamingResponseAsync(
                     messages,
                     new ChatOptions
@@ -688,7 +714,7 @@ namespace LocalGPT.Services
                     streamUpdate?.Invoke(update.Text);
                 }
 
-                streamUpdate?.Invoke("\n\n</details>\n\n");
+                streamUpdate?.Invoke($"\n\n</details><!--localgpt-council-stream-complete:{streamId}-->\n\n");
                 var content = builder.ToString();
                 var thinking = CouncilChatStringFunctions.MultiModelCouncilServiceExtractThinking(content, logger);
                 var visibleContent = CouncilChatStringFunctions.MultiModelCouncilServiceStripThinking(content, logger);
@@ -696,7 +722,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunFinalOnlyRecoveryAsync {ex.ToString()} client {client.ToString()}  modelName {modelName}  phase {phase}  originalMessages {originalMessages.ToString()}  maxOutputTokens {maxOutputTokens} streamUpdate {streamUpdate?.ToString()} ");
+                logger.LogError(ex, "Council final-only recovery failed for model {ModelName}, phase {Phase}, message count {MessageCount}, max output {MaxOutputTokens}.", modelName, phase, originalMessages.Count, maxOutputTokens);
                 return (string.Empty, string.Empty, null);
             }
 
@@ -938,7 +964,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in AppendPromptSection existing {existing?.ToString()} title {title?.ToString()} content {content?.ToString()}");
+                logger.LogError(ex, "Could not append council prompt section {SectionTitle}.", title);
                 return string.Empty;
             }
         }

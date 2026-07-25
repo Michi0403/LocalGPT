@@ -58,7 +58,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in CaptureAsync messages {copyFiles.ToString()}");
+                logger.LogError(ex, "Could not capture the build/debug inventory; copy-files mode {CopyFiles}.", copyFiles);
                 return null;
             }
            

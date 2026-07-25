@@ -10,6 +10,8 @@
 @inject IMultiModelCouncilService CouncilService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject IChatContentRenderer ChatContentRenderer
+@inject IVariableStoreService VariableStore
 @rendermode InteractiveServer
 @implements IDisposable
 <PageTitle>AI Chat</PageTitle>
@@ -254,7 +256,7 @@
                 </PromptSuggestions>
                 <MessageContentTemplate >
                     <div class="demo-chat-content">
-                        @(new MarkupString(CouncilChatStringFunctions.RenderChatMarkdown(context.Content, Logger)))
+                        @(new MarkupString(ChatContentRenderer.Render(context.Content)))
                     </div>
                 </MessageContentTemplate>
                 <AIChatSettings>
@@ -292,6 +294,7 @@
 
     string OllamaAccelerationMode { get; set; } = GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
     int LimitedGpuLayers { get; set; } = 20;
+    string DefaultOllamaEndpoint { get; set; } = GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint;
     bool GenerateCouncilArtifacts { get; set; } = true;
     bool IncludeCouncilMemory { get; set; } = true;
     string? DiagnosticRequestedSessionName { get; set; }
@@ -327,6 +330,7 @@
         try
         {
             
+            await LoadDatabaseBackedDefaultsAsync();
             PromptSuggestions = GlobalVariableSlopCollectionToRemove.GetSuggestion();
             await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
@@ -352,6 +356,45 @@
             Notifier.ShowError(toastName, ex.Message, "OnInitializedAsync failed");
         }
 
+    }
+
+    private async Task LoadDatabaseBackedDefaultsAsync()
+    {
+        await TryApplyDatabaseVariableAsync<int>(
+            "DefaultMaxOutputTokens",
+            value => CouncilMaxOutputTokens = Math.Clamp(
+                value,
+                GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens,
+                GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens));
+        await TryApplyDatabaseVariableAsync<int>(
+            "DefaultContextTokens",
+            value => CouncilMaxContextTokens = Math.Clamp(
+                value,
+                GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens,
+                GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens));
+        await TryApplyDatabaseVariableAsync<int>(
+            "DefaultHeavyModelGpuLayers",
+            value => LimitedGpuLayers = Math.Clamp(value, 1, 99));
+        await TryApplyDatabaseVariableAsync<string>(
+            "DefaultOllamaEndpoint",
+            value => DefaultOllamaEndpoint = string.IsNullOrWhiteSpace(value)
+                ? GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint
+                : value.Trim());
+    }
+
+    private async Task TryApplyDatabaseVariableAsync<T>(string name, Action<T> apply)
+    {
+        try
+        {
+            apply(await VariableStore.GetAsync<T>(name));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(
+                ex,
+                "Could not apply database-backed Chat default {VariableName}; retaining the compiled fallback.",
+                name);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -681,7 +724,7 @@
             if (string.IsNullOrWhiteSpace(endpoint))
                 endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
             if (string.IsNullOrWhiteSpace(endpoint))
-                endpoint = GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint;
+                endpoint = DefaultOllamaEndpoint;
 
             var session = new ChatClientSession(
                 new OllamaThinkingChatClient(

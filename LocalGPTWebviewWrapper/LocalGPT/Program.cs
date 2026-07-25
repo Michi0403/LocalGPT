@@ -13,7 +13,7 @@ using LocalGPT.Helper;
 using LocalGPT.Hubs;
 using LocalGPT.Interfaces;
 using LocalGPT.Services;
-using LocalGPT.Services.Migration;
+using LocalGPT.Services.Formatting;
 using LocalGPT.Services.Persistence;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
@@ -185,7 +185,7 @@ namespace LocalGPT
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ConfigureAppConfiguration builder {builder.ToString()}",builder);
+                logger.LogError(ex, "Application configuration setup failed.");
                 ///*TryAppendStartupTrace*/(ex.ToString(), logger);
             }
            
@@ -259,10 +259,15 @@ namespace LocalGPT
                .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
                .Bind(builder.Configuration);
                 builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
+                builder.Services.Configure<NativeCommandOptions>(
+                    builder.Configuration.GetSection(NativeCommandOptions.SectionName));
+                builder.Services.Configure<ArtifactBuildOptions>(
+                    builder.Configuration.GetSection(ArtifactBuildOptions.SectionName));
 
                 builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
                 builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
+                builder.Services.AddSingleton<IArtifactBuildExecutor, ArtifactBuildExecutor>();
                 builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
                 builder.Services.AddSingleton<IChatUploadWorkspaceService, ChatUploadWorkspaceService>();
                 builder.Services.AddSingleton<IProjectLibraryInventoryService, ProjectLibraryInventoryService>();
@@ -272,17 +277,34 @@ namespace LocalGPT
                 builder.Services.AddScoped<IRegexPatternService, RegexPatternService>();
                 builder.Services.AddScoped<IPromptConfigService, PromptConfigService>();
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
-                var memoryDbPath = CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
-                Directory.CreateDirectory(Path.GetDirectoryName(memoryDbPath)!);
-                builder.Services.AddHostedService<DataMigrationService>();
-                //TraceStartup($"Checking SQLite database health at {memoryDbPath}.", logger);
-                SQLLiteTableFunctions.EnsureHealthyOrRecoverAsync
-                    (memoryDbPath, logger)
-                    .GetAwaiter()
-                    .GetResult();
-                //TraceStartup("Finished SQLite database health check.", logger);
+
+                var configuredDatabasePath = builder.Configuration[$"{LocalGptDatabaseOptions.SectionName}:Path"];
+                var memoryDbPath = string.IsNullOrWhiteSpace(configuredDatabasePath)
+                    ? Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "LocalGPT",
+                        "localgpt-memory.db")
+                    : Path.IsPathRooted(configuredDatabasePath)
+                        ? configuredDatabasePath
+                        : Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
+                var databaseOptions = new LocalGptDatabaseOptions(
+                    memoryDbPath,
+                    Math.Clamp(
+                        builder.Configuration.GetValue<int?>($"{LocalGptDatabaseOptions.SectionName}:ProbeCommandTimeoutSeconds") ?? 5,
+                        1,
+                        60));
+
+                builder.Services.AddSingleton(databaseOptions);
+                builder.Services.AddSingleton<IDatabaseFileHealthService, DatabaseFileHealthService>();
                 builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
-                    options.UseSqlite($"Data Source={memoryDbPath}"));
+                    options.UseSqlite($"Data Source={databaseOptions.DatabasePath}"));
+
+                builder.Services.AddSingleton<IInitialDataCatalog, InitialDataCatalog>();
+                builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();
+                builder.Services.AddHostedService<DatabaseInitializationHostedService>();
+                builder.Services.AddSingleton<IChatResponseFormatterFactory, ChatResponseFormatterFactory>();
+                builder.Services.AddSingleton<IChatContentRenderer, ChatContentRenderer>();
+                builder.Services.AddSingleton<IChatProtocolResolver, ChatProtocolResolver>();
 
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
@@ -478,8 +500,6 @@ namespace LocalGPT
                 //        .Create<MigrationBuilder>(scope.ServiceProvider);
 
                 //    await migrator.MigrateAsync();
-                //    var migrationSvc = scope.ServiceProvider.GetService<DataMigrationService>();
-                //    await migrationSvc.RunMigrationsAsync();
                 //}
             }
             catch (Exception ex)

@@ -17,9 +17,11 @@ namespace LocalGPT.Services
 {
     public partial class EfChatMemoryService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
+        IDatabaseInitializationService databaseInitializer,
+        LocalGptDatabaseOptions databaseOptions,
         ILogger<EfChatMemoryService> logger) : IChatMemoryService
     {
-        public string DatabasePath { get; } = CouncilChatStaticsGeneral.GetDefaultDatabasePath(logger);
+        public string DatabasePath => databaseOptions.DatabasePath;
 
         public async Task<IReadOnlyList<ChatMemoryConversationSummary>> GetConversationsAsync(int take = 50, CancellationToken cancellationToken = default)
         {
@@ -141,7 +143,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in SaveConversationAsync providerName {providerName} messages {messages.ToString()} conversationId {conversationId?.ToString()}");
+                logger.LogError(ex, "Could not save the conversation for provider {ProviderName}; conversation {ConversationId}.", providerName, conversationId);
                 return null;
             }
         }
@@ -214,14 +216,16 @@ namespace LocalGPT.Services
         {
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
-                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-                await db.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
-                return db;
+                await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+                return await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in CreateDbContextAsync");
+                logger.LogError(ex, "Could not create the LocalGPT database context.");
                 return null;
             }
         }

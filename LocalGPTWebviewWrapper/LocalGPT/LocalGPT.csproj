@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
 	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -29,8 +29,9 @@
 	<ItemGroup>
 		
 		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\CLAUDE.md" Link="CLAUDE.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\llms.txt" Link="llms.txt" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\SECURITY.md" Link="SECURITY.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\*.md" Link="docs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" Link="docs\COUNCIL_KNOWLEDGE_SEED.sql" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
@@ -52,19 +53,19 @@
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.2.*" />
     <PackageReference Include="Markdig" Version="1.3.2" />
     <PackageReference Include="MessagePack" Version="3.1.8" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.9" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.9" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.10" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.10" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
 	    <PrivateAssets>all</PrivateAssets>
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
-	  <PackageReference Include="Microsoft.Extensions.AI" Version="10.7.0" />
-	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.7.0" />
-	  <PackageReference Include="OllamaSharp" Version="5.4.25" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+	  <PackageReference Include="Microsoft.Extensions.AI" Version="10.8.1" />
+	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.1" />
+	  <PackageReference Include="OllamaSharp" Version="5.4.30" />
 	  <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
 	  <!--<PackageReference Include="SourceGear.sqlite3" Version="3.50.4.5" />-->
-	  <PackageReference Include="System.CodeDom" Version="10.0.9" />
+	  <PackageReference Include="System.CodeDom" Version="10.0.10" />
 	  <PackageReference Include="Azure.AI.OpenAI" Version="2.5.0-beta.1" />
 	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Chat" Version="25.2.*" />
 	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Common" Version="25.2.*" />
@@ -98,19 +99,7 @@
 	  <Content Update="wwwroot\css\open.iconic\font\css\open-iconic-bootstrap.min.css">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.eot">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.otf">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
 	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.svg">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.ttf">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\css\open.iconic\font\fonts\open-iconic.woff">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <Content Update="wwwroot\css\open.iconic\ICON-LICENSE.txt">
@@ -129,12 +118,6 @@
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <Content Update="wwwroot\favicon.ico">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\fonts\opensans.ttf">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\fonts\opensansbd.ttf">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <Content Update="wwwroot\images\account\log-in-fluent.svg">
@@ -1178,9 +1161,6 @@
 	  <Content Update="wwwroot\images\wheather\sunny.svg">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\js\devextreme-license.js">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
 	  <Content Update="wwwroot\js\getCookie.js">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
@@ -1220,48 +1200,6 @@
 	  <Content Update="wwwroot\js\webApiCallsInBrowser.js">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <!--<Content Update="wwwroot\js\devextreme-license.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\loginToSetCookie.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\getCookie.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\logoutToDeleteCookies.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\page-helper.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\page-nav.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\page-section-helper.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\getScreenWidth.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\push-sw.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\push.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\scrollable.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\scrollChatToBottom.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\scrollWindowToBottom.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="wwwroot\js\webApiCallsInBrowser.js">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>-->
 	  <Content Update="wwwroot\manifest.json">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
@@ -1334,11 +1272,6 @@
 	  <Content Update="wwwroot\switcher-resources\theme.svg">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>-->
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="localgpt-memory.db">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Extensions\PlainStatics\CouncilData\" />

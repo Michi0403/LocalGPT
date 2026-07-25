@@ -160,7 +160,7 @@ namespace WebView2_WinUI3_Sample
 
         private void SetTitle(WebView2 webView2 = null)
         {
-            Title = $"LocalGPT by Michi0403";
+            Title = $"LocalGPT by Michi0403 for Everyone";
         }
 
         private string GetWebView2Version(WebView2 webView2)

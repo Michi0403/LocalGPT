@@ -10,6 +10,7 @@ namespace LocalGPT.Services;
 
 public class CompositeChatClient : IChatClient
 {
+    private const int EmergencyDefaultMaxOutputTokens = 262144;
       public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
     public string? LockedSessionName { get; set; }
@@ -21,14 +22,16 @@ public class CompositeChatClient : IChatClient
     private readonly IAiContextBootstrapService? _bootstrapService;
     private readonly ICouncilKnowledgeService? _knowledgeService;
     private readonly IChatUploadWorkspaceService? _chatUploadWorkspaces;
+    private readonly IPromptConfigService? _promptConfigService;
+    private readonly IVariableStoreService? _variableStoreService;
 
     public CompositeChatClient(ILogger logger, params ChatClientSession[] chatClients)
-        : this(logger, null, null, null, null, chatClients)
+        : this(logger, null, null, null, null, null, null, chatClients)
     {
     }
 
     public CompositeChatClient(ILogger logger, IAiFeatureReportService? featureReportService, params ChatClientSession[] chatClients)
-        : this(logger, featureReportService, null, null, null, chatClients)
+        : this(logger, featureReportService, null, null, null, null, null, chatClients)
     {
     }
 
@@ -38,6 +41,8 @@ public class CompositeChatClient : IChatClient
         IAiContextBootstrapService? bootstrapService,
         ICouncilKnowledgeService? knowledgeService,
         IChatUploadWorkspaceService? chatUploadWorkspaces,
+        IPromptConfigService? promptConfigService,
+        IVariableStoreService? variableStoreService,
         params ChatClientSession[] chatClients)
     {
 
@@ -48,6 +53,8 @@ public class CompositeChatClient : IChatClient
         _bootstrapService = bootstrapService;
         _knowledgeService = knowledgeService;
         _chatUploadWorkspaces = chatUploadWorkspaces;
+        _promptConfigService = promptConfigService;
+        _variableStoreService = variableStoreService;
     }
 
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
@@ -61,11 +68,16 @@ public class CompositeChatClient : IChatClient
                 throw new InvalidOperationException("No chat client session is selected.");
 
             var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken).ConfigureAwait(false);
-            return await GetResponseAndReportAsync(selectedSession, enrichedMessages, ApplyDefaultOptions(options), cancellationToken).ConfigureAwait(false);
+            var resolvedOptions = await ApplyDefaultOptionsAsync(options, cancellationToken).ConfigureAwait(false);
+            return await GetResponseAndReportAsync(selectedSession, enrichedMessages, resolvedOptions, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error in GetResponseAsync {ex.ToString()}");
+            _logger.LogError(ex, "Chat response failed for the selected session.");
             return new();
         }
     }
@@ -80,7 +92,7 @@ public class CompositeChatClient : IChatClient
             if (selectedSession is null)
                 throw new InvalidOperationException("No chat client session is selected.");
 
-            return GetStreamingResponseAndReportAsync(selectedSession, messages, ApplyDefaultOptions(options), cancellationToken);
+            return GetStreamingResponseAndReportAsync(selectedSession, messages, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -129,20 +141,41 @@ public class CompositeChatClient : IChatClient
     }
 
 
-    private ChatOptions? ApplyDefaultOptions(ChatOptions? options)
+    private async Task<ChatOptions> ApplyDefaultOptionsAsync(
+        ChatOptions? options,
+        CancellationToken cancellationToken)
     {
-        try
+        options ??= new ChatOptions();
+        if (options.MaxOutputTokens.HasValue)
+            return options;
+
+        if (ForcedMaxOutputTokens.HasValue)
         {
-            options ??= new ChatOptions();
-            options.MaxOutputTokens ??= ForcedMaxOutputTokens ?? GlobalVariableSlopCollectionToRemove.DefaultMaxOutputTokens;
+            options.MaxOutputTokens = ForcedMaxOutputTokens.Value;
             return options;
         }
-        catch (Exception ex)
+
+        if (_variableStoreService is not null)
         {
-            _logger.LogError(ex, $"Error in ApplyDefaultOptions options {options?.ToString()}");
-            return null;
+            try
+            {
+                options.MaxOutputTokens = await _variableStoreService
+                    .GetAsync<int>("DefaultMaxOutputTokens", cancellationToken)
+                    .ConfigureAwait(false);
+                return options;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "DefaultMaxOutputTokens could not be read from the system-variable store. The emergency default will be used.");
+            }
         }
 
+        options.MaxOutputTokens = EmergencyDefaultMaxOutputTokens;
+        return options;
     }
 
     private ChatClientSession? ResolveSelectedSession()
@@ -179,11 +212,16 @@ public class CompositeChatClient : IChatClient
             await WriteKnowledgeRequestsIfNeededAsync(session.Name, response.Text, cancellationToken).ConfigureAwait(false);
             return response;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex,$"GetResponseAndReportAsync {LockedSessionName} {SelectedSession}.",
-         LockedSessionName,
-         SelectedSession);
+            _logger.LogError(ex,
+                "Chat response and reporting failed for locked session {LockedSessionName} and selected session {SelectedSessionName}.",
+                LockedSessionName,
+                SelectedSession?.Name);
             return new();
         }
         
@@ -192,13 +230,15 @@ public class CompositeChatClient : IChatClient
     private async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAndReportAsync(
         ChatClientSession session,
         IEnumerable<ChatMessage> messages,
-        ChatOptions options,
+        ChatOptions? options,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
             IReadOnlyList<ChatMessage> enrichedMessages;
+            ChatOptions resolvedOptions;
             try
             {
                 enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken).ConfigureAwait(false);
+                resolvedOptions = await ApplyDefaultOptionsAsync(options, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -206,7 +246,7 @@ public class CompositeChatClient : IChatClient
             }
 
             var responseText = new StringBuilder();
-            var updates = session.Client.GetStreamingResponseAsync(enrichedMessages, options, cancellationToken).GetAsyncEnumerator(cancellationToken);
+            var updates = session.Client.GetStreamingResponseAsync(enrichedMessages, resolvedOptions, cancellationToken).GetAsyncEnumerator(cancellationToken);
             try
             {
                 while (true)
@@ -258,12 +298,13 @@ public class CompositeChatClient : IChatClient
             if (!string.IsNullOrWhiteSpace(path))
                 _logger.LogInformation("AI missing feature report written: {Path}", path);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"WriteMissingFeatureReportIfNeededAsync source {source} responseText {responseText}.",
-         LockedSessionName,
-         SelectedSession);
-           
+            _logger.LogError(ex, "Could not process a missing-feature report for source {Source}.", source);
         }
 
     }
@@ -281,12 +322,13 @@ public class CompositeChatClient : IChatClient
                 _logger.LogInformation("AI requested unapproved knowledge entry {KnowledgeEntryId} from {Source}.", saved.Id, source);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"WriteKnowledgeRequestsIfNeededAsync source {source} responseText {responseText}.",
-         LockedSessionName,
-         SelectedSession);
-
+            _logger.LogError(ex, "Could not process knowledge requests for source {Source}.", source);
         }
     }
 
@@ -299,9 +341,14 @@ public class CompositeChatClient : IChatClient
         {
             var messageList = messages.ToList();
             var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, cancellationToken).ConfigureAwait(false);
-            var policyMessage = new ChatMessage(ChatRole.System, GlobalVariableSlopCollectionToRemove.RuntimeDecisionPolicy);
+            var runtimeDecisionPolicy = _promptConfigService is null
+                ? string.Empty
+                : await _promptConfigService
+                    .GetPromptAsync("RuntimeDecisionPolicy", cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
 
-            var systemMessages = new List<ChatMessage> { policyMessage };
+            var systemMessages = new List<ChatMessage>();
+            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, runtimeDecisionPolicy, _logger);
             if (SuppressBootstrapContext || _bootstrapService is null)
             {
                 CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
@@ -319,12 +366,14 @@ public class CompositeChatClient : IChatClient
             CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
             return CouncilChatStaticsGeneral.LimitPromptSize([.. systemMessages, .. messageList], _logger, ForcedMaxPromptCharacters);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"AddBootstrapContextAsync messages {messages.ToString()}",
-         LockedSessionName,
-         SelectedSession);
-            return new List<ChatMessage>();
+            _logger.LogError(ex, "Could not add bootstrap context to the chat request.");
+            return messages.ToList();
         }
        
     }
@@ -372,11 +421,13 @@ public class CompositeChatClient : IChatClient
                 return "LocalGPT upload workspace creation failed. Tell the user the uploaded files could not be saved, then continue only with the visible prompt.";
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"SaveUploadedMessageContentAsync messages {messages.ToString()}",
-         LockedSessionName,
-         SelectedSession);
+            _logger.LogError(ex, "Could not persist uploaded chat-message content.");
             return string.Empty;
         }
     }

@@ -89,7 +89,7 @@ workflow that may require user approval and stronger safety checks.
 
 ## Faster Downloadable Results
 
-For common Michi0403 test prompts, prefer these outputs:
+For common User test prompts, prefer these outputs:
 
 - Minecraft datapack/modpack: downloadable zip through `/__artifacts/council/`,
   current Java 26.x pack format/version check, build-local validation, and
@@ -103,5 +103,5 @@ For common Michi0403 test prompts, prefer these outputs:
 - Frontend verification: Test Lab route output, WebView2/Selenium plan, or
   screenshot/snapshot evidence before claiming the frontend was tested.
 
-Progress made by Michi0403 + Codex + LocalGPT is approved project knowledge unless
+Progress made by Human User + Codex + LocalGPT is approved project knowledge unless
 the user later corrects it. Preserve those corrections as stronger current facts.
