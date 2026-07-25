@@ -30,5 +30,5 @@
 15. Verify local-provider auto-start does not execute an unrestricted shell command and read-only diagnostics cannot launch builds or commands.
 16. Test the installer in a disposable Windows VM: no arguments must show help; asset mismatch must fail; download/extraction failures must return nonzero; traversal/symlink archives must be rejected; unsafe delete targets must be rejected; and forced uninstall must preserve the learning base.
 17. Generate any required DevExtreme runtime-license script only on the licensed build machine and place it in release staging, never in Git. Follow `docs/DEVEXPRESS_ASSETS.md`.
-18. Review `THIRD-PARTY-NOTICES.md`, `LICENSE.MD`, the v0.1.1 and v0.1.2 changelogs, `SECURITY.md`, and `VALIDATION.md`.
+18. Review `THIRD-PARTY-NOTICES.md`, `LICENSE.MD`, the v0.1.1, v0.1.2, and v0.1.3 changelogs, `SECURITY.md`, and `VALIDATION.md`.
 19. Package only from a clean staging tree. Exclude `.git`, `.vs`, `.cr`, `bin`, `obj`, databases, logs, credentials, private feeds, keys/certificates, generated license material, user files, and unlicensed font binaries.

@@ -28,7 +28,7 @@ Preserve the repository's authorship and license metadata as project provenance.
 
 ## Streaming
 
-Thinking and final text must reach the UI incrementally. Temporary render snapshots may close incomplete display markup, but persisted model text is not silently rewritten. Concurrent streams never share formatter buffers.
+Thinking and final text must reach the UI incrementally. Temporary render snapshots may close incomplete display markup, but persisted model text is not silently rewritten. Thinking and Council panels use stable keys, and streamed rerenders must preserve a user-selected expanded or collapsed state. Concurrent streams never share formatter buffers.
 
 ## Security maintenance
 

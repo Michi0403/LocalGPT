@@ -1,4 +1,4 @@
-# Validation — v0.1.2 DXAIFunction and reviewed-generation wiring
+# Validation — v0.1.3 stable streamed-thinking panels
 
 ## Authoritative input
 
@@ -61,3 +61,13 @@ dotnet build ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln -c Release
 ```
 
 Review every compiler warning rather than suppressing it globally. Prioritize nullability, disposal/lifetime, async/cancellation, unsafe path handling, EF migration drift, package advisories, tool-call serialization, generated project compilation, streaming, and persistence.
+
+
+## Streamed thinking-panel state
+
+- `ChatContentRenderer` emits stable `data-localgpt-panel-key` values for LocalGPT-owned details panels.
+- `Chat.razor` scopes panel state to each message-content host.
+- `chat-details-state.js` restores an explicit user toggle after streamed DOM replacement.
+- The script changes only the HTML `open` property and has no external side effects.
+- A headless Chromium regression test verified: user-close survives a live rerender, untouched panels follow completion defaults, and user-open survives the completion rerender.
+- The source-formatting guard requires the renderer key, message host, browser helper, and script registration so the fix cannot be silently removed.

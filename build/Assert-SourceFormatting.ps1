@@ -22,7 +22,8 @@ try {
         ".yaml",
         ".csproj",
         ".props",
-        ".wapproj"
+        ".wapproj",
+        ".js"
     )
 
     $excludedPrefixes = @(
@@ -50,6 +51,9 @@ try {
         "LocalGPTWebviewWrapper/LocalGPT/Program.cs",
         "LocalGPTWebviewWrapper/LocalGPT/Services/NativeCommandRunner.cs",
         "LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs",
+        "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatContentRenderer.cs",
+        "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor",
+        "LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/chat-details-state.js",
         "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj"
     )
 
@@ -64,6 +68,25 @@ try {
 
         if ((Get-Item -LiteralPath $fullRequiredPath).Length -eq 0) {
             $violations.Add("Required maintained file is empty: $requiredFile")
+        }
+    }
+
+    $streamingStateContracts = @(
+        @{ Path = "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatContentRenderer.cs"; Pattern = "data-localgpt-panel-key"; Description = "stable streamed panel keys" },
+        @{ Path = "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor"; Pattern = "data-localgpt-details-host"; Description = "per-message streamed panel state host" },
+        @{ Path = "LocalGPTWebviewWrapper/LocalGPT/Components/App.razor"; Pattern = "js/chat-details-state.js"; Description = "streamed panel state browser helper registration" }
+    )
+
+    foreach ($contract in $streamingStateContracts) {
+        $contractPath = Join-Path $repoRoot $contract.Path
+        if (-not (Test-Path -LiteralPath $contractPath -PathType Leaf)) {
+            $violations.Add("Streaming-state contract file is missing: $($contract.Path)")
+            continue
+        }
+
+        $contractContent = Get-Content -LiteralPath $contractPath -Raw
+        if (-not $contractContent.Contains($contract.Pattern, [StringComparison]::Ordinal)) {
+            $violations.Add("$($contract.Path) no longer contains $($contract.Description).")
         }
     }
 

@@ -257,7 +257,7 @@
                     }
                 </PromptSuggestions>
                 <MessageContentTemplate >
-                    <div class="demo-chat-content">
+                    <div class="demo-chat-content" data-localgpt-details-host>
                         @(new MarkupString(ChatContentRenderer.Render(context.Content)))
                     </div>
                 </MessageContentTemplate>
