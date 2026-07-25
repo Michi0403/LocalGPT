@@ -1,16 +1,26 @@
-# Governance and enforcement files require the human maintainer.
+# Governance, compiler gates, and enforcement files require the human maintainer.
 /AGENTS.md @Michi0403
 /CLAUDE.md @Michi0403
 /llms.txt @Michi0403
 /SECURITY.md @Michi0403
+/global.json @Michi0403
 /.claude/settings.json @Michi0403
 /.github/copilot-instructions.md @Michi0403
 /.github/CODEOWNERS @Michi0403
 /.github/workflows/source-hygiene.yml @Michi0403
+/docs/ARCHITECTURE_FOR_AI.md @Michi0403
+/docs/COMPILER_VALIDATION_AND_GENERATION_RULES.md @Michi0403
 /docs/HUMAN_AI_COLLABORATION.md @Michi0403
 /docs/PEACEFUL_USE_COVENANT.md @Michi0403
+/docs/RELEASE_PROCESS.md @Michi0403
 /docs/SECURE_MAINTENANCE.md @Michi0403
+/build/README.md @Michi0403
+/build/RepositoryValidation.Common.ps1 @Michi0403
+/build/Assert-CSharpSyntax.ps1 @Michi0403
 /build/Assert-SecurityPolicy.ps1 @Michi0403
+/build/Assert-SourceFormatting.ps1 @Michi0403
+/build/Invoke-RepositoryValidation.ps1 @Michi0403
+/build/New-VerifiedSourcePackage.ps1 @Michi0403
 /build/Assert-ProtectedRepositoryFiles.ps1 @Michi0403
 /build/Protect-GovernanceFiles.ps1 @Michi0403
 /build/protected-files.sha256 @Michi0403

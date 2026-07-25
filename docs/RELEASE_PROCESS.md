@@ -10,6 +10,16 @@ Do not publish a LocalGPT release by improvising around it.
 - Every public release must use a semantic prefix greater than every existing
   public release tag, for example `0.3.0-alpha.20260603` after `0.2.0-*`.
 - Never reuse a tag. Never publish a lower semantic version and call it latest.
+- Run the compiler-backed repository validation before packaging:
+
+  ```powershell
+  ./build/Invoke-RepositoryValidation.ps1
+  ```
+
+- It must complete Roslyn syntax parsing, restore, and full Debug and Release solution builds for the exact source tree.
+- Create source packages only with `./build/New-VerifiedSourcePackage.ps1 -Version "<version>"`. The script rejects stale or missing build stamps.
+- If a licensed feed, SDK, workload, or platform prerequisite is missing, the release is blocked. Do not replace the build with regex/delimiter checks and do not call the result release-ready.
+
 - Run the physical source-format guard before packaging:
 
   ```powershell

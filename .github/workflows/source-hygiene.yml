@@ -9,21 +9,30 @@ on:
       - main
 
 jobs:
-  formatting-guard:
-    name: Physical line formatting
+  source-guards:
+    name: Source and compiler syntax guards
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check source formatting
-        shell: pwsh
-        run: ./build/Assert-SourceFormatting.ps1 -MaxLineLength 600
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.301
 
       - name: Check protected governance files
         shell: pwsh
         run: ./build/Assert-ProtectedRepositoryFiles.ps1
+
+      - name: Check source formatting
+        shell: pwsh
+        run: ./build/Assert-SourceFormatting.ps1 -MaxLineLength 600
+
+      - name: Parse maintained C# with Roslyn
+        shell: pwsh
+        run: ./build/Assert-CSharpSyntax.ps1
 
       - name: Check security policy
         shell: pwsh

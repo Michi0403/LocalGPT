@@ -418,8 +418,7 @@ namespace LocalGPT.Services
                     });
                 }
 
-                var combined = $"{request.Prompt}
-{result.FinalAnswer}";
+                var combined = string.Concat(request.Prompt, Environment.NewLine, result.FinalAnswer);
                 var outputKind = combined.Contains(".csx", StringComparison.OrdinalIgnoreCase) ||
                                  combined.Contains("cscript", StringComparison.OrdinalIgnoreCase) ||
                                  combined.Contains("c# script", StringComparison.OrdinalIgnoreCase)

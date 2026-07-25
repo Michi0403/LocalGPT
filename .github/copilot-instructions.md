@@ -16,5 +16,8 @@ Make only reviewable source changes requested by the current human. LocalGPT is 
 - Preserve incremental thinking and answer streaming.
 - Never add `using static System.Net.WebRequestMethods;`.
 - Preserve licenses and do not package DevExpress binaries, credentials, generated license files, databases, logs, `.vs`, `bin`, or `obj`.
+- Run the Roslyn syntax guard and full Debug/Release solution validation before calling work complete. Structural scans are not compilation.
+- Never put a physical newline inside an ordinary interpolated string. Prefer `StringBuilder` for generated solution/project/source templates with braces or quotes.
+- Create normal release ZIPs only with `build/New-VerifiedSourcePackage.ps1`; missing or stale build evidence must fail closed.
 
 See `AGENTS.md`, `SECURITY.md`, `docs/HUMAN_AI_COLLABORATION.md`, and `docs/SECURE_MAINTENANCE.md`.

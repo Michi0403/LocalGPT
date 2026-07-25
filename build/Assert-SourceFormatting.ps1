@@ -4,13 +4,15 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $PSScriptRoot "RepositoryValidation.Common.ps1")
 Push-Location $repoRoot
 try {
-    $trackedFiles = git ls-files
-    if ($LASTEXITCODE -ne 0) {
-        throw "git ls-files failed with exit code $LASTEXITCODE."
-    }
+    # Validate the physical source tree, including newly created files that are
+    # not yet tracked by Git. Source ZIPs intentionally do not contain .git.
+    $trackedFiles = @(Get-MaintainedRepositoryFiles -RepositoryRoot $repoRoot | ForEach-Object {
+        Get-RelativePathPortable -BasePath $repoRoot -TargetPath $_.FullName
+    })
 
     $extensions = @(
         ".cs",
@@ -54,7 +56,12 @@ try {
         "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatContentRenderer.cs",
         "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor",
         "LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/chat-details-state.js",
-        "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj"
+        "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj",
+        "build/RepositoryValidation.Common.ps1",
+        "build/Assert-CSharpSyntax.ps1",
+        "build/Invoke-RepositoryValidation.ps1",
+        "build/New-VerifiedSourcePackage.ps1",
+        "docs/COMPILER_VALIDATION_AND_GENERATION_RULES.md"
     )
 
     $violations = [System.Collections.Generic.List[string]]::new()

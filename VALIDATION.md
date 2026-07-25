@@ -1,4 +1,4 @@
-# Validation — LocalGPT v0.1.4 unified release
+# Validation — LocalGPT v0.1.4 compile-fix candidate
 
 ## Authoritative inputs
 
@@ -18,12 +18,12 @@ The final source tree contains and wires the following contracts:
 - application, installer, and desktop-wrapper version metadata set to `0.1.4`;
 - readable but agent-immutable governance files, CODEOWNERS, normalized SHA-256 manifest validation, CI enforcement, and optional owner-run read-only attributes.
 
-## Static validation completed in this workspace
+## Previous static validation and compile-fix review
 
-The final source-only tree was checked without contacting Hugging Face, Ollama, or any local model runtime.
+The source-only tree was reviewed without contacting Hugging Face, Ollama, or any local model runtime. The earlier structural checks did not constitute compilation and missed two baseline C# syntax errors. Those exact failures are corrected in this candidate.
 
 - 702 maintained/package files were inventoried.
-- 166 C# files passed comment/string/delimiter structural checks.
+- 166 C# files were structurally scanned; this check is now explicitly classified as insufficient without Roslyn and a real build.
 - 22 Razor files passed structural balance checks.
 - 9 JSON files parsed successfully.
 - 18 XML/project/property files parsed successfully.
@@ -34,7 +34,7 @@ The final source-only tree was checked without contacting Hugging Face, Ollama, 
 - Production static classes remain limited to the application/installer composition roots and the two reviewed extension classes.
 - Maintained lines comply with the 600-character source guard after splitting one pre-existing architecture paragraph.
 
-The static validation command completed with:
+The earlier static validation command reported:
 
 ```text
 files=702 csharp=166 razor=22 json=9 xml=18
@@ -49,20 +49,18 @@ The streamed thinking/final-answer formatter, stable panel keys, per-message pan
 
 This workspace does not contain the required .NET 10 SDK/compiler, the owner’s DevExpress private feed or license, Windows App SDK workloads, WebView2 runtime, MSIX/signing tooling, or the owner’s provider configuration. Therefore this review does not claim a licensed restore/build, application launch, production-database migration, WebView2 smoke test, publish, or signed installer.
 
-The licensed owner-side Windows build is authoritative. The source package is compiler-ready by structure and wiring review, but a real `dotnet restore` and `dotnet build` are still mandatory before release publication.
+The licensed owner-side Windows build is authoritative. This candidate is not claimed to be build-verified in this environment. A real `dotnet restore` and full Debug/Release build are mandatory. The repository now includes Roslyn syntax validation and fingerprint-gated packaging so future normal release ZIPs cannot be created from structural checks alone.
 
 ## Required owner-side checks
 
 ```powershell
-./build/Assert-ProtectedRepositoryFiles.ps1
-./build/Assert-SourceFormatting.ps1
-./build/Assert-SecurityPolicy.ps1
+./build/Invoke-RepositoryValidation.ps1
 ./build/Audit-Dependencies.ps1
 
-dotnet restore ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln
 dotnet package list ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln --include-transitive --vulnerable --format json
-dotnet build ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln -c Debug
-dotnet build ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln -c Release
+
+# Only after both builds succeed for the unchanged source tree:
+./build/New-VerifiedSourcePackage.ps1 -Version "0.1.4"
 ```
 
 Then test migration on a copy of the existing SQLite database, chat project/version restore, feedback save/reload/clear, failed-save UI behavior, DXAIFunction cancellation, and explicit/automatic protocol selection for Harmony, DeepSeek, Gemma, Apple/OpenELM/MLX, `<think>`, and plain-text model output.

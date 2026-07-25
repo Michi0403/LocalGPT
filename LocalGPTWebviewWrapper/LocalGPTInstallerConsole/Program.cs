@@ -23,6 +23,10 @@ internal static class Program
     private const string LocalGptZipName = "LocalGPTByMichi0403.zip";
     private const string LocalGptSetupZipName = "LocalGPTSetupByMichi0403.zip";
     private static readonly HttpClient Http = CreateHttpClient();
+    private static readonly JsonSerializerOptions ManifestJsonOptions = new()
+    {
+        WriteIndented = true
+    };
 
     private static readonly string[] SlimModels =
     [
@@ -636,7 +640,6 @@ internal static class Program
 
             Directory.CreateDirectory(targetDirectory);
 
-            var localGptRoot = GetLocalGptInstallRoot(logger);
             var iconPath = FindLocalGptIcon(logger);
 
             foreach (var shortcut in shortcuts)
@@ -658,10 +661,10 @@ internal static class Program
         }
     }
     private static void CreateWindowsUrlShortcut(
-    string shortcutPath,
-    string targetPath,
-      string iconPath,
-    ILogger logger)
+        string shortcutPath,
+        string targetPath,
+        string? iconPath,
+        ILogger logger)
     {
         try
         {
@@ -1372,9 +1375,7 @@ internal static class Program
             if (!string.IsNullOrWhiteSpace(directory))
                 Directory.CreateDirectory(directory);
 
-            var json = JsonSerializer.Serialize(
-                manifest,
-                new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(manifest, ManifestJsonOptions);
 
             File.WriteAllText(manifestPath, json);
         }
@@ -1975,7 +1976,10 @@ internal sealed class CliOptions
                 case "--port":
                     options.LocalGptPort = int.Parse(NextValue(argsList, ref i, arg));
                     if (options.LocalGptPort <= 0 || options.LocalGptPort > 65535)
-                        throw new ArgumentOutOfRangeException(nameof(options.LocalGptPort), "Port must be between 1 and 65535.");
+                        throw new ArgumentOutOfRangeException(
+                            nameof(args),
+                            options.LocalGptPort,
+                            "The value supplied for --port must be between 1 and 65535.");
                     break;
 
                 case "--no-browser":
