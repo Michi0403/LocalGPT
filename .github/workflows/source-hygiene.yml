@@ -34,6 +34,14 @@ jobs:
         shell: pwsh
         run: ./build/Assert-CSharpSyntax.ps1
 
+      - name: Check component safety contracts
+        shell: pwsh
+        run: ./build/Assert-ComponentSafety.ps1
+
+      - name: Check workflow contracts
+        shell: pwsh
+        run: ./build/Assert-WorkflowContracts.ps1
+
       - name: Check security policy
         shell: pwsh
         run: ./build/Assert-SecurityPolicy.ps1

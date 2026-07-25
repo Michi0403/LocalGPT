@@ -1,10 +1,61 @@
-<Router AppAssembly="typeof(Program).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-    </Found>
-    <NotFound>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p>Sorry, there's nothing at this address.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@inject ILogger<Routes> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+<SafeErrorBoundary @ref="routeBoundary" Area="Application routing" ToastName="ComponentSafetyToasts">
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p>Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</SafeErrorBoundary>
+
+@code {
+    private SafeErrorBoundary? routeBoundary;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            NavigationManager.LocationChanged += HandleLocationChanged;
+            ComponentActivity.RecordNavigation(NavigationManager.Uri);
+            Logger.LogInformation("LocalGPT navigation initialized at {Route}.", new Uri(NavigationManager.Uri).AbsolutePath);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not initialize LocalGPT navigation tracking.");
+            ComponentActivity.RecordFailure(nameof(Routes), "InitializeNavigation", ex);
+            Notifier.ShowError("ComponentSafetyToasts", "Navigation tracking could not initialize. Core routing remains available.", "Navigation warning");
+        }
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args) =>
+        _ = RecoverAfterNavigationAsync(args.Location);
+
+    private async Task RecoverAfterNavigationAsync(string location)
+    {
+        try
+        {
+            await InvokeAsync(() =>
+            {
+                routeBoundary?.Recover();
+                ComponentActivity.RecordNavigation(location);
+                Logger.LogInformation("LocalGPT navigated to {Route}; the routed error boundary was reset.", new Uri(location).AbsolutePath);
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not recover or record a LocalGPT route change.");
+            ComponentActivity.RecordFailure(nameof(Routes), "RecoverAfterNavigation", ex);
+        }
+    }
+
+    public void Dispose() => NavigationManager.LocationChanged -= HandleLocationChanged;
+}

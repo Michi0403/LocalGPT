@@ -34,6 +34,7 @@
 		<Content Include="..\..\SECURITY.md" Link="SECURITY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\ARCHITECTURE.md" Link="docs\ARCHITECTURE.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\ARCHITECTURE_FOR_AI.md" Link="docs\ARCHITECTURE_FOR_AI.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md" Link="docs\COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\PROJECT_IDENTITY.md" Link="docs\PROJECT_IDENTITY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\HUMAN_AI_COLLABORATION.md" Link="docs\HUMAN_AI_COLLABORATION.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\PEACEFUL_USE_COVENANT.md" Link="docs\PEACEFUL_USE_COVENANT.md" CopyToOutputDirectory="PreserveNewest" />

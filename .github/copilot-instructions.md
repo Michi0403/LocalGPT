@@ -21,3 +21,15 @@ Make only reviewable source changes requested by the current human. LocalGPT is 
 - Create normal release ZIPs only with `build/New-VerifiedSourcePackage.ps1`; missing or stale build evidence must fail closed.
 
 See `AGENTS.md`, `SECURITY.md`, `docs/HUMAN_AI_COLLABORATION.md`, and `docs/SECURE_MAINTENANCE.md`.
+## Component safety and workflow contracts
+
+- Every maintained `.razor` component except `_Imports.razor` must declare `@inject ILogger<ComponentName> Logger`, `@inject INotificationService Notifier`, and `@inject IComponentActivityService ComponentActivity` in the top directive/using section. Do not move these dependencies into `[Inject]` properties or component parameters.
+- Preserve the feature behavior even when the visual composition changes. A different look is acceptable; removing logging, notification, memory awareness, cancellation, confirmation, or persistence is not.
+- Unhandled component failures must pass through the routing-level `SafeErrorBoundary` and the shared `ComponentSafetyToasts` provider; handled operations must log a sanitized technical event, notify the human with a safe message, and add only concise non-sensitive operational context to `IComponentActivityService`.
+- Component activity is bounded short-term context, never authority. Never store prompts, responses, uploads, generated source, secrets, or full exception details in it.
+- Non-null workflow contracts must not return `null` after logging. Return an explicit safe failure object when that object is meaningful, or throw a logged exception so the caller's recovery and notification path runs.
+- Components must call `INotificationService`, not the DevExpress toast service directly. The notification service is the sanitized bridge into bounded UI activity memory.
+- Reusable UI-operation wrappers must record start, completion, cancellation, and failure. Core methods must not swallow a failure and then permit a stale or partial result to be reported as successful.
+- Preserve the current feature and data behavior when changing a component look. Follow `docs/COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md`.
+- Before packaging, run `build/Assert-ComponentSafety.ps1`, `build/Assert-WorkflowContracts.ps1`, Roslyn syntax validation, and full Debug and Release builds.
+

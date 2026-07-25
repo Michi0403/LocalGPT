@@ -1,15 +1,15 @@
 @page "/minecraft-mod-builder"
-
 @inject CouncilTextService CouncilText
 @inject LocalGptCatalogService Catalog
-@inject ILogger<MinecraftModBuilder> Logger
-@inject INotificationService Notifier
 @inject IMinecraftModWorkspaceService WorkspaceService
 @inject INativeCommandRunner CommandRunner
 @inject IChatClient? ChatClient
 @inject IMultiModelCouncilService CouncilService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
+@inject ILogger<MinecraftModBuilder> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
 
 <PageTitle>Minecraft Mod Builder</PageTitle>
 
@@ -291,9 +291,9 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "CreateWorkspaceCoreAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-
+            Logger.LogError(ex, "CreateWorkspaceCoreAsync failed; request details were omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(MinecraftModBuilder), "CreateWorkspaceCoreAsync", ex);
+            throw;
         }
     }
 
@@ -413,9 +413,9 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "RunCommandCoreAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-
+            Logger.LogError(ex, "RunCommandCoreAsync failed; command arguments were omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(MinecraftModBuilder), "RunCommandCoreAsync", ex);
+            throw;
         }
 
     }
@@ -555,14 +555,24 @@
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {
+        ArgumentNullException.ThrowIfNull(action);
+        isBusy = true;
+        ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation started.");
         try
         {
-            isBusy = true;
             await action().ConfigureAwait(false);
+            ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation completed.");
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Minecraft UI operation {Operation} was cancelled.", operation);
+            ComponentActivity.RecordWarning(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation was cancelled.");
+            Notifier.ShowWarning(toastName, "The operation was cancelled.", "Operation cancelled");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
+            Logger.LogError(ex, "Minecraft UI operation {Operation} failed; user input and generated content were omitted from logs.", operation);
+            ComponentActivity.RecordFailure(nameof(MinecraftModBuilder), operation, ex);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
         finally

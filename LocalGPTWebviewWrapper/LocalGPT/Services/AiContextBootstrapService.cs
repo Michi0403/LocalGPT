@@ -9,6 +9,7 @@ namespace LocalGPT.Services
         IChatMemoryService chatMemory,
         ICouncilKnowledgeService councilKnowledge,
         IApplicationLogReaderService applicationLogs,
+        IComponentActivityService componentActivity,
         IProjectLibraryInventoryService libraryInventory,
         IBuildDebugInventoryService buildDebugInventory,
         ICouncilArtifactService councilArtifacts,
@@ -58,6 +59,14 @@ namespace LocalGPT.Services
                 {
                     builder.AppendLine("Saved LocalGPT memory:")
                         .AppendLine(memoryBriefing)
+                        .AppendLine();
+                }
+
+                var componentActivityBriefing = componentActivity.BuildBriefing();
+                if (!string.IsNullOrWhiteSpace(componentActivityBriefing))
+                {
+                    builder.AppendLine("Current LocalGPT short-term UI awareness:")
+                        .AppendLine(componentActivityBriefing)
                         .AppendLine();
                 }
 
@@ -131,6 +140,7 @@ namespace LocalGPT.Services
                 builder
                     .Append("- Council artifact root: ")
                     .AppendLine(councilArtifacts.ArtifactRoot)
+                    .AppendLine("- Use /__diag/component-activity to inspect the bounded, sanitized UI activity currently available to LocalGPT short-term context.")
                     .AppendLine("- Use /api/dxai/functions to discover DI-backed callable function metadata.")
                     .AppendLine("- Use /api/code-generation/reviews to inspect database-backed change-review heartbeats.")
                     .AppendLine("- Use /__diag/artifact-workspaces to discover generated solution workspaces.")

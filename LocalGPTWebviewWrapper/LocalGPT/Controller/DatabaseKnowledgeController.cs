@@ -1,7 +1,6 @@
-﻿using DevExpress.Xpo;
+using DevExpress.Xpo;
 using global::LocalGPT.BusinessObjects;
 using global::LocalGPT.BusinessObjects.EFCore;
-using LocalGPT.BusinessObjects;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller

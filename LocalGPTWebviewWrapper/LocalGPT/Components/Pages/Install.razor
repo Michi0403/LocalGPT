@@ -1,14 +1,15 @@
 @page "/install"
-
 @using LocalGPT.BusinessObjects.Enums
 @inject CouncilTextService CouncilText
-@inject ILogger<Install> Logger
-@inject INotificationService Notifier
 @inject IOptionsMonitor<ConfigurationRoot> Opts
 @inject IConfigurationWriter Writer
 @inject IAiConnectivityProbe Probe
 @inject NavigationManager Nav
 @rendermode InteractiveServer
+@inject ILogger<Install> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
 <PageTitle>AI Setup</PageTitle>
 
 <div class="main-container">

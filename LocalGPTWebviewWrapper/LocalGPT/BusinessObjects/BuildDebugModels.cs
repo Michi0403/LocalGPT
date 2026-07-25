@@ -9,6 +9,10 @@ namespace LocalGPT.BusinessObjects
         public string ArtifactRoot { get; set; } = string.Empty;
 
         public List<BuildDebugFileSummary> Files { get; set; } = [];
+
+        public List<string> Warnings { get; set; } = [];
+
+        public bool Succeeded => Warnings.Count == 0;
     }
 
     public sealed class BuildDebugFileSummary

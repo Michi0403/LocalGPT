@@ -219,6 +219,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<AiDiscoveryService>();
                 builder.Services.AddSingleton<SqliteGridPresentationService>();
                 builder.Services.AddSingleton<NavigationUrlService>();
+                builder.Services.AddSingleton<IComponentActivityService, ComponentActivityService>();
                 builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
                 builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();

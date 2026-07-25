@@ -18,7 +18,7 @@ namespace LocalGPT.Services
             "LocalGPT",
             "BuildDebugFiles");
 
-        public async Task<BuildDebugInventory?> CaptureAsync(bool copyFiles = false, CancellationToken cancellationToken = default)
+        public async Task<BuildDebugInventory> CaptureAsync(bool copyFiles = false, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -57,10 +57,19 @@ namespace LocalGPT.Services
 
                 return inventory;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not capture the build/debug inventory; copy-files mode {CopyFiles}.", copyFiles);
-                return null;
+                return new BuildDebugInventory
+                {
+                    ArtifactRoot = ArtifactRoot,
+                    CopiedFiles = copyFiles,
+                    Warnings = ["Build/debug inventory capture failed. Review LocalGPT application logs for technical details."]
+                };
             }
            
         }
@@ -70,6 +79,9 @@ namespace LocalGPT.Services
             try
             {
                 var inventory = await CaptureAsync(copyFiles: false, cancellationToken).ConfigureAwait(false);
+                if (!inventory.Succeeded)
+                    return string.Join(" ", inventory.Warnings);
+
                 if (inventory.Files.Count == 0)
                     return "No build debug symbol files (.pdb, .pdg, .appxsym) were found in the current LocalGPT output paths.";
 
@@ -95,10 +107,14 @@ namespace LocalGPT.Services
 
                 return builder.ToString().Trim();
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in BuildBriefingAsync");
-                return string.Empty;
+                logger.LogError(ex, "Could not build the build/debug inventory briefing.");
+                return "Build/debug inventory briefing failed. Review LocalGPT application logs for technical details.";
             }
            
         }
@@ -144,7 +160,7 @@ namespace LocalGPT.Services
             }
             finally
             {
-                logger.LogInformation($"Finished EnumerateDebugFiles");
+                logger.LogInformation("Finished enumerating build debug files.");
             }
         }
     }

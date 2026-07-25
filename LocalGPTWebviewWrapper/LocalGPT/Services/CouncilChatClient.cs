@@ -18,7 +18,7 @@ public sealed partial class CouncilChatClient(
 {
 
 
-    public async Task<ChatResponse?> GetResponseAsync(
+    public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
@@ -26,6 +26,8 @@ public sealed partial class CouncilChatClient(
         try
         {
             var text = await RunCouncilAsync(messages, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(text))
+                text = "The AI Council ended without a final answer. Review LocalGPT application logs and the streamed council status for the failed phase.";
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, [new TextContent(text)]));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -35,7 +37,9 @@ public sealed partial class CouncilChatClient(
         catch (Exception ex)
         {
             logger.LogError(ex, "AI Council non-streaming response failed.");
-            return null;
+            return new ChatResponse(new ChatMessage(
+                ChatRole.Assistant,
+                [new TextContent("The AI Council could not complete this response. Review LocalGPT application logs, verify the selected local models, and try again.")]));
         }
         
     }

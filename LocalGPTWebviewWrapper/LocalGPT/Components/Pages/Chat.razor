@@ -6,8 +6,6 @@
 @inject CouncilRuntimeService CouncilRuntime
 @inject CouncilTextService CouncilText
 @inject LocalGptCatalogService Catalog
-@inject ILogger<Chat> Logger
-@inject INotificationService Notifier
 @inject IChatMemoryService ChatMemory
 @inject IMultiModelCouncilService CouncilService
 @inject NavigationManager NavigationManager
@@ -18,6 +16,10 @@
 @inject IChatSessionContext SessionContext
 @rendermode InteractiveServer
 @implements IDisposable
+@inject ILogger<Chat> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
 <PageTitle>AI Chat</PageTitle>
 
 <div class="main-container" data-testid="chat-page">
@@ -395,6 +397,7 @@
     bool isMemoryBusy;
     bool isModelRefreshBusy;
     CancellationTokenSource? autoSaveCts;
+    bool autoSaveFailureNotified;
     string lastSavedSignature = string.Empty;
 
 
@@ -468,6 +471,7 @@
                 ex,
                 "Could not apply database-backed Chat default {VariableName}; retaining the compiled fallback.",
                 name);
+            ComponentActivity.RecordWarning(nameof(Chat), "ApplyDatabaseDefault", "A database-backed Chat default was unavailable; LocalGPT retained its compiled fallback.");
         }
     }
 
@@ -485,6 +489,7 @@
             catch (Exception ex)
             {
                 Logger.LogWarning(ex, "Could not mark the Chat page as interactively attached.");
+                ComponentActivity.RecordWarning(nameof(Chat), "InteractiveAttachMarker", "The Chat page could not publish its optional interactive-ready marker.");
             }
         }
         catch (Exception ex)
@@ -1637,6 +1642,7 @@
                 {
                     await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken).ConfigureAwait(false);
                     await InvokeAsync(async () => await PersistCurrentConversationAsync(force: false, showToast: false).ConfigureAwait(false)).ConfigureAwait(false);
+                    autoSaveFailureNotified = false;
                 }
                 catch (OperationCanceledException ex)
                 {
@@ -1645,7 +1651,13 @@
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogWarning(ex, "Chat memory auto-save failed: {Message}", ex.Message);
+                    Logger.LogWarning(ex, "Chat memory auto-save failed; conversation content was omitted from logs.");
+                    ComponentActivity.RecordFailure(nameof(Chat), "AutoSaveConversation", ex);
+                    if (!autoSaveFailureNotified)
+                    {
+                        autoSaveFailureNotified = true;
+                        Notifier.ShowWarning(toastName, "Chat auto-save failed. Your current screen remains available; review local logs before closing the conversation.", "Auto-save warning");
+                    }
                 }
             }
         }
@@ -1668,7 +1680,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Logger.LogError(ex, "Chat disposal failed; conversation content was omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(Chat), "Dispose", ex);
         }
     }
 }

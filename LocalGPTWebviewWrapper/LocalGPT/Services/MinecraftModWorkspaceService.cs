@@ -17,12 +17,13 @@ namespace LocalGPT.Services
             "LocalGPT",
             "MinecraftModWorkspaces");
 
-        public Task<MinecraftModWorkspace?> CreateWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
+        public async Task<MinecraftModWorkspace> CreateWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
             {
-                var loader = councilText.NormalizeLoader(request.Loader,logger);
-                return loader switch
+                ArgumentNullException.ThrowIfNull(request);
+                var loader = councilText.NormalizeLoader(request.Loader, logger);
+                var workspaceTask = loader switch
                 {
                     "Fabric" => CreateFabricWorkspaceAsync(request, cancellationToken),
                     "NeoForge" => CreateNeoForgeWorkspaceAsync(request, cancellationToken),
@@ -31,15 +32,20 @@ namespace LocalGPT.Services
                     "Bedrock" => throw new NotSupportedException("Bedrock add-ons use behavior/resource packs, not Java mod workspaces. LocalGPT should add this as a separate exporter."),
                     _ => throw new NotSupportedException($"Unsupported Minecraft loader '{request.Loader}'.")
                 };
+                return await workspaceTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateDatapackMcmeta");
-                return null;
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateWorkspaceAsync");
+                throw;
             }
         }
 
-        public async Task<MinecraftModWorkspace?> CreateFabricWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
+        public async Task<MinecraftModWorkspace> CreateFabricWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -61,14 +67,18 @@ namespace LocalGPT.Services
                 logger.LogInformation("Created Fabric Minecraft mod workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateFabricWorkspaceAsync");
-                return null;
+                throw;
             }
         }
 
-        public async Task<MinecraftModWorkspace?> CreatePaperPluginWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
+        public async Task<MinecraftModWorkspace> CreatePaperPluginWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -87,15 +97,19 @@ namespace LocalGPT.Services
                 logger.LogInformation("Created Paper plugin workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreatePaperPluginWorkspaceAsync");
-                return null;
+                throw;
             }
           
         }
 
-        public async Task<MinecraftModWorkspace?> CreateDatapackWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
+        public async Task<MinecraftModWorkspace> CreateDatapackWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -149,15 +163,19 @@ namespace LocalGPT.Services
                 logger.LogInformation("Created Minecraft datapack workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult("powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1", "Copy the zip from build\\ to a world's datapacks folder, then run /reload.");
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateDatapackWorkspaceAsync");
-                return null;
+                throw;
             }
           
         }
 
-        public async Task<MinecraftModWorkspace?> CreateNeoForgeWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
+        public async Task<MinecraftModWorkspace> CreateNeoForgeWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -179,10 +197,14 @@ namespace LocalGPT.Services
                 logger.LogInformation("Created NeoForge Minecraft mod workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateNeoForgeWorkspaceAsync");
-                return null;
+                throw;
             }
         }
 
@@ -196,12 +218,12 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in IsPathInsideWorkspaceRoot path {path.ToString()}");
+                logger.LogWarning(ex, "Path {Path} is not a valid Minecraft workspace path.", path);
                 return false;
             }
         }
 
-        private LocalGptCatalogService.WorkspaceLayout? CreateWorkspaceLayout(MinecraftModBuildRequest request)
+        private LocalGptCatalogService.WorkspaceLayout CreateWorkspaceLayout(MinecraftModBuildRequest request)
         {
             try
             {
@@ -253,11 +275,11 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateWorkspaceLayout");
-                return null;
+                throw;
             }
         }
 
-        private WorkspaceLayout? CreateDatapackLayout(MinecraftModBuildRequest request)
+        private WorkspaceLayout CreateDatapackLayout(MinecraftModBuildRequest request)
         {
             try
             {
@@ -287,7 +309,7 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateDatapackLayout");
-                return null;
+                throw;
             }
         }
 
@@ -303,9 +325,14 @@ namespace LocalGPT.Services
                 await File.WriteAllTextAsync(itemModelPath, councilText.CreateCityCharterModel(), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 await File.WriteAllTextAsync(planPath, councilText.CreateLivingCitiesPlan(request), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "WriteCommonResourceFilesAsync");
+                throw;
             }
         }
 
@@ -316,9 +343,14 @@ namespace LocalGPT.Services
                 var scriptPath = Path.Combine(context.ProjectRoot, "build-local.ps1");
                 await File.WriteAllTextAsync(scriptPath, councilRuntime.CreateBuildLocalScript(request,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "WriteBuildHelperAsync");
+                throw;
             }
         }
 
@@ -339,8 +371,8 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetUniqueProjectPath projectName {projectName.ToString()}");
-                return string.Empty;
+                logger.LogError(ex, "Could not allocate a Minecraft workspace path for project {ProjectName}.", projectName);
+                throw;
             }
         }
     }

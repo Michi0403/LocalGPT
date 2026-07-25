@@ -1,14 +1,14 @@
 @page "/model-council"
-
 @inject CouncilTextService CouncilText
 @inject IMultiModelCouncilService CouncilService
 @inject IChatMemoryService ChatMemory
 @inject ILocalGptProjectService ProjectService
 @inject ICodeGenerationWorkflowService CodeGenerationWorkflow
-@inject ILogger<ModelCouncil> Logger
-@inject INotificationService Notifier
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
+@inject ILogger<ModelCouncil> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
 
 <PageTitle>AI Council</PageTitle>
 
@@ -1109,16 +1109,27 @@
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {
+        ArgumentNullException.ThrowIfNull(action);
+        isBusy = true;
+        ComponentActivity.RecordInformation(nameof(ModelCouncil), operation, "The AI Council UI operation started.");
         try
         {
-            isBusy = true;
             await action().ConfigureAwait(false);
+            ComponentActivity.RecordInformation(nameof(ModelCouncil), operation, "The AI Council UI operation completed.");
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("AI Council UI operation {Operation} was cancelled.", operation);
+            statusText = "The operation was cancelled.";
+            ComponentActivity.RecordWarning(nameof(ModelCouncil), operation, "The AI Council UI operation was cancelled.");
+            Notifier.ShowWarning(toastName, statusText, "Operation cancelled");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
+            Logger.LogError(ex, "AI Council UI operation {Operation} failed; prompt and model output were omitted from logs.", operation);
             statusText = "The operation failed. See local application logs for technical details.";
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            ComponentActivity.RecordFailure(nameof(ModelCouncil), operation, ex);
+            Notifier.ShowError(toastName, statusText, "Operation failed");
         }
         finally
         {

@@ -42,7 +42,7 @@ $files = Get-ChildItem -LiteralPath $sourcePath -Recurse -File -Filter '*.cs' |
     }
 
 foreach ($file in $files) {
-    $relative = Get-RelativePathPortable -BasePath $repoRoot -TargetPath $file.FullName.Replace('\', '/')
+    $relative = (Get-RelativePathPortable -BasePath $repoRoot -TargetPath $file.FullName).Replace('\', '/')
     $source = Get-Content -LiteralPath $file.FullName -Raw
     $tree = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText(
         $source,

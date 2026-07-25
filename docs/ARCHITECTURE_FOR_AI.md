@@ -37,3 +37,6 @@ CVE work follows `docs/SECURE_MAINTENANCE.md`: verify, contain, patch, document,
 ## Validation
 
 Use source guards, parse project/configuration files, review diffs, inspect package contents, and state what could not be built because of platform or licensed dependencies. Automated text can suggest changes; the human decides whether to apply, build, run, publish, or release them.
+## Component safety and bounded operational awareness
+
+Razor components retain the logger, notifier, and component-activity dependencies as top-level directives. Routed UI uses `SafeErrorBoundary`, handled workflows use sanitized logging and human notification, and `NotificationService` bridges notification severity—not message content—into bounded process-local activity memory. Core workflow methods do not swallow failures that would let stale or partial state be reported as successful. See `COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md`.

@@ -1,7 +1,8 @@
-@inject ILogger<InteractiveStartupMarker> Logger
-@inject INotificationService Notifier
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IJSRuntime JS
+@inject ILogger<InteractiveStartupMarker> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
 
 @code {
 
@@ -11,11 +12,16 @@
         try
         {
             if (firstRender)
+            {
                 await JS.InvokeVoidAsync("localGptReady.markInteractive");
+                ComponentActivity.RecordInformation(nameof(InteractiveStartupMarker), "InteractiveReady", "The Blazor interactive circuit attached successfully.");
+                Logger.LogInformation("LocalGPT interactive UI attached successfully.");
+            }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(InteractiveStartupMarker), "InteractiveReady", ex);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }

@@ -16,7 +16,7 @@ namespace LocalGPT.Services
     {
 
 
-        public async Task<LearnBaseImportResult?> ImportAsync(
+        public async Task<LearnBaseImportResult> ImportAsync(
             LearnBaseImportRequest request,
             CancellationToken cancellationToken = default)
         {
@@ -71,10 +71,14 @@ namespace LocalGPT.Services
                 result.ProjectCount = result.Projects.Count;
                 return result;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ImportAsync");
-                return null;
+                throw;
             }
         }
 

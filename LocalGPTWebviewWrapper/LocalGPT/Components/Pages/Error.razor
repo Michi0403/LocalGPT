@@ -1,5 +1,8 @@
 @page "/Error"
 @using System.Diagnostics
+@inject ILogger<Error> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
 
 <PageTitle>Error</PageTitle>
 
@@ -31,6 +34,11 @@
     private string? RequestId { get; set; }
     private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized()
+    {
         RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+        Logger.LogError("The LocalGPT error page was displayed for request {RequestId}.", RequestId ?? "unknown");
+        ComponentActivity.RecordWarning(nameof(Error), "ErrorPage", "The application error page was displayed.");
+        Notifier.ShowError("ComponentSafetyToasts", "LocalGPT encountered an application error. Review local application logs for details.", "Application error");
+    }
 }

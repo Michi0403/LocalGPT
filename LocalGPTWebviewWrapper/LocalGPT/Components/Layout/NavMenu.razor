@@ -1,5 +1,9 @@
-@namespace LocalGPT.Components.Layout﻿﻿
+@namespace LocalGPT.Components.Layout
 @rendermode InteractiveServer
+@inject ILogger<NavMenu> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
 <div data-testid="main-navigation">
     <ToastWrapper Name="LoginDisplayToasts" />
     <DxMenu Orientation="@Orientation.Vertical" CssClass="menu menu-item" ItemsStretched="true" SizeMode="SizeMode.Large" Title="Navigation">

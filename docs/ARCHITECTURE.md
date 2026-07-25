@@ -134,3 +134,13 @@ Repository text, database rows, model output, uploaded files, generated artifact
 DevExpress packages and runtime assets remain proprietary. A generated `devextreme-license.js` is a local/release build artifact and is ignored by Git. The source tree contains only a placeholder file and setup documentation. See `docs/DEVEXPRESS_ASSETS.md` and `THIRD-PARTY-NOTICES.md`.
 
 Source archives exclude `.git`, IDE state, build output, runtime databases, logs, generated repository snapshots, generated license material, credentials, and binary font files. A Git patch is provided so an existing authorized clone can retain its unchanged locally obtained font assets.
+
+## Component safety, notification, and bounded UI memory
+
+Razor components use three explicit top-of-file dependencies: a typed `ILogger<TComponent>`, `INotificationService`, and `IComponentActivityService`. `SafeErrorBoundary` provides the final unhandled-exception boundary.
+
+The logger persists technical diagnostics through the existing logging providers. The notifier shows a sanitized human-facing result. The component activity service retains only a bounded in-process summary of navigation and operational state. `AiContextBootstrapService` may include this bounded summary so LocalGPT can understand which screen and operation are active without storing prompts, uploaded content, generated source, secrets, or full exceptions.
+
+Workflow service contracts distinguish absence from failure. Optional lookups may return nullable values. Required creation/read operations return a real result or propagate a logged exception to a caller that owns recovery and user notification. Silent `null` returns from required operations are forbidden because they create half-completed workflows and misleading success states.
+
+The detailed component contract, notification-to-memory bridge, failure propagation rules, and validation expectations are maintained in `COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md`. Visual changes are allowed, but logging, human notification, bounded UI awareness, cancellation, confirmation, persistence, and failure semantics are architectural behavior and must remain intact.

@@ -70,6 +70,31 @@ namespace LocalGPT.Controller
          
         }
 
+        [HttpGet("/__diag/component-activity")]
+        public IResult GetComponentActivity(
+            [FromServices] IComponentActivityService componentActivity,
+            int? take)
+        {
+            try
+            {
+                var safeTake = Math.Clamp(take ?? 20, 1, 128);
+                var entries = componentActivity.GetRecent(safeTake);
+                return Results.Ok(new
+                {
+                    Capacity = 128,
+                    Count = entries.Count,
+                    Entries = entries,
+                    Briefing = componentActivity.BuildBriefing(Math.Min(safeTake, 20)),
+                    Privacy = "Operational summaries only. Prompts, responses, uploads, generated source, secrets, and full exception details are excluded."
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetComponentActivity");
+                return Results.InternalServerError("Component activity diagnostics failed. Review the local server logs for details.");
+            }
+        }
+
         [HttpGet("/__diag/ai-smoke")]
         public async Task<IResult> GetAiSmoke(
             [FromServices] IChatClient chatClient,
@@ -464,6 +489,8 @@ namespace LocalGPT.Controller
                     result.ArtifactRoot,
                     result.CopiedFiles,
                     result.CapturedAtUtc,
+                    result.Succeeded,
+                    result.Warnings,
                     Count = result.Files.Count,
                     Files = result.Files,
                     Briefing = await inventory.BuildBriefingAsync(ct).ConfigureAwait(false)

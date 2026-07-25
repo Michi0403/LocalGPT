@@ -6,9 +6,11 @@
 @inject CouncilTextService CouncilText
 @inject LocalGptCatalogService Catalog
 @inject NavigationManager NavigationManager
+@rendermode InteractiveServer
 @inject ILogger<TestLab> Logger
 @inject INotificationService Notifier
-@rendermode InteractiveServer
+@inject IComponentActivityService ComponentActivity
+
 <PageTitle>Test Lab</PageTitle>
 <main class="test-lab-page">
     <section class="help-hero">
@@ -514,6 +516,8 @@
                 catch (Exception ex)
                 {
                     Logger.LogWarning(ex, "Could not refresh generated artifact workspaces after route run.");
+                    ComponentActivity.RecordFailure(nameof(TestLab), "RefreshArtifactWorkspaces", ex);
+                    Notifier.ShowWarning(toastName, "The route completed, but the generated artifact list could not refresh.", "Artifact refresh warning");
                 }
             }
         }
@@ -587,16 +591,29 @@
 
     private async Task RunUiActionAsync(Func<Task> action, string operation)
     {
+        ArgumentNullException.ThrowIfNull(action);
+        isBusy = true;
+        ComponentActivity.RecordInformation(nameof(TestLab), operation, "The Test Lab UI operation started.");
         try
         {
-            isBusy = true;
             await action().ConfigureAwait(false);
+            ComponentActivity.RecordInformation(nameof(TestLab), operation, "The Test Lab UI operation completed.");
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Test Lab UI operation {Operation} was cancelled.", operation);
+            statusText = "The requested operation was cancelled.";
+            resultText = statusText;
+            ComponentActivity.RecordWarning(nameof(TestLab), operation, "The Test Lab UI operation was cancelled.");
+            Notifier.ShowWarning(toastName, statusText, "Operation cancelled");
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "A Test Lab UI operation failed; operation delegates and user content were omitted from logs.");
+            Logger.LogWarning(ex, "Test Lab UI operation {Operation} failed; operation delegates and user content were omitted from logs.", operation);
             statusText = "The requested operation failed. See local application logs for technical details.";
             resultText = "The operation failed. See local application logs for technical details.";
+            ComponentActivity.RecordFailure(nameof(TestLab), operation, ex);
+            Notifier.ShowError(toastName, statusText, "Operation failed");
         }
         finally
         {

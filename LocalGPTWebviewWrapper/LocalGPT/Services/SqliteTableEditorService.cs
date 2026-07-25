@@ -57,6 +57,10 @@ namespace LocalGPT.Services
 
                 return tables;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not read SQLite table summaries.");
@@ -64,7 +68,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public async Task<SqliteTableSnapshot?> GetTableAsync(string tableName, int take = 100, CancellationToken cancellationToken = default)
+        public async Task<SqliteTableSnapshot> GetTableAsync(string tableName, int take = 100, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -113,12 +117,15 @@ namespace LocalGPT.Services
                     Rows = rows
                 };
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not read SQLite table {TableName}.", tableName);
-                return null;
+                throw;
             }
-            
         }
 
         public async Task UpdateRowAsync(string tableName, long rowId, IReadOnlyList<SqliteCellUpdate> updates, CancellationToken cancellationToken = default)

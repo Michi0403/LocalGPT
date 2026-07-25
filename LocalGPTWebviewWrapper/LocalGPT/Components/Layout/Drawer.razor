@@ -1,11 +1,12 @@
 @inherits LayoutComponentBase
 @inject NavigationUrlService NavigationUrls
 @inject NavigationManager NavigationManager
-
 @namespace LocalGPT.Components.Layout
 @inject IJSRuntime JS
 @inject ILogger<Drawer> Logger
 @inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
 <div id="main-window-drawer">
 @*       <DxDrawer SizeMode="SizeMode.Large"
                 PanelWidth="@Width"
@@ -42,7 +43,7 @@
     [Parameter]
     public string CssClass { get; set; } = "navigation-drawer";
 
-    [SupplyParameterFromQuery(Name = NavigationUrls.ToggleSidebarName)]
+    [SupplyParameterFromQuery(Name = NavigationUrlService.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
     [Parameter] public RenderFragment? DrawerTarget { get; set; }
     [Parameter] public RenderFragment? DrawerBody { get; set; }
@@ -69,12 +70,14 @@
                 else
                     Width = "20%";
 
-                
+                ComponentActivity.RecordInformation(nameof(Drawer), "ResponsiveWidth", $"Navigation drawer width selected as {Width}.", NavigationManager.Uri);
+                Logger.LogInformation("Navigation drawer responsive width selected as {Width}.", Width);
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(Drawer), "ResponsiveWidth", ex, NavigationManager.Uri);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }

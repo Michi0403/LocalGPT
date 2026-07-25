@@ -73,11 +73,11 @@ public class CompositeChatClient : IChatClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Chat response failed for the selected session.");
-            return new();
+            return CreateFailureResponse("The selected AI session could not complete the response. Review LocalGPT application logs and verify the configured provider.");
         }
     }
 
-    public IAsyncEnumerable<ChatResponseUpdate>? GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken())
     {
         try
@@ -91,9 +91,18 @@ public class CompositeChatClient : IChatClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error in GetStreamingResponseAsync {ex.ToString()}");
-            return null;
+            _logger.LogError(ex, "Streaming chat could not start for the selected session.");
+            return CreateFailureUpdates("The selected AI session could not start streaming. Review LocalGPT application logs and verify the configured provider.");
         }
+    }
+
+    private static ChatResponse CreateFailureResponse(string message) =>
+        new(new ChatMessage(ChatRole.Assistant, [new TextContent(message)]));
+
+    private static async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)
+    {
+        yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(message)]);
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     public void Dispose()
@@ -123,16 +132,10 @@ public class CompositeChatClient : IChatClient
     }
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
-        try
-        {
-
-            throw new NotImplementedException();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Error in GetService {ex.ToString()}");
-            return null;
-        }
+        ArgumentNullException.ThrowIfNull(serviceType);
+        if (serviceType.IsInstanceOfType(this))
+            return this;
+        return ResolveSelectedSession()?.Client.GetService(serviceType, serviceKey);
     }
 
 
@@ -217,7 +220,7 @@ public class CompositeChatClient : IChatClient
                 "Chat response and reporting failed for locked session {LockedSessionName} and selected session {SelectedSessionName}.",
                 LockedSessionName,
                 SelectedSession?.Name);
-            return new();
+            return CreateFailureResponse("The AI response could not be completed or post-processed. Review LocalGPT application logs and try again.");
         }
         
     }
@@ -228,58 +231,85 @@ public class CompositeChatClient : IChatClient
         ChatOptions? options,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-            IReadOnlyList<ChatMessage> enrichedMessages;
-            ChatOptions resolvedOptions;
-            try
-            {
-                enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken).ConfigureAwait(false);
-                resolvedOptions = await ApplyDefaultOptionsAsync(options, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                yield break;
-            }
+        IReadOnlyList<ChatMessage>? enrichedMessages = null;
+        ChatOptions? resolvedOptions = null;
+        string? startupFailure = null;
+        try
+        {
+            enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken).ConfigureAwait(false);
+            resolvedOptions = await ApplyDefaultOptionsAsync(options, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            yield break;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not prepare streaming chat for session {SessionName}.", session.Name);
+            startupFailure = "The selected AI session could not prepare the streaming request. Review LocalGPT application logs and verify the configured provider.";
+        }
 
-            var responseText = new StringBuilder();
-            var updates = session.Client.GetStreamingResponseAsync(enrichedMessages, resolvedOptions, cancellationToken).GetAsyncEnumerator(cancellationToken);
-            try
+        if (startupFailure is not null)
+        {
+            yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(startupFailure)]);
+            yield break;
+        }
+
+        ArgumentNullException.ThrowIfNull(enrichedMessages);
+        ArgumentNullException.ThrowIfNull(resolvedOptions);
+        var responseText = new StringBuilder();
+        string? streamFailure = null;
+        var updates = session.Client
+            .GetStreamingResponseAsync(enrichedMessages, resolvedOptions, cancellationToken)
+            .GetAsyncEnumerator(cancellationToken);
+        try
+        {
+            while (true)
             {
-                while (true)
+                ChatResponseUpdate update;
+                try
                 {
-                    ChatResponseUpdate update;
-                    try
-                    {
-                        if (!await updates.MoveNextAsync().ConfigureAwait(false))
-                            break;
-
-                        update = updates.Current;
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        yield break;
-                    }
-
-                    responseText.Append(update.Text);
-                    yield return update;
+                    if (!await updates.MoveNextAsync().ConfigureAwait(false))
+                        break;
+                    update = updates.Current;
                 }
-            }
-            finally
-            {
-                await updates.DisposeAsync().ConfigureAwait(false);
-            }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    yield break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Streaming chat failed for session {SessionName}.", session.Name);
+                    streamFailure = "The selected AI session stopped streaming unexpectedly. Review LocalGPT application logs and verify the configured provider.";
+                    break;
+                }
 
-            if (cancellationToken.IsCancellationRequested)
-                yield break;
+                responseText.Append(update.Text);
+                yield return update;
+            }
+        }
+        finally
+        {
+            await updates.DisposeAsync().ConfigureAwait(false);
+        }
 
-            var text = responseText.ToString();
-            try
-            {
-                await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
-                await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-            }
+        if (streamFailure is not null)
+        {
+            yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(streamFailure)]);
+            yield break;
+        }
+        if (cancellationToken.IsCancellationRequested)
+            yield break;
+
+        var text = responseText.ToString();
+        try
+        {
+            await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
+            await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
     }
 
     private async Task WriteMissingFeatureReportIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)

@@ -22,7 +22,7 @@ namespace LocalGPT.Services
             "LocalGPT",
             "ChatUploadWorkspaces");
 
-        public async Task<ChatUploadWorkspaceResult?> CreateWorkspaceAsync(
+        public async Task<ChatUploadWorkspaceResult> CreateWorkspaceAsync(
             string prompt,
             IEnumerable<ChatUploadWorkspaceInputFile> files,
             CancellationToken cancellationToken = default)
@@ -138,10 +138,14 @@ namespace LocalGPT.Services
                     warnings,
                     context);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not create the chat upload workspace.");
-                return null;
+                throw;
             }
 
         }

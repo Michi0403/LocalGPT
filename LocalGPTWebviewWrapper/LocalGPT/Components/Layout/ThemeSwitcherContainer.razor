@@ -4,6 +4,8 @@
 @implements IThemeLoadNotifier
 @inject ILogger<ThemeSwitcherContainer> Logger
 @inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
 <div class="themeswitcher-container shadow @StateCssClass">
     <ToastWrapper Name="@toastName" />
     @if(IsLoaded) {
@@ -138,7 +140,9 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Logger.LogError(ex, "Theme state restoration failed; persisted theme details were omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), "RestoreThemeState", ex);
+            Notifier.ShowWarning(toastName, "The saved theme state could not be restored. LocalGPT kept the current theme.", "Theme warning");
         }
        
     }

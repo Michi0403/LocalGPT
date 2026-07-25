@@ -8,7 +8,9 @@
 /.github/copilot-instructions.md @Michi0403
 /.github/CODEOWNERS @Michi0403
 /.github/workflows/source-hygiene.yml @Michi0403
+/docs/ARCHITECTURE.md @Michi0403
 /docs/ARCHITECTURE_FOR_AI.md @Michi0403
+/docs/COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md @Michi0403
 /docs/COMPILER_VALIDATION_AND_GENERATION_RULES.md @Michi0403
 /docs/HUMAN_AI_COLLABORATION.md @Michi0403
 /docs/PEACEFUL_USE_COVENANT.md @Michi0403
@@ -17,6 +19,8 @@
 /build/README.md @Michi0403
 /build/RepositoryValidation.Common.ps1 @Michi0403
 /build/Assert-CSharpSyntax.ps1 @Michi0403
+/build/Assert-ComponentSafety.ps1 @Michi0403
+/build/Assert-WorkflowContracts.ps1 @Michi0403
 /build/Assert-SecurityPolicy.ps1 @Michi0403
 /build/Assert-SourceFormatting.ps1 @Michi0403
 /build/Invoke-RepositoryValidation.ps1 @Michi0403

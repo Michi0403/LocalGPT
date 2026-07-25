@@ -280,7 +280,7 @@ namespace LocalGPT.Services
             
         }
 
-        public async Task<CouncilArtifact?> CreateSolutionZipArtifactAsync(
+        public async Task<CouncilArtifact> CreateSolutionZipArtifactAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
             string timestamp,
@@ -399,10 +399,14 @@ namespace LocalGPT.Services
                     MissingRequirements = contract.MissingRequirements.ToList()
                 };
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateMinecraftSkeletonMatrixArtifactsAsync");
-                return null;
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateSolutionZipArtifactAsync");
+                throw;
             }
         }
 

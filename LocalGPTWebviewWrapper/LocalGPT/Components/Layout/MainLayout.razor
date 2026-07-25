@@ -3,6 +3,10 @@
 @inject NavigationUrlService NavigationUrls
 @inject NavigationManager NavigationManager
 @namespace LocalGPT.Components.Layout
+@inject ILogger<MainLayout> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
 <div class="page" data-testid="main-layout">
 
     <Drawer DrawerHeader="drawerHeader" DrawerFooter="drawerFooter">
@@ -28,14 +32,9 @@
                         </NavLink>
                     }
                 </div>
-                <ErrorBoundary @ref="_errorBoundary">
-                    <ChildContent>
-                        @Body
-                    </ChildContent>
-                    <ErrorContent Context="error">
-                        @LogAndRenderError(error)
-                    </ErrorContent>
-                </ErrorBoundary>
+                <SafeErrorBoundary @key="NavigationManager.Uri" Area="MainLayout" ToastName="ComponentSafetyToasts">
+                    @Body
+                </SafeErrorBoundary>
             </article>
         </DrawerTarget>
     </Drawer>
@@ -43,15 +42,12 @@
 </div>
 
 @code {
-    [SupplyParameterFromQuery(Name = NavigationUrls.ToggleSidebarName)]
+    [SupplyParameterFromQuery(Name = NavigationUrlService.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
-    private ErrorBoundary? _errorBoundary;
-    [Inject]
-    private ILogger<MainLayout>? Log { get; set; }
 
-    private void HandleLayoutError(Exception exception)
+    protected override void OnParametersSet()
     {
-        Log?.LogError(exception, "Unhandled exception in MainLayout.");
+        ComponentActivity.RecordInformation(nameof(MainLayout), "LayoutState", ToggledSidebar ? "Navigation drawer is open." : "Navigation drawer is closed.", NavigationManager.Uri);
     }
     private RenderFragment drawerHeader => @<div class="navigation-drawer-header">
         <img class="logo" src="images/TacosLogos.svg" alt="LocalGPT logo" />
@@ -66,17 +62,4 @@
         </NavLink>
     </div>
     ;
-    private RenderFragment LogAndRenderError(Exception error) => builder =>
-    {
-        Log?.LogError(error, $"Unhandled exception in MainLayout. {error.ToString()}");
-
-        builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "class", "alert alert-danger");
-
-        builder.AddContent(2, "Something went wrong loading this page.");
-        builder.AddMarkupContent(3, "<br />");
-        builder.AddContent(4, error.Message);
-
-        builder.CloseElement();
-    };
 }

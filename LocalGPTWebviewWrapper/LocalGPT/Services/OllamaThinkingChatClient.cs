@@ -78,7 +78,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         };
     }
 
-    public async Task<ChatResponse?> GetResponseAsync(
+    public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
@@ -92,7 +92,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
             {
                 response = await SendAsync(conversation, options, stream: false, cancellationToken).ConfigureAwait(false);
                 if (response is null)
-                    return null;
+                    return CreateFailureResponse("Ollama returned no response. Verify that the selected model is available and the local runtime is healthy.");
 
                 var toolCalls = response.Message?.ToolCalls;
                 if (toolCalls is not { Count: > 0 })
@@ -109,7 +109,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
             }
 
             if (response is null)
-                return null;
+                return CreateFailureResponse("Ollama returned no response. Verify that the selected model is available and the local runtime is healthy.");
 
             return new ChatResponse(new ChatMessage(
                 ChatRole.Assistant,
@@ -122,11 +122,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
         catch (Exception ex)
         {
             logger.LogError(ex, "Ollama non-streaming response failed for model {Model}.", model);
-            return null;
+            return CreateFailureResponse($"Ollama model '{model}' could not complete the response. Review LocalGPT application logs and verify the local runtime.");
         }
     }
 
-    public async IAsyncEnumerable<ChatResponseUpdate>? GetStreamingResponseAsync(
+    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -261,6 +261,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
             logger.LogInformation("Ended Ollama streaming response for model {Model}.", model);
         }
     }
+
+    private static ChatResponse CreateFailureResponse(string message) =>
+        new(new ChatMessage(ChatRole.Assistant, [new TextContent(message)]));
 
     public object? GetService(Type serviceType, object? serviceKey = null) =>
         serviceType == typeof(HttpClient) ? http : null;

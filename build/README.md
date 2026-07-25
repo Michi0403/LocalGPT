@@ -6,6 +6,7 @@ The public source package intentionally contains only non-destructive validation
 - `Assert-SecurityPolicy.ps1`
 - `Assert-ProtectedRepositoryFiles.ps1`
 - `Assert-CSharpSyntax.ps1` (Roslyn grammar parse; no NuGet restore required)
+- `Assert-ComponentSafety.ps1` (top-level logger/notifier/activity injection and global error-boundary contract)
 - `Invoke-RepositoryValidation.ps1` (guards, restore, Debug build, Release build, fingerprinted success stamp)
 - `New-VerifiedSourcePackage.ps1` (refuses stale or missing compiler evidence)
 - `RepositoryValidation.Common.ps1`
@@ -26,3 +27,5 @@ The protected governance set is readable by repository tools but must not be edi
 ```
 
 Do not make release ZIPs by hand. A missing SDK, licensed feed, or workload is a failed release gate, not permission to replace compilation with structural checks.
+- `Assert-ComponentSafety.ps1` verifies top-level component safety injection, routed error boundaries, notification-to-memory wiring, UI-operation safeguards, and bounded AI UI awareness.
+- `Assert-WorkflowContracts.ps1` rejects known navigation, shared-contract, nullability, streaming, and swallowed-workflow regressions.

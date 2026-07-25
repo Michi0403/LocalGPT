@@ -1,5 +1,4 @@
 @page "/database"
-
 @inject CouncilRuntimeService CouncilRuntime
 @inject CouncilTextService CouncilText
 @inject LocalGptCatalogService Catalog
@@ -8,9 +7,10 @@
 @inject IApplicationLogReaderService ApplicationLogs
 @inject ICouncilKnowledgeService CouncilKnowledge
 @inject ISqliteTableEditorService TableEditor
+@rendermode InteractiveServer
 @inject ILogger<Database> Logger
 @inject INotificationService Notifier
-@rendermode InteractiveServer
+@inject IComponentActivityService ComponentActivity
 
 <PageTitle>SQLite Database</PageTitle>
 
@@ -807,16 +807,27 @@
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {
+        ArgumentNullException.ThrowIfNull(action);
+        isBusy = true;
+        ComponentActivity.RecordInformation(nameof(Database), operation, "The database UI operation started.");
         try
         {
-            isBusy = true;
             await action().ConfigureAwait(false);
+            ComponentActivity.RecordInformation(nameof(Database), operation, "The database UI operation completed.");
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Database UI operation {Operation} was cancelled.", operation);
+            statusText = "The operation was cancelled.";
+            ComponentActivity.RecordWarning(nameof(Database), operation, "The database UI operation was cancelled.");
+            Notifier.ShowWarning(toastName, statusText, "Operation cancelled");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
+            Logger.LogError(ex, "Database UI operation {Operation} failed; row and query content were omitted from logs.", operation);
             statusText = "The operation failed. See local application logs for technical details.";
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            ComponentActivity.RecordFailure(nameof(Database), operation, ex);
+            Notifier.ShowError(toastName, statusText, "Operation failed");
         }
         finally
         {

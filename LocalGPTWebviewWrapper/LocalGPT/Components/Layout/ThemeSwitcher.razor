@@ -4,7 +4,8 @@
 @inject ThemeService Themes
 @inject ILogger<ThemeSwitcher> Logger
 @inject INotificationService Notifier
-         
+@inject IComponentActivityService ComponentActivity
+
     <ThemeJsChangeDispatcher InitialThemeName="@ThemeName" />
 <ToastWrapper Name="@toastName" />
     <div class="@HeaderCss">

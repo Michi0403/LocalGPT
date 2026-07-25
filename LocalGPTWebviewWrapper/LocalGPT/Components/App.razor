@@ -3,12 +3,18 @@
 @inject ThemeService Themes
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @namespace LocalGPT.Components
+@inject ILogger<App> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
 @{
     string? InitialThemeName = HttpContextAccessor.HttpContext?.Request.Cookies["ActiveTheme"];
     Themes.SetActiveThemeByName(InitialThemeName);
     var bsTheme = Themes.GetBootstrapThemeCssUrl(Themes.ActiveTheme);
     var dxTheme = Themes.GetThemeCssUrl(Themes.ActiveTheme);
     var hlTheme = Themes.GetHighlightJSThemeCssUrl(Themes.ActiveTheme);
+    ComponentActivity.RecordInformation(nameof(App), "RenderShell", "The LocalGPT application shell selected its active theme.");
+    Logger.LogInformation("LocalGPT application shell rendered with theme {ThemeName}.", Themes.ActiveTheme.Name);
 
     string AppendVersion(string path) => FileVersionProvider.AddFileVersionToPath("/", path);
     // var isE2E = string.Equals(
@@ -54,6 +60,7 @@
         <strong>LocalGPT UI is connecting</strong>
         <span>Controls become active after Blazor finishes attaching.</span>
     </div>
+    <ToastWrapper Name="ComponentSafetyToasts" />
     <Routes></Routes>
     <InteractiveStartupMarker />
     @*     <script src="js/devextreme-license.js" type="module"></script> *@
