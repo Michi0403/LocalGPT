@@ -144,3 +144,18 @@ The logger persists technical diagnostics through the existing logging providers
 Workflow service contracts distinguish absence from failure. Optional lookups may return nullable values. Required creation/read operations return a real result or propagate a logged exception to a caller that owns recovery and user notification. Silent `null` returns from required operations are forbidden because they create half-completed workflows and misleading success states.
 
 The detailed component contract, notification-to-memory bridge, failure propagation rules, and validation expectations are maintained in `COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md`. Visual changes are allowed, but logging, human notification, bounded UI awareness, cancellation, confirmation, persistence, and failure semantics are architectural behavior and must remain intact.
+
+## Human collaboration control plane
+
+The main layout hosts one persistent Human Collaboration Inbox. `HumanCollaborationService` persists approval, feedback, guidance, participant-profile, and council-contribution records through `LocalGptMemoryDbContext`. `AmbientLocalGptContext` carries immutable asynchronous snapshots. Its ordinary interface cannot mint human authority. A local-interaction capability is limited to the inbox and Chat contribution control, while a separate approval-execution capability is limited to exact approval gates.
+
+Controller and DXAI gates are non-blocking: they queue an exact request and return a pending result, allowing the council to continue unrelated work. Approval execution requires an exact operation/fingerprint match and consumes the approval once. Council heartbeats drain human contributions and answered guidance, label the human as a peer member, and require later model steps to evaluate the contribution rather than accept it as truth.
+
+
+## Deferred invocation recovery and completion semantics
+
+Sensitive DXAI calls eligible for deferred review persist one exact bounded parameter payload beside the approval request. A council heartbeat claims only records for its own run whose approval is currently Approved.
+
+The normal registry then consumes the one-use approval and re-enters the unchanged handler, so existing review hashes, build confirmations, workspace restrictions, and handler validation remain in force. A successful or failed result is persisted and added to the transcript as untrusted data. A consumed approval cannot be replayed, and changed parameters create a different fingerprint.
+
+The collaboration control plane is deliberately non-blocking: analysis phases continue while a request is pending. `RequiredBeforeCompletion` delays only the guarded final action. Approval after a council has already completed does not restart that run; an exact caller retry is required.

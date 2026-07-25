@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using System.IO.Compression;
 
 namespace LocalGPT.Services
 {

@@ -205,11 +205,11 @@
     private string statusText = "Ready.";
     private string resultText = "Run a local diagnostic route to see JSON here.";
     private string customRoute = "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4";
-    private string learnBaseRoot = Catalog.LearnBasePresets[0].RootPath;
-    private int maxProjects = Catalog.LearnBasePresets[0].RecommendedMaxProjects;
+    private string learnBaseRoot = string.Empty;
+    private int maxProjects = 1;
     private bool saveToKnowledge = true;
-    private LocalGptCatalogService.LearnBasePreset selectedLearnBasePreset = Catalog.LearnBasePresets[0];
-    private LocalGptCatalogService.LearnBaseScanProfile selectedScanProfile = Catalog.LearnBaseScanProfiles[1];
+    private LocalGptCatalogService.LearnBasePreset selectedLearnBasePreset = default!;
+    private LocalGptCatalogService.LearnBaseScanProfile selectedScanProfile = default!;
     private List<LocalGptCatalogService.TestLabDownloadLink> downloadLinks = [];
     private List<LocalGptCatalogService.ArtifactWorkspaceSummary> artifactWorkspaces = [];
     private List<LocalGptCatalogService.ArtifactWorkspaceFileSummary> artifactWorkspaceFiles = [];
@@ -222,6 +222,15 @@
     private string SourcePopupTitle => string.IsNullOrWhiteSpace(openSourceRelativePath)
         ? "Generated Source"
         : $"Generated Source - {openSourceRelativePath}";
+
+    protected override Task OnInitializedAsync()
+    {
+        selectedLearnBasePreset = Catalog.LearnBasePresets.First();
+        selectedScanProfile = Catalog.LearnBaseScanProfiles.Skip(1).FirstOrDefault() ?? Catalog.LearnBaseScanProfiles.First();
+        learnBaseRoot = selectedLearnBasePreset.RootPath;
+        maxProjects = selectedLearnBasePreset.RecommendedMaxProjects;
+        return Task.CompletedTask;
+    }
 
     private Task RunCustomRouteAsync()
     {

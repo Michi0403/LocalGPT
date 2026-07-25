@@ -14,6 +14,8 @@
 @inject IVariableStoreService VariableStore
 @inject ILocalGptProjectService ProjectService
 @inject IChatSessionContext SessionContext
+@inject IHumanCollaborationService HumanCollaboration
+@inject ILocalHumanInteractionContext HumanAmbientContext
 @rendermode InteractiveServer
 @implements IDisposable
 @inject ILogger<Chat> Logger
@@ -304,6 +306,24 @@
 
             </DxAIChat>
         </div>
+        @if (ActiveCouncilRun is not null)
+        {
+            <div class="memory-toolbar human-live-contribution" aria-label="Add information to running AI Council">
+                <label title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
+                    <span>Join running council</span>
+                    <input type="text"
+                           maxlength="4000"
+                           @bind="RunningCouncilContribution"
+                           placeholder="Add evidence, correction, constraint, or your own answer while the council keeps working." />
+                </label>
+                <DxButton Text="Add to next heartbeat"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!string.IsNullOrWhiteSpace(RunningCouncilContribution))"
+                          Click="QueueRunningCouncilContributionAsync" />
+                <span class="memory-status">Round @ActiveCouncilRun.CurrentRound · @ActiveCouncilRun.Phase</span>
+            </div>
+        }
         @if (FeedbackTargets.Count > 0)
         {
             <div class="memory-toolbar" aria-label="Assistant response feedback" data-testid="chat-feedback-controls">
@@ -370,10 +390,10 @@
     int CouncilMaxOutputTokens { get; set; } = LocalGptCatalogService.DefaultCouncilOutputTokens;
     int CouncilMaxContextTokens { get; set; } = LocalGptCatalogService.DefaultCouncilContextTokens;
 
-    string ArchitectureUiStack { get; set; } = Catalog.ArchitectureUiStackOptions[0];
-    string ArchitectureSolutionShape { get; set; } = Catalog.ArchitectureSolutionShapeOptions[0];
-    string ArchitectureRenderMode { get; set; } = Catalog.ArchitectureRenderModeOptions[0];
-    string ArchitectureReferenceLook { get; set; } = Catalog.ArchitectureReferenceLookOptions[0];
+    string ArchitectureUiStack { get; set; } = string.Empty;
+    string ArchitectureSolutionShape { get; set; } = string.Empty;
+    string ArchitectureRenderMode { get; set; } = string.Empty;
+    string ArchitectureReferenceLook { get; set; } = string.Empty;
     string ArchitecturePollNotes { get; set; } = string.Empty;
     bool AllowCouncilToChooseSandboxDetails { get; set; }
     string ArchitecturePollStatus { get; set; } = string.Empty;
@@ -397,6 +417,9 @@
     bool isMemoryBusy;
     bool isModelRefreshBusy;
     CancellationTokenSource? autoSaveCts;
+    HumanCollaborationSnapshot collaborationSnapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
+    string RunningCouncilContribution { get; set; } = string.Empty;
+    HumanCouncilRunSnapshot? ActiveCouncilRun => collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault();
     bool autoSaveFailureNotified;
     string lastSavedSignature = string.Empty;
 
@@ -405,7 +428,13 @@
     {
         try
         {
-            
+            HumanCollaboration.Changed += OnHumanCollaborationChanged;
+            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
+            ArchitectureUiStack = Catalog.ArchitectureUiStackOptions.FirstOrDefault() ?? string.Empty;
+            ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions.FirstOrDefault() ?? string.Empty;
+            ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions.FirstOrDefault() ?? string.Empty;
+            ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions.FirstOrDefault() ?? string.Empty;
+
             await LoadDatabaseBackedDefaultsAsync();
             PromptSuggestions = Catalog.GetSuggestion();
             await LoadChatProjectsAsync().ConfigureAwait(false);
@@ -1532,7 +1561,7 @@
     {
         FeedbackTargets = messages
             .Select((message, sortOrder) => new { message, sortOrder })
-            .Where(item => item.message.Role == ChatRole.Assistant && !string.IsNullOrWhiteSpace(item.message.Content))
+            .Where(item => item.message.Role == ChatMessageRole.Assistant && !string.IsNullOrWhiteSpace(item.message.Content))
             .Select(item => new ChatFeedbackTarget(
                 item.sortOrder,
                 $"#{item.sortOrder + 1}: {BuildFeedbackPreview(item.message.Content)}"))
@@ -1669,10 +1698,61 @@
         
     }
 
+    private async Task RefreshHumanCollaborationAsync()
+    {
+        try
+        {
+            collaborationSnapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 20).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not refresh running council participation state; user and model content were omitted.");
+        }
+    }
+
+    private async Task QueueRunningCouncilContributionAsync()
+    {
+        var activeRun = ActiveCouncilRun;
+        if (activeRun is null || string.IsNullOrWhiteSpace(RunningCouncilContribution))
+            return;
+        if (!collaborationSnapshot.Profile.IsEnabled)
+        {
+            Notifier.ShowInfo(toastName, "Enable your Human Council Participant profile in the Human team panel first.", "Take Part");
+            return;
+        }
+
+        var content = RunningCouncilContribution.Trim();
+        try
+        {
+            using var humanScope = HumanAmbientContext.PushHumanInteraction(
+                HumanCollaborationIdentity.LocalHumanProfileId,
+                collaborationSnapshot.Profile.DisplayName,
+                nameof(Chat),
+                councilRunId: activeRun.RunId,
+                councilRound: activeRun.CurrentRound,
+                phase: activeRun.Phase);
+            await HumanCollaboration.QueueContributionAsync(activeRun.RunId, content).ConfigureAwait(false);
+            RunningCouncilContribution = string.Empty;
+            Notifier.ShowSuccess(toastName, "Your message will enter the next council heartbeat without cancelling the current model.", "Human council contribution");
+            ComponentActivity.RecordInformation(nameof(Chat), "QueueHumanContribution", "A human peer contribution was queued for the next active council heartbeat.");
+            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not queue a human council contribution from Chat; content was omitted from logs.");
+            Notifier.ShowError(toastName, ex is InvalidOperationException ? ex.Message : "The contribution could not be queued. Review LocalGPT logs.", "Human council contribution");
+            ComponentActivity.RecordFailure(nameof(Chat), "QueueHumanContribution", ex);
+        }
+    }
+
+    private void OnHumanCollaborationChanged() => _ = InvokeAsync(RefreshHumanCollaborationAsync);
+
     public void Dispose()
     {
         try
         {
+            HumanCollaboration.Changed -= OnHumanCollaborationChanged;
             autoSaveCts?.Cancel();
             autoSaveCts?.Dispose();
             if (DxAiChat is not null)

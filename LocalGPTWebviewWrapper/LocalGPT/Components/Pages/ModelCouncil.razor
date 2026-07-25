@@ -382,7 +382,7 @@
                     <ul>
                         @foreach (var type in LastResult.ChangeReview.CodeDomTypes)
                         {
-                            <li><code>@type.RelativePath</code> — <code>@type.Namespace.@type.TypeName</code> / <code>@type.MethodName()</code></li>
+                            <li><code>@type.RelativePath</code> — <code>@type.Namespace.@type.TypeName</code> / <code>@($"{type.MethodName}()")</code></li>
                         }
                     </ul>
                 }

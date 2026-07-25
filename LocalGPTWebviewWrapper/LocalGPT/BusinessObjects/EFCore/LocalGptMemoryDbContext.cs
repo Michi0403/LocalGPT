@@ -19,6 +19,10 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<LocalGptProjectVersion> LocalGptProjectVersions => Set<LocalGptProjectVersion>();
         public DbSet<LocalGptProjectTopicKnowledgeLink> LocalGptProjectTopicKnowledgeLinks => Set<LocalGptProjectTopicKnowledgeLink>();
         public DbSet<CodeGenerationChangeReview> CodeGenerationChangeReviews => Set<CodeGenerationChangeReview>();
+        public DbSet<HumanCollaborationRequest> HumanCollaborationRequests => Set<HumanCollaborationRequest>();
+        public DbSet<HumanCouncilParticipantProfile> HumanCouncilParticipantProfiles => Set<HumanCouncilParticipantProfile>();
+        public DbSet<HumanCouncilContribution> HumanCouncilContributions => Set<HumanCouncilContribution>();
+        public DbSet<DeferredDxAiInvocation> DeferredDxAiInvocations => Set<DeferredDxAiInvocation>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -206,6 +210,73 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(review => new { review.ProjectId, review.Status, review.UpdatedAtUtc });
                 entity.HasIndex(review => review.CouncilRunId);
                 entity.HasIndex(review => review.ReviewHash);
+            });
+
+            modelBuilder.Entity<HumanCollaborationRequest>(entity =>
+            {
+                entity.ToTable("HumanCollaborationRequests");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.CorrelationId).HasMaxLength(180).IsRequired();
+                entity.Property(item => item.OperationKey).HasMaxLength(180).IsRequired();
+                entity.Property(item => item.ParameterFingerprint).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.RequestKind).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.Title).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Description).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.RiskLevel).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.Status).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.Source).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.RequestedBy).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.RequestedRole).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.SuggestedResponsesText).HasMaxLength(1600).IsRequired();
+                entity.Property(item => item.ResponsePrompt).HasMaxLength(500).IsRequired();
+                entity.Property(item => item.PrefillText).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.UserResponse).HasMaxLength(4000).IsRequired();
+                entity.Property(item => item.DecisionReason).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.DecisionBy).HasMaxLength(120).IsRequired();
+                entity.HasIndex(item => new { item.CorrelationId, item.OperationKey, item.RequestedAtUtc });
+                entity.HasIndex(item => new { item.Status, item.UpdatedAtUtc });
+                entity.HasIndex(item => new { item.CouncilRunId, item.Status });
+            });
+
+            modelBuilder.Entity<HumanCouncilParticipantProfile>(entity =>
+            {
+                entity.ToTable("HumanCouncilParticipantProfiles");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.DisplayName).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.RoleName).HasMaxLength(180).IsRequired();
+                entity.Property(item => item.Expertise).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.WorkingStyle).HasMaxLength(1200).IsRequired();
+                entity.Property(item => item.UpdatedBy).HasMaxLength(120).IsRequired();
+            });
+
+            modelBuilder.Entity<HumanCouncilContribution>(entity =>
+            {
+                entity.ToTable("HumanCouncilContributions");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.HumanDisplayName).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.HumanRole).HasMaxLength(180).IsRequired();
+                entity.Property(item => item.Content).HasMaxLength(4000).IsRequired();
+                entity.Property(item => item.Status).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.Evaluation).HasMaxLength(4000).IsRequired();
+                entity.Property(item => item.EvaluationVerdict).HasMaxLength(40).IsRequired();
+                entity.HasIndex(item => new { item.CouncilRunId, item.Status, item.EarliestCouncilRound });
+            });
+
+            modelBuilder.Entity<DeferredDxAiInvocation>(entity =>
+            {
+                entity.ToTable("DeferredDxAiInvocations");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.CorrelationId).HasMaxLength(180).IsRequired();
+                entity.Property(item => item.FunctionName).HasMaxLength(180).IsRequired();
+                entity.Property(item => item.ParametersJson).HasMaxLength(64000).IsRequired();
+                entity.Property(item => item.ConfirmationSummaryHash).HasMaxLength(180).IsRequired();
+                entity.Property(item => item.RequestedBy).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.ApplicationVersion).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.Status).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.ResultStatus).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ResultSummary).HasMaxLength(8000).IsRequired();
+                entity.HasIndex(item => item.ApprovalRequestId).IsUnique();
+                entity.HasIndex(item => new { item.CouncilRunId, item.Status, item.CreatedAtUtc });
             });
 
             modelBuilder.Entity<NativeCommandLogEntry>(entity =>

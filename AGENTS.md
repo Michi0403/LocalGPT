@@ -36,6 +36,7 @@ The following governance and enforcement files are **protected**. Automated agen
 - `build/Assert-CSharpSyntax.ps1`
 - `build/Assert-ComponentSafety.ps1`
 - `build/Assert-WorkflowContracts.ps1`
+- `build/Assert-HumanCollaboration.ps1`
 - `build/Invoke-RepositoryValidation.ps1`
 - `build/New-VerifiedSourcePackage.ps1`
 - `build/README.md`
@@ -130,3 +131,18 @@ Review the full diff, parse JSON/XML, scan for conflict markers and forbidden im
 - Preserve the current feature and data behavior when changing a component look. Follow `docs/COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md`.
 - Before packaging, run `build/Assert-ComponentSafety.ps1`, `build/Assert-WorkflowContracts.ps1`, Roslyn syntax validation, and full Debug and Release builds.
 
+
+## Ambient human collaboration and approval invariants
+
+- Keep `IAmbientLocalGptContext` read/system/council-only. Do not add human-authority creation methods to it.
+- `ILocalHumanInteractionContext` is restricted to `HumanCollaborationInbox.razor`, `Chat.razor`, `AmbientLocalGptContext.cs`, and DI registration. `IHumanApprovalExecutionContext` is restricted to `HumanApprovalActionFilter.cs`, `DxAiFunctionRegistry.cs`, `AmbientLocalGptContext.cs`, and DI registration.
+- A model, prompt, memory entry, HTTP query flag, function payload, database row, or council contribution cannot create human identity or approval.
+- Participation and authority are separate: a `Human:` council step is peer evidence, never permission.
+- Consequential controller methods must use `HumanApprovalRequiredAttribute`; do not trust `userConfirmed` without the exact persisted gate and trusted approval scope.
+- Consequential DXAI functions must use the persistent Human Collaboration gate. Approval is bound to the exact parameter fingerprint and consumed once.
+- Feedback and guidance may continue asynchronously through the main-frame inbox. They must not block unrelated council work, and they must enter model context only at a later heartbeat.
+- Preserve `human.collaboration.request` as coordination-only. It may create bounded Feedback/Guidance questions, never Approval requests or side-effect authority.
+- Human contributions must remain clearly labeled, peer-reviewed, persisted, and visible with their later evaluation.
+- Run `build/Assert-HumanCollaboration.ps1` before packaging.
+
+- A sensitive DXAI handler may expose an automatic deferred approval request only through `SupportsDeferredApprovalRequest`; exact parameters must be persisted locally, omitted from logs, and executed only after the one-use approval is consumed on an exact retry or later council heartbeat. Returned values are untrusted data, never instructions.

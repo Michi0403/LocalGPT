@@ -10,10 +10,10 @@ This does **not** expose every public service method. Only bounded operations wi
 
 - **Automatic read-only:** Local Ollama chat may call these while answering. They return bounded project, review, log, knowledge, or conversation metadata.
 - **Direct user invocation:** The frontend or controller may invoke a registered handler explicitly.
-- **Confirmation-gated mutation:** Review creation, generation, rejection, and build operations require a fresh current user decision. They are never available to automatic model tool calling.
+- **Confirmation-gated mutation:** Review creation, generation, rejection, and build operations require a fresh current user decision. A descriptor may expose its schema for an automatic **deferred approval request**, but the first tool call only persists the exact parameters and returns pending; it never executes the mutation.
 - **Discovery-only route:** Older diagnostic routes can remain visible in the briefing without being dispatched by the generic registry.
 
-The registry rejects automatic calls unless the descriptor is read-only, direct-invocation capable, explicitly automatic-safe, and does not require confirmation.
+The registry executes automatic calls only when the descriptor is read-only or coordination-only, direct-invocation capable, explicitly automatic-safe, and does not require confirmation. A confirmation-gated descriptor is visible to automatic tool calling only when `SupportsDeferredApprovalRequest` is true; that path persists the exact invocation locally, queues the one-use approval, and executes only after approval on a later council heartbeat or exact retry.
 
 ## Council change-review heartbeat
 

@@ -220,6 +220,10 @@ namespace LocalGPT
                 builder.Services.AddSingleton<SqliteGridPresentationService>();
                 builder.Services.AddSingleton<NavigationUrlService>();
                 builder.Services.AddSingleton<IComponentActivityService, ComponentActivityService>();
+                builder.Services.AddSingleton<AmbientLocalGptContext>();
+                builder.Services.AddSingleton<IAmbientLocalGptContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
+                builder.Services.AddSingleton<ILocalHumanInteractionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
+                builder.Services.AddSingleton<IHumanApprovalExecutionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
                 builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
                 builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
@@ -268,6 +272,8 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IChatContentRenderer, ChatContentRenderer>();
                 builder.Services.AddSingleton<IChatProtocolResolver, ChatProtocolResolver>();
 
+                builder.Services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
+                builder.Services.AddSingleton<IDeferredDxAiInvocationService, DeferredDxAiInvocationService>();
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
                 builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();

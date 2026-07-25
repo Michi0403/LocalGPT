@@ -64,3 +64,8 @@ dotnet package list ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln --includ
 ```
 
 Then test migration on a copy of the existing SQLite database, chat project/version restore, feedback save/reload/clear, failed-save UI behavior, DXAIFunction cancellation, and explicit/automatic protocol selection for Harmony, DeepSeek, Gemma, Apple/OpenELM/MLX, `<think>`, and plain-text model output.
+
+
+## Human collaboration debug candidate
+
+The source gate now includes `Assert-HumanCollaboration.ps1`. Manual runtime validation must cover exact controller approval, changed-parameter rejection, decline guidance, live human contribution during a running council, later peer assessment, deferred sensitive DXAI execution on a later heartbeat, and the no-auto-restart behavior after a run has completed. See `DEBUG-NEXT-STEPS.md`.

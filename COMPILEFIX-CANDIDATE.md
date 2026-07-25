@@ -13,10 +13,3 @@ Do not rename or publish this candidate as a verified release until that command
 ```powershell
 ./build/New-VerifiedSourcePackage.ps1 -Version "0.1.4"
 ```
-
-## This revision
-
-The workflow-safety revision also fixes the navigation constant/type collision, restores the shared `DxaichatFunctionInfo` contract, aligns the reported nullable workflow signatures, adds component-wide top-directive logger/notifier/activity dependencies, provides recoverable routed error boundaries, and exposes sanitized bounded activity at `/__diag/component-activity`.
-
-See `DEBUG-NEXT-STEPS.md` for the owner-side build and runtime smoke sequence.
-

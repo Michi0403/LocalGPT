@@ -220,7 +220,7 @@
         PackageName = "com.localgpt.livingcities",
         Loader = "Datapack",
         IncludeLivingCitiesStarter = true,
-        Description = Catalog.LivingCitiesPrompt
+        Description = string.Empty
     };
 
     MinecraftModWorkspace? workspace;
@@ -237,6 +237,12 @@
     string? artifactPath;
     bool isBusy;
     bool IsDatapack => string.Equals(request.Loader, "Datapack", StringComparison.OrdinalIgnoreCase);
+
+    protected override Task OnInitializedAsync()
+    {
+        request.Description = Catalog.LivingCitiesPrompt;
+        return Task.CompletedTask;
+    }
 
 
 

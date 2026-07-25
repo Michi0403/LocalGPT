@@ -29,3 +29,5 @@ The protected governance set is readable by repository tools but must not be edi
 Do not make release ZIPs by hand. A missing SDK, licensed feed, or workload is a failed release gate, not permission to replace compilation with structural checks.
 - `Assert-ComponentSafety.ps1` verifies top-level component safety injection, routed error boundaries, notification-to-memory wiring, UI-operation safeguards, and bounded AI UI awareness.
 - `Assert-WorkflowContracts.ps1` rejects known navigation, shared-contract, nullability, streaming, and swallowed-workflow regressions.
+
+- `Assert-HumanCollaboration.ps1` verifies the ambient identity/authority split, main-frame inbox, exact controller and DXAI gates, persistence migration/snapshot, non-blocking council heartbeat, and restricted trusted-capability usage.

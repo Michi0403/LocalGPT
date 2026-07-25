@@ -1,10 +1,10 @@
-﻿using LocalGPT.BusinessObjects.EFCore;
+using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Controller;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller
 {
-    public class ChatController(IRegexPatternService regexSvc, LocalGptMemoryDbContext db, ILogger<DatabaseKnowledgeController> logger) : ControllerBase
+    public class ChatController(IRegexPatternService regexSvc, ILogger<ChatController> logger) : ControllerBase
     {
         // New service-based implementation
         [HttpGet("help-message")]

@@ -4,6 +4,7 @@ using DevExpress.CodeParser.Diagnostics;
 using DevExpress.Xpo.Logger;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using LocalGPT.Security;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -23,8 +24,7 @@ namespace LocalGPT.Controller
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
         DevExpressChatService devExpressChat,
-        IDxAiFunctionRegistry dxAiFunctionRegistry,
-        LocalGptCatalogService catalog) : ControllerBase
+        IDxAiFunctionRegistry dxAiFunctionRegistry) : ControllerBase
     {
         private static IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
             userConfirmed
@@ -96,6 +96,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpGet("/__diag/ai-smoke")]
+        [HumanApprovalRequired("diagnostic.ai.smoke", "Call configured AI client", "Send one exact diagnostic prompt to the configured AI client.", "Medium", "AI connectivity reviewer")]
         public async Task<IResult> GetAiSmoke(
             [FromServices] IChatClient chatClient,
             string? prompt,
@@ -133,6 +134,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpGet("/__diag/ollama-compatible-smoke")]
+        [HumanApprovalRequired("diagnostic.ollama.smoke", "Call Ollama-compatible endpoint", "Send one exact diagnostic request to the selected Ollama-compatible endpoint.", "Medium", "AI connectivity reviewer")]
         public async Task<IResult> GetOllamaCompatibleSmoke(
             string endpoint,
             string? model,
@@ -199,6 +201,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpPost("/__diag/dxaichat-smoke")]
+        [HumanApprovalRequired("diagnostic.dxaichat.smoke", "Run DXAiChat diagnostic", "Call the configured chat client and optionally persist the exact diagnostic exchange.", "Medium", "Chat workflow reviewer")]
         public async Task<IResult> PostDxaichatSmoke(
             [FromBody] DxaichatSmokeRequest request,
             [FromServices] IChatClient chatClient,
@@ -609,6 +612,7 @@ namespace LocalGPT.Controller
 
 
         [HttpPost("/__diag/artifact-workspace/{workspaceName}/file")]
+        [HumanApprovalRequired("artifact.workspace.file.write", "Write generated workspace file", "Write the reviewed text content to one bounded file inside a generated artifact workspace.", "High", "Source workspace reviewer")]
         public async Task<IResult> PostArtifactWorkspaceWorkspaceNameFile(
             string workspaceName,
             [FromBody] LocalGptCatalogService.ArtifactWorkspaceFileSaveRequest request,
@@ -656,6 +660,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpGet("/__diag/artifact-workspace/{workspaceName}/zip")]
+        [HumanApprovalRequired("artifact.workspace.zip.refresh", "Refresh generated workspace ZIP", "Replace the downloadable ZIP for one bounded generated artifact workspace.", "Medium", "Artifact reviewer")]
         public IResult GetArtifactWorkspaceWorkspaceNameZip(
             string workspaceName,
             [FromServices] ICouncilArtifactService artifacts,
@@ -812,6 +817,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpPost("/__diag/chat-upload-workspace/smoke")]
+        [HumanApprovalRequired("diagnostic.upload.workspace.create", "Create upload workspace", "Create a bounded diagnostic workspace from generated upload fixtures.", "High", "Workspace reviewer")]
         public async Task<IResult> PostChatUploadWorkspaceSmoke(
             [FromServices] IChatUploadWorkspaceService uploads,
             string? prompt,
@@ -874,6 +880,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpGet("/__diag/memory-smoke")]
+        [HumanApprovalRequired("diagnostic.memory.smoke", "Write diagnostic memory", "Persist a bounded diagnostic conversation and call the configured model.", "High", "Memory reviewer")]
         public async Task<IResult> GetMemorySmoke(
             [FromServices] IChatMemoryService memory,
             [FromServices] IChatClient chatClient,
@@ -921,6 +928,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpPost("/__diag/process-review")]
+        [HumanApprovalRequired("diagnostic.process.review", "Run grounded process review", "Run the submitted grounded process review through the configured model and memory workflow.", "Medium", "Process reviewer")]
         public async Task<IResult> PostProcessReview(
             [FromBody] GroundedProcessReviewRequest request,
             [FromServices] IChatMemoryService memory,
@@ -1330,6 +1338,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpPost("/__diag/learn-base/import")]
+        [HumanApprovalRequired("learnbase.import", "Import local learn-base", "Read the selected local source tree and optionally persist normalized knowledge entries.", "High", "Knowledge curator")]
         public async Task<IResult> PostLearnBaseImport(
             [FromBody] LearnBaseImportRequest request,
             [FromServices] ILearnBaseKnowledgeImporterService importer,
@@ -1352,6 +1361,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpGet("/__diag/learn-base/import")]
+        [HumanApprovalRequired("learnbase.import", "Import local learn-base", "Read the selected local source tree and optionally persist normalized knowledge entries.", "High", "Knowledge curator")]
         public async Task<IResult> GetLearnBaseImport(
             string? rootPath,
             int? maxProjects,
@@ -1382,6 +1392,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpPost("/__diag/benchmark/engineering")]
+        [HumanApprovalRequired("diagnostic.engineering.benchmark", "Run engineering benchmark", "Run the bounded engineering benchmark and persist its reviewed diagnostic result.", "High", "Engineering benchmark reviewer")]
         public async Task<IResult> PostBenchmarkEngineering(
             [FromBody] EngineeringBenchmarkRequest request,
             [FromServices] IEngineeringBenchmarkService benchmark,
@@ -1404,6 +1415,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpGet("/__diag/benchmark/engineering")]
+        [HumanApprovalRequired("diagnostic.engineering.benchmark", "Run engineering benchmark", "Run the bounded engineering benchmark and persist its reviewed diagnostic result.", "High", "Engineering benchmark reviewer")]
         public async Task<IResult> GetBenchmarkEngineering(
             bool? importLearnBaseFirst,
             bool? saveToKnowledge,
@@ -1437,6 +1449,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpGet("/__diag/council/development-feedback-talk")]
+        [HumanApprovalRequired("diagnostic.council.feedback", "Run council development feedback", "Start the requested local council feedback session and persist its bounded result.", "Medium", "Council facilitator")]
         public async Task<IResult> GetCouncilDevelopmentFeedbackTalk(
             string? modelNames,
             int? maxOutputTokens,
@@ -1517,6 +1530,7 @@ namespace LocalGPT.Controller
         }
 
         [HttpGet("/__diag/council/artifact-smoke")]
+        [HumanApprovalRequired("diagnostic.council.artifact.create", "Create council artifact workspace", "Create one deterministic bounded council artifact workspace for diagnostics.", "High", "Artifact reviewer")]
         public async Task<IResult> GetCouncilArtifactSmoke(
             string? target,
             string? prompt,

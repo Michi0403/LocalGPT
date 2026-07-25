@@ -315,7 +315,7 @@
 
     List<CouncilKnowledgeEntry> KnowledgeEntries { get; set; } = [];
     CouncilKnowledgeEntry? SelectedKnowledgeEntry { get; set; }
-    CouncilKnowledgeEntry KnowledgeEdit { get; set; } = Catalog.CouncilKnowledgeEntryNew ;
+    CouncilKnowledgeEntry KnowledgeEdit { get; set; } = new();
 
     List<SqliteTableSummary> Tables { get; set; } = [];
     SqliteTableSummary? SelectedTable { get; set; }
@@ -332,6 +332,7 @@
     {
         try
         {
+            KnowledgeEdit = Catalog.CouncilKnowledgeEntryNew;
 
             await RefreshAllAsync().ConfigureAwait(true);
         }

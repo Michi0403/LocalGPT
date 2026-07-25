@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Controller;
 using LocalGPT.Interfaces;
+using LocalGPT.Security;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.IO.Compression;
@@ -92,6 +93,7 @@ namespace LocalGPT.Endpoints
         }
 
         [HttpGet("/__diag/minecraft/workspace-smoke")]
+        [HumanApprovalRequired("diagnostic.minecraft.workspace.create", "Create Minecraft diagnostic workspace", "Create one bounded Minecraft diagnostic workspace from the exact selected loader and versions.", "High", "Minecraft workspace reviewer")]
         public async Task<IResult> GetMinecraftWorkspaceSmoke(
             [FromServices] IMinecraftModWorkspaceService workspaceService,
             string? loader,
@@ -138,6 +140,7 @@ namespace LocalGPT.Endpoints
         }
 
         [HttpGet("/__diag/minecraft/datapack-benchmark")]
+        [HumanApprovalRequired("diagnostic.minecraft.datapack.benchmark", "Build Minecraft datapack benchmark", "Create, validate, build, and persist the exact Minecraft datapack benchmark request.", "High", "Minecraft build reviewer", requiredBeforeCompletion: true)]
         public async Task<IResult> GetMinecraftDatapackBenchmark(
             [FromServices] IMinecraftModWorkspaceService workspaceService,
             [FromServices] INativeCommandRunner commandRunner,

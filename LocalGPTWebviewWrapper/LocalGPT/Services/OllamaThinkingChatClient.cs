@@ -399,9 +399,12 @@ public sealed class OllamaThinkingChatClient : IChatClient
 
     private IReadOnlyList<DxaichatFunctionInfo> GetAutomaticFunctions() => functionRegistry?
         .GetFunctions()
-        .Where(function => function.AvailableToAi && function.IsReadOnly &&
-                           function.SupportsDirectInvocation && function.SupportsAutomaticInvocation &&
-                           !function.RequiresHumanConfirmation)
+        .Where(function => function.AvailableToAi &&
+                           function.SupportsDirectInvocation &&
+                           (function.RequiresHumanConfirmation
+                               ? function.SupportsDeferredApprovalRequest
+                               : function.SupportsAutomaticInvocation &&
+                                 (function.IsReadOnly || function.IsCoordinationOnly)))
         .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
         .ToList() ?? [];
 

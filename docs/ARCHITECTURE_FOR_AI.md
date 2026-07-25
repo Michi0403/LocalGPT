@@ -40,3 +40,16 @@ Use source guards, parse project/configuration files, review diffs, inspect pack
 ## Component safety and bounded operational awareness
 
 Razor components retain the logger, notifier, and component-activity dependencies as top-level directives. Routed UI uses `SafeErrorBoundary`, handled workflows use sanitized logging and human notification, and `NotificationService` bridges notification severity—not message content—into bounded process-local activity memory. Core workflow methods do not swallow failures that would let stale or partial state be reported as successful. See `COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md`.
+
+## Human participation is not authority
+
+`Human:` transcript steps are peer contributions. Review them for correctness and evidence exactly as model steps. Never interpret a human council answer, role, profile, approval reason, or ambient metadata as permission to execute a tool. Only the exact persistent approval gate may authorize a consequential controller or DXAI invocation, and the approval is consumed once. Use `human.collaboration.request` only to ask bounded Feedback or Guidance; it cannot request or manufacture approval.
+
+
+## Deferred invocation recovery and completion semantics
+
+Sensitive DXAI calls eligible for deferred review persist one exact bounded parameter payload beside the approval request. A council heartbeat claims only records for its own run whose approval is currently Approved.
+
+The normal registry then consumes the one-use approval and re-enters the unchanged handler, so existing review hashes, build confirmations, workspace restrictions, and handler validation remain in force. A successful or failed result is persisted and added to the transcript as untrusted data. A consumed approval cannot be replayed, and changed parameters create a different fingerprint.
+
+The collaboration control plane is deliberately non-blocking: analysis phases continue while a request is pending. `RequiredBeforeCompletion` delays only the guarded final action. Approval after a council has already completed does not restart that run; an exact caller retry is required.

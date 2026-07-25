@@ -21,6 +21,7 @@
 /build/Assert-CSharpSyntax.ps1 @Michi0403
 /build/Assert-ComponentSafety.ps1 @Michi0403
 /build/Assert-WorkflowContracts.ps1 @Michi0403
+/build/Assert-HumanCollaboration.ps1 @Michi0403
 /build/Assert-SecurityPolicy.ps1 @Michi0403
 /build/Assert-SourceFormatting.ps1 @Michi0403
 /build/Invoke-RepositoryValidation.ps1 @Michi0403
