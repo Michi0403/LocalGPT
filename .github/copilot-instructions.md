@@ -1,5 +1,9 @@
 # Repository coding guidance
 
+## Protected governance boundary
+
+Copilot may read and work from the repository, but it must not create, edit, replace, delete, rename, move, format, normalize, chmod, unlock, or regenerate any file in the protected governance set defined by `AGENTS.md`. This includes `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, this file, `CODEOWNERS`, the source-hygiene workflow, core security/collaboration policy documents, and their validation scripts/hash manifest. Propose such changes to Michael Fleischer (`Michi0403`) for manual application instead of applying them.
+
 Make only reviewable source changes requested by the current human. LocalGPT is a human-guided coworking application, not an autonomous operator.
 
 - Preserve the repository's existing authorship, license, and project-history metadata; attribution does not grant software permission or standing consent.

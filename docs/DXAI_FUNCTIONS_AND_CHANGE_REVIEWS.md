@@ -59,3 +59,7 @@ Generated scripts, executables, DLLs, and addons are never run or loaded automat
 ## Logging and operational memory
 
 Every registry invocation and generation operation uses a structured operation ID. Logs include safe identifiers, counts, status, and bounded metadata. Prompts, generated source, request bodies, secrets, private reasoning, and full database rows are omitted from external or summary logs.
+
+## v0.1.4 typed control-flow client
+
+`IDxAiFunctionServiceClient` is the scoped call boundary for UI and controller initiated DXAIFunction execution. It calls the DI registry directly, assigns a stable operation ID, merges the current conversation/project/project-version/application-version context, permits one active scoped call, and exposes explicit user cancellation. It does not create a second function catalog and does not call LocalGPT through loopback HTTP.

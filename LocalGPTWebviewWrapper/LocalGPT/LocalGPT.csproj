@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
+    <Version>0.1.4</Version>
 	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -39,6 +40,7 @@
 		<Content Include="..\..\docs\PROJECT_COLLABORATION.md" Link="docs\PROJECT_COLLABORATION.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\SECURE_MAINTENANCE.md" Link="docs\SECURE_MAINTENANCE.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md" Link="docs\DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\CHAT_PROTOCOLS_AND_SESSION_CONTEXT.md" Link="docs\CHAT_PROTOCOLS_AND_SESSION_CONTEXT.md" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>

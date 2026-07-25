@@ -14,6 +14,8 @@
 @inject IJSRuntime JS
 @inject IChatContentRenderer ChatContentRenderer
 @inject IVariableStoreService VariableStore
+@inject ILocalGptProjectService ProjectService
+@inject IChatSessionContext SessionContext
 @rendermode InteractiveServer
 @implements IDisposable
 <PageTitle>AI Chat</PageTitle>
@@ -156,6 +158,34 @@
                 <span class="memory-status">@memoryStatus</span>
             }
         </div>
+        <div class="memory-toolbar" aria-label="Chat project and release context" data-testid="chat-project-context">
+            <label title="Optionally links this chat and its function calls to a LocalGPT project.">
+                <span>Project</span>
+                <select value="@SelectedChatProjectValue" @onchange="OnChatProjectChangedAsync">
+                    <option value="">No project</option>
+                    @foreach (var project in ChatProjects)
+                    {
+                        <option value="@project.Id">@project.DisplayName</option>
+                    }
+                </select>
+            </label>
+            <label title="Links the chat to an exact saved project version for traceability.">
+                <span>Project version</span>
+                <select value="@SelectedChatProjectVersionValue"
+                        @onchange="OnChatProjectVersionChangedAsync"
+                        disabled="@(SelectedChatProjectDetails is null)">
+                    <option value="">Current / unspecified</option>
+                    @if (SelectedChatProjectDetails is not null)
+                    {
+                        @foreach (var version in SelectedChatProjectDetails.Versions.OrderByDescending(item => item.CreatedAtUtc))
+                        {
+                            <option value="@version.Id">@version.Version@(version.IsCurrent ? " (current)" : string.Empty)</option>
+                        }
+                    }
+                </select>
+            </label>
+            <span class="memory-status">LocalGPT @SessionContext.ApplicationVersion</span>
+        </div>
         @if (RecentThoughts.Count > 0)
         {
             <div class="memory-thoughts">
@@ -272,6 +302,40 @@
 
             </DxAIChat>
         </div>
+        @if (FeedbackTargets.Count > 0)
+        {
+            <div class="memory-toolbar" aria-label="Assistant response feedback" data-testid="chat-feedback-controls">
+                <label title="Choose the assistant response you want to rate.">
+                    <span>Response</span>
+                    <select value="@SelectedFeedbackSortOrderValue" @onchange="OnFeedbackTargetChanged">
+                        @foreach (var target in FeedbackTargets)
+                        {
+                            <option value="@target.SortOrder">@target.Label</option>
+                        }
+                    </select>
+                </label>
+                <label title="Optional local note stored with the selected assistant message.">
+                    <span>Comment</span>
+                    <input type="text" maxlength="4000" @bind="FeedbackComment" placeholder="What was useful or wrong?" />
+                </label>
+                <DxButton Text="Helpful"
+                          RenderStyle="ButtonRenderStyle.Success"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="@(() => RecordSelectedFeedbackAsync(true))" />
+                <DxButton Text="Not helpful"
+                          RenderStyle="ButtonRenderStyle.Danger"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="@(() => RecordSelectedFeedbackAsync(false))" />
+                <DxButton Text="Clear rating"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="ClearSelectedFeedbackAsync" />
+                @if (!string.IsNullOrWhiteSpace(feedbackStatus))
+                {
+                    <span class="memory-status">@feedbackStatus</span>
+                }
+            </div>
+        }
     }
     else
     {
@@ -317,10 +381,17 @@
     List<MultiModelCouncilModelCandidate> OllamaCandidates { get; set; } = new();
     List<string> SelectedCouncilModelNames { get; set; } = new();
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
+    List<LocalGptProjectSummary> ChatProjects { get; set; } = new();
+    LocalGptProjectDetails? SelectedChatProjectDetails { get; set; }
+    List<ChatFeedbackTarget> FeedbackTargets { get; set; } = new();
+    List<ChatMessageFeedbackSnapshot> SavedFeedback { get; set; } = new();
     ChatMemoryConversationSummary? SelectedConversation { get; set; }
     Guid? ActiveConversationId { get; set; }
+    int? SelectedFeedbackSortOrder { get; set; }
+    string FeedbackComment { get; set; } = string.Empty;
     string memoryStatus = string.Empty;
     string modelStatus = string.Empty;
+    string feedbackStatus = string.Empty;
     bool isMemoryBusy;
     bool isModelRefreshBusy;
     CancellationTokenSource? autoSaveCts;
@@ -334,6 +405,7 @@
             
             await LoadDatabaseBackedDefaultsAsync();
             PromptSuggestions = Catalog.GetSuggestion();
+            await LoadChatProjectsAsync().ConfigureAwait(false);
             await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
             await RefreshOllamaModelsAsync(showToast: false).ConfigureAwait(false);
@@ -429,6 +501,7 @@
         {
             ApplyDiagnosticQueryOptions(selectSession: true);
             LoadSelectedSessionMessages();
+            RefreshFeedbackTargets();
             StartAutoSaveLoop();
         }
         catch (Exception ex)
@@ -450,7 +523,13 @@
             await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
             ChatClientProvider.SelectedSession.Messages.Clear();
             ActiveConversationId = null;
+            SessionContext.SetConversation(null);
             SelectedConversation = null;
+            FeedbackTargets.Clear();
+            SavedFeedback.Clear();
+            SelectedFeedbackSortOrder = null;
+            FeedbackComment = string.Empty;
+            feedbackStatus = string.Empty;
             lastSavedSignature = string.Empty;
             memoryStatus = "New empty chat started.";
             DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
@@ -992,7 +1071,13 @@
 
             ChatClientProvider.SelectedSession.Messages.Clear();
             ActiveConversationId = null;
+            SessionContext.SetConversation(null);
             SelectedConversation = null;
+            FeedbackTargets.Clear();
+            SavedFeedback.Clear();
+            SelectedFeedbackSortOrder = null;
+            FeedbackComment = string.Empty;
+            feedbackStatus = string.Empty;
             lastSavedSignature = string.Empty;
         }
         catch (Exception ex)
@@ -1236,14 +1321,23 @@
                     return;
 
                 ActiveConversationId = snapshot.Id;
+                SessionContext.Restore(new ChatSessionContextSnapshot(
+                    snapshot.Id,
+                    snapshot.ProjectId,
+                    snapshot.ProjectVersionId,
+                    SessionContext.ApplicationVersion));
+                await LoadSelectedChatProjectDetailsAsync(snapshot.ProjectId).ConfigureAwait(false);
                 SelectedConversation = conversation;
                 ChatClientProvider.SelectedSession.Messages.Clear();
                 ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
                 lastSavedSignature = CouncilText.CreateMessageSignature(snapshot.Messages, Logger);
                 memoryStatus = $"Loaded memory: {snapshot.Title}";
+                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(snapshot.Id).ConfigureAwait(false)).ToList();
 
                 if (loadIntoDxChat && DxAiChat is not null)
                     DxAiChat.LoadMessages(snapshot.Messages);
+
+                RefreshFeedbackTargets();
             }
             catch (Exception ex)
             {
@@ -1296,12 +1390,20 @@
             try
             {
                 isMemoryBusy = true;
-                ActiveConversationId = await ChatMemory.SaveConversationAsync(
+                var savedConversationId = await ChatMemory.SaveConversationAsync(
                     ChatClientProvider.SelectedSession.Name,
                     messages,
                     ActiveConversationId).ConfigureAwait(false);
+                if (savedConversationId is not Guid persistedId)
+                {
+                    memoryStatus = "The conversation could not be saved. See local application logs.";
+                    return;
+                }
 
+                ActiveConversationId = persistedId;
+                SessionContext.SetConversation(persistedId);
                 lastSavedSignature = signature;
+                RefreshFeedbackTargets(messages);
                 await RefreshMemoryAsync().ConfigureAwait(false);
                 memoryStatus = $"Memory saved at {DateTime.Now:t}.";
 
@@ -1335,9 +1437,15 @@
             RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync().ConfigureAwait(false)).ToList();
 
             if (ActiveConversationId is Guid id)
+            {
                 SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
+                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(id).ConfigureAwait(false)).ToList();
+            }
             else
+            {
                 SelectedConversation = SavedConversations.FirstOrDefault();
+                SavedFeedback.Clear();
+            }
         }
         catch (Exception ex)
         {
@@ -1346,6 +1454,160 @@
         }
        
     }
+
+    private string SelectedChatProjectValue => SessionContext.ProjectId?.ToString() ?? string.Empty;
+
+    private string SelectedChatProjectVersionValue => SessionContext.ProjectVersionId?.ToString() ?? string.Empty;
+
+    private string SelectedFeedbackSortOrderValue => SelectedFeedbackSortOrder?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private async Task LoadChatProjectsAsync()
+    {
+        ChatProjects = (await ProjectService.GetProjectsAsync().ConfigureAwait(false)).ToList();
+        await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId).ConfigureAwait(false);
+    }
+
+    private async Task LoadSelectedChatProjectDetailsAsync(Guid? projectId)
+    {
+        SelectedChatProjectDetails = projectId is Guid id
+            ? await ProjectService.GetProjectAsync(id).ConfigureAwait(false)
+            : null;
+    }
+
+    private async Task OnChatProjectChangedAsync(ChangeEventArgs args)
+    {
+        if (!Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var projectId))
+        {
+            SessionContext.SetProject(null, null);
+            SelectedChatProjectDetails = null;
+            memoryStatus = "Chat is not linked to a project.";
+        }
+        else
+        {
+            await LoadSelectedChatProjectDetailsAsync(projectId).ConfigureAwait(false);
+            var currentVersion = SelectedChatProjectDetails?.Versions.FirstOrDefault(version => version.IsCurrent)
+                ?? SelectedChatProjectDetails?.Versions.OrderByDescending(version => version.CreatedAtUtc).FirstOrDefault();
+            SessionContext.SetProject(projectId, currentVersion?.Id);
+            memoryStatus = currentVersion is null
+                ? "Chat linked to project; no saved project version selected."
+                : $"Chat linked to {SelectedChatProjectDetails!.Project.Name} {currentVersion.Version}.";
+        }
+
+        if (ActiveConversationId is not null)
+            await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
+    }
+
+    private async Task OnChatProjectVersionChangedAsync(ChangeEventArgs args)
+    {
+        if (SessionContext.ProjectId is not Guid projectId || SelectedChatProjectDetails is null)
+            return;
+
+        Guid? versionId = Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var parsed)
+            ? parsed
+            : null;
+        if (versionId is Guid id && SelectedChatProjectDetails.Versions.All(version => version.Id != id))
+            return;
+
+        SessionContext.SetProject(projectId, versionId);
+        var selectedVersion = versionId is Guid selectedId
+            ? SelectedChatProjectDetails.Versions.First(version => version.Id == selectedId)
+            : null;
+        memoryStatus = selectedVersion is null
+            ? $"Chat linked to {SelectedChatProjectDetails.Project.Name}; exact version unspecified."
+            : $"Chat linked to {SelectedChatProjectDetails.Project.Name} {selectedVersion.Version}.";
+
+        if (ActiveConversationId is not null)
+            await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
+    }
+
+    private void RefreshFeedbackTargets() =>
+        RefreshFeedbackTargets(DxAiChat?.SaveMessages().ToList() ?? []);
+
+    private void RefreshFeedbackTargets(IReadOnlyList<BlazorChatMessage> messages)
+    {
+        FeedbackTargets = messages
+            .Select((message, sortOrder) => new { message, sortOrder })
+            .Where(item => item.message.Role == ChatRole.Assistant && !string.IsNullOrWhiteSpace(item.message.Content))
+            .Select(item => new ChatFeedbackTarget(
+                item.sortOrder,
+                $"#{item.sortOrder + 1}: {BuildFeedbackPreview(item.message.Content)}"))
+            .ToList();
+
+        if (FeedbackTargets.Count == 0)
+        {
+            SelectedFeedbackSortOrder = null;
+            FeedbackComment = string.Empty;
+            return;
+        }
+
+        if (SelectedFeedbackSortOrder is not int selected || FeedbackTargets.All(target => target.SortOrder != selected))
+            SelectedFeedbackSortOrder = FeedbackTargets[^1].SortOrder;
+
+        LoadFeedbackEditor();
+    }
+
+    private static string BuildFeedbackPreview(string content)
+    {
+        var singleLine = Regex.Replace(content, @"\s+", " ").Trim();
+        return singleLine.Length <= 72 ? singleLine : singleLine[..72] + "…";
+    }
+
+    private void OnFeedbackTargetChanged(ChangeEventArgs args)
+    {
+        SelectedFeedbackSortOrder = int.TryParse(
+            Convert.ToString(args.Value, CultureInfo.InvariantCulture),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var sortOrder)
+            ? sortOrder
+            : null;
+        LoadFeedbackEditor();
+    }
+
+    private void LoadFeedbackEditor()
+    {
+        var existing = SelectedFeedbackSortOrder is int sortOrder
+            ? SavedFeedback.FirstOrDefault(item => item.SortOrder == sortOrder)
+            : null;
+        FeedbackComment = existing?.Comment ?? string.Empty;
+    }
+
+    private Task ClearSelectedFeedbackAsync() => RecordSelectedFeedbackAsync(null);
+
+    private async Task RecordSelectedFeedbackAsync(bool? isPositive)
+    {
+        if (SelectedFeedbackSortOrder is not int sortOrder)
+            return;
+
+        await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
+        if (ActiveConversationId is not Guid conversationId)
+        {
+            feedbackStatus = "Save the conversation before recording feedback.";
+            return;
+        }
+
+        var saved = await ChatMemory.RecordMessageFeedbackAsync(
+            conversationId,
+            sortOrder,
+            isPositive,
+            FeedbackComment,
+            CancellationToken.None).ConfigureAwait(false);
+        if (!saved)
+        {
+            feedbackStatus = "The selected assistant response is no longer available.";
+            return;
+        }
+
+        SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(conversationId).ConfigureAwait(false)).ToList();
+        feedbackStatus = isPositive switch
+        {
+            true => "Helpful rating saved locally.",
+            false => "Not-helpful rating saved locally.",
+            _ => "Rating cleared; comment retained if supplied."
+        };
+    }
+
+    private sealed record ChatFeedbackTarget(int SortOrder, string Label);
 
     private void StartAutoSaveLoop()
     {

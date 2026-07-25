@@ -1,55 +1,60 @@
-# Validation — v0.1.3 stable streamed-thinking panels
+# Validation — LocalGPT v0.1.4 unified release
 
-## Authoritative input
+## Authoritative inputs
 
-This pass builds on the sanitized v0.1.1 source and the service-boundary refactor. It retains the owner-updated package references and does not include or modify a private runtime database.
+This release starts from `LocalGPT-v0.1.3-thinking-panels`. The v0.1.2 DXFunctions archive, the local 2026-07-25 archive, the current missing-feature report, the supplied chat log, and the older partly broken reports were reviewed as secondary inputs. Runtime databases, logs, binaries, generated build workspaces, private package material, and the obsolete `Extensions/PlainStatics` branch were not merged.
 
-## Confirmed seed continuity
+## v0.1.4 integration checks
 
-The deterministic database catalog still includes the original response-protocol regex records:
+The final source tree contains and wires the following contracts:
 
-- `HarmonyFinal`;
-- `HarmonyThinking`;
-- `ThinkTag`;
-- `SafeKnowledgeFile`.
+- scoped `IDxAiFunctionServiceClient` / `DxAiFunctionServiceClient` with operation IDs, one active scoped call, cancellation, and conversation/project/project-version/application-version context;
+- `DxAiFunctionsController` routed through the typed client rather than directly through the registry;
+- project and exact project-version selectors in the main Chat page;
+- SQLite-backed assistant feedback with optional comments and reload support;
+- feedback preservation keyed by message order, role, and content so ratings cannot silently move to a replaced response;
+- EF migration `20260725150000_AddChatSessionControl` plus matching model snapshot fields and indexes;
+- separate DI protocol profiles for Harmony/gpt-oss, DeepSeek, Gemma, Apple/OpenELM/MLX, `<think>` tags, and plain text;
+- application, installer, and desktop-wrapper version metadata set to `0.1.4`;
+- readable but agent-immutable governance files, CODEOWNERS, normalized SHA-256 manifest validation, CI enforcement, and optional owner-run read-only attributes.
 
-The prompt-policy and system-variable feeds remain present. Repository knowledge still uses an explicit reviewed allowlist rather than a wildcard. Seed version 5 adds `docs/DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md` without removing the earlier approved architecture, security, peaceful-use, or collaboration documents.
+## Static validation completed in this workspace
 
-## DXAIFunction and generation checks
+The final source-only tree was checked without contacting Hugging Face, Ollama, or any local model runtime.
 
-- DI registers every concrete `IDxAiFunctionHandler` and publishes descriptors through `IDxAiFunctionRegistry`.
-- Parameter schemas live with handler descriptors rather than in a function-name switch inside the Ollama client.
-- Native Ollama tool calls are limited to handlers that are read-only, direct-invocation capable, explicitly automatic-safe, and confirmation-free.
-- Review creation, rejection, source generation, and builds are not available to automatic tool calling.
-- Council consensus may emit a bounded `<localgpt-change-review>` JSON proposal with exact files, CodeDOM types, and outputs.
-- The review payload is persisted with project/topic/council links and a SHA-256 hash before files are written.
-- One-use source generation requires a fresh decision and the exact review hash.
-- A build requires a separate current confirmation and runs only through the bounded artifact-build executor.
-- Generated C# source is included in reviewed project outputs; reviewed `.csx` and `.js` source is reused for script/module outputs.
-- Paths are relative, workspace-contained, Windows-portable, and reject traversal, invalid characters, and reserved device names.
-- Generated scripts, DLLs, executables, and addons are never executed or loaded automatically.
-- New and modified services log operation IDs, safe identifiers, counts, and status while omitting prompts, generated source, secrets, private reasoning, and full request bodies.
-
-## Structural validation completed in the cloud workspace
-
-- 153 C# files passed delimiter/string/comment structure checks.
+- 702 maintained/package files were inventoried.
+- 166 C# files passed comment/string/delimiter structural checks.
 - 22 Razor files passed structural balance checks.
-- Ten dynamic DXAIFunction parameter schemas parsed as JSON objects.
-- Project/property XML and repository JSON parsed successfully.
-- Production static classes remain limited to `Program`, `StringExtensions`, and `ObservableCollectionExtensions`; generated regex methods, constants, and security checks remain static members where appropriate.
-- No active `CouncilChatStaticsGeneral`, `Extensions/PlainStatics`, or `using static System.Net.WebRequestMethods` reference remains.
-- The explicit seed catalog contains the four protocol/safety regexes and repository knowledge seed version 5.
-- Line-length, merge-marker, generated-artifact, path-boundary, and forbidden-static checks passed.
+- 9 JSON files parsed successfully.
+- 18 XML/project/property files parsed successfully.
+- Workflow YAML parsed successfully in the validation environment.
+- The protected-file manifest matched every normalized protected file.
+- Required DI registrations, controller routing, migration/snapshot fields, feedback safety guard, project/version context, and version strings were found.
+- No merge markers, forbidden runtime/private artifacts, `Extensions/PlainStatics`, forbidden `WebRequestMethods` static import, repository `AGENTS.override.md`, or local Claude settings override was packaged.
+- Production static classes remain limited to the application/installer composition roots and the two reviewed extension classes.
+- Maintained lines comply with the 600-character source guard after splitting one pre-existing architecture paragraph.
+
+The static validation command completed with:
+
+```text
+files=702 csharp=166 razor=22 json=9 xml=18
+ALL STATIC VALIDATION CHECKS PASSED
+```
+
+## Preserved v0.1.3 behavior
+
+The streamed thinking/final-answer formatter, stable panel keys, per-message panel-state host, browser state helper, project collaboration domain, reviewed knowledge lifecycle, bounded artifact workspaces, and automatic-safe DXAIFunction gating remain present. The earlier browser regression result documented for v0.1.3 was not rerun in this environment; the source contracts that protect it remain in place.
 
 ## Limits of this review
 
-The cloud workspace does not contain the required .NET 10 SDK/compiler, the owner’s DevExpress feed or license, Windows App SDK workloads, WebView2 runtime, MSIX/signing tooling, or the owner’s localhost/provider configuration. Therefore this review does not claim that the modified solution restores private packages, compiles, launches the wrapper, migrates a production database, builds every generated proposal, publishes, or signs successfully.
+This workspace does not contain the required .NET 10 SDK/compiler, the owner’s DevExpress private feed or license, Windows App SDK workloads, WebView2 runtime, MSIX/signing tooling, or the owner’s provider configuration. Therefore this review does not claim a licensed restore/build, application launch, production-database migration, WebView2 smoke test, publish, or signed installer.
 
-The licensed owner-side Windows build remains authoritative.
+The licensed owner-side Windows build is authoritative. The source package is compiler-ready by structure and wiring review, but a real `dotnet restore` and `dotnet build` are still mandatory before release publication.
 
 ## Required owner-side checks
 
 ```powershell
+./build/Assert-ProtectedRepositoryFiles.ps1
 ./build/Assert-SourceFormatting.ps1
 ./build/Assert-SecurityPolicy.ps1
 ./build/Audit-Dependencies.ps1
@@ -60,14 +65,4 @@ dotnet build ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln -c Debug
 dotnet build ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln -c Release
 ```
 
-Review every compiler warning rather than suppressing it globally. Prioritize nullability, disposal/lifetime, async/cancellation, unsafe path handling, EF migration drift, package advisories, tool-call serialization, generated project compilation, streaming, and persistence.
-
-
-## Streamed thinking-panel state
-
-- `ChatContentRenderer` emits stable `data-localgpt-panel-key` values for LocalGPT-owned details panels.
-- `Chat.razor` scopes panel state to each message-content host.
-- `chat-details-state.js` restores an explicit user toggle after streamed DOM replacement.
-- The script changes only the HTML `open` property and has no external side effects.
-- A headless Chromium regression test verified: user-close survives a live rerender, untouched panels follow completion defaults, and user-open survives the completion rerender.
-- The source-formatting guard requires the renderer key, message host, browser helper, and script registration so the fix cannot be silently removed.
+Then test migration on a copy of the existing SQLite database, chat project/version restore, feedback save/reload/clear, failed-save UI behavior, DXAIFunction cancellation, and explicit/automatic protocol selection for Harmony, DeepSeek, Gemma, Apple/OpenELM/MLX, `<think>`, and plain-text model output.

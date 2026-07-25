@@ -7,6 +7,9 @@ namespace LocalGPT.BusinessObjects
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Title { get; set; } = "New conversation";
         public string ProviderName { get; set; } = "Unknown";
+        public Guid? ProjectId { get; set; }
+        public Guid? ProjectVersionId { get; set; }
+        public string ApplicationVersion { get; set; } = string.Empty;
         public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
         public ICollection<ChatMemoryMessage> Messages { get; set; } = new List<ChatMemoryMessage>();
@@ -21,6 +24,9 @@ namespace LocalGPT.BusinessObjects
         public string Role { get; set; } = "user";
         public string Content { get; set; } = string.Empty;
         public string? Thinking { get; set; }
+        public bool? IsPositiveFeedback { get; set; }
+        public string FeedbackComment { get; set; } = string.Empty;
+        public DateTime? FeedbackUpdatedAtUtc { get; set; }
         public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     }
 
@@ -32,6 +38,9 @@ namespace LocalGPT.BusinessObjects
         DateTime UpdatedAtUtc,
         int MessageCount)
     {
+        public Guid? ProjectId { get; init; }
+        public Guid? ProjectVersionId { get; init; }
+        public string ApplicationVersion { get; init; } = string.Empty;
         public string DisplayName => $"{UpdatedAtUtc:g} - {Title}";
     }
 
@@ -41,7 +50,12 @@ namespace LocalGPT.BusinessObjects
         string ProviderName,
         DateTime CreatedAtUtc,
         DateTime UpdatedAtUtc,
-        List<BlazorChatMessage> Messages);
+        List<BlazorChatMessage> Messages)
+    {
+        public Guid? ProjectId { get; init; }
+        public Guid? ProjectVersionId { get; init; }
+        public string ApplicationVersion { get; init; } = string.Empty;
+    }
 
     public sealed record ChatMemoryThought(
         Guid ConversationId,

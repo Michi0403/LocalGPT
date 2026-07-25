@@ -9,6 +9,8 @@ namespace LocalGPT.Interfaces
         Task<IReadOnlyList<ChatMemoryConversationSummary>> GetConversationsAsync(int take = 50, CancellationToken cancellationToken = default);
         Task<ChatMemoryConversationSnapshot?> LoadConversationAsync(Guid conversationId, CancellationToken cancellationToken = default);
         Task<Guid?> SaveConversationAsync(string providerName, IReadOnlyList<BlazorChatMessage> messages, Guid? conversationId = null, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<ChatMessageFeedbackSnapshot>> GetMessageFeedbackAsync(Guid conversationId, CancellationToken cancellationToken = default);
+        Task<bool> RecordMessageFeedbackAsync(Guid conversationId, int sortOrder, bool? isPositive, string? comment, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<ChatMemoryThought>> GetRecentThoughtsAsync(int take = 12, CancellationToken cancellationToken = default);
         Task<string> BuildMemoryBriefingAsync(int conversationTake = 5, int thoughtTake = 5, CancellationToken cancellationToken = default);
     }

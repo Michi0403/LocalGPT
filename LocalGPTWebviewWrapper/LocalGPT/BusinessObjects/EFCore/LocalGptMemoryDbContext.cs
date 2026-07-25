@@ -61,7 +61,9 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasKey(conversation => conversation.Id);
                 entity.Property(conversation => conversation.Title).HasMaxLength(240).IsRequired();
                 entity.Property(conversation => conversation.ProviderName).HasMaxLength(160).IsRequired();
+                entity.Property(conversation => conversation.ApplicationVersion).HasMaxLength(120).IsRequired();
                 entity.HasIndex(conversation => conversation.UpdatedAtUtc);
+                entity.HasIndex(conversation => new { conversation.ProjectId, conversation.ProjectVersionId, conversation.UpdatedAtUtc });
                 entity.HasMany(conversation => conversation.Messages)
                     .WithOne(message => message.Conversation)
                     .HasForeignKey(message => message.ConversationId)
@@ -74,7 +76,9 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasKey(message => message.Id);
                 entity.Property(message => message.Role).HasMaxLength(40).IsRequired();
                 entity.Property(message => message.Content).IsRequired();
+                entity.Property(message => message.FeedbackComment).HasMaxLength(4000).IsRequired();
                 entity.HasIndex(message => new { message.ConversationId, message.SortOrder }).IsUnique();
+                entity.HasIndex(message => new { message.IsPositiveFeedback, message.FeedbackUpdatedAtUtc });
                 entity.HasIndex(message => message.CreatedAtUtc);
             });
 

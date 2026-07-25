@@ -22,3 +22,8 @@ Known or suspected vulnerabilities are handled to protect users and improve the 
 - allowing a model, document, issue, or dependency advisory to authorize execution.
 
 NuGet audit findings are engineering inputs. High and critical advisories block owner-side builds until they are remediated or a documented, time-bounded maintainer decision is made outside automated model output.
+
+
+## Governance-file maintenance procedure
+
+Protected governance changes are exceptional. The human maintainer should make them in a dedicated commit, review the complete diff, regenerate `build/protected-files.sha256`, run `build/Assert-ProtectedRepositoryFiles.ps1` and `build/Assert-SecurityPolicy.ps1`, and then reapply optional local read-only attributes. Automated agents may review or describe the diff but must not perform these edits or refresh the manifest.

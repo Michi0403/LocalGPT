@@ -210,6 +210,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("0.1.4"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<CouncilTextService>();
                 builder.Services.AddSingleton<CouncilRuntimeService>();
@@ -256,6 +257,12 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IInitialDataCatalog, InitialDataCatalog>();
                 builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();
                 builder.Services.AddHostedService<DatabaseInitializationHostedService>();
+                builder.Services.AddSingleton<IChatProtocolProfile, HarmonyChatProtocolProfile>();
+                builder.Services.AddSingleton<IChatProtocolProfile, DeepSeekChatProtocolProfile>();
+                builder.Services.AddSingleton<IChatProtocolProfile, GemmaChatProtocolProfile>();
+                builder.Services.AddSingleton<IChatProtocolProfile, AppleChatProtocolProfile>();
+                builder.Services.AddSingleton<IChatProtocolProfile, ThinkTagsChatProtocolProfile>();
+                builder.Services.AddSingleton<IChatProtocolProfile, PlainTextChatProtocolProfile>();
                 builder.Services.AddSingleton<IChatResponseFormatterFactory, ChatResponseFormatterFactory>();
                 builder.Services.AddSingleton<IChatContentRenderer, ChatContentRenderer>();
                 builder.Services.AddSingleton<IChatProtocolResolver, ChatProtocolResolver>();
@@ -271,6 +278,8 @@ namespace LocalGPT
                 builder.Services.AddScoped<ICodeGenerationWorkflowService, CodeGenerationWorkflowService>();
                 builder.Services.AddScoped<ICouncilCodeGenerationPlanService, CouncilCodeGenerationPlanService>();
                 builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
+                builder.Services.AddScoped<IChatSessionContext, ChatSessionContext>();
+                builder.Services.AddScoped<IDxAiFunctionServiceClient, DxAiFunctionServiceClient>();
 
                 var dxAiHandlerTypes = typeof(Program).Assembly.DefinedTypes
                     .Where(type => type is { IsAbstract: false, IsInterface: false } &&

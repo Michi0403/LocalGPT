@@ -20,7 +20,8 @@ namespace LocalGPT.Services
         LocalGptDatabaseOptions databaseOptions,
         ILogger<EfChatMemoryService> logger,
         CouncilTextService councilText,
-        DevExpressChatService devExpressChat) : IChatMemoryService
+        DevExpressChatService devExpressChat,
+        IChatSessionContext sessionContext) : IChatMemoryService
     {
         public string DatabasePath => databaseOptions.DatabasePath;
 
@@ -40,7 +41,12 @@ namespace LocalGPT.Services
                         conversation.ProviderName,
                         conversation.CreatedAtUtc,
                         conversation.UpdatedAtUtc,
-                        conversation.Messages.Count))
+                        conversation.Messages.Count)
+                    {
+                        ProjectId = conversation.ProjectId,
+                        ProjectVersionId = conversation.ProjectVersionId,
+                        ApplicationVersion = conversation.ApplicationVersion
+                    })
                     .ToListAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -76,7 +82,12 @@ namespace LocalGPT.Services
                     conversation.ProviderName,
                     conversation.CreatedAtUtc,
                     conversation.UpdatedAtUtc,
-                    messages);
+                    messages)
+                {
+                    ProjectId = conversation.ProjectId,
+                    ProjectVersionId = conversation.ProjectVersionId,
+                    ApplicationVersion = conversation.ApplicationVersion
+                };
             }
             catch (Exception ex)
             {
@@ -119,18 +130,35 @@ namespace LocalGPT.Services
 
                 conversation.Title = devExpressChat.BuildTitle(completeMessages, logger);
                 conversation.ProviderName = string.IsNullOrWhiteSpace(providerName) ? "Unknown" : providerName.Trim();
+                conversation.ProjectId = sessionContext.ProjectId;
+                conversation.ProjectVersionId = sessionContext.ProjectVersionId;
+                conversation.ApplicationVersion = sessionContext.ApplicationVersion;
                 conversation.UpdatedAtUtc = now;
+                var previousFeedback = conversation.Messages.ToDictionary(
+                    message => (message.SortOrder, message.Role, message.Content),
+                    message => new
+                    {
+                        message.IsPositiveFeedback,
+                        message.FeedbackComment,
+                        message.FeedbackUpdatedAtUtc
+                    });
                 conversation.Messages.Clear();
 
                 var index = 0;
                 foreach (var message in completeMessages)
                 {
+                    var sortOrder = index++;
+                    var role = devExpressChat.ToRoleName(message.Role, logger);
+                    previousFeedback.TryGetValue((sortOrder, role, message.Content), out var feedback);
                     conversation.Messages.Add(new ChatMemoryMessage
                     {
-                        SortOrder = index++,
-                        Role = devExpressChat.ToRoleName(message.Role, logger),
+                        SortOrder = sortOrder,
+                        Role = role,
                         Content = message.Content,
                         Thinking = councilText.ExtractThinking(message.Content,logger),
+                        IsPositiveFeedback = feedback?.IsPositiveFeedback,
+                        FeedbackComment = feedback?.FeedbackComment ?? string.Empty,
+                        FeedbackUpdatedAtUtc = feedback?.FeedbackUpdatedAtUtc,
                         CreatedAtUtc = now
                     });
                 }
@@ -139,6 +167,7 @@ namespace LocalGPT.Services
                     db.Conversations.Add(conversation);
 
                 await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                sessionContext.SetConversation(conversation.Id);
                 logger.LogInformation("Saved chat memory conversation {ConversationId} with {MessageCount} messages.", conversation.Id, completeMessages.Count);
                 return conversation.Id;
             }
@@ -146,6 +175,87 @@ namespace LocalGPT.Services
             {
                 logger.LogError(ex, "Could not save the conversation for provider {ProviderName}; conversation {ConversationId}.", providerName, conversationId);
                 return null;
+            }
+        }
+
+
+        public async Task<IReadOnlyList<ChatMessageFeedbackSnapshot>> GetMessageFeedbackAsync(
+            Guid conversationId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                ArgumentNullException.ThrowIfNull(db);
+                var values = await db.Messages
+                    .AsNoTracking()
+                    .Where(message => message.ConversationId == conversationId && message.Role == "assistant")
+                    .OrderBy(message => message.SortOrder)
+                    .Select(message => new
+                    {
+                        message.Id,
+                        message.ConversationId,
+                        message.SortOrder,
+                        message.Role,
+                        message.Content,
+                        message.IsPositiveFeedback,
+                        message.FeedbackComment,
+                        message.FeedbackUpdatedAtUtc
+                    })
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                return values.Select(message => new ChatMessageFeedbackSnapshot(
+                    message.Id,
+                    message.ConversationId,
+                    message.SortOrder,
+                    message.Role,
+                    councilText.TrimForDisplay(message.Content, 180, logger),
+                    message.IsPositiveFeedback,
+                    message.FeedbackComment,
+                    message.FeedbackUpdatedAtUtc)).ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not load feedback metadata for conversation {ConversationId}.", conversationId);
+                return [];
+            }
+        }
+
+        public async Task<bool> RecordMessageFeedbackAsync(
+            Guid conversationId,
+            int sortOrder,
+            bool? isPositive,
+            string? comment,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                ArgumentNullException.ThrowIfNull(db);
+                var message = await db.Messages.SingleOrDefaultAsync(
+                    item => item.ConversationId == conversationId && item.SortOrder == sortOrder,
+                    cancellationToken).ConfigureAwait(false);
+                if (message is null || !string.Equals(message.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                message.IsPositiveFeedback = isPositive;
+                message.FeedbackComment = string.IsNullOrWhiteSpace(comment)
+                    ? string.Empty
+                    : comment.Trim()[..Math.Min(comment.Trim().Length, 4000)];
+                message.FeedbackUpdatedAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                logger.LogInformation(
+                    "Recorded chat feedback for conversation {ConversationId}, message order {SortOrder}; positive={IsPositive}.",
+                    conversationId,
+                    sortOrder,
+                    isPositive);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not record feedback for conversation {ConversationId}, message order {SortOrder}.", conversationId, sortOrder);
+                return false;
             }
         }
 

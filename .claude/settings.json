@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(AGENTS.md)",
+      "Edit(CLAUDE.md)",
+      "Edit(llms.txt)",
+      "Edit(SECURITY.md)",
+      "Edit(.claude/settings.json)",
+      "Edit(.github/copilot-instructions.md)",
+      "Edit(.github/CODEOWNERS)",
+      "Edit(.github/workflows/source-hygiene.yml)",
+      "Edit(docs/HUMAN_AI_COLLABORATION.md)",
+      "Edit(docs/PEACEFUL_USE_COVENANT.md)",
+      "Edit(docs/SECURE_MAINTENANCE.md)",
+      "Edit(build/Assert-SecurityPolicy.ps1)",
+      "Edit(build/Assert-ProtectedRepositoryFiles.ps1)",
+      "Edit(build/Protect-GovernanceFiles.ps1)",
+      "Edit(build/protected-files.sha256)",
+      "Write(AGENTS.md)",
+      "Write(CLAUDE.md)",
+      "Write(llms.txt)",
+      "Write(SECURITY.md)",
+      "Write(.claude/settings.json)",
+      "Write(.github/copilot-instructions.md)",
+      "Write(.github/CODEOWNERS)",
+      "Write(.github/workflows/source-hygiene.yml)",
+      "Write(docs/HUMAN_AI_COLLABORATION.md)",
+      "Write(docs/PEACEFUL_USE_COVENANT.md)",
+      "Write(docs/SECURE_MAINTENANCE.md)",
+      "Write(build/Assert-SecurityPolicy.ps1)",
+      "Write(build/Assert-ProtectedRepositoryFiles.ps1)",
+      "Write(build/Protect-GovernanceFiles.ps1)",
+      "Write(build/protected-files.sha256)"
+    ]
+  }
+}

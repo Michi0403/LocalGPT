@@ -21,6 +21,10 @@ jobs:
         shell: pwsh
         run: ./build/Assert-SourceFormatting.ps1 -MaxLineLength 600
 
+      - name: Check protected governance files
+        shell: pwsh
+        run: ./build/Assert-ProtectedRepositoryFiles.ps1
+
       - name: Check security policy
         shell: pwsh
         run: ./build/Assert-SecurityPolicy.ps1

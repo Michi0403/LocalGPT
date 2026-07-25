@@ -23,3 +23,10 @@ Prefer small, reversible, inspectable steps. State what changed, what was tested
 ## Council phases and projects
 
 Each AI Council phase is a bounded brain-part contribution—proposal, critique, verification, synthesis, or documentation—within one current user-directed run. It is not an autonomous agent and cannot continue work after the run. Project names, paths, versions, and topics provide user-selected context only. A recorded path never authorizes file access, and Git remains an optional recommendation rather than an automatic action.
+
+
+## Repository access without governance write access
+
+Authorized coding assistants may use the repository as readable Git source and may edit ordinary application source for the current human-requested task. Access to the repository is not access to rewrite its rules. The protected governance set in `AGENTS.md` remains human-maintainer-only, including agent instructions, security/collaboration policy, CODEOWNERS, the source-hygiene workflow, and protection scripts.
+
+An assistant that believes a protected change is needed must explain the proposed change without applying it. Only Michael Fleischer (`Michi0403`) may make and commit that change manually. Hash validation and optional local read-only attributes make accidental edits visible; they do not claim to override an unrestricted operating-system administrator.

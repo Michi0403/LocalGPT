@@ -4,9 +4,9 @@ LocalGPT is a local, human-guided AI council and Blazor application created by *
 
 ## Project history and acknowledgments
 
-The architecture, implementation decisions, and maintenance responsibility belong to Michael Fleischer. LocalGPT also grew through repeated co-development sessions with OpenAI's ChatGPT. `gpt-oss-20b` was instrumental in making the initial working system possible, and LocalGPT itself produced many missing-feature reports that Michael reviewed as engineering input.
+The architecture, implementation decisions, and maintenance responsibility belong to Michael Fleischer. LocalGPT also grew through repeated co-development sessions with OpenAI's ChatGPT. The v0.1.4 unification, protocol separation, persisted feedback wiring, and protected-governance design were prepared with OpenAI ChatGPT (GPT-5.6 Thinking) at Michael's request. `gpt-oss-20b` was instrumental in making the initial working system possible, and LocalGPT itself produced many missing-feature reports that Michael reviewed as engineering input.
 
-These acknowledgments describe collaboration; they do not give any model, document, or stored memory authority to act as the user.
+These acknowledgments describe collaboration; they do not give any model, document, or stored memory authority to act as the user. Authorized review tools may read the Git source and work on ordinary code when Michael requests it; the protected governance files in `AGENTS.md` remain human-maintainer-only.
 
 ## Human-guided by design
 

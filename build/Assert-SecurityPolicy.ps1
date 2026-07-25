@@ -7,7 +7,40 @@ $errors = [System.Collections.Generic.List[string]]::new()
 
 function Add-Error([string]$message) { $errors.Add($message) }
 
+$protectedGuard = Join-Path $root 'build/Assert-ProtectedRepositoryFiles.ps1'
+if (-not (Test-Path -LiteralPath $protectedGuard -PathType Leaf)) {
+    Add-Error 'Protected repository file guard is missing.'
+}
+else {
+    & $protectedGuard
+    if ($LASTEXITCODE -ne 0) { Add-Error 'Protected repository file validation failed.' }
+}
+
+$requiredAgentBoundaryFiles = @(
+    'AGENTS.md',
+    'CLAUDE.md',
+    '.claude/settings.json',
+    '.github/copilot-instructions.md',
+    '.github/CODEOWNERS'
+)
+foreach ($relative in $requiredAgentBoundaryFiles) {
+    if (-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)) {
+        Add-Error "Required agent boundary file is missing: $relative"
+    }
+}
+
 $allFiles = Get-ChildItem $root -Recurse -Force -File
+$agentOverrides = Get-ChildItem $root -Recurse -Force -File -Filter 'AGENTS.override.md' -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch '[\\/](\.git|\.vs|bin|obj)[\\/]' }
+if ($agentOverrides) {
+    Add-Error 'Repository AGENTS.override.md files are forbidden because they can silently replace the reviewed governance boundary.'
+}
+
+$localClaudeSettings = Join-Path $root '.claude/settings.local.json'
+if (Test-Path -LiteralPath $localClaudeSettings) {
+    Add-Error 'Tracked or packaged .claude/settings.local.json is forbidden; local overrides must not weaken project governance.'
+}
+
 $sourceFiles = $allFiles | Where-Object {
     $_.FullName -notmatch '[\\/](\.git|\.vs|\.cr|bin|obj)[\\/]'
 }
@@ -54,7 +87,8 @@ foreach ($staticImport in $staticImports) {
 $allowedStaticClassFiles = @(
     (Join-Path $mainSourceRoot 'Program.cs'),
     (Join-Path $mainSourceRoot 'Extensions/StringExtensions.cs'),
-    (Join-Path $mainSourceRoot 'Extensions/CollectionsExtensions.cs')
+    (Join-Path $mainSourceRoot 'Extensions/CollectionsExtensions.cs'),
+    (Join-Path $root 'LocalGPTWebviewWrapper/LocalGPTInstallerConsole/Program.cs')
 )
 $staticClasses = $csharpFiles | Select-String -Pattern '^\s*(public|internal|private)?\s*static\s+class\s+'
 foreach ($match in $staticClasses) {
@@ -66,10 +100,6 @@ foreach ($match in $staticClasses) {
 $programPath = Join-Path $mainSourceRoot 'Program.cs'
 if ((Get-Content $programPath -Raw) -match 'public\s+static\s+int\s+Port') {
     Add-Error 'Program.Port must not return as mutable process-wide state; pass the selected port through startup methods.'
-}
-
-if (Test-Path (Join-Path $root 'CLAUDE.md')) {
-    Add-Error 'Model-specific root instruction file CLAUDE.md must not be present.'
 }
 
 $appsettings = Join-Path $root 'LocalGPTWebviewWrapper/LocalGPT/appsettings.json'

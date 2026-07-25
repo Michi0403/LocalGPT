@@ -53,3 +53,10 @@ NuGet audit is enabled for direct and transitive dependencies. High and critical
 ## Reporting
 
 Report vulnerabilities privately to the repository owner with affected versions, minimal reproduction information, impact, and a proposed remediation. Do not include live credentials, private data, or weaponized proof-of-concept code.
+
+
+## Protected repository governance
+
+Repository review tools may read and analyze the full Git source when the human maintainer authorizes the work. They must not alter the protected governance set listed in `AGENTS.md`. Claude Code is additionally constrained by `CLAUDE.md` and `.claude/settings.json`; Codex and compatible tools are constrained by `AGENTS.md`; GitHub review ownership is recorded in `.github/CODEOWNERS`.
+
+The source-hygiene workflow validates `build/protected-files.sha256`. Michael Fleischer (`Michi0403`) is the only maintainer authorized to make an intentional protected-file change, refresh the manifest, and commit that governance-only change. Repository controls cannot defeat an unrestricted administrator; use `build/Protect-GovernanceFiles.ps1` as an optional owner-run read-only layer on local checkouts.

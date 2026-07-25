@@ -115,7 +115,9 @@ Provider configuration objects, keys, prompts, message bodies, and complete resp
 
 The old process-global buffers, counters, protocol flags, and static Markdown renderer were removed from the active path. Concurrent streams cannot share formatter state.
 
-`IChatContentRenderer` receives DXAIChat's accumulated response snapshot on each streamed update. It keeps unfinished thinking and council panels visibly open, adds temporary closing tags only to the render snapshot, removes Harmony transport markers, preserves encoded thinking text, and assigns stable panel keys. Browser-side state preserves an explicit user expand/collapse choice through subsequent streamed rerenders; completed panels collapse only when the user has not chosen otherwise. Ollama frames are yielded immediately. AI Council callback updates use an event-driven channel; streamed council-member presentation is ordered to prevent nested HTML from interleaving, while non-streaming council execution may still use configured parallelism.
+`IChatContentRenderer` receives DXAIChat's accumulated response snapshot on each streamed update. It keeps unfinished thinking and council panels visibly open, adds temporary closing tags only to the render snapshot, removes Harmony transport markers, preserves encoded thinking text, and assigns stable panel keys.
+
+Browser-side state preserves an explicit user expand/collapse choice through subsequent streamed rerenders; completed panels collapse only when the user has not chosen otherwise. Ollama frames are yielded immediately. AI Council callback updates use an event-driven channel. Streamed council-member presentation is ordered to prevent nested HTML from interleaving, while non-streaming council execution may still use configured parallelism.
 
 ## Native command boundary
 

@@ -196,7 +196,18 @@ namespace LocalGPT.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ApplicationVersion")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ProjectVersionId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ProviderName")
@@ -215,6 +226,8 @@ namespace LocalGPT.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UpdatedAtUtc");
+
+                    b.HasIndex("ProjectId", "ProjectVersionId", "UpdatedAtUtc");
 
                     b.ToTable("ChatMemoryConversations", (string)null);
                 });
@@ -277,6 +290,17 @@ namespace LocalGPT.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FeedbackComment")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FeedbackUpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool?>("IsPositiveFeedback")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -291,6 +315,8 @@ namespace LocalGPT.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("IsPositiveFeedback", "FeedbackUpdatedAtUtc");
 
                     b.HasIndex("ConversationId", "SortOrder")
                         .IsUnique();
