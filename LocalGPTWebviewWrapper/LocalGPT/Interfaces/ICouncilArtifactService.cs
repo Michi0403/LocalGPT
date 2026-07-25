@@ -28,6 +28,7 @@ namespace LocalGPT.Interfaces
            string sourceFileName,
            string source,
            string targetArea,
+           bool userConfirmedArtifactBuild,
            CancellationToken cancellationToken);
     }
 }

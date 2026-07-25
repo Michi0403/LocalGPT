@@ -1,6 +1,5 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -15,7 +14,8 @@ public sealed class NativeCommandRunner(
     ILogger<NativeCommandRunner> logger,
     IMinecraftModWorkspaceService workspaceService,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
-    IOptionsMonitor<NativeCommandOptions> commandOptions) : INativeCommandRunner
+    IOptionsMonitor<NativeCommandOptions> commandOptions,
+        SqliteUtilityService sqliteUtility) : INativeCommandRunner
 {
     private const int MinimumTimeoutSeconds = 5;
     private const int MaximumTimeoutSeconds = 3600;
@@ -52,7 +52,8 @@ public sealed class NativeCommandRunner(
         string fileName,
         string arguments,
         string workingDirectory,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool userConfirmed = false)
     {
         if (string.IsNullOrWhiteSpace(fileName))
             throw new ArgumentException("Command is required.", nameof(fileName));
@@ -65,6 +66,25 @@ public sealed class NativeCommandRunner(
 
         try
         {
+            if (!userConfirmed)
+            {
+                var confirmationPolicy = CommandPolicyDecision.Deny(
+                    "Fresh human confirmation is required for this exact native command.");
+                await SaveCommandLogAsync(
+                    fileName,
+                    redactedArguments,
+                    normalizedWorkingDirectory,
+                    startedAt,
+                    DateTime.UtcNow,
+                    -1,
+                    string.Empty,
+                    string.Empty,
+                    confirmationPolicy,
+                    cancellationToken).ConfigureAwait(false);
+                logger.LogWarning("Native command denied because fresh human confirmation was not supplied.");
+                return null;
+            }
+
             var policy = ValidatePolicy(fileName, arguments, normalizedWorkingDirectory);
             if (!policy.Allowed)
             {
@@ -233,14 +253,14 @@ public sealed class NativeCommandRunner(
         if (!AllowedExecutables.Contains(executable))
             return CommandPolicyDecision.Deny($"Executable '{executable}' is not allowlisted.");
 
-        if (SQLLiteFunctions.ContainsPathSegment(fileName, logger))
+        if (sqliteUtility.ContainsPathSegment(fileName, logger))
         {
             var executablePath = Path.GetFullPath(Path.Combine(workingDirectory, fileName));
             if (!workspaceService.IsPathInsideWorkspaceRoot(executablePath))
                 return CommandPolicyDecision.Deny("Executable paths must stay inside the LocalGPT Minecraft workspace root.");
         }
 
-        if (SQLLiteFunctions.IsPowerShell(executable, logger))
+        if (sqliteUtility.IsPowerShell(executable, logger))
         {
             if (!policyOptions.AllowPowerShellWorkspaceScripts)
             {
@@ -251,7 +271,7 @@ public sealed class NativeCommandRunner(
             return ValidatePowerShellPolicy(arguments, workingDirectory);
         }
 
-        var profile = SQLLiteFunctions.ClassifyCommandProfile(executable, arguments, logger);
+        var profile = sqliteUtility.ClassifyCommandProfile(executable, arguments, logger);
         return CommandPolicyDecision.Allow(
             profile,
             $"Profile '{profile}' selected for allowlisted executable '{executable}'.");
@@ -294,7 +314,7 @@ public sealed class NativeCommandRunner(
             var logDirectory = Path.Combine(workingDirectory, ".localgpt", "command-logs");
             Directory.CreateDirectory(logDirectory);
 
-            var safeName = SQLLiteFunctions.SanitizeFileName(Path.GetFileNameWithoutExtension(fileName), logger);
+            var safeName = sqliteUtility.SanitizeFileName(Path.GetFileNameWithoutExtension(fileName), logger);
             var stamp = startedAt.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
             var stdoutPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stdout.txt");
             var stderrPath = Path.Combine(logDirectory, $"{stamp}-{safeName}-stderr.txt");

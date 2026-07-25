@@ -1,6 +1,5 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Controller;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -11,8 +10,19 @@ namespace LocalGPT.Endpoints
 {
     [ApiController]
     [Route("")]
-    public class MinecraftDiagnosticController(ILogger<MinecraftDiagnosticController> logger) : ControllerBase
+    public class MinecraftDiagnosticController(ILogger<MinecraftDiagnosticController> logger,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText) : ControllerBase
     {
+        private static IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
+            userConfirmed
+                ? null
+                : Results.BadRequest(new
+                {
+                    Error = "Fresh, specific human confirmation is required for this operation.",
+                    Operation = operation
+                });
+
         [HttpGet("/__artifacts/minecraft/{projectName}/{fileName}")]
         public IResult GetMinecraftProjectNameFileName(
             string projectName,
@@ -43,8 +53,8 @@ namespace LocalGPT.Endpoints
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetMinecraftProjectNameFileName {ex.ToString()} projectName {projectName.ToString()} fileName {fileName.ToString()} workspaces {workspaces.ToString()}");
-                return Results.InternalServerError($"Error in GetMinecraftProjectNameFileName {ex.ToString()} projectName {projectName.ToString()} fileName {fileName.ToString()} workspaces {workspaces.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetMinecraftProjectNameFileName");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -54,12 +64,12 @@ namespace LocalGPT.Endpoints
         {
             try
             {
-                return Results.Ok(CouncilChatStaticsGeneral.MinecraftDatapackVersionInfoResolve(minecraftVersion,logger));
+                return Results.Ok(councilRuntime.MinecraftDatapackVersionInfoResolve(minecraftVersion,logger));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetMinecraftDatapackVersion {ex.ToString()} minecraftVersion {minecraftVersion?.ToString()}");
-                return Results.InternalServerError($"Error in GetMinecraftDatapackVersion {ex.ToString()} minecraftVersion {minecraftVersion?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetMinecraftDatapackVersion");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }         
         }
 
@@ -72,12 +82,12 @@ namespace LocalGPT.Endpoints
         {
             try
             {
-                return Results.Ok(CouncilChatStaticsGeneral.ResolveMinecraftDependencyVersionInfo(loader, minecraftVersion,logger, javaVersion, gradleVersion));
+                return Results.Ok(councilRuntime.ResolveMinecraftDependencyVersionInfo(loader, minecraftVersion,logger, javaVersion, gradleVersion));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetMinecraftDependencyVersion {ex.ToString()} loader {loader?.ToString()} minecraftVersion {minecraftVersion?.ToString()} javaVersion {javaVersion?.ToString()} gradleVersion {gradleVersion?.ToString()}");
-                return Results.InternalServerError($"Error in GetMinecraftDependencyVersion {ex.ToString()} loader {loader?.ToString()} minecraftVersion {minecraftVersion?.ToString()} javaVersion {javaVersion?.ToString()} gradleVersion {gradleVersion?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetMinecraftDependencyVersion");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }          
         }
 
@@ -85,17 +95,21 @@ namespace LocalGPT.Endpoints
         public async Task<IResult> GetMinecraftWorkspaceSmoke(
             [FromServices] IMinecraftModWorkspaceService workspaceService,
             string? loader,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "create a Minecraft diagnostic workspace") is { } denied)
+                    return denied;
+
                 var request = new MinecraftModBuildRequest
                 {
                     ProjectName = $"LivingCitiesSmoke{DateTime.UtcNow:HHmmss}",
                     ModId = "living_cities_smoke",
                     PackageName = "com.localgpt.livingcitiessmoke",
                     Loader = string.IsNullOrWhiteSpace(loader) ? "Fabric" : loader,
-                    MinecraftVersion = GlobalVariableSlopCollectionToRemove.DefaultMinecraftVersion,
+                    MinecraftVersion = LocalGptCatalogService.DefaultMinecraftVersion,
                     JavaVersion = "25",
                     GradleVersion = "8.14.2",
                     Ide = "Eclipse",
@@ -118,8 +132,8 @@ namespace LocalGPT.Endpoints
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetMinecraftWorkspaceSmoke {ex.ToString()} workspaceService {workspaceService?.ToString()} loader {loader?.ToString()}");
-                return Results.InternalServerError($"Error in GetMinecraftWorkspaceSmoke {ex.ToString()} workspaceService {workspaceService?.ToString()} loader {loader?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetMinecraftWorkspaceSmoke");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }          
         }
 
@@ -129,17 +143,21 @@ namespace LocalGPT.Endpoints
             [FromServices] INativeCommandRunner commandRunner,
             [FromServices] ICouncilKnowledgeService knowledgeService,
             string? minecraftVersion,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "create, validate, and save a Minecraft datapack benchmark") is { } denied)
+                    return denied;
+
                 var request = new MinecraftModBuildRequest
                 {
                     ProjectName = $"LivingCitiesDatapackCouncil{DateTime.UtcNow:HHmmss}",
                     ModId = "living_cities",
                     PackageName = "com.localgpt.livingcities",
                     Loader = "Datapack",
-                    MinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion) ? GlobalVariableSlopCollectionToRemove.DefaultMinecraftVersion : minecraftVersion,
+                    MinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion) ? LocalGptCatalogService.DefaultMinecraftVersion : minecraftVersion,
                     JavaVersion = "25",
                     GradleVersion = "8.14.2",
                     Ide = "Eclipse",
@@ -152,12 +170,13 @@ namespace LocalGPT.Endpoints
                     "powershell.exe",
                     "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
                     workspace.RootPath,
-                    ct).ConfigureAwait(false); 
+                    ct,
+                    userConfirmed: userConfirmed).ConfigureAwait(false); 
                 var files = Directory.GetFiles(workspace.RootPath, "*", SearchOption.AllDirectories)
                     .Select(path => Path.GetRelativePath(workspace.RootPath, path).Replace('\\', '/'))
                     .Order(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
-                var referenceComparison = CouncilChatStaticsGeneral.BuildDatapackReferenceComparison(workspace.RootPath,logger);
+                var referenceComparison = councilRuntime.BuildDatapackReferenceComparison(workspace.RootPath,logger);
                 ArgumentNullException.ThrowIfNull(build);
                 ArgumentNullException.ThrowIfNull(build.StandardOutput);
                 var knowledgeEntry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
@@ -173,7 +192,7 @@ namespace LocalGPT.Endpoints
                     $"Latest generated workspace: {workspace.RootPath}",
                     $"Build succeeded: {build?.Succeeded}; exit code {build?.ExitCode}.",
                     $"Function files: {files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase))}.",
-                    $"Build output: {CouncilChatStringFunctions.TrimForKnowledge(((CommandExecutionResult)build).StandardOutput, 700,logger)}",
+                    $"Build output: {councilText.TrimForKnowledge(((CommandExecutionResult)build).StandardOutput, 700,logger)}",
                     $"Reference comparison: {referenceComparison?.Summary}",
                     $"Reference placeholders: {referenceComparison?.ReferencePlaceholderCount}; generated placeholders: {referenceComparison?.GeneratedPlaceholderCount}.",
                     $"Root pack.mcmeta: generated={referenceComparison?.GeneratedHasRootPackMcmeta}, reference={referenceComparison?.ReferenceHasRootPackMcmeta}, reference nested={referenceComparison?.ReferenceHasNestedPackMcmeta}.",
@@ -202,8 +221,8 @@ namespace LocalGPT.Endpoints
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetMinecraftDatapackBenchmark {ex.ToString()} workspaceService {workspaceService?.ToString()} commandRunner {commandRunner?.ToString()} knowledgeService {knowledgeService?.ToString()} minecraftVersion {minecraftVersion?.ToString()}");
-                return Results.InternalServerError($"Error in GetMinecraftDatapackBenchmark {ex.ToString()} workspaceService {workspaceService?.ToString()} commandRunner {commandRunner?.ToString()} knowledgeService {knowledgeService?.ToString()} minecraftVersion {minecraftVersion?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetMinecraftDatapackBenchmark");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }       
         }
     }

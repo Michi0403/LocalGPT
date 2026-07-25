@@ -34,6 +34,16 @@ namespace LocalGPT.BusinessObjects
 
         public bool GenerateImplementationArtifact { get; set; }
 
+        public bool UserConfirmedArtifactBuild { get; set; }
+
+        public bool UseChangeReviewWorkflow { get; set; } = true;
+
+        public Guid? ProjectId { get; set; }
+
+        public Guid? ProjectTopicId { get; set; }
+
+        public bool UserConfirmedProjectLink { get; set; }
+
         [JsonIgnore]
         public Action<string>? ProgressMessage { get; set; }
 
@@ -82,9 +92,15 @@ namespace LocalGPT.BusinessObjects
 
         public Guid? KnowledgeEntryId { get; set; }
 
+        public Guid? ProjectId { get; set; }
+
+        public Guid? ProjectTopicId { get; set; }
+
         public string? LogPath { get; set; }
 
         public List<CouncilArtifact> Artifacts { get; set; } = [];
+
+        public CodeGenerationReviewSnapshot? ChangeReview { get; set; }
 
         public List<string> Warnings { get; set; } = [];
     }
@@ -153,5 +169,11 @@ namespace LocalGPT.BusinessObjects
         public double DurationSeconds { get; set; }
 
         public string? Error { get; set; }
+
+        [JsonIgnore]
+        public string BrainPart => string.IsNullOrWhiteSpace(Role) ? Phase : Role;
+
+        [JsonIgnore]
+        public string Moment => $"Round {Round}: {Phase}";
     }
 }

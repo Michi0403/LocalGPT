@@ -1,18 +1,34 @@
 # Release process
 
 1. Start from a clean clone at the intended release commit and confirm there is exactly one `.git` directory.
-2. Confirm runtime databases, WAL/SHM files, logs, `.vs`, `.cr`, `bin`, `obj`, generated repository snapshots, user publish files, credentials, and generated license files are untracked. When applying the supplemental source patch to an old clone, run `tools/Remove-TrackedRuntimeArtifacts.ps1 -WhatIf` first, review the exact four paths, then rerun without `-WhatIf` and stage only the approved deletions.
+2. Confirm runtime databases, WAL/SHM files, logs, `.vs`, `.cr`, `bin`, `obj`, generated repository snapshots, user publish files, credentials, key/certificate files, private-feed configuration, generated license files, and unlicensed font assets are untracked.
 3. Use the required .NET 10 SDK, configured DevExpress 25.2 NuGet feed, valid DevExpress license, and required Windows/WebView2 workloads on the licensed build machine.
-4. Run `.\build\Assert-SourceFormatting.ps1`. It must reject any `using static System.Net.WebRequestMethods;` import before compilation.
-5. Restore and build `LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln` in Debug and Release.
-6. Manually start the loopback host and verify the migration/initial-feed completion log appears once. AI coding tools must not start or probe localhost services.
-7. Verify prompt/variable edits survive restart and maintainer-created knowledge is not overwritten by seed refreshes.
-8. Test normal chat, streaming chat, provider switching, council mode, knowledge views, diagnostics, and desktop-wrapper startup.
-9. Test one plain stream, one `<think>` stream, one Harmony stream, markers split across chunks, cancellation, timeout, and two concurrent single-model streams. Confirm thinking text updates continuously, remains expanded while active, and collapses after final output starts.
-10. Test a multi-member AI Council stream. Confirm member panels update without the old two-second bursts, do not cross/interleave their HTML containers, lose the live indicator after completion, and end with the consensus output.
-11. Keep `NativeCommands:Enabled=false` for the normal safety test. In an isolated test workspace only, the human maintainer may explicitly enable it and verify allowlist, traversal rejection, timeout, process-tree cancellation, audit logging, secret redaction, and the separate PowerShell opt-in.
-12. Verify local-provider auto-start does not execute an unrestricted shell command.
-13. Keep `ArtifactBuilds:Enabled=false` for the normal safety test. In an isolated artifact directory only, the human maintainer may explicitly enable it and verify root/target/output rejection, timeout, cancellation, and process-tree termination.
-14. Generate any required DevExtreme runtime-license script only on the licensed build machine and place it in release staging, never in Git. Follow `docs/DEVEXPRESS_ASSETS.md`.
-15. Review `THIRD-PARTY-NOTICES.md`, `LICENSE.MD`, this release changelog, and `VALIDATION.md`.
-16. Package only from a clean staging tree. Exclude `.git`, databases, logs, credentials, private feeds, generated license material, user files, and unlicensed assets.
+4. Run the source and security guards:
+
+   ```powershell
+   ./build/Assert-SourceFormatting.ps1
+   ./build/Assert-SecurityPolicy.ps1
+   ```
+
+5. Restore and audit direct and transitive dependencies. Do not suppress or ignore advisories merely to obtain a green build:
+
+   ```powershell
+   dotnet restore ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln
+   ./build/Audit-Dependencies.ps1
+   dotnet package list ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln --include-transitive --vulnerable --format json
+   ```
+
+6. Build `LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln` in Debug and Release. Review every compiler warning, especially nullability, async/cancellation, disposal/lifetime, EF migration, path handling, obsolete API, package-audit, streaming, and persistence warnings.
+7. Manually start the loopback host and verify the migration/initial-feed completion log appears once. AI coding tools must not start or probe localhost services.
+8. Verify only the reviewed repository-knowledge allowlist is seeded. Confirm model/council suggestions remain unapproved until a human reviews them and that prompt/variable edits survive restart.
+9. Test normal chat, streaming chat, provider switching, knowledge views, diagnostics, and desktop-wrapper startup.
+10. Test one plain stream, one `<think>` stream, one Harmony stream, markers split across chunks, cancellation, timeout, and two concurrent single-model streams. Confirm thinking text updates continuously, remains expanded while active, and collapses after final output starts.
+11. Test a multi-member AI Council stream. Confirm member panels update without polling bursts, do not cross/interleave their HTML containers, lose the live indicator after completion, and end with the consensus output.
+12. Test Projects: create/edit a project, topic, and version; restart and confirm persistence; verify a recorded path is not accessed merely by loading/selecting the project; verify Git is only recommended; and verify save confirmations reset after success and failure.
+13. Test council project context and linking. Confirm project selection supplies bounded context, artifact generation defaults off, URL parameters cannot enable it, project-topic linking requires its own fresh confirmation, and both confirmations are consumed after one run even on failure.
+14. Keep `NativeCommands:Enabled=false` and `ArtifactBuilds:Enabled=false` for the normal safety test. In an isolated disposable workspace only, the human maintainer may explicitly enable each feature and verify allowlists, traversal rejection, target containment, timeout, cancellation, process-tree termination, audit logging, secret redaction, and the separate PowerShell opt-in.
+15. Verify local-provider auto-start does not execute an unrestricted shell command and read-only diagnostics cannot launch builds or commands.
+16. Test the installer in a disposable Windows VM: no arguments must show help; asset mismatch must fail; download/extraction failures must return nonzero; traversal/symlink archives must be rejected; unsafe delete targets must be rejected; and forced uninstall must preserve the learning base.
+17. Generate any required DevExtreme runtime-license script only on the licensed build machine and place it in release staging, never in Git. Follow `docs/DEVEXPRESS_ASSETS.md`.
+18. Review `THIRD-PARTY-NOTICES.md`, `LICENSE.MD`, the v0.1.1 and v0.1.2 changelogs, `SECURITY.md`, and `VALIDATION.md`.
+19. Package only from a clean staging tree. Exclude `.git`, `.vs`, `.cr`, `bin`, `obj`, databases, logs, credentials, private feeds, keys/certificates, generated license material, user files, and unlicensed font binaries.

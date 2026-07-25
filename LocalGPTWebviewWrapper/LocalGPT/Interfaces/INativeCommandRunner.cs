@@ -4,6 +4,6 @@ namespace LocalGPT.Interfaces
 {
     public interface INativeCommandRunner
     {
-        Task<CommandExecutionResult?> RunAsync(string fileName, string arguments, string workingDirectory, CancellationToken cancellationToken = default);
+        Task<CommandExecutionResult?> RunAsync(string fileName, string arguments, string workingDirectory, CancellationToken cancellationToken = default, bool userConfirmed = false);
     }
 }

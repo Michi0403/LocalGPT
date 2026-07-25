@@ -1,5 +1,4 @@
 using DevExpress.DataAccess.DataFederation;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.Options;
 using System.ServiceModel.Channels;
@@ -8,7 +7,8 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
-    public partial class AiFeatureReportService(ILogger<AiFeatureReportService> logger) : IAiFeatureReportService
+    public partial class AiFeatureReportService(ILogger<AiFeatureReportService> logger,
+        CouncilTextService councilText) : IAiFeatureReportService
     {
         public string ReportRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -19,7 +19,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(responseText) || !CouncilChatStringFunctions.LooksLikeMissingFeatureReport(responseText, logger))
+                if (string.IsNullOrWhiteSpace(responseText) || !councilText.LooksLikeMissingFeatureReport(responseText, logger))
                     return null;
 
                 Directory.CreateDirectory(ReportRoot);
@@ -32,10 +32,10 @@ namespace LocalGPT.Services
                     .AppendLine($"Source: {source}")
                     .AppendLine()
                     .AppendLine("Capability / knowledge classification:")
-                    .AppendLine(CouncilChatStringFunctions.ExtractCapabilityGapSummary(responseText, logger))
+                    .AppendLine(councilText.ExtractCapabilityGapSummary(responseText, logger))
                     .AppendLine()
                     .AppendLine("Helpful sources requested by the AI:")
-                    .AppendLine(CouncilChatStringFunctions.ExtractHelpfulSources(responseText, logger))
+                    .AppendLine(councilText.ExtractHelpfulSources(responseText, logger))
                     .AppendLine()
                     .AppendLine(responseText)
                     .ToString();

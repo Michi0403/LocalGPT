@@ -1,4 +1,4 @@
-﻿@inject ThemeService Themes
+@inject ThemeService Themes
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 @implements IDisposable
 @implements IThemeLoadNotifier
@@ -36,27 +36,26 @@
     string StateCssClass { get { return IsLoaded ? ((Shown? "themeswitcher-container-shown" : "themeswitcher-container-hidden")) : ""; } }
     bool IsLoaded { get; set; }
 
-    protected override async Task OnInitializedAsync() 
+    protected override void OnInitialized()
     {
         try
         {
             base.OnInitialized();
             Themes.ThemeLoadNotifier = this;
         }
-        catch (OperationCanceledException)
-        { /* ignored – user navigated */
-        }
         catch (Exception ex)
         {
-            Notifier.ShowError(toastName, ex.Message, $"Error in OnInitialized {ex.ToString()}");
-            Logger.LogError($"Error in OnInitialized {ex.ToString()}");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "Unable to initialize the theme switcher.");
         }
     }
 
     async Task ThemeSwitcherItem_Click(Theme theme) {
         try
         {
-            Themes.ThemeChangeRequestDispatcher?.RequestThemeChange(theme);
+            if (Themes.ThemeChangeRequestDispatcher is not null)
+                await Themes.ThemeChangeRequestDispatcher.RequestThemeChangeAsync(theme).ConfigureAwait(false);
+
             await ToggleThemeSwitcherPanel(false).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -64,8 +63,8 @@
         }
         catch (Exception ex)
         {
-            Notifier.ShowError(toastName, ex.Message, $"Error in ThemeSwitcherItem_Click {ex.ToString()}");
-            Logger.LogError(ex, $"Error in ThemeSwitcherItem_Click {ex.ToString()}");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
         }
 
     }
@@ -81,8 +80,8 @@
         }
         catch (Exception ex)
         {
-            Notifier.ShowError(toastName, ex.Message, $"Error in NotifyThemeLoadedAsync {ex.ToString()}");
-            Logger.LogError(ex, $"Error in NotifyThemeLoadedAsync {ex.ToString()}");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
         }
 
     }
@@ -100,47 +99,25 @@
         }
         catch (Exception ex)
         {
-            Notifier.ShowError(toastName, ex.Message, $"Error in ToggleThemeSwitcherPanel {ex.ToString()}");
-            Logger.LogError(ex, $"Error in ToggleThemeSwitcherPanel {ex.ToString()}");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
         }
     }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        try
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
-                disposedValue = true;
-            }
-        }
-        catch (Exception ex)
-        {
-            Notifier.ShowError(toastName, ex.Message, $"Error in Dispose {ex.ToString()}");
-            Logger.LogError(ex, $"Error in Dispose {ex.ToString()}");
-        }
-  
-    }
-    private bool disposedValue;
-    // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-    // ~WebAPIClient()
-    // {
-    //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-    //     Dispose(disposing: false);
-    // }
 
     void IDisposable.Dispose()
     {
-        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        Dispose(disposing: true);
+        if (disposedValue)
+            return;
+
+        if (ReferenceEquals(Themes.ThemeLoadNotifier, this))
+            Themes.ThemeLoadNotifier = null;
+
+        disposedValue = true;
         GC.SuppressFinalize(this);
     }
+
+    private bool disposedValue;
+
 
 
     protected override void OnAfterRender(bool firstRender) 
@@ -161,7 +138,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in OnAfterRender {ex.ToString()}");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
         }
        
     }

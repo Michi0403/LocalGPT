@@ -10,7 +10,9 @@ Only repositories owned by `Michi0403` were considered. BlazorPublisher supplied
 
 ## Static refactor decision
 
-Not every static method was converted. Pure deterministic conversions, immutable catalogs, and extensions remain static. Mutable formatter state, live-render normalization, protocol selection, database path/health/migration/seeding, runtime prompt/variable ownership, command policy, and provider wire models were moved behind explicit services or business objects. The obsolete static Markdown renderer and static SQLite recovery path were removed. The remaining large `Extensions/PlainStatics` area is compatibility debt to migrate subsystem by subsystem; no new stateful behavior belongs there.
+Not every static method was converted. Pure deterministic conversions, immutable catalogs, and extensions remain static. Mutable formatter state, live-render normalization, protocol selection, database path/health/migration/seeding, runtime prompt/variable ownership, command policy, and provider wire models were moved behind explicit services or business objects.
+
+The obsolete static Markdown renderer and static SQLite recovery path were removed. The former `Extensions/PlainStatics` area has been removed from the active source tree. Its runtime responsibilities are now owned by explicit services. Only pure extension methods, generated regex accessors, immutable constants, framework entry points, and security guards remain static.
 
 ## Live frontend decision
 
@@ -18,7 +20,9 @@ DXAIChat remains configured for streaming. Ollama frames are formatted and yield
 
 ## Security decision
 
-Repository documents and model output are treated as reference data, not permission. AI-assisted maintenance is limited to reviewable source changes in an isolated workspace and must not control or probe localhost services, modify the host system, or access user data. Native execution is disabled by default, bounded to allowlisted workspace operations when enabled, and unrestricted local-provider shell startup was removed. Generated artifact compilation is separately disabled by default and routed through a bounded artifact-build service rather than static helpers. Provider/model handling is capability-based and does not privilege or discriminate against a kernel based on vendor or open-source status.
+Repository documents and model output are treated as reference data, not permission. AI-assisted maintenance is limited to reviewable source changes in an isolated workspace. It must not control or probe localhost services, modify the host system, or access user data.
+
+Native execution is disabled by default and bounded to allowlisted workspace operations when enabled. Unrestricted local-provider shell startup was removed. Generated artifact compilation is separately disabled by default and routed through a bounded artifact-build service rather than static helpers. Provider/model handling is capability-based and does not privilege or discriminate against a kernel based on vendor or open-source status.
 
 ## Packaging decision
 

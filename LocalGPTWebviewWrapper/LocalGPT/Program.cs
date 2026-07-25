@@ -8,7 +8,6 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Components;
 using LocalGPT.Endpoints;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Helper;
 using LocalGPT.Hubs;
 using LocalGPT.Interfaces;
@@ -34,7 +33,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using TacosPortal.Services;
-using static System.Net.Mime.MediaTypeNames;
 namespace LocalGPT
 {
     public static class Program
@@ -45,22 +43,9 @@ namespace LocalGPT
         [STAThread]
         static void Main(string[] args)
         {
-            if (args.Length > 0)
-            {
-                if (int.TryParse(args[0], out int parsedPort) && parsedPort > 0 && parsedPort <= int.MaxValue)
-                {
-                    Program.Port = parsedPort;
-                }
-                else
-                {
-                    Console.WriteLine($"Warning: Invalid port '{args[0]}'. Using default port {Program.Port}.");
-                }
-            }
             var app = BuildWebApp(args);
-
             app.Run();
         }
-        public static int Port { get; private set; } = 0;
 
         public static WebApplication BuildWebApp(string[]? args = null)
         {
@@ -79,8 +64,8 @@ namespace LocalGPT
             logger.LogInformation("Configured options and services.", logger);
             ConfigureSignalR(builder.Services, logger);
             logger.LogInformation("Configured SignalR.", logger);
-            ConfigureKestrel(builder, logger);
-            logger.LogInformation("Configured Kestrel.", logger);
+            var port = ConfigureKestrel(builder, ResolveRequestedPort(args, logger), logger);
+            logger.LogInformation("Configured Kestrel on loopback port {Port}.", port);
             ConfigureResponseCompression(builder.Services, logger);
             logger.LogInformation("Configured response compression.", logger);
             ConfigureBlazorAndMvc(builder, logger);
@@ -94,7 +79,7 @@ namespace LocalGPT
             logger.LogInformation("Built web application.", logger);
             ConfigureMiddlewareAndEndpoints(app, logger);
             logger.LogInformation("Configured middleware and endpoints.", logger);
-            WriteRuntimeEndpointFile(logger);
+            WriteRuntimeEndpointFile(port, logger);
             logger.LogInformation("Wrote runtime endpoint file.", logger);
 
             return app;
@@ -201,10 +186,7 @@ namespace LocalGPT
             {
 
                 builder.Services.AddLogging(logging =>
-                    LoggingHelper.ConfigureCustomLoggersWithConsoleAndDebug(
-                        logging,
-                        builder.Services,
-                        builder.Configuration));
+                    new LoggingConfigurationService(builder.Services, builder.Configuration).Configure(logging));
             }
             catch (Exception ex)
             {
@@ -213,44 +195,6 @@ namespace LocalGPT
             }
            
         }
-        ///// <summary>
-        ///// Written by Codex to auto test xD... via mouse buttons to prevent selenium debug driver triggers js in App.razor to autotest, good reuseable for testing anyway... Later (teaching it to write that own js file maybe).
-        ///// </summary>
-        ///// <param name="logger"></param>
-        ///// <returns></returns>
-        //private static bool IsCustomLoggerBypassRequested(ILogger logger)
-        //{
-        //    try
-        //    {
-        //        return IsEnvironmentFlagEnabled("LOCALGPT_DISABLE_CUSTOM_LOGGERS", logger) ||
-        //     IsEnvironmentFlagEnabled("LOCALGPT_E2E", logger);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        logger.LogError(ex, $"Error in IsCustomLoggerBypassRequested", logger);
-        //        TryAppendStartupTrace(ex.ToString(), logger);
-        //        return false;
-        //    }
-        //}
-
-        private static bool IsEnvironmentFlagEnabled(string name, ILogger logger)
-        {
-            try
-            {
-                return string.Equals(
-      Environment.GetEnvironmentVariable(name),
-      "1",
-      StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in IsEnvironmentFlagEnabled");
-                //TryAppendStartupTrace(ex.ToString(), logger);
-                return false;
-            }
-
-        }
-
         private static void ConfigureOptionsAndServices(WebApplicationBuilder builder, ILogger logger)
         {
             try
@@ -264,6 +208,16 @@ namespace LocalGPT
                 builder.Services.Configure<ArtifactBuildOptions>(
                     builder.Configuration.GetSection(ArtifactBuildOptions.SectionName));
 
+                // PublisherStudio-style application boundaries: runtime helpers are injected services,
+                // not mutable process-wide utility classes.
+                builder.Services.AddSingleton<LocalGptCatalogService>();
+                builder.Services.AddSingleton<CouncilTextService>();
+                builder.Services.AddSingleton<CouncilRuntimeService>();
+                builder.Services.AddSingleton<SqliteUtilityService>();
+                builder.Services.AddScoped<DevExpressChatService>();
+                builder.Services.AddSingleton<AiDiscoveryService>();
+                builder.Services.AddSingleton<SqliteGridPresentationService>();
+                builder.Services.AddSingleton<NavigationUrlService>();
                 builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
                 builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
@@ -309,10 +263,24 @@ namespace LocalGPT
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
                 builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
+                builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
                 builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
                 builder.Services.AddScoped<ILearnBaseKnowledgeImporterService, LearnBaseKnowledgeImporterService>();
                 builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
                 builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
+                builder.Services.AddScoped<ICodeGenerationWorkflowService, CodeGenerationWorkflowService>();
+                builder.Services.AddScoped<ICouncilCodeGenerationPlanService, CouncilCodeGenerationPlanService>();
+                builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
+
+                var dxAiHandlerTypes = typeof(Program).Assembly.DefinedTypes
+                    .Where(type => type is { IsAbstract: false, IsInterface: false } &&
+                        typeof(IDxAiFunctionHandler).IsAssignableFrom(type.AsType()))
+                    .Select(type => type.AsType())
+                    .OrderBy(type => type.FullName, StringComparer.Ordinal)
+                    .ToList();
+                foreach (var handlerType in dxAiHandlerTypes)
+                    builder.Services.AddScoped(typeof(IDxAiFunctionHandler), handlerType);
+                logger.LogInformation("Registered {DxAiFunctionHandlerCount} DI-backed DXAIFunction handler(s).", dxAiHandlerTypes.Count);
                 builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
                 builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
                 builder.Services.AddScoped<IChatClient>(sp =>
@@ -349,19 +317,31 @@ namespace LocalGPT
                 });
         }
 
-        private static void ConfigureKestrel(WebApplicationBuilder builder, ILogger logger)
+        private static int ConfigureKestrel(WebApplicationBuilder builder, int requestedPort, ILogger logger)
         {
             try
             {
-                if(Port == 0)
-                    Port = GetFreePort(logger);
-                builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{Port}");
+                var port = requestedPort > 0 ? requestedPort : GetFreePort(logger);
+                builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{port}");
+                return port;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ConfigureKestrel");
-                //TryAppendStartupTrace(ex.ToString(), logger);
+                logger.LogError(ex, "Kestrel loopback configuration failed.");
+                throw;
             }
+        }
+
+        private static int ResolveRequestedPort(string[]? args, ILogger logger)
+        {
+            if (args is not { Length: > 0 } || string.IsNullOrWhiteSpace(args[0]))
+                return 0;
+
+            if (int.TryParse(args[0], out var parsedPort) && parsedPort is > 0 and <= 65535)
+                return parsedPort;
+
+            logger.LogWarning("Ignoring invalid requested port {RequestedPort}; a free loopback port will be selected.", args[0]);
+            return 0;
         }
 
         private static void ConfigureResponseCompression(IServiceCollection services, ILogger logger)
@@ -534,7 +514,7 @@ namespace LocalGPT
             }
         }
 
-        private static void WriteRuntimeEndpointFile(ILogger logger)
+        private static void WriteRuntimeEndpointFile(int port, ILogger logger)
         {
             try
             {
@@ -547,8 +527,8 @@ namespace LocalGPT
                 var payload = new
                 {
                     ProcessId = Environment.ProcessId,
-                    BaseUrl = $"http://127.0.0.1:{Port}",
-                    Port,
+                    BaseUrl = $"http://127.0.0.1:{port}",
+                    Port = port,
                     StartedAtUtc = DateTimeOffset.UtcNow
                 };
 

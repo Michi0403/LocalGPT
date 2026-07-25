@@ -1,4 +1,4 @@
-﻿
+
 using LocalGPT.Helper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,8 +29,7 @@ internal static class Program
         "gpt-oss:20b",
         "gemma3:27b",
         "deepseek-r1:8b",
-        "qwen3-coder:30b",
-        "llama2-uncensored:7b"
+        "qwen3-coder:30b"
     ];
 
     private static readonly string[] Rtx3060Models =
@@ -46,7 +45,7 @@ internal static class Program
         "codegemma:2b", "codegemma:7b",
         "gemma4:e2b", "gemma4:e4b", "gemma4:12b",
         "llama3:8b", "llama3.2-vision:11b",
-        "llama2:7b", "llama2:13b", "llama2-uncensored:7b",
+        "llama2:7b", "llama2:13b",
         "llama-guard3:1b", "llama-guard3:8b",
         "deepseek-ocr:3b",
         "deepseek-r1:1.5b", "deepseek-r1:7b", "deepseek-r1:8b", "deepseek-r1:14b",
@@ -70,7 +69,7 @@ internal static class Program
         "qwen3.6:27b", "qwen3.6:35b",
         "gemma4:e2b", "gemma4:e4b", "gemma4:12b", "gemma4:26b", "gemma4:31b",
         "llama3:8b", "llama3.2-vision:11b",
-        "llama2:7b", "llama2:13b", "llama2-uncensored:7b",
+        "llama2:7b", "llama2:13b",
         "llama-guard3:1b", "llama-guard3:8b",
         "deepseek-ocr:3b",
         "deepseek-r1:1.5b", "deepseek-r1:7b", "deepseek-r1:8b", "deepseek-r1:14b", "deepseek-r1:32b",
@@ -108,30 +107,23 @@ internal static class Program
     public static async Task<int> Main(string[] args)
     {
         var launchedByDoubleClick = args.Length == 0 && Environment.UserInteractive;
+        CliOptions? options = null;
 
-        Console.WriteLine($"Your args to string {ArgsToString(args)}");
-        var options = CliOptions.Parse(args);
-        if(args.Length<=0)
-        {
-            Console.WriteLine($"args were initially empty !");
-        }
-        Console.WriteLine($"Parsed options:{Environment.NewLine}{options}");
         try
         {
-            // your existing Main logic
-            Console.WriteLine($"Starting RunAsync");
-            return await RunAsync(args, options).ConfigureAwait(false);
+            options = CliOptions.Parse(args);
+            return await RunAsync(options).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine(ex);
+            Console.Error.WriteLine($"Setup helper failed: {ex.Message}");
             return 1;
         }
         finally
         {
-            if (launchedByDoubleClick | options.WaitOnExit)
+            if (launchedByDoubleClick || options?.WaitOnExit == true)
             {
-                Console.WriteLine($"Wait for Exit send me to Doomland.");
+                Console.WriteLine("Setup helper finished.");
                 Console.WriteLine();
                 Console.WriteLine("Press any key to close...");
                 Console.ReadKey(intercept: true);
@@ -139,152 +131,80 @@ internal static class Program
         }
         
     }
-    private static string ArgsToString(string[]? args)
-    {
-        if (args is null)
-            return "args=null";
-
-        if (args.Length == 0)
-            return "args=[]";
-
-        var builder = new StringBuilder();
-        builder.AppendLine($"args.Length={args.Length}");
-
-        for (var i = 0; i < args.Length; i++)
-            builder.AppendLine($"args[{i}]=\"{args[i]}\"");
-
-        return builder.ToString().TrimEnd();
-    }
-    private static async Task<int> RunAsync(string[] args, CliOptions options)
+    private static async Task<int> RunAsync(CliOptions options)
     {
         try
         {
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            Console.OutputEncoding = Encoding.UTF8;
 
-            ColorConsoleLoggerConfiguration colorLoggerProviderOptions = new ColorConsoleLoggerConfiguration() { EventId = 0 };
-            ColorConsoleLoggerProvider colorLoggerProvider = new ColorConsoleLoggerProvider(colorLoggerProviderOptions);
-
-
+            var colorLoggerProviderOptions = new ColorConsoleLoggerConfiguration { EventId = 0 };
+            using var colorLoggerProvider = new ColorConsoleLoggerProvider(colorLoggerProviderOptions);
             using var loggerFactory = LoggerFactory.Create(configure =>
             {
                 configure.ClearProviders();
                 configure.AddProvider(colorLoggerProvider);
-                //configure.AddProvider()
             });
+
             var logger = loggerFactory.CreateLogger("Startup");
-            logger.LogInformation("Configured app configuration.");
+            logger.LogInformation("Configured setup helper.");
 
             if (options.ShowHelp)
             {
                 CliOptions.PrintHelp(logger);
                 return 0;
             }
-            try
+
+            if (options.Uninstall)
             {
-                if (options.Uninstall)
-                {
-                    UninstallLocalGptWindows(options, logger);
-                    return 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in InstallOllama.");
-            }
-
-            try
-            {
-                try
-                {
-                    if (options.InstallOllama)
-                    {
-                        logger.LogInformation("InstallOllamaAsync.");
-                        await InstallOllamaAsync(options, logger).ConfigureAwait(false);
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error in InstallOllama.");
-                }
-               
-                try
-                {
-                    if (options.PullOllamaModels)
-                    {
-                        var ollamaExe = EnsureOllamaAvailable(options, logger);
-                        StartOllamaServer(ollamaExe, logger);
-                        await PullModelsAsync(ollamaExe, GetModelSet(options.Range), logger).ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error in PullOllamaModels.");
-                }
-
-                try
-                {
-                    if (options.InstallLocalGptWin)
-                        await InstallLocalGptAsync(options, logger).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error in InstallLocalGptWin.");
-                }
-                try
-                {
-                    if (options.DesktopShortcuts || options.StartMenuShortcuts)
-                        ProvisionWindowsShortcuts(options, logger);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error in ProvisionWindowsShortcuts.");
-                }
-                try
-                {
-                    if (options.SetupLearningBase)
-                    {
-                        Directory.CreateDirectory(options.LearningBasePath);
-                        var repos = options.ImportRecommended
-                            ? RecommendedRepos.Concat(options.ExtraRepos).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-                            : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [LocalGptRepo];
-
-                        foreach (var repo in repos)
-                            await ImportGitHubSourceToLearningBaseAsync(repo, options, logger).ConfigureAwait(false);
-                        logger.LogInformation("Remember: still import/teach the downloaded repositories inside LocalGPT's learning-base importer.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error in SetupLearningBase.");
-                }
-
-                try
-                {
-                    if (options.StartLocalGpt)
-                        StartLocalGpt(options, logger);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error in StartLocalGpt.");
-                }
-
-
-                logger.LogDebug("Done.");
+                UninstallLocalGptWindows(options, logger);
                 return 0;
             }
-            catch (Exception ex)
+
+            // Setup operations are intentionally fail-closed. A failed requested step
+            // stops the workflow and returns a non-zero exit code instead of reporting
+            // success after partial installation.
+            if (options.InstallOllama)
             {
-                logger.LogError(ex, $"Error in Setup: {ex.ToString()}");
-                if (options.Verbose)
-                    logger.LogWarning(ex.ToString());
-                return 1;
+                logger.LogInformation("Installing Ollama after explicit command-line selection.");
+                await InstallOllamaAsync(options, logger).ConfigureAwait(false);
             }
+
+            if (options.PullOllamaModels)
+            {
+                var ollamaExe = EnsureOllamaAvailable(options, logger);
+                StartOllamaServer(ollamaExe, logger);
+                await PullModelsAsync(ollamaExe, GetModelSet(options.Range), logger).ConfigureAwait(false);
+            }
+
+            if (options.InstallLocalGptWin)
+                await InstallLocalGptAsync(options, logger).ConfigureAwait(false);
+
+            if (options.DesktopShortcuts || options.StartMenuShortcuts)
+                ProvisionWindowsShortcuts(options, logger);
+
+            if (options.SetupLearningBase)
+            {
+                Directory.CreateDirectory(options.LearningBasePath);
+                var repos = options.ImportRecommended
+                    ? RecommendedRepos.Concat(options.ExtraRepos).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+                    : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [LocalGptRepo];
+
+                foreach (var repo in repos)
+                    await ImportGitHubSourceToLearningBaseAsync(repo, options, logger).ConfigureAwait(false);
+
+                logger.LogInformation("Downloaded sources still require explicit review/import inside LocalGPT.");
+            }
+
+            if (options.StartLocalGpt)
+                StartLocalGpt(options, logger);
+
+            logger.LogInformation("All explicitly requested setup operations completed.");
+            return 0;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in RunAsync {ex.ToString()}");
-            return -1;
+            Console.Error.WriteLine(options.Verbose ? ex.ToString() : $"Setup failed: {ex.Message}");
+            return 1;
         }
     }
 
@@ -317,7 +237,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in InstallOllamaAsync. options {options.ToString()}");
+            logger.LogError(ex, "The explicitly requested Ollama installation failed; option paths were omitted from logs.");
             throw;
         }
     }
@@ -339,7 +259,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in EnsureOllamaAvailable. options {options.ToString()}");
+            logger.LogError(ex, "Could not resolve Ollama; option paths were omitted from logs.");
             throw;
         }
     }
@@ -379,7 +299,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in FindOllamaExecutable. options {options.ToString()}");
+            logger.LogError(ex, "Could not locate Ollama; option paths were omitted from logs.");
             return null;
         }
     }
@@ -484,7 +404,7 @@ internal static class Program
             Directory.CreateDirectory(targetPath);
 
             logger.LogInformation($"Extracting LocalGPT app '{zipPath}' to '{targetPath}'");
-            ExtractZipWithFallback(zipPath, targetPath, logger);
+            ExtractZipSafely(zipPath, targetPath, logger);
 
             var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
 
@@ -496,14 +416,15 @@ internal static class Program
                 setupAsset: true).ConfigureAwait(false);
 
             logger.LogInformation($"Extracting LocalGPT setup/bootstrap '{setupZipPath}' to '{targetPath}'");
-            ExtractZipWithFallback(setupZipPath, targetPath, logger);
+            ExtractZipSafely(setupZipPath, targetPath, logger);
 
             logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
             logger.LogInformation($"LocalGPT app and setup/bootstrap files now reside in '{targetPath}'.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in InstallLocalGptAsync. options {options}");
+            logger.LogError(ex, "LocalGPT installation failed.");
+            throw;
         }
     }
 
@@ -542,7 +463,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in UninstallLocalGptWindows. options {options.ToString()}");
+            logger.LogError(ex, "LocalGPT uninstall failed.");
+            throw;
         }
     }
     private static List<string> GetLocalGptUninstallTargets(CliOptions options, ILogger logger)
@@ -567,8 +489,7 @@ internal static class Program
                 targets.Add(Path.Combine(desktop, shortcutFileName));
             }
 
-            // Since this is now explicit destructive uninstall, learning base can be included.
-            targets.Add(options.LearningBasePath);
+            logger.LogInformation("The learning-base directory is preserved during uninstall: {LearningBasePath}", options.LearningBasePath);
 
             return targets
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -576,8 +497,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in GetLocalGptUninstallTargets. options {options.ToString()}");
-            return new List<string>();
+            logger.LogError(ex, "Could not determine LocalGPT uninstall targets.");
+            throw;
         }
     }
 
@@ -623,7 +544,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in ProvisionWindowsShortcuts. options {options}");
+            logger.LogError(ex, "Could not provision Windows shortcuts; option paths were omitted from logs.");
             throw;
         }
     }
@@ -1042,7 +963,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in EnsureWindowsOnly. featureName {featureName.ToString()}");
+            logger.LogError(ex, "Windows-only feature {FeatureName} was rejected.", featureName);
+            throw;
         }
     }
 
@@ -1059,8 +981,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in GetLocalGptInstallRoot.  {ex.ToString()}");
-            return string.Empty;
+            logger.LogError(ex, "Could not resolve the LocalGPT install root.");
+            throw;
         }
 
     }
@@ -1079,12 +1001,18 @@ internal static class Program
             if (string.IsNullOrWhiteSpace(groupName))
                 groupName = "LocalGPT by Michi0403";
 
-            return Path.Combine(startMenu, "Programs", groupName);
+            var programsRoot = Path.GetFullPath(Path.Combine(startMenu, "Programs"));
+            var candidate = Path.GetFullPath(Path.Combine(programsRoot, groupName));
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (!candidate.StartsWith(programsRoot + Path.DirectorySeparatorChar, comparison))
+                throw new InvalidOperationException("The Start Menu group name escapes the Programs directory.");
+
+            return candidate;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in GetStartMenuFolder. {ex}");
-            return string.Empty;
+            logger.LogError(ex, "Could not resolve the LocalGPT Start Menu folder.");
+            throw;
         }
     }
     private static string SanitizeShortcutGroupName(string value, ILogger logger)
@@ -1099,7 +1027,11 @@ internal static class Program
             foreach (var ch in invalid)
                 value = value.Replace(ch, '_');
 
-            return value.Trim();
+            var result = value.Trim().Trim('.');
+            if (string.IsNullOrWhiteSpace(result) || result is "." or "..")
+                return "LocalGPT by Michi0403";
+
+            return result.Length <= 100 ? result : result[..100];
         }
         catch (Exception ex)
         {
@@ -1120,8 +1052,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in GetDesktopFolder. {ex.ToString()}");
-            return string.Empty;
+            logger.LogError(ex, "Could not resolve the Desktop folder.");
+            throw;
         }
     }
     private static async Task ImportGitHubSourceToLearningBaseAsync(
@@ -1187,7 +1119,7 @@ internal static class Program
                 Directory.CreateDirectory(targetPath);
 
                 logger.LogInformation($"Extracting '{zipPath}' to '{targetPath}'");
-                ExtractZipWithFallback(zipPath, targetPath, logger);
+                ExtractZipSafely(zipPath, targetPath, logger);
             }
             else
             {
@@ -1248,7 +1180,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in StartLocalGpt. options {options}");
+            logger.LogError(ex, "LocalGPT startup failed.");
+            throw;
         }
     }
     private static void OpenDefaultBrowser(string url, ILogger logger)
@@ -1319,33 +1252,22 @@ internal static class Program
 
             if (selected is null)
             {
-                logger.LogWarning(
-                    $"No exact asset match found for setupAsset={setupAsset}, platform={platform}, arch={arch}. Falling back to first matching setup mode.");
-
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    var name = asset.GetProperty("name").GetString() ?? string.Empty;
-
-                    var isSetupAsset =
-                        name.Contains("setup", StringComparison.OrdinalIgnoreCase)
-                        || name.Contains("installer", StringComparison.OrdinalIgnoreCase)
-                        || name.Contains("bootstrap", StringComparison.OrdinalIgnoreCase);
-
-                    if (isSetupAsset == setupAsset)
-                    {
-                        selected = asset;
-                        break;
-                    }
-                }
+                throw new InvalidOperationException(
+                    $"No safe release asset matched setupAsset={setupAsset}, platform={platform}, arch={arch}. Refusing to download an arbitrary asset.");
             }
-
-            selected ??= assets.EnumerateArray().First();
 
             var downloadUrl = selected.Value.GetProperty("browser_download_url").GetString();
             var assetName = selected.Value.GetProperty("name").GetString();
 
             if (string.IsNullOrWhiteSpace(downloadUrl))
                 throw new InvalidOperationException($"Selected release asset for {repo} has no download URL.");
+
+            if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var releaseUri) ||
+                releaseUri.Scheme != Uri.UriSchemeHttps ||
+                !releaseUri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Selected release asset for {repo} did not use an approved GitHub HTTPS URL.");
+            }
 
             logger.LogInformation($"Selected asset: {assetName}");
             logger.LogInformation($"Downloading {assetName} to {outFile}");
@@ -1369,10 +1291,11 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in DownloadGitHubSourceZipAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
+            logger.LogError(ex, "GitHub source download failed for {Repository}.", repo);
+            throw;
         }
     }
-    private static async Task<string?> GetGitHubDefaultBranchCommitShaAsync(
+    private static async Task<string> GetGitHubDefaultBranchCommitShaAsync(
     string repo,
     ILogger logger)
     {
@@ -1414,8 +1337,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError($"Error in GetGitHubDefaultBranchCommitShaAsync repo {repo.ToString()}");
-            return null;
+            logger.LogError(ex, "Could not resolve the default-branch commit for {Repository}.", repo);
+            throw;
         }
        
     }
@@ -1610,6 +1533,7 @@ internal static class Program
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in DownloadFileAsync. url {url} outFile {outFile}");
+            throw;
         }
 
 
@@ -1618,51 +1542,42 @@ internal static class Program
     {
         try
         {
+            if (!File.Exists(source))
+                throw new FileNotFoundException($"Source file for move does not exist: {source}", source);
+
+            if (File.Exists(destination) && !options.ForceDelete)
+            {
+                throw new IOException(
+                    $"Destination already exists: {destination}. Use --force-delete only after reviewing the target path.");
+            }
+
             for (var i = 1; i <= 10; i++)
             {
                 try
                 {
-                    if (!File.Exists(source))
-                        throw new FileNotFoundException($"Source file for move does not exist: {source}", source);
-
                     if (File.Exists(destination))
-                        File.Delete(destination);
-                    if (options.ForceDelete)
-                    {
                         DeleteIfExists(destination, logger);
-                        File.Move(source, destination, overwrite: true);
-                    }
-                    else
-                    {
-                        File.Move(source, destination, overwrite: false);
-                    }
+                    File.Move(source, destination, overwrite: false);
                     return;
                 }
                 catch (IOException ex) when (i < 10)
                 {
-                    logger.LogWarning(ex, $"Move failed because file is locked. Retry {i}/10...");
+                    logger.LogWarning(ex, $"Move failed because a file is locked. Retry {i}/10...");
                     await Task.Delay(300).ConfigureAwait(false);
                 }
             }
 
             if (File.Exists(destination))
-                File.Delete(destination);
-            if (options.ForceDelete)
-            {
                 DeleteIfExists(destination, logger);
-                File.Move(source, destination, overwrite: true);
-            }
-            else
-            {
-                File.Move(source, destination, overwrite: false);
-            }
+            File.Move(source, destination, overwrite: false);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in MoveFileWithRetryAsync. source {source} destination {destination}");
+            throw;
         }
-
     }
+
     private static string FormatBytes(long bytes, ILogger logger)
     {
         try
@@ -1694,44 +1609,96 @@ internal static class Program
             if (!File.Exists(path) && !Directory.Exists(path))
                 return;
 
-            logger.LogWarning($"Deleting existing path because --force-delete was used: {path}");
+            var safePath = EnsureSafeDeleteTarget(path);
+            logger.LogWarning("Deleting explicitly reviewed target because --force-delete was used: {Path}", safePath);
 
-            var attrs = File.GetAttributes(path);
+            var attrs = File.GetAttributes(safePath);
+            if (attrs.HasFlag(FileAttributes.ReparsePoint))
+                throw new InvalidOperationException($"Refusing to delete reparse-point target: {safePath}");
             if (attrs.HasFlag(FileAttributes.Directory))
-                Directory.Delete(path, recursive: true);
+                Directory.Delete(safePath, recursive: true);
             else
-                File.Delete(path);
+                File.Delete(safePath);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in DeleteIfExists. path {path.ToString()}");
+            logger.LogError(ex, "Error in DeleteIfExists. path {Path}", path);
+            throw;
         }
     }
-    private static void ExtractZipWithFallback(string zipPath, string targetPath, ILogger logger)
+
+    private static string EnsureSafeDeleteTarget(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Delete target is required.", nameof(path));
+
+        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var rootPath = Path.TrimEndingDirectorySeparator(Path.GetPathRoot(fullPath) ?? string.Empty);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (string.IsNullOrWhiteSpace(rootPath) || string.Equals(fullPath, rootPath, comparison))
+            throw new InvalidOperationException($"Refusing to delete filesystem root: {fullPath}");
+
+        string[] protectedPaths =
+        [
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            AppContext.BaseDirectory,
+            Environment.CurrentDirectory
+        ];
+
+        foreach (var protectedPath in protectedPaths.Where(value => !string.IsNullOrWhiteSpace(value)))
+        {
+            var normalizedProtected = Path.TrimEndingDirectorySeparator(Path.GetFullPath(protectedPath));
+            if (string.Equals(fullPath, normalizedProtected, comparison) ||
+                normalizedProtected.StartsWith(fullPath + Path.DirectorySeparatorChar, comparison))
+            {
+                throw new InvalidOperationException($"Refusing to delete a protected path or one of its parents: {fullPath}");
+            }
+        }
+
+        return fullPath;
+    }
+
+    private static void ExtractZipSafely(string zipPath, string targetPath, ILogger logger)
     {
         try
         {
+            ValidateArchiveEntries(zipPath, targetPath);
             Directory.CreateDirectory(targetPath);
-            try
-            {
-                ZipFile.ExtractToDirectory(zipPath, targetPath, overwriteFiles: true);
-                return;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, $".NET ZIP extraction failed: {ex.Message}");
-            }
-
-            var sevenZip = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "7-Zip", "7z.exe");
-            if (!File.Exists(sevenZip))
-                throw new InvalidOperationException("ZIP extraction failed and 7-Zip was not found. Install 7-Zip or enable long paths.");
-
-            RunProcessAsync(sevenZip, $"x \"{zipPath}\" -o\"{targetPath}\" -y", logger).GetAwaiter().GetResult();
+            ZipFile.ExtractToDirectory(zipPath, targetPath, overwriteFiles: true);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in ExtractZipWithFallback. zipPath {zipPath.ToString()} targetPath {targetPath.ToString()}");
+            logger.LogError(ex, "Safe ZIP extraction failed. zipPath {ZipPath} targetPath {TargetPath}", zipPath, targetPath);
             throw;
+        }
+    }
+
+    private static void ValidateArchiveEntries(string zipPath, string targetPath)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetPath));
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        using var archive = ZipFile.OpenRead(zipPath);
+        foreach (var entry in archive.Entries)
+        {
+            var destination = Path.GetFullPath(Path.Combine(root, entry.FullName));
+            if (!string.Equals(destination, root, comparison) &&
+                !destination.StartsWith(root + Path.DirectorySeparatorChar, comparison))
+            {
+                throw new InvalidDataException($"Archive entry escapes extraction root: {entry.FullName}");
+            }
+
+            var unixFileType = (entry.ExternalAttributes >> 16) & 0xF000;
+            if (unixFileType == 0xA000)
+                throw new InvalidDataException($"Archive symlink entries are not allowed: {entry.FullName}");
         }
     }
 
@@ -1841,8 +1808,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in SanitizeFileName. value {value.ToString()}");
-            return string.Empty;
+            logger.LogError(ex, "Could not sanitize a repository file name.");
+            throw;
         }
 
     }
@@ -1862,21 +1829,14 @@ internal static class Program
 
     }
 
-    private static HttpClient? CreateHttpClient()
+    private static HttpClient CreateHttpClient()
     {
-        try
-        {
-            var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("LocalGptSetupTool", "1.0"));
-            client.Timeout = TimeSpan.FromMinutes(20);
-            return client;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error in CreateHttpClient. {ex.ToString()}");
-            return null;
-        }
+        var client = new HttpClient();
+        client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("LocalGptSetupTool", "1.0"));
+        client.Timeout = TimeSpan.FromMinutes(20);
+        return client;
     }
+
 }
 
 
@@ -1910,7 +1870,6 @@ internal sealed class CliOptions
     public bool SetupLearningBase { get; private set; }
     public bool ImportRecommended { get; private set; }
     public bool StartLocalGpt { get; private set; }
-    public bool Force { get; private set; }
     public bool Verbose { get; private set; }
     public ModelRange Range { get; private set; } = ModelRange.Slim;
     public string LearningBasePath { get; private set; } = @"C:\learnbaseforlocalgpt";
@@ -1932,13 +1891,8 @@ internal sealed class CliOptions
         var options = new CliOptions();
         if (argsList.Count == 0)
         {
-            argsList.Add("--install-ollama");
-            argsList.Add("--pull-models");
-            argsList.Add("--range");
-            argsList.Add("Slim");
-            argsList.Add("--install-localgpt");
-            argsList.Add("--start-localgpt");
-            argsList.Add("--shortcuts");
+            options.ShowHelp = true;
+            return options;
         }
         for (var i = 0; i < argsList.Count; i++)
         {
@@ -2028,6 +1982,7 @@ internal sealed class CliOptions
                     options.OpenBrowser = false;
                     break;
 
+                case "--force":
                 case "--force-delete":
                     options.ForceDelete = true;
                     break;
@@ -2112,8 +2067,8 @@ Options:
   --desktop-shortcuts        Create Desktop shortcuts to selected LocalGPT command files.
   --startmenu-shortcuts      Create Start Menu shortcuts to selected LocalGPT command files.
   --shortcuts                Create both Desktop and Start Menu shortcuts.
-  --uninstall                Preview LocalGPT uninstall. Shows what would be removed, deletes nothing. DOESN'T TOUCH OLLAMA OR IT'S MODELS
-  --uninstall --force-delete Actually remove LocalGPT files, launchers, shortcuts, and learning base. DOESN'T TOUCH OLLAMA OR IT'S MODELS
+  --uninstall                Preview LocalGPT uninstall. Shows what would be removed, deletes nothing. DOESN'T TOUCH OLLAMA OR ITS MODELS
+  --uninstall --force-delete Actually remove LocalGPT app files, launchers, and shortcuts. The learning base is preserved. DOESN'T TOUCH OLLAMA OR ITS MODELS
 """);
     }
 

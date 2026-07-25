@@ -5,112 +5,149 @@ using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Mail;
-namespace LocalGPT.Logging
+
+namespace LocalGPT.Logging;
+
+public sealed class EmailLogger : ILogger, IDisposable
 {
-    public class EmailLogger : ILogger, IDisposable
+    private readonly BlockingCollection<(string Message, string? ExceptionType)> logQueue = new(boundedCapacity: 256);
+    private readonly CancellationTokenSource stop = new();
+    private readonly EmailLoggerCoreOptions config;
+    private readonly string categoryName;
+    private readonly Task backgroundTask;
+    private int disposed;
+
+    public EmailLogger(string categoryName, IOptionsMonitor<EmailLoggerCoreOptions> optionsSnapshot)
     {
-        private readonly BlockingCollection<(string message, Exception? exception)> _logQueue = new();
-        private readonly EmailLoggerCoreOptions _config;
-        private readonly Task _backgroundTask;
+        this.categoryName = categoryName;
+        config = optionsSnapshot.CurrentValue;
+        backgroundTask = Task.Run(ProcessLogQueueAsync);
+    }
 
-        public EmailLogger(string categoryName, IOptionsMonitor<EmailLoggerCoreOptions> optionsSnapshot)
+    private async Task ProcessLogQueueAsync()
+    {
+        try
         {
-            _config = optionsSnapshot.CurrentValue;
-            _backgroundTask = Task.Run(ProcessLogQueueAsync);
+            foreach (var logItem in logQueue.GetConsumingEnumerable(stop.Token))
+                await SendEmailAsync(logItem.Message, logItem.ExceptionType, stop.Token).ConfigureAwait(false);
         }
-
-        private async Task ProcessLogQueueAsync()
+        catch (OperationCanceledException)
         {
-            try
+            // Normal bounded shutdown.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Normal bounded shutdown.
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Email logger background worker failed: {ex.Message}");
+        }
+    }
+
+    private async Task SendEmailAsync(
+        string message,
+        string? exceptionType,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(config.SenderEmail);
+            ArgumentException.ThrowIfNullOrWhiteSpace(config.SmtpServer);
+
+            var recipients = config.EmailRecipients
+                .Where(address => !string.IsNullOrWhiteSpace(address))
+                .ToArray();
+            if (recipients.Length == 0)
+                throw new InvalidOperationException("At least one email log recipient is required.");
+
+            using var mailMessage = new MailMessage
             {
-                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)))
-                {
-                    foreach (var logItem in _logQueue.GetConsumingEnumerable(cts.Token))
-                    {
-                        await SendEmailAsync(logItem.message, logItem.exception).ConfigureAwait(false);
-                    }
-                }
+                From = new MailAddress(config.SenderEmail),
+                Subject = $"LocalGPT log: {categoryName}",
+                Body = string.IsNullOrWhiteSpace(exceptionType)
+                    ? message
+                    : $"{message}\nException type: {exceptionType}",
+                IsBodyHtml = false
+            };
 
-            }
-            catch (OperationCanceledException)
+            foreach (var recipient in recipients)
+                mailMessage.To.Add(recipient);
+            foreach (var cc in config.CcRecipients.Where(address => !string.IsNullOrWhiteSpace(address)))
+                mailMessage.CC.Add(cc);
+            foreach (var bcc in config.BccRecipients.Where(address => !string.IsNullOrWhiteSpace(address)))
+                mailMessage.Bcc.Add(bcc);
+
+            using var smtpClient = new SmtpClient(config.SmtpServer, config.SmtpPort)
             {
+                Credentials = new NetworkCredential(config.Username, config.Password),
+                EnableSsl = config.EnableSsl
+            };
 
-            }
+            await smtpClient.SendMailAsync(mailMessage, cancellationToken).ConfigureAwait(false);
         }
-
-        private async Task SendEmailAsync(string message, Exception? exception)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            try
+            // Normal bounded shutdown.
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to send log email: {ex.Message}");
+        }
+    }
+
+    IDisposable ILogger.BeginScope<TState>(TState state) =>
+        new DisposableScope(string.Empty);
+
+    public bool IsEnabled(LogLevel logLevel) =>
+        Volatile.Read(ref disposed) == 0 &&
+        (int)logLevel >= (int)config.CoreLogLevel;
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter)
+    {
+        ArgumentNullException.ThrowIfNull(formatter);
+        if (!IsEnabled(logLevel) || logQueue.IsAddingCompleted)
+            return;
+
+        var message = $"{DateTime.UtcNow:O} [Category: {categoryName}] [Level: {logLevel}] [EventId: {eventId.Id}] A log event occurred. Review local logs for details.";
+        try
+        {
+            _ = logQueue.TryAdd((message, exception?.GetType().FullName));
+        }
+        catch (ObjectDisposedException)
+        {
+            // Logger is shutting down.
+        }
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref disposed, 1) != 0)
+            return;
+
+        logQueue.CompleteAdding();
+        try
+        {
+            if (!backgroundTask.Wait(TimeSpan.FromSeconds(2)))
             {
-                ArgumentNullException.ThrowIfNullOrWhiteSpace(_config.SenderEmail);
-                ArgumentOutOfRangeException.ThrowIfLessThan(_config.EmailRecipients.Count(), 0);
-                using var mailMessage = new MailMessage
-                {
-
-                    From = new MailAddress(_config.SenderEmail),
-                    Subject = "Log MessageOriginBelongsTo",
-                    Body = $"{message}{(exception != null ? $"\n\nException:\n{exception.StackTrace}" : string.Empty)}",
-                    IsBodyHtml = false
-                };
-
-                foreach (var recipient in _config.EmailRecipients)
-                    mailMessage.To.Add(recipient);
-
-                foreach (var cc in _config.CcRecipients)
-                    mailMessage.CC.Add(cc);
-
-                foreach (var bcc in _config.BccRecipients)
-                    mailMessage.Bcc.Add(bcc);
-
-                using var smtpClient = new SmtpClient(_config.SmtpServer, _config.SmtpPort)
-                {
-                    Credentials = new NetworkCredential(_config.Username, _config.Password),
-                    EnableSsl = _config.EnableSsl
-                };
-
-                await smtpClient.SendMailAsync(mailMessage).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to send log email: {ex.Message}");
+                stop.Cancel();
+                _ = backgroundTask.Wait(TimeSpan.FromSeconds(2));
             }
         }
-
-        IDisposable ILogger.BeginScope<TState>(TState state)
+        catch (AggregateException ex) when (ex.InnerExceptions.All(inner => inner is OperationCanceledException))
         {
-            var scopeInfo = state?.ToString() ?? string.Empty;
-            return new DisposableScope(scopeInfo);
+            // Normal bounded shutdown.
         }
-
-        public bool IsEnabled(LogLevel logLevel)
+        finally
         {
-            return (int)logLevel >= (int)_config.CoreLogLevel;
-        }
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-            if (!IsEnabled(logLevel)) return;
-
-            var message = $"{DateTime.UtcNow} [Machine: {Environment.MachineName}] [Level: {logLevel}] {formatter(state, exception)}";
-
-
-            _logQueue.Add((message, exception));
-        }
-
-        public void Dispose()
-        {
-            _logQueue.CompleteAdding();
-            try
-            {
-                _backgroundTask.Wait();
-            }
-            catch { }
-            _logQueue.Dispose();
+            stop.Cancel();
+            stop.Dispose();
+            logQueue.Dispose();
         }
     }
 }

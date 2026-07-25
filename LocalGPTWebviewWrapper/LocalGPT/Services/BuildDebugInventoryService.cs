@@ -1,5 +1,4 @@
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
@@ -8,7 +7,9 @@ using System.Text;
 
 namespace LocalGPT.Services
 {
-    public sealed class BuildDebugInventoryService(ILogger<BuildDebugInventoryService> logger) : IBuildDebugInventoryService
+    public sealed class BuildDebugInventoryService(ILogger<BuildDebugInventoryService> logger,
+        CouncilRuntimeService councilRuntime,
+        LocalGptCatalogService catalog) : IBuildDebugInventoryService
     {
 
 
@@ -40,7 +41,7 @@ namespace LocalGPT.Services
 
                     string? copiedPath = null;
                     if (captureRoot is not null)
-                        copiedPath = await CouncilChatStaticsGeneral.CopyDebugFileAsync(item.File, item.SourceArea, captureRoot, cancellationToken, logger).ConfigureAwait(false);
+                        copiedPath = await councilRuntime.CopyDebugFileAsync(item.File, item.SourceArea, captureRoot, cancellationToken, logger).ConfigureAwait(false);
 
                     inventory.Files.Add(new BuildDebugFileSummary
                     {
@@ -106,7 +107,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                foreach (var target in CouncilChatStaticsGeneral.GetSearchRoots(logger))
+                foreach (var target in councilRuntime.GetSearchRoots(logger))
                 {
                     if (!Directory.Exists(target.Path))
                         continue;
@@ -115,7 +116,7 @@ namespace LocalGPT.Services
                     try
                     {
                         files = Directory.EnumerateFiles(target.Path, "*.*", SearchOption.AllDirectories)
-                            .Where(path => GlobalVariableSlopCollectionToRemove.DebugExtensions.Contains(Path.GetExtension(path)))
+                            .Where(path => catalog.DebugExtensions.Contains(Path.GetExtension(path)))
                             .ToList();
                     }
                     catch (Exception ex)

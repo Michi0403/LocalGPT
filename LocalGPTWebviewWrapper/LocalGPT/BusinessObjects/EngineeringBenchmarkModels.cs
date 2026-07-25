@@ -12,6 +12,8 @@ namespace LocalGPT.BusinessObjects
 
         public int MaxBuildArtifacts { get; set; } = 3;
 
+        public bool UserConfirmedArtifactActions { get; set; }
+
         public string TaskSet { get; set; } = "engineering";
 
         public string LearnBaseRootPath { get; set; } = @"C:\learnbaseforlocalgpt";

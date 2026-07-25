@@ -1,18 +1,18 @@
 using DevExpress.XtraGauges.Core.Model;
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
-using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
+using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
     public sealed partial class LearnBaseKnowledgeImporterService(
         ICouncilKnowledgeService knowledgeService,
-        ILogger<LearnBaseKnowledgeImporterService> logger) : ILearnBaseKnowledgeImporterService
+        ILogger<LearnBaseKnowledgeImporterService> logger,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText) : ILearnBaseKnowledgeImporterService
     {
 
 
@@ -29,7 +29,7 @@ namespace LocalGPT.Services
                 {
                     RootPath = rootPath,
                     ImportMode = "Compact source-map import; stores architecture fingerprints and documentation corpus summaries, not full file contents.",
-                    FilePolicy = CouncilChatStringFunctions.BuildFilePolicySummary(logger),
+                    FilePolicy = councilText.BuildFilePolicySummary(logger),
                     DuplicatePolicy = "Knowledge entries use stable GUIDs derived from source path and corpus section. Re-importing the same folder updates the same row instead of creating duplicate rows."
                 };
 
@@ -42,7 +42,7 @@ namespace LocalGPT.Services
                 await knowledgeService.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
                 await ImportKnownDocumentationCorporaAsync(rootPath, request, result, cancellationToken).ConfigureAwait(false);
 
-                var projectDirectories = CouncilChatStringFunctions.BuildImportDirectories(rootPath, Math.Clamp(request.MaxProjects, 1, 120), logger)
+                var projectDirectories = councilText.BuildImportDirectories(rootPath, Math.Clamp(request.MaxProjects, 1, 120), logger)
                     .ToArray();
 
                 foreach (var projectDirectory in projectDirectories)
@@ -50,10 +50,10 @@ namespace LocalGPT.Services
                     cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
-                        var summary = CouncilChatStaticsGeneral.BuildProjectSummary(rootPath, projectDirectory, logger);
+                        var summary = councilRuntime.BuildProjectSummary(rootPath, projectDirectory, logger);
                         if (request.SaveToKnowledge)
                         {
-                            var entry = await knowledgeService.SaveEntryAsync(CouncilChatStaticsGeneral.ToKnowledgeEntry(summary,logger), cancellationToken).ConfigureAwait(false);
+                            var entry = await knowledgeService.SaveEntryAsync(councilRuntime.ToKnowledgeEntry(summary,logger), cancellationToken).ConfigureAwait(false);
                             summary.KnowledgeEntryId = entry.Id;
                             result.SavedKnowledgeCount++;
                         }
@@ -73,7 +73,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ImportAsync request {request?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ImportAsync");
                 return null;
             }
         }
@@ -86,19 +86,19 @@ namespace LocalGPT.Services
         {
             try
             {
-                foreach (var candidate in CouncilChatStaticsGeneral.BuildDocumentationCorpusCandidates(rootPath,logger))
+                foreach (var candidate in councilRuntime.BuildDocumentationCorpusCandidates(rootPath,logger))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (CouncilChatStaticsGeneral.LooksLikeWindowsDevDocsRoot(candidate, logger))
+                    if (councilRuntime.LooksLikeWindowsDevDocsRoot(candidate, logger))
                         await ImportWindowsDevDocsCorpusAsync(candidate, request, result, cancellationToken).ConfigureAwait(false);
 
-                    if (CouncilChatStaticsGeneral.LooksLikeDotNetDocsRoot(candidate, logger))
+                    if (councilRuntime.LooksLikeDotNetDocsRoot(candidate, logger))
                         await ImportDotNetDocsCorpusAsync(candidate, request, result, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ImportKnownDocumentationCorporaAsync rootPath {rootPath?.ToString()} request {request?.ToString()} result {result?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ImportKnownDocumentationCorporaAsync");
 
             }
         }
@@ -110,14 +110,14 @@ namespace LocalGPT.Services
         {
             try
             {
-                var markdownFiles = CouncilChatStaticsGeneral.EnumerateUsefulFiles(rootPath,logger)
+                var markdownFiles = councilRuntime.EnumerateUsefulFiles(rootPath,logger)
                 .Where(file => file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
                 .Take(8000)
                 .ToArray();
                 if (markdownFiles.Length == 0)
                     return;
 
-                foreach (var entry in CouncilChatStaticsGeneral.BuildDotNetDocsEntries(rootPath, markdownFiles, logger))
+                foreach (var entry in councilRuntime.BuildDotNetDocsEntries(rootPath, markdownFiles, logger))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     Guid? knowledgeEntryId = null;
@@ -145,7 +145,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ImportDotNetDocsCorpusAsync rootPath {rootPath?.ToString()} request {request?.ToString()} result {result?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ImportDotNetDocsCorpusAsync");
 
             }
         }
@@ -157,14 +157,14 @@ namespace LocalGPT.Services
         {
             try
             {
-                var markdownFiles = CouncilChatStaticsGeneral.EnumerateUsefulFiles(rootPath,logger)
+                var markdownFiles = councilRuntime.EnumerateUsefulFiles(rootPath,logger)
                 .Where(file => file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
                 .Take(6000)
                 .ToArray();
                 if (markdownFiles.Length == 0)
                     return;
 
-                foreach (var entry in CouncilChatStaticsGeneral.BuildWindowsDevDocsEntries(rootPath, markdownFiles, logger))
+                foreach (var entry in councilRuntime.BuildWindowsDevDocsEntries(rootPath, markdownFiles, logger))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     Guid? knowledgeEntryId = null;
@@ -192,7 +192,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ImportWindowsDevDocsCorpusAsync rootPath {rootPath?.ToString()} request {request?.ToString()} result {result?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ImportWindowsDevDocsCorpusAsync");
           
             }
         }

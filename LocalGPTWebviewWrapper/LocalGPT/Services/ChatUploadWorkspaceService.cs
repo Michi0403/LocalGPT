@@ -1,19 +1,21 @@
 using DevExpress.CodeParser;
 using DevExpress.DataAccess.Native.Sql.MasterDetail;
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using System.IO.Compression;
 using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using static LocalGPT.Extensions.PlainStatics.GlobalVariableSlopCollectionToRemove;
+using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
     public sealed class ChatUploadWorkspaceService(
-        ILogger<ChatUploadWorkspaceService> logger) : IChatUploadWorkspaceService
+        ILogger<ChatUploadWorkspaceService> logger,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText,
+        LocalGptCatalogService catalog) : IChatUploadWorkspaceService
     {
         public string WorkspaceRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -33,7 +35,7 @@ namespace LocalGPT.Services
                     .Where(file => !string.IsNullOrWhiteSpace(file.Name))
                     .Take(MaxFiles)
                     .ToList();
-                var workspaceName = CouncilChatStaticsGeneral.BuildWorkspaceName(prompt, fileList, logger);
+                var workspaceName = councilRuntime.BuildWorkspaceName(prompt, fileList, logger);
                 var root = Path.Combine(WorkspaceRoot, workspaceName);
                 var originalRoot = Path.Combine(root, "original");
                 var extractedRoot = Path.Combine(root, "extracted");
@@ -61,15 +63,15 @@ namespace LocalGPT.Services
                     //    break;
                     //}
 
-                    var safeName = CouncilChatStringFunctions.BuildUniqueFileName(originalRoot, input.Name, logger);
+                    var safeName = councilText.BuildUniqueFileName(originalRoot, input.Name, logger);
                     var originalPath = Path.Combine(originalRoot, safeName);
                     var bytes = input.Data.ToArray();
                     await System.IO.File.WriteAllBytesAsync(originalPath, bytes, cancellationToken).ConfigureAwait(false);
 
-                    var originalRelativePath = CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
-                    if (CouncilChatStaticsGeneral.IsZip(input.Name, logger))
+                    var originalRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
+                    if (councilRuntime.IsZip(input.Name, logger))
                     {
-                        var buildSummary = CouncilChatStaticsGeneral.BuildBinarySummary(originalRelativePath, bytes.Length, "zip", false,
+                        var buildSummary = councilRuntime.BuildBinarySummary(originalRelativePath, bytes.Length, "zip", false,
                             "Original zip saved. Extracted safe entries are listed separately.", logger);
                         ArgumentNullException.ThrowIfNull(buildSummary);
                         analyzedFiles.Add(buildSummary);
@@ -77,7 +79,7 @@ namespace LocalGPT.Services
                     }
                     else
                     {
-                        var analyzedFilesToAdd = CouncilChatStaticsGeneral.AnalyzeBytes(originalRelativePath, bytes, logger);
+                        var analyzedFilesToAdd = councilRuntime.AnalyzeBytes(originalRelativePath, bytes, logger);
                         ArgumentNullException.ThrowIfNull(analyzedFilesToAdd);
                         analyzedFiles.Add(analyzedFilesToAdd);
                     }
@@ -86,7 +88,7 @@ namespace LocalGPT.Services
                 if (!fileList.Any())
                     warnings.Add("No files were supplied for this prompt workspace.");
 
-                var context = CouncilChatStaticsGeneral.BuildContextMarkdown(workspaceName, root, prompt, analyzedFiles, warnings, logger);
+                var context = councilRuntime.BuildContextMarkdown(workspaceName, root, prompt, analyzedFiles, warnings, logger);
                 var contextPath = Path.Combine(root, "context.md");
                 await System.IO.File.WriteAllTextAsync(contextPath, context, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
 
@@ -112,7 +114,7 @@ namespace LocalGPT.Services
                         },
                         Warnings = warnings,
                         Files = analyzedFiles.Select(file => file.Summary)
-                    }, GlobalVariableSlopCollectionToRemove.JsonOptions),
+                    }, catalog.JsonOptions),
                     Encoding.UTF8,
                     cancellationToken).ConfigureAwait(false);
 
@@ -198,7 +200,7 @@ namespace LocalGPT.Services
                     if (!System.IO.File.Exists(latest.ContextPath))
                         return string.Empty;
 
-                    return CouncilChatStringFunctions.TrimForPrompt(System.IO.File.ReadAllText(latest.ContextPath), maxCharacters, logger);
+                    return councilText.TrimForPrompt(System.IO.File.ReadAllText(latest.ContextPath), maxCharacters, logger);
                 }
                 catch (Exception ex)
                 {
@@ -229,7 +231,7 @@ namespace LocalGPT.Services
                     return string.Empty;
 
                 var context = await System.IO.File.ReadAllTextAsync(contextPath, cancellationToken).ConfigureAwait(false);
-                return CouncilChatStringFunctions.TrimForPrompt(context, maxCharacters, logger);
+                return councilText.TrimForPrompt(context, maxCharacters, logger);
             }
             catch (Exception ex)
             {
@@ -252,11 +254,11 @@ namespace LocalGPT.Services
                     {
                         var info = new FileInfo(path);
                         return new ChatUploadWorkspaceFileSummary(
-                            CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspace, path), logger),
-                            CouncilChatStaticsGeneral.DetermineFileKind(path, logger),
+                            councilText.ToForwardSlash(Path.GetRelativePath(workspace, path), logger),
+                            councilRuntime.DetermineFileKind(path, logger),
                             info.Length,
                             info.LastWriteTimeUtc,
-                            CouncilChatStaticsGeneral.IsTextLike(path, logger) || BinaryDiagnosticExtensions.Contains(Path.GetExtension(path)),
+                            councilRuntime.IsTextLike(path, logger) || catalog.BinaryDiagnosticExtensions.Contains(Path.GetExtension(path)),
                             path.EndsWith("context.md", StringComparison.OrdinalIgnoreCase)
                                 ? "AI prompt context generated by LocalGPT."
                                 : "Uploaded or extracted workspace file.");
@@ -284,7 +286,7 @@ namespace LocalGPT.Services
                 if (workspace is null)
                     return null;
 
-                var file = CouncilChatStaticsGeneral.ResolveWorkspaceFile(workspace, relativePath, logger);
+                var file = councilRuntime.ResolveWorkspaceFile(workspace, relativePath, logger);
                 if (file is null || !System.IO.File.Exists(file))
                     return null;
 
@@ -292,14 +294,14 @@ namespace LocalGPT.Services
                 if (info.Length > MaxSingleFileBytes)
                     return new ChatUploadWorkspaceFileReadResult(
                         workspaceName,
-                       CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspace, file), logger),
+                       councilText.ToForwardSlash(Path.GetRelativePath(workspace, file), logger),
                         file,
                         "too-large",
                         info.Length,
                         "File is too large for inline reading. Use the file summary and inspect it manually.");
 
                 var bytes = await System.IO.File.ReadAllBytesAsync(file, cancellationToken).ConfigureAwait(false);
-                var analyzed = CouncilChatStaticsGeneral.AnalyzeBytes(CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspace, file), logger), bytes, logger);
+                var analyzed = councilRuntime.AnalyzeBytes(councilText.ToForwardSlash(Path.GetRelativePath(workspace, file), logger), bytes, logger);
                 ArgumentNullException.ThrowIfNull(analyzed);
                 return new ChatUploadWorkspaceFileReadResult(
                     workspaceName,
@@ -307,7 +309,7 @@ namespace LocalGPT.Services
                     file,
                     analyzed.Summary.Kind,
                     analyzed.Summary.Length,
-                    CouncilChatStringFunctions.TrimForPrompt(analyzed.Excerpt, maxCharacters, logger));
+                    councilText.TrimForPrompt(analyzed.Excerpt, maxCharacters, logger));
             }
             catch (Exception ex)
             {
@@ -329,7 +331,7 @@ namespace LocalGPT.Services
 
                 var root = Path.GetFullPath(WorkspaceRoot);
                 var candidate = Path.GetFullPath(Path.Combine(root, safeName));
-                if (!CouncilChatStaticsGeneral.IsInsideRoot(root, candidate, logger) || !Directory.Exists(candidate))
+                if (!councilRuntime.IsInsideRoot(root, candidate, logger) || !Directory.Exists(candidate))
                     return null;
 
                 return candidate;
@@ -384,7 +386,7 @@ namespace LocalGPT.Services
                 using var memory = new MemoryStream(zipBytes);
                 using var archive = new ZipArchive(memory, ZipArchiveMode.Read);
                 var zipName = Path.GetFileNameWithoutExtension(zipFileName);
-                var zipExtractRoot = Path.Combine(extractedRoot, CouncilChatStringFunctions.SanitizeFileName(zipName, logger));
+                var zipExtractRoot = Path.Combine(extractedRoot, councilText.SanitizeFileName(zipName, logger));
                 Directory.CreateDirectory(zipExtractRoot);
 
                 var entryCount = 0;
@@ -417,7 +419,7 @@ namespace LocalGPT.Services
                         break;
                     }
 
-                    var safeRelativePath = CouncilChatStringFunctions.BuildSafeZipRelativePath(entry.FullName, logger);
+                    var safeRelativePath = councilText.BuildSafeZipRelativePath(entry.FullName, logger);
                     if (safeRelativePath is null)
                     {
                         warnings.Add($"{zipFileName}: unsafe zip path skipped: {entry.FullName}");
@@ -425,7 +427,7 @@ namespace LocalGPT.Services
                     }
 
                     var destination = Path.GetFullPath(Path.Combine(zipExtractRoot, safeRelativePath));
-                    if (!CouncilChatStaticsGeneral.IsInsideRoot(zipExtractRoot, destination, logger))
+                    if (!councilRuntime.IsInsideRoot(zipExtractRoot, destination, logger))
                     {
                         warnings.Add($"{zipFileName}: path traversal entry skipped: {entry.FullName}");
                         continue;
@@ -439,7 +441,7 @@ namespace LocalGPT.Services
                     }
 
                     var bytes = await System.IO.File.ReadAllBytesAsync(destination, cancellationToken).ConfigureAwait(false);
-                    var analyzedBytes = CouncilChatStaticsGeneral.AnalyzeBytes(CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger), bytes, logger);
+                    var analyzedBytes = councilRuntime.AnalyzeBytes(councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger), bytes, logger);
                     ArgumentNullException.ThrowIfNull(analyzedBytes);
                     analyzedFiles.Add(analyzedBytes);
                 }

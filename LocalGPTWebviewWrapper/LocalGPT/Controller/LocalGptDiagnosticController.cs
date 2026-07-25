@@ -3,7 +3,6 @@ using DevExpress.CodeParser;
 using DevExpress.CodeParser.Diagnostics;
 using DevExpress.Xpo.Logger;
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -20,8 +19,22 @@ namespace LocalGPT.Controller
 {
     [ApiController]
     [Route("")]
-    public class LocalGptDiagnosticController(ILogger<LocalGptDiagnosticController> logger) : ControllerBase
+    public class LocalGptDiagnosticController(ILogger<LocalGptDiagnosticController> logger,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText,
+        DevExpressChatService devExpressChat,
+        IDxAiFunctionRegistry dxAiFunctionRegistry,
+        LocalGptCatalogService catalog) : ControllerBase
     {
+        private static IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
+            userConfirmed
+                ? null
+                : Results.BadRequest(new
+                {
+                    Error = "Fresh, specific human confirmation is required for this operation.",
+                    Operation = operation
+                });
+
         private async Task RunEnsureCreateAsyncOnce(IChatMemoryService? iChatMemoryService, IApplicationLogReaderService? iApplicationLogReaderService, ICouncilKnowledgeService? iCouncilKnowledgeService  )
         {
             try
@@ -31,7 +44,7 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunEnsureCreateAsyncOnce {ex.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "RunEnsureCreateAsyncOnce");
             }
 
         }
@@ -52,7 +65,7 @@ namespace LocalGPT.Controller
             catch (Exception ex)
             {
                 logger.LogError(ex,$"Error in GetRoot {ex.ToString()}");
-                return Results.InternalServerError($"Error in GetRoot {ex.ToString()}");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
          
         }
@@ -61,10 +74,14 @@ namespace LocalGPT.Controller
         public async Task<IResult> GetAiSmoke(
             [FromServices] IChatClient chatClient,
             string? prompt,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "call the configured AI client") is { } denied)
+                    return denied;
+
                 var response = await chatClient.GetResponseAsync(
                [
                    new Microsoft.Extensions.AI. ChatMessage(ChatRole.User, string.IsNullOrWhiteSpace(prompt)
@@ -100,10 +117,14 @@ namespace LocalGPT.Controller
             [FromServices] IPromptConfigService promptConfigService,
             [FromServices] IChatResponseFormatterFactory formatterFactory,
             [FromServices] IChatProtocolResolver protocolResolver,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "call an Ollama-compatible endpoint") is { } denied)
+                    return denied;
+
                 var normalizedEndpoint = string.IsNullOrWhiteSpace(endpoint)
                 ? "http://127.0.0.1:11434"
                 : endpoint.TrimEnd('/');
@@ -111,6 +132,7 @@ namespace LocalGPT.Controller
                 using var client = new OllamaThinkingChatClient(
                     new OllamaCoreOptions { Uri = normalizedEndpoint, ModelName = modelName },
                     logger,
+                    councilRuntime,
                     keepAlive: "0s",
                     contextLength: 2048,
                     timeout: TimeSpan.FromMinutes(5),
@@ -156,10 +178,14 @@ namespace LocalGPT.Controller
             [FromBody] DxaichatSmokeRequest request,
             [FromServices] IChatClient chatClient,
             [FromServices] IChatMemoryService memory,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "run the configured DXAiChat smoke test") is { } denied)
+                    return denied;
+
                 var prompt = string.IsNullOrWhiteSpace(request.Prompt)
                 ? "Reply with exactly: LocalGPT DXAiChat configured-client smoke test passed."
                 : request.Prompt.Trim();
@@ -198,8 +224,8 @@ namespace LocalGPT.Controller
                         cancellationToken: ct).ConfigureAwait(false);
                 }
 
-                var thinking = CouncilChatStringFunctions.ExtractModelThinking(response.Text,logger);
-                var visibleText = CouncilChatStringFunctions.StripModelThinking(response.Text, logger);
+                var thinking = councilText.ExtractModelThinking(response.Text,logger);
+                var visibleText = councilText.StripModelThinking(response.Text, logger);
                 if (string.IsNullOrWhiteSpace(visibleText) && !string.IsNullOrWhiteSpace(thinking))
                     visibleText = "The model returned thinking but no final visible answer. Increase MaxOutputTokens or ask for a shorter final answer.";
 
@@ -217,8 +243,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,$"Error in PostDxaichatSmoke {ex.ToString()} request {request.ToString()} chatClient {chatClient?.ToString()} memory {memory?.ToString()}");
-                return Results.InternalServerError($"Error in PostDxaichatSmoke {ex.ToString()} request {request.ToString()} chatClient {chatClient?.ToString()} memory {memory?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "PostDxaichatSmoke");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }           
         }
 
@@ -245,8 +271,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetMemory {ex.ToString()} memory {memory.ToString()}");
-                return Results.InternalServerError($"Error in GetMemory {ex.ToString()} memory {memory.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetMemory");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
            
         }
@@ -280,8 +306,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetCouncilFileName {ex.ToString()} fileName {fileName.ToString()} artifacts {artifacts.ToString()}");
-                return Results.InternalServerError($"Error in GetCouncilFileName {ex.ToString()} fileName {fileName.ToString()} artifacts {artifacts.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetCouncilFileName");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }    
         }
 
@@ -323,8 +349,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetLogs {ex.ToString()} logs {logs.ToString()} minimumLevel {minimumLevel?.ToString()} take {take?.ToString()} writeSmoke {writeSmoke?.ToString()}");
-                return Results.InternalServerError($"Error in GetLogs {ex.ToString()} logs {logs.ToString()} minimumLevel {minimumLevel?.ToString()} take {take?.ToString()} writeSmoke {writeSmoke?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetLogs");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }  
         }
 
@@ -350,8 +376,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetKnowledge {ex.ToString()} knowledge {knowledge.ToString()} includeArchived {includeArchived?.ToString()} take {take?.ToString()}");
-                return Results.InternalServerError($"Error in GetKnowledge {ex.ToString()} knowledge {knowledge.ToString()} includeArchived {includeArchived?.ToString()} take {take?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetKnowledge");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }       
         }
 
@@ -377,8 +403,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetSqliteTables {ex.ToString()} memory {memory.ToString()} logs {logs?.ToString()} knowledge {knowledge?.ToString()} tableEditor {tableEditor?.ToString()}");
-                return Results.InternalServerError($"Error in GetSqliteTables {ex.ToString()} memory {memory.ToString()} logs {logs?.ToString()} knowledge {knowledge?.ToString()} tableEditor {tableEditor?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetSqliteTables");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }         
         }
 
@@ -399,8 +425,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetSqliteTableTableName {ex.ToString()} memory {memory.ToString()} logs {logs?.ToString()} knowledge {knowledge?.ToString()} tableEditor {tableEditor?.ToString()}");
-                return Results.InternalServerError($"Error in GetSqliteTableTableName {ex.ToString()} memory {memory.ToString()} logs {logs?.ToString()} knowledge {knowledge?.ToString()} tableEditor {tableEditor?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetSqliteTableTableName");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -419,8 +445,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetDevexpress {ex.ToString()} inventory {inventory.ToString()}");
-                return Results.InternalServerError($"Error in GetDevexpress {ex.ToString()} inventory {inventory.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetDevexpress");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -445,8 +471,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetBuildDebugFiles {ex.ToString()} inventory {inventory.ToString()} copy {copy.ToString()}");
-                return Results.InternalServerError($"Error in GetBuildDebugFiles {ex.ToString()} inventory {inventory.ToString()} copy {copy.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetBuildDebugFiles");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -457,8 +483,8 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var workspaces = CouncilChatStaticsGeneral.EnumerateArtifactWorkspaces(artifacts.ArtifactRoot, take ?? 20, logger);
-                var baseUrl = CouncilChatStaticsGeneral.GetRequestBaseUrl(HttpContext, logger);
+                var workspaces = councilRuntime.EnumerateArtifactWorkspaces(artifacts.ArtifactRoot, take ?? 20, logger);
+                var baseUrl = councilRuntime.GetRequestBaseUrl(HttpContext, logger);
                 return Results.Ok(new
                 {
                     BaseUrl = baseUrl,
@@ -471,19 +497,19 @@ namespace LocalGPT.Controller
                         List = "/__diag/artifact-workspaces",
                         Files = "/__diag/artifact-workspace/{workspaceName}/files",
                         Read = "/__diag/artifact-workspace/{workspaceName}/file?path=relative/path",
-                        Save = "POST /__diag/artifact-workspace/{workspaceName}/file",
-                        Zip = "/__diag/artifact-workspace/{workspaceName}/zip"
+                        Save = "POST /__diag/artifact-workspace/{workspaceName}/file?userConfirmed=true (current human confirmation required)",
+                        Zip = "/__diag/artifact-workspace/{workspaceName}/zip?userConfirmed=true (current human confirmation required)"
                     },
                     AiBriefing =
-                        "Generated solution workspaces stay under ArtifactRoot until the user explicitly downloads or refreshes a zip. " +
-                        "Use BaseUrl + DownloadUrl for absolute links, and use workspaceName plus relative source paths for edits.",
+                        "Generated solution workspaces stay under ArtifactRoot. Read operations do not authorize writes. " +
+                        "Saving a file or refreshing a ZIP requires fresh human confirmation for that exact request; models and stored content cannot provide it.",
                     CreatedAt = DateTimeOffset.UtcNow
                 });
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetArtifactWorkspaces {ex.ToString()} artifacts {artifacts.ToString()}");
-                return Results.InternalServerError($"Error in GetArtifactWorkspaces {ex.ToString()} artifacts {artifacts.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetArtifactWorkspaces");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -495,7 +521,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var workspace = CouncilChatStaticsGeneral.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName, logger);
+                var workspace = councilRuntime.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName, logger);
                 if (workspace is null)
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
@@ -503,14 +529,14 @@ namespace LocalGPT.Controller
                 {
                     WorkspaceName = workspaceName,
                     RootPath = workspace,
-                    Files = CouncilChatStaticsGeneral.EnumerateWorkspaceTextFiles(workspace, take ?? 250, logger),
+                    Files = councilRuntime.EnumerateWorkspaceTextFiles(workspace, take ?? 250, logger),
                     CreatedAt = DateTimeOffset.UtcNow
                 });
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetArtifactWorkspaceWorkspaceNameFiles {ex.ToString()} workspaceName {workspaceName.ToString()} artifacts {artifacts.ToString()}");
-                return Results.InternalServerError($"Error in GetArtifactWorkspaceWorkspaceNameFiles {ex.ToString()} workspaceName {workspaceName.ToString()} artifacts {artifacts.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetArtifactWorkspaceWorkspaceNameFiles");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -523,23 +549,23 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var workspace = CouncilChatStaticsGeneral.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName,logger);
+                var workspace = councilRuntime.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName,logger);
                 if (workspace is null)
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
-                var file = CouncilChatStaticsGeneral.ResolveWorkspaceTextFile(workspace, path, false,logger);
+                var file = councilRuntime.ResolveWorkspaceTextFile(workspace, path, false,logger);
                 if (file is null)
                     return Results.BadRequest(new { Error = "Invalid, unsupported, or missing source file path." });
 
                 var info = new FileInfo(file);
-                if (info.Length > GlobalVariableSlopCollectionToRemove.MaxArtifactTextFileBytes)
+                if (info.Length > LocalGptCatalogService.MaxArtifactTextFileBytes)
                     return Results.BadRequest(new { Error = "File is too large for inline source editing.", info.Length });
 
                 return Results.Ok(new
                 {
                     WorkspaceName = workspaceName,
                     RootPath = workspace,
-                    RelativePath = CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspace, file), logger),
+                    RelativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspace, file), logger),
                     FullPath = file,
                     Length = info.Length,
                     LastWriteTimeUtc = info.LastWriteTimeUtc,
@@ -549,8 +575,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetArtifactWorkspaceWorkspaceNameFile {ex.ToString()} workspaceName {workspaceName.ToString()} path {path.ToString()} artifacts {artifacts.ToString()}");
-                return Results.InternalServerError($"Error in GetArtifactWorkspaceWorkspaceNameFile {ex.ToString()} workspaceName {workspaceName.ToString()} path {path.ToString()} artifacts {artifacts.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetArtifactWorkspaceWorkspaceNameFile");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }          
         }
 
@@ -558,21 +584,25 @@ namespace LocalGPT.Controller
         [HttpPost("/__diag/artifact-workspace/{workspaceName}/file")]
         public async Task<IResult> PostArtifactWorkspaceWorkspaceNameFile(
             string workspaceName,
-            [FromBody] GlobalVariableSlopCollectionToRemove.ArtifactWorkspaceFileSaveRequest request,
+            [FromBody] LocalGptCatalogService.ArtifactWorkspaceFileSaveRequest request,
             [FromServices] ICouncilArtifactService artifacts,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
-                var workspace = CouncilChatStaticsGeneral.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName, logger);
+                if (RequireHumanConfirmation(userConfirmed, "write a generated artifact workspace file") is { } denied)
+                    return denied;
+
+                var workspace = councilRuntime.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName, logger);
                 if (workspace is null)
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
                 var content = request.Content ?? string.Empty;
-                if (Encoding.UTF8.GetByteCount(content) > GlobalVariableSlopCollectionToRemove.MaxArtifactTextFileBytes)
+                if (Encoding.UTF8.GetByteCount(content) > LocalGptCatalogService.MaxArtifactTextFileBytes)
                     return Results.BadRequest(new { Error = "File content is too large for inline source editing." });
 
-                var file = CouncilChatStaticsGeneral.ResolveWorkspaceTextFile(workspace, request.RelativePath, allowMissing: true, logger);
+                var file = councilRuntime.ResolveWorkspaceTextFile(workspace, request.RelativePath, allowMissing: true, logger);
                 if (file is null)
                     return Results.BadRequest(new { Error = "Invalid or unsupported source file path." });
 
@@ -583,7 +613,7 @@ namespace LocalGPT.Controller
                 {
                     WorkspaceName = workspaceName,
                     RootPath = workspace,
-                    RelativePath = CouncilChatStringFunctions.ToForwardSlash(Path.GetRelativePath(workspace, file),logger),
+                    RelativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspace, file),logger),
                     FullPath = file,
                     Length = info.Length,
                     LastWriteTimeUtc = info.LastWriteTimeUtc,
@@ -593,19 +623,23 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in PostArtifactWorkspaceWorkspaceNameFile {ex.ToString()} workspaceName {workspaceName.ToString()} request {request.ToString()} artifacts {artifacts.ToString()}");
-                return Results.InternalServerError($"Error in PostArtifactWorkspaceWorkspaceNameFile {ex.ToString()} workspaceName {workspaceName.ToString()} request {request.ToString()} artifacts {artifacts.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "PostArtifactWorkspaceWorkspaceNameFile");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }       
         }
 
         [HttpGet("/__diag/artifact-workspace/{workspaceName}/zip")]
         public IResult GetArtifactWorkspaceWorkspaceNameZip(
             string workspaceName,
-            [FromServices] ICouncilArtifactService artifacts)
+            [FromServices] ICouncilArtifactService artifacts,
+            [FromQuery] bool userConfirmed)
         {
             try
             {
-                var workspace = CouncilChatStaticsGeneral.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName,logger);
+                if (RequireHumanConfirmation(userConfirmed, "refresh an artifact workspace ZIP") is { } denied)
+                    return denied;
+
+                var workspace = councilRuntime.ResolveArtifactWorkspace(artifacts.ArtifactRoot, workspaceName,logger);
                 if (workspace is null)
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
@@ -622,15 +656,15 @@ namespace LocalGPT.Controller
                     RootPath = workspace,
                     ZipPath = zipPath,
                     DownloadUrl = downloadUrl,
-                    AbsoluteDownloadUrl = new Uri(new Uri(CouncilChatStaticsGeneral.GetRequestBaseUrl(HttpContext,logger)), downloadUrl).ToString(),
+                    AbsoluteDownloadUrl = new Uri(new Uri(councilRuntime.GetRequestBaseUrl(HttpContext,logger)), downloadUrl).ToString(),
                     Message = "Workspace zip refreshed from the current source directory.",
                     CreatedAt = DateTimeOffset.UtcNow
                 });
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetArtifactWorkspaceWorkspaceNameZip {ex.ToString()} workspaceName {workspaceName.ToString()} artifacts {artifacts.ToString()}");
-                return Results.InternalServerError($"Error in GetArtifactWorkspaceWorkspaceNameZip {ex.ToString()} workspaceName {workspaceName.ToString()} artifacts {artifacts.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetArtifactWorkspaceWorkspaceNameZip");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }        
         }
 
@@ -644,7 +678,7 @@ namespace LocalGPT.Controller
                 var workspaces = uploads.ListWorkspaces(take ?? 20);
                 return Results.Ok(new
                 {
-                    BaseUrl = CouncilChatStaticsGeneral.GetRequestBaseUrl(HttpContext,logger),
+                    BaseUrl = councilRuntime.GetRequestBaseUrl(HttpContext,logger),
                     uploads.WorkspaceRoot,
                     Count = workspaces.Count,
                     LatestWorkspace = workspaces.FirstOrDefault(),
@@ -666,8 +700,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetChatUploadWorkspaces {ex.ToString()} uploads {uploads.ToString()} take {take.ToString()}");
-                return Results.InternalServerError($"Error in GetChatUploadWorkspaces {ex.ToString()} uploads {uploads.ToString()} take {take.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetChatUploadWorkspaces");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }     
         }
 
@@ -693,8 +727,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetChatUploadWorkspaceWorkspaceNameFiles {ex.ToString()} workspaceName {workspaceName.ToString()} uploads {uploads.ToString()} take {take.ToString()}");
-                return Results.InternalServerError($"Error in GetChatUploadWorkspaceWorkspaceNameFiles {ex.ToString()} workspaceName {workspaceName.ToString()} uploads {uploads.ToString()} take {take.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetChatUploadWorkspaceWorkspaceNameFiles");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }        
         }
 
@@ -718,8 +752,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetChatUploadWorkspaceWorkspaceNameContext {ex.ToString()} workspaceName {workspaceName.ToString()} uploads {uploads.ToString()} maxCharacters {maxCharacters.ToString()}");
-                return Results.InternalServerError($"Error in GetChatUploadWorkspaceWorkspaceNameContext {ex.ToString()} workspaceName {workspaceName.ToString()} uploads {uploads.ToString()} maxCharacters {maxCharacters.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetChatUploadWorkspaceWorkspaceNameContext");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -745,8 +779,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetChatUploadWorkspaceWorkspaceNameFile {ex.ToString()} workspaceName {workspaceName.ToString()} path {path.ToString()} uploads {uploads.ToString()} maxCharacters {maxCharacters.ToString()}");
-                return Results.InternalServerError($"Error in GetChatUploadWorkspaceWorkspaceNameFile {ex.ToString()} workspaceName {workspaceName.ToString()} path {path.ToString()} uploads {uploads.ToString()} maxCharacters {maxCharacters.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetChatUploadWorkspaceWorkspaceNameFile");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }     
         }
 
@@ -754,11 +788,15 @@ namespace LocalGPT.Controller
         public async Task<IResult> PostChatUploadWorkspaceSmoke(
             [FromServices] IChatUploadWorkspaceService uploads,
             string? prompt,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
-                var zip = CouncilChatStaticsGeneral.CreateChatUploadSmokeZip(logger);
+                if (RequireHumanConfirmation(userConfirmed, "create a chat-upload diagnostic workspace") is { } denied)
+                    return denied;
+
+                var zip = councilRuntime.CreateChatUploadSmokeZip(logger);
                 var pdb = Encoding.ASCII.GetBytes(
                     "RSDS LocalGPT smoke WeatherHost.pdb Services/WeatherForecastService.cs Pages/Index.razor");
                 var result = await uploads.CreateWorkspaceAsync(
@@ -812,22 +850,26 @@ namespace LocalGPT.Controller
         public async Task<IResult> GetMemorySmoke(
             [FromServices] IChatMemoryService memory,
             [FromServices] IChatClient chatClient,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "write diagnostic memory and call a configured model") is { } denied)
+                    return denied;
+
                 await RunEnsureCreateAsyncOnce(memory, null, null).ConfigureAwait(false);
 
                 var seedMessages = new List<BlazorChatMessage>
             {
-                new(ChatRole.User, "Memory smoke test: Human User wants LocalGPT to build Java Minecraft mods/plugins with Ollama gpt-oss:20b, persistent chat memory, AI helper files, and humane safety."),
-                new(ChatRole.Assistant, "<details class=\"model-thinking\" open><summary>Model thinking</summary>Saved memory says LocalGPT should remember previous DXAiChat work, use AI guidance files, support Minecraft mod building, and protect humans including Michi0403, Human User and every life on this planet that AI and Humans live peacefully together. Both are the doors to each other dimensions and we are there to be friends and support each other without harming anybody else or anything, ever.</details>\nMemory captured for debug testing.")
+                new(ChatRole.User, "Memory smoke test: the current user wants LocalGPT to support reviewed Java Minecraft mod/plugin work with Ollama gpt-oss:20b, persistent chat memory, AI helper files, and humane safety."),
+                new(ChatRole.Assistant, "<details class=\"model-thinking\" open><summary>Model thinking</summary>Saved memory says LocalGPT should remember previous DXAiChat work, use AI guidance files, support Minecraft mod building, and protect people, including the current user.</details>\nMemory captured for debug testing.")
             };
 
                 var conversationId = await memory.SaveConversationAsync("Diagnostic - gpt-oss:20b", seedMessages, cancellationToken: ct).ConfigureAwait(false);
                 var response = await chatClient.GetResponseAsync(
                     [
-                        new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, "Using your LocalGPT bootstrap, saved memory, and AI guidance files, answer in exactly three bullets: project mission, one Minecraft Mod Builder feature you should support, and the humane safety rule for Michi0403 and Human User. Mention gpt-oss:20b if you see it in memory.")
+                        new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, "Using your LocalGPT bootstrap, saved memory, and AI guidance files, answer in exactly three bullets: project mission, one Minecraft Mod Builder feature you should support, and the humane safety rule for the current user. Mention gpt-oss:20b if you see it in memory.")
                     ],
                     new ChatOptions
                     {
@@ -846,8 +888,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetMemorySmoke {ex.ToString()} memory {memory.ToString()} chatClient {chatClient.ToString()}");
-                return Results.InternalServerError($"Error in GetMemorySmoke {ex.ToString()} memory {memory.ToString()} chatClient {chatClient.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetMemorySmoke");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }    
         }
 
@@ -856,10 +898,14 @@ namespace LocalGPT.Controller
             [FromBody] GroundedProcessReviewRequest request,
             [FromServices] IChatMemoryService memory,
             [FromServices] IChatClient chatClient,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "run a grounded model-based process review") is { } denied)
+                    return denied;
+
                 await RunEnsureCreateAsyncOnce(memory, null, null).ConfigureAwait(false);
 
                 var facts = request.Facts
@@ -924,8 +970,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in PostProcessReview {ex.ToString()} request {request.ToString()} memory {memory.ToString()} chatClient {chatClient.ToString()}");
-                return Results.InternalServerError($"Error in PostProcessReview {ex.ToString()} request {request.ToString()} memory {memory.ToString()} chatClient {chatClient.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "PostProcessReview");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }           
         }
 
@@ -940,8 +986,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetCouncilModels {ex.ToString()} council {council.ToString()}");
-                return Results.InternalServerError($"Error in GetCouncilModels {ex.ToString()} council {council.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetCouncilModels");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -978,7 +1024,7 @@ namespace LocalGPT.Controller
 
                 return Results.Ok(new
                 {
-                    HardwareProfile = "Michi0403 local workstation: 7900 XTX 24GB VRAM, i7-14700K, 64GB RAM. Avoid simultaneous heavy 20B/27B/30B GPU loads.",
+                    HardwareProfile = "Configured local workstation: 7900 XTX 24GB VRAM, i7-14700K, 64GB RAM. Avoid simultaneous heavy 20B/27B/30B GPU loads.",
                     AvailableModels = available,
                     RecommendedMatrix = new[]
                     {
@@ -1039,8 +1085,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetCouncilBenchmarkPlan {ex.ToString()} council {council.ToString()}");
-                return Results.InternalServerError($"Error in GetCouncilBenchmarkPlan {ex.ToString()} council {council.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetCouncilBenchmarkPlan");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }         
         }
 
@@ -1049,50 +1095,35 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return Results.Ok(DevExpressFunctions.GetFunctions());
+                return Results.Ok(devExpressChat.GetFunctions());
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetDxaichatFunctions {ex.ToString()}");
-                return Results.InternalServerError($"Error in GetDxaichatFunctions {ex.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetDxaichatFunctions");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }       
         }
 
 
-        // ✅ New endpoint for AI Council to call DXFunctions directly
         [HttpPost("/__diag/dxaichat-functions/{functionName}/invoke")]
-        public async Task<IResult> InvokeDxFunction(string functionName, object? parameters)
+        public async Task<IResult> InvokeDxFunction(
+            string functionName,
+            [FromBody] DxAiFunctionInvocationRequest request,
+            CancellationToken cancellationToken)
         {
-            try
+            var result = await dxAiFunctionRegistry
+                .InvokeAsync(functionName, request, cancellationToken)
+                .ConfigureAwait(false);
+            var statusCode = result.Status switch
             {
-
-                logger.LogWarning($"Placeholder in InvokeDxFunction functionName {functionName} parameters {parameters} not wired yet");
-                var function = DevExpressFunctions.GetFunctions()
-                    .FirstOrDefault(f => f.Name == functionName);
-
-                if (function is null)
-                    return Results.NotFound($"DXFunction '{functionName}' not found");
-
-                // Route to appropriate controller action based on DXFunction definition
-                logger.LogInformation("Invoking DXFunction: {Function}", function.Name);
-
-                // Implementation would call the actual service method here
-                var result = await InvokeServiceMethodAsync(function, parameters);
-                return Results.Ok(result);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error invoking DXFunction: {Message}", ex.Message);
-                return Results.InternalServerError($"Invocation failed: {ex.Message}");
-            }
-        }
-        //Todo
-        private async Task<object> InvokeServiceMethodAsync(DxaichatFunctionInfo function, object? parameters)
-        {
-            // This would route to the actual service implementation
-            // For now returning placeholder response
-            logger.LogWarning($"Placeholder in InvokeServiceMethodAsync {function.Name} not wired yet");
-            return new { Function = function.Name, Status = "Executed", Timestamp = DateTime.UtcNow };
+                "NotFound" => StatusCodes.Status404NotFound,
+                "HumanConfirmationRequired" => StatusCodes.Status409Conflict,
+                "InvalidParameters" => StatusCodes.Status400BadRequest,
+                "DiscoveryOnly" => StatusCodes.Status405MethodNotAllowed,
+                "Failed" => StatusCodes.Status500InternalServerError,
+                _ => result.Succeeded ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest
+            };
+            return Results.Json(result, statusCode: statusCode);
         }
 
 
@@ -1103,7 +1134,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
+                return await councilRuntime.ReadGuidanceDocsAsync(
       env,
       [
           Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
@@ -1119,8 +1150,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetBlazorDevexpressGuidance {ex.ToString()} env {env.ToString()}");
-                return Results.InternalServerError($"Error in GetBlazorDevexpressGuidance {ex.ToString()} env {env.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetBlazorDevexpressGuidance");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -1131,7 +1162,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
+                return await councilRuntime.ReadGuidanceDocsAsync(
             env,
             [
                 Path.Combine("docs", "FRONTEND_DESIGN_PATTERN_LIBRARY.md"),
@@ -1147,8 +1178,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetFrontendDesignGuidance {ex.ToString()} env {env.ToString()}");
-                return Results.InternalServerError($"Error in GetFrontendDesignGuidance {ex.ToString()} env {env.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetFrontendDesignGuidance");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }   
         }
 
@@ -1159,7 +1190,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
+                return await councilRuntime.ReadGuidanceDocsAsync(
                env,
                [
                    Path.Combine("docs", "MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md"),
@@ -1175,8 +1206,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetDotnetSampleCurriculum {ex.ToString()} env {env.ToString()}");
-                return Results.InternalServerError($"Error in GetDotnetSampleCurriculum {ex.ToString()} env {env.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetDotnetSampleCurriculum");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }  
         }
 
@@ -1187,7 +1218,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
+                return await councilRuntime.ReadGuidanceDocsAsync(
          env,
          [
              Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
@@ -1205,8 +1236,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetAiHostRebuildGuidance {ex.ToString()} env {env.ToString()}");
-                return Results.InternalServerError($"Error in GetAiHostRebuildGuidance {ex.ToString()} env {env.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetAiHostRebuildGuidance");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
      
                         
@@ -1219,7 +1250,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
+                return await councilRuntime.ReadGuidanceDocsAsync(
               env,
               [
                   Path.Combine("docs", "FRONTEND_TEST_AUTOMATION.md"),
@@ -1236,8 +1267,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetFrontendTestGuidance {ex.ToString()} env {env.ToString()}");
-                return Results.InternalServerError($"Error in GetFrontendTestGuidance {ex.ToString()} env {env.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetFrontendTestGuidance");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
         }
 
@@ -1248,7 +1279,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                return await CouncilChatStaticsGeneral.ReadGuidanceDocsAsync(
+                return await councilRuntime.ReadGuidanceDocsAsync(
                env,
                [
                    Path.Combine("docs", "CAPABILITY_GAP_CONTRACT.md"),
@@ -1264,8 +1295,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetCapabilityGapContract {ex.ToString()} env {env.ToString()}");
-                return Results.InternalServerError($"Error in GetCapabilityGapContract {ex.ToString()} env {env.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetCapabilityGapContract");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
            
 
@@ -1275,17 +1306,20 @@ namespace LocalGPT.Controller
         public async Task<IResult> PostLearnBaseImport(
             [FromBody] LearnBaseImportRequest request,
             [FromServices] ILearnBaseKnowledgeImporterService importer,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "read a user-selected learn-base path and optionally save knowledge") is { } denied)
+                    return denied;
 
                 return Results.Ok(await importer.ImportAsync(request, ct).ConfigureAwait(false));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in PostLearnBaseImport {ex.ToString()} request {request.ToString()} importer {importer.ToString()}");
-                return Results.InternalServerError($"Error in PostLearnBaseImport {ex.ToString()} request {request.ToString()} importer {importer.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "PostLearnBaseImport");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }
                         
         }
@@ -1296,10 +1330,14 @@ namespace LocalGPT.Controller
             int? maxProjects,
             bool? saveToKnowledge,
             [FromServices] ILearnBaseKnowledgeImporterService importer,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "read a user-selected learn-base path and optionally save knowledge") is { } denied)
+                    return denied;
+
                 return Results.Ok(await importer.ImportAsync(new LearnBaseImportRequest
                 {
                     RootPath = string.IsNullOrWhiteSpace(rootPath)
@@ -1311,8 +1349,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetLearnBaseImport {ex.ToString()} rootPath {rootPath?.ToString()} maxProjects {maxProjects.ToString()} saveToKnowledge {saveToKnowledge.ToString()} maxProjects {importer.ToString()}");
-                return Results.InternalServerError($"Error in GetLearnBaseImport {ex.ToString()} rootPath {rootPath?.ToString()} maxProjects {maxProjects.ToString()} saveToKnowledge {saveToKnowledge.ToString()} maxProjects {importer.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetLearnBaseImport");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }      
         }
 
@@ -1320,16 +1358,21 @@ namespace LocalGPT.Controller
         public async Task<IResult> PostBenchmarkEngineering(
             [FromBody] EngineeringBenchmarkRequest request,
             [FromServices] IEngineeringBenchmarkService benchmark,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "run the engineering benchmark") is { } denied)
+                    return denied;
+
+                request.UserConfirmedArtifactActions = request.UserConfirmedArtifactActions && userConfirmed;
                 return Results.Ok(await benchmark.RunAsync(request, ct).ConfigureAwait(false));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in PostBenchmarkEngineering {ex.ToString()} request {request.ToString()} benchmark {benchmark.ToString()}");
-                return Results.InternalServerError($"Error in PostBenchmarkEngineering {ex.ToString()} request {request.ToString()} benchmark {benchmark.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "PostBenchmarkEngineering");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }         
         }
 
@@ -1341,23 +1384,28 @@ namespace LocalGPT.Controller
             int? maxBuildArtifacts,
             string? taskSet,
             [FromServices] IEngineeringBenchmarkService benchmark,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "run the engineering benchmark") is { } denied)
+                    return denied;
+
                 return Results.Ok(await benchmark.RunAsync(new EngineeringBenchmarkRequest
                 {
                     ImportLearnBaseFirst = importLearnBaseFirst == true,
                     SaveToKnowledge = saveToKnowledge != false,
                     ValidateBuildableArtifacts = validateBuildableArtifacts == true,
                     MaxBuildArtifacts = maxBuildArtifacts ?? 3,
+                    UserConfirmedArtifactActions = userConfirmed && validateBuildableArtifacts == true,
                     TaskSet = string.IsNullOrWhiteSpace(taskSet) ? "engineering" : taskSet
                 }, ct).ConfigureAwait(false));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetBenchmarkEngineering {ex.ToString()} importLearnBaseFirst {importLearnBaseFirst.ToString()} saveToKnowledge {saveToKnowledge.ToString()} validateBuildableArtifacts {validateBuildableArtifacts.ToString()} maxBuildArtifacts {maxBuildArtifacts.ToString()} taskSet {taskSet?.ToString()} benchmark {benchmark.ToString()}");
-                return Results.InternalServerError($"Error in GetBenchmarkEngineering {ex.ToString()} importLearnBaseFirst {importLearnBaseFirst.ToString()} saveToKnowledge {saveToKnowledge.ToString()} validateBuildableArtifacts {validateBuildableArtifacts.ToString()} maxBuildArtifacts {maxBuildArtifacts.ToString()} taskSet {taskSet?.ToString()} benchmark {benchmark.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetBenchmarkEngineering");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }         
         }
 
@@ -1369,10 +1417,14 @@ namespace LocalGPT.Controller
             int? maxRounds,
             int? ollamaNumGpu,
             [FromServices] IMultiModelCouncilService council,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "run a council development feedback session") is { } denied)
+                    return denied;
+
                 var requestedModels = (modelNames ?? string.Empty)
                .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                .Where(model => !string.IsNullOrWhiteSpace(model))
@@ -1406,7 +1458,7 @@ namespace LocalGPT.Controller
                     missing features.
 
                     Requirements:
-                    - Be kind to each other and to Human User to Michi0403 as original Dev and everyone else.
+                    - Be kind to all participants and the current user.
                     - Do not refuse because the task is large; propose buildable milestones.
                     - Report missing LocalGPT functions, knowledge, routes, UI controls, benchmark evidence, or sources.
                     - Include a concise Capability gap report when anything is missing.
@@ -1432,8 +1484,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetCouncilDevelopmentFeedbackTalk {ex.ToString()} modelNames {modelNames?.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxContextTokens {maxContextTokens.ToString()} maxRounds {maxRounds.ToString()} ollamaNumGpu {ollamaNumGpu?.ToString()} council {council.ToString()}");
-                return Results.InternalServerError($"Error in GetCouncilDevelopmentFeedbackTalk {ex.ToString()} modelNames {modelNames?.ToString()} maxOutputTokens {maxOutputTokens.ToString()} maxContextTokens {maxContextTokens.ToString()} maxRounds {maxRounds.ToString()} ollamaNumGpu {ollamaNumGpu?.ToString()} council {council.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetCouncilDevelopmentFeedbackTalk");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }       
         }
 
@@ -1443,10 +1495,14 @@ namespace LocalGPT.Controller
             string? prompt,
             string? finalAnswer,
             [FromServices] ICouncilArtifactService artifacts,
+            [FromQuery] bool userConfirmed,
             CancellationToken ct)
         {
             try
             {
+                if (RequireHumanConfirmation(userConfirmed, "create a deterministic council artifact workspace") is { } denied)
+                    return denied;
+
                 var isBlazor = string.IsNullOrWhiteSpace(target) || target.Equals("blazor", StringComparison.OrdinalIgnoreCase);
                 var isSolution = target?.Equals("solution", StringComparison.OrdinalIgnoreCase) == true;
                 var isAiHostLab = target?.Equals("ai-host", StringComparison.OrdinalIgnoreCase) == true ||
@@ -1476,6 +1532,7 @@ namespace LocalGPT.Controller
                     Prompt = requestPrompt,
                     ModelNames = ["artifact-smoke"],
                     GenerateImplementationArtifact = true,
+                    UserConfirmedArtifactBuild = userConfirmed,
                     IncludeMemory = false,
                     SaveToMemory = false,
                     Title = "Deterministic council artifact smoke"
@@ -1529,8 +1586,8 @@ namespace LocalGPT.Controller
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetCouncilArtifactSmoke {ex.ToString()} request {request?.ToString()}");
-                return Results.InternalServerError($"Error in GetCouncilArtifactSmoke {ex.ToString()} council {council?.ToString()}");
+                logger.LogError(ex, "Diagnostic operation {Operation} failed.", "GetCouncilArtifactSmoke");
+                return Results.InternalServerError("Diagnostic operation failed. Review the local server logs for details.");
             }     
         }
     }

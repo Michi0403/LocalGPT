@@ -20,3 +20,7 @@ jobs:
       - name: Check source formatting
         shell: pwsh
         run: ./build/Assert-SourceFormatting.ps1 -MaxLineLength 600
+
+      - name: Check security policy
+        shell: pwsh
+        run: ./build/Assert-SecurityPolicy.ps1

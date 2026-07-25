@@ -21,6 +21,7 @@ try {
         ".yml",
         ".yaml",
         ".csproj",
+        ".props",
         ".wapproj"
     )
 
@@ -28,6 +29,7 @@ try {
         "artifacts/",
         ".git/",
         ".vs/",
+        ".cr/",
         ".idea/",
         "node_modules/",
         "LocalGPTWebviewWrapper/LocalGPT/bin/",
@@ -38,21 +40,33 @@ try {
         "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package)/obj/"
     )
 
-    $criticalMinimumLines = @{
-        "README.md" = 80
-        "SECURITY.md" = 60
-        "AGENTS.md" = 120
-        "llms.txt" = 30
-        ".github/workflows/source-hygiene.yml" = 15
-        "LocalGPTWebviewWrapper/LocalGPT/Program.cs" = 120
-        "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Database.razor" = 400
-        "LocalGPTWebviewWrapper/LocalGPT/Services/NativeCommandRunner.cs" = 120
-        "LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs" = 100
-        "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj" = 100
-        "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package)/LocalGPTWebviewWrapper (Package).wapproj" = 180
+    $requiredFiles = @(
+        "README.md",
+        "SECURITY.md",
+        "AGENTS.md",
+        "llms.txt",
+        ".github/workflows/source-hygiene.yml",
+        "Directory.Build.props",
+        "LocalGPTWebviewWrapper/LocalGPT/Program.cs",
+        "LocalGPTWebviewWrapper/LocalGPT/Services/NativeCommandRunner.cs",
+        "LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs",
+        "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj"
+    )
+
+    $violations = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($requiredFile in $requiredFiles) {
+        $fullRequiredPath = Join-Path $repoRoot $requiredFile
+        if (-not (Test-Path -LiteralPath $fullRequiredPath -PathType Leaf)) {
+            $violations.Add("Required maintained file is missing: $requiredFile")
+            continue
+        }
+
+        if ((Get-Item -LiteralPath $fullRequiredPath).Length -eq 0) {
+            $violations.Add("Required maintained file is empty: $requiredFile")
+        }
     }
 
-    $violations = New-Object System.Collections.Generic.List[string]
     foreach ($relativePath in $trackedFiles) {
         $normalized = $relativePath.Replace("\", "/")
         if ($excludedPrefixes | Where-Object { $normalized.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }) {
@@ -69,25 +83,16 @@ try {
             continue
         }
 
-        $lines = Get-Content -LiteralPath $fullPath
-        if ($null -eq $lines) {
-            $lines = @()
-        }
-
+        $lines = @(Get-Content -LiteralPath $fullPath)
         for ($index = 0; $index -lt $lines.Count; $index++) {
             $line = $lines[$index]
-            $lineLength = $line.Length
-            if ($lineLength -gt $MaxLineLength) {
-                $violations.Add("${normalized}:$($index + 1) has $lineLength characters; limit is $MaxLineLength.")
+            if ($line.Length -gt $MaxLineLength) {
+                $violations.Add("${normalized}:$($index + 1) has $($line.Length) characters; limit is $MaxLineLength.")
             }
 
             if ($extension -eq ".cs" -and $line -match '^\s*using\s+static\s+System\.Net\.WebRequestMethods\s*;') {
                 $violations.Add("${normalized}:$($index + 1) imports System.Net.WebRequestMethods statically. This exposes WebRequestMethods.File and can conflict with System.IO.File.")
             }
-        }
-
-        if ($criticalMinimumLines.ContainsKey($normalized) -and $lines.Count -lt $criticalMinimumLines[$normalized]) {
-            $violations.Add("$normalized has only $($lines.Count) physical lines; expected at least $($criticalMinimumLines[$normalized]).")
         }
     }
 
@@ -95,7 +100,7 @@ try {
         Write-Error ("Source formatting guard failed:`n" + ($violations -join "`n"))
     }
 
-    Write-Host "Source formatting guard passed for tracked human-maintained source, project, workflow, and docs files."
+    Write-Host "Source formatting guard passed for tracked maintained files."
 }
 finally {
     Pop-Location

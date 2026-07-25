@@ -2,7 +2,6 @@ using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
@@ -19,7 +18,9 @@ namespace LocalGPT.Services
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
         LocalGptDatabaseOptions databaseOptions,
-        ILogger<EfChatMemoryService> logger) : IChatMemoryService
+        ILogger<EfChatMemoryService> logger,
+        CouncilTextService councilText,
+        DevExpressChatService devExpressChat) : IChatMemoryService
     {
         public string DatabasePath => databaseOptions.DatabasePath;
 
@@ -64,10 +65,10 @@ namespace LocalGPT.Services
 
                 var messages = conversation.Messages
                     .OrderBy(message => message.SortOrder)
-                    .Select(filter => DevExpressFunctions.ToBlazorChatMessage(filter,logger))
+                    .Select(filter => devExpressChat.ToBlazorChatMessage(filter,logger))
                     .ToList();
                 ArgumentNullException.ThrowIfNull(messages);
-                messages = DevExpressFunctions.EnsureVisibleCouncilPrompt(conversation, (List<BlazorChatMessage> )messages, logger) ?? new List<BlazorChatMessage>();
+                messages = devExpressChat.EnsureVisibleCouncilPrompt(conversation, (List<BlazorChatMessage> )messages, logger) ?? new List<BlazorChatMessage>();
                 ArgumentNullException.ThrowIfNull(messages);
                 return new ChatMemoryConversationSnapshot(
                     conversation.Id,
@@ -116,7 +117,7 @@ namespace LocalGPT.Services
                     conversation = new ChatMemoryConversation { CreatedAtUtc = now };
                 }
 
-                conversation.Title = DevExpressFunctions.BuildTitle(completeMessages, logger);
+                conversation.Title = devExpressChat.BuildTitle(completeMessages, logger);
                 conversation.ProviderName = string.IsNullOrWhiteSpace(providerName) ? "Unknown" : providerName.Trim();
                 conversation.UpdatedAtUtc = now;
                 conversation.Messages.Clear();
@@ -127,9 +128,9 @@ namespace LocalGPT.Services
                     conversation.Messages.Add(new ChatMemoryMessage
                     {
                         SortOrder = index++,
-                        Role = DevExpressFunctions.ToRoleName(message.Role, logger),
+                        Role = devExpressChat.ToRoleName(message.Role, logger),
                         Content = message.Content,
-                        Thinking = CouncilChatStringFunctions.ExtractThinking(message.Content,logger),
+                        Thinking = councilText.ExtractThinking(message.Content,logger),
                         CreatedAtUtc = now
                     });
                 }
@@ -198,7 +199,7 @@ namespace LocalGPT.Services
                     builder.AppendLine("Former model thoughts:");
                     foreach (var thought in thoughts)
                     {
-                        builder.AppendLine($"- {thought.ConversationTitle}: {CouncilChatStringFunctions.TrimForPrompt(thought.Thinking, 500, logger)}");
+                        builder.AppendLine($"- {thought.ConversationTitle}: {councilText.TrimForPrompt(thought.Thinking, 500, logger)}");
                     }
                 }
 

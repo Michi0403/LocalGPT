@@ -1,10 +1,11 @@
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
-public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : IAiConnectivityProbe
+public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
+        AiDiscoveryService aiDiscovery,
+        CouncilTextService councilText) : IAiConnectivityProbe
 {
     public async Task<(bool ok, string message)> TestAzureAsync(OpenAIServiceCoreOptions options, CancellationToken cancellationToken)
     {
@@ -15,7 +16,7 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : I
         {
             using var http = new HttpClient { BaseAddress = new Uri(options.Endpoint) };
             http.DefaultRequestHeaders.Add("api-key", options.Key);
-            return await HttpAIStaticsGeneral.GetAsync(http, "/", cancellationToken, logger).ConfigureAwait(false);
+            return await aiDiscovery.GetAsync(http, "/", cancellationToken, logger).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -38,7 +39,7 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : I
             using var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
             http.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
-            return await HttpAIStaticsGeneral.GetAsync(http, "models", cancellationToken, logger).ConfigureAwait(false);
+            return await aiDiscovery.GetAsync(http, "models", cancellationToken, logger).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -56,7 +57,7 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : I
         try
         {
             using var http = new HttpClient { BaseAddress = new Uri(options.Uri) };
-            return await HttpAIStaticsGeneral.GetAsync(http, "/api/tags", cancellationToken, logger).ConfigureAwait(false);
+            return await aiDiscovery.GetAsync(http, "/api/tags", cancellationToken, logger).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -73,7 +74,7 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : I
     {
         try
         {
-            var endpoint = CouncilChatStringFunctions.NormalizeOpenAIEndpoint(options.Endpoint, logger);
+            var endpoint = councilText.NormalizeOpenAIEndpoint(options.Endpoint, logger);
             using var http = new HttpClient { BaseAddress = new Uri(endpoint) };
             if (!string.IsNullOrWhiteSpace(options.ApiKey))
             {
@@ -81,7 +82,7 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : I
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
             }
 
-            return await HttpAIStaticsGeneral.GetAsync(http, "/v1/models", cancellationToken, logger).ConfigureAwait(false);
+            return await aiDiscovery.GetAsync(http, "/v1/models", cancellationToken, logger).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -114,9 +115,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : I
         {
             var probes = new[]
             {
-                HttpAIStaticsGeneral.ProbeOllamaAsync("http://localhost:11434", cancellationToken, logger),
-                HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", cancellationToken, logger),
-                HttpAIStaticsGeneral.ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", cancellationToken, logger)
+                aiDiscovery.ProbeOllamaAsync("http://localhost:11434", cancellationToken, logger),
+                aiDiscovery.ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", cancellationToken, logger),
+                aiDiscovery.ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", cancellationToken, logger)
             };
 
             return await Task.WhenAll(probes).ConfigureAwait(false);
@@ -132,6 +133,6 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger) : I
         }
     }
 
-    private static string GetEndpointHost(string? endpoint) =>
+    private string GetEndpointHost(string? endpoint) =>
         Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : "invalid-or-unset";
 }

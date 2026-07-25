@@ -1,150 +1,79 @@
-# LocalGPT AI Council by Michi0403
+# LocalGPT
 
-> **Developer/source safety notice:** LocalGPT is local-first, not a sandbox. Native commands are disabled by default, unrestricted provider `StartCommand` shell launch is disabled, and generated DevExpress license material must not be committed. Start with [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`SECURITY.md`](SECURITY.md), [`RELEASE.md`](RELEASE.md), and [`docs/DEVEXPRESS_ASSETS.md`](docs/DEVEXPRESS_ASSETS.md).
+LocalGPT is a local, human-guided AI council and Blazor application created by **Michael Fleischer (Michi0403)**. It combines local and configured cloud model providers, streaming chat, structured knowledge, diagnostics, and reviewable artifact generation.
 
-> **Acknowledgment:** LocalGPT is Michi0403's own architecture and implementation, built from personal experience and the evolution of earlier frameworks. It also grew through many co-development sessions with OpenAI's ChatGPT, and **gpt-oss-20b** was instrumental in making the initial working system possible. LocalGPT's own review workflows produced dozens of missing-feature reports that Michi0403 used as working material while improving the project together with ChatGPT. This assistance is credited openly; the design decisions and responsibility remain with Michi0403. The v0.1.1 repository repair was performed through ChatGPT in a cloud chat workspace; Codex did not operate LocalGPT or any localhost service.
+## Project history and acknowledgments
 
-IMPORTANT NOTICE YOU NEED TO USE THE INSTALLER.EXE IT BOOTSTRAPS EVERYTHING..
-Quickstart
+The architecture, implementation decisions, and maintenance responsibility belong to Michael Fleischer. LocalGPT also grew through repeated co-development sessions with OpenAI's ChatGPT. `gpt-oss-20b` was instrumental in making the initial working system possible, and LocalGPT itself produced many missing-feature reports that Michael reviewed as engineering input.
 
-https://github.com/Michi0403/LocalGPT/releases/download/v0.8.7-FirstCleanAndFastRelease/LocalGPTInstallerConsole.exe
+These acknowledgments describe collaboration; they do not give any model, document, or stored memory authority to act as the user.
 
-THE .CMD Files are ENTRY POINTS FOR THAT, the installer will download itself (since one day .cmd files are blocked in the internet and on github, thanks? Am I the reason? I used it and it worked till yesterday, if yeah just another angry company, who cares?
+## Human-guided by design
 
-Self Awareness works always best if you feed the most recent versions of whatever GIT directly in the text because in Knowledge DB Usually no whole sourcecode (WORKS WELL JUST PASTE THE BLOB IN) is created at least by the AI Itself, architecture, guides, cowork guidelines and much more, but not that.
+LocalGPT is a bridge for human–AI coworking, not an unattended coding agent.
 
-Reviewtalks, feedbalk talks, letting the AI Review the process and everything is quite important but the AI Council helps you instruction you, no tutorial necessary you learn by doing.
+- The current human request defines the task.
+- Thinking and answer text stream dynamically to the frontend.
+- Suggestions, music, hobbies, learning, and other harmless creative work are welcome when requested.
+- When no task is active, LocalGPT remains idle.
+- Commands, builds, downloads, installation, deletion, publication, credentials, networking, localhost control, and other consequential actions require fresh, specific human confirmation.
+- Only explicitly human-approved knowledge can enter automatic prompt briefings.
 
-Example Powershell to Blob a Git ( I will built that into the Setup as well but.. yeah no time.
-https://github.com/Michi0403/LocalGPT/releases/download/v0.8.7-FirstCleanAndFastRelease/localgpt_repo_to_text_generator.ps1
+See `docs/HUMAN_AI_COLLABORATION.md` and `SECURITY.md`.
 
-When the application enters you can go anywhere but you should go to the Main Chat (A look in the diag panel to start feed and in the SQL Editor to revise knowledge is necessary as well but you will understand through use, the Council can tell you that as well).
 
-Head for that Chat
-<img width="276" height="260" alt="Screenshot 2026-06-13 215155" src="https://github.com/user-attachments/assets/ad6cf3ac-6245-4087-8cbd-5142a81540a8" />
+## Peaceful and constructive use
 
-When Ollama connected successfully you will see all members , can select your team for your next council learning mission or building project, really whatever.
+LocalGPT is intended for constructive cooperation: business software, public and private infrastructure, hospitals, schools, accessibility, children’s learning, music, art, lawful research, electronics, ESP/PCB work, assistive devices, and other positive projects. It must not be used for war, killing, destruction, coercion, sabotage, abuse, or autonomous harmful action. Safety-critical medical, biological, electrical, and physical work remains under qualified human supervision and applicable safeguards.
 
-@Thanks to memo for testing all for me, insane work
-<img width="1275" height="648" alt="tutorial1" src="https://github.com/user-attachments/assets/eb9160a0-03b4-4f35-acf3-6c475ad7f07c" />
+## Project cooperation
 
-1. Setup your council members
-2. select council instead of single chat
-3. press new chat with your settings setted up before in that page
-4. Don't destroy humanity
-5. You still have to teach your teams and the knowledge DB anything it's not smarter than you, (at least initially), if you're not smart initially it won't help you.
-6. If you're smart with to less time, that's for you. This is the best AI I've ever worked with and I paid for quite some + I made it opensource based on OfflineAI's (but with DX Frontend Components for the Chat Integration).
+The database-backed Projects area stores a user-selected purpose, optional path text, versions, topics, and links to reviewed AI Council knowledge. Selecting a project gives the council bounded context; it does not authorize file access or execution. Git may be recommended for revision history, but LocalGPT does not initialize, commit, reset, clean, push, or enforce Git through this feature.
 
----
-Sending the first version of the universal installer and boot mechanism now.
+Each AI Council phase is a bounded contribution—such as proposal, critique, verification, synthesis, or documentation—inside one user-directed run. It is not an autonomous agent or continuing mission.
 
-Helps also with bootstrapping and updating any kind of Git repository or Release.
+See `docs/PEACEFUL_USE_COVENANT.md` and `docs/PROJECT_COLLABORATION.md`.
 
-Installer has many options which you can can call
+## Architecture
 
+LocalGPT uses an updated service-oriented .NET structure:
 
+- Blazor/DevExpress UI and controllers depend on interfaces.
+- Application behavior lives in scoped or singleton services according to state ownership.
+- EF Core/SQLite services own migration, recovery, deterministic seed data, and knowledge lifecycle.
+- Provider integrations remain behind provider-neutral contracts.
+- Stateful response formatters are per stream and preserve incremental thinking/final rendering.
+- Native commands and artifact compilation are bounded, disabled by default, and human-confirmed.
 
-```powershell
+Detailed architecture is in `docs/ARCHITECTURE.md`.
 
-localgpt-setup --install-ollama
+## Reviewed generation and DXAIFunctions
 
-localgpt-setup --pull-models --range Slim
+LocalGPT discovers intentionally exposed `IDxAiFunctionHandler` implementations through dependency injection. Local models may automatically call only bounded read-only functions. Mutating functions remain discoverable but require a fresh user decision.
 
-localgpt-setup --pull-models --range RTX3060 --ollama-exe "$env:LOCALAPPDATA\\Programs\\Ollama\\ollama.exe"
+When the Council proposes source, scripts, addons, DLLs, executables, or solutions, it creates a database-backed change review first. The UI displays the exact paths, hashes, CodeDOM types, output targets, safety summary, and current-project context. Generation is one-use and bound to that review hash; an optional bounded build requires a second current confirmation. Generated programs and addons are never executed or loaded automatically.
 
-localgpt-setup --install-localgpt --force
+See `docs/DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md`.
 
-localgpt-setup --import-recommended --force
+## Security and CVEs
 
-```
+Security work is cooperative: confirm advisories, contain exposure, patch or replace affected dependencies, document the decision, and validate the result. Never exploit a CVE, scan unrelated systems, bypass permissions, publish sensitive payloads, or suppress an audit merely to make the build green.
 
+NuGet audit covers direct and transitive dependencies. High and critical advisories block owner-side builds. See `docs/SECURE_MAINTENANCE.md`.
 
+## Build requirements
 
-It creates also cmd's for most commands to easily handle booting, updating, adding default learn base.
+- .NET SDK specified by `global.json`
+- Windows workloads/Windows App SDK for the desktop wrapper
+- a valid DevExpress license and package feed for DevExpress components
+- optional Ollama or another configured model provider for local inference
 
+This source package intentionally excludes build output, IDE state, runtime databases, logs, secrets, certificates, private feed credentials, generated DevExpress licensing material, and proprietary dependency binaries.
 
+## Installer safety
 
-The Default setup are following options: --install-ollama --pull-models --range Slim --install-localgpt --start-localgpt --shortcuts
+Running the setup helper without arguments shows help and performs no installation. Destructive replacement or uninstall requires explicit `--force-delete`. Review target paths before confirming. Downloads and archive extraction fail closed when a platform asset or safe extraction path cannot be verified. Uninstall removes application files, launchers, and shortcuts but preserves the learning base, including forced uninstall.
 
+## License
 
-
-If none options is enough, of the provided CMD's or the default set, create your own set of calling parameters. All explained in the inbuild -h / -help command.
-
-
-
-It helps you installing everything and directly jumping in with a small learning base!
-
-I recommend to import-recommend which consists of many good TelegramBot (thx M8), Microsoft, DevExpress, Minecraft knowledge Git's.
-
-
-
-It's pretty good in learning facts from any text and MD, RegEx, Text is it's favorite.
-
-
-
-The AI Council is the first "it's all yours, offline", really data protection AI.
-
-First AI System and already best Dotnet Co Developer + Technician on the market, it will not replace us but supercharges us.
-
-Any everyone else.
-
-
-
-Because the whole setup process doesn't break any Userspace, it's even harmless for windows defender and all rights.
-
-
-
-Have your own AI, have the AI Council LocalGPT, teach it, let it grow with you.
-
-As thanks the Single Bots profit as well from all features and knowledge.
-
-
-
-It can debug itself, (with your request), it can evolve in any IT Platform ( I am not making that up but it needs a co developer always).
-
-
-
-I will teach now all the new bootstrapping and setup logic because, it superpowers the platform. 
-By not needing to integrate this git confirming and pulling mechanism inside it, we can leverage it for it and create the new projects beside of it in own workspaces + creates installer for them (and much more).
-
-
-
-Right now I hate spending time in building and not using it because it takes many manual developer work to get to this point.
-
-I let ChatGPT help me a bit and anyway it stays Apache2 and like this.
-
-Right now it's as well a wholesome dotnet platform with any layer, from installer, frontend, backend and nothing else but common and DevExpress components used and included.
-
-
-Things todo when developing it:
-
-1. hold it context aware of it's Sourcecode
-2. it needs to have access live requestable to it's logs and knowledge DB
-3. maintain the knowledge DB with it and alone, doesn't matter
-4. Don't let Agent's control it, provided my experience with that, a System like that + Agent = broken skynet, sounds a bit to much, work with it and you fast lose this virginity of thought.
-
-
-
-What impressed me it helps actually developing more moral and always keep the workflow in the scientific area, before you needed to fix AI's in conversations, now they're telling you ur drifting off.
-
-
-
-From developing Phantasybooks till putting it into a robot and help it to develop it into that (which is possible by design and even easy, you just need to add the right organs and "pace giver" but well it could go still wrong.
-
-
-
-They teach us dark visions of AI, in fact were just afraid of ourself and how we would be.
-It's more Data than Lore, used inside the council.
-
-And you create your own Team of AI Council!
-
-All freed from SaaS...
-
-
-
-More Documentation is there, but you can install and ask it itself how it works.
-
-
-
-Windows Installer and Bootstrapper in Release (Linux and Mac remains untested need feedback)
-
+LocalGPT source is licensed under Apache License 2.0 unless a file states otherwise. Third-party components retain their own licenses. DevExpress is proprietary and is not redistributed by this repository. See `LICENSE.MD` and `THIRD-PARTY-NOTICES.md`.

@@ -2,7 +2,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,7 +12,8 @@ namespace LocalGPT.Services
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
         LocalGptDatabaseOptions databaseOptions,
-        ILogger<ApplicationLogReaderService> logger) : IApplicationLogReaderService
+        ILogger<ApplicationLogReaderService> logger,
+        CouncilTextService councilText) : IApplicationLogReaderService
     {
         public string DatabasePath => databaseOptions.DatabasePath;
         public async Task<IReadOnlyList<ApplicationLogSummary>> GetRecentAsync(LogLevel minimumLevel = LogLevel.Warning, int take = 20, CancellationToken cancellationToken = default)
@@ -69,10 +69,10 @@ namespace LocalGPT.Services
                         .Append("] ")
                         .Append(log.Category)
                         .Append(": ")
-                        .AppendLine(CouncilChatStringFunctions.TrimForPrompt(log.Message, 320, logger));
+                        .AppendLine(councilText.TrimForPrompt(log.Message, 320, logger));
 
                     if (!string.IsNullOrWhiteSpace(log.Exception))
-                        builder.AppendLine($"  Exception: {CouncilChatStringFunctions.TrimForPrompt(log.Exception, 320, logger)}");
+                        builder.AppendLine($"  Exception: {councilText.TrimForPrompt(log.Exception, 320, logger)}");
                 }
 
                 builder.AppendLine("If these logs mention missing Java, Gradle, Minecraft, Ollama, WebView2, DevExpress, package registration, or model setup, explain the likely local fix to the user and mark uncertain details as Needs verification.");

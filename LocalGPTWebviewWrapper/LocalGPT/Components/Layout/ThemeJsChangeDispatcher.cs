@@ -20,6 +20,7 @@ namespace LocalGPT.Components.Layout
 
         private Theme? _pendingTheme;
         private IJSObjectReference? _module;
+        private DotNetObjectReference<ThemeJsChangeDispatcher>? _dotNetReference;
         private bool disposedValue;
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -35,12 +36,12 @@ namespace LocalGPT.Components.Layout
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, $"Error in OnAfterRenderAsync {ex.ToString()}");
+                Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
             }
 
         }
 
-        public async void RequestThemeChange(Theme theme)
+        public async Task RequestThemeChangeAsync(Theme theme)
         {
             try
             {
@@ -54,12 +55,12 @@ namespace LocalGPT.Components.Layout
                         theme.BootstrapThemeMode,
                         Themes.GetThemeCssUrl(theme),
                         Themes.GetHighlightJSThemeCssUrl(theme),
-                        DotNetObjectReference.Create(this)).ConfigureAwait(false);
+                        _dotNetReference ??= DotNetObjectReference.Create(this)).ConfigureAwait(false);
 
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, $"Error in RequestThemeChange {ex.ToString()}");
+                Logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "RequestThemeChange");
             }
 
         }
@@ -78,7 +79,7 @@ namespace LocalGPT.Components.Layout
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, $"Error in ThemeLoadedAsync {ex.ToString()}");
+                Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
             }
 
         }
@@ -113,6 +114,8 @@ namespace LocalGPT.Components.Layout
                 if (disposing)
                 {
                     _pendingTheme = null;
+                    _dotNetReference?.Dispose();
+                    _dotNetReference = null;
                 }
 
 

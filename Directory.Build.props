@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <Authors>Michael Fleischer (Michi0403)</Authors>
+    <Copyright>Copyright © Michael Fleischer</Copyright>
+    <RepositoryUrl>https://github.com/Michi0403/LocalGPT</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+
+    <!-- Audit direct and transitive NuGet dependencies during restore. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+
+    <!-- High and critical advisories block owner-side builds; lower severities remain visible. -->
+    <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+  </PropertyGroup>
+</Project>

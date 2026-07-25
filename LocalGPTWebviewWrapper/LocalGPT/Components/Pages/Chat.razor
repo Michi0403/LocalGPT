@@ -2,8 +2,10 @@
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Text
 @using System.Text.RegularExpressions
-@using LocalGPT.Extensions.PlainStatics
 @using LocalGPT.Extensions
+@inject CouncilRuntimeService CouncilRuntime
+@inject CouncilTextService CouncilText
+@inject LocalGptCatalogService Catalog
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
 @inject IChatMemoryService ChatMemory
@@ -58,12 +60,12 @@
             <label class="ollama-mode-setting" title="Controls Ollama's num_gpu option for DXAiChat and AI Council. Auto GPU lets Ollama use your GPU; Safe CPU forces num_gpu=0; Limited GPU uses a partial GPU-layer cap.">
                 <span>Ollama acceleration</span>
                 <select value="@OllamaAccelerationMode" @onchange="OnOllamaAccelerationModeChanged">
-                    <option value="@GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu">Auto GPU</option>
-                    <option value="@GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu">Safe CPU</option>
-                    <option value="@GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu">Limited GPU</option>
+                    <option value="@LocalGptCatalogService.OllamaModeAutoGpu">Auto GPU</option>
+                    <option value="@LocalGptCatalogService.OllamaModeSafeCpu">Safe CPU</option>
+                    <option value="@LocalGptCatalogService.OllamaModeLimitedGpu">Limited GPU</option>
                 </select>
             </label>
-            @if (OllamaAccelerationMode == GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu)
+            @if (OllamaAccelerationMode == LocalGptCatalogService.OllamaModeLimitedGpu)
             {
                 <label class="council-token-setting" title="Ollama num_gpu layer cap used by Limited GPU mode. Lower this if the driver becomes unstable; raise it if generation is too slow and VRAM is available.">
                     <span>GPU layers</span>
@@ -113,11 +115,11 @@
                 <div class="council-member-list">
                     @foreach (var candidate in OllamaCandidates)
                     {
-                        <label title="@CouncilChatStaticsGeneral.BuildCandidateTitle(candidate,Logger)">
+                        <label title="@CouncilRuntime.BuildCandidateTitle(candidate,Logger)">
                             <input type="checkbox"
                                    checked="@SelectedCouncilModelNames.Contains(candidate.ModelName)"
                                    @onchange="@((ChangeEventArgs e) => ToggleCouncilModel(candidate.ModelName, e))" />
-                            <span>@CouncilChatStaticsGeneral.BuildCandidateLabel(candidate, Logger)</span>
+                            <span>@CouncilRuntime.BuildCandidateLabel(candidate, Logger)</span>
                             @if (candidate.IsLoaded)
                             {
                                 <small>loaded</small>
@@ -176,7 +178,7 @@
                 <label title="Choose whether generated UI should use DevExpress components, plain Blazor, another UI stack, or ask at runtime.">
                     <span>UI stack</span>
                     <select @bind="ArchitectureUiStack">
-                        @foreach (var option in GlobalVariableSlopCollectionToRemove.ArchitectureUiStackOptions)
+                        @foreach (var option in Catalog.ArchitectureUiStackOptions)
                         {
                             <option value="@option">@option</option>
                         }
@@ -185,7 +187,7 @@
                 <label title="Choose whether the generated work should be one solution, split into backend/frontend projects, or ask at runtime.">
                     <span>Solution shape</span>
                     <select @bind="ArchitectureSolutionShape">
-                        @foreach (var option in GlobalVariableSlopCollectionToRemove.ArchitectureSolutionShapeOptions)
+                        @foreach (var option in Catalog.ArchitectureSolutionShapeOptions)
                         {
                             <option value="@option">@option</option>
                         }
@@ -194,7 +196,7 @@
                 <label title="Choose the hosting/runtime model. This is not limited to Blazor; use Ask when the app target is unclear.">
                     <span>Runtime/rendering</span>
                     <select @bind="ArchitectureRenderMode">
-                        @foreach (var option in GlobalVariableSlopCollectionToRemove.ArchitectureRenderModeOptions)
+                        @foreach (var option in Catalog.ArchitectureRenderModeOptions)
                         {
                             <option value="@option">@option</option>
                         }
@@ -203,7 +205,7 @@
                 <label title="Choose how closely generated UI should recreate the reference application, or ask at runtime.">
                     <span>Reference look</span>
                     <select @bind="ArchitectureReferenceLook">
-                        @foreach (var option in GlobalVariableSlopCollectionToRemove.ArchitectureReferenceLookOptions)
+                        @foreach (var option in Catalog.ArchitectureReferenceLookOptions)
                         {
                             <option value="@option">@option</option>
                         }
@@ -261,9 +263,9 @@
                 </MessageContentTemplate>
                 <AIChatSettings>
                     <DxAIChatFileUploadSettings 
-                        MaxFileCount="@GlobalVariableSlopCollectionToRemove.MaxUploadFiles"
-                                                MaxFileSize="@GlobalVariableSlopCollectionToRemove.MaxUploadBytes"
-                                                FileTypeFilter="@GlobalVariableSlopCollectionToRemove.AllowedUploadMimeTypes" 
+                        MaxFileCount="@LocalGptCatalogService.MaxUploadFiles"
+                                                MaxFileSize="@LocalGptCatalogService.MaxUploadBytes"
+                                                FileTypeFilter="@Catalog.AllowedUploadMimeTypes" 
                                                 
                                                />
                 </AIChatSettings>
@@ -279,8 +281,8 @@
 </div>
 
 @code {
-    /*in razor can render as html..  AllowedFileExtensions="@GlobalVariableSlopCollectionToRemove.AllowedUploadExtensions"
-                                                FileTypeFilter="@GlobalVariableSlopCollectionToRemove.AllowedUploadMimeTypes"*/
+    /*in razor can render as html..  AllowedFileExtensions="@Catalog.AllowedUploadExtensions"
+                                                FileTypeFilter="@Catalog.AllowedUploadMimeTypes"*/
     [Inject]
     IChatClient? ChatClient { get; set; }
     CompositeChatClient? ChatClientProvider => ChatClient as CompositeChatClient;
@@ -292,20 +294,20 @@
     bool AutoLoadLatestConversation { get; set; }
     bool UseFreshDiagnosticChat { get; set; }
 
-    string OllamaAccelerationMode { get; set; } = GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
+    string OllamaAccelerationMode { get; set; } = LocalGptCatalogService.OllamaModeAutoGpu;
     int LimitedGpuLayers { get; set; } = 20;
-    string DefaultOllamaEndpoint { get; set; } = GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint;
-    bool GenerateCouncilArtifacts { get; set; } = true;
+    string DefaultOllamaEndpoint { get; set; } = LocalGptCatalogService.DefaultOllamaEndpoint;
+    bool GenerateCouncilArtifacts { get; set; }
     bool IncludeCouncilMemory { get; set; } = true;
     string? DiagnosticRequestedSessionName { get; set; }
     string? DiagnosticOllamaEndpoint { get; set; }
-    int CouncilMaxOutputTokens { get; set; } = GlobalVariableSlopCollectionToRemove.DefaultCouncilOutputTokens;
-    int CouncilMaxContextTokens { get; set; } = GlobalVariableSlopCollectionToRemove.DefaultCouncilContextTokens;
+    int CouncilMaxOutputTokens { get; set; } = LocalGptCatalogService.DefaultCouncilOutputTokens;
+    int CouncilMaxContextTokens { get; set; } = LocalGptCatalogService.DefaultCouncilContextTokens;
 
-    string ArchitectureUiStack { get; set; } = GlobalVariableSlopCollectionToRemove.ArchitectureUiStackOptions[0];
-    string ArchitectureSolutionShape { get; set; } = GlobalVariableSlopCollectionToRemove.ArchitectureSolutionShapeOptions[0];
-    string ArchitectureRenderMode { get; set; } = GlobalVariableSlopCollectionToRemove.ArchitectureRenderModeOptions[0];
-    string ArchitectureReferenceLook { get; set; } = GlobalVariableSlopCollectionToRemove.ArchitectureReferenceLookOptions[0];
+    string ArchitectureUiStack { get; set; } = Catalog.ArchitectureUiStackOptions[0];
+    string ArchitectureSolutionShape { get; set; } = Catalog.ArchitectureSolutionShapeOptions[0];
+    string ArchitectureRenderMode { get; set; } = Catalog.ArchitectureRenderModeOptions[0];
+    string ArchitectureReferenceLook { get; set; } = Catalog.ArchitectureReferenceLookOptions[0];
     string ArchitecturePollNotes { get; set; } = string.Empty;
     bool AllowCouncilToChooseSandboxDetails { get; set; }
     string ArchitecturePollStatus { get; set; } = string.Empty;
@@ -331,7 +333,7 @@
         {
             
             await LoadDatabaseBackedDefaultsAsync();
-            PromptSuggestions = GlobalVariableSlopCollectionToRemove.GetSuggestion();
+            PromptSuggestions = Catalog.GetSuggestion();
             await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
             await RefreshOllamaModelsAsync(showToast: false).ConfigureAwait(false);
@@ -353,7 +355,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in OnInitializedAsync: {Message}", ex);
-            Notifier.ShowError(toastName, ex.Message, "OnInitializedAsync failed");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -364,21 +366,21 @@
             "DefaultMaxOutputTokens",
             value => CouncilMaxOutputTokens = Math.Clamp(
                 value,
-                GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens,
-                GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens));
+                LocalGptCatalogService.MinCouncilOutputTokens,
+                LocalGptCatalogService.MaxCouncilOutputTokens));
         await TryApplyDatabaseVariableAsync<int>(
             "DefaultContextTokens",
             value => CouncilMaxContextTokens = Math.Clamp(
                 value,
-                GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens,
-                GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens));
+                LocalGptCatalogService.MinCouncilContextTokens,
+                LocalGptCatalogService.MaxCouncilContextTokens));
         await TryApplyDatabaseVariableAsync<int>(
             "DefaultHeavyModelGpuLayers",
             value => LimitedGpuLayers = Math.Clamp(value, 1, 99));
         await TryApplyDatabaseVariableAsync<string>(
             "DefaultOllamaEndpoint",
             value => DefaultOllamaEndpoint = string.IsNullOrWhiteSpace(value)
-                ? GlobalVariableSlopCollectionToRemove.DefaultOllamaEndpoint
+                ? LocalGptCatalogService.DefaultOllamaEndpoint
                 : value.Trim());
     }
 
@@ -416,7 +418,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in OnAfterRenderAsync: {Message}", ex);
-            Notifier.ShowError(toastName, ex.Message, "OnAfterRenderAsync failed");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -432,7 +434,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in ChatInitialized: {Message}", ex);
-            Notifier.ShowError(toastName, ex.Message, "ChatInitialized failed");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -455,8 +457,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ClearHistory: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ClearHistory!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -480,7 +482,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in AddArchitecturePollToChatAsync: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.Message, "AddArchitecturePollToChatAsync failed");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -514,7 +516,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in BuildArchitecturePollMessage: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.Message, "BuildArchitecturePollMessage failed");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return string.Empty;
         }
 
@@ -522,10 +524,10 @@
 
     private void ResetArchitecturePoll()
     {
-        ArchitectureUiStack = GlobalVariableSlopCollectionToRemove.ArchitectureUiStackOptions[0];
-        ArchitectureSolutionShape = GlobalVariableSlopCollectionToRemove.ArchitectureSolutionShapeOptions[0];
-        ArchitectureRenderMode = GlobalVariableSlopCollectionToRemove.ArchitectureRenderModeOptions[0];
-        ArchitectureReferenceLook = GlobalVariableSlopCollectionToRemove.ArchitectureReferenceLookOptions[0];
+        ArchitectureUiStack = Catalog.ArchitectureUiStackOptions[0];
+        ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions[0];
+        ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions[0];
+        ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions[0];
         ArchitecturePollNotes = string.Empty;
         AllowCouncilToChooseSandboxDetails = false;
         ArchitecturePollStatus = "Architecture choices reset to ask-at-runtime defaults.";
@@ -570,8 +572,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in OnModelChanged: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in OnModelChanged!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -584,8 +586,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in RefreshOllamaModelsAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RefreshOllamaModelsAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -634,7 +636,7 @@
                 Logger.LogError(ex, "RefreshOllamaModelsAsync failed: {Message}", ex.Message);
                 modelStatus = $"Model refresh failed: {ex.Message}";
                 if (showToast)
-                    Notifier.ShowError(toastName, ex.Message, "Model refresh failed");
+                    Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             }
             finally
             {
@@ -643,8 +645,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in RefreshOllamaModelsAsync bool: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RefreshOllamaModelsAsync bool!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -657,10 +659,10 @@
 
             var previousSelection = ChatClientProvider.SelectedSession?.Name;
             var previousMessages = ChatClientProvider.AvailableChatClients
-                .Where(filter => CouncilChatStaticsGeneral.IsDynamicSession(filter, Logger) ?? new())
+                .Where(filter => CouncilRuntime.IsDynamicSession(filter, Logger) ?? new())
                 .ToDictionary(session => session.Name, session => session.Messages.ToList(), StringComparer.OrdinalIgnoreCase);
 
-            foreach (var session in ChatClientProvider.AvailableChatClients.Where(filter => CouncilChatStaticsGeneral.IsDynamicSession(filter, Logger) ?? new()).ToList())
+            foreach (var session in ChatClientProvider.AvailableChatClients.Where(filter => CouncilRuntime.IsDynamicSession(filter, Logger) ?? new()).ToList())
             {
                 ChatClientProvider.AvailableChatClients.Remove(session);
                 session.Client.Dispose();
@@ -675,11 +677,12 @@
                     new OllamaThinkingChatClient(
                         new OllamaCoreOptions { Uri = candidate.Endpoint, ModelName = candidate.ModelName },
                         Logger,
+                        CouncilRuntime,
                         keepAlive: "0s",
                         contextLength: ResolveCouncilContextTokens(),
                         timeout: TimeSpan.FromMinutes(30),
                         numGpu: ResolveOllamaNumGpu()),
-                    CouncilChatStaticsGeneral.BuildDynamicSessionName(candidate, Logger));
+                    CouncilRuntime.BuildDynamicSessionName(candidate, Logger));
 
                 if (previousMessages.TryGetValue(session.Name, out var messages))
                     session.Messages.AddRange(messages);
@@ -690,8 +693,8 @@
             EnsureDiagnosticOllamaSession(previousMessages);
        
             var councilSession = new ChatClientSession(
-                new CouncilChatClient(CouncilService, CreateCouncilRequest,Logger, ResolveCouncilDownloadUrl),
-                GlobalVariableSlopCollectionToRemove.CouncilSessionName);
+                new CouncilChatClient(CouncilService, CreateCouncilRequest, Logger, CouncilRuntime, CouncilText, ResolveCouncilDownloadUrl),
+                LocalGptCatalogService.CouncilSessionName);
             if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
                 councilSession.Messages.AddRange(councilMessages);
             ChatClientProvider.AvailableChatClients.Add(councilSession);
@@ -703,8 +706,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in RebuildDynamicSessions: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RebuildDynamicSessions!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
     
@@ -730,11 +733,12 @@
                 new OllamaThinkingChatClient(
                     new OllamaCoreOptions { Uri = endpoint, ModelName = DiagnosticRequestedSessionName },
                     Logger,
+                    CouncilRuntime,
                     keepAlive: "0s",
                         contextLength: ResolveCouncilContextTokens(),
                         timeout: TimeSpan.FromMinutes(30),
                         numGpu: ResolveOllamaNumGpu()),
-                $"{GlobalVariableSlopCollectionToRemove.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilChatStringFunctions.TrimEndpoint(endpoint, Logger)}");
+                $"{LocalGptCatalogService.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilText.TrimEndpoint(endpoint, Logger)}");
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
                 session.Messages.AddRange(messages);
@@ -744,8 +748,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in EnsureDiagnosticOllamaSession: {ex.ToString()} {previousMessages.ToString()}", previousMessages);
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in EnsureDiagnosticOllamaSession!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -760,9 +764,12 @@
                 .FirstOrDefault(candidate => selectedModels.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase))
                 ?.Endpoint;
 
+            var userConfirmedArtifactBuild = GenerateCouncilArtifacts;
+            GenerateCouncilArtifacts = false;
+
             return new MultiModelCouncilRequest
             {
-                ModelNames = (CouncilChatStaticsGeneral.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
+                ModelNames = (CouncilRuntime.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
                 BaseUri = selectedEndpoint,
                 MaxRounds = 0,
                 MaxOutputTokens = ResolveCouncilOutputTokens(),
@@ -773,14 +780,15 @@
                 OllamaNumGpu = ResolveOllamaNumGpu(),
                 IncludeMemory = IncludeCouncilMemory,
                 SaveToMemory = true,
-                GenerateImplementationArtifact = GenerateCouncilArtifacts,
+                GenerateImplementationArtifact = userConfirmedArtifactBuild,
+                UserConfirmedArtifactBuild = userConfirmedArtifactBuild,
                 Title = "DXAiChat AI Council"
             };
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in CreateCouncilRequest: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in CreateCouncilRequest!");
+            Logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "Exception");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return new();
         }
 
@@ -794,8 +802,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ResolveCouncilDownloadUrl: {ex.ToString()} downloadUrl {downloadUrl}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ResolveCouncilDownloadUrl!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return downloadUrl;
         }
     }
@@ -811,13 +819,13 @@
             if (query.TryGetValue("diagCouncilMaxOutputTokens", out var maxTokens) &&
                 int.TryParse(maxTokens.ToString(), out var parsedMaxTokens))
             {
-                CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens);
+                CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, LocalGptCatalogService.MinCouncilOutputTokens, LocalGptCatalogService.MaxCouncilOutputTokens);
             }
 
             if (query.TryGetValue("diagCouncilMaxContextTokens", out var maxContext) &&
                 int.TryParse(maxContext.ToString(), out var parsedMaxContext))
             {
-                CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
+                CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, LocalGptCatalogService.MinCouncilContextTokens, LocalGptCatalogService.MaxCouncilContextTokens);
             }
 
             if (query.TryGetValue("diagMaxOutputTokens", out var maxOutputTokens) &&
@@ -841,7 +849,7 @@
             if (query.TryGetValue("diagOllamaMode", out var ollamaMode))
             {
                 var mode = ollamaMode.ToString();
-                if (CouncilChatStaticsGeneral.TryIsSupportedOllamaMode(mode, Logger) ?? false)
+                if (CouncilRuntime.TryIsSupportedOllamaMode(mode, Logger) ?? false)
                     OllamaAccelerationMode = mode;
             }
 
@@ -854,7 +862,7 @@
             if (query.TryGetValue("diagCpuOnly", out var cpuOnly) &&
                 bool.TryParse(cpuOnly.ToString(), out var parsedCpuOnly))
             {
-                OllamaAccelerationMode = parsedCpuOnly ? GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu : GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
+                OllamaAccelerationMode = parsedCpuOnly ? LocalGptCatalogService.OllamaModeSafeCpu : LocalGptCatalogService.OllamaModeAutoGpu;
             }
 
             if (query.TryGetValue("diagCouncilIncludeMemory", out var includeMemory) &&
@@ -863,11 +871,9 @@
                 IncludeCouncilMemory = parsedIncludeMemory;
             }
 
-            if (query.TryGetValue("diagGenerateCouncilArtifacts", out var generateArtifacts) &&
-                bool.TryParse(generateArtifacts.ToString(), out var parsedGenerateArtifacts))
-            {
-                GenerateCouncilArtifacts = parsedGenerateArtifacts;
-            }
+            // Artifact generation is never enabled from a URL. The user must select it
+            // explicitly in the current chat UI, and that confirmation is consumed once.
+            GenerateCouncilArtifacts = false;
 
             if (query.TryGetValue("diagCouncilModels", out var councilModels))
             {
@@ -916,8 +922,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ApplyDiagnosticQueryOptions: {ex.ToString()} selectSession {selectSession}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ApplyDiagnosticQueryOptions!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -929,14 +935,14 @@
                 return null;
 
             return requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
-                ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
-                : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => (CouncilChatStaticsGeneral.IsDynamicSession(session, Logger) ?? false) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
+                ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+                : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => (CouncilRuntime.IsDynamicSession(session, Logger) ?? false) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
                     ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in FindRequestedDiagnosticSession: {ex.ToString()} requestedSession {requestedSession}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in FindRequestedDiagnosticSession!");
+            Logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "Exception");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return null;
         }
 
@@ -947,14 +953,14 @@
         try
         {
             if (requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase))
-                return session.Name.Equals(GlobalVariableSlopCollectionToRemove.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
+                return session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
 
             return session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in MatchesRequestedDiagnosticSession: {ex.ToString()} requestedSession {requestedSession} session {session.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MatchesRequestedDiagnosticSession!");
+            Logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "Exception");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return null;
         }
     }
@@ -963,7 +969,7 @@
     {
         try
         {
-            if (!OllamaAccelerationMode.Equals(GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase))
+            if (!OllamaAccelerationMode.Equals(LocalGptCatalogService.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase))
                 return true;
 
             var query = QueryHelpers.ParseQuery(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query);
@@ -971,8 +977,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ShouldAddRuntimeProfileSession: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ShouldAddRuntimeProfileSession!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return false;
         }
     }
@@ -991,8 +997,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ClearSelectedSessionForFreshStart: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ClearSelectedSessionForFreshStart!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
     }
@@ -1002,13 +1008,13 @@
         try
         {
             return ChatClientProvider?.AvailableChatClients.Any(session =>
-            !(CouncilChatStaticsGeneral.IsDynamicSession(session, Logger) == false) &&
+            !(CouncilRuntime.IsDynamicSession(session, Logger) == false) &&
             session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in HasConfiguredSessionForModel: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in HasConfiguredSessionForModel!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return false;
         }
     }
@@ -1023,15 +1029,15 @@
         {
             return OllamaAccelerationMode switch
             {
-                GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu => 0,
-                GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu => Math.Clamp(LimitedGpuLayers, 1, 99),
+                LocalGptCatalogService.OllamaModeSafeCpu => 0,
+                LocalGptCatalogService.OllamaModeLimitedGpu => Math.Clamp(LimitedGpuLayers, 1, 99),
                 _ => null
             };
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ResolveOllamaNumGpu: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ResolveOllamaNumGpu!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return 0;
         }
 
@@ -1041,12 +1047,12 @@
     {
         try
         {
-            return Math.Clamp(CouncilMaxOutputTokens, GlobalVariableSlopCollectionToRemove.MinCouncilOutputTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilOutputTokens);
+            return Math.Clamp(CouncilMaxOutputTokens, LocalGptCatalogService.MinCouncilOutputTokens, LocalGptCatalogService.MaxCouncilOutputTokens);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ResolveCouncilOutputTokens: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ResolveCouncilOutputTokens!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return 0;
         }
     }
@@ -1056,12 +1062,12 @@
     {
         try
         {
-            return Math.Clamp(CouncilMaxContextTokens, GlobalVariableSlopCollectionToRemove.MinCouncilContextTokens, GlobalVariableSlopCollectionToRemove.MaxCouncilContextTokens);
+            return Math.Clamp(CouncilMaxContextTokens, LocalGptCatalogService.MinCouncilContextTokens, LocalGptCatalogService.MaxCouncilContextTokens);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ResolveCouncilOutputTokens: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ResolveCouncilOutputTokens!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return 0;
         }
     }
@@ -1072,9 +1078,9 @@
     {
         try
         {
-            var requestedMode = Convert.ToString(e.Value) ?? GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
-            if (!CouncilChatStaticsGeneral.TryIsSupportedOllamaMode(requestedMode, Logger) ?? false)
-                requestedMode = GlobalVariableSlopCollectionToRemove.OllamaModeAutoGpu;
+            var requestedMode = Convert.ToString(e.Value) ?? LocalGptCatalogService.OllamaModeAutoGpu;
+            if (!CouncilRuntime.TryIsSupportedOllamaMode(requestedMode, Logger) ?? false)
+                requestedMode = LocalGptCatalogService.OllamaModeAutoGpu;
 
             OllamaAccelerationMode = requestedMode;
             if (DxAiChat is not null)
@@ -1083,15 +1089,15 @@
             RebuildDynamicSessions();
             modelStatus = OllamaAccelerationMode switch
             {
-                GlobalVariableSlopCollectionToRemove.OllamaModeSafeCpu => "Ollama acceleration: Safe CPU. LocalGPT sends num_gpu=0.",
-                GlobalVariableSlopCollectionToRemove.OllamaModeLimitedGpu => $"Ollama acceleration: Limited GPU. LocalGPT sends num_gpu={Math.Clamp(LimitedGpuLayers, 1, 99)}.",
+                LocalGptCatalogService.OllamaModeSafeCpu => "Ollama acceleration: Safe CPU. LocalGPT sends num_gpu=0.",
+                LocalGptCatalogService.OllamaModeLimitedGpu => $"Ollama acceleration: Limited GPU. LocalGPT sends num_gpu={Math.Clamp(LimitedGpuLayers, 1, 99)}.",
                 _ => "Ollama acceleration: Auto GPU. LocalGPT lets Ollama choose GPU offload."
             };
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in OnOllamaAccelerationModeChanged: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in OnOllamaAccelerationModeChanged!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -1114,8 +1120,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ToggleCouncilModel: {ex.ToString()} modelName {modelName}  e {e.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ToggleCouncilModel!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
       
     }
@@ -1132,8 +1138,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SaveLastAssistantMessage: {ex.ToString()} saveMessages {saveMessages.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveLastAssistantMessage!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -1147,8 +1153,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in LoadSelectedSessionMessages: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadSelectedSessionMessages!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -1160,8 +1166,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SaveCurrentConversationAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveCurrentConversationAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
        
     }
@@ -1174,8 +1180,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in LoadLatestConversationAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadLatestConversationAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
      
@@ -1192,8 +1198,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in LoadLatestConversationIntoSessionAsync: {ex.ToString()} loadIntoDxChat {loadIntoDxChat}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadLatestConversationIntoSessionAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
         
@@ -1207,8 +1213,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in LoadSavedConversationAsync: {ex.ToString()} conversation {conversation?.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadSavedConversationAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -1233,7 +1239,7 @@
                 SelectedConversation = conversation;
                 ChatClientProvider.SelectedSession.Messages.Clear();
                 ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
-                lastSavedSignature = CouncilChatStringFunctions.CreateMessageSignature(snapshot.Messages, Logger);
+                lastSavedSignature = CouncilText.CreateMessageSignature(snapshot.Messages, Logger);
                 memoryStatus = $"Loaded memory: {snapshot.Title}";
 
                 if (loadIntoDxChat && DxAiChat is not null)
@@ -1242,7 +1248,7 @@
             catch (Exception ex)
             {
                 Logger.LogError(ex, "LoadSavedConversationAsync failed: {Message}", ex.Message);
-                Notifier.ShowError(toastName, ex.Message, "Memory load failed");
+                Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             }
             finally
             {
@@ -1251,8 +1257,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in LoadSavedConversationAsync: {ex.ToString()} conversation {conversation?.ToString()} saveCurrentFirst {saveCurrentFirst} loadIntoDxChat {loadIntoDxChat}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadSavedConversationAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
         
     }
@@ -1270,8 +1276,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in PersistCurrentConversationAsync: {ex.ToString()} force {force} showToast {showToast}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in PersistCurrentConversationAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
   
     }
@@ -1283,7 +1289,7 @@
             if (ChatClientProvider?.SelectedSession is null || messages.Count == 0)
                 return;
 
-            var signature = CouncilChatStringFunctions.CreateMessageSignature(messages, Logger);
+            var signature = CouncilText.CreateMessageSignature(messages, Logger);
             if (!force && signature == lastSavedSignature)
                 return;
 
@@ -1306,7 +1312,7 @@
             {
                 Logger.LogError(ex, "PersistMessagesAsync failed: {Message}", ex.Message);
                 if (showToast)
-                    Notifier.ShowError(toastName, ex.Message, "Memory save failed");
+                    Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             }
             finally
             {
@@ -1315,8 +1321,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in PersistCurrentConversationAsync: {ex.ToString()} messages {messages.ToString()} force {force} showToast {showToast}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in PersistCurrentConversationAsync!");
+            Logger.LogError(ex, "Could not persist the current conversation; message content was omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
        
     }
@@ -1335,8 +1341,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in RefreshMemoryAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RefreshMemoryAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
        
     }
@@ -1353,8 +1359,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in StartAutoSaveLoop: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in StartAutoSaveLoop!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
       
     }
@@ -1383,8 +1389,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in AutoSaveLoopAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in AutoSaveLoopAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
         
     }
@@ -1400,7 +1406,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in Dispose: {ex.ToString()}");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
         }
     }
 }

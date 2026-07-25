@@ -2,7 +2,6 @@ using Azure;
 using Azure.AI.OpenAI;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Extensions;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
@@ -23,9 +22,12 @@ namespace LocalGPT.Services
           IChatUploadWorkspaceService chatUploadWorkspaces,
           IPromptConfigService promptConfigService,
           IVariableStoreService variableStoreService,
+          IDxAiFunctionRegistry functionRegistry,
           IChatResponseFormatterFactory formatterFactory,
           IChatProtocolResolver protocolResolver
-      ) : IChatClientFactory
+      ,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText) : IChatClientFactory
     {
         public CompositeChatClient Build()
         {
@@ -37,20 +39,22 @@ namespace LocalGPT.Services
                 logger.LogInformation("Building configured chat provider sessions.");
 
                 // --- Ollama (Microsoft.Extensions.AI.Ollama) ---
-                foreach (var ollama in CouncilChatStaticsGeneral.GetConfiguredOllamaProviders(options, logger))
+                foreach (var ollama in councilRuntime.GetConfiguredOllamaProviders(options, logger))
                 {
                     logger.LogInformation("Found Ollama-compatible provider at {Endpoint} for model {Model}.", ollama.Uri, ollama.ModelName);
 
                     var ollamaChat = new OllamaThinkingChatClient(
                         ollama,
                         logger,
+                        councilRuntime,
                         keepAlive: "2m",
                         contextLength: 65536,
                         timeout: TimeSpan.FromMinutes(30),
                         numGpu: null,
                         formatterFactory: formatterFactory,
                         protocolResolver: protocolResolver,
-                        promptConfigService: promptConfigService);
+                        promptConfigService: promptConfigService,
+                        functionRegistry: functionRegistry);
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
@@ -85,7 +89,7 @@ namespace LocalGPT.Services
                 }
 
                 // --- OpenAI cloud (OpenAI SDK) ---
-                if (options.OpenAICore is { ModelName.Length: > 0 } openai && CouncilChatStaticsGeneral.HasRealApiKey(openai.ApiKey, logger))
+                if (options.OpenAICore is { ModelName.Length: > 0 } openai && councilRuntime.HasRealApiKey(openai.ApiKey, logger))
                 {
                     logger.LogInformation("Found OpenAI-compatible cloud provider for model {Model}.", openai.ModelName);
 
@@ -157,6 +161,8 @@ namespace LocalGPT.Services
                     chatUploadWorkspaces,
                     promptConfigService,
                     variableStoreService,
+                    councilRuntime,
+                    councilText,
                     sessions.ToArray());
             }
             catch (Exception ex)

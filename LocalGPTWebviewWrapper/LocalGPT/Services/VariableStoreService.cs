@@ -1,6 +1,5 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +7,8 @@ namespace LocalGPT.Services;
 
 public sealed class VariableStoreService(
     LocalGptMemoryDbContext db,
-    ILogger<VariableStoreService> logger) : IVariableStoreService
+    ILogger<VariableStoreService> logger,
+        SqliteUtilityService sqliteUtility) : IVariableStoreService
 {
     public async Task<T> GetAsync<T>(string name, CancellationToken cancellationToken = default)
     {
@@ -24,7 +24,7 @@ public sealed class VariableStoreService(
             if (variable is null)
                 throw new KeyNotFoundException($"Variable '{name}' was not found.");
 
-            return SQLLiteFunctions.ParseValue<T>(variable.ValueString, variable.DataType, logger);
+            return sqliteUtility.ParseValue<T>(variable.ValueString, variable.DataType, logger);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

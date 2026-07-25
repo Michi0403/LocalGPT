@@ -1,33 +1,63 @@
-# Validation
+# Validation — v0.1.2 DXAIFunction and reviewed-generation wiring
 
-## Completed in the repair environment
+## Authoritative input
 
-- confirmed the uploaded ZIP contained an outer repository and a complete nested repository, each with its own Git metadata;
-- compared normalized source content and selected outer commit `35b5fcf53681129d39e461e41ef3d2a691679a25` as the newer canonical base;
-- rebuilt one clean working tree and confirmed no nested `.git` directory remains;
-- removed tracked runtime SQLite databases and the generated DevExtreme runtime-license script;
-- added ignore rules for DB/WAL/SHM/log/IDE/generated-clone/license state;
-- parsed both appsettings files as JSON and `LocalGPT.csproj` as XML;
-- ran `git diff --check` with no whitespace errors;
-- scanned 144 C# source files with a lexical balance checker for unclosed strings, characters, comments, braces, brackets, and parentheses;
-- checked for unresolved merge markers, remaining `Database.EnsureCreated` calls, nested repository roots, obvious provider-secret logging, and generated license-key content;
-- reviewed formatter behavior for plain text, `<think>` tags, Harmony, split markers, completion flushing, and thinking without final output;
-- exercised structural live-render cases for partial/completed thinking and partial/completed council panels, including temporary render-only closures and live-state removal;
-- verified the AI Council stream bridge is event-driven rather than two-second polling, and that streamed member presentation is ordered to avoid crossing nested markup;
-- verified database path, health probing, recovery, migration, and seeding are service-owned, with no active caller of the removed static SQLite recovery/path helpers;
-- verified the Chat page reads its output-token, context-window, GPU-layer, and default Ollama endpoint values from the seeded variable service, retaining compiled values only as failure fallbacks;
-- reviewed native command policy for default denial, separate PowerShell opt-in, workspace containment, timeout, cancellation, process-tree termination, and redacted audit arguments;
-- moved direct generated-artifact/benchmark `dotnet build` launch code into a bounded service, disabled it by default, and changed generated AI-host native-runner templates to opt-in;
-- reviewed the runtime bootstrap, `llms.txt`, Copilot instructions, and knowledge seed trust metadata so models/documents cannot impersonate the human owner or grant permissions to one another;
-- verified the source-package staging rules exclude Git metadata, runtime databases, logs, generated license material, and font binaries;
-- verified the supplemental source patch excludes the removed database payloads and generated DevExpress license content, with an exact-path reviewable cleanup script supplied instead.
+This pass builds on the sanitized v0.1.1 source and the service-boundary refactor. It retains the owner-updated package references and does not include or modify a private runtime database.
 
-## Not executable in the repair environment
+## Confirmed seed continuity
 
-The environment did not contain a .NET SDK/compiler, DevExpress package feed or license, Windows workloads, MSIX tooling, or a WebView2 runtime. Network access was unavailable for installing the SDK. Therefore no claim is made that the solution compiled, restored DevExpress packages, launched the Windows wrapper, ran the installer, published, signed, or executed UI/runtime integration tests.
+The deterministic database catalog still includes the original response-protocol regex records:
 
-Structural checks supplement a real build; they do not replace one.
+- `HarmonyFinal`;
+- `HarmonyThinking`;
+- `ThinkTag`;
+- `SafeKnowledgeFile`.
 
-## Required owner-side validation
+The prompt-policy and system-variable feeds remain present. Repository knowledge still uses an explicit reviewed allowlist rather than a wildcard. Seed version 5 adds `docs/DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md` without removing the earlier approved architecture, security, peaceful-use, or collaboration documents.
 
-Run every step in `RELEASE.md` on the licensed development machine. Fix compiler/runtime findings before merging, with priority on the new formatting, persistence, command-runner, and provider-adapter files. Keep state behind the new service boundaries rather than moving it back into global statics.
+## DXAIFunction and generation checks
+
+- DI registers every concrete `IDxAiFunctionHandler` and publishes descriptors through `IDxAiFunctionRegistry`.
+- Parameter schemas live with handler descriptors rather than in a function-name switch inside the Ollama client.
+- Native Ollama tool calls are limited to handlers that are read-only, direct-invocation capable, explicitly automatic-safe, and confirmation-free.
+- Review creation, rejection, source generation, and builds are not available to automatic tool calling.
+- Council consensus may emit a bounded `<localgpt-change-review>` JSON proposal with exact files, CodeDOM types, and outputs.
+- The review payload is persisted with project/topic/council links and a SHA-256 hash before files are written.
+- One-use source generation requires a fresh decision and the exact review hash.
+- A build requires a separate current confirmation and runs only through the bounded artifact-build executor.
+- Generated C# source is included in reviewed project outputs; reviewed `.csx` and `.js` source is reused for script/module outputs.
+- Paths are relative, workspace-contained, Windows-portable, and reject traversal, invalid characters, and reserved device names.
+- Generated scripts, DLLs, executables, and addons are never executed or loaded automatically.
+- New and modified services log operation IDs, safe identifiers, counts, and status while omitting prompts, generated source, secrets, private reasoning, and full request bodies.
+
+## Structural validation completed in the cloud workspace
+
+- 153 C# files passed delimiter/string/comment structure checks.
+- 22 Razor files passed structural balance checks.
+- Ten dynamic DXAIFunction parameter schemas parsed as JSON objects.
+- Project/property XML and repository JSON parsed successfully.
+- Production static classes remain limited to `Program`, `StringExtensions`, and `ObservableCollectionExtensions`; generated regex methods, constants, and security checks remain static members where appropriate.
+- No active `CouncilChatStaticsGeneral`, `Extensions/PlainStatics`, or `using static System.Net.WebRequestMethods` reference remains.
+- The explicit seed catalog contains the four protocol/safety regexes and repository knowledge seed version 5.
+- Line-length, merge-marker, generated-artifact, path-boundary, and forbidden-static checks passed.
+
+## Limits of this review
+
+The cloud workspace does not contain the required .NET 10 SDK/compiler, the owner’s DevExpress feed or license, Windows App SDK workloads, WebView2 runtime, MSIX/signing tooling, or the owner’s localhost/provider configuration. Therefore this review does not claim that the modified solution restores private packages, compiles, launches the wrapper, migrates a production database, builds every generated proposal, publishes, or signs successfully.
+
+The licensed owner-side Windows build remains authoritative.
+
+## Required owner-side checks
+
+```powershell
+./build/Assert-SourceFormatting.ps1
+./build/Assert-SecurityPolicy.ps1
+./build/Audit-Dependencies.ps1
+
+dotnet restore ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln
+dotnet package list ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln --include-transitive --vulnerable --format json
+dotnet build ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln -c Debug
+dotnet build ./LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln -c Release
+```
+
+Review every compiler warning rather than suppressing it globally. Prioritize nullability, disposal/lifetime, async/cancellation, unsafe path handling, EF migration drift, package advisories, tool-call serialization, generated project compilation, streaming, and persistence.

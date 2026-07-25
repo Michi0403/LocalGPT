@@ -23,7 +23,7 @@
 - Credited `gpt-oss-20b` as instrumental in making the initial working system possible.
 - Noted that LocalGPT's own review workflows produced dozens of missing-feature reports used during co-development with ChatGPT.
 - Clarified that the final design decisions and responsibility remain with Michi0403.
-- Clarified that Codex was not used to operate LocalGPT or any localhost service during this repair.
+- Clarified that no local coding agent operated LocalGPT or any localhost service during this cloud repair.
 
 ## Validation
 

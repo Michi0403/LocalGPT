@@ -21,7 +21,7 @@ namespace LocalGPT.BusinessObjects
 
     public class ThemeSet
     {
-        static readonly HashSet<string> BuiltInThemes = new() {
+        readonly HashSet<string> BuiltInThemes = new() {
             "blazing-berry", "blazing-dark", "purple", "office-white", "fluent-light", "fluent-dark"
         };
         public string Title { get; set; }

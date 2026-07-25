@@ -1,9 +1,9 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject NavigationUrlService NavigationUrls
 @inject NavigationManager NavigationManager
 
 @namespace LocalGPT.Components.Layout
 @inject IJSRuntime JS
-@implements IDisposable
 @inject ILogger<Drawer> Logger
 @inject INotificationService Notifier
 <div id="main-window-drawer">
@@ -42,7 +42,7 @@
     [Parameter]
     public string CssClass { get; set; } = "navigation-drawer";
 
-    [SupplyParameterFromQuery(Name = UrlGenerator.ToggleSidebarName)]
+    [SupplyParameterFromQuery(Name = NavigationUrls.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
     [Parameter] public RenderFragment? DrawerTarget { get; set; }
     [Parameter] public RenderFragment? DrawerBody { get; set; }
@@ -54,70 +54,6 @@
     {
         drawerOpen = ToggledSidebar;
     }
-    private bool _disposed;
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        try
-        {
-            if (_disposed)
-                return;
-
-            if (disposing)
-            {
-                // _ctsTimerTask?.Cancel();
-                // _ctsTimerTask?.Dispose();
-                _disposed = true;
-            }
-
-            _disposed = true;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, $"Error in Dispose {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ClearHistory!");
-        }
-
-    }
-    public async ValueTask DisposeAsync()
-    {
-        if (_disposed)
-            return;
-
-        try
-        {
-      
-
-            // Optional: any other async cleanup logic
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, $"Error in DisposeAsync {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Error in DisposeAsync {ex.ToString()}");
-        }
-
-        // Optionally call Dispose for sync resources
-        Dispose(disposing: false);
-        GC.SuppressFinalize(this);
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, $"Error in OnInitializedAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Error in OnInitializedAsync: {ex.ToString()}");
-        }
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         try
@@ -138,8 +74,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in OnAfterRenderAsync in Drawer {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Error in OnAfterRenderAsync in Drawer {ex.ToString()}");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 }

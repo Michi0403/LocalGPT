@@ -1,4 +1,4 @@
-﻿@implements IDisposable
+@implements IDisposable
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 @inject PersistentComponentState AppState
 @inject ThemeService Themes
@@ -50,9 +50,9 @@
         }
         catch(Exception ex)
         {
-            Logger.LogWarning(ex, $"Error in OnInitalized {ex.ToString()}");
+            Logger.LogWarning(ex, "Theme initialization failed; local state details were omitted from logs.");
 
-            Notifier.ShowError(toastName, ex.Message, "OnInitializedAsync failed");
+            Notifier.ShowError(toastName, "The theme could not be initialized. See local application logs for details.", "Theme initialization failed");
         }
     }
 
@@ -68,9 +68,9 @@
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, $"Failed to persist theme name: {ThemeName} ", ThemeName);
+            Logger.LogWarning(ex, "Theme persistence failed; the selected theme value was omitted from logs.");
 
-            Notifier.ShowError(toastName, ex.Message, $"Failed to persist theme name: {ThemeName}");
+            Notifier.ShowError(toastName, "The theme preference could not be saved. See local application logs for details.", "Theme persistence failed");
         }
         return Task.CompletedTask;
     }
@@ -97,8 +97,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in Dipose {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in Dipose: {ThemeName}");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 }

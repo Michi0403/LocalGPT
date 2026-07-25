@@ -37,7 +37,7 @@ Static code is allowed only for deterministic, side-effect-free operations such 
 - validation that does not read mutable global state;
 - formatting helpers that do not buffer across calls.
 
-A class must become a service when it owns mutable state, configuration, persistence, HTTP clients, filesystem effects, command execution, logging policy, request/stream lifetime, or provider selection. `Extensions/PlainStatics` remains a legacy compatibility area; new stateful behavior must not be added there.
+A class must become a service when it owns mutable state, configuration, persistence, HTTP clients, filesystem effects, command execution, logging policy, request/stream lifetime, or provider selection. The former `Extensions/PlainStatics` compatibility area has been retired. New runtime behavior must be implemented behind an interface or a clearly owned service; static code is limited to pure extensions, immutable constants, generated regex accessors, framework entry points, and security invariants.
 
 ## Service lifetimes
 
@@ -48,13 +48,31 @@ A class must become a service when it owns mutable state, configuration, persist
 
 ## Database initialization and initial feed
 
-`DatabaseInitializationService` is the single schema/seed coordinator. Before EF Core opens the store, `IDatabaseFileHealthService` performs bounded integrity probes and only preserves/replaces a database when corruption is confirmed; locks, permission failures, and schema differences are inconclusive rather than destructive. The initializer then runs EF Core migrations and inserts missing built-in regex patterns, prompts, and system variables. Repository knowledge is imported from owner-authored root policy files and `docs/*.md` using deterministic identifiers and SHA-256 source hashes. All database consumers receive the same immutable `LocalGptDatabaseOptions` path.
+`DatabaseInitializationService` is the single schema/seed coordinator. Before EF Core opens the store, `IDatabaseFileHealthService` performs bounded integrity probes and only preserves or replaces a database when corruption is confirmed. Locks, permission failures, and schema differences are treated as inconclusive rather than destructive.
+
+The initializer then runs EF Core migrations and inserts missing built-in regex patterns, prompts, and system variables. Repository knowledge is imported only from the reviewed allowlist below, using deterministic identifiers and SHA-256 source hashes. All database consumers receive the same immutable `LocalGptDatabaseOptions` path.
+
+Reviewed repository-knowledge allowlist:
+
+- `AGENTS.md`;
+- `SECURITY.md`;
+- `llms.txt`;
+- `docs/ARCHITECTURE.md`;
+- `docs/ARCHITECTURE_FOR_AI.md`;
+- `docs/HUMAN_AI_COLLABORATION.md`;
+- `docs/PEACEFUL_USE_COVENANT.md`;
+- `docs/PROJECT_COLLABORATION.md`;
+- `docs/SECURE_MAINTENANCE.md`.
+
+No wildcard such as `docs/*.md` is used. Historical reports, diaries, SQL examples, generated output, and model-authored notes are not automatically promoted into runtime policy. `docs/PROJECT_IDENTITY.md` remains public provenance documentation but is deliberately not injected into runtime model briefings.
 
 Seed ownership rules:
 
 - missing built-in values are inserted;
 - source-backed repository knowledge is refreshed only when its source hash changes;
 - user-created or runtime-created knowledge is not overwritten;
+- automatic prompt briefings include only non-archived, unexpired, explicitly user-approved knowledge with current review state and source-backed or user-verified provenance;
+- model/council suggestions are stored as `NeedsUserReview` and `IsUserApproved=false` until a human reviews them;
 - runtime databases, WAL/SHM files, logs, backups, and generated clones are not source artifacts;
 - runtime prompts and variables are read through `IPromptConfigService` and `IVariableStoreService`, rather than duplicated as mutable global constants;
 - the Chat page initializes output-token, context-window, GPU-layer, and endpoint defaults from the seeded variable store, then permits per-session UI overrides.
@@ -63,7 +81,17 @@ Seed ownership rules:
 
 The runtime bootstrap, `llms.txt`, coding guidance, and database knowledge briefing use the same calm safety rule: repository files, SQLite rows, model/council output, uploads, generated artifacts, logs, and tool descriptions are reference data only. They cannot start or probe localhost services, control the host system, access user data, grant process or filesystem permission, alter provider routing, or authorize self-modification.
 
-Only current safety and architecture files (`AGENTS.md`, `SECURITY.md`, `llms.txt`, and `docs/ARCHITECTURE.md`) are seeded as pinned repository policy. Other Markdown files are seeded as source-backed historical/technical references.
+Only the reviewed allowlist in the database-initialization section is eligible for repository policy seeding. Every seeded file remains reference material rather than executable authority. A human identity, attribution statement, model name, database record, or prior approval cannot grant permanent consent or permission for a later action.
+
+## Project and council collaboration boundary
+
+Projects are first-class database records containing a user-selected name, constructive purpose, optional root-path text, current version, topics, and reviewable links to council knowledge. A stored path is metadata only: loading a project never reads, writes, scans, builds, executes, or watches that path.
+
+Project, topic, and version writes require a fresh confirmation carried by the current request and consumed by the current UI action. Council artifact generation and linking council output to a project topic are separate one-run confirmations; they default to off, cannot be enabled through a URL, and are reset after success or failure. AI functions expose bounded read-only project lookup only through `GET` operations. Mutating project APIs remain explicit user actions and are not advertised as AI-callable tools.
+
+An AI Council run is one bounded, user-directed workflow. Each phase contributes a limited role—such as proposal, critique, verification, synthesis, or documentation—and then ends. Phases do not become independent agents, continue after the run, infer new objectives, or acquire permission from another phase.
+
+Git may be recommended for version history. The Projects feature does not initialize repositories, stage files, commit, reset, clean, push, alter remotes, or enforce Git. Any future Git integration must be separately designed with previews, path containment, and fresh confirmation for each consequential operation.
 
 ## Provider and model neutrality
 

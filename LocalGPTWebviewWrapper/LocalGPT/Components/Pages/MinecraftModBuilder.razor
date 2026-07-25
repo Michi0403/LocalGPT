@@ -1,5 +1,7 @@
 @page "/minecraft-mod-builder"
 
+@inject CouncilTextService CouncilText
+@inject LocalGptCatalogService Catalog
 @inject ILogger<MinecraftModBuilder> Logger
 @inject INotificationService Notifier
 @inject IMinecraftModWorkspaceService WorkspaceService
@@ -218,7 +220,7 @@
         PackageName = "com.localgpt.livingcities",
         Loader = "Datapack",
         IncludeLivingCitiesStarter = true,
-        Description = GlobalVariableSlopCollectionToRemove.LivingCitiesPrompt
+        Description = Catalog.LivingCitiesPrompt
     };
 
     MinecraftModWorkspace? workspace;
@@ -252,7 +254,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "CreateWorkspaceAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "CreateWorkspaceAsync Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -271,7 +273,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "CreateDatapackZipAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "CreateDatapackZipAsync Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
 
@@ -290,7 +292,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "CreateWorkspaceCoreAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "CreateWorkspaceCoreAsync Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
     }
@@ -309,7 +311,7 @@
             {
                 var messages = new[]
                 {
-                new ChatMessage(ChatRole.System, CouncilChatStringFunctions.CreateMinecraftSystemPrompt("single model",Logger)),
+                new ChatMessage(ChatRole.System, CouncilText.CreateMinecraftSystemPrompt("single model",Logger)),
                 new ChatMessage(ChatRole.User, CreatePlanningPrompt())
                 };
 
@@ -320,7 +322,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "GeneratePlanAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "GeneratePlanAsync Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
     }
@@ -354,7 +356,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "GenerateCouncilPlanAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "GenerateCouncilPlanAsync Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
     }
@@ -381,7 +383,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "RunCommandAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "RunCommandAsync Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
 
@@ -394,7 +396,11 @@
             if (workspace is null)
                 throw new InvalidOperationException("Create a workspace first.");
 
-            lastCommandResult = await CommandRunner.RunAsync(commandFileName, commandArguments, workspace.RootPath).ConfigureAwait(false);
+            lastCommandResult = await CommandRunner.RunAsync(
+                commandFileName,
+                commandArguments,
+                workspace.RootPath,
+                userConfirmed: true).ConfigureAwait(false);
             ArgumentNullException.ThrowIfNull(lastCommandResult);
             if (lastCommandResult.Succeeded)
             {
@@ -408,7 +414,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "RunCommandCoreAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "RunCommandCoreAsync Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
 
@@ -426,7 +432,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "ClearDownloadArtifact failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "ClearDownloadArtifact Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
 
@@ -470,7 +476,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "SetDownloadArtifact failed: {Message} workspaceRoot {workspaceRoot}", ex.Message, workspaceRoot);
-            Notifier.ShowError(toastName, ex.ToString(), "SetDownloadArtifact Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
 
         }
 
@@ -517,7 +523,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "CreatePlanningPrompt failed: {Message} ", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "CreatePlanningPrompt Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return string.Empty;
         }
     } 
@@ -537,12 +543,12 @@
             request.JavaVersion = "25";
             request.Loader = "Datapack";
             request.IncludeLivingCitiesStarter = true;
-            request.Description = GlobalVariableSlopCollectionToRemove.LivingCitiesPrompt;
+            request.Description = Catalog.LivingCitiesPrompt;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "LoadLivingCitiesPrompt failed: {Message} ", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "LoadLivingCitiesPrompt Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
        
     }
@@ -557,7 +563,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
-            Notifier.ShowError(toastName, ex.Message, $"Error in {operation}");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
         finally
         {

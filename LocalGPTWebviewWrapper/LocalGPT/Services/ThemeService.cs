@@ -7,9 +7,9 @@ namespace LocalGPT.Services
 {
     public class ThemeService()
     {
-        public static readonly string DEFAULT_THEME_NAME = "office-white";
-        static readonly string[] NEW_BLAZOR_THEMES = [DEFAULT_THEME_NAME, "blazing-dark", "purple", "office-white", "fluent-light", "fluent-dark"];
-        static readonly Dictionary<string, string> HIGHLIGHT_JS_THEME = new() {
+        public const string DEFAULT_THEME_NAME = "office-white";
+        readonly string[] NEW_BLAZOR_THEMES = [DEFAULT_THEME_NAME, "blazing-dark", "purple", "office-white", "fluent-light", "fluent-dark"];
+        readonly Dictionary<string, string> HIGHLIGHT_JS_THEME = new() {
             { DEFAULT_THEME_NAME, "default" },
             { "blazing-dark", "androidstudio" },
             { "cyborg", "androidstudio" },
@@ -112,7 +112,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static List<ThemeSet> CreateSets(ThemeService config, ILogger logger)
+        private List<ThemeSet> CreateSets(ThemeService config, ILogger logger)
         {
             try
             {

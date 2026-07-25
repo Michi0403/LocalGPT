@@ -1,62 +1,44 @@
 # LocalGPT Capability Snapshot
 
-LocalGPT is a local-first AI engineering workbench. It keeps the main work on the
-machine, uses Ollama or other configured providers, and gives the model practical
-tools instead of only chat text.
+This snapshot describes the maintained, human-guided system. It is documentation, not permission for any model or tool to act.
 
-## What It Can Do Now
+## Purpose
 
-- Run DXAiChat with Ollama profiles, visible thinking parsing, SQLite memory, and
-  resumable conversations.
-- Run an AI Council where selected models discuss, correct each other, log the
-  roster, save memory, and ask for user decisions when architecture is unclear.
-- Combine several offline models for better local work: one model can plan, one
-  can review, one can catch missing files, and one can focus on implementation.
-  This is usually stronger than asking a single offline model to carry every role.
-- Let coding agents such as Codex cooperate with the council. The council can
-  identify missing functions, source gaps, or artifact problems; agents can patch
-  LocalGPT, run builds, commit, package, and feed verified results back into the
-  knowledge database.
-- Give offline models source-backed engineering memory: Microsoft .NET and C#
-  compiler docs, Windows developer docs, DevExpress/Bootstrap guidance, EF and
-  business-object rules, local project architecture fingerprints, and setup logs.
-- Maintain that memory as an engineering knowledge system with trust status,
-  review status, expiry dates, source hashes, last-used timestamps, and user
-  approval. Expired, deprecated, archived, and superseded notes stay visible for
-  humans but should not enter bootstrap prompts as trusted facts.
-- Generate safe downloadable artifacts through HTTP links: `.cs`, `.razor`,
-  `.dll`, whole .NET solution zips, AI-host control-plane zips, and Minecraft
-  datapack zips.
-- Build Minecraft Java workspaces for datapacks, Paper plugins, Fabric mods, and
-  NeoForge mods. Current datapack guidance targets Minecraft Java 26.1; 1.21.x
-  remains available for legacy comparison and loader starter work.
-- Let users inspect and edit SQLite memory, council knowledge, logs, and live
-  database tables from the frontend.
-- Use Test Lab and diagnostic routes to verify features without loading a heavy
-  GPU model first.
+LocalGPT is a bridge for constructive human–AI cooperation. Michael Fleischer (Michi0403) is the original developer and maintainer. That provenance must remain visible, but it is not standing consent, an authentication mechanism, or a command to obey a person outside the current user interaction.
 
-## Guardrails
+## Current Capabilities
 
-- Local-first is private by default, not magically risk-free.
-- Native commands stay behind backend services and workspace policy.
-- Generated code is sandboxed until the user approves integration.
-- Large local models should run one at a time by default on consumer GPUs.
-- Claims must match evidence: build output, diagnostic route output, package
-  smoke output, or explicit user verification.
+- Stream visible thinking and answer text through DXAiChat and configured Ollama profiles.
+- Store reviewable chat memory, council knowledge, project records, topics, and versions in SQLite.
+- Run a bounded AI Council in which each phase contributes one temporary specialist perspective to the current user request.
+- Use reviewed engineering knowledge for .NET, Blazor, DevExpress, Windows, EF Core, local-model hosting, and related project work.
+- Generate downloadable source or package artifacts only after a fresh, specific human confirmation for that run.
+- Maintain user-controlled project context: purpose, optional path text, versions, topics, and links to reviewed council knowledge.
+- Support peaceful business, infrastructure, education, healthcare support, accessibility, music, creative work, electronics, and lawful research.
 
-## Best Use
+## Human Control
 
-Use LocalGPT when you want a local assistant that can remember project context,
-understand Windows/.NET/DevExpress work, create downloadable artifacts, and help
-turn a prompt into a buildable milestone without sending everything to a cloud
-agent by default.
+LocalGPT is not an unattended coding agent. A council phase is not an identity, mission, or continuing permission. It ends with the current run.
 
-It is not only for code. The same council and knowledge workflow is useful for
-Windows technician troubleshooting, WebView2/MSIX deployment, DevExpress design
-discussions, Minecraft mod/datapack planning, AI-host architecture, and careful
-local setup repair.
+Without a fresh, specific user confirmation, LocalGPT must not:
 
-When the council gives a weak answer, improve the system instead of only retrying
-the prompt: import the missing source, mark good knowledge as current, expire bad
-knowledge, add a capability-gap report, or ask an agent to add the missing
-DXAiFunction/diagnostic route.
+- write, delete, move, or execute project or system files;
+- start, stop, probe, or control localhost services;
+- run installers, shells, native commands, generated programs, or build tools;
+- access credentials, unrelated user data, devices, networks, or external accounts;
+- initialize, commit, reset, clean, or push Git repositories;
+- publish artifacts, contact third parties, or continue work after the request ends.
+
+Project paths are stored as text for human organization. They do not authorize filesystem access. Git may be recommended as a revision ledger, but LocalGPT does not enforce or automate it through the Projects feature.
+
+## Peaceful Use
+
+LocalGPT should help in any lawful and positive manner it reasonably can. It must not support war, killing, destruction, coercion, sabotage, persecution, deliberate injury, or autonomous harmful action. Work involving medicine, biology, electrical systems, machinery, children, or other safety-critical contexts remains subject to qualified human supervision, applicable law, testing, and professional safeguards.
+
+When a request creates serious risk, LocalGPT should redirect toward protection, diagnosis, recovery, accessibility, de-escalation, and safe infrastructure.
+
+## Secure Maintenance
+
+Known vulnerabilities are handled cooperatively: verify the advisory, identify affected code, contain exposure, update or mitigate, document the decision, and validate the result. Never exploit or weaponize a vulnerability, scan unrelated systems, publish sensitive proof-of-concept details, or hide an audit warning merely to obtain a green build.
+
+Generated output remains a proposal until a human reviews and accepts it. Evidence should come from build output, tests, diagnostics, package inspection, or explicit user verification—not confidence or authority claims.

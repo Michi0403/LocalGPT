@@ -1,25 +1,15 @@
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
-using Microsoft.CSharp;
-using Microsoft.Extensions.Options;
-using System.CodeDom;
-using System.CodeDom.Compiler;
-using System.Diagnostics;
-using System.IO.Compression;
-using System.Reactive;
-using System.ServiceModel.Channels;
-using System.Text;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+
 namespace LocalGPT.Services
 {
     public partial class CouncilArtifactService(
         ILogger<CouncilArtifactService> logger,
         IMinecraftModWorkspaceService minecraftWorkspaceService,
-        IArtifactBuildExecutor artifactBuildExecutor) : ICouncilArtifactService
+        IArtifactBuildExecutor artifactBuildExecutor,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText,
+        LocalGptCatalogService catalog) : ICouncilArtifactService
     {
         public string ArtifactRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -36,7 +26,10 @@ namespace LocalGPT.Services
                 if (!request.GenerateImplementationArtifact)
                     return [];
 
-                if (CouncilChatStaticsGeneral.IsAdviceOnlyPrompt(request.Prompt, logger) ?? false)
+                if (!request.UserConfirmedArtifactBuild)
+                    throw new InvalidOperationException("Fresh human confirmation is required before generating implementation artifacts.");
+
+                if (councilRuntime.IsAdviceOnlyPrompt(request.Prompt, logger) ?? false)
                 {
                     logger.LogInformation("Skipped council artifact generation for advice-only prompt.");
                     return [];
@@ -44,27 +37,27 @@ namespace LocalGPT.Services
 
                 Directory.CreateDirectory(ArtifactRoot);
 
-                var targetArea = CouncilChatStringFunctions.DetectTargetArea(request.Prompt, result.FinalAnswer, logger);
+                var targetArea = councilText.DetectTargetArea(request.Prompt, result.FinalAnswer, logger);
                 var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
                 var artifacts = new List<CouncilArtifact>();
 
-                if (CouncilChatStringFunctions.IsMinecraftSkeletonMatrixArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
+                if (councilText.IsMinecraftSkeletonMatrixArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
                 {
                     artifacts.AddRange(await CreateMinecraftSkeletonMatrixArtifactsAsync(request, result, timestamp, cancellationToken).ConfigureAwait(false));
                     return artifacts;
                 }
 
-                if (CouncilChatStringFunctions.IsMinecraftDatapackArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
+                if (councilText.IsMinecraftDatapackArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
                 {
                     artifacts.AddRange(await CreateMinecraftDatapackArtifactsAsync(request, result, timestamp, cancellationToken).ConfigureAwait(false));
                     return artifacts;
                 }
 
-                if (CouncilChatStaticsGeneral.IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea, logger) ?? false)
+                if (councilRuntime.IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea, logger) ?? false)
                 {
                     var razorFileName = $"council-feature-page-{timestamp}-{result.RunId:N}.razor";
                     var razorPath = Path.Combine(ArtifactRoot, razorFileName);
-                    var razorSource = CouncilChatStringFunctions.GenerateBlazorDevExpressRazorExample(request, result, logger);
+                    var razorSource = councilText.GenerateBlazorDevExpressRazorExample(request, result, logger);
                     await File.WriteAllTextAsync(razorPath, razorSource, cancellationToken).ConfigureAwait(false);
                     logger.LogInformation("Wrote council Blazor Razor artifact to {Path}", razorPath);
                     artifacts.Add(new CouncilArtifact
@@ -85,9 +78,9 @@ namespace LocalGPT.Services
 
                 var fileName = $"council-feature-example-{timestamp}-{result.RunId:N}.cs";
                 var path = Path.Combine(ArtifactRoot, fileName);
-                var source = CouncilChatStaticsGeneral.IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea, logger) ?? false
-                    ? CouncilChatStringFunctions.GenerateBlazorSupportCode(request, result, targetArea, logger)
-                    : CouncilChatStringFunctions.GenerateCodeDomExample(request, result, targetArea, logger);
+                var source = councilRuntime.IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea, logger) ?? false
+                    ? councilText.GenerateBlazorSupportCode(request, result, targetArea, logger)
+                    : councilText.GenerateCodeDomExample(request, result, targetArea, logger);
 
                 await File.WriteAllTextAsync(path, source, cancellationToken).ConfigureAwait(false);
                 logger.LogInformation("Wrote council implementation example artifact to {Path}", path);
@@ -95,7 +88,7 @@ namespace LocalGPT.Services
                 artifacts.Add(new CouncilArtifact
                 {
                     Name = fileName,
-                    Kind = CouncilChatStaticsGeneral.IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea, logger) ?? false
+                    Kind = councilRuntime.IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea, logger) ?? false
                         ? "Compileable .NET support code for the Razor artifact"
                         : "CodeDOM C# example",
                     FilePath = path,
@@ -107,18 +100,23 @@ namespace LocalGPT.Services
                     MissingRequirements = ["No integration into the requested application was performed"]
                 });
 
-                var dllArtifact = await TryCreateDllArtifactAsync(fileName, source, targetArea, cancellationToken).ConfigureAwait(false);
+                var dllArtifact = await TryCreateDllArtifactAsync(
+                    fileName,
+                    source,
+                    targetArea,
+                    request.UserConfirmedArtifactBuild,
+                    cancellationToken).ConfigureAwait(false);
                 if (dllArtifact is not null)
                     artifacts.Add(dllArtifact);
 
-                if (CouncilChatStaticsGeneral.IsWholeSolutionTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
+                if (councilRuntime.IsWholeSolutionTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
                     artifacts.Add(await CreateSolutionZipArtifactAsync(request, result, timestamp, cancellationToken).ConfigureAwait(false));
 
                 return artifacts;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in CreateImplementationArtifactsAsync request {request.ToString()} result {result?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateImplementationArtifactsAsync");
                 return new List<CouncilArtifact>();
             }
         }
@@ -132,8 +130,8 @@ namespace LocalGPT.Services
             try
             {
                 var text = $"{request.Prompt} {result.FinalAnswer}";
-                var minecraftVersion = CouncilChatStringFunctions.ExtractMinecraftVersion(text, logger);
-                var identity = CouncilChatStringFunctions.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger) ?? new GlobalVariableSlopCollectionToRemove.MinecraftDatapackArtifactIdentity(string.Empty, string.Empty, string.Empty, string.Empty);
+                var minecraftVersion = councilText.ExtractMinecraftVersion(text, logger);
+                var identity = councilText.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger) ?? new LocalGptCatalogService.MinecraftDatapackArtifactIdentity(string.Empty, string.Empty, string.Empty, string.Empty);
                 var requestModel = new MinecraftModBuildRequest
                 {
                     ProjectName = identity.ProjectName,
@@ -145,11 +143,11 @@ namespace LocalGPT.Services
                     GradleVersion = "8.14.2",
                     Ide = "Eclipse",
                     IncludeLivingCitiesStarter = false,
-                    Description = CouncilChatStringFunctions.TrimForCodeComment(request.Prompt, 1800, logger)
+                    Description = councilText.TrimForCodeComment(request.Prompt, 1800, logger)
                 };
 
                 var workspace = await minecraftWorkspaceService.CreateWorkspaceAsync(requestModel, cancellationToken).ConfigureAwait(false);
-                CouncilChatStaticsGeneral.ValidateGeneratedDatapackWorkspace(workspace.RootPath, logger);
+                councilRuntime.ValidateGeneratedDatapackWorkspace(workspace.RootPath, logger);
 
                 var runSuffix = result.RunId.ToString("N")[..8];
                 var zipName = $"{identity.ModId}-datapack-{timestamp}-{runSuffix}.zip";
@@ -159,10 +157,10 @@ namespace LocalGPT.Services
 
                 using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
                 {
-                    CouncilChatStaticsGeneral.AddFileToZip(archive, Path.Combine(workspace.RootPath, "pack.mcmeta"), "pack.mcmeta", logger);
-                    CouncilChatStaticsGeneral.AddDirectoryToZip(archive, workspace.RootPath, Path.Combine(workspace.RootPath, "data"), logger);
-                    CouncilChatStaticsGeneral.AddDirectoryToZip(archive, workspace.RootPath, Path.Combine(workspace.RootPath, "docs"), logger);
-                    CouncilChatStaticsGeneral.AddFileToZip(archive, workspace.ReadmePath, Path.GetFileName(workspace.ReadmePath), logger);
+                    councilRuntime.AddFileToZip(archive, Path.Combine(workspace.RootPath, "pack.mcmeta"), "pack.mcmeta", logger);
+                    councilRuntime.AddDirectoryToZip(archive, workspace.RootPath, Path.Combine(workspace.RootPath, "data"), logger);
+                    councilRuntime.AddDirectoryToZip(archive, workspace.RootPath, Path.Combine(workspace.RootPath, "docs"), logger);
+                    councilRuntime.AddFileToZip(archive, workspace.ReadmePath, Path.GetFileName(workspace.ReadmePath), logger);
                 }
 
                 logger.LogInformation("Wrote council Minecraft datapack artifact to {Path}", zipPath);
@@ -185,7 +183,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in CreateMinecraftDatapackArtifactsAsync request {request.ToString()} result {result?.ToString()} timestamp {timestamp?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateMinecraftDatapackArtifactsAsync");
                 return new List<CouncilArtifact>();
             }
         }
@@ -199,7 +197,7 @@ namespace LocalGPT.Services
             try
             {
                 var text = $"{request.Prompt} {result.FinalAnswer}";
-                var minecraftVersion = CouncilChatStringFunctions.ExtractMinecraftVersion(text, logger);
+                var minecraftVersion = councilText.ExtractMinecraftVersion(text, logger);
                 var runSuffix = result.RunId.ToString("N")[..8];
                 var matrixRoot = Path.Combine(ArtifactRoot, $"minecraft-loader-matrix-{timestamp}-{runSuffix}");
                 if (Directory.Exists(matrixRoot))
@@ -230,14 +228,14 @@ namespace LocalGPT.Services
                         Description = $"Generated for a benchmark that verifies Fabric, Paper, and NeoForge skeletons stay distinct: {loader.Item3}."
                     }, cancellationToken).ConfigureAwait(false);
 
-                    CouncilChatStaticsGeneral.CopyDirectory(workspace.RootPath, Path.Combine(matrixRoot, loader.Item1.ToLowerInvariant()), logger);
+                    councilRuntime.CopyDirectory(workspace.RootPath, Path.Combine(matrixRoot, loader.Item1.ToLowerInvariant()), logger);
                 }
 
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(matrixRoot, "PROJECT_INDEX.md"), $"""
+                await councilRuntime.WriteTextAsync(Path.Combine(matrixRoot, "PROJECT_INDEX.md"), $"""
                 # Minecraft Loader Matrix
 
                 Prompt:
-                {CouncilChatStringFunctions.TrimForCodeComment(request.Prompt, 1200, logger)}
+                {councilText.TrimForCodeComment(request.Prompt, 1200, logger)}
 
                 This artifact intentionally contains three different Java Edition skeleton families:
 
@@ -276,7 +274,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in CreateMinecraftSkeletonMatrixArtifactsAsync request {request.ToString()} result {result?.ToString()} timestamp {timestamp?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateMinecraftSkeletonMatrixArtifactsAsync");
                 return new List<CouncilArtifact>();
             }
             
@@ -290,14 +288,14 @@ namespace LocalGPT.Services
         {
             try
             {
-                var archetype = CouncilChatStaticsGeneral.DetectSolutionArchetype(request.Prompt, result.FinalAnswer, logger);
-                var isAiHostLab = archetype == GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost;
+                var archetype = councilRuntime.DetectSolutionArchetype(request.Prompt, result.FinalAnswer, logger);
+                var isAiHostLab = archetype == LocalGptCatalogService.GeneratedSolutionArchetype.AiHost;
                 var projectPrefix = archetype switch
                 {
-                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.AiHost => "AiHostLab",
-                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.LocalGpt => "LocalGPTApp",
-                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.TacosPortal => "TacosPortal",
-                    GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.BotBackend => "BotBackend",
+                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "AiHostLab",
+                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "LocalGPTApp",
+                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "TacosPortal",
+                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "BotBackend",
                     _ => "LocalGptLab"
                 };
                 var runSuffix = result.RunId.ToString("N")[..8];
@@ -311,7 +309,7 @@ namespace LocalGPT.Services
                 var modelsRoot = Path.Combine(projectRoot, "Models");
                 var wwwroot = Path.Combine(projectRoot, "wwwroot");
                 var navIconsRoot = Path.Combine(wwwroot, "icons", "nav");
-                var promiseModules = CouncilChatStaticsGeneral.ExtractDynamicPromiseModules(request, result, logger);
+                var promiseModules = councilRuntime.ExtractDynamicPromiseModules(request, result, logger);
 
                 if (Directory.Exists(solutionRoot))
                     Directory.Delete(solutionRoot, recursive: true);
@@ -325,60 +323,60 @@ namespace LocalGPT.Services
                 var solutionGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
                 var projectGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
 
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, $"{projectName}.sln"), CouncilChatStringFunctions.GenerateSolutionFile(projectName, projectGuid, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, $"{projectName}.csproj"), GlobalVariableSlopCollectionToRemove.GenerateSolutionProjectFile, cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "Program.cs"), CouncilChatStringFunctions.GenerateSolutionProgram(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "_Imports.razor"), CouncilChatStringFunctions.GenerateSolutionImports(projectName, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), CouncilChatStringFunctions.GenerateSolutionAppSettings(isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), GlobalVariableSlopCollectionToRemove.GenerateSolutionAppRazor, cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), GlobalVariableSlopCollectionToRemove.GenerateSolutionRoutesRazor, cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), CouncilChatStringFunctions.GenerateSolutionNavigationRazor(archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), CouncilChatStringFunctions.GenerateSolutionIndexRazor(request, result, archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), CouncilChatStringFunctions.GenerateSolutionDashboardRazor(request, result, archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), CouncilChatStringFunctions.GenerateSolutionKnowledgeTableRazor(isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "SourceFidelity.razor"), GlobalVariableSlopCollectionToRemove.GenerateSourceFidelityRazor, cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, $"{projectName}.sln"), councilText.GenerateSolutionFile(projectName, projectGuid, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(projectRoot, $"{projectName}.csproj"), catalog.GenerateSolutionProjectFile, cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(projectRoot, "Program.cs"), councilText.GenerateSolutionProgram(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(projectRoot, "_Imports.razor"), councilText.GenerateSolutionImports(projectName, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), councilText.GenerateSolutionAppSettings(isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), catalog.GenerateSolutionAppRazor, cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), catalog.GenerateSolutionRoutesRazor, cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), councilText.GenerateSolutionNavigationRazor(archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), councilText.GenerateSolutionIndexRazor(request, result, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), councilText.GenerateSolutionDashboardRazor(request, result, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), councilText.GenerateSolutionKnowledgeTableRazor(isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "SourceFidelity.razor"), catalog.GenerateSourceFidelityRazor, cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(
                     Path.Combine(pagesRoot, isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
-                    CouncilChatStringFunctions.GenerateSolutionDetailRazor(request, result, isAiHostLab, logger),
+                    councilText.GenerateSolutionDetailRazor(request, result, isAiHostLab, logger),
                     cancellationToken, logger);
 
-                foreach (var page in CouncilChatStaticsGeneral.GenerateArchetypePages(archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, logger))
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, page.FileName), page.Source, cancellationToken, logger).ConfigureAwait(false);
+                foreach (var page in councilRuntime.GenerateArchetypePages(archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger))
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, page.FileName), page.Source, cancellationToken, logger).ConfigureAwait(false);
                 foreach (var module in promiseModules)
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, module.FileName), CouncilChatStringFunctions.GeneratePromiseModuleRazor(module, logger), cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, module.FileName), councilText.GeneratePromiseModuleRazor(module, logger), cancellationToken, logger).ConfigureAwait(false);
 
                 if (isAiHostLab)
                 {
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Chat.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostChatRazor, cancellationToken, logger).ConfigureAwait(false);
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "RunningModels.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostRunningModelsRazor, cancellationToken, logger).ConfigureAwait(false);
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "ModelDownloads.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostModelDownloadsRazor, cancellationToken, logger).ConfigureAwait(false);
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Templates.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostTemplatesRazor, cancellationToken, logger).ConfigureAwait(false);
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Hardware.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostHardwareRazor, cancellationToken, logger).ConfigureAwait(false);
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "RunnerPlugins.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostRunnerPluginsRazor, cancellationToken, logger).ConfigureAwait(false);
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Logs.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostLogsRazor, cancellationToken, logger).ConfigureAwait(false);
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(pagesRoot, "Settings.razor"), GlobalVariableSlopCollectionToRemove.GenerateAiHostSettingsRazor, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "Chat.razor"), catalog.GenerateAiHostChatRazor, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "RunningModels.razor"), catalog.GenerateAiHostRunningModelsRazor, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "ModelDownloads.razor"), catalog.GenerateAiHostModelDownloadsRazor, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "Templates.razor"), catalog.GenerateAiHostTemplatesRazor, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "Hardware.razor"), catalog.GenerateAiHostHardwareRazor, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "RunnerPlugins.razor"), catalog.GenerateAiHostRunnerPluginsRazor, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "Logs.razor"), catalog.GenerateAiHostLogsRazor, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "Settings.razor"), catalog.GenerateAiHostSettingsRazor, cancellationToken, logger).ConfigureAwait(false);
                 }
 
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), CouncilChatStringFunctions.GenerateSolutionService(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedSourceFidelityService.cs"), CouncilChatStringFunctions.GenerateSourceFidelityService(projectName, archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), councilText.GenerateSolutionService(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedSourceFidelityService.cs"), councilText.GenerateSourceFidelityService(projectName, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
                 if (isAiHostLab)
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedAiHostArchitectureServices.cs"), CouncilChatStringFunctions.GenerateAiHostArchitectureServices(projectName, logger), cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedAiHostArchitectureServices.cs"), councilText.GenerateAiHostArchitectureServices(projectName, logger), cancellationToken, logger).ConfigureAwait(false);
 
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), CouncilChatStringFunctions.GenerateSolutionModel(projectName, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(wwwroot, "app.css"), GlobalVariableSlopCollectionToRemove.GenerateSolutionCss, cancellationToken, logger).ConfigureAwait(false);
-                foreach (var icon in CouncilChatStringFunctions.GenerateNavigationIconSvgs(logger) ?? new List<(string, string)>())
-                    await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(navIconsRoot, icon.FileName), icon.Svg, cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(modelsRoot, "GeneratedHealthCard.cs"), councilText.GenerateSolutionModel(projectName, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(wwwroot, "app.css"), catalog.GenerateSolutionCss, cancellationToken, logger).ConfigureAwait(false);
+                foreach (var icon in councilText.GenerateNavigationIconSvgs(logger) ?? new List<(string, string)>())
+                    await councilRuntime.WriteTextAsync(Path.Combine(navIconsRoot, icon.FileName), icon.Svg, cancellationToken, logger).ConfigureAwait(false);
 
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "README.md"), CouncilChatStringFunctions.GenerateSolutionReadme(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), CouncilChatStringFunctions.GenerateSolutionProjectIndex(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), CouncilChatStringFunctions.GenerateSolutionArchitectureDoc(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), CouncilChatStringFunctions.GenerateSourceFidelityDoc(projectName, archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "PROMISE_MAP.md"), CouncilChatStringFunctions.GeneratePromiseMapDoc(projectName, request, result, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "DESIGN_REVIEW.md"), CouncilChatStringFunctions.GenerateDesignReviewDoc(projectName, archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), CouncilChatStringFunctions.GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), CouncilChatStringFunctions.GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), CouncilChatStringFunctions.GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                var contract = CouncilChatStaticsGeneral.ValidateSolutionArtifactContract(solutionRoot, projectName, archetype ?? GlobalVariableSlopCollectionToRemove.GeneratedSolutionArchetype.Generic, logger) ?? new GlobalVariableSlopCollectionToRemove.ArtifactContractReport(string.Empty, string.Empty, new List<string>(), new List<string>(), string.Empty);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "README.md"), councilText.GenerateSolutionReadme(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), councilText.GenerateSolutionProjectIndex(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), councilText.GenerateSolutionArchitectureDoc(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), councilText.GenerateSourceFidelityDoc(projectName, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "PROMISE_MAP.md"), councilText.GeneratePromiseMapDoc(projectName, request, result, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "DESIGN_REVIEW.md"), councilText.GenerateDesignReviewDoc(projectName, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), councilText.GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), councilText.GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), councilText.GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
+                var contract = councilRuntime.ValidateSolutionArtifactContract(solutionRoot, projectName, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger) ?? new LocalGptCatalogService.ArtifactContractReport(string.Empty, string.Empty, new List<string>(), new List<string>(), string.Empty);
 
                 var zipName = $"{projectName}-{runSuffix}.zip";
                 var zipPath = Path.Combine(ArtifactRoot, zipName);
@@ -403,7 +401,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in CreateMinecraftSkeletonMatrixArtifactsAsync request {request.ToString()} result {result?.ToString()} timestamp {timestamp?.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "CreateMinecraftSkeletonMatrixArtifactsAsync");
                 return null;
             }
         }
@@ -412,6 +410,7 @@ namespace LocalGPT.Services
             string sourceFileName,
             string source,
             string targetArea,
+            bool userConfirmedArtifactBuild,
             CancellationToken cancellationToken)
         {
             try
@@ -445,7 +444,8 @@ namespace LocalGPT.Services
                     "Release",
                     outputDirectory,
                     TimeSpan.FromSeconds(75),
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    userConfirmed: userConfirmedArtifactBuild).ConfigureAwait(false);
 
                 if (!build.Succeeded)
                 {

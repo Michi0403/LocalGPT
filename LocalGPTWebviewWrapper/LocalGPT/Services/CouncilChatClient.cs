@@ -1,5 +1,4 @@
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using System.Net;
@@ -13,6 +12,8 @@ public sealed partial class CouncilChatClient(
     IMultiModelCouncilService councilService,
     Func<MultiModelCouncilRequest> requestFactory,
     ILogger logger,
+    CouncilRuntimeService councilRuntime,
+    CouncilTextService councilText,
     Func<string, string>? downloadUrlResolver = null) : IChatClient
 {
 
@@ -57,13 +58,13 @@ public sealed partial class CouncilChatClient(
             ArgumentNullException.ThrowIfNull(request);
             if (request.ModelNames.Count == 0)
             {
-                yield return CouncilChatStaticsGeneral.CreateUpdate(
+                yield return councilRuntime.CreateUpdate(
                     "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.",
                     logger);
                 yield break;
             }
 
-            yield return CouncilChatStaticsGeneral.CreateUpdate(
+            yield return councilRuntime.CreateUpdate(
                 $"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Thinking and answer text are streamed to this panel as soon as each local model emits them._\n\n",
                 logger);
 
@@ -75,7 +76,7 @@ public sealed partial class CouncilChatClient(
                     updates.Writer.TryWrite(text);
             };
             request.StepCompleted = step =>
-                updates.Writer.TryWrite(CouncilChatStaticsGeneral.FormatStepProgress(step, logger));
+                updates.Writer.TryWrite(councilRuntime.FormatStepProgress(step, logger));
 
             var startedAt = DateTimeOffset.UtcNow;
             var runTask = councilService.RunAsync(request, cancellationToken);
@@ -83,7 +84,7 @@ public sealed partial class CouncilChatClient(
             while (!runTask.IsCompleted)
             {
                 while (updates.Reader.TryRead(out var update))
-                    yield return CouncilChatStaticsGeneral.CreateUpdate(update, logger);
+                    yield return councilRuntime.CreateUpdate(update, logger);
 
                 using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var dataAvailable = updates.Reader.WaitToReadAsync(waitCts.Token).AsTask();
@@ -96,14 +97,14 @@ public sealed partial class CouncilChatClient(
 
                 if (completed == heartbeat)
                 {
-                    yield return CouncilChatStaticsGeneral.CreateUpdate(
+                    yield return councilRuntime.CreateUpdate(
                         $"_Council still running after {(int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds}s. Waiting for local model output..._\n\n",
                         logger);
                 }
             }
 
             while (updates.Reader.TryRead(out var update))
-                yield return CouncilChatStaticsGeneral.CreateUpdate(update, logger);
+                yield return councilRuntime.CreateUpdate(update, logger);
 
             MultiModelCouncilResult result;
             try
@@ -117,13 +118,13 @@ public sealed partial class CouncilChatClient(
 
             if (result is null)
             {
-                yield return CouncilChatStaticsGeneral.CreateUpdate(
+                yield return councilRuntime.CreateUpdate(
                     "The AI Council ended without a result. Review the LocalGPT log for the failed council phase.",
                     logger);
                 yield break;
             }
 
-            yield return CouncilChatStaticsGeneral.CreateUpdate(FormatResult(result, includeProcess: false), logger);
+            yield return councilRuntime.CreateUpdate(FormatResult(result, includeProcess: false), logger);
         }
         finally
         {
@@ -167,7 +168,7 @@ public sealed partial class CouncilChatClient(
         try
         {
             var request = requestFactory();
-            request.Prompt = CouncilChatStaticsGeneral.BuildPrompt(messages, logger);
+            request.Prompt = councilRuntime.BuildPrompt(messages, logger);
             return request;
         }
         catch (Exception ex)
@@ -220,7 +221,7 @@ public sealed partial class CouncilChatClient(
                     .AppendLine("<summary>Prompt sent to the AI Council</summary>")
                     .AppendLine()
                     .AppendLine("```text")
-                    .AppendLine(CouncilChatStringFunctions.TrimForDisplay(result.Prompt, GlobalVariableSlopCollectionToRemove.MaxVisiblePromptCharacters, logger))
+                    .AppendLine(councilText.TrimForDisplay(result.Prompt, LocalGptCatalogService.MaxVisiblePromptCharacters, logger))
                     .AppendLine("```")
                     .AppendLine("</details>")
                     .AppendLine();
@@ -230,7 +231,7 @@ public sealed partial class CouncilChatClient(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             var finalAnswer = result.FinalAnswer.Trim();
-            if (CouncilChatStringFunctions.LooksLikelyTruncated(finalAnswer, logger))
+            if (councilText.LooksLikelyTruncated(finalAnswer, logger))
             {
                 warnings.Add("The final answer looks like it may have stopped mid-generation. Use the continuation prompt below to resume from the last section instead of starting over.");
             }
@@ -302,7 +303,7 @@ public sealed partial class CouncilChatClient(
                 .AppendLine(finalAnswer)
                 .AppendLine();
 
-            if (CouncilChatStringFunctions.LooksLikelyTruncated(finalAnswer, logger))
+            if (councilText.LooksLikelyTruncated(finalAnswer, logger))
             {
                 builder
                     .AppendLine("## Continue Action")
@@ -352,7 +353,7 @@ public sealed partial class CouncilChatClient(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in FormatResult result {result.ToString()} includeProcess {includeProcess.ToString()}");
+            logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "FormatResult");
             return string.Empty;
         }
     }

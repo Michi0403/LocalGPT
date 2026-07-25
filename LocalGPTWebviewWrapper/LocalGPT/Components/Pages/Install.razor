@@ -1,6 +1,7 @@
-﻿@page "/install"
+@page "/install"
 
 @using LocalGPT.BusinessObjects.Enums
+@inject CouncilTextService CouncilText
 @inject ILogger<Install> Logger
 @inject INotificationService Notifier
 @inject IOptionsMonitor<ConfigurationRoot> Opts
@@ -73,7 +74,7 @@
                                     <div class="top-container">
                                         @foreach (var model in host.Models)
                                         {
-                                            <DxButton Text="@CouncilChatStringFunctions.GetDiscoveredModelButtonText(model,Logger)"
+                                            <DxButton Text="@CouncilText.GetDiscoveredModelButtonText(model,Logger)"
                                                       RenderStyle="ButtonRenderStyle.Primary"
                                                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                                                       Click="@(() => ApplyDiscoveredModel(host, model))" />
@@ -252,7 +253,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Install.OnInitialized failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Initialization Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             _ = Append("(Init) " + ex.Message);
         }
     }
@@ -304,7 +305,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "TestLocal failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Local Test Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Local Test) " + ex.Message).ConfigureAwait(false);
         }
     }
@@ -322,7 +323,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "StartLocal failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Start Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Start Local) " + ex.Message).ConfigureAwait(false);
         }
     }
@@ -343,7 +344,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "TestOllama failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Ollama Test Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Ollama Test) " + ex.Message).ConfigureAwait(false);
         }
     }
@@ -358,7 +359,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "OnAfterRenderAsync failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "OnAfterRenderAsyncError");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(OnAfterRenderAsync) " + ex.Message).ConfigureAwait(false);
         }
     }
@@ -388,7 +389,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "DiscoverLocalAiHosts failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Discovery Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Discovery) " + ex.Message).ConfigureAwait(false);
         }
         finally
@@ -406,7 +407,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "DiscoverLocalAiHosts failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Discovery Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return Task.CompletedTask;
         }
     }
@@ -440,7 +441,7 @@
             LastConnectivityCheck = DateTimeOffset.Now;
             ConnectivityStatus = "Connectivity check failed: " + ex.Message;
             if (showToast)
-                Notifier.ShowError(toastName, ex.ToString(), "Connectivity Error");
+                Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Connectivity) " + ex.Message).ConfigureAwait(false);
         }
         finally
@@ -464,8 +465,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"BuildConnectivityStatus failed:reachable {reachable} models {models}");
-            Notifier.ShowError(toastName, ex.ToString(), "BuildConnectivityStatus Error");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return string.Empty;
         }
     }
@@ -495,7 +496,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "ApplyDiscoveredModel failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Selection Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Selection) " + ex.Message).ConfigureAwait(false);
         }
     }
@@ -537,7 +538,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "AutoSelectBestDiscoveredModel failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "AutoSelectBestDiscoveredModel Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
         
     }
@@ -554,7 +555,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "UseOllamaGptOss20b failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "UseOllamaGptOss20b Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -571,7 +572,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "AddOllamaModel failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "AddOllamaModel Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -585,7 +586,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "RemoveOllamaModel failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "AddOllamaModel Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -601,7 +602,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "TestOpenAI failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "OpenAI Test Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(OpenAI Test) " + ex.Message).ConfigureAwait(false);
         }
     }
@@ -618,7 +619,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "TestAzure failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Azure Test Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Azure Test) " + ex.Message).ConfigureAwait(false);
         }
     }
@@ -648,7 +649,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Save failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Save Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Save) " + ex.Message).ConfigureAwait(false);
         }
     }
@@ -662,7 +663,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Navigation to /Chat failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, ex.ToString(), "Navigation Error");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             _ = Append("(Nav) " + ex.Message);
         }
     }

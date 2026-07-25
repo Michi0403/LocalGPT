@@ -1,5 +1,4 @@
 using LocalGPT.Interfaces;
-using static LocalGPT.BusinessObjects.CustomVersion;
 
 namespace LocalGPT.BusinessObjects
 {

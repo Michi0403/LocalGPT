@@ -39,7 +39,7 @@ namespace LocalGPT.Logging
             });
         }
 
-        private static string Trim(string value, int maxLength)
+        private string Trim(string value, int maxLength)
         {
             if (value.Length <= maxLength)
                 return value;

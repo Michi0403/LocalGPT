@@ -1,6 +1,5 @@
 using DevExpress.DataAccess.DataFederation;
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using System.Runtime.CompilerServices;
@@ -24,16 +23,8 @@ public class CompositeChatClient : IChatClient
     private readonly IChatUploadWorkspaceService? _chatUploadWorkspaces;
     private readonly IPromptConfigService? _promptConfigService;
     private readonly IVariableStoreService? _variableStoreService;
-
-    public CompositeChatClient(ILogger logger, params ChatClientSession[] chatClients)
-        : this(logger, null, null, null, null, null, null, chatClients)
-    {
-    }
-
-    public CompositeChatClient(ILogger logger, IAiFeatureReportService? featureReportService, params ChatClientSession[] chatClients)
-        : this(logger, featureReportService, null, null, null, null, null, chatClients)
-    {
-    }
+    private readonly CouncilRuntimeService _councilRuntime;
+    private readonly CouncilTextService _councilText;
 
     public CompositeChatClient(
         ILogger logger,
@@ -43,6 +34,8 @@ public class CompositeChatClient : IChatClient
         IChatUploadWorkspaceService? chatUploadWorkspaces,
         IPromptConfigService? promptConfigService,
         IVariableStoreService? variableStoreService,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText,
         params ChatClientSession[] chatClients)
     {
 
@@ -55,6 +48,8 @@ public class CompositeChatClient : IChatClient
         _chatUploadWorkspaces = chatUploadWorkspaces;
         _promptConfigService = promptConfigService;
         _variableStoreService = variableStoreService;
+        _councilRuntime = councilRuntime ?? throw new ArgumentNullException(nameof(councilRuntime));
+        _councilText = councilText ?? throw new ArgumentNullException(nameof(councilText));
     }
 
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
@@ -114,7 +109,7 @@ public class CompositeChatClient : IChatClient
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, $"Error in Dispose clients and messages {ex.ToString()}");
+                    _logger.LogWarning(ex, "Could not fully dispose composite chat resources.");
                
                 }
 
@@ -316,7 +311,7 @@ public class CompositeChatClient : IChatClient
             if (_knowledgeService is null || string.IsNullOrWhiteSpace(responseText))
                 return;
 
-            foreach (var entry in CouncilChatStringFunctions.ParseKnowledgeRequests(source, responseText, _logger) ?? new List<CouncilKnowledgeEntry>())
+            foreach (var entry in _councilText.ParseKnowledgeRequests(source, responseText, _logger) ?? new List<CouncilKnowledgeEntry>())
             {
                 var saved = await _knowledgeService.SaveEntryAsync(entry, cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("AI requested unapproved knowledge entry {KnowledgeEntryId} from {Source}.", saved.Id, source);
@@ -348,23 +343,23 @@ public class CompositeChatClient : IChatClient
                     .ConfigureAwait(false);
 
             var systemMessages = new List<ChatMessage>();
-            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, runtimeDecisionPolicy, _logger);
+            _councilText.AddOptionalSystemMessage(systemMessages, runtimeDecisionPolicy, _logger);
             if (SuppressBootstrapContext || _bootstrapService is null)
             {
-                CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
-                return CouncilChatStaticsGeneral.LimitPromptSize([.. systemMessages, .. messageList], _logger, ForcedMaxPromptCharacters );
+                _councilText.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
+                return _councilRuntime.LimitPromptSize([.. systemMessages, .. messageList], _logger, ForcedMaxPromptCharacters );
             }
 
             var bootstrapPrompt = await _bootstrapService.BuildBootstrapPromptAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(bootstrapPrompt))
             {
-                CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
-                return CouncilChatStaticsGeneral.LimitPromptSize([.. systemMessages, .. messageList] ,_logger, ForcedMaxPromptCharacters);
+                _councilText.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
+                return _councilRuntime.LimitPromptSize([.. systemMessages, .. messageList] ,_logger, ForcedMaxPromptCharacters);
             }
 
             systemMessages.Add(new ChatMessage(ChatRole.System, bootstrapPrompt));
-            CouncilChatStringFunctions.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
-            return CouncilChatStaticsGeneral.LimitPromptSize([.. systemMessages, .. messageList], _logger, ForcedMaxPromptCharacters);
+            _councilText.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);
+            return _councilRuntime.LimitPromptSize([.. systemMessages, .. messageList], _logger, ForcedMaxPromptCharacters);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -392,7 +387,7 @@ public class CompositeChatClient : IChatClient
             if (latestUserMessage is null)
                 return string.Empty;
 
-            var files = CouncilChatStringFunctions.ExtractUploadFiles(latestUserMessage, _logger);
+            var files = _councilText.ExtractUploadFiles(latestUserMessage, _logger);
             ArgumentNullException.ThrowIfNull(files);
             var fileList = files.ToList();
             if (fileList.Count == 0)
@@ -409,7 +404,7 @@ public class CompositeChatClient : IChatClient
                     result.WorkspaceName,
                     result.FileCount);
 
-                return CouncilChatStringFunctions.BuildUploadWorkspaceSystemPrompt(result, _logger);
+                return _councilText.BuildUploadWorkspaceSystemPrompt(result, _logger);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

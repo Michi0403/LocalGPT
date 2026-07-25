@@ -1,5 +1,9 @@
 @page "/database"
 
+@inject CouncilRuntimeService CouncilRuntime
+@inject CouncilTextService CouncilText
+@inject LocalGptCatalogService Catalog
+@inject SqliteGridPresentationService GridPresentation
 @inject IChatMemoryService ChatMemory
 @inject IApplicationLogReaderService ApplicationLogs
 @inject ICouncilKnowledgeService CouncilKnowledge
@@ -103,18 +107,18 @@
                 </label>
                 <label title="Optional UTC date after which this note should stop influencing the council. Use ISO format such as 2026-06-30T12:00:00Z.">
                     Expires At UTC
-                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.ExpiresAtUtc, Logger)"
-                               TextChanged="@((string value) => KnowledgeEdit.ExpiresAtUtc = CouncilChatStringFunctions.ParseNullableUtc(value,Logger))" />
+                    <DxTextBox Text="@CouncilText.FormatNullableUtc(KnowledgeEdit.ExpiresAtUtc, Logger)"
+                               TextChanged="@((string value) => KnowledgeEdit.ExpiresAtUtc = CouncilText.ParseNullableUtc(value,Logger))" />
                 </label>
                 <label title="UTC date when a human or source-backed import last verified this note.">
                     Last Verified UTC
-                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.LastVerifiedAtUtc, Logger)"
-                               TextChanged="@((string value) => KnowledgeEdit.LastVerifiedAtUtc = CouncilChatStringFunctions.ParseNullableUtc(value,Logger))" />
+                    <DxTextBox Text="@CouncilText.FormatNullableUtc(KnowledgeEdit.LastVerifiedAtUtc, Logger)"
+                               TextChanged="@((string value) => KnowledgeEdit.LastVerifiedAtUtc = CouncilText.ParseNullableUtc(value,Logger))" />
                 </label>
                 <label title="Optional knowledge id that replaces this entry when Review Status is Superseded.">
                     Superseded By Knowledge Id
-                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableGuid(KnowledgeEdit.SupersededByKnowledgeId, Logger)"
-                               TextChanged="@((string value) => KnowledgeEdit.SupersededByKnowledgeId = CouncilChatStringFunctions.ParseNullableGuid(value,Logger))" />
+                    <DxTextBox Text="@CouncilText.FormatNullableGuid(KnowledgeEdit.SupersededByKnowledgeId, Logger)"
+                               TextChanged="@((string value) => KnowledgeEdit.SupersededByKnowledgeId = CouncilText.ParseNullableGuid(value,Logger))" />
                 </label>
                 <label title="Why this note needs refresh, diagnostics, expiry, or replacement.">
                     Staleness Reason
@@ -130,8 +134,8 @@
                 </label>
                 <label title="Optional UTC date of the source material this knowledge summarizes.">
                     Source Date UTC
-                    <DxTextBox Text="@CouncilChatStringFunctions.FormatNullableUtc(KnowledgeEdit.SourceDateUtc, Logger)"
-                               TextChanged="@((string value) => KnowledgeEdit.SourceDateUtc = CouncilChatStringFunctions.ParseNullableUtc(value,Logger))" />
+                    <DxTextBox Text="@CouncilText.FormatNullableUtc(KnowledgeEdit.SourceDateUtc, Logger)"
+                               TextChanged="@((string value) => KnowledgeEdit.SourceDateUtc = CouncilText.ParseNullableUtc(value,Logger))" />
                 </label>
                 <div class="form-row">
                     <label title="How reliable the note currently is.">
@@ -260,9 +264,9 @@
                     @foreach (var column in CurrentTable.Columns)
                     {
                         var value = GetEditValue(column.Name);
-                        <label title="@TableFunctions.BuildColumnTitle(column, Logger)">
+                        <label title="@GridPresentation.BuildColumnTitle(column, Logger)">
                             @column.Name <small>@column.Type@if (column.IsPrimaryKey) { <text> primary key</text> }</small>
-                    @if (TableFunctions.IsLongTextColumn(column.Name, value, Logger))
+                    @if (GridPresentation.IsLongTextColumn(column.Name, value, Logger))
                             {
                                 <DxMemo Text="@value"
                                         TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))"
@@ -311,7 +315,7 @@
 
     List<CouncilKnowledgeEntry> KnowledgeEntries { get; set; } = [];
     CouncilKnowledgeEntry? SelectedKnowledgeEntry { get; set; }
-    CouncilKnowledgeEntry KnowledgeEdit { get; set; } = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew ;
+    CouncilKnowledgeEntry KnowledgeEdit { get; set; } = Catalog.CouncilKnowledgeEntryNew ;
 
     List<SqliteTableSummary> Tables { get; set; } = [];
     SqliteTableSummary? SelectedTable { get; set; }
@@ -322,7 +326,7 @@
     int RowLimit { get; set; } = 100;
     bool isBusy;
     string statusText = string.Empty;
-    string KnowledgeReviewSummary => CouncilChatStaticsGeneral.BuildKnowledgeReviewSummary(KnowledgeEntries,Logger);
+    string KnowledgeReviewSummary => CouncilRuntime.BuildKnowledgeReviewSummary(KnowledgeEntries,Logger);
 
     protected override async Task OnInitializedAsync()
     {
@@ -333,8 +337,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in OnInitializedAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in OnInitializedAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -344,7 +348,7 @@
         {
             await RunUiActionAsync(async () =>
      {
-         KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
+         KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
          Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
          SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
          if (SelectedKnowledgeEntry is not null)
@@ -363,8 +367,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in RefreshAllAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in RefreshAllAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -374,12 +378,12 @@
         try
         {
             SelectedKnowledgeEntry = entry;
-            KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(entry, Logger) ?? GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
+            KnowledgeEdit = CouncilRuntime.CopyKnowledgeEntry(entry, Logger) ?? Catalog.CouncilKnowledgeEntryNew;
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SelectKnowledgeEntry: {ex.ToString()} entry {entry.ToString()}");
-            Notifier.ShowError(toastName, $"entry {entry.ToString()} Exception: {ex.ToString()}", "Error in SelectKnowledgeEntry!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -388,13 +392,13 @@
         try
         {
             SelectedKnowledgeEntry = null;
-            KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
+            KnowledgeEdit = Catalog.CouncilKnowledgeEntryNew;
             statusText = "New council knowledge note ready.";
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in NewKnowledgeEntry: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in NewKnowledgeEntry!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -405,10 +409,10 @@
             await RunUiActionAsync(async () =>
        {
            KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit).ConfigureAwait(false);
-           KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
+           KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
            if (SelectedKnowledgeEntry is not null)
-               KnowledgeEdit = CouncilChatStaticsGeneral.CopyKnowledgeEntry(SelectedKnowledgeEntry, Logger) ?? new();
+               KnowledgeEdit = CouncilRuntime.CopyKnowledgeEntry(SelectedKnowledgeEntry, Logger) ?? new();
            await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
            statusText = $"Saved knowledge note: {KnowledgeEdit.Topic}";
            Notifier.ShowSuccess(toastName, "Council knowledge saved to SQLite.", "Knowledge saved");
@@ -416,8 +420,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SaveKnowledgeAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveKnowledgeAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -433,8 +437,8 @@
             {
                 await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id).ConfigureAwait(false);
                 SelectedKnowledgeEntry = null;
-                KnowledgeEdit = GlobalVariableSlopCollectionToRemove.CouncilKnowledgeEntryNew;
-                KnowledgeEntries = CouncilChatStaticsGeneral.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
+                KnowledgeEdit = Catalog.CouncilKnowledgeEntryNew;
+                KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
                 await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
                 statusText = "Deleted council knowledge note.";
                 Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");
@@ -442,8 +446,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in DeleteKnowledgeAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in DeleteKnowledgeAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -456,8 +460,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in MarkKnowledgeCurrent: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MarkKnowledgeCurrent!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -470,8 +474,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in MarkKnowledgeNeedsUserReview: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MarkKnowledgeNeedsUserReview!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -483,8 +487,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in MarkKnowledgeNeedsSourceRefresh: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MarkKnowledgeNeedsSourceRefresh!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -497,8 +501,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in MarkKnowledgeExpired: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in MarkKnowledgeExpired!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -529,23 +533,23 @@
                     if (KnowledgeEdit.VerificationStatus is "SourceBacked" or "UserVerified")
                         KnowledgeEdit.VerificationStatus = "NeedsVerification";
                     KnowledgeEdit.ExpiresAtUtc ??= now.AddDays(30);
-                    KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Needs user review before the council treats it as trusted knowledge.", Logger);
+                    KnowledgeEdit.StalenessReason = CouncilText.Fallback(KnowledgeEdit.StalenessReason, "Needs user review before the council treats it as trusted knowledge.", Logger);
                     KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                    KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
+                    KnowledgeEdit.StalenessDetectedBy = CouncilText.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
                     break;
                 case "NeedsSourceRefresh":
                     KnowledgeEdit.IsArchived = false;
                     KnowledgeEdit.ExpiresAtUtc ??= now.AddDays(14);
-                    KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Source should be refreshed before reuse in generation.", Logger);
+                    KnowledgeEdit.StalenessReason = CouncilText.Fallback(KnowledgeEdit.StalenessReason, "Source should be refreshed before reuse in generation.", Logger);
                     KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                    KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
+                    KnowledgeEdit.StalenessDetectedBy = CouncilText.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
                     break;
                 case "Expired":
                     KnowledgeEdit.IsUserApproved = false;
                     KnowledgeEdit.ExpiresAtUtc = now;
-                    KnowledgeEdit.StalenessReason = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessReason, "Marked expired by the database editor.", Logger);
+                    KnowledgeEdit.StalenessReason = CouncilText.Fallback(KnowledgeEdit.StalenessReason, "Marked expired by the database editor.", Logger);
                     KnowledgeEdit.StalenessDetectedAtUtc ??= now;
-                    KnowledgeEdit.StalenessDetectedBy = CouncilChatStringFunctions.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
+                    KnowledgeEdit.StalenessDetectedBy = CouncilText.Fallback(KnowledgeEdit.StalenessDetectedBy, "Database editor", Logger);
                     break;
             }
 
@@ -553,8 +557,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in ApplyKnowledgeReviewPreset: {ex.ToString()} reviewStatus {reviewStatus}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in ApplyKnowledgeReviewPreset!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -566,8 +570,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SelectTableAsync: {ex.ToString()} table {table.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SelectTableAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -580,8 +584,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in LoadSelectedTableAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadSelectedTableAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -598,14 +602,14 @@
             {
                 try
                 {
-                    var gridRow = TableFunctions.ToGridRow(row, Logger);
+                    var gridRow = GridPresentation.ToGridRow(row, Logger);
                     ArgumentNullException.ThrowIfNull(gridRow);
                     GridRows.Add(gridRow);
                 }
                 catch (Exception ex)
                 {
-                    Notifier.ShowWarning(toastName, ex.Message, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
-                    Logger.LogWarning(ex, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
+                    Notifier.ShowWarning(toastName, "A row could not be displayed. See local application logs for details.", "Display warning");
+                    Logger.LogWarning(ex, "A database row could not be converted for display; row content was omitted from logs.");
                 }
 
 
@@ -620,8 +624,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in LoadTableAsync: {ex.ToString()} table {table.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in LoadTableAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -637,8 +641,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SelectSqliteRow: {ex.ToString()} row {row.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SelectSqliteRow!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -657,8 +661,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in NewSqliteRow: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in NewSqliteRow!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -675,7 +679,7 @@
                     .Where(column => !column.IsPrimaryKey)
                     .ToDictionary(
                         column => column.Name,
-                        column => CouncilChatStringFunctions.NormalizeDBNullStringValue(GetEditValue(column.Name), Logger),
+                        column => CouncilText.NormalizeDBNullStringValue(GetEditValue(column.Name), Logger),
                         StringComparer.OrdinalIgnoreCase);
 
                 if (SelectedRow is null)
@@ -698,8 +702,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SaveSqliteRowAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SaveSqliteRowAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -721,8 +725,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in DeleteSqliteRowAsync: {ex.ToString()}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in DeleteSqliteRowAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -745,14 +749,14 @@
                 {
                     try
                     {
-                        var gridRow = TableFunctions.ToGridRow(row, Logger);
+                        var gridRow = GridPresentation.ToGridRow(row, Logger);
                         ArgumentNullException.ThrowIfNull(gridRow);
                         GridRows.Add(gridRow);
                     }
                     catch (Exception ex)
                     {
-                        Notifier.ShowWarning(toastName, ex.Message, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
-                        Logger.LogWarning(ex, $"adding row to GridRows failed {ex.ToString()} for row {row.ToString()}");
+                        Notifier.ShowWarning(toastName, "A row could not be displayed. See local application logs for details.", "Display warning");
+                        Logger.LogWarning(ex, "A database row could not be converted for display; row content was omitted from logs.");
                     }
 
 
@@ -764,8 +768,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in DeleteSqliteRowAsync: {ex.ToString()} loadSelectedTable {loadSelectedTable}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in DeleteSqliteRowAsync!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -778,8 +782,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in GetEditValue: {ex.ToString()} columnName {columnName}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in GetEditValue!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return string.Empty;
         }
 
@@ -793,8 +797,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Exception in SetEditValue: {ex.ToString()} columnName {columnName} value {value}");
-            Notifier.ShowError(toastName, $"Exception: {ex.ToString()}", "Error in SetEditValue!");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
           
         }
     }
@@ -811,8 +815,8 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
-            statusText = ex.Message;
-            Notifier.ShowError(toastName, ex.Message, $"Error in {operation}");
+            statusText = "The operation failed. See local application logs for technical details.";
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
         finally
         {

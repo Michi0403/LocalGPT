@@ -1,16 +1,16 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services
 {
-    public partial class ProjectLibraryInventoryService(ILogger<ProjectLibraryInventoryService> logger) : IProjectLibraryInventoryService
+    public partial class ProjectLibraryInventoryService(ILogger<ProjectLibraryInventoryService> logger,
+        CouncilRuntimeService councilRuntime) : IProjectLibraryInventoryService
     {
         public async Task<string> BuildDevExpressBriefingAsync(CancellationToken cancellationToken = default)
         {
-            var root = CouncilChatStaticsGeneral.FindRepositoryRoot(logger);
+            var root = councilRuntime.FindRepositoryRoot(logger);
             var builder = new StringBuilder()
                 .AppendLine("DevExpress package and capability inventory for LocalGPT:");
 
@@ -18,11 +18,11 @@ namespace LocalGPT.Services
             if (root is not null)
             {
                 wroteSourceInventory = await AppendProjectPackageReferencesAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.AppendDevExpressImportsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
-                await CouncilChatStaticsGeneral.AppendDevExpressRegistrationsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.AppendDevExpressImportsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.AppendDevExpressRegistrationsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
             }
 
-            CouncilChatStaticsGeneral.AppendLoadedDevExpressAssemblies(builder, logger);
+            councilRuntime.AppendLoadedDevExpressAssemblies(builder, logger);
             if (!wroteSourceInventory)
                 builder.AppendLine("- Source `LocalGPT.csproj` was not found from this runtime location; use loaded assemblies and copied AI docs as fallback evidence.");
 

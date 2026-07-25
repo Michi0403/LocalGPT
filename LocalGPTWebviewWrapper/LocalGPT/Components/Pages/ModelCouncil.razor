@@ -1,7 +1,10 @@
 @page "/model-council"
 
+@inject CouncilTextService CouncilText
 @inject IMultiModelCouncilService CouncilService
 @inject IChatMemoryService ChatMemory
+@inject ILocalGptProjectService ProjectService
+@inject ICodeGenerationWorkflowService CodeGenerationWorkflow
 @inject ILogger<ModelCouncil> Logger
 @inject INotificationService Notifier
 @inject NavigationManager Navigation
@@ -126,10 +129,50 @@
                     <input type="checkbox" @bind="Request.SaveToMemory" />
                     Memorize transcript
                 </label>
-                <label title="Creates downloadable C# source and, when the local .NET SDK can build it, a sandbox DLL for implementation-oriented council results.">
-                    <input type="checkbox" @bind="Request.GenerateImplementationArtifact" />
-                    Generate code + DLL
+                <label title="Ask the council to prepare an immutable change-review heartbeat. No files are written and no build is started until a later explicit approval of the exact review hash.">
+                    <input type="checkbox"
+                           checked="@Request.GenerateImplementationArtifact"
+                           @onchange="ToggleArtifactGeneration" />
+                    Prepare code-generation change review
                 </label>
+            </div>
+
+            <div class="control-group">
+                <div class="control-title">Project cooperation</div>
+                <label>
+                    Project
+                    <select value="@SelectedProjectValue" @onchange="SelectProjectAsync">
+                        <option value="">No project selected</option>
+                        @foreach (var project in ProjectSummaries)
+                        {
+                            <option value="@project.Id">@project.DisplayName</option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    Topic
+                    <select value="@SelectedTopicValue"
+                            @onchange="SelectProjectTopic"
+                            disabled="@(SelectedProjectDetails is null)">
+                        <option value="">No topic selected</option>
+                        @if (SelectedProjectDetails is not null)
+                        {
+                            @foreach (var topic in SelectedProjectDetails.Topics)
+                            {
+                                <option value="@topic.Id">@topic.Name</option>
+                            }
+                        }
+                    </select>
+                </label>
+
+                <label title="After this run, link the generated council knowledge entry to the selected topic. This confirmation is cleared after every run.">
+                    <input type="checkbox"
+                           @bind="Request.UserConfirmedProjectLink"
+                           disabled="@(Request.ProjectTopicId is null)" />
+                    Link this run's knowledge to the selected topic
+                </label>
+                <p class="hint">The project path is context only. Council members do not access files, initialize Git, commit, push, or execute anything from it without a separate user-approved action.</p>
             </div>
 
             <div class="control-group">
@@ -214,6 +257,20 @@
                     <span>@knowledgeId</span>
                 </div>
             }
+            @if (LastResult.ProjectId is Guid projectId)
+            {
+                <div>
+                    <strong>Project</strong>
+                    <span>@projectId</span>
+                </div>
+            }
+            @if (LastResult.ProjectTopicId is Guid projectTopicId)
+            {
+                <div>
+                    <strong>Project Topic</strong>
+                    <span>@projectTopicId</span>
+                </div>
+            }
             @if (!string.IsNullOrWhiteSpace(LastResult.LogPath))
             {
                 <div>
@@ -285,6 +342,97 @@
             </section>
         }
 
+        @if (LastResult.ChangeReview is not null)
+        {
+            <section class="final-panel change-review-panel">
+                <h2>Change Review Heartbeat</h2>
+                <p>
+                    The council prepared an exact, database-backed proposal. Review the goal, current project state,
+                    files, CodeDOM types, outputs, and safety boundary before making a fresh decision.
+                </p>
+                <dl>
+                    <dt>Status</dt>
+                    <dd>@LastResult.ChangeReview.Status</dd>
+                    <dt>Review ID</dt>
+                    <dd>@LastResult.ChangeReview.Id</dd>
+                    <dt>Review hash</dt>
+                    <dd><code>@LastResult.ChangeReview.ReviewHash</code></dd>
+                    <dt>Goal</dt>
+                    <dd>@LastResult.ChangeReview.Goal</dd>
+                    <dt>Change summary</dt>
+                    <dd>@LastResult.ChangeReview.ChangeSummary</dd>
+                    <dt>Safety boundary</dt>
+                    <dd>@LastResult.ChangeReview.SafetySummary</dd>
+                </dl>
+
+                @if (LastResult.ChangeReview.Files.Count > 0)
+                {
+                    <h3>Reviewed files</h3>
+                    <ul>
+                        @foreach (var file in LastResult.ChangeReview.Files)
+                        {
+                            <li><code>@file.RelativePath</code> — @file.Purpose — @file.CharacterCount characters — SHA-256 @file.ContentHash</li>
+                        }
+                    </ul>
+                }
+
+                @if (LastResult.ChangeReview.CodeDomTypes.Count > 0)
+                {
+                    <h3>CodeDOM types</h3>
+                    <ul>
+                        @foreach (var type in LastResult.ChangeReview.CodeDomTypes)
+                        {
+                            <li><code>@type.RelativePath</code> — <code>@type.Namespace.@type.TypeName</code> / <code>@type.MethodName()</code></li>
+                        }
+                    </ul>
+                }
+
+                <h3>Output targets</h3>
+                <ul>
+                    @foreach (var output in LastResult.ChangeReview.Outputs)
+                    {
+                        <li><code>@output.Kind</code> — <code>@output.RelativeDirectory/@output.Name</code> — @output.TargetFramework</li>
+                    }
+                </ul>
+
+                @if (LastResult.ChangeReview.Status == CodeGenerationReviewStatuses.AwaitingUserDecision && !LastResult.ChangeReview.ApprovalConsumed)
+                {
+                    <label class="review-build-choice" title="This is a separate confirmation for the bounded dotnet build after reviewed files are generated.">
+                        <input type="checkbox" @bind="BuildApprovedReview" disabled="@isBusy" />
+                        Also run the bounded .NET build after generation
+                    </label>
+                    <div class="run-row">
+                        <DxButton Text="Approve Exact Review"
+                                  RenderStyle="ButtonRenderStyle.Success"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Enabled="@(!isBusy)"
+                                  Click="ApproveChangeReviewAsync" />
+                        <DxButton Text="Reject Review"
+                                  RenderStyle="ButtonRenderStyle.Danger"
+                                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                  Enabled="@(!isBusy)"
+                                  Click="RejectChangeReviewAsync" />
+                    </div>
+                    <p class="hint">Approval is one-use and bound to the displayed review hash. Generated scripts, DLLs, and executables are not run or loaded automatically.</p>
+                }
+
+                @if (LastGenerationExecution is not null && LastGenerationExecution.ReviewId == LastResult.ChangeReview.Id)
+                {
+                    <div class="artifact-download">
+                        <strong>Generation result: @LastGenerationExecution.Status</strong>
+                        @if (!string.IsNullOrWhiteSpace(LastGenerationExecution.BuildStatus))
+                        {
+                            <span class="muted"> — build: @LastGenerationExecution.BuildStatus</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(LastGenerationExecution.DownloadUrl))
+                        {
+                            <p><a href="@GetGenerationDownloadUrl(LastGenerationExecution)" target="_blank" rel="noopener">Download reviewed generated workspace</a></p>
+                        }
+                    </div>
+                }
+            </section>
+        }
+
         @if (LastResult.Artifacts.Count > 0)
         {
             <section class="final-panel">
@@ -309,7 +457,7 @@
             <h2>Original Prompt</h2>
             <details class="council-prompt" open>
                 <summary>Prompt sent to the AI Council</summary>
-                <pre>@CouncilChatStringFunctions.TrimForDisplay(LastResult.Prompt, 12000,Logger)</pre>
+                <pre>@CouncilText.TrimForDisplay(LastResult.Prompt, 12000,Logger)</pre>
             </details>
         </section>
 
@@ -356,8 +504,12 @@
     readonly HashSet<string> SelectedModels = new(StringComparer.OrdinalIgnoreCase);
     List<MultiModelCouncilModelCandidate> Candidates { get; set; } = [];
     List<ChatMemoryConversationSummary> SavedCouncilConversations { get; set; } = [];
+    List<LocalGptProjectSummary> ProjectSummaries { get; set; } = [];
+    LocalGptProjectDetails? SelectedProjectDetails { get; set; }
     ChatMemoryConversationSummary? SelectedCouncilConversation { get; set; }
     MultiModelCouncilResult? LastResult { get; set; }
+    CodeGenerationExecutionResult? LastGenerationExecution { get; set; }
+    bool BuildApprovedReview { get; set; }
     string ManualModelName { get; set; } = "qwen3-coder:30b";
     string CustomPollFeedback { get; set; } = string.Empty;
     string statusText = string.Empty;
@@ -383,6 +535,9 @@
         GenerateImplementationArtifact = false
     };
 
+    string SelectedProjectValue => Request.ProjectId?.ToString() ?? string.Empty;
+    string SelectedTopicValue => Request.ProjectTopicId?.ToString() ?? string.Empty;
+
     bool CanRun => !isBusy && SelectedModels.Count > 0 && !string.IsNullOrWhiteSpace(Request.Prompt);
     string KeepAliveText
     {
@@ -402,11 +557,12 @@
         {
             await LoadCandidatesAsync().ConfigureAwait(true);
             await LoadSavedCouncilConversationsAsync().ConfigureAwait(true);
+            await LoadProjectsAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in OnInitializedAsync {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in OnInitializedAsync");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -432,8 +588,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in LoadCandidatesAsync {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in LoadCandidatesAsync");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -442,23 +598,36 @@
         try
         {
             await RunUiActionAsync(async () =>
-   {
-       Request.ModelNames = SelectedModels.ToList();
-       LastResult = await CouncilService.RunAsync(Request).ConfigureAwait(false);
-       if (LastResult.MemoryConversationId is Guid memoryId)
-       {
-           Request.ContinueConversationId = memoryId;
-           await LoadSavedCouncilConversationsAsync(showStatus: false).ConfigureAwait(false);
-           SelectedCouncilConversation = SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == memoryId);
-       }
-       statusText = $"Council completed with {LastResult.Steps.Count} transcript step(s).";
-       Notifier.ShowSuccess(toastName, "Council transcript saved and visualized.", "Council complete");
-   }, "RunCouncilAsync").ConfigureAwait(false);
+            {
+                Request.ModelNames = SelectedModels.ToList();
+                try
+                {
+                    LastResult = await CouncilService.RunAsync(Request).ConfigureAwait(false);
+                    LastGenerationExecution = null;
+                    BuildApprovedReview = false;
+                    if (LastResult.MemoryConversationId is Guid memoryId)
+                    {
+                        Request.ContinueConversationId = memoryId;
+                        await LoadSavedCouncilConversationsAsync(showStatus: false).ConfigureAwait(false);
+                        SelectedCouncilConversation = SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == memoryId);
+                    }
+
+                    statusText = $"Council completed with {LastResult.Steps.Count} transcript step(s).";
+                    Notifier.ShowSuccess(toastName, "Council transcript saved and visualized.", "Council complete");
+                }
+                finally
+                {
+                    // Consequential permissions are deliberately one-run confirmations.
+                    Request.GenerateImplementationArtifact = false;
+                    Request.UserConfirmedArtifactBuild = false;
+                    Request.UserConfirmedProjectLink = false;
+                }
+            }, "RunCouncilAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in RunCouncilAsync {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in RunCouncilAsync");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -470,8 +639,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in LoadSavedCouncilConversationsAsync {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in LoadSavedCouncilConversationsAsync");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -496,10 +665,55 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in LoadSavedCouncilConversationsAsync {ex.ToString()} showStatus {showStatus}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in LoadSavedCouncilConversationsAsync");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
+    }
+
+    async Task LoadProjectsAsync()
+    {
+        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
+
+        if (Request.ProjectId is Guid projectId)
+            SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
+    }
+
+    async Task SelectProjectAsync(ChangeEventArgs args)
+    {
+        Request.ProjectTopicId = null;
+        Request.UserConfirmedProjectLink = false;
+        SelectedProjectDetails = null;
+
+        if (!Guid.TryParse(Convert.ToString(args.Value), out var projectId))
+        {
+            Request.ProjectId = null;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        Request.ProjectId = projectId;
+        SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void SelectProjectTopic(ChangeEventArgs args)
+    {
+        Request.ProjectTopicId = Guid.TryParse(Convert.ToString(args.Value), out var topicId)
+            ? topicId
+            : null;
+        Request.UserConfirmedProjectLink = false;
+    }
+
+    void ToggleArtifactGeneration(ChangeEventArgs args)
+    {
+        var enabled = args.Value is bool flag
+            ? flag
+            : bool.TryParse(Convert.ToString(args.Value), out var parsed) && parsed;
+
+        Request.GenerateImplementationArtifact = enabled;
+        // The council checkbox only requests a review heartbeat. Build approval is never carried into the run.
+        Request.UserConfirmedArtifactBuild = false;
     }
 
     void AddManualModel()
@@ -526,8 +740,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in AddManualModel {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in AddManualModel");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -547,8 +761,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in ToggleModel {ex.ToString()} modelName {modelName.ToString()} args {args.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in ToggleModel");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -563,8 +777,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in SelectCouncilConversation {ex.ToString()} conversation {conversation.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in SelectCouncilConversation");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
@@ -576,12 +790,14 @@
             SelectedCouncilConversation = null;
             Request.ContinueConversationId = null;
             Request.GenerateImplementationArtifact = false;
+            Request.UserConfirmedArtifactBuild = false;
+            Request.UserConfirmedProjectLink = false;
             statusText = "Next council run will start a new memory conversation.";
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in StartNewCouncilThread {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in StartNewCouncilThread");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -602,8 +818,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in ApplyLowResourcePreset {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyLowResourcePreset");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -624,8 +840,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in ApplyBalancedPreset {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyBalancedPreset");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -646,8 +862,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in ApplyGenerationPreset {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyGenerationPreset");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -660,7 +876,8 @@
             Request.ContinueConversationId = null;
             Request.SaveToMemory = true;
             Request.IncludeMemory = true;
-            Request.GenerateImplementationArtifact = true;
+            Request.GenerateImplementationArtifact = false;
+            Request.UserConfirmedArtifactBuild = false;
             Request.Prompt = string.Join(Environment.NewLine, new[]
             {
             "Start a new LocalGPT implementation-request council chat.",
@@ -681,15 +898,123 @@
             "- request a downloadable example file when a .NET/Blazor/ASP.NET Core sketch would help",
             "- mark unsupported claims under Needs verification"
         });
-            statusText = "Started a new implementation-request council chat with 256K generation budget and example file generation enabled.";
+            statusText = "Started a new implementation-request council chat. Review the prompt and explicitly enable a bounded artifact only for the run that should create one.";
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in StartFeatureRequestChat {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in StartFeatureRequestChat");
+            Logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "StartFeatureRequestChat");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
     }
+
+
+    async Task ApproveChangeReviewAsync()
+    {
+        var review = LastResult?.ChangeReview;
+        if (review is null || review.ApprovalConsumed || review.Status != CodeGenerationReviewStatuses.AwaitingUserDecision)
+            return;
+
+        var buildAfterGeneration = BuildApprovedReview;
+        BuildApprovedReview = false;
+        isBusy = true;
+        statusText = "Executing the exact approved change review in the bounded artifact workspace...";
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            LastGenerationExecution = await CodeGenerationWorkflow.ExecuteReviewAsync(
+                review.Id,
+                new ExecuteCodeGenerationReviewRequest
+                {
+                    ExpectedReviewHash = review.ReviewHash,
+                    UserConfirmed = true,
+                    BuildAfterGeneration = buildAfterGeneration,
+                    UserConfirmedBuild = buildAfterGeneration,
+                    DecisionNote = buildAfterGeneration
+                        ? "Approved in the AI Council heartbeat UI, including the bounded .NET build."
+                        : "Approved in the AI Council heartbeat UI for source generation only."
+                }).ConfigureAwait(false);
+
+            var refreshed = await CodeGenerationWorkflow.GetReviewAsync(review.Id).ConfigureAwait(false);
+            if (LastResult is not null)
+                LastResult.ChangeReview = refreshed;
+
+            if (LastGenerationExecution is { DownloadUrl.Length: > 0 } execution && LastResult is not null)
+            {
+                LastResult.Artifacts.RemoveAll(artifact => artifact.DownloadUrl.Equals(execution.DownloadUrl, StringComparison.OrdinalIgnoreCase));
+                LastResult.Artifacts.Add(new CouncilArtifact
+                {
+                    Name = execution.ZipFileName,
+                    Kind = "Reviewed code-generation workspace",
+                    FilePath = execution.WorkspacePath,
+                    DownloadUrl = execution.DownloadUrl,
+                    Summary = $"Review {execution.ReviewId} generated with status {execution.Status}. Build: {execution.BuildStatus}."
+                });
+            }
+
+            statusText = $"Change review completed with status {LastGenerationExecution.Status}.";
+            Notifier.ShowSuccess(toastName, "The exact reviewed payload was generated in the bounded artifact workspace.", "Review completed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Change-review execution failed for review {ReviewId}; reviewed source content was omitted from logs.", review.Id);
+            var refreshed = await CodeGenerationWorkflow.GetReviewAsync(review.Id).ConfigureAwait(false);
+            if (LastResult is not null)
+                LastResult.ChangeReview = refreshed;
+            statusText = "Change-review execution failed. Review local application logs using the review ID.";
+            Notifier.ShowError(toastName, "Generation failed. See local application logs for technical details.", "Review failed");
+        }
+        finally
+        {
+            isBusy = false;
+            BuildApprovedReview = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    async Task RejectChangeReviewAsync()
+    {
+        var review = LastResult?.ChangeReview;
+        if (review is null || review.ApprovalConsumed || review.Status != CodeGenerationReviewStatuses.AwaitingUserDecision)
+            return;
+
+        isBusy = true;
+        BuildApprovedReview = false;
+        statusText = "Rejecting the current change review...";
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var rejected = await CodeGenerationWorkflow.RejectReviewAsync(
+                review.Id,
+                new RejectCodeGenerationReviewRequest
+                {
+                    ExpectedReviewHash = review.ReviewHash,
+                    UserConfirmed = true,
+                    DecisionNote = "Rejected in the AI Council heartbeat UI."
+                }).ConfigureAwait(false);
+            if (LastResult is not null)
+                LastResult.ChangeReview = rejected;
+            LastGenerationExecution = null;
+            statusText = "Change review rejected. No reviewed files were written.";
+            Notifier.ShowSuccess(toastName, "The review was rejected without generating or building its payload.", "Review rejected");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Change-review rejection failed for review {ReviewId}.", review.Id);
+            statusText = "Could not reject the review. Review local application logs.";
+            Notifier.ShowError(toastName, "The review could not be rejected. See local application logs.", "Rejection failed");
+        }
+        finally
+        {
+            isBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    string GetGenerationDownloadUrl(CodeGenerationExecutionResult result) =>
+        Navigation.ToAbsoluteUri(result.DownloadUrl).ToString();
 
     string GetArtifactUrl(CouncilArtifact artifact)
     {
@@ -699,8 +1024,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in StartFeatureRequestChat {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in StartFeatureRequestChat");
+            Logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "StartFeatureRequestChat");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return string.Empty;
         }
     }
@@ -725,8 +1050,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in ExcludeModel {ex.ToString()} modelName {modelName}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in ExcludeModel");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
        
     }
@@ -754,8 +1079,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in ApplyPollOption {ex.ToString()} option {option.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyPollOption");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
 
@@ -776,8 +1101,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, $"Error in ApplyCustomPollFeedback {ex.ToString()}");
-            Notifier.ShowError(toastName, ex.Message, $"Error in ApplyCustomPollFeedback");
+            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
         
     }
@@ -792,8 +1117,8 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Exception in {Operation}: {Message}", operation, ex.Message);
-            statusText = ex.Message;
-            Notifier.ShowError(toastName, ex.Message, $"Error in {operation}");
+            statusText = "The operation failed. See local application logs for technical details.";
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
         finally
         {

@@ -1,5 +1,6 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @using LocalGPT.Services;
+@inject NavigationUrlService NavigationUrls
 @inject NavigationManager NavigationManager
 @namespace LocalGPT.Components.Layout
 <div class="page" data-testid="main-layout">
@@ -17,12 +18,12 @@
             <article id="current-main-window" class="p-4 full-height" data-testid="main-content">
                 <div class="nav-buttons-container drawer-target">
 
-                    <NavLink href="@UrlGenerator.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
+                    <NavLink href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
                         <DxButton RenderStyle="@ButtonRenderStyle.Dark" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button" IconCssClass="icon icon-menu"></DxButton>
                     </NavLink>
                     @if (new Uri(NavigationManager.Uri).LocalPath != "/")
                     {
-                        <NavLink href="@UrlGenerator.GetUrl("/", ToggledSidebar)" class="button-link hidden">
+                        <NavLink href="@NavigationUrls.GetUrl("/", ToggledSidebar)" class="button-link hidden">
                             <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Back to Home" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="icon icon-back"></DxButton>
                         </NavLink>
                     }
@@ -42,7 +43,7 @@
 </div>
 
 @code {
-    [SupplyParameterFromQuery(Name = UrlGenerator.ToggleSidebarName)]
+    [SupplyParameterFromQuery(Name = NavigationUrls.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
     private ErrorBoundary? _errorBoundary;
     [Inject]
@@ -54,7 +55,7 @@
     }
     private RenderFragment drawerHeader => @<div class="navigation-drawer-header">
         <img class="logo" src="images/TacosLogos.svg" alt="LocalGPT logo" />
-        <NavLink href="@UrlGenerator.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
+        <NavLink href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
             <DxButton RenderStyle="@ButtonRenderStyle.Light" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="@(ToggledSidebar ? "icon icon-close" : "icon icon-menu")"></DxButton>
         </NavLink>
     </div>;

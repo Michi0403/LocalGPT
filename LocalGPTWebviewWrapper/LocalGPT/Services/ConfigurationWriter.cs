@@ -1,4 +1,3 @@
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -36,10 +35,10 @@ namespace LocalGPT.Services
                     settings = new JsonObject();
                 }
 
-                JsonFunctions.SetSection(settings, nameof(root.LoggingCore), root.LoggingCore, serializerOptions, _logger);
-                JsonFunctions.SetSection(settings, nameof(root.PythonCore), root.PythonCore, serializerOptions, _logger);
-                JsonFunctions.SetSection(settings, nameof(root.ConnectionStringsCore), root.ConnectionStringsCore, serializerOptions, _logger);
-                JsonFunctions.SetSection(settings, nameof(root.AICore), root.AICore, serializerOptions,_logger);
+                SetSection(settings, nameof(root.LoggingCore), root.LoggingCore, serializerOptions);
+                SetSection(settings, nameof(root.PythonCore), root.PythonCore, serializerOptions);
+                SetSection(settings, nameof(root.ConnectionStringsCore), root.ConnectionStringsCore, serializerOptions);
+                SetSection(settings, nameof(root.AICore), root.AICore, serializerOptions);
 
                 var tempFile = file + ".tmp";
                 await File.WriteAllTextAsync(tempFile, settings.ToJsonString(serializerOptions), ct).ConfigureAwait(false);
@@ -54,5 +53,24 @@ namespace LocalGPT.Services
         }
 
 
+
+        private void SetSection<T>(
+            JsonObject settings,
+            string sectionName,
+            T? value,
+            JsonSerializerOptions serializerOptions)
+        {
+            try
+            {
+                if (value is null)
+                    return;
+
+                settings[sectionName] = JsonSerializer.SerializeToNode(value, serializerOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not save the configuration section {SectionName}.", sectionName);
+            }
+        }
     }
 }

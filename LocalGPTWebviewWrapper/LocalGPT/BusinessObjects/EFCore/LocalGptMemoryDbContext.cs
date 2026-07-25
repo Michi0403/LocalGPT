@@ -14,6 +14,11 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<RegexPattern> RegexPatterns { get; set; }
         public DbSet<PromptConfig> Prompts { get; set; }
         public DbSet<SystemVariable> SystemVariables { get; set; }
+        public DbSet<LocalGptProject> LocalGptProjects => Set<LocalGptProject>();
+        public DbSet<LocalGptProjectTopic> LocalGptProjectTopics => Set<LocalGptProjectTopic>();
+        public DbSet<LocalGptProjectVersion> LocalGptProjectVersions => Set<LocalGptProjectVersion>();
+        public DbSet<LocalGptProjectTopicKnowledgeLink> LocalGptProjectTopicKnowledgeLinks => Set<LocalGptProjectTopicKnowledgeLink>();
+        public DbSet<CodeGenerationChangeReview> CodeGenerationChangeReviews => Set<CodeGenerationChangeReview>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -112,6 +117,91 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(entry => entry.LastUsedAtUtc);
                 entity.HasIndex(entry => entry.SupersededByKnowledgeId);
                 entity.HasIndex(entry => entry.Scope);
+            });
+
+
+            modelBuilder.Entity<LocalGptProject>(entity =>
+            {
+                entity.ToTable("LocalGptProjects");
+                entity.HasKey(project => project.Id);
+                entity.Property(project => project.Name).HasMaxLength(200).IsRequired();
+                entity.Property(project => project.Purpose).IsRequired();
+                entity.Property(project => project.RootPath).HasMaxLength(1024).IsRequired();
+                entity.Property(project => project.CurrentVersion).HasMaxLength(120).IsRequired();
+                entity.Property(project => project.Status).HasMaxLength(80).IsRequired();
+                entity.HasIndex(project => project.Name);
+                entity.HasIndex(project => new { project.IsArchived, project.UpdatedAtUtc });
+            });
+
+            modelBuilder.Entity<LocalGptProjectTopic>(entity =>
+            {
+                entity.ToTable("LocalGptProjectTopics");
+                entity.HasKey(topic => topic.Id);
+                entity.Property(topic => topic.Name).HasMaxLength(240).IsRequired();
+                entity.Property(topic => topic.Description).IsRequired();
+                entity.Property(topic => topic.Status).HasMaxLength(80).IsRequired();
+                entity.HasIndex(topic => new { topic.ProjectId, topic.Name }).IsUnique();
+                entity.HasIndex(topic => new { topic.ProjectId, topic.Status });
+                entity.HasOne(topic => topic.Project)
+                    .WithMany(project => project.Topics)
+                    .HasForeignKey(topic => topic.ProjectId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<LocalGptProjectVersion>(entity =>
+            {
+                entity.ToTable("LocalGptProjectVersions");
+                entity.HasKey(version => version.Id);
+                entity.Property(version => version.Version).HasMaxLength(120).IsRequired();
+                entity.Property(version => version.Notes).IsRequired();
+                entity.Property(version => version.PathSnapshot).HasMaxLength(1024).IsRequired();
+                entity.HasIndex(version => new { version.ProjectId, version.Version }).IsUnique();
+                entity.HasIndex(version => new { version.ProjectId, version.IsCurrent });
+                entity.HasOne(version => version.Project)
+                    .WithMany(project => project.Versions)
+                    .HasForeignKey(version => version.ProjectId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<LocalGptProjectTopicKnowledgeLink>(entity =>
+            {
+                entity.ToTable("LocalGptProjectTopicKnowledgeLinks");
+                entity.HasKey(link => new { link.ProjectTopicId, link.KnowledgeEntryId });
+                entity.Property(link => link.LinkReason).HasMaxLength(500).IsRequired();
+                entity.HasIndex(link => link.KnowledgeEntryId);
+                entity.HasIndex(link => link.LinkedAtUtc);
+                entity.HasOne(link => link.ProjectTopic)
+                    .WithMany(topic => topic.KnowledgeLinks)
+                    .HasForeignKey(link => link.ProjectTopicId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(link => link.KnowledgeEntry)
+                    .WithMany()
+                    .HasForeignKey(link => link.KnowledgeEntryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+
+            modelBuilder.Entity<CodeGenerationChangeReview>(entity =>
+            {
+                entity.ToTable("CodeGenerationChangeReviews");
+                entity.HasKey(review => review.Id);
+                entity.Property(review => review.Title).HasMaxLength(240).IsRequired();
+                entity.Property(review => review.Goal).IsRequired();
+                entity.Property(review => review.CurrentProjectState).IsRequired();
+                entity.Property(review => review.CouncilSummary).IsRequired();
+                entity.Property(review => review.ChangeSummary).IsRequired();
+                entity.Property(review => review.SafetySummary).IsRequired();
+                entity.Property(review => review.PayloadJson).IsRequired();
+                entity.Property(review => review.ReviewHash).HasMaxLength(128).IsRequired();
+                entity.Property(review => review.Status).HasMaxLength(80).IsRequired();
+                entity.Property(review => review.DecisionNote).HasMaxLength(2000).IsRequired();
+                entity.Property(review => review.WorkspaceName).HasMaxLength(260).IsRequired();
+                entity.Property(review => review.ZipFileName).HasMaxLength(260).IsRequired();
+                entity.Property(review => review.BuildStatus).HasMaxLength(1000).IsRequired();
+                entity.HasIndex(review => review.UpdatedAtUtc);
+                entity.HasIndex(review => new { review.ProjectId, review.Status, review.UpdatedAtUtc });
+                entity.HasIndex(review => review.CouncilRunId);
+                entity.HasIndex(review => review.ReviewHash);
             });
 
             modelBuilder.Entity<NativeCommandLogEntry>(entity =>

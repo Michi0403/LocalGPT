@@ -1,12 +1,8 @@
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions.PlainStatics;
 using LocalGPT.Interfaces;
-using SQLitePCL;
 using System.Diagnostics;
 using System.IO.Compression;
-using System.ServiceModel.Channels;
 using System.Text;
-using static DevExpress.Xpo.Helpers.AssociatedCollectionCriteriaHelper;
 
 namespace LocalGPT.Services
 {
@@ -15,9 +11,11 @@ namespace LocalGPT.Services
         ICouncilKnowledgeService knowledgeService,
         ILearnBaseKnowledgeImporterService learnBaseImporter,
         IArtifactBuildExecutor artifactBuildExecutor,
-        ILogger<EngineeringBenchmarkService> logger) : IEngineeringBenchmarkService
+        ILogger<EngineeringBenchmarkService> logger,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText) : IEngineeringBenchmarkService
     {
-        public async Task<EngineeringBenchmarkResult?> RunAsync(
+        public async Task<EngineeringBenchmarkResult> RunAsync(
             EngineeringBenchmarkRequest request,
             CancellationToken cancellationToken = default)
         {
@@ -25,7 +23,7 @@ namespace LocalGPT.Services
             {
                 var result = new EngineeringBenchmarkResult
                 {
-                    TaskSet = CouncilChatStringFunctions.NormalizeTaskSet(request.TaskSet, logger)
+                    TaskSet = councilText.NormalizeTaskSet(request.TaskSet, logger)
                 };
                 if (request.ImportLearnBaseFirst)
                     result.LearnBaseImport = await learnBaseImporter.ImportAsync(new LearnBaseImportRequest
@@ -35,7 +33,7 @@ namespace LocalGPT.Services
                         MaxProjects = 40
                     }, cancellationToken).ConfigureAwait(false);
 
-                foreach (var task in CouncilChatStaticsGeneral.BuildTasks(result.TaskSet, logger))
+                foreach (var task in councilRuntime.BuildTasks(result.TaskSet, logger))
                 {
                     var taskResult = new EngineeringBenchmarkTaskResult
                     {
@@ -44,18 +42,28 @@ namespace LocalGPT.Services
                         Prompt = task.Prompt
                     };
 
-                    taskResult.Lanes.Add(CouncilChatStaticsGeneral.NotRunLane("A. raw Ollama model", "Live raw Ollama call intentionally not run in this deterministic benchmark. Run later with GPU-safe caps and record the transcript.",logger));
-                    if (request.RunLocalGptArtifacts)
+                    taskResult.Lanes.Add(councilRuntime.NotRunLane("A. raw Ollama model", "Live raw Ollama call intentionally not run in this deterministic benchmark. Run later with GPU-safe caps and record the transcript.",logger));
+                    if (request.RunLocalGptArtifacts && request.UserConfirmedArtifactActions)
                     {
                         var runLocalGptLaneAsync = await RunLocalGptLaneAsync(task, request, cancellationToken, logger).ConfigureAwait(false);
                         ArgumentNullException.ThrowIfNull(runLocalGptLaneAsync);
                         taskResult.Lanes.Add(runLocalGptLaneAsync);
                     }
+                    else if (request.RunLocalGptArtifacts)
+                    {
+                        taskResult.Lanes.Add(councilRuntime.NotRunLane(
+                            "B. LocalGPT with DxFunctions + memory",
+                            "Skipped because fresh human confirmation for artifact generation/build validation was not supplied.",
+                            logger));
+                        result.Warnings.Add("Artifact benchmark actions were skipped because fresh human confirmation was not supplied.");
+                    }
                     else
-                        taskResult.Lanes.Add(CouncilChatStaticsGeneral.NotRunLane("B. LocalGPT with DxFunctions + memory", "Skipped by request.",logger));
+                    {
+                        taskResult.Lanes.Add(councilRuntime.NotRunLane("B. LocalGPT with DxFunctions + memory", "Skipped by request.", logger));
+                    }
 
-                    taskResult.Lanes.Add(CouncilChatStaticsGeneral.NotRunLane("C. cloud ChatGPT/Codex-style assistant", "Cloud comparison must be run with a real prompt/session and pasted evidence; not faked by LocalGPT.",logger));
-                    taskResult.Lanes.Add(CouncilChatStaticsGeneral.BuildManualExpectedLane(task,logger));
+                    taskResult.Lanes.Add(councilRuntime.NotRunLane("C. cloud coding assistant", "Cloud comparison must be run with a real prompt/session and pasted evidence; not faked by LocalGPT.",logger));
+                    taskResult.Lanes.Add(councilRuntime.BuildManualExpectedLane(task,logger));
                     result.Tasks.Add(taskResult);
                 }
 
@@ -68,8 +76,13 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunAsync request {request.ToString()}");
-                return null;
+                logger.LogError(ex, "Engineering benchmark failed.");
+                return new EngineeringBenchmarkResult
+                {
+                    TaskSet = request?.TaskSet ?? "engineering",
+                    CompletedAtUtc = DateTime.UtcNow,
+                    Warnings = [$"{ex.GetType().Name}: {ex.Message}"]
+                };
             }
         }
         public async Task<Guid?> SaveBenchmarkKnowledgeAsync(EngineeringBenchmarkResult result, CancellationToken cancellationToken)
@@ -109,12 +122,12 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Outer Error in ValidateBuildableArtifactAsync result {result.ToString()}");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ValidateBuildableArtifactAsync");
                 return null;
             }
         }
         private async Task<EngineeringBenchmarkLaneResult?> RunLocalGptLaneAsync(
-            GlobalVariableSlopCollectionToRemove.BenchmarkTaskDefinition task,
+            LocalGptCatalogService.BenchmarkTaskDefinition task,
             EngineeringBenchmarkRequest request,
             CancellationToken cancellationToken, ILogger logger)
         {
@@ -132,6 +145,7 @@ namespace LocalGPT.Services
                     Prompt = task.Prompt,
                     ModelNames = ["artifact-benchmark"],
                     GenerateImplementationArtifact = true,
+                    UserConfirmedArtifactBuild = request.UserConfirmedArtifactActions,
                     MaxOutputTokens = 1024,
                     MaxContextTokens = 2048,
                     MaxRounds = 0
@@ -154,19 +168,23 @@ namespace LocalGPT.Services
 
                 var artifactEntries = artifacts
                     .Where(artifact => artifact.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                    .SelectMany(filter => CouncilChatStaticsGeneral.ReadZipEntriesSafe(filter,logger))
+                    .SelectMany(filter => councilRuntime.ReadZipEntriesSafe(filter,logger))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 lane.Evidence.AddRange(artifacts.Select(artifact => $"{artifact.Kind}: {artifact.Name} -> {artifact.DownloadUrl}"));
-                lane.MissingFiles.AddRange(task.RequiredArtifactEntries.Where(required => !CouncilChatStringFunctions.ContainsZipEntry(artifactEntries, required, logger)));
+                lane.MissingFiles.AddRange(task.RequiredArtifactEntries.Where(required => !councilText.ContainsZipEntry(artifactEntries, required, logger)));
                 lane.MissingFilesScore = lane.MissingFiles.Count == 0 ? 10 : Math.Max(0, 10 - lane.MissingFiles.Count * 2);
-                lane.ValidArchitectureScore = CouncilChatStaticsGeneral.ScoreArchitecture(task, artifactEntries, artifacts, logger);
+                lane.ValidArchitectureScore = councilRuntime.ScoreArchitecture(task, artifactEntries, artifacts, logger);
                 if (request.ValidateBuildableArtifacts)
-                    lane.BuildChecks.AddRange(await ValidateBuildableArtifactsAsync(artifacts, request.MaxBuildArtifacts, cancellationToken).ConfigureAwait(false));
+                    lane.BuildChecks.AddRange(await ValidateBuildableArtifactsAsync(
+                        artifacts,
+                        request.MaxBuildArtifacts,
+                        request.UserConfirmedArtifactActions,
+                        cancellationToken).ConfigureAwait(false));
 
-                lane.BuildabilityScore = CouncilChatStaticsGeneral.ScoreBuildability(task, artifacts, lane.BuildChecks, request.ValidateBuildableArtifacts, logger);
-                lane.WrongPackagesTemplatesScore = CouncilChatStaticsGeneral.ScoreWrongTemplateRisk(task, artifactEntries, logger);
-                lane.TotalScore = CouncilChatStaticsGeneral.SumScores(lane, logger);
+                lane.BuildabilityScore = councilRuntime.ScoreBuildability(task, artifacts, lane.BuildChecks, request.ValidateBuildableArtifacts, logger);
+                lane.WrongPackagesTemplatesScore = councilRuntime.ScoreWrongTemplateRisk(task, artifactEntries, logger);
+                lane.TotalScore = councilRuntime.SumScores(lane, logger);
                 lane.Notes = lane.MissingFiles.Count == 0
                     ? "Deterministic LocalGPT artifact path produced expected benchmark files."
                     : "Artifact was produced, but required benchmark entries were missing. This is improvement fuel, not a pass.";
@@ -176,7 +194,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in RunLocalGptLaneAsync task {task.ToString()} request {request.ToString()} ");
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "RunLocalGptLaneAsync");
                 return null;
             }
          
@@ -185,6 +203,7 @@ namespace LocalGPT.Services
         private async Task<IReadOnlyList<EngineeringBenchmarkBuildCheck>> ValidateBuildableArtifactsAsync(
             IReadOnlyList<CouncilArtifact> artifacts,
             int maxBuildArtifacts,
+            bool userConfirmed,
             CancellationToken cancellationToken)
         {
             var checks = new List<EngineeringBenchmarkBuildCheck>();
@@ -192,7 +211,7 @@ namespace LocalGPT.Services
                 .Where(item => item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(item.FilePath))
                 .Take(Math.Clamp(maxBuildArtifacts, 1, 8)))
             {
-                var check = await ValidateBuildableArtifactAsync(artifact, cancellationToken).ConfigureAwait(false);
+                var check = await ValidateBuildableArtifactAsync(artifact, userConfirmed, cancellationToken).ConfigureAwait(false);
                 checks.Add(check);
             }
             return checks;
@@ -200,6 +219,7 @@ namespace LocalGPT.Services
 
         private async Task<EngineeringBenchmarkBuildCheck> ValidateBuildableArtifactAsync(
             CouncilArtifact artifact,
+            bool userConfirmed,
             CancellationToken cancellationToken)
         {
             var startedAt = DateTime.UtcNow;
@@ -238,12 +258,13 @@ namespace LocalGPT.Services
                     "Debug",
                     null,
                     TimeSpan.FromMinutes(3),
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    userConfirmed: userConfirmed).ConfigureAwait(false);
 
                 check.ExitCode = build.ExitCode ?? 0;
                 check.Status = build.Status;
-                check.OutputPreview = CouncilChatStringFunctions.TrimForPrompt(build.StandardOutput, 1800, logger);
-                check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(build.StandardError, 1200, logger);
+                check.OutputPreview = councilText.TrimForPrompt(build.StandardOutput, 1800, logger);
+                check.ErrorPreview = councilText.TrimForPrompt(build.StandardError, 1200, logger);
                 return check;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -253,7 +274,7 @@ namespace LocalGPT.Services
             catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
                 check.Status = "BuildCheckError";
-                check.ErrorPreview = CouncilChatStringFunctions.TrimForPrompt(ex.Message, 1200, logger);
+                check.ErrorPreview = councilText.TrimForPrompt(ex.Message, 1200, logger);
                 logger.LogWarning(ex, "Artifact build validation failed for {ArtifactName}.", artifact.Name);
                 return check;
             }

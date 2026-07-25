@@ -1,9 +1,8 @@
-﻿using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects;
 
-namespace LocalGPT.Interfaces
+namespace LocalGPT.Interfaces;
+
+public interface IThemeChangeRequestDispatcher
 {
-    public interface IThemeChangeRequestDispatcher
-    {
-        void RequestThemeChange(Theme theme);
-    }
+    Task RequestThemeChangeAsync(Theme theme);
 }

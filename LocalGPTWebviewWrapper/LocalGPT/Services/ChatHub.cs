@@ -21,7 +21,7 @@ namespace LocalGPT.Hubs
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error in OnConnectedAsync {ex.ToString()}");
+                _logger.LogError(ex, "SignalR connection setup failed.");
             }
 
         }
@@ -35,7 +35,7 @@ namespace LocalGPT.Hubs
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error in OnDisconnectedAsync {ex.ToString()}");
+                _logger.LogError(ex, "SignalR disconnect handling failed.");
             }
         }
 
@@ -48,7 +48,7 @@ namespace LocalGPT.Hubs
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error in NotifyNewChatbotAnswer {ex.ToString()}");
+                _logger.LogError(ex, "SignalR answer notification failed.");
             }
         }
     }
