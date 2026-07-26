@@ -30,3 +30,7 @@ The current changelog is the canonical iteration ledger. Open items must remain 
 Orchestration helpers that promise a renderable stream update, version record, benchmark lane, or generated page must return a usable object. They may return an explicit `Error`/`NeedsVerification` fallback, but must not return `null` into collection initializers or downstream rendering. Operations where absence is a legitimate domain result—such as a missing saved conversation—remain nullable and must be checked at the caller.
 
 DXChat actions that save or archive persistent state must run through the component safety wrapper so logging, notification, and bounded activity memory remain consistent. Council continuation state must be loaded once at run start and reused for bootstrap and memory persistence.
+
+## Migration snapshot ordering
+
+The database-first model depends on executable EF snapshot ordering. `LocalGptProject` must be declared before revision, requirement, artifact, topic, version, or document-import relationships target it. Collection navigations remain after relationship declarations. See `docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md`.

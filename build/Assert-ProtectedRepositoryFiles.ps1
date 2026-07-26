@@ -56,6 +56,9 @@ $expectedFiles = @(
     'docs/DATABASE_FIRST_PROJECT_ARCHITECTURE.md',
     'docs/OPEN_TASKS.md',
     'build/Assert-ArchitectureTasks.ps1',
+    'CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md',
+    'docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md',
+    'build/Assert-EfSnapshotArchitecture.ps1',
     'build/protected-files.sha256'
 )
 

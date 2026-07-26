@@ -34,10 +34,12 @@ Do not make release ZIPs by hand. A missing SDK, licensed feed, or workload is a
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-theme-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
 - Project revisions, requirements, requirement links, artifacts, presets, editor preferences, safe imports, and knowledge ratings are database-first contracts. Do not replace them with prewired generation strings.
 
 Theme or application-shell changes must also run `Assert-ThemeArchitecture.ps1`. It verifies DevExpress resource-manager registration, runtime `IThemeChangeService` use, external Bootstrap/Fluent contracts, CSS-variable defaults, theme-state persistence, feature-resource preservation, and the absence of manual `ThemeService` construction or JavaScript-managed DevExpress links.
+
+EF entity, relationship, migration, or snapshot changes must also run `Assert-EfSnapshotArchitecture.ps1`. It verifies that project entities are declared before dependent relationships and collection navigations are declared only after relationships.

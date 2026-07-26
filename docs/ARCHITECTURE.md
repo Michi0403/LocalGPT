@@ -162,7 +162,7 @@ The collaboration control plane is deliberately non-blocking: analysis phases co
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-theme-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
@@ -175,3 +175,7 @@ LocalGPT theme state is scoped per Blazor circuit. `ThemeService` owns validated
 `App.razor` registers startup resources through `DxResourceManager.RegisterTheme`, and `ThemeJsChangeDispatcher` changes the runtime theme through `IThemeChangeService`. JavaScript is limited to the selected-theme cookie, Bootstrap color mode, LocalGPT theme metadata, and optional Highlight.js styling.
 
 Application CSS consumes the Bootstrap-backed fallback variables in `css/localgpt-theme-contract.css` and does not globally override DevExpress internal selectors. See `docs/THEME_RUNTIME_ARCHITECTURE.md`.
+
+## EF migration snapshot execution order
+
+The EF model snapshot executes during migration validation. All scalar/property entity declarations must exist before relationships target them; collection navigations are declared only after those relationships. The detailed contract and known shared-type failure are documented in `docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md` and enforced by `build/Assert-EfSnapshotArchitecture.ps1`.

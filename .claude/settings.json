@@ -74,7 +74,13 @@
       "Edit(docs/THEME_RUNTIME_ARCHITECTURE.md)",
       "Write(docs/THEME_RUNTIME_ARCHITECTURE.md)",
       "Edit(build/Assert-ThemeArchitecture.ps1)",
-      "Write(build/Assert-ThemeArchitecture.ps1)"
+      "Write(build/Assert-ThemeArchitecture.ps1)",
+      "Edit(CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md)",
+      "Write(CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md)",
+      "Edit(docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md)",
+      "Write(docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md)",
+      "Edit(build/Assert-EfSnapshotArchitecture.ps1)",
+      "Write(build/Assert-EfSnapshotArchitecture.ps1)"
     ]
   }
 }

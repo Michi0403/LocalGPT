@@ -50,6 +50,10 @@ jobs:
         shell: pwsh
         run: ./build/Assert-ArchitectureTasks.ps1
 
+      - name: Check EF migration snapshot architecture
+        shell: pwsh
+        run: ./build/Assert-EfSnapshotArchitecture.ps1
+
       - name: Check security policy
         shell: pwsh
         run: ./build/Assert-SecurityPolicy.ps1

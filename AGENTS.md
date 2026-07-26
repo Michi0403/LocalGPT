@@ -49,6 +49,9 @@ The following governance and enforcement files are **protected**. Automated agen
 - `docs/OPEN_TASKS.md`
 - `build/Assert-ArchitectureTasks.ps1`
 - `build/Assert-ThemeArchitecture.ps1`
+- `CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md`
+- `docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md`
+- `build/Assert-EfSnapshotArchitecture.ps1`
 - `build/protected-files.sha256`
 
 Only the human maintainer, Michael Fleischer (`Michi0403`), may intentionally change this protected set. Such a change must be made manually in a dedicated governance commit, with the hash manifest refreshed and reviewed. An agent may describe a proposed governance change or provide a patch in chat, but it must not apply the patch to the repository.
@@ -156,7 +159,7 @@ Review the full diff, parse JSON/XML, scan for conflict markers and forbidden im
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-theme-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
@@ -170,3 +173,9 @@ Review the full diff, parse JSON/XML, scan for conflict markers and forbidden im
 - JavaScript may persist validated theme metadata but must not add/remove DevExpress or Bootstrap component-theme links.
 - Do not globally override DevExpress `.dxbl-*` internals. Use component `CssClass`, semantic application classes, Bootstrap variables, and `css/localgpt-theme-contract.css` fallbacks.
 - Preserve Classic, Fluent, and external Bootstrap theme families and run `build/Assert-ThemeArchitecture.ps1` after theme, App shell, layout, CSS, or component-resource changes.
+
+## EF migration snapshot invariants
+
+- Treat `LocalGptMemoryDbContextModelSnapshot.cs` as executable model-building code. Entity scalar/property blocks must precede relationships, and relationships must precede collection-navigation declarations.
+- Never remove `LocalGptProject` collections merely to silence a migration error. Preserve `Artifacts`, `Requirements`, `Revisions`, `Topics`, and `Versions`.
+- Run `build/Assert-EfSnapshotArchitecture.ps1` after changing EF entities, DbContext relationships, migrations, or the snapshot. A real owner migration smoke test remains mandatory.

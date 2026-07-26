@@ -56,7 +56,7 @@ The collaboration control plane is deliberately non-blocking: analysis phases co
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-theme-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
@@ -69,3 +69,7 @@ Treat theme switching as infrastructure, not page-local decoration. Resolve the 
 External Bootstrap styles belong in `Themes.BootstrapExternal.Clone(...AddFilePaths...)`. JavaScript must not replace DevExpress stylesheet links or synthesize asset names, and custom CSS must not globally restyle `.dxbl-*` internals.
 
 Use the LocalGPT Bootstrap-backed CSS variables for application surfaces and preserve all selectable theme families. See `docs/THEME_RUNTIME_ARCHITECTURE.md`.
+
+## EF snapshot rule for AI changes
+
+Do not hand-insert navigation blocks near arbitrary entity sections. Preserve EF-generated ordering: entity properties, then relationships, then collection navigations. A premature string-named entity call can create a shared `Dictionary<string, object>` type and crash migration startup. Run `build/Assert-EfSnapshotArchitecture.ps1`.

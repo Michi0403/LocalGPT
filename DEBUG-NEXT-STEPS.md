@@ -1,4 +1,4 @@
-# LocalGPT v0.1.4 theme-runtime and database-first debug steps
+# LocalGPT v0.1.4 EF snapshot, theme-runtime, and database-first debug steps
 
 This is a source/debug candidate. Extract it into a **new clean folder** instead of overlaying an older build tree, so stale `bin`, `obj`, `.vs`, generated Razor files, and old SQLite schemas cannot survive.
 
@@ -103,3 +103,14 @@ The next owner build should specifically confirm:
 4. Theme service resolves its default theme at startup.
 5. Minecraft dependency and datapack helpers return explicit `NeedsVerification` fallbacks rather than null.
 6. Wrapper `CS0006`/`WMC1006` are evaluated only after the root `LocalGPT.dll` is produced.
+
+## EF snapshot runtime repair verification
+
+The owner Debug build and service-provider validation already succeeded. The next run should focus on migration model construction:
+
+1. Back up the active LocalGPT SQLite database or point the app at a disposable copy.
+2. Clean `bin`, `obj`, and `.vs`, rebuild `LocalGPT`, then start the application.
+3. Confirm `DatabaseInitializationHostedService` completes without a shared-type `Dictionary<string, object>` navigation error.
+4. Confirm `LocalGptProjects`, `LocalGptProjectRevisions`, `LocalGptProjectRequirements`, `LocalGptProjectArtifacts`, `CouncilModelPresets`, `SqliteEditorFieldOverrides`, and `CouncilKnowledgeUserRatings` remain accessible.
+5. Open Projects and Database pages and verify existing rows were not removed.
+6. Send back the first EF exception if migration still fails; include the snapshot line and the affected entity/navigation name.
