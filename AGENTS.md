@@ -42,6 +42,13 @@ The following governance and enforcement files are **protected**. Automated agen
 - `build/README.md`
 - `build/Assert-ProtectedRepositoryFiles.ps1`
 - `build/Protect-GovernanceFiles.ps1`
+- `CHANGELOG-v0.1.4-database-first-debug.md`
+- `CHANGELOG-v0.1.4-theme-runtime-debug.md`
+- `docs/DATABASE_FIRST_PROJECT_ARCHITECTURE.md`
+- `docs/THEME_RUNTIME_ARCHITECTURE.md`
+- `docs/OPEN_TASKS.md`
+- `build/Assert-ArchitectureTasks.ps1`
+- `build/Assert-ThemeArchitecture.ps1`
 - `build/protected-files.sha256`
 
 Only the human maintainer, Michael Fleischer (`Michi0403`), may intentionally change this protected set. Such a change must be made manually in a dedicated governance commit, with the hash manifest refreshed and reviewed. An agent may describe a proposed governance change or provide a patch in chat, but it must not apply the patch to the repository.
@@ -149,8 +156,17 @@ Review the full diff, parse JSON/XML, scan for conflict markers and forbidden im
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-database-first-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-theme-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
 - Project revisions, requirements, requirement links, artifacts, presets, editor preferences, safe imports, and knowledge ratings are database-first contracts. Do not replace them with prewired generation strings.
+
+## DevExpress theme-runtime invariants
+
+- Resolve the scoped `ThemeService`; never instantiate it manually or create a second active-theme store.
+- Register startup resources with `DxResourceManager.RegisterTheme(ITheme)` and switch at runtime with `IThemeChangeService.SetTheme(ITheme)`.
+- External Bootstrap themes must use `Themes.BootstrapExternal.Clone` and `AddFilePaths`; Fluent themes must use actual light/dark `ThemeMode` values.
+- JavaScript may persist validated theme metadata but must not add/remove DevExpress or Bootstrap component-theme links.
+- Do not globally override DevExpress `.dxbl-*` internals. Use component `CssClass`, semantic application classes, Bootstrap variables, and `css/localgpt-theme-contract.css` fallbacks.
+- Preserve Classic, Fluent, and external Bootstrap theme families and run `build/Assert-ThemeArchitecture.ps1` after theme, App shell, layout, CSS, or component-resource changes.

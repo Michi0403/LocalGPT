@@ -1,6 +1,7 @@
 @implements IDisposable
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 @inject PersistentComponentState AppState
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @inject ThemeService Themes
 @inject ILogger<ThemeSwitcher> Logger
 @inject INotificationService Notifier
@@ -38,16 +39,19 @@
         try
         {
 
+            var cookieTheme = HttpContextAccessor.HttpContext?.Request.Cookies["ActiveTheme"];
             if (AppState.TryTakeFromJson("ThemeName", out string? stored) && !string.IsNullOrWhiteSpace(stored))
                 ThemeName = stored;
+            else if (!string.IsNullOrWhiteSpace(cookieTheme))
+                ThemeName = cookieTheme;
             else
-                ThemeName = Themes.ActiveTheme?.Name ?? "office-white";
+                ThemeName = Themes.ActiveTheme.Name;
 
             Themes.SetActiveThemeByName(ThemeName);
+            ThemeName = Themes.ActiveTheme.Name;
 
-            // register light callbacks (no I/O!)
-            if (stored != null && !string.IsNullOrWhiteSpace(stored))
-                _subSrv = AppState.RegisterOnPersisting(Persist, RenderMode.InteractiveServer);
+            // Persist the effective theme name for the interactive circuit.
+            _subSrv = AppState.RegisterOnPersisting(Persist, RenderMode.InteractiveServer);
         }
         catch(Exception ex)
         {

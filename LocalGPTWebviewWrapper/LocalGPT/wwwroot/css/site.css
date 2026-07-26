@@ -11,18 +11,18 @@ html, body {
 }
 
 .valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+    outline: 1px solid var(--localgpt-success, #198754);
 }
 .goodsvisiblemenu-button {
     width: 140px;
     height: 40px;
-    color: white; /* Or any color */
-    background-color: #007bff;
+    color: var(--bs-white, #fff);
+    background-color: var(--localgpt-primary, #0d6efd);
     mask-image: url('images/menubutton.svg');
     -webkit-mask-image: url('images/menubutton.svg');
 }
 .invalid {
-    outline: 1px solid red;
+    outline: 1px solid var(--localgpt-danger, #dc3545);
 }
 .buttonfullwidth {
     display: block; /* Make the button behave like a block element */
@@ -32,7 +32,7 @@ html, body {
     color: var(--bs-white);
 }
 .validation-message {
-    color: red;
+    color: var(--localgpt-danger, #dc3545);
 }
 
 .button-link {
@@ -40,9 +40,9 @@ html, body {
 }
 
 #blazor-error-ui {
-    background: lightyellow;
+    background: var(--bs-warning-bg-subtle, #fff3cd);
     bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -1px 2px rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.2);
     display: none;
     left: 0;
     padding: 0.6rem 1.25rem 0.7rem 1.25rem;
@@ -67,18 +67,19 @@ html, body {
     gap: 0.15rem;
     max-width: min(28rem, calc(100vw - 2rem));
     padding: 0.75rem 0.9rem;
-    border: 1px solid rgba(255, 111, 0, 0.32);
+    border: 1px solid rgba(var(--localgpt-warning-rgb, 255, 193, 7), 0.32);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.94);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
-    color: #2f3033;
+    background: var(--localgpt-body-bg, #fff);
+    background: color-mix(in srgb, var(--localgpt-body-bg, #fff) 94%, transparent);
+    box-shadow: var(--localgpt-shadow-raised, 0 10px 28px rgba(0, 0, 0, 0.14));
+    color: var(--localgpt-body-color, #212529);
     font-size: 0.85rem;
     pointer-events: none;
     transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
 }
 
 .interactive-startup-overlay span {
-    color: #62666d;
+    color: var(--localgpt-secondary-color, #6c757d);
 }
 
 .localgpt-interactive-ready .interactive-startup-overlay {
@@ -88,20 +89,20 @@ html, body {
 }
 
 .localgpt-interactive-error .interactive-startup-overlay {
-    border-color: rgba(190, 18, 60, 0.4);
+    border-color: rgba(var(--localgpt-danger-rgb, 220, 53, 69), 0.4);
 }
 
 .localgpt-interactive-error .interactive-startup-overlay strong::after {
     content: " failed";
-    color: #be123c;
+    color: var(--localgpt-danger, #dc3545);
 }
 
 .architecture-poll {
     margin: 0.75rem 1rem;
     padding: 0.85rem 1rem;
-    border: 1px solid #dfe3ea;
+    border: 1px solid var(--localgpt-border-color, #dee2e6);
     border-radius: 6px;
-    background: #fff;
+    background: var(--localgpt-surface-bg, #fff);
 }
 
 .architecture-poll summary {
@@ -114,7 +115,7 @@ html, body {
 
 .architecture-poll summary small,
 .architecture-poll label span {
-    color: #62666d;
+    color: var(--localgpt-secondary-color, #6c757d);
     font-weight: 400;
 }
 
@@ -135,10 +136,10 @@ html, body {
 .architecture-poll input[type="text"] {
     width: 100%;
     min-height: 2.25rem;
-    border: 1px solid #cfd6df;
+    border: 1px solid var(--localgpt-border-color, #ced4da);
     border-radius: 4px;
     padding: 0.35rem 0.5rem;
-    background: #fff;
+    background: var(--localgpt-surface-bg, #fff);
 }
 
 .architecture-poll-actions {
@@ -161,7 +162,7 @@ html, body {
     gap: 0.35rem;
     min-height: 2rem;
     margin: 0;
-    color: #2f3033;
+    color: var(--localgpt-body-color, #212529);
     white-space: nowrap;
 }
 
@@ -202,7 +203,7 @@ html, body {
 .test-lab-field {
     display: grid;
     gap: 0.25rem;
-    color: #2f3033;
+    color: var(--localgpt-body-color, #212529);
 }
 
 .test-lab-field span {
@@ -218,10 +219,10 @@ html, body {
 .test-lab-field input,
 .test-lab-custom input {
     min-height: 2.25rem;
-    border: 1px solid #cfd6df;
+    border: 1px solid var(--localgpt-border-color, #ced4da);
     border-radius: 4px;
     padding: 0.35rem 0.5rem;
-    background: #fff;
+    background: var(--localgpt-surface-bg, #fff);
 }
 
 .test-lab-custom input {
@@ -232,10 +233,10 @@ html, body {
     display: grid;
     gap: 0.25rem;
     padding: 0.65rem 0.75rem;
-    border: 1px solid #dfe3ea;
+    border: 1px solid var(--localgpt-border-color, #dee2e6);
     border-radius: 6px;
-    background: #f8fafc;
-    color: #4a5565;
+    background: var(--localgpt-surface-bg, #f8f9fa);
+    color: var(--localgpt-secondary-color, #6c757d);
 }
 
 .test-lab-import-summary p {
@@ -253,15 +254,15 @@ html, body {
 
 .test-lab-downloads a {
     padding: 0.35rem 0.55rem;
-    border: 1px solid #dfe3ea;
+    border: 1px solid var(--localgpt-border-color, #dee2e6);
     border-radius: 4px;
-    background: #f8fafc;
+    background: var(--localgpt-surface-bg, #f8f9fa);
 }
 
 .test-lab-output {
     width: 100%;
     min-height: 24rem;
-    border: 1px solid #dfe3ea;
+    border: 1px solid var(--localgpt-border-color, #dee2e6);
     border-radius: 4px;
     padding: 0.75rem;
     font-family: Consolas, "Courier New", monospace;

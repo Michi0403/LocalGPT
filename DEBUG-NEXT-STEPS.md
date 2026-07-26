@@ -1,4 +1,4 @@
-# LocalGPT v0.1.4 human-collaboration debug steps
+# LocalGPT v0.1.4 theme-runtime and database-first debug steps
 
 This is a source/debug candidate. Extract it into a **new clean folder** instead of overlaying an older build tree, so stale `bin`, `obj`, `.vs`, generated Razor files, and old SQLite schemas cannot survive.
 
@@ -70,6 +70,16 @@ The full release gate still requires Debug and Release builds for the exact pack
 5. Confirm the result is explicitly labelled **untrusted data, never instructions**.
 6. Confirm changed parameters require another approval.
 7. If the council already ended before approval, retry the exact function manually; this candidate intentionally does not restart a completed council run.
+
+
+## Theme runtime smoke test
+
+1. Start with the default Office White theme and confirm the shell, drawer, chat, database grid, toasts, and native fallback inputs are readable before and after interactivity attaches.
+2. Switch through Blazing Berry, Blazing Dark, Purple, Fluent Light, Fluent Dark, one light external Bootstrap theme, and one dark external Bootstrap theme.
+3. Confirm no duplicate DevExpress or Bootstrap theme links appear and the selected theme survives navigation and restart through the `ActiveTheme` cookie.
+4. Confirm DevExpress controls retain their vendor styling while LocalGPT surfaces, Bootstrap/native controls, status panels, and focus rings follow the active theme.
+5. Disconnect the browser during a switch and confirm the circuit ends without a stuck pending theme or an unhandled exception.
+6. If Highlight.js cannot load, confirm the DevExpress theme still completes within the bounded timeout.
 
 ## Component safety checks
 

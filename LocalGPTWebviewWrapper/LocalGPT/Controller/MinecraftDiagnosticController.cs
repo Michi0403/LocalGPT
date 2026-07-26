@@ -119,7 +119,7 @@ namespace LocalGPT.Endpoints
                     Description = "Smoke-test the LocalGPT Minecraft Mod Builder with a small Living Cities starter item and report command."
                 };
 
-                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct).ConfigureAwait(false); ;
+                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct).ConfigureAwait(false);
                 return Results.Ok(new
                 {
                     workspace.ProjectName,
@@ -168,20 +168,19 @@ namespace LocalGPT.Endpoints
                     Description = "Generate and validate the Living Cities 0.1 vanilla datapack benchmark from the provided design plan and early reference zip."
                 };
 
-                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct).ConfigureAwait(false); ;
+                var workspace = await workspaceService.CreateWorkspaceAsync(request, ct).ConfigureAwait(false);
                 var build = await commandRunner.RunAsync(
                     "powershell.exe",
                     "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
                     workspace.RootPath,
                     ct,
-                    userConfirmed: userConfirmed).ConfigureAwait(false); 
+                    userConfirmed: userConfirmed).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("The approved datapack build did not produce a command result.");
                 var files = Directory.GetFiles(workspace.RootPath, "*", SearchOption.AllDirectories)
                     .Select(path => Path.GetRelativePath(workspace.RootPath, path).Replace('\\', '/'))
                     .Order(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
                 var referenceComparison = councilRuntime.BuildDatapackReferenceComparison(workspace.RootPath,logger);
-                ArgumentNullException.ThrowIfNull(build);
-                ArgumentNullException.ThrowIfNull(build.StandardOutput);
                 var knowledgeEntry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
                 {
                     Topic = "Living Cities datapack benchmark",
@@ -193,9 +192,9 @@ namespace LocalGPT.Endpoints
                     "Goal: vanilla Minecraft Java datapack for Living Cities 0.1 with city aggregate simulation, no full-world scans, town hall/admin UI, population, food, security, personalities, chronicle, and quests.",
                     "Reference zip traits: legacy pack_format 61 for 1.21.4, namespace living_cities, singular data/<namespace>/function folders, core/load and core/tick tags, early placeholders that should become real .mcfunction files. Current default generation targets Minecraft Java 26.1 pack_format 101.1 unless the user requests an older version.",
                     $"Latest generated workspace: {workspace.RootPath}",
-                    $"Build succeeded: {build?.Succeeded}; exit code {build?.ExitCode}.",
+                    $"Build succeeded: {build.Succeeded}; exit code {build.ExitCode}.",
                     $"Function files: {files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase))}.",
-                    $"Build output: {councilText.TrimForKnowledge(build?.StandardOutput ?? string.Empty, 700, logger)}",
+                    $"Build output: {councilText.TrimForKnowledge(build.StandardOutput ?? string.Empty, 700, logger)}",
                     $"Reference comparison: {referenceComparison?.Summary}",
                     $"Reference placeholders: {referenceComparison?.ReferencePlaceholderCount}; generated placeholders: {referenceComparison?.GeneratedPlaceholderCount}.",
                     $"Root pack.mcmeta: generated={referenceComparison?.GeneratedHasRootPackMcmeta}, reference={referenceComparison?.ReferenceHasRootPackMcmeta}, reference nested={referenceComparison?.ReferenceHasNestedPackMcmeta}.",

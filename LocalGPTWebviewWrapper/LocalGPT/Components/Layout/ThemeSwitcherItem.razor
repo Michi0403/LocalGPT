@@ -13,7 +13,11 @@
     [Parameter] public Theme? Theme { get; set; }
     [Parameter] public EventCallback<Theme> Click { get; set; }
 
-    async Task Anchor_Click() {
+    async Task Anchor_Click()
+    {
+        if (Theme is null)
+            return;
+
         await Click.InvokeAsync(Theme).ConfigureAwait(false);
     }
 }

@@ -1,43 +1,81 @@
+using DevExpress.Blazor;
 using System.Globalization;
 
-namespace LocalGPT.BusinessObjects
+namespace LocalGPT.BusinessObjects;
+
+public sealed class Theme
 {
-    public class Theme
+    private const string BootstrapDarkModePostfix = "-dark";
+
+    public Theme(
+        string name,
+        ITheme devExpressTheme,
+        bool isBootstrapNative,
+        string? title = null,
+        string? bootstrapThemeMode = null,
+        string? themePath = null)
     {
-        const string BsNativeDarkModePostfix = "-dark";
-        public string Name { get; set; }
-        public string Title { get { return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Name.Replace("-", " ")); } }
-        public string IconCssClass { get { return Name.ToLower(); } }
-        public bool IsBootstrapNative { get; set; }
-        public string BootstrapThemeMode => IsBootstrapNative && Name.Contains(BsNativeDarkModePostfix) ? "dark" : "light";
-        public string GetCssClass(bool isActive) => isActive ? "active" : "text-body";
-        public string ThemePath => IsBootstrapNative ? Name.Replace(BsNativeDarkModePostfix, string.Empty) : Name;
-        public Theme(string name, bool isBootstrapNative)
-        {
-            Name = name;
-            IsBootstrapNative = isBootstrapNative;
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(devExpressTheme);
+
+        Name = name;
+        DevExpressTheme = devExpressTheme;
+        IsBootstrapNative = isBootstrapNative;
+        Title = string.IsNullOrWhiteSpace(title)
+            ? CultureInfo.InvariantCulture.TextInfo.ToTitleCase(name.Replace("-", " "))
+            : title;
+        BootstrapThemeMode = string.IsNullOrWhiteSpace(bootstrapThemeMode)
+            ? InferBootstrapThemeMode(name, isBootstrapNative)
+            : bootstrapThemeMode;
+        ThemePath = string.IsNullOrWhiteSpace(themePath)
+            ? InferThemePath(name, isBootstrapNative)
+            : themePath;
     }
 
-    public class ThemeSet
+    public string Name { get; }
+    public string Title { get; }
+    public string IconCssClass => Name.ToLowerInvariant();
+    public bool IsBootstrapNative { get; }
+    public string BootstrapThemeMode { get; }
+    public string ThemePath { get; }
+    public ITheme DevExpressTheme { get; }
+
+    public string GetCssClass(bool isActive) => isActive ? "active" : "text-body";
+
+    private static string InferBootstrapThemeMode(string name, bool isBootstrapNative)
     {
-        readonly HashSet<string> BuiltInThemes = new() {
-            "blazing-berry", "blazing-dark", "purple", "office-white", "fluent-light", "fluent-dark"
-        };
-        public string Title { get; set; }
-        public Theme[] Themes { get; set; }
-        public ThemeSet(string title, params string[] themes)
+        if (name.Equals("blazing-dark", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("fluent-dark", StringComparison.OrdinalIgnoreCase)
+            || isBootstrapNative && name.EndsWith(BootstrapDarkModePostfix, StringComparison.OrdinalIgnoreCase))
         {
-            Title = title;
-            Themes = themes.Select(CreateTheme).ToArray();
-
-
-            Theme CreateTheme(string name)
-            {
-                bool isBootstrapNative = !BuiltInThemes.Contains(name);
-                return new Theme(name, isBootstrapNative);
-            }
+            return "dark";
         }
+
+        return "light";
     }
 
+    private static string InferThemePath(string name, bool isBootstrapNative)
+    {
+        if (!isBootstrapNative)
+            return name;
+
+        return name.EndsWith(BootstrapDarkModePostfix, StringComparison.OrdinalIgnoreCase)
+            ? name[..^BootstrapDarkModePostfix.Length]
+            : name;
+    }
+}
+
+public sealed class ThemeSet
+{
+    public ThemeSet(string title, params Theme[] themes)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentNullException.ThrowIfNull(themes);
+
+        Title = title;
+        Themes = themes;
+    }
+
+    public string Title { get; }
+    public Theme[] Themes { get; }
 }

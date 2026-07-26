@@ -8,7 +8,7 @@
 }
 
 .builder-panel {
-    border: 1px solid rgba(127, 127, 127, 0.25);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.25);
     border-radius: 8px;
     padding: 1rem;
     background: var(--bs-body-bg);
@@ -45,7 +45,7 @@ input,
 select,
 textarea {
     width: 100%;
-    border: 1px solid rgba(127, 127, 127, 0.35);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.35);
     border-radius: 6px;
     padding: 0.5rem 0.6rem;
     color: var(--bs-body-color);
@@ -75,7 +75,7 @@ textarea {
 
 .markdown-output,
 pre {
-    border: 1px solid rgba(127, 127, 127, 0.2);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.2);
     border-radius: 6px;
     padding: 0.75rem;
     overflow: auto;
@@ -87,7 +87,7 @@ pre {
 }
 
 .error-output {
-    border-color: rgba(220, 53, 69, 0.35);
+    border-color: rgba(var(--localgpt-danger-rgb, 220, 53, 69), 0.35);
 }
 
 .result-summary {
@@ -108,7 +108,7 @@ pre {
     align-items: center;
     min-height: 2.25rem;
     padding: 0.45rem 0.75rem;
-    border: 1px solid rgba(13, 110, 253, 0.45);
+    border: 1px solid rgba(var(--localgpt-primary-rgb, 13, 110, 253), 0.45);
     border-radius: 6px;
     text-decoration: none;
     font-weight: 600;

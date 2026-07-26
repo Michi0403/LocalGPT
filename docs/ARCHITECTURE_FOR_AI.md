@@ -56,8 +56,16 @@ The collaboration control plane is deliberately non-blocking: analysis phases co
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-database-first-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-theme-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
 - Project revisions, requirements, requirement links, artifacts, presets, editor preferences, safe imports, and knowledge ratings are database-first contracts. Do not replace them with prewired generation strings.
+
+## Theme changes
+
+Treat theme switching as infrastructure, not page-local decoration. Resolve the scoped `ThemeService`; never construct it. Register the startup `ITheme` with `DxResourceManager.RegisterTheme` and switch at runtime with `IThemeChangeService.SetTheme`.
+
+External Bootstrap styles belong in `Themes.BootstrapExternal.Clone(...AddFilePaths...)`. JavaScript must not replace DevExpress stylesheet links or synthesize asset names, and custom CSS must not globally restyle `.dxbl-*` internals.
+
+Use the LocalGPT Bootstrap-backed CSS variables for application surfaces and preserve all selectable theme families. See `docs/THEME_RUNTIME_ARCHITECTURE.md`.

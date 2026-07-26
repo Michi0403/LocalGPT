@@ -55,9 +55,10 @@
     async Task ThemeSwitcherItem_Click(Theme theme) {
         try
         {
-            if (Themes.ThemeChangeRequestDispatcher is not null)
-                await Themes.ThemeChangeRequestDispatcher.RequestThemeChangeAsync(theme).ConfigureAwait(false);
+            if (Themes.ThemeChangeRequestDispatcher is null)
+                throw new InvalidOperationException("The theme change dispatcher is not ready yet.");
 
+            await Themes.ThemeChangeRequestDispatcher.RequestThemeChangeAsync(theme).ConfigureAwait(false);
             await ToggleThemeSwitcherPanel(false).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -74,8 +75,10 @@
     public async Task NotifyThemeLoadedAsync(Theme theme) {
         try
         {
+            Themes.SetActiveTheme(theme);
             ThemeName = theme.Name;
             await ThemeNameChanged.InvokeAsync(ThemeName).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         { /* ignored – user navigated */

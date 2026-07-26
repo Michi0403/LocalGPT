@@ -19,6 +19,7 @@ try {
     & ./build/Assert-WorkflowContracts.ps1
     & ./build/Assert-HumanCollaboration.ps1
     & ./build/Assert-ArchitectureTasks.ps1
+    & ./build/Assert-ThemeArchitecture.ps1
 
     $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
     if (-not $dotnet) {

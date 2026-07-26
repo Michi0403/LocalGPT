@@ -36,4 +36,4 @@
 
 ## Current debug iteration
 
-The active implementation ledger is `CHANGELOG-v0.1.4-database-first-debug.md`; unresolved architecture work is mirrored in `docs/OPEN_TASKS.md`. A source package must not describe an item as complete when it remains open there.
+The active implementation ledger is `CHANGELOG-v0.1.4-theme-runtime-debug.md`; unresolved architecture work is mirrored in `docs/OPEN_TASKS.md`. A source package must not describe an item as complete when it remains open there.

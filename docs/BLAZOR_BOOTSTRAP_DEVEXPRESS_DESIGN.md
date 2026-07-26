@@ -110,18 +110,19 @@ and docs.
 
 ## DevExpress Theme And Bootstrap Use
 
-DevExpress Blazor themes can be used with Bootstrap-based styling. For generated
-apps:
+Use the DevExpress resource APIs rather than hard-coded theme links:
 
-- Link the chosen DevExpress theme CSS before local `app.css`.
-- Keep local CSS small and semantic. Prefer Bootstrap utility classes for
-  spacing and alignment before writing custom CSS.
-- Use DevExpress sizing/theme settings consistently across a page.
-- Check static asset loading when the UI appears unstyled. Missing
-  `_content/DevExpress.Blazor.*` or app `.styles.css` assets is a packaging
-  issue, not a design issue.
-- Avoid one-hue visual systems. Use a restrained neutral base, one primary
-  action color, clear status colors, and enough contrast for grids/forms.
+- Register the validated startup `ITheme` with `DxResourceManager.RegisterTheme` in `Components/App.razor`.
+- Change themes at runtime through `IThemeChangeService.SetTheme`.
+- Build external Bootstrap themes with `Themes.BootstrapExternal.Clone` and `AddFilePaths` for the theme-specific stylesheet.
+- Build Fluent light/dark themes from `Themes.Fluent.Clone`; enable supported Bootstrap/page-element styling when LocalGPT Bootstrap layout tokens are required.
+- Add LocalGPT custom CSS through the theme's `AddFilePaths` contract where practical. Keep scoped component CSS semantic and avoid global `.dxbl-*` overrides.
+- Use Bootstrap variables with explicit fallbacks for non-DevExpress layout, native inputs, surfaces, borders, focus rings, and statuses.
+- JavaScript may persist the selected name and Bootstrap color mode, but must not swap DevExpress component stylesheets.
+- Missing `_content/DevExpress.Blazor.*`, app `.styles.css`, or registered theme resources is a packaging/runtime issue, not a reason to paste arbitrary CSS into components.
+- Preserve enough contrast for grids, editors, chat, approval prompts, disabled states, errors, and focus indicators in every supported theme family.
+
+See `docs/THEME_RUNTIME_ARCHITECTURE.md` for the maintained runtime contract.
 
 ## Navigation SVG Icon Contract
 

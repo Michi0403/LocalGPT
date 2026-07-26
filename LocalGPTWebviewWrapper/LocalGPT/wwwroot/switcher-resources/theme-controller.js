@@ -3,80 +3,73 @@
 export const ThemeController = (function () {
     let abortController;
 
-    function getLink(attr) {
-        return document.querySelector(`#switcher-container link[${attr}]`);
+    function getThemeLinks(attributeName) {
+        return [...document.querySelectorAll(`link[${attributeName}]`)];
     }
 
-    function getLinks(attr) {
-        return [...document.querySelectorAll(`#switcher-container link[${attr}]`)];
-    }
+    function waitForStylesheet(link, signal, timeoutMilliseconds = 1500) {
+        if (link.sheet)
+            return Promise.resolve();
 
-    function createLoadHandler(link, loadingPromises, signal, interception = false) {
-        link.dxIntercepted = interception;
-        let resolve;
-        loadingPromises.push(new Promise(r => resolve = r));
-        link.addEventListener('load', () => {
-            if (signal.aborted && !link.dxIntercepted)
-                link.remove();
-            link.dxIntercepted = false;
-            resolve();
+        return new Promise(resolve => {
+            let completed = false;
+            const finish = () => {
+                if (completed)
+                    return;
+                completed = true;
+                clearTimeout(timer);
+                link.removeEventListener("load", finish);
+                link.removeEventListener("error", finish);
+                resolve();
+            };
+            const timer = setTimeout(finish, timeoutMilliseconds);
+            link.addEventListener("load", finish, { once: true, signal });
+            link.addEventListener("error", finish, { once: true, signal });
         });
     }
 
-    function updateTheme(url, group, loadingPromises, signal, target, isTargetBefore) {
-        const attr = `${group}-theme-link`;
-        const links = getLinks(attr);
-        if (!links.length && !url || links.length === 1 && links[0].href === url) return [];
-
-        if (url) {
-            const link = links.find(l => l.href === url);
-
-            if (link) {
-                if (![...document.styleSheets].some(css => css.href === url)) {
-                    createLoadHandler(link, loadingPromises, signal, true);
-                }
-            } else {
-                const container = document.getElementById("switcher-container");
-                const newLink = document.createElement("link");
-                newLink.rel = "stylesheet";
-                newLink.href = url;
-                newLink.setAttribute(attr, "");
-                createLoadHandler(newLink, loadingPromises, signal);
-                if (target)
-                    isTargetBefore ? target.before(newLink) : target.after(newLink);
-                else
-                    container.append(newLink);
-            }
+    async function updateHighlightTheme(url, signal) {
+        const links = getThemeLinks("hl-theme-link");
+        if (!url) {
+            links.forEach(link => link.remove());
+            return;
         }
 
-        return links.filter(l => l.href !== url);
+        const absoluteUrl = new URL(url, document.baseURI).href;
+        let activeLink = links.find(link => link.href === absoluteUrl);
+        if (!activeLink) {
+            activeLink = document.createElement("link");
+            activeLink.rel = "stylesheet";
+            activeLink.href = url;
+            activeLink.setAttribute("hl-theme-link", "");
+            document.head.append(activeLink);
+        }
+
+        await waitForStylesheet(activeLink, signal);
+        if (signal.aborted)
+            return;
+
+        links.filter(link => link !== activeLink).forEach(link => link.remove());
     }
 
-    async function setStylesheetLinks(theme, bsUrl, bsThemeMode, dxUrl, hlUrl, reference) {
+    async function applyThemeState(themeName, bootstrapThemeMode, highlightUrl, reference) {
         abortController?.abort();
         abortController = new AbortController();
         const signal = abortController.signal;
 
-        const loadingPromises = [];
-        const Link = getLink('dx-link');
-        const oldLinks = updateTheme(bsUrl, 'bs', loadingPromises, signal, Link, true)
-            .concat(updateTheme(dxUrl, 'dx', loadingPromises, signal, getLink('bs-theme-link') ?? Link, !getLink('bs-theme-link')))
-            .concat(updateTheme(hlUrl, 'hl', loadingPromises, signal));
-        await Promise.all(loadingPromises);
+        await updateHighlightTheme(highlightUrl, signal);
+        if (signal.aborted)
+            return;
 
-        if (signal.aborted) return;
+        document.documentElement.setAttribute("data-bs-theme", bootstrapThemeMode || "light");
+        document.documentElement.setAttribute("data-localgpt-theme", themeName);
+        document.cookie = `ActiveTheme=${encodeURIComponent(themeName)};path=/;max-age=31536000;SameSite=Lax`;
 
-        for (const link of oldLinks) {
-            link.remove();
-        }
-
-        document.querySelector("HTML").setAttribute("data-bs-theme", bsThemeMode);
-        document.cookie = `ActiveTheme=${theme};path=/`;
-
-        await reference.invokeMethodAsync("ThemeLoadedAsync");
+        if (reference)
+            await reference.invokeMethodAsync("ThemeLoadedAsync");
     }
 
     return {
-        setStylesheetLinks
-    }
+        applyThemeState
+    };
 })();

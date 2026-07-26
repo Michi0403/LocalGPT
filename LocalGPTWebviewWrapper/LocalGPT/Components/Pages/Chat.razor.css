@@ -27,7 +27,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.1), 0px 2px 4px -2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 4px 6px -1px rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.1), 0px 2px 4px -2px rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.1);
     transition: box-shadow 0.2s;
     border-radius: 1rem;
     color: var(--bs-link-color, var(--dxds-primary-90));
@@ -37,7 +37,7 @@
 }
 
 ::deep .welcome-card:hover {
-    box-shadow: 0px 20px 25px -5px rgba(0, 0, 0, 0.1), 0px 8px 10px -6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 20px 25px -5px rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.1), 0px 8px 10px -6px rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.1);
 }
 
 ::deep .welcome-card .welcome-card-img {
@@ -88,16 +88,16 @@
 }
 
 .demo-chat ::deep .model-thinking {
-    border: 1px solid rgba(255, 111, 0, 0.28);
-    border-left: 4px solid #ff6f00;
+    border: 1px solid rgba(var(--localgpt-thinking-rgb, 255, 111, 0), 0.28);
+    border-left: 4px solid rgb(var(--localgpt-thinking-rgb, 255, 111, 0));
     border-radius: 6px;
     margin: 0 0 0.85rem;
     padding: 0.65rem 0.75rem;
-    background: rgba(255, 111, 0, 0.06);
+    background: rgba(var(--localgpt-thinking-rgb, 255, 111, 0), 0.06);
 }
 
 .demo-chat ::deep .model-thinking:not([open]) {
-    background: rgba(255, 111, 0, 0.035);
+    background: rgba(var(--localgpt-thinking-rgb, 255, 111, 0), 0.035);
 }
 
 .demo-chat ::deep .model-thinking summary {
@@ -136,15 +136,15 @@
 }
 
 .demo-chat ::deep .council-step {
-    border: 1px solid rgba(80, 120, 220, 0.24);
+    border: 1px solid rgba(var(--localgpt-council-rgb, 80, 120, 220), 0.24);
     border-radius: 6px;
     margin: 0 0 0.75rem;
     padding: 0.6rem 0.75rem;
-    background: rgba(80, 120, 220, 0.05);
+    background: rgba(var(--localgpt-council-rgb, 80, 120, 220), 0.05);
 }
 
 .demo-chat ::deep .council-step:not([open]) {
-    background: rgba(80, 120, 220, 0.03);
+    background: rgba(var(--localgpt-council-rgb, 80, 120, 220), 0.03);
 }
 
 .demo-chat ::deep .council-step summary {
@@ -153,11 +153,11 @@
 }
 
 .demo-chat ::deep .council-prompt {
-    border: 1px solid rgba(127, 127, 127, 0.24);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.24);
     border-radius: 6px;
     margin: 0 0 0.75rem;
     padding: 0.6rem 0.75rem;
-    background: rgba(127, 127, 127, 0.04);
+    background: rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.04);
 }
 
 .demo-chat ::deep .council-prompt summary {
@@ -202,7 +202,7 @@
     width: 6.25rem;
     min-height: 2rem;
     padding: 0.25rem 0.4rem;
-    border: 1px solid rgba(127, 127, 127, 0.32);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.32);
     border-radius: 6px;
     background: var(--bs-body-bg);
     color: var(--bs-body-color);
@@ -213,7 +213,7 @@
 }
 
 .council-picker {
-    border: 1px solid rgba(127, 127, 127, 0.24);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.24);
     border-radius: 8px;
     padding: 0.75rem;
     margin: 0.75rem 0;
@@ -240,7 +240,7 @@
     gap: 0.35rem;
     min-height: 2rem;
     padding: 0.25rem 0.5rem;
-    border: 1px solid rgba(127, 127, 127, 0.24);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.24);
     border-radius: 6px;
 }
 
@@ -258,7 +258,7 @@
 }
 
 .memory-thoughts {
-    border: 1px solid rgba(127, 127, 127, 0.24);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.24);
     border-radius: 8px;
     padding: 0.75rem;
     margin-bottom: 0.75rem;
@@ -293,7 +293,7 @@
 
 .human-live-contribution {
     align-items: end;
-    border: 1px solid rgba(70, 120, 190, 0.35);
+    border: 1px solid rgba(var(--localgpt-council-rgb, 80, 120, 220), 0.35);
     border-radius: 0.75rem;
     margin-top: 0.75rem;
     padding: 0.75rem;

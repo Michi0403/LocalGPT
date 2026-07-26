@@ -39,7 +39,7 @@
 .poll-panel,
 .result-meta,
 .council-step {
-    border: 1px solid rgba(127, 127, 127, 0.24);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.24);
     border-radius: 8px;
     background: var(--bs-body-bg);
 }
@@ -104,7 +104,7 @@
 .prompt-panel textarea,
 .control-grid input {
     width: 100%;
-    border: 1px solid rgba(127, 127, 127, 0.35);
+    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.35);
     border-radius: 6px;
     padding: 0.5rem;
     font: inherit;
@@ -160,8 +160,8 @@
 }
 
 .warning-panel {
-    border-color: rgba(191, 135, 0, 0.35);
-    background: rgba(191, 135, 0, 0.08);
+    border-color: rgba(var(--localgpt-warning-rgb, 255, 193, 7), 0.35);
+    background: rgba(var(--localgpt-warning-rgb, 255, 193, 7), 0.08);
 }
 
 .warning-panel p {
@@ -169,8 +169,8 @@
 }
 
 .poll-panel {
-    border-color: rgba(13, 110, 253, 0.35);
-    background: rgba(13, 110, 253, 0.06);
+    border-color: rgba(var(--localgpt-primary-rgb, 13, 110, 253), 0.35);
+    background: rgba(var(--localgpt-primary-rgb, 13, 110, 253), 0.06);
 }
 
 .poll-panel h2 {
@@ -189,7 +189,7 @@
 }
 
 .poll-options button {
-    border: 1px solid rgba(13, 110, 253, 0.45);
+    border: 1px solid rgba(var(--localgpt-primary-rgb, 13, 110, 253), 0.45);
     border-radius: 6px;
     padding: 0.45rem 0.7rem;
     color: var(--bs-primary);
@@ -197,7 +197,7 @@
 }
 
 .poll-options button:hover {
-    background: rgba(13, 110, 253, 0.1);
+    background: rgba(var(--localgpt-primary-rgb, 13, 110, 253), 0.1);
 }
 
 .poll-feedback {
@@ -237,7 +237,7 @@
     width: fit-content;
     min-height: 2.25rem;
     padding: 0.45rem 0.75rem;
-    border: 1px solid rgba(13, 110, 253, 0.45);
+    border: 1px solid rgba(var(--localgpt-primary-rgb, 13, 110, 253), 0.45);
     border-radius: 6px;
     text-decoration: none;
     font-weight: 600;
@@ -266,7 +266,7 @@
 }
 
 .council-step.has-error {
-    border-color: rgba(220, 53, 69, 0.45);
+    border-color: rgba(var(--localgpt-danger-rgb, 220, 53, 69), 0.45);
 }
 
 .council-step header {
@@ -303,7 +303,7 @@
     overflow: auto;
     white-space: pre-wrap;
     border-radius: 6px;
-    background: rgba(127, 127, 127, 0.1);
+    background: rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.1);
 }
 
 .markdown-output > :last-child {

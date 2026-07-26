@@ -10,8 +10,6 @@
 @{
     string? InitialThemeName = HttpContextAccessor.HttpContext?.Request.Cookies["ActiveTheme"];
     Themes.SetActiveThemeByName(InitialThemeName);
-    var bsTheme = Themes.GetBootstrapThemeCssUrl(Themes.ActiveTheme);
-    var dxTheme = Themes.GetThemeCssUrl(Themes.ActiveTheme);
     var hlTheme = Themes.GetHighlightJSThemeCssUrl(Themes.ActiveTheme);
     ComponentActivity.RecordInformation(nameof(App), "RenderShell", "The LocalGPT application shell selected its active theme.");
     Logger.LogInformation("LocalGPT application shell rendered with theme {ThemeName}.", Themes.ActiveTheme.Name);
@@ -23,20 +21,13 @@
     //     StringComparison.OrdinalIgnoreCase);
 }
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="@Themes.ActiveTheme.BootstrapThemeMode">
+<html lang="en" data-bs-theme="@Themes.ActiveTheme.BootstrapThemeMode" data-localgpt-theme="@Themes.ActiveTheme.Name">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <title>LocalGPT</title>
-    @if (!string.IsNullOrEmpty(bsTheme))
-    {
-        <link rel="stylesheet" href="@AppendVersion(bsTheme.ToString())" bs-theme-link />
-    }
-    @if (!string.IsNullOrEmpty(dxTheme))
-    {
-        <link rel="stylesheet" href="@AppendVersion(dxTheme.ToString())" dx-theme-link />
-    }
+    @DxResourceManager.RegisterTheme(Themes.ActiveTheme.DevExpressTheme)
     @if (!string.IsNullOrEmpty(hlTheme))
     {
         <link rel="stylesheet" href="@hlTheme" hl-theme-link />
