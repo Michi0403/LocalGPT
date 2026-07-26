@@ -42,6 +42,10 @@ namespace LocalGPT.BusinessObjects
 
         public Guid? ProjectTopicId { get; set; }
 
+        public Guid? ProjectRevisionId { get; set; }
+
+        public bool CreateProjectForRun { get; set; }
+
         public bool UserConfirmedProjectLink { get; set; }
 
         [JsonIgnore]
@@ -95,6 +99,8 @@ namespace LocalGPT.BusinessObjects
         public Guid? ProjectId { get; set; }
 
         public Guid? ProjectTopicId { get; set; }
+
+        public Guid? ProjectRevisionId { get; set; }
 
         public string? LogPath { get; set; }
 

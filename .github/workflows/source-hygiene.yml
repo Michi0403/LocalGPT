@@ -42,6 +42,14 @@ jobs:
         shell: pwsh
         run: ./build/Assert-WorkflowContracts.ps1
 
+      - name: Check human collaboration contracts
+        shell: pwsh
+        run: ./build/Assert-HumanCollaboration.ps1
+
+      - name: Check database-first architecture tasks
+        shell: pwsh
+        run: ./build/Assert-ArchitectureTasks.ps1
+
       - name: Check security policy
         shell: pwsh
         run: ./build/Assert-SecurityPolicy.ps1

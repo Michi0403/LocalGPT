@@ -161,7 +161,8 @@ namespace LocalGPT.Services
                 {
                     var parameterName = $"$value{index}";
                     assignments.Add($"{sqliteUtility.QuoteIdentifier(sanitizedUpdates[index].ColumnName)} = {parameterName}");
-                    command.Parameters.AddWithValue(parameterName, sqliteUtility.ToSqliteValue(sanitizedUpdates[index].Value));
+                    var column = columns.Single(item => item.Name.Equals(sanitizedUpdates[index].ColumnName, StringComparison.OrdinalIgnoreCase));
+                    command.Parameters.AddWithValue(parameterName, sqliteUtility.ToSqliteValue(sanitizedUpdates[index].Value, column));
                 }
 
                 command.CommandText = $"""
@@ -172,7 +173,9 @@ namespace LocalGPT.Services
                 command.Parameters.AddWithValue("$rowid", rowId);
                 try
                 {
-                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    if (affected != 1)
+                        throw new InvalidOperationException($"SQLite update affected {affected} rows instead of exactly one.");
                 }
                 catch (SqliteException ex)
                 {
@@ -182,6 +185,7 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not update row {RowId} in SQLite table {TableName}.", rowId, tableName);
+                throw;
             }
         }
 
@@ -196,12 +200,12 @@ namespace LocalGPT.Services
 
                 var columns = await sqliteUtility.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
                 var allowedColumns = columns
-                    .Where(column => !column.IsPrimaryKey)
+                    .Where(column => !column.IsPrimaryKey || !column.Type.Contains("INT", StringComparison.OrdinalIgnoreCase))
                     .Select(column => column.Name)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 var sanitizedValues = values
-                    .Where(pair => allowedColumns.Contains(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
+                    .Where(pair => allowedColumns.Contains(pair.Key) && pair.Value is not null)
                     .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.Last())
                     .ToList();
@@ -217,7 +221,8 @@ namespace LocalGPT.Services
                     var parameterName = $"$value{index}";
                     columnNames.Add(sqliteUtility.QuoteIdentifier(sanitizedValues[index].Key));
                     parameterNames.Add(parameterName);
-                    command.Parameters.AddWithValue(parameterName, sqliteUtility.ToSqliteValue(sanitizedValues[index].Value));
+                    var column = columns.Single(item => item.Name.Equals(sanitizedValues[index].Key, StringComparison.OrdinalIgnoreCase));
+                    command.Parameters.AddWithValue(parameterName, sqliteUtility.ToSqliteValue(sanitizedValues[index].Value, column));
                 }
 
                 command.CommandText = $"""
@@ -226,7 +231,9 @@ namespace LocalGPT.Services
                 """;
                 try
                 {
-                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    if (affected != 1)
+                        throw new InvalidOperationException($"SQLite insert affected {affected} rows instead of exactly one.");
                 }
                 catch (SqliteException ex)
                 {
@@ -236,6 +243,7 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not insert a row into SQLite table {TableName}.", tableName);
+                throw;
             }
            
         }
@@ -256,7 +264,9 @@ namespace LocalGPT.Services
                 {
 
                     logger.LogWarning("Deleting row {RowId} from SQLite table {TableName}; referential consistency is the caller's responsibility.", rowId, tableName);
-                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    if (affected != 1)
+                        throw new InvalidOperationException($"SQLite delete affected {affected} rows instead of exactly one.");
                 }
                 catch (SqliteException ex)
                 {
@@ -266,6 +276,7 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not delete row {RowId} from SQLite table {TableName}.", rowId, tableName);
+                throw;
             }
         }
 
@@ -274,7 +285,7 @@ namespace LocalGPT.Services
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task<SqliteConnection?> OpenConnectionAsync(CancellationToken cancellationToken)
+        private async Task<SqliteConnection> OpenConnectionAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -285,7 +296,7 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not open the LocalGPT SQLite database at {DatabasePath}.", DatabasePath);
-                return null;
+                throw;
             }
         }
  

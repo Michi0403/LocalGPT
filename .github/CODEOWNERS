@@ -29,3 +29,7 @@
 /build/Assert-ProtectedRepositoryFiles.ps1 @Michi0403
 /build/Protect-GovernanceFiles.ps1 @Michi0403
 /build/protected-files.sha256 @Michi0403
+/CHANGELOG-v0.1.4-database-first-debug.md @Michi0403
+/docs/DATABASE_FIRST_PROJECT_ARCHITECTURE.md @Michi0403
+/docs/OPEN_TASKS.md @Michi0403
+/build/Assert-ArchitectureTasks.ps1 @Michi0403

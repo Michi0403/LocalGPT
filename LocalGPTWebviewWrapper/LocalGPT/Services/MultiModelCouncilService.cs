@@ -17,6 +17,7 @@ namespace LocalGPT.Services
         ICouncilArtifactService artifactService,
         ICouncilKnowledgeService knowledgeService,
         ILocalGptProjectService projectService,
+        IProjectArchitectureService projectArchitecture,
         ICodeGenerationWorkflowService codeGenerationWorkflow,
         ICouncilCodeGenerationPlanService codeGenerationPlanService,
         IPromptConfigService promptConfigService,
@@ -114,7 +115,19 @@ namespace LocalGPT.Services
                     : participants;
                 humanCollaboration.BeginCouncilRun(result.RunId, collaborationMembers);
 
-                if (request.ProjectId is Guid requestedProjectId)
+                if (request.CreateProjectForRun)
+                {
+                    var created = await projectArchitecture.EnsureCouncilRunProjectAsync(
+                        result.RunId,
+                        request.Title,
+                        request.Prompt,
+                        cancellationToken).ConfigureAwait(false);
+                    result.ProjectId = created.Project.Id;
+                    result.ProjectRevisionId = created.Revision.Id;
+                    if (request.ProjectId is Guid sourceProjectId)
+                        result.Warnings.Add($"A new database-first project was created for this council run. The previously selected project {sourceProjectId} remains unchanged and can be linked later through a requirement or project artifact.");
+                }
+                else if (request.ProjectId is Guid requestedProjectId)
                 {
                     var project = await projectService.GetProjectAsync(requestedProjectId, cancellationToken).ConfigureAwait(false);
                     if (project is null || project.Project.IsArchived)
@@ -124,6 +137,7 @@ namespace LocalGPT.Services
                     else
                     {
                         result.ProjectId = requestedProjectId;
+                        result.ProjectRevisionId = request.ProjectRevisionId ?? project.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
                         if (request.ProjectTopicId is Guid requestedTopicId)
                         {
                             if (project.Topics.Any(topic => topic.Id == requestedTopicId && topic.IsUserApproved))
@@ -133,15 +147,6 @@ namespace LocalGPT.Services
                         }
                     }
                 }
-                var continuedConversation = await LoadContinuationConversationAsync(request.ContinueConversationId, cancellationToken, logger).ConfigureAwait(false);
-                if (request.ContinueConversationId is Guid continuationId)
-                {
-                    result.ContinuedFromConversationId = continuationId;
-                    result.ContinuedFromTitle = continuedConversation?.Title;
-                    if (continuedConversation is null)
-                        result.Warnings.Add($"The selected council memory conversation {continuationId} could not be loaded. This run will start from general memory instead.");
-                }
-
                 if (participants.Count < 2)
                     result.Warnings.Add("Only one council model is selected. Add another installed Ollama model on Install or type its model name manually for real cross-model negotiation.");
                 if (participants.Count > maxParallelModels)
@@ -173,6 +178,11 @@ namespace LocalGPT.Services
                         .ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(projectBriefing))
                         bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "User-selected project", projectBriefing, logger);
+                    var architectureBriefing = await projectArchitecture
+                        .BuildArchitectureBriefingAsync(projectId, result.ProjectRevisionId, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(architectureBriefing))
+                        bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Database-first project architecture", architectureBriefing, logger);
                 }
 
                 var baseBootstrap = bootstrap;

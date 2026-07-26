@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Text
 @using System.Text.RegularExpressions
+@using System.Text.Json
 @using LocalGPT.Extensions
 @inject CouncilRuntimeService CouncilRuntime
 @inject CouncilTextService CouncilText
@@ -13,6 +14,7 @@
 @inject IChatContentRenderer ChatContentRenderer
 @inject IVariableStoreService VariableStore
 @inject ILocalGptProjectService ProjectService
+@inject IModelPresetService ModelPresetService
 @inject IChatSessionContext SessionContext
 @inject IHumanCollaborationService HumanCollaboration
 @inject ILocalHumanInteractionContext HumanAmbientContext
@@ -135,6 +137,36 @@
                 </div>
             </div>
         }
+        <div class="model-toolbar council-preset-toolbar" aria-label="AI Council model presets" data-testid="council-model-presets">
+            <label title="Load a database-backed preset for council model selection and runtime limits.">
+                <span>Model preset</span>
+                <select value="@SelectedModelPresetValue" @onchange="OnModelPresetChangedAsync">
+                    <option value="">Custom selection</option>
+                    @foreach (var preset in ModelPresets)
+                    {
+                        <option value="@preset.Id">@preset.Name@(preset.IsDefault ? " (default)" : string.Empty)</option>
+                    }
+                </select>
+            </label>
+            <label title="Saving updates an existing preset with the same name instead of creating duplicates.">
+                <span>Preset name</span>
+                <input @bind="ModelPresetName" maxlength="160" placeholder="My council team" />
+            </label>
+            <label class="inline-dx-check" title="Creates a database-first project/revision for each explicit AI Council run when no project is selected.">
+                <DxCheckBox @bind-Checked="CreateProjectPerCouncilRun" />
+                <span>New project per council run</span>
+            </label>
+            <DxButton Text="Save Preset"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Enabled="@(!isModelPresetBusy && SelectedCouncilModelNames.Count > 0 && !string.IsNullOrWhiteSpace(ModelPresetName))"
+                      Click="SaveModelPresetAsync" />
+            <DxButton Text="Archive Preset"
+                      RenderStyle="ButtonRenderStyle.Danger"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Enabled="@(!isModelPresetBusy && SelectedModelPreset is not null)"
+                      Click="ArchiveModelPresetAsync" />
+        </div>
         <div class="memory-toolbar" aria-label="Chat memory controls">
             <span title="Writes the current DXAiChat messages into the local SQLite memory database.">
                 <DxButton Text="Save Memory"
@@ -403,6 +435,12 @@
     List<MultiModelCouncilModelCandidate> OllamaCandidates { get; set; } = new();
     List<string> SelectedCouncilModelNames { get; set; } = new();
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
+    List<CouncilModelPreset> ModelPresets { get; set; } = new();
+    CouncilModelPreset? SelectedModelPreset { get; set; }
+    string ModelPresetName { get; set; } = string.Empty;
+    bool CreateProjectPerCouncilRun { get; set; } = true;
+    bool isModelPresetBusy;
+    string SelectedModelPresetValue => SelectedModelPreset?.Id.ToString() ?? string.Empty;
     List<LocalGptProjectSummary> ChatProjects { get; set; } = new();
     LocalGptProjectDetails? SelectedChatProjectDetails { get; set; }
     List<ChatFeedbackTarget> FeedbackTargets { get; set; } = new();
@@ -440,6 +478,7 @@
             await LoadChatProjectsAsync().ConfigureAwait(false);
             await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
+            await LoadModelPresetsAsync().ConfigureAwait(false);
             await RefreshOllamaModelsAsync(showToast: false).ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: true);
             if (UseFreshDiagnosticChat)
@@ -895,7 +934,9 @@
                 SaveToMemory = true,
                 GenerateImplementationArtifact = userConfirmedArtifactBuild,
                 UserConfirmedArtifactBuild = userConfirmedArtifactBuild,
-                Title = "DXAiChat AI Council"
+                Title = "DXAiChat AI Council",
+                ProjectId = SessionContext.ProjectId,
+                CreateProjectForRun = CreateProjectPerCouncilRun
             };
         }
         catch (Exception ex)
@@ -1221,6 +1262,127 @@
     }
 
   
+
+    private async Task LoadModelPresetsAsync()
+    {
+        try
+        {
+            ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(false)).ToList();
+            var defaultPreset = ModelPresets.FirstOrDefault(item => item.IsDefault);
+            if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
+                ApplyModelPreset(defaultPreset);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not load council model presets.");
+            ComponentActivity.RecordWarning(nameof(Chat), "LoadModelPresets", "Council model presets could not be loaded; the current manual selection remains available.");
+        }
+    }
+
+    private async Task OnModelPresetChangedAsync(ChangeEventArgs args)
+    {
+        try
+        {
+            if (!Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var presetId))
+            {
+                SelectedModelPreset = null;
+                return;
+            }
+
+            var preset = ModelPresets.FirstOrDefault(item => item.Id == presetId);
+            if (preset is null)
+                return;
+            ApplyModelPreset(preset);
+            modelStatus = $"Loaded model preset '{preset.Name}'.";
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not apply a council model preset.");
+            Notifier.ShowError(toastName, "The model preset could not be applied. See local logs.", "Preset failed");
+        }
+    }
+
+    private void ApplyModelPreset(CouncilModelPreset preset)
+    {
+        SelectedModelPreset = preset;
+        ModelPresetName = preset.Name;
+        SelectedCouncilModelNames = (JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        CouncilMaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, LocalGptCatalogService.MinCouncilOutputTokens, LocalGptCatalogService.MaxCouncilOutputTokens);
+        CouncilMaxContextTokens = Math.Clamp(preset.MaxContextTokens, LocalGptCatalogService.MinCouncilContextTokens, LocalGptCatalogService.MaxCouncilContextTokens);
+        IncludeCouncilMemory = preset.IncludeMemory;
+        GenerateCouncilArtifacts = preset.GenerateArtifacts;
+        CreateProjectPerCouncilRun = preset.CreateProjectPerRun;
+        if (preset.OllamaNumGpu == 0)
+            OllamaAccelerationMode = LocalGptCatalogService.OllamaModeSafeCpu;
+        else if (preset.OllamaNumGpu is > 0)
+        {
+            OllamaAccelerationMode = LocalGptCatalogService.OllamaModeLimitedGpu;
+            LimitedGpuLayers = Math.Clamp(preset.OllamaNumGpu.Value, 1, 99);
+        }
+        else
+            OllamaAccelerationMode = LocalGptCatalogService.OllamaModeAutoGpu;
+    }
+
+    private async Task SaveModelPresetAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            isModelPresetBusy = true;
+            try
+            {
+                var preset = new CouncilModelPreset
+                {
+                    Id = SelectedModelPreset?.Id ?? Guid.NewGuid(),
+                    Name = ModelPresetName,
+                    Description = "Saved from the DXChat council model selector.",
+                    ModelNamesJson = JsonSerializer.Serialize(SelectedCouncilModelNames),
+                    MaxOutputTokens = CouncilMaxOutputTokens,
+                    MaxContextTokens = CouncilMaxContextTokens,
+                    MaxParallelModels = 1,
+                    OllamaNumGpu = ResolveOllamaNumGpu(),
+                    IncludeMemory = IncludeCouncilMemory,
+                    GenerateArtifacts = GenerateCouncilArtifacts,
+                    CreateProjectPerRun = CreateProjectPerCouncilRun,
+                    IsDefault = SelectedModelPreset?.IsDefault ?? ModelPresets.Count == 0,
+                    IsUserApproved = true
+                };
+                var savedPreset = await ModelPresetService.SavePresetAsync(preset, userConfirmed: true).ConfigureAwait(false);
+                await LoadModelPresetsAsync().ConfigureAwait(false);
+                SelectedModelPreset = ModelPresets.FirstOrDefault(item => item.Id == savedPreset.Id);
+                Notifier.ShowSuccess(toastName, "The model preset was saved to SQLite.", "Preset saved");
+            }
+            finally
+            {
+                isModelPresetBusy = false;
+            }
+        }, "Save model preset").ConfigureAwait(false);
+    }
+
+    private async Task ArchiveModelPresetAsync()
+    {
+        if (SelectedModelPreset is null)
+            return;
+        await RunUiActionAsync(async () =>
+        {
+            isModelPresetBusy = true;
+            try
+            {
+                await ModelPresetService.ArchivePresetAsync(SelectedModelPreset.Id, userConfirmed: true).ConfigureAwait(false);
+                SelectedModelPreset = null;
+                ModelPresetName = string.Empty;
+                await LoadModelPresetsAsync().ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "The model preset was archived.", "Preset archived");
+            }
+            finally
+            {
+                isModelPresetBusy = false;
+            }
+        }, "Archive model preset").ConfigureAwait(false);
+    }
 
     private void ToggleCouncilModel(string modelName, ChangeEventArgs e)
     {

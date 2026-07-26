@@ -69,3 +69,7 @@ Then test migration on a copy of the existing SQLite database, chat project/vers
 ## Human collaboration debug candidate
 
 The source gate now includes `Assert-HumanCollaboration.ps1`. Manual runtime validation must cover exact controller approval, changed-parameter rejection, decline guidance, live human contribution during a running council, later peer assessment, deferred sensitive DXAI execution on a later heartbeat, and the no-auto-restart behavior after a run has completed. See `DEBUG-NEXT-STEPS.md`.
+
+## Database-first debug candidate
+
+Run `build/Invoke-RepositoryValidation.ps1 -Configuration Debug` on Windows with the pinned SDK and licensed DevExpress feed. The validation chain now checks the chat-memory mapper seam, current changelog/open-task ledger, database-first migration/snapshot contracts, protected governance files, C# syntax, component safety, human collaboration, and a real compiler build.

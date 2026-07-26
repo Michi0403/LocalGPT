@@ -53,3 +53,11 @@ Sensitive DXAI calls eligible for deferred review persist one exact bounded para
 The normal registry then consumes the one-use approval and re-enters the unchanged handler, so existing review hashes, build confirmations, workspace restrictions, and handler validation remain in force. A successful or failed result is persisted and added to the transcript as untrusted data. A consumed approval cannot be replayed, and changed parameters create a different fingerprint.
 
 The collaboration control plane is deliberately non-blocking: analysis phases continue while a request is pending. `RequiredBeforeCompletion` delays only the guarded final action. Approval after a council has already completed does not restart that run; an exact caller retry is required.
+
+## Database-first iteration ledger
+
+- The current `CHANGELOG-v0.1.4-database-first-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
+- Carry every unresolved item into the next current changelog.
+- Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
+- Project revisions, requirements, requirement links, artifacts, presets, editor preferences, safe imports, and knowledge ratings are database-first contracts. Do not replace them with prewired generation strings.

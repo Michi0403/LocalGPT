@@ -54,8 +54,13 @@ namespace LocalGPT
             var logger = loggerFactory.CreateLogger("Startup");
             //EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
 
-            var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions( args));
-            logger.LogInformation("Created builder.", logger);
+            var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions(args));
+            builder.Host.UseDefaultServiceProvider((_, options) =>
+            {
+                options.ValidateScopes = true;
+                options.ValidateOnBuild = true;
+            });
+            logger.LogInformation("Created builder with startup service-provider validation enabled.");
             ConfigureAppConfiguration(builder, logger);
             logger.LogInformation("Configured app configuration.", logger);
             ConfigureLogging(builder, logger);
@@ -216,6 +221,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<CouncilRuntimeService>();
                 builder.Services.AddSingleton<SqliteUtilityService>();
                 builder.Services.AddScoped<DevExpressChatService>();
+                builder.Services.AddScoped<IChatMemoryMessageMapper, ChatMemoryMessageMapper>();
                 builder.Services.AddSingleton<AiDiscoveryService>();
                 builder.Services.AddSingleton<SqliteGridPresentationService>();
                 builder.Services.AddSingleton<NavigationUrlService>();
@@ -278,6 +284,11 @@ namespace LocalGPT
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
                 builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
                 builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
+                builder.Services.AddScoped<IProjectArchitectureService, ProjectArchitectureService>();
+                builder.Services.AddScoped<IModelPresetService, ModelPresetService>();
+                builder.Services.AddScoped<ISqliteEditorPreferenceService, SqliteEditorPreferenceService>();
+                builder.Services.AddScoped<ISafeTextDocumentService, SafeTextDocumentService>();
+                builder.Services.AddScoped<IKnowledgeRatingService, KnowledgeRatingService>();
                 builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
                 builder.Services.AddScoped<ILearnBaseKnowledgeImporterService, LearnBaseKnowledgeImporterService>();
                 builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();

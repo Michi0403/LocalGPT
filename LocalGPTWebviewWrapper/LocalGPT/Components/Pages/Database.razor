@@ -7,6 +7,8 @@
 @inject IApplicationLogReaderService ApplicationLogs
 @inject ICouncilKnowledgeService CouncilKnowledge
 @inject ISqliteTableEditorService TableEditor
+@inject ISqliteEditorPreferenceService EditorPreferences
+@inject IKnowledgeRatingService KnowledgeRatings
 @rendermode InteractiveServer
 @inject ILogger<Database> Logger
 @inject INotificationService Notifier
@@ -146,6 +148,27 @@
                     <DxCheckBox @bind-Checked="KnowledgeEdit.IsPinned" Text="Pinned" />
                     <DxCheckBox @bind-Checked="KnowledgeEdit.IsArchived" Text="Archived" />
                 </div>
+                <fieldset class="knowledge-rating-panel">
+                    <legend>Human knowledge rating</legend>
+                    <p class="hint">Rate and explicitly approve collected knowledge before the council treats it as grounded input.</p>
+                    <div class="form-row">
+                        <label>Accuracy
+                            <DxComboBox Data="@KnowledgeAccuracyOptions" @bind-Value="KnowledgeRatingEdit.AccuracyStatus" />
+                        </label>
+                        <label>Rating
+                            <DxSpinEdit @bind-Value="KnowledgeRatingEdit.Rating" MinValue="0" MaxValue="100" />
+                        </label>
+                        <DxCheckBox @bind-Checked="KnowledgeRatingEdit.ApprovedForCouncilUse" Text="Approve for council use" />
+                    </div>
+                    <label>Rating notes
+                        <DxMemo @bind-Text="KnowledgeRatingEdit.Notes" Rows="2" />
+                    </label>
+                    <DxButton Text="Save human rating"
+                              RenderStyle="ButtonRenderStyle.Success"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!isBusy && SelectedKnowledgeEntry is not null)"
+                              Click="SaveKnowledgeRatingAsync" />
+                </fieldset>
                 <div class="run-row">
                     <DxButton Text="Mark Current"
                               RenderStyle="ButtonRenderStyle.Success"
@@ -260,26 +283,47 @@
                                     TextFieldName="@nameof(SqliteRowSnapshot.DisplayName)"
                                     ValueChanged="@((SqliteRowSnapshot row) => SelectSqliteRow(row))" />
                     </label>
-                    <p class="hint">Primary-key columns are shown but protected here. Type <code>[null]</code> to save NULL in editable columns.</p>
+                    <p class="hint">Primary-key columns are editable only for a new row. Type <code>[null]</code> to save NULL in editable columns.</p>
                     @foreach (var column in CurrentTable.Columns)
                     {
                         var value = GetEditValue(column.Name);
-                        <label title="@GridPresentation.BuildColumnTitle(column, Logger)">
-                            @column.Name <small>@column.Type@if (column.IsPrimaryKey) { <text> primary key</text> }</small>
-                    @if (GridPresentation.IsLongTextColumn(column.Name, value, Logger))
+                        var editorKind = GetEditorKind(column, value);
+                        var readOnly = column.IsPrimaryKey && SelectedRow is not null;
+                        <div class="sqlite-field-editor" title="@GridPresentation.BuildColumnTitle(column, Logger)">
+                            <div class="sqlite-field-heading">
+                                <label>@column.Name <small>@column.Type@if (column.IsPrimaryKey) { <text> primary key</text> }</small></label>
+                                <div class="sqlite-editor-choice">
+                                    <DxComboBox Data="@EditorKindOptions" Value="@editorKind" ValueChanged="@((string kind) => SetEditorKind(column, kind))" />
+                                    <DxButton Text="Remember" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!isBusy)" Click="@(() => SaveEditorPreferenceAsync(column))" />
+                                </div>
+                            </div>
+                            @switch (editorKind)
                             {
-                                <DxMemo Text="@value"
-                                        TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))"
-                                        Rows="4"
-                                        ReadOnly="@column.IsPrimaryKey" />
+                                case "LongText":
+                                case "Json":
+                                    <DxMemo Text="@value" TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))" Rows="4" ReadOnly="@readOnly" />
+                                    break;
+                                case "Boolean":
+                                    <DxComboBox Data="@BooleanValueOptions" Value="@value" ValueChanged="@((string newValue) => SetEditValue(column.Name, newValue))" ReadOnly="@readOnly" />
+                                    break;
+                                case "Secret":
+                                    <input type="password" value="@value" readonly="@readOnly" @onchange="@((ChangeEventArgs args) => SetEditValue(column.Name, args.Value?.ToString() ?? string.Empty))" />
+                                    break;
+                                case "Number":
+                                    <input type="number" step="any" value="@value" readonly="@readOnly" @onchange="@((ChangeEventArgs args) => SetEditValue(column.Name, args.Value?.ToString() ?? string.Empty))" />
+                                    break;
+                                case "DateTime":
+                                    <input type="datetime-local" value="@ToDateTimeLocalValue(value)" readonly="@readOnly" @onchange="@((ChangeEventArgs args) => SetEditValue(column.Name, args.Value?.ToString() ?? string.Empty))" />
+                                    break;
+                                default:
+                                    <DxTextBox Text="@value" TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))" ReadOnly="@readOnly" />
+                                    break;
                             }
-                            else
+                            @if (EditorOverrides.TryGetValue(column.Name, out var preference) && !string.IsNullOrWhiteSpace(preference.InputMask))
                             {
-                                <DxTextBox Text="@value"
-                                           TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))"
-                                           ReadOnly="@column.IsPrimaryKey" />
+                                <small class="hint">Mask hint: @preference.InputMask</small>
                             }
-                        </label>
+                        </div>
                     }
                     <div class="run-row">
                         <DxButton Text="Save Row"
@@ -312,16 +356,22 @@
         "Superseded",
         "Archived"
     ];
+    readonly string[] KnowledgeAccuracyOptions = ["Unrated", "Supported", "Mixed", "NeedsCorrection", "Rejected"];
+    readonly string[] EditorKindOptions = ["Automatic", "Text", "LongText", "Number", "Boolean", "DateTime", "Guid", "Json", "Secret"];
+    readonly string[] BooleanValueOptions = ["true", "false", "1", "0", "[null]"];
 
     List<CouncilKnowledgeEntry> KnowledgeEntries { get; set; } = [];
     CouncilKnowledgeEntry? SelectedKnowledgeEntry { get; set; }
     CouncilKnowledgeEntry KnowledgeEdit { get; set; } = new();
+    CouncilKnowledgeUserRating KnowledgeRatingEdit { get; set; } = new();
 
     List<SqliteTableSummary> Tables { get; set; } = [];
     SqliteTableSummary? SelectedTable { get; set; }
     SqliteTableSnapshot? CurrentTable { get; set; }
     SqliteRowSnapshot? SelectedRow { get; set; }
     Dictionary<string, string?> RowEditValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    Dictionary<string, SqliteEditorFieldOverride> EditorOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    Dictionary<string, string> SessionEditorKinds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     List<ExpandoObject> GridRows { get; set; } = [];
     int RowLimit { get; set; } = 100;
     bool isBusy;
@@ -380,6 +430,13 @@
         {
             SelectedKnowledgeEntry = entry;
             KnowledgeEdit = CouncilRuntime.CopyKnowledgeEntry(entry, Logger) ?? Catalog.CouncilKnowledgeEntryNew;
+            KnowledgeRatingEdit = new CouncilKnowledgeUserRating
+            {
+                KnowledgeEntryId = entry.Id,
+                Rating = entry.Confidence,
+                AccuracyStatus = entry.IsUserApproved ? "Supported" : "Unrated",
+                ApprovedForCouncilUse = entry.IsUserApproved
+            };
         }
         catch (Exception ex)
         {
@@ -598,6 +655,8 @@
         {
             SelectedTable = table;
             CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
+            EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(false), StringComparer.OrdinalIgnoreCase);
+            SessionEditorKinds.Clear();
             GridRows.Clear();
             foreach (var row in CurrentTable.Rows)
             {
@@ -677,7 +736,7 @@
             await RunUiActionAsync(async () =>
             {
                 var editableValues = CurrentTable.Columns
-                    .Where(column => !column.IsPrimaryKey)
+                    .Where(column => SelectedRow is null || !column.IsPrimaryKey)
                     .ToDictionary(
                         column => column.Name,
                         column => CouncilText.NormalizeDBNullStringValue(GetEditValue(column.Name), Logger),
@@ -745,6 +804,8 @@
             {
                 SelectedTable = table;
                 CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
+                EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(false), StringComparer.OrdinalIgnoreCase);
+                SessionEditorKinds.Clear();
                 GridRows.Clear();
                 foreach (var row in CurrentTable.Rows)
                 {
@@ -805,6 +866,63 @@
     }
 
  
+
+    string GetEditorKind(SqliteColumnSummary column, string? value)
+    {
+        if (SessionEditorKinds.TryGetValue(column.Name, out var sessionKind) && !sessionKind.Equals("Automatic", StringComparison.OrdinalIgnoreCase))
+            return sessionKind;
+        if (EditorOverrides.TryGetValue(column.Name, out var persisted) && !persisted.EditorKind.Equals("Automatic", StringComparison.OrdinalIgnoreCase))
+            return persisted.EditorKind;
+        return EditorPreferences.InferEditorKind(column, value);
+    }
+
+    void SetEditorKind(SqliteColumnSummary column, string kind)
+    {
+        SessionEditorKinds[column.Name] = string.IsNullOrWhiteSpace(kind) ? "Automatic" : kind;
+    }
+
+    async Task SaveEditorPreferenceAsync(SqliteColumnSummary column)
+    {
+        if (CurrentTable is null)
+            return;
+        var kind = SessionEditorKinds.TryGetValue(column.Name, out var selected) ? selected : "Automatic";
+        var existing = EditorOverrides.GetValueOrDefault(column.Name);
+        var saved = await EditorPreferences.SaveOverrideAsync(new SqliteEditorFieldOverride
+        {
+            Id = existing?.Id ?? Guid.NewGuid(),
+            TableName = CurrentTable.TableName,
+            ColumnName = column.Name,
+            EditorKind = kind,
+            InputMask = existing?.InputMask ?? string.Empty,
+            FormatString = existing?.FormatString ?? string.Empty,
+            NullText = existing?.NullText ?? "[null]",
+            IsSensitive = kind.Equals("Secret", StringComparison.OrdinalIgnoreCase) || existing?.IsSensitive == true,
+            RequireHumanApproval = existing?.RequireHumanApproval == true
+        }, userConfirmed: true).ConfigureAwait(false);
+        EditorOverrides[column.Name] = saved;
+        statusText = $"Remembered {kind} editor for {CurrentTable.TableName}.{column.Name}.";
+        Notifier.ShowSuccess(toastName, statusText, "Editor preference saved");
+    }
+
+    static string ToDateTimeLocalValue(string? value)
+    {
+        return DateTimeOffset.TryParse(value, out var parsed)
+            ? parsed.ToLocalTime().ToString("yyyy-MM-ddTHH:mm")
+            : string.Empty;
+    }
+
+    async Task SaveKnowledgeRatingAsync()
+    {
+        if (SelectedKnowledgeEntry is null)
+            return;
+        KnowledgeRatingEdit.KnowledgeEntryId = SelectedKnowledgeEntry.Id;
+        KnowledgeRatingEdit = await KnowledgeRatings.SaveRatingAsync(KnowledgeRatingEdit, userConfirmed: true).ConfigureAwait(false);
+        KnowledgeEdit.Confidence = KnowledgeRatingEdit.Rating;
+        KnowledgeEdit.IsUserApproved = KnowledgeRatingEdit.ApprovedForCouncilUse;
+        KnowledgeEdit.ReviewStatus = KnowledgeRatingEdit.ApprovedForCouncilUse ? "Current" : "NeedsUserReview";
+        statusText = "Human knowledge rating saved.";
+        Notifier.ShowSuccess(toastName, statusText, "Knowledge rated");
+    }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {

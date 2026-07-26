@@ -20,7 +20,7 @@ namespace LocalGPT.Services
         LocalGptDatabaseOptions databaseOptions,
         ILogger<EfChatMemoryService> logger,
         CouncilTextService councilText,
-        DevExpressChatService devExpressChat,
+        IChatMemoryMessageMapper messageMapper,
         IChatSessionContext sessionContext) : IChatMemoryService
     {
         public string DatabasePath => databaseOptions.DatabasePath;
@@ -71,10 +71,10 @@ namespace LocalGPT.Services
 
                 var messages = conversation.Messages
                     .OrderBy(message => message.SortOrder)
-                    .Select(filter => devExpressChat.ToBlazorChatMessage(filter,logger))
+                    .Select(filter => messageMapper.ToBlazorChatMessage(filter))
                     .ToList();
                 ArgumentNullException.ThrowIfNull(messages);
-                messages = devExpressChat.EnsureVisibleCouncilPrompt(conversation, (List<BlazorChatMessage> )messages, logger) ?? new List<BlazorChatMessage>();
+                messages = messageMapper.EnsureVisibleCouncilPrompt(conversation, messages) ?? new List<BlazorChatMessage>();
                 ArgumentNullException.ThrowIfNull(messages);
                 return new ChatMemoryConversationSnapshot(
                     conversation.Id,
@@ -128,7 +128,7 @@ namespace LocalGPT.Services
                     conversation = new ChatMemoryConversation { CreatedAtUtc = now };
                 }
 
-                conversation.Title = devExpressChat.BuildTitle(completeMessages, logger);
+                conversation.Title = messageMapper.BuildTitle(completeMessages);
                 conversation.ProviderName = string.IsNullOrWhiteSpace(providerName) ? "Unknown" : providerName.Trim();
                 conversation.ProjectId = sessionContext.ProjectId;
                 conversation.ProjectVersionId = sessionContext.ProjectVersionId;
@@ -148,7 +148,7 @@ namespace LocalGPT.Services
                 foreach (var message in completeMessages)
                 {
                     var sortOrder = index++;
-                    var role = devExpressChat.ToRoleName(message.Role, logger);
+                    var role = messageMapper.ToRoleName(message.Role);
                     previousFeedback.TryGetValue((sortOrder, role, message.Content), out var feedback);
                     conversation.Messages.Add(new ChatMemoryMessage
                     {

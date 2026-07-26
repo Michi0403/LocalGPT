@@ -60,7 +60,15 @@
       "Write(build/New-VerifiedSourcePackage.ps1)",
       "Write(build/Assert-ProtectedRepositoryFiles.ps1)",
       "Write(build/Protect-GovernanceFiles.ps1)",
-      "Write(build/protected-files.sha256)"
+      "Write(build/protected-files.sha256)",
+      "Edit(CHANGELOG-v0.1.4-database-first-debug.md)",
+      "Write(CHANGELOG-v0.1.4-database-first-debug.md)",
+      "Edit(docs/DATABASE_FIRST_PROJECT_ARCHITECTURE.md)",
+      "Write(docs/DATABASE_FIRST_PROJECT_ARCHITECTURE.md)",
+      "Edit(docs/OPEN_TASKS.md)",
+      "Write(docs/OPEN_TASKS.md)",
+      "Edit(build/Assert-ArchitectureTasks.ps1)",
+      "Write(build/Assert-ArchitectureTasks.ps1)"
     ]
   }
 }

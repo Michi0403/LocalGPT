@@ -214,6 +214,14 @@ public sealed partial class CouncilChatClient(
             .AppendLine(result.ModelNames.Count == 0 ? "none" : string.Join(", ", result.ModelNames))
             .AppendLine();
 
+            if (result.ProjectId is Guid projectId)
+            {
+                builder.Append("Database project: ").Append(projectId);
+                if (result.ProjectRevisionId is Guid revisionId)
+                    builder.Append("; revision: ").Append(revisionId);
+                builder.AppendLine().AppendLine("Open the Projects page to select or refine this council-run project.").AppendLine();
+            }
+
             if (!string.IsNullOrWhiteSpace(result.Prompt))
             {
                 builder

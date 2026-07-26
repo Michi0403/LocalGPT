@@ -23,6 +23,14 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<HumanCouncilParticipantProfile> HumanCouncilParticipantProfiles => Set<HumanCouncilParticipantProfile>();
         public DbSet<HumanCouncilContribution> HumanCouncilContributions => Set<HumanCouncilContribution>();
         public DbSet<DeferredDxAiInvocation> DeferredDxAiInvocations => Set<DeferredDxAiInvocation>();
+        public DbSet<LocalGptProjectRevision> LocalGptProjectRevisions => Set<LocalGptProjectRevision>();
+        public DbSet<LocalGptProjectRequirement> LocalGptProjectRequirements => Set<LocalGptProjectRequirement>();
+        public DbSet<LocalGptProjectRequirementLink> LocalGptProjectRequirementLinks => Set<LocalGptProjectRequirementLink>();
+        public DbSet<LocalGptProjectArtifact> LocalGptProjectArtifacts => Set<LocalGptProjectArtifact>();
+        public DbSet<ProjectDocumentImport> ProjectDocumentImports => Set<ProjectDocumentImport>();
+        public DbSet<CouncilModelPreset> CouncilModelPresets => Set<CouncilModelPreset>();
+        public DbSet<SqliteEditorFieldOverride> SqliteEditorFieldOverrides => Set<SqliteEditorFieldOverride>();
+        public DbSet<CouncilKnowledgeUserRating> CouncilKnowledgeUserRatings => Set<CouncilKnowledgeUserRating>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -188,6 +196,133 @@ namespace LocalGPT.BusinessObjects.EFCore
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
+
+            modelBuilder.Entity<LocalGptProjectRevision>(entity =>
+            {
+                entity.ToTable("LocalGptProjectRevisions");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.BranchName).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.RevisionName).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Summary).IsRequired();
+                entity.Property(item => item.ProjectStructureJson).IsRequired();
+                entity.Property(item => item.CreatedBy).HasMaxLength(120).IsRequired();
+                entity.HasIndex(item => new { item.ProjectId, item.BranchName, item.RevisionName }).IsUnique();
+                entity.HasIndex(item => new { item.ProjectId, item.IsCurrent, item.UpdatedAtUtc });
+                entity.HasOne(item => item.Project).WithMany(project => project.Revisions)
+                    .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.ParentRevision).WithMany(item => item.ChildRevisions)
+                    .HasForeignKey(item => item.ParentRevisionId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<LocalGptProjectRequirement>(entity =>
+            {
+                entity.ToTable("LocalGptProjectRequirements");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Name).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Description).IsRequired();
+                entity.Property(item => item.RequirementType).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.Status).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.Priority).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.RequiredCapability).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.SourceKind).HasMaxLength(160).IsRequired();
+                entity.HasIndex(item => new { item.ProjectId, item.Status, item.Priority });
+                entity.HasIndex(item => new { item.ProjectId, item.Name }).IsUnique();
+                entity.HasOne(item => item.Project).WithMany(project => project.Requirements)
+                    .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.Revision).WithMany()
+                    .HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<LocalGptProjectRequirementLink>(entity =>
+            {
+                entity.ToTable("LocalGptProjectRequirementLinks");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.TargetKind).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.TargetName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.TargetId).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.TargetTable).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.LinkPurpose).HasMaxLength(1000).IsRequired();
+                entity.Property(item => item.CouncilReviewStatus).HasMaxLength(80).IsRequired();
+                entity.HasIndex(item => new { item.RequirementId, item.TargetKind, item.TargetName }).IsUnique();
+                entity.HasOne(item => item.Requirement).WithMany(requirement => requirement.Links)
+                    .HasForeignKey(item => item.RequirementId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<LocalGptProjectArtifact>(entity =>
+            {
+                entity.ToTable("LocalGptProjectArtifacts");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.ArtifactKind).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.Name).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Value).IsRequired();
+                entity.Property(item => item.DataType).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.Flags).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Description).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.CouncilReviewStatus).HasMaxLength(80).IsRequired();
+                entity.HasIndex(item => new { item.ProjectId, item.ArtifactKind, item.Name }).IsUnique();
+                entity.HasIndex(item => new { item.ProjectId, item.IsUserApproved, item.UpdatedAtUtc });
+                entity.HasOne(item => item.Project).WithMany(project => project.Artifacts)
+                    .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.Revision).WithMany()
+                    .HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.Requirement).WithMany()
+                    .HasForeignKey(item => item.RequirementId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ProjectDocumentImport>(entity =>
+            {
+                entity.ToTable("ProjectDocumentImports");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.SourceName).HasMaxLength(260).IsRequired();
+                entity.Property(item => item.SourceUri).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.ContentHash).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.ContentType).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.EncodingName).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ExtractedText).IsRequired();
+                entity.Property(item => item.Status).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.SafetyNotes).HasMaxLength(2000).IsRequired();
+                entity.HasIndex(item => new { item.ProjectId, item.ContentHash }).IsUnique();
+                entity.HasOne(item => item.Project).WithMany()
+                    .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.Revision).WithMany()
+                    .HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CouncilModelPreset>(entity =>
+            {
+                entity.ToTable("CouncilModelPresets");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Name).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Description).HasMaxLength(1000).IsRequired();
+                entity.Property(item => item.ModelNamesJson).IsRequired();
+                entity.HasIndex(item => item.Name).IsUnique();
+                entity.HasIndex(item => new { item.IsArchived, item.IsDefault, item.UpdatedAtUtc });
+            });
+
+            modelBuilder.Entity<SqliteEditorFieldOverride>(entity =>
+            {
+                entity.ToTable("SqliteEditorFieldOverrides");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.TableName).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.ColumnName).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.EditorKind).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.InputMask).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.FormatString).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.NullText).HasMaxLength(120).IsRequired();
+                entity.HasIndex(item => new { item.TableName, item.ColumnName }).IsUnique();
+            });
+
+            modelBuilder.Entity<CouncilKnowledgeUserRating>(entity =>
+            {
+                entity.ToTable("CouncilKnowledgeUserRatings");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.AccuracyStatus).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.Notes).HasMaxLength(4000).IsRequired();
+                entity.Property(item => item.RatedBy).HasMaxLength(120).IsRequired();
+                entity.HasIndex(item => new { item.KnowledgeEntryId, item.UpdatedAtUtc });
+                entity.HasOne(item => item.KnowledgeEntry).WithMany()
+                    .HasForeignKey(item => item.KnowledgeEntryId).OnDelete(DeleteBehavior.Restrict);
+            });
 
             modelBuilder.Entity<CodeGenerationChangeReview>(entity =>
             {

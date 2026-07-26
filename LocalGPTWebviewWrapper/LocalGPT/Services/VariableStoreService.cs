@@ -6,111 +6,54 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 public sealed class VariableStoreService(
-    LocalGptMemoryDbContext db,
+    IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
+    IDatabaseInitializationService databaseInitializer,
     ILogger<VariableStoreService> logger,
-        SqliteUtilityService sqliteUtility) : IVariableStoreService
+    SqliteUtilityService sqliteUtility) : IVariableStoreService
 {
     public async Task<T> GetAsync<T>(string name, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("A variable name is required.", nameof(name));
-
-        try
-        {
-            var variable = await db.SystemVariables
-                .AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Name == name, cancellationToken)
-                .ConfigureAwait(false);
-            if (variable is null)
-                throw new KeyNotFoundException($"Variable '{name}' was not found.");
-
-            return sqliteUtility.ParseValue<T>(variable.ValueString, variable.DataType, logger);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Could not load system variable {VariableName}.", name);
-            throw;
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var variable = await db.SystemVariables.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Name == name, cancellationToken).ConfigureAwait(false)
+            ?? throw new KeyNotFoundException($"Variable '{name}' was not found.");
+        return sqliteUtility.ParseValue<T>(variable.ValueString, variable.DataType, logger);
     }
 
-    public async Task SetAsync<T>(
-        string name,
-        T value,
-        CancellationToken cancellationToken = default)
+    public async Task SetAsync<T>(string name, T value, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("A variable name is required.", nameof(name));
-
-        try
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var existing = await db.SystemVariables.SingleOrDefaultAsync(item => item.Name == name, cancellationToken).ConfigureAwait(false);
+        if (existing is null)
         {
-            var existing = await db.SystemVariables
-                .SingleOrDefaultAsync(item => item.Name == name, cancellationToken)
-                .ConfigureAwait(false);
-            if (existing is null)
-            {
-                await db.SystemVariables.AddAsync(new SystemVariable
-                {
-                    Name = name,
-                    ValueString = value?.ToString() ?? string.Empty,
-                    DataType = typeof(T).FullName,
-                    LastUpdated = DateTime.UtcNow
-                }, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                existing.ValueString = value?.ToString() ?? string.Empty;
-                existing.DataType = typeof(T).FullName;
-                existing.LastUpdated = DateTime.UtcNow;
-            }
-
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            existing = new SystemVariable { Name = name };
+            db.SystemVariables.Add(existing);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Could not store system variable {VariableName}.", name);
-            throw;
-        }
+        existing.ValueString = value?.ToString() ?? string.Empty;
+        existing.DataType = typeof(T).FullName;
+        existing.LastUpdated = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Stored system variable {VariableName}; value omitted from logs.", name);
     }
 
     public Task<IEnumerable<SystemVariable>> ListAllAsync(CancellationToken cancellationToken = default) =>
         ListAllAsync(string.Empty, cancellationToken);
 
-    public async Task<IEnumerable<SystemVariable>> ListAllAsync(
-        string filter,
-        CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<SystemVariable>> ListAllAsync(string filter, CancellationToken cancellationToken = default)
     {
-        try
+        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var query = db.SystemVariables.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(filter))
         {
-            var query = db.SystemVariables.AsNoTracking();
-            if (!string.IsNullOrWhiteSpace(filter))
-            {
-                query = query.Where(item =>
-                    item.Name.Contains(filter) ||
-                    item.ValueString.Contains(filter) ||
-                    (item.DataType != null && item.DataType.Contains(filter)));
-            }
-
-            return await query
-                .OrderBy(item => item.Name)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            query = query.Where(item => item.Name.Contains(filter) ||
+                item.ValueString.Contains(filter) ||
+                (item.DataType != null && item.DataType.Contains(filter)));
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Could not list system variables for filter {Filter}.", filter);
-            return [];
-        }
+        return await query.OrderBy(item => item.Name).ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 }

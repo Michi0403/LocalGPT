@@ -49,6 +49,10 @@ $expectedFiles = @(
     'build/New-VerifiedSourcePackage.ps1',
     'build/Assert-ProtectedRepositoryFiles.ps1',
     'build/Protect-GovernanceFiles.ps1',
+    'CHANGELOG-v0.1.4-database-first-debug.md',
+    'docs/DATABASE_FIRST_PROJECT_ARCHITECTURE.md',
+    'docs/OPEN_TASKS.md',
+    'build/Assert-ArchitectureTasks.ps1',
     'build/protected-files.sha256'
 )
 

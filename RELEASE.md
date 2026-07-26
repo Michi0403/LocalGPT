@@ -33,3 +33,7 @@
 17. Generate any required DevExtreme runtime-license script only on the licensed build machine and place it in release staging, never in Git. Follow `docs/DEVEXPRESS_ASSETS.md`.
 18. Review `THIRD-PARTY-NOTICES.md`, `LICENSE.MD`, the v0.1.1, v0.1.2, v0.1.3, and v0.1.4 changelogs plus `MISSING_FEATURE_REVIEW-v0.1.4.md`, `SECURITY.md`, and `VALIDATION.md`.
 19. Package only from a clean staging tree. Exclude `.git`, `.vs`, `.cr`, `bin`, `obj`, databases, logs, credentials, private feeds, keys/certificates, generated license material, user files, and unlicensed font binaries.
+
+## Current debug iteration
+
+The active implementation ledger is `CHANGELOG-v0.1.4-database-first-debug.md`; unresolved architecture work is mirrored in `docs/OPEN_TASKS.md`. A source package must not describe an item as complete when it remains open there.
