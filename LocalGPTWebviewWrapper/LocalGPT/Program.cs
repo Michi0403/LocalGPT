@@ -14,6 +14,7 @@ using LocalGPT.Interfaces;
 using LocalGPT.Services;
 using LocalGPT.Services.Formatting;
 using LocalGPT.Services.Persistence;
+using LocalGPT.Services.OneWire;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -37,6 +38,21 @@ namespace LocalGPT
 {
     public static class Program
     {
+        // Installer/WebView compatibility contract. Do not remove or silently change these defaults.
+        public const int DefaultPort = 5000;
+        public const int DefaultOneWirePort = OneWireProtocol.DefaultServicePort;
+        public const int DefaultOneWireDiscoveryPort = OneWireProtocol.DefaultDiscoveryPort;
+
+        private static int runtimePort = DefaultPort;
+        private static int runtimeOneWirePort = DefaultOneWirePort;
+        private static int runtimeOneWireDiscoveryPort = DefaultOneWireDiscoveryPort;
+
+        // Public read-only compatibility surface consumed by the WinUI wrapper and installer wiring.
+        // Startup updates the private snapshot atomically; callers cannot mutate it.
+        public static System.Int32 Port => Volatile.Read(ref runtimePort);
+        public static System.Int32 OneWirePort => Volatile.Read(ref runtimeOneWirePort);
+        public static System.Int32 OneWireDiscoveryPort => Volatile.Read(ref runtimeOneWireDiscoveryPort);
+        public static string BaseUrl => $"http://127.0.0.1:{Port}";
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -63,13 +79,18 @@ namespace LocalGPT
             logger.LogInformation("Created builder with startup service-provider validation enabled.");
             ConfigureAppConfiguration(builder, logger);
             logger.LogInformation("Configured app configuration.", logger);
+            Volatile.Write(ref runtimePort, ResolveRequestedPort(args, builder.Configuration, logger));
+            Volatile.Write(ref runtimeOneWirePort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-port", "LOCALGPT_ONEWIRE_PORT", $"{OneWireOptions.SectionName}:ServicePort", DefaultOneWirePort, allowDynamic: false, logger));
+            Volatile.Write(ref runtimeOneWireDiscoveryPort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-discovery-port", "LOCALGPT_ONEWIRE_DISCOVERY_PORT", $"{OneWireOptions.SectionName}:DiscoveryPort", DefaultOneWireDiscoveryPort, allowDynamic: false, logger));
             ConfigureLogging(builder, logger);
             logger.LogInformation("Configured logging.", logger);
             ConfigureOptionsAndServices(builder, logger);
             logger.LogInformation("Configured options and services.", logger);
             ConfigureSignalR(builder.Services, logger);
             logger.LogInformation("Configured SignalR.", logger);
-            var port = ConfigureKestrel(builder, ResolveRequestedPort(args, logger), logger);
+            Volatile.Write(ref runtimePort, ConfigureKestrel(builder, Port, logger));
+            ValidatePortContracts(logger);
+            var port = Port;
             logger.LogInformation("Configured Kestrel on loopback port {Port}.", port);
             ConfigureResponseCompression(builder.Services, logger);
             logger.LogInformation("Configured response compression.", logger);
@@ -314,6 +335,21 @@ namespace LocalGPT
                 foreach (var handlerType in dxAiHandlerTypes)
                     builder.Services.AddScoped(typeof(IDxAiFunctionHandler), handlerType);
                 logger.LogInformation("Registered {DxAiFunctionHandlerCount} DI-backed DXAIFunction handler(s).", dxAiHandlerTypes.Count);
+                builder.Services.AddScoped<IProjectOrganicContextService, ProjectOrganicContextService>();
+                builder.Services.AddScoped<IOrganicCouncilBlueprintService, OrganicCouncilBlueprintService>();
+                builder.Services.Configure<OneWireOptions>(builder.Configuration.GetSection(OneWireOptions.SectionName));
+                builder.Services.AddSingleton<IOneWireEnvelopeCodec, OneWireEnvelopeCodec>();
+                builder.Services.AddSingleton<IOneWirePeerRegistry, OneWirePeerRegistry>();
+                builder.Services.AddSingleton<IOneWireConnectionRegistry, OneWireConnectionRegistry>();
+                builder.Services.AddSingleton<IOneWireWorkSpooler, OneWireWorkSpooler>();
+                builder.Services.AddSingleton<IOneWirePendingCouncilStore, OneWirePendingCouncilStore>();
+                builder.Services.AddSingleton<IOneWireCapabilityCatalog, OneWireCapabilityCatalog>();
+                builder.Services.AddSingleton<IOneWireOperationExecutor, OneWireOperationExecutor>();
+                builder.Services.AddSingleton<IOneWireMessageDispatcher, OneWireMessageDispatcher>();
+                builder.Services.AddHostedService<OneWireTcpHostedService>();
+                builder.Services.AddHostedService<OneWireDiscoveryHostedService>();
+                builder.Services.AddHostedService<OneWireCouncilApprovalProcessorHostedService>();
+                builder.Services.AddHostedService<OneWireWorkProcessorHostedService>();
                 builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
                 builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
                 builder.Services.AddScoped<IChatClient>(sp =>
@@ -365,15 +401,107 @@ namespace LocalGPT
             }
         }
 
-        private static int ResolveRequestedPort(string[]? args, ILogger logger)
+        private static int ResolveRequestedPort(string[]? args, IConfiguration configuration, ILogger logger)
         {
-            if (args is not { Length: > 0 } || string.IsNullOrWhiteSpace(args[0]))
-                return 0;
+            // The installer historically starts LocalGPT.exe with a positional numeric port.
+            // Keep that contract first, while also supporting explicit switches/configuration.
+            if (args is { Length: > 0 } && int.TryParse(args[0], out var positionalPort))
+            {
+                if (positionalPort is > 0 and <= 65535)
+                    return positionalPort;
+                logger.LogWarning("Ignoring invalid positional LocalGPT port {RequestedPort}; default {DefaultPort} remains active.", args[0], DefaultPort);
+            }
 
-            if (int.TryParse(args[0], out var parsedPort) && parsedPort is > 0 and <= 65535)
-                return parsedPort;
+            return ResolveConfiguredPort(
+                args,
+                configuration,
+                "--port",
+                "LOCALGPT_PORT",
+                "LocalGPT:Port",
+                configuration.GetValue<int?>("ApiCore:HttpPort") is > 0 and <= 65535 ? configuration.GetValue<int>("ApiCore:HttpPort") : DefaultPort,
+                allowDynamic: true,
+                logger);
+        }
 
-            logger.LogWarning("Ignoring invalid requested port {RequestedPort}; a free loopback port will be selected.", args[0]);
+        private static int ResolveConfiguredPort(
+            string[]? args,
+            IConfiguration configuration,
+            string switchName,
+            string environmentName,
+            string configurationKey,
+            int fallback,
+            bool allowDynamic,
+            ILogger logger)
+        {
+            if (args is { Length: > 0 })
+            {
+                for (var index = 0; index < args.Length; index++)
+                {
+                    if (!string.Equals(args[index], switchName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (index + 1 < args.Length && int.TryParse(args[index + 1], out var commandLinePort) &&
+                        ((commandLinePort is > 0 and <= 65535) || (allowDynamic && commandLinePort == 0)))
+                        return commandLinePort;
+                    logger.LogWarning("Ignoring invalid {SwitchName} value; fallback port {FallbackPort} remains active.", switchName, fallback);
+                }
+            }
+
+            var environmentValue = Environment.GetEnvironmentVariable(environmentName);
+            if (int.TryParse(environmentValue, out var environmentPort) &&
+                ((environmentPort is > 0 and <= 65535) || (allowDynamic && environmentPort == 0)))
+                return environmentPort;
+
+            var configuredPort = configuration.GetValue<int?>(configurationKey);
+            if ((configuredPort is > 0 and <= 65535) || (allowDynamic && configuredPort == 0))
+                return configuredPort.Value;
+
+            return fallback;
+        }
+
+        private static void ValidatePortContracts(ILogger logger)
+        {
+            // The installer-selected web port is authoritative. Optional organic wiring must adapt
+            // around it and must never prevent the desktop bootstrap from starting.
+            if (OneWirePort == Port || OneWirePort == OneWireDiscoveryPort)
+            {
+                var previous = OneWirePort;
+                var replacement = GetFreePortExcluding(logger, Port, OneWireDiscoveryPort);
+                if (replacement <= 0)
+                {
+                    logger.LogError(
+                        "No safe organic 1-Wire TCP port could be reserved. The LocalGPT installer/bootstrap port {ApplicationPort} remains authoritative; organic TCP startup will be fault-contained.",
+                        Port);
+                }
+                else
+                {
+                    Volatile.Write(ref runtimeOneWirePort, replacement);
+                    logger.LogWarning(
+                        "Reassigned conflicting optional organic TCP port {PreviousPort} to {ReplacementPort}; the installer/bootstrap application port {ApplicationPort} was preserved unchanged.",
+                        previous, replacement, Port);
+                }
+            }
+
+            if (Port == OneWireDiscoveryPort)
+            {
+                logger.LogInformation(
+                    "Application TCP and organic discovery UDP both use numeric port {Port}. They are separate transports; the installer/bootstrap listener remains unchanged.",
+                    Port);
+            }
+
+            logger.LogInformation(
+                "Validated LocalGPT port contracts: app/installer TCP {ApplicationPort}, organic TCP {OneWirePort}, discovery UDP {DiscoveryPort}.",
+                Port, OneWirePort, OneWireDiscoveryPort);
+        }
+
+        private static int GetFreePortExcluding(ILogger logger, params int[] excludedPorts)
+        {
+            var excluded = excludedPorts.ToHashSet();
+            for (var attempt = 0; attempt < 12; attempt++)
+            {
+                var candidate = GetFreePort(logger);
+                if (candidate > 0 && !excluded.Contains(candidate))
+                    return candidate;
+            }
             return 0;
         }
 
@@ -560,8 +688,10 @@ namespace LocalGPT
                 var payload = new
                 {
                     ProcessId = Environment.ProcessId,
-                    BaseUrl = $"http://127.0.0.1:{port}",
+                    BaseUrl = BaseUrl,
                     Port = port,
+                    OneWirePort,
+                    OneWireDiscoveryPort,
                     StartedAtUtc = DateTimeOffset.UtcNow
                 };
 

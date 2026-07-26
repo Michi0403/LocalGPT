@@ -25,6 +25,7 @@ namespace LocalGPT.Services
         IChatProtocolResolver protocolResolver,
         IHumanCollaborationService humanCollaboration,
         IDeferredDxAiInvocationService deferredDxAiInvocations,
+        IOrganicCouncilBlueprintService organicCouncilBlueprints,
         IAmbientLocalGptContext ambientContext,
         ILogger<MultiModelCouncilService> logger,
         CouncilRuntimeService councilRuntime,
@@ -106,6 +107,8 @@ namespace LocalGPT.Services
                 {
                     Prompt = request.Prompt.Trim(),
                     ModelNames = participants,
+                    CouncilTeamKey = request.CouncilTeamKey,
+                    OneWireCorrelationId = request.OneWireCorrelationId,
                     StartedAtUtc = DateTime.UtcNow
                 };
                 collaborationRunId = result.RunId;
@@ -193,6 +196,44 @@ namespace LocalGPT.Services
                         .ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(architectureBriefing))
                         bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Database-first project architecture", architectureBriefing, logger);
+                }
+
+                var organicTeam = organicCouncilBlueprints.FindTeam(request.CouncilTeamKey) ?? organicCouncilBlueprints.FindTeam("general")!;
+                if (request.UseOrganicCouncilWorkflow || !string.IsNullOrWhiteSpace(request.CouncilTeamKey) && !string.Equals(request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase))
+                {
+                    var organicBriefing = await organicCouncilBlueprints.BuildBriefingAsync(request, cancellationToken).ConfigureAwait(false);
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Organic council and 1-Wire workflow", organicBriefing, logger);
+
+                    var leaderModel = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase)) ?? participants[0];
+                    var preparationBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Expert preparation", bootstrap, cancellationToken).ConfigureAwait(false);
+                    MultiModelCouncilStep? preparationStep;
+                    using (ambientContext.PushCouncil(result.RunId, 0, "Expert preparation"))
+                    {
+                        preparationStep = await RunParticipantAsync(
+                            baseUri, leaderModel, participants, 0, "Expert preparation", "RegEx, language and domain preparation expert",
+                            organicCouncilBlueprints.BuildExpertPreparationPrompt(request, organicTeam), preparationBootstrap, request.MaxOutputTokens, keepAlive,
+                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(leaderModel, ollamaNumGpu, logger), maxContextTokens, modelTimeoutSeconds,
+                            request.StreamUpdate, cancellationToken).ConfigureAwait(false);
+                    }
+                    ArgumentNullException.ThrowIfNull(preparationStep);
+                    MultiModelCouncilServiceAddOrderedStep(result, preparationStep, logger);
+                    request.StepCompleted?.Invoke(preparationStep);
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Expert preparation result", preparationStep.VisibleContent, logger);
+
+                    var leaderBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Leader synthesis", bootstrap, cancellationToken).ConfigureAwait(false);
+                    MultiModelCouncilStep? leaderStep;
+                    using (ambientContext.PushCouncil(result.RunId, 0, "Leader synthesis"))
+                    {
+                        leaderStep = await RunParticipantAsync(
+                            baseUri, leaderModel, participants, 0, "Leader synthesis", "Council leader and UML work-order synthesizer",
+                            organicCouncilBlueprints.BuildLeaderSynthesisPrompt(request, organicTeam, preparationStep.VisibleContent), leaderBootstrap, request.MaxOutputTokens, keepAlive,
+                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(leaderModel, ollamaNumGpu, logger), maxContextTokens, modelTimeoutSeconds,
+                            request.StreamUpdate, cancellationToken).ConfigureAwait(false);
+                    }
+                    ArgumentNullException.ThrowIfNull(leaderStep);
+                    MultiModelCouncilServiceAddOrderedStep(result, leaderStep, logger);
+                    request.StepCompleted?.Invoke(leaderStep);
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Leader current-to-target work order", leaderStep.VisibleContent, logger);
                 }
 
                 var baseBootstrap = bootstrap;

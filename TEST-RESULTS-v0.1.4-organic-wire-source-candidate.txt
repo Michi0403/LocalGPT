@@ -1,0 +1,21 @@
+LocalGPT v0.1.4 organic 1-Wire hotfix - source candidate validation
+Date: 2026-07-26
+
+PASS
+- node tools/verify-localgpt-organic-wiring.mjs
+  Verified the restored Program.Port compatibility surface, fixed default port 5000,
+  legacy positional installer port argument, wrapper Program.BaseUrl usage, runtime endpoint
+  metadata, optional 1-Wire port isolation, approval resume wiring, explicit completed/failed
+  work-result replies, OpenSCAD/Spreadsheet council contracts, and project organic metadata.
+- Protected governance manifest: 45 normalized UTF-8/LF SHA-256 entries matched.
+- JSON/XML parsing, unresolved source-conflict scan, targeted C# delimiter scan, and
+  installer/bootstrap invariants passed.
+
+ENVIRONMENT LIMITATION
+- This container does not contain the .NET SDK/MSBuild, Windows App SDK toolchain,
+  DevExpress build environment, or WinUI build tools. Therefore this archive is a
+  source candidate, not a compiler-verified binary release.
+- WMC1006 is expected to disappear once LocalGPT.csproj builds successfully because the
+  missing LocalGPT.dll warning is downstream of the LocalGPT project failing to compile.
+  The reported CS0117 root cause was repaired by restoring Program.Port as a read-only
+  runtime compatibility property and by routing the wrapper through Program.BaseUrl.

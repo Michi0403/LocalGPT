@@ -48,6 +48,18 @@ namespace LocalGPT.BusinessObjects
 
         public bool UserConfirmedProjectLink { get; set; }
 
+        public bool UseOrganicCouncilWorkflow { get; set; }
+
+        public string CouncilTeamKey { get; set; } = "general";
+
+        public string CouncilLeaderModelName { get; set; } = string.Empty;
+
+        public List<string> RequestedOrganicCapabilities { get; set; } = [];
+
+        public string ExternalProjectContextJson { get; set; } = "{}";
+
+        public string OneWireCorrelationId { get; set; } = string.Empty;
+
         [JsonIgnore]
         public Action<string>? ProgressMessage { get; set; }
 
@@ -109,6 +121,10 @@ namespace LocalGPT.BusinessObjects
         public CodeGenerationReviewSnapshot? ChangeReview { get; set; }
 
         public List<string> Warnings { get; set; } = [];
+
+        public string CouncilTeamKey { get; set; } = "general";
+
+        public string OneWireCorrelationId { get; set; } = string.Empty;
     }
 
     public sealed class CouncilArtifact

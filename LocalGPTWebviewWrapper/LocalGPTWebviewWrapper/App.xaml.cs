@@ -1,4 +1,4 @@
-﻿using LocalGPT;
+using LocalGPT;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -20,8 +20,8 @@ namespace WebView2_WinUI3_Sample
     public partial class App : Application
     {
 
-        private Window _window;
-        private WebApplication _webApp;
+        private Window? _window;
+        private WebApplication? _webApp;
         private string _baseUrl = "";
 
         /// <summary>
@@ -52,10 +52,12 @@ namespace WebView2_WinUI3_Sample
         {
             _webApp = LocalGPT.Program.BuildWebApp();
             await _webApp.StartAsync().ConfigureAwait(false);          // non-blocking
-            _baseUrl = $"http://localhost:{LocalGPT.Program.Port}";
+            _baseUrl = LocalGPT.Program.BaseUrl;
 
-            _window = new MainWindow(_baseUrl);
-            _window.Title = "LocalGPT by Michi0403";
+            _window = new MainWindow(_baseUrl)
+            {
+                Title = "LocalGPT by Michi0403"
+            };
             // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
             var appWindow = _window.AppWindow;
             // Set your icon file (must be an .ico, not .png)
