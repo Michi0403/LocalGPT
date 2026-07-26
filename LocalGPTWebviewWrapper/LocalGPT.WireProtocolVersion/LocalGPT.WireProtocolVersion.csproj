@@ -16,7 +16,7 @@
     <PackageTags>LocalGPT;OneWire;OrganicAI;Protocol</PackageTags>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageOutputPath>$(MSBuildThisFileDirectory)..\..\artifacts\release\protocol</PackageOutputPath>
   </PropertyGroup>
   <ItemGroup>

@@ -101,7 +101,6 @@ public sealed class OneWireTcpHostedService(
 
 public sealed class OneWireDiscoveryHostedService(
     IOptions<OneWireOptions> options,
-    IOneWireCapabilityCatalog capabilities,
     ILogger<OneWireDiscoveryHostedService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -127,14 +126,23 @@ public sealed class OneWireDiscoveryHostedService(
                     ServicePort = Program.OneWirePort,
                     DiscoveryPort = Program.OneWireDiscoveryPort,
                     WebBaseUrl = Program.BaseUrl,
-                    IsConnected = true,
-                    Capabilities = (await capabilities.GetLocalCapabilitiesAsync(stoppingToken).ConfigureAwait(false)).ToList()
+                    IsConnected = true
                 };
+                // UDP is only the small discovery beacon. The full DXFunction/skill/hardware directory is
+                // requested over the established TCP link after both frontends approve the connection.
                 var bytes = JsonSerializer.SerializeToUtf8Bytes(advertisement, OneWireEnvelopeCodec.CreateOptions());
+                if (bytes.Length > OneWireProtocol.MaximumDiscoveryBytes)
+                    throw new InvalidDataException($"The compact 1-Wire discovery advertisement is unexpectedly large ({bytes.Length} bytes).");
                 await udp.SendAsync(bytes, bytes.Length, new IPEndPoint(address, Program.OneWireDiscoveryPort)).ConfigureAwait(false);
+                if (!IPAddress.IsLoopback(address))
+                {
+                    // PublisherStudio is commonly installed on the same machine. A loopback beacon avoids
+                    // depending on router broadcast reflection or a permissive Windows firewall rule.
+                    await udp.SendAsync(bytes, bytes.Length, new IPEndPoint(IPAddress.Loopback, Program.OneWireDiscoveryPort)).ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex) when (ex is SocketException or InvalidOperationException)
+            catch (Exception ex) when (ex is SocketException or InvalidOperationException or InvalidDataException)
             {
                 logger.LogWarning(ex, "Optional LocalGPT 1-Wire discovery broadcast failed; web/installer bootstrap is unaffected.");
             }

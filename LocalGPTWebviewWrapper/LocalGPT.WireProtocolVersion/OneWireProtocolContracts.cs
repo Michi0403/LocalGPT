@@ -9,7 +9,8 @@ public static class OneWireProtocol
     public const string MinimumCompatibleVersion = "2.0";
     public const int DefaultServicePort = 51140;
     public const int DefaultDiscoveryPort = 51141;
-    public const int MaximumMessageBytes = int.MaxValue;
+    public const int MaximumMessageBytes = 8 * 1024 * 1024;
+    public const int MaximumDiscoveryBytes = 32 * 1024;
 
     public static bool IsCompatible(string? version)
     {

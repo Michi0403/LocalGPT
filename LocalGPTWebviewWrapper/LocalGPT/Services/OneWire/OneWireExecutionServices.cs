@@ -202,11 +202,8 @@ public sealed class OneWireMessageDispatcher(
                 return Reply(envelope, OneWireMessageType.HelloAck, new Dictionary<string, object?>
                 {
                     ["Peer"] = LocalAdvertisement(),
-                    ["Capabilities"] = await capabilities.GetLocalCapabilitiesForPeerAsync(envelope.SourcePeerId, cancellationToken).ConfigureAwait(false),
-                    ["Skills"] = await capabilities.GetLocalSkillsAsync(cancellationToken).ConfigureAwait(false),
-                    ["UiFeatures"] = await capabilities.GetLocalUiFeaturesAsync(cancellationToken).ConfigureAwait(false),
-                    ["Hardware"] = await capabilities.GetLocalHardwareAsync(cancellationToken).ConfigureAwait(false),
-                    ["LinkedByLocalFrontend"] = true
+                    ["LinkedByLocalFrontend"] = true,
+                    ["CapabilityDirectoryTransport"] = "tcp-request"
                 });
 
             case OneWireMessageType.CapabilityRequest:
@@ -501,11 +498,8 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
                             CreateReply(pending.Envelope, OneWireMessageType.HelloAck, new Dictionary<string, object?>
                             {
                                 ["Peer"] = OneWireMessageDispatcher.LocalAdvertisement(),
-                                ["Capabilities"] = await capabilities.GetLocalCapabilitiesForPeerAsync(pending.Envelope.SourcePeerId, stoppingToken).ConfigureAwait(false),
-                                ["Skills"] = await capabilities.GetLocalSkillsAsync(stoppingToken).ConfigureAwait(false),
-                                ["UiFeatures"] = await capabilities.GetLocalUiFeaturesAsync(stoppingToken).ConfigureAwait(false),
-                                ["Hardware"] = await capabilities.GetLocalHardwareAsync(stoppingToken).ConfigureAwait(false),
-                                ["LinkedByLocalFrontend"] = true
+                                ["LinkedByLocalFrontend"] = true,
+                                ["CapabilityDirectoryTransport"] = "tcp-request"
                             }),
                             stoppingToken).ConfigureAwait(false);
                         logger.LogInformation(

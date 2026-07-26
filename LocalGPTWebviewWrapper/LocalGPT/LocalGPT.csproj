@@ -28,7 +28,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj" />
+    <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
+                      GlobalPropertiesToRemove="RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
   </ItemGroup>
 
 	<ItemGroup>
@@ -1289,15 +1290,28 @@
   <ItemGroup>
   </ItemGroup>
 
-  <Target Name="CopyWireProtocolPackageToPublish" AfterTargets="Publish">
+  <Target Name="PrepareWireProtocolPackageForPublish" BeforeTargets="ComputeFilesToPublish">
     <PropertyGroup>
-      <WireProtocolProject>$(MSBuildProjectDirectory)\..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj</WireProtocolProject>
-      <WireProtocolPackageDirectory>$(MSBuildProjectDirectory)\..\..\artifacts\release\protocol</WireProtocolPackageDirectory>
-      <WireProtocolPackage>$(WireProtocolPackageDirectory)\LocalGPT.WireProtocolVersion.2.0.0.nupkg</WireProtocolPackage>
+      <WireProtocolProject>$(MSBuildProjectDirectory)/../LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj</WireProtocolProject>
+      <WireProtocolPackageDirectory>$(MSBuildProjectDirectory)/../../artifacts/release/protocol</WireProtocolPackageDirectory>
+      <WireProtocolPackageName>LocalGPT.WireProtocolVersion.2.0.0.nupkg</WireProtocolPackageName>
+      <WireProtocolPackage>$(WireProtocolPackageDirectory)/$(WireProtocolPackageName)</WireProtocolPackage>
     </PropertyGroup>
-    <MSBuild Projects="$(WireProtocolProject)" Targets="Pack" Properties="Configuration=$(Configuration);PackageOutputPath=$(WireProtocolPackageDirectory)" />
-    <MakeDir Directories="$(PublishDir)protocol" />
-    <Copy SourceFiles="$(WireProtocolPackage)" DestinationFolder="$(PublishDir)protocol" SkipUnchangedFiles="true" />
+    <MakeDir Directories="$(WireProtocolPackageDirectory)" />
+    <!-- A publish RID is an application concern. Do not leak it into the pack-only protocol project. -->
+    <MSBuild Projects="$(WireProtocolProject)"
+             Targets="Pack"
+             BuildInParallel="false"
+             RemoveProperties="RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot"
+             Properties="Configuration=$(Configuration);GeneratePackageOnBuild=false;PackageOutputPath=$(WireProtocolPackageDirectory)" />
+    <Error Condition="!Exists('$(WireProtocolPackage)')"
+           Text="The LocalGPT 1-Wire protocol package was not produced: $(WireProtocolPackage)" />
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(WireProtocolPackage)">
+        <RelativePath>protocol/$(WireProtocolPackageName)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
   </Target>
 
 </Project>

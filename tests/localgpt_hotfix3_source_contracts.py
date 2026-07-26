@@ -135,13 +135,14 @@ def main() -> int:
         assert token in learning_dx
     assert 'Key = "learning-round"' in blueprint
     team_service = read("LocalGPTWebviewWrapper", "LocalGPT", "Services", "CouncilTeamConfigurationService.cs")
-    assert "private const int CurrentSeedVersion = 4;" in team_service
+    assert "private const int CurrentSeedVersion = 5;" in team_service
     assert "ApplyDefinition(row, definition);" in team_service
     assert "class ProposePublisherTextFunction" in organic_dx
     assert 'Name: "publisher.text.proposal.request"' in organic_dx
 
-    assert 'public const string Version = "1.4";' in wire
-    assert "public const int MaximumMessageBytes = int.MaxValue;" in wire
+    assert 'public const string Version = "2.0";' in wire
+    assert "public const int MaximumMessageBytes = 8 * 1024 * 1024;" in wire
+    assert "public const int MaximumDiscoveryBytes = 32 * 1024;" in wire
 
     for token in [
         "RequiresHumanInteractionOnTargetSystem",

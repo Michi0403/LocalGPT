@@ -21,56 +21,151 @@ public sealed class RuntimeCapabilityDirectoryService(
     private static readonly Guid LocalGptCoreProjectId = Guid.Parse("7f4d7b4a-b622-4d15-8e44-9dfae2aa6101");
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
+    // The service itself is scoped because its function/catalog dependencies are scoped. Boot synchronization
+    // and Council preflight may nevertheless overlap, so their derived database writes need one process-wide gate.
+    private static readonly SemaphoreSlim SynchronizationGate = new(1, 1);
+
     public async Task<RuntimeCapabilityDirectorySnapshot> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
         await databaseInitialization.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        var functions = dxFunctions.GetFunctions()
-            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var catalogEntries = (await functionCatalog.SynchronizeAsync(cancellationToken).ConfigureAwait(false))
-            .OrderBy(item => item.Kind).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var skills = (await organicSkills.GetWireSkillsAsync(cancellationToken).ConfigureAwait(false))
-            .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var snapshot = new RuntimeCapabilityDirectorySnapshot
+        await SynchronizationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            Functions = functions,
-            CatalogEntries = catalogEntries,
-            Skills = skills
-        };
+            // Boot synchronization and Council preflight can otherwise synchronize the same database-backed
+            // catalog at the same time. Serialize the full derived-directory refresh, not only its final SaveChanges.
+            var functions = dxFunctions.GetFunctions()
+                .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var catalogEntries = (await functionCatalog.SynchronizeAsync(cancellationToken).ConfigureAwait(false))
+                .OrderBy(item => item.Kind).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var skills = (await organicSkills.GetWireSkillsAsync(cancellationToken).ConfigureAwait(false))
+                .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var snapshot = new RuntimeCapabilityDirectorySnapshot
+            {
+                Functions = functions,
+                CatalogEntries = catalogEntries,
+                Skills = skills
+            };
 
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var project = await db.LocalGptProjects
-            .Include(item => item.Artifacts)
-            .SingleOrDefaultAsync(item => item.Id == LocalGptCoreProjectId, cancellationToken)
-            .ConfigureAwait(false);
-        if (project is null)
-        {
-            snapshot.Warnings.Add("The LocalGPT Core project is missing; the runtime function directory could not be persisted.");
+            await PersistSnapshotWithRetryAsync(snapshot, cancellationToken).ConfigureAwait(false);
             return snapshot;
         }
-
-        UpsertArtifact(project, "Runtime DXFunction directory", "FunctionDirectory", JsonSerializer.Serialize(functions, JsonOptions),
-            "Dependency-injected function descriptors synchronized at boot and before every Council run. Discovery metadata is not permission.");
-        UpsertArtifact(project, "Runtime user-controlled DXFunction exposure catalog", "DxFunctionPolicyDirectory", JsonSerializer.Serialize(catalogEntries, JsonOptions),
-            "Current database-backed visibility, invocation, peer and receiving-frontend confirmation policies for DX functions and configured public service methods.");
-        UpsertArtifact(project, "Runtime organic skill directory", "OrganicSkillDirectory", JsonSerializer.Serialize(skills, JsonOptions),
-            "Current 1-Wire organic skills and UI activation metadata synchronized at boot and before every Council run.");
-        project.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Synchronized {FunctionCount} DXFunctions, {CatalogCount} catalog policies and {SkillCount} organic skills into the LocalGPT Core project.", functions.Count, catalogEntries.Count, skills.Count);
-        return snapshot;
+        finally
+        {
+            SynchronizationGate.Release();
+        }
     }
 
-    private static void UpsertArtifact(LocalGptProject project, string name, string kind, string value, string description)
+    private async Task PersistSnapshotWithRetryAsync(
+        RuntimeCapabilityDirectorySnapshot snapshot,
+        CancellationToken cancellationToken)
     {
-        var artifact = project.Artifacts.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            try
+            {
+                if (!await PersistSnapshotAsync(snapshot, cancellationToken).ConfigureAwait(false))
+                    return;
+
+                logger.LogInformation(
+                    "Synchronized {FunctionCount} DXFunctions, {CatalogCount} catalog policies and {SkillCount} organic skills into the LocalGPT Core project.",
+                    snapshot.Functions.Count,
+                    snapshot.CatalogEntries.Count,
+                    snapshot.Skills.Count);
+                return;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (DbUpdateConcurrencyException ex) when (attempt == 1)
+            {
+                // A previous scoped synchronization may have loaded the same derived artifact just before this
+                // process-wide gate was introduced. Retry once with a fresh DbContext and current rows.
+                logger.LogWarning(ex, "The runtime capability directory changed while it was being persisted; retrying once with current database rows.");
+                await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
+            }
+            catch (DbUpdateException ex) when (attempt == 1)
+            {
+                logger.LogWarning(ex, "The runtime capability directory could not be persisted on the first attempt; retrying once with a fresh DbContext.");
+                await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // Persistence is a searchable cache of the live in-memory registry. It must never prevent the
+                // Council from using the authoritative function and skill collections already built above.
+                const string warning = "The live capability directory is available, but its derived LocalGPT Core project artifacts could not be refreshed. Council execution continues.";
+                snapshot.Warnings.Add(warning);
+                logger.LogWarning(ex, "{Warning}", warning);
+                return;
+            }
+        }
+    }
+
+    private async Task<bool> PersistSnapshotAsync(
+        RuntimeCapabilityDirectorySnapshot snapshot,
+        CancellationToken cancellationToken)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        if (!await db.LocalGptProjects.AsNoTracking()
+                .AnyAsync(item => item.Id == LocalGptCoreProjectId, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            snapshot.Warnings.Add("The LocalGPT Core project is missing; the runtime function directory could not be persisted.");
+            return false;
+        }
+
+        await UpsertArtifactAsync(
+            db,
+            "Runtime DXFunction directory",
+            "FunctionDirectory",
+            JsonSerializer.Serialize(snapshot.Functions, JsonOptions),
+            "Dependency-injected function descriptors synchronized at boot and before every Council run. Discovery metadata is not permission.",
+            cancellationToken).ConfigureAwait(false);
+        await UpsertArtifactAsync(
+            db,
+            "Runtime user-controlled DXFunction exposure catalog",
+            "DxFunctionPolicyDirectory",
+            JsonSerializer.Serialize(snapshot.CatalogEntries, JsonOptions),
+            "Current database-backed visibility, invocation, peer and receiving-frontend confirmation policies for DX functions and configured public service methods.",
+            cancellationToken).ConfigureAwait(false);
+        await UpsertArtifactAsync(
+            db,
+            "Runtime organic skill directory",
+            "OrganicSkillDirectory",
+            JsonSerializer.Serialize(snapshot.Skills, JsonOptions),
+            "Current 1-Wire organic skills and UI activation metadata synchronized at boot and before every Council run.",
+            cancellationToken).ConfigureAwait(false);
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.LocalGptProjects
+            .Where(item => item.Id == LocalGptCoreProjectId)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(item => item.UpdatedAtUtc, DateTime.UtcNow),
+                cancellationToken)
+            .ConfigureAwait(false);
+        return true;
+    }
+
+    private static async Task UpsertArtifactAsync(
+        LocalGptMemoryDbContext db,
+        string name,
+        string kind,
+        string value,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        var artifact = await db.LocalGptProjectArtifacts.SingleOrDefaultAsync(
+                item => item.ProjectId == LocalGptCoreProjectId && item.ArtifactKind == kind && item.Name == name,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (artifact is null)
         {
             artifact = new LocalGptProjectArtifact
             {
-                ProjectId = project.Id,
+                ProjectId = LocalGptCoreProjectId,
                 Name = name,
                 ArtifactKind = kind,
                 DataType = "application/json",
@@ -78,8 +173,9 @@ public sealed class RuntimeCapabilityDirectoryService(
                 CouncilReviewStatus = "Current",
                 CreatedAtUtc = DateTime.UtcNow
             };
-            project.Artifacts.Add(artifact);
+            db.LocalGptProjectArtifacts.Add(artifact);
         }
+
         artifact.Value = value;
         artifact.Description = description;
         artifact.UpdatedAtUtc = DateTime.UtcNow;

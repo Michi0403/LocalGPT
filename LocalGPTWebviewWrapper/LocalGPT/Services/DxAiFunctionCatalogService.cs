@@ -23,12 +23,15 @@ public sealed class DxAiFunctionCatalogService(
 {
     private const string DataType = "DxAiFunctionCatalogEntry";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
-    private readonly SemaphoreSlim gate = new(1, 1);
+    // The catalog service is scoped, but boot synchronization, Council preflight, and UI policy edits
+    // can run in different scopes against the same SQLite rows. One process-wide gate prevents stale
+    // tracked SystemVariable instances from racing each other.
+    private static readonly SemaphoreSlim Gate = new(1, 1);
 
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
         await databaseInitialization.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -82,7 +85,7 @@ public sealed class DxAiFunctionCatalogService(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -114,7 +117,7 @@ public sealed class DxAiFunctionCatalogService(
         ArgumentException.ThrowIfNullOrWhiteSpace(request.CatalogKey);
         _ = JsonSerializer.Deserialize<List<string>>(request.AllowedPeerIdsJson) ?? [];
 
-        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -142,7 +145,7 @@ public sealed class DxAiFunctionCatalogService(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
