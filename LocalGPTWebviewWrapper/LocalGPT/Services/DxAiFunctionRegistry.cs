@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,14 +8,19 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 public sealed class DxAiFunctionRegistry(
-    IEnumerable<IDxAiFunctionHandler> handlers,
+    IServiceProvider serviceProvider,
     IHumanCollaborationService humanCollaboration,
     IDeferredDxAiInvocationService deferredInvocations,
     IAmbientLocalGptContext ambientContext,
     IHumanApprovalExecutionContext approvalExecutionContext,
     ILogger<DxAiFunctionRegistry> logger) : IDxAiFunctionRegistry
 {
-    private readonly IReadOnlyDictionary<string, IDxAiFunctionHandler> handlersByName = BuildHandlerMap(handlers);
+    // Resolve handlers only after the scoped registry has been constructed. One handler intentionally
+    // references this registry to publish the complete function directory; eager IEnumerable resolution
+    // would therefore create a constructor cycle during service-provider validation.
+    private readonly Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>> handlersByName = new(
+        () => BuildHandlerMap(serviceProvider.GetServices<IDxAiFunctionHandler>()),
+        System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
 
     private static IReadOnlyDictionary<string, IDxAiFunctionHandler> BuildHandlerMap(IEnumerable<IDxAiFunctionHandler> handlers)
     {
@@ -47,7 +53,7 @@ public sealed class DxAiFunctionRegistry(
 
     public IReadOnlyList<DxaichatFunctionInfo> GetFunctions()
     {
-        var functions = handlersByName.Values
+        var functions = handlersByName.Value.Values
             .Select(handler => handler.Descriptor)
             .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -72,7 +78,7 @@ public sealed class DxAiFunctionRegistry(
             ["RequestedBy"] = string.IsNullOrWhiteSpace(request.RequestedBy) ? "CurrentUser" : request.RequestedBy
         });
 
-        if (!handlersByName.TryGetValue(functionName, out var handler))
+        if (!handlersByName.Value.TryGetValue(functionName, out var handler))
         {
             logger.LogWarning("Rejected unknown DXAIFunction {FunctionName}.", functionName);
             return new DxAiFunctionInvocationResult
