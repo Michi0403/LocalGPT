@@ -27,7 +27,7 @@ const runtimeDirectory = read('LocalGPTWebviewWrapper','LocalGPT','Services','Co
 const selfAssessmentInterface = read('LocalGPTWebviewWrapper','LocalGPT','Interfaces','IOrganicSkillRegistryService.cs');
 const selfAssessmentService = read('LocalGPTWebviewWrapper','LocalGPT','Services','OrganicSkillRegistryService.cs');
 
-assert.match(appProject, /<Version>2\.0\.0<\/Version>/);
+assert.match(appProject, /<Version>2\.0\.1<\/Version>/);
 assert.match(wireProject, /<Version>2\.0\.0<\/Version>/);
 assert.match(wire, /public const string Version = "2\.0";/);
 for (const token of [
@@ -77,7 +77,7 @@ assert.match(execution, /Waiting for the LocalGPT frontend user to approve this 
 assert.match(execution, /This transport is not an approved 1-Wire link/);
 assert.match(execution, /OneWireMessageType\.HelloAck/);
 assert.match(execution, /LinkedByLocalFrontend/);
-assert.match(transport, /ApplicationVersion = "2\.0\.0-organic-wire"/);
+assert.match(transport, /ApplicationVersion = "2\.0\.1-organic-wire"/);
 assert.doesNotMatch(transport, /peers\.SetConnected\(peerId, true\)/, 'A TCP connection must not become a trusted link before LocalGPT frontend approval.');
 assert.match(execution, /ResponsePrompt:/);
 assert.match(execution, /PrefillText: envelope\.InteractionValueJson/);
@@ -98,4 +98,4 @@ assert.match(runtimeDirectory, /functionCatalog\.SynchronizeAsync/);
 assert.match(program, /public static System\.Int32 Port => System\.Threading\.Volatile\.Read/);
 assert.doesNotMatch(program, /(?<!System\.Threading\.)Volatile\.(Read|Write)/);
 
-console.log('LocalGPT v2.0.0 user-controlled DX/public-service exposure and receiving-frontend authority contracts passed.');
+console.log('LocalGPT v2.0.1 user-controlled DX/public-service exposure and receiving-frontend authority contracts passed.');

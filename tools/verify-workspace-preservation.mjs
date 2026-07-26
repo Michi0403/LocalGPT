@@ -5,13 +5,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const proofPath = path.join(root, 'WORKSPACE-CONTENT-PROOF-v2.0.0.json');
+const proofPath = path.join(root, 'WORKSPACE-CONTENT-PROOF-v2.0.1.json');
 const proof = JSON.parse(fs.readFileSync(proofPath, 'utf8'));
 const ignoredParts = new Set(['bin', 'obj', 'node_modules', '.git', '.vs']);
 const ignoredNames = new Set([
   'WORKSPACE-BASELINE-MANIFEST-v0.1.7.json',
-  'WORKSPACE-CONTENT-PROOF-v2.0.0.json',
-  'WORKSPACE-CONTENT-PROOF-v2.0.0.md'
+  'WORKSPACE-CONTENT-PROOF-v2.0.1.json',
+  'WORKSPACE-CONTENT-PROOF-v2.0.1.md'
 ]);
 const sha256 = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const normalize = value => value.split(path.sep).join('/');
@@ -41,4 +41,4 @@ for (const item of proof.addedFiles)
   assert.equal(current.get(item.path), item.currentSha256, `Added workspace file is missing or changed: ${item.path}`);
 const expected = new Set([...proof.baselineFiles.map(item => item.path), ...proof.addedFiles.map(item => item.path)]);
 assert.deepEqual([...current.keys()].filter(key => !expected.has(key)).sort(), [], 'The workspace contains unrecorded files; regenerate the preservation proof.');
-console.log(`LocalGPT 2.0.0 workspace preservation proof passed: ${proof.baselineFileCount} baseline files retained, ${proof.addedFileCount} files added, zero baseline paths lost.`);
+console.log(`LocalGPT 2.0.1 workspace preservation proof passed: ${proof.baselineFileCount} baseline files retained, ${proof.addedFileCount} files added, zero baseline paths lost.`);
