@@ -49,9 +49,9 @@ namespace LocalGPT
 
         // Public read-only compatibility surface consumed by the WinUI wrapper and installer wiring.
         // Startup updates the private snapshot atomically; callers cannot mutate it.
-        public static System.Int32 Port => Volatile.Read(ref runtimePort);
-        public static System.Int32 OneWirePort => Volatile.Read(ref runtimeOneWirePort);
-        public static System.Int32 OneWireDiscoveryPort => Volatile.Read(ref runtimeOneWireDiscoveryPort);
+        public static System.Int32 Port => System.Threading.Volatile.Read(ref runtimePort);
+        public static System.Int32 OneWirePort => System.Threading.Volatile.Read(ref runtimeOneWirePort);
+        public static System.Int32 OneWireDiscoveryPort => System.Threading.Volatile.Read(ref runtimeOneWireDiscoveryPort);
         public static string BaseUrl => $"http://127.0.0.1:{Port}";
         /// <summary>
         /// The main entry point for the application.
@@ -79,16 +79,16 @@ namespace LocalGPT
             logger.LogInformation("Created builder with startup service-provider validation enabled.");
             ConfigureAppConfiguration(builder, logger);
             logger.LogInformation("Configured app configuration.", logger);
-            Volatile.Write(ref runtimePort, ResolveRequestedPort(args, builder.Configuration, logger));
-            Volatile.Write(ref runtimeOneWirePort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-port", "LOCALGPT_ONEWIRE_PORT", $"{OneWireOptions.SectionName}:ServicePort", DefaultOneWirePort, allowDynamic: false, logger));
-            Volatile.Write(ref runtimeOneWireDiscoveryPort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-discovery-port", "LOCALGPT_ONEWIRE_DISCOVERY_PORT", $"{OneWireOptions.SectionName}:DiscoveryPort", DefaultOneWireDiscoveryPort, allowDynamic: false, logger));
+            System.Threading.Volatile.Write(ref runtimePort, ResolveRequestedPort(args, builder.Configuration, logger));
+            System.Threading.Volatile.Write(ref runtimeOneWirePort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-port", "LOCALGPT_ONEWIRE_PORT", $"{OneWireOptions.SectionName}:ServicePort", DefaultOneWirePort, allowDynamic: false, logger));
+            System.Threading.Volatile.Write(ref runtimeOneWireDiscoveryPort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-discovery-port", "LOCALGPT_ONEWIRE_DISCOVERY_PORT", $"{OneWireOptions.SectionName}:DiscoveryPort", DefaultOneWireDiscoveryPort, allowDynamic: false, logger));
             ConfigureLogging(builder, logger);
             logger.LogInformation("Configured logging.", logger);
             ConfigureOptionsAndServices(builder, logger);
             logger.LogInformation("Configured options and services.", logger);
             ConfigureSignalR(builder.Services, logger);
             logger.LogInformation("Configured SignalR.", logger);
-            Volatile.Write(ref runtimePort, ConfigureKestrel(builder, Port, logger));
+            System.Threading.Volatile.Write(ref runtimePort, ConfigureKestrel(builder, Port, logger));
             ValidatePortContracts(logger);
             var port = Port;
             logger.LogInformation("Configured Kestrel on loopback port {Port}.", port);
@@ -474,7 +474,7 @@ namespace LocalGPT
                 }
                 else
                 {
-                    Volatile.Write(ref runtimeOneWirePort, replacement);
+                    System.Threading.Volatile.Write(ref runtimeOneWirePort, replacement);
                     logger.LogWarning(
                         "Reassigned conflicting optional organic TCP port {PreviousPort} to {ReplacementPort}; the installer/bootstrap application port {ApplicationPort} was preserved unchanged.",
                         previous, replacement, Port);
