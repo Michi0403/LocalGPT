@@ -1,0 +1,52 @@
+@inject ILogger<SafeErrorBoundary> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+<ErrorBoundary @ref="boundary">
+    <ChildContent>
+        @ChildContent
+    </ChildContent>
+    <ErrorContent Context="error">
+        @RenderFailure(error)
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+    [Parameter, EditorRequired]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string Area { get; set; } = "Component";
+
+    [Parameter]
+    public string ToastName { get; set; } = "ComponentSafetyToasts";
+
+    private ErrorBoundary? boundary;
+    private Exception? reportedError;
+
+    public void Recover()
+    {
+        reportedError = null;
+        boundary?.Recover();
+    }
+
+    private RenderFragment RenderFailure(Exception error) => builder =>
+    {
+        ReportOnce(error);
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "alert alert-danger");
+        builder.AddContent(2, "This LocalGPT area could not finish loading. The failure was logged and added to bounded short-term operational context.");
+        builder.CloseElement();
+    };
+
+    private void ReportOnce(Exception error)
+    {
+        if (ReferenceEquals(reportedError, error))
+            return;
+
+        reportedError = error;
+        Logger.LogError(error, "Unhandled component failure in {Area}; user and model content were omitted from logs.", Area);
+        ComponentActivity.RecordFailure(nameof(SafeErrorBoundary), Area, error);
+        Notifier.ShowError(ToastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+    }
+}

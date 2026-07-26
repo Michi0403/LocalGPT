@@ -1,0 +1,438 @@
+@implements IDisposable
+@inject IHumanCollaborationService Collaboration
+@inject ILocalHumanInteractionContext HumanAmbientContext
+@inject ILogger<HumanCollaborationInbox> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+@inject ISupervisedTaskRunner TaskRunner
+
+<ToastWrapper Name="HumanCollaborationToasts" />
+
+@if (!isOpen && approvalBarVisible && PendingRequests.Count > 0)
+{
+    var nextRequest = PendingRequests[0];
+    <aside class="human-approval-bar" role="region" aria-label="Pending LocalGPT approvals">
+        <div class="human-approval-bar-summary">
+            <strong>@PendingCount AI Council action@(PendingCount == 1 ? string.Empty : "s") waiting</strong>
+            <span>@nextRequest.Title</span>
+            <small>@nextRequest.RequestKind · @nextRequest.RiskLevel · @nextRequest.RequestedBy</small>
+        </div>
+        <div class="human-approval-bar-actions">
+            <button type="button" class="human-primary" @onclick="OpenApprovalPanel">Review and work through</button>
+            <button type="button" class="human-secondary" @onclick="HideApprovalBar">Hide bar</button>
+        </div>
+    </aside>
+}
+
+<button type="button"
+        class="human-inbox-launcher @(PendingCount > 0 ? "has-pending" : string.Empty)"
+        title="Human Collaboration Inbox"
+        @onclick="TogglePanel">
+    <span aria-hidden="true">◎</span>
+    <span>Human team</span>
+    @if (PendingCount > 0)
+    {
+        <strong>@PendingCount</strong>
+    }
+</button>
+
+@if (isOpen)
+{
+    <aside class="human-inbox-panel" aria-label="Human Collaboration Inbox">
+        <header>
+            <div>
+                <h2>Human Collaboration</h2>
+                <p>Persistent approvals, guidance, and council participation.</p>
+            </div>
+            <button type="button" class="human-inbox-close" @onclick="TogglePanel" aria-label="Close">×</button>
+        </header>
+
+        @if (isBusy)
+        {
+            <p class="human-inbox-status">Updating…</p>
+        }
+        else if (!string.IsNullOrWhiteSpace(statusText))
+        {
+            <p class="human-inbox-status">@statusText</p>
+        }
+
+        <section class="human-inbox-section">
+            <h3>Take Part</h3>
+            <label class="human-inbox-check">
+                <input type="checkbox" @bind="profile.IsEnabled" @bind:after="MarkProfileDirty" />
+                <span>Join active councils as a human peer</span>
+            </label>
+            <label>
+                Display name
+                <input @bind="profile.DisplayName" @bind:after="MarkProfileDirty" maxlength="120" />
+            </label>
+            <label>
+                Team role
+                <input @bind="profile.RoleName" @bind:after="MarkProfileDirty" maxlength="180" placeholder="Architecture reviewer, domain expert, musician…" />
+            </label>
+            <label>
+                Expertise
+                <textarea @bind="profile.Expertise" @bind:after="MarkProfileDirty" maxlength="2000" rows="3"></textarea>
+            </label>
+            <label>
+                Working style
+                <textarea @bind="profile.WorkingStyle" @bind:after="MarkProfileDirty" maxlength="1200" rows="2"></textarea>
+            </label>
+            <button type="button" class="human-primary" @onclick="SaveProfileAsync">Save participant profile</button>
+            <p class="human-inbox-note">Participation is peer input, not automatic truth and not security approval.</p>
+        </section>
+
+        @if (snapshot.ActiveRuns.Count > 0)
+        {
+            <section class="human-inbox-section">
+                <h3>Active council runs</h3>
+                @foreach (var run in snapshot.ActiveRuns)
+                {
+                    <article class="human-run-card">
+                        <div class="human-card-heading">
+                            <strong>Round @run.CurrentRound · @run.Phase</strong>
+                            <span>@run.CouncilMembers.Count team member(s)</span>
+                        </div>
+                        <p>Your message enters the next heartbeat as a clearly marked human council contribution. Models must review it like every other member answer.</p>
+                        <textarea value="@GetContributionText(run.RunId)"
+                                  @oninput="@(args => SetContributionText(run.RunId, Convert.ToString(args.Value) ?? string.Empty))"
+                                  maxlength="1000000"
+                                  rows="4"
+                                  placeholder="Add evidence, corrections, constraints, or your own answer without stopping the run."></textarea>
+                        <button type="button" class="human-primary" @onclick="(() => SubmitContributionAsync(run.RunId))">Add to next heartbeat</button>
+                    </article>
+                }
+            </section>
+        }
+
+        <section class="human-inbox-section">
+            <h3>Open requests (@PendingCount)</h3>
+            @if (PendingRequests.Count == 0)
+            {
+                <p class="human-inbox-note">No approval or feedback request is waiting.</p>
+            }
+            @foreach (var request in PendingRequests)
+            {
+                var editor = GetEditor(request);
+                <article class="@GetRequestCssClass(request)">
+                    <div class="human-card-heading">
+                        <strong>@request.Title</strong>
+                        <span>@request.RequestKind · @request.RiskLevel</span>
+                    </div>
+                    <p>@request.Description</p>
+                    <dl>
+                        <dt>Requested by</dt><dd>@request.RequestedBy</dd>
+                        <dt>Source</dt><dd>@request.Source</dd>
+                        <dt>Role requested</dt><dd>@request.RequestedRole</dd>
+                        <dt>Operation</dt><dd>@request.OperationKey</dd>
+                        @if (!string.IsNullOrWhiteSpace(request.ParameterFingerprint))
+                        {
+                            <dt>Exact request</dt><dd>@FingerprintPrefix(request.ParameterFingerprint)</dd>
+                        }
+                        @if (request.RequiredBeforeCompletion)
+                        {
+                            <dt>Completion gate</dt><dd>This guarded final action remains deferred until this request is resolved.</dd>
+                        }
+                    </dl>
+                    @if (request.SuggestedResponses.Count > 0)
+                    {
+                        <div class="human-suggestions">
+                            @foreach (var suggestion in request.SuggestedResponses)
+                            {
+                                <button type="button" @onclick="(() => editor.Response = suggestion)">@suggestion</button>
+                            }
+                        </div>
+                    }
+                    @if (!request.AllowFreeText && !string.IsNullOrWhiteSpace(editor.Response))
+                    {
+                        <p><strong>Selected response:</strong> @editor.Response</p>
+                    }
+                    @if (request.AllowFreeText)
+                    {
+                        <label>
+                            @(string.IsNullOrWhiteSpace(request.ResponsePrompt) ? "Response" : request.ResponsePrompt)
+                            <textarea @bind="editor.Response" maxlength="1000000" rows="3"></textarea>
+                        </label>
+                    }
+                    <label>
+                        Reason / team note
+                        <textarea @bind="editor.Reason" maxlength="2000" rows="2"></textarea>
+                    </label>
+                    @if (request.RequestKind == HumanCollaborationRequestKinds.Approval)
+                    {
+                        <div class="human-decision-row">
+                            <button type="button" class="human-approve" @onclick="(() => ResolveAsync(request, true))">Approve exact request</button>
+                            <button type="button" class="human-decline" @onclick="(() => ResolveAsync(request, false))">Decline</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <button type="button" class="human-primary" @onclick="(() => ResolveAsync(request, null))">Send to team</button>
+                    }
+                </article>
+            }
+        </section>
+
+        @if (snapshot.Contributions.Count > 0)
+        {
+            <section class="human-inbox-section">
+                <h3>Your council contributions</h3>
+                @foreach (var contribution in snapshot.Contributions.Take(12))
+                {
+                    <details class="human-history-card">
+                        <summary>@contribution.Status · @contribution.EvaluationVerdict · @contribution.HumanRole · round @contribution.EarliestCouncilRound</summary>
+                        <p>@contribution.Content</p>
+                        @if (!string.IsNullOrWhiteSpace(contribution.Evaluation))
+                        {
+                            <p><strong>Peer review:</strong> @contribution.Evaluation</p>
+                        }
+                    </details>
+                }
+            </section>
+        }
+
+        @if (ResolvedRequests.Count > 0)
+        {
+            <section class="human-inbox-section">
+                <h3>Recent decisions</h3>
+                @foreach (var request in ResolvedRequests.Take(12))
+                {
+                    <details class="human-history-card">
+                        <summary>@request.Status · @request.Title</summary>
+                        @if (!string.IsNullOrWhiteSpace(request.UserResponse))
+                        {
+                            <p>@request.UserResponse</p>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(request.DecisionReason))
+                        {
+                            <p><strong>Reason:</strong> @request.DecisionReason</p>
+                        }
+                    </details>
+                }
+            </section>
+        }
+    </aside>
+}
+
+@code {
+    private HumanCollaborationSnapshot snapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
+    private HumanCouncilParticipantProfile profile = new();
+    private readonly Dictionary<Guid, RequestEditor> editors = [];
+    private readonly Dictionary<Guid, string> contributionTexts = [];
+    private readonly CancellationTokenSource lifetimeCts = new();
+    private bool isOpen;
+    private bool approvalBarVisible = true;
+    private bool isDisposed;
+    private bool isBusy;
+    private bool profileDirty;
+    private string statusText = string.Empty;
+
+    private IReadOnlyList<HumanCollaborationRequest> PendingRequests => snapshot.Requests
+        .Where(item => item.Status == HumanCollaborationStatuses.Pending)
+        .ToList();
+    private IReadOnlyList<HumanCollaborationRequest> ResolvedRequests => snapshot.Requests
+        .Where(item => item.Status != HumanCollaborationStatuses.Pending)
+        .OrderByDescending(item => item.UpdatedAtUtc)
+        .ToList();
+    private int PendingCount => PendingRequests.Count;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Collaboration.Changed += OnCollaborationChanged;
+        await RefreshAsync();
+    }
+
+    private void TogglePanel()
+    {
+        isOpen = !isOpen;
+        if (isOpen)
+            approvalBarVisible = true;
+        ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "Toggle", isOpen ? "The collaboration inbox opened." : "The collaboration inbox closed.");
+    }
+
+    private void OpenApprovalPanel()
+    {
+        approvalBarVisible = true;
+        isOpen = true;
+        ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "OpenApprovalBar", "The pending approval work bar opened the collaboration inbox.");
+    }
+
+    private void HideApprovalBar()
+    {
+        approvalBarVisible = false;
+        ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "HideApprovalBar", "The pending approval work bar was hidden; the Human team launcher remains available.");
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80);
+            if (!profileDirty)
+            {
+                profile = new HumanCouncilParticipantProfile
+                {
+                    Id = snapshot.Profile.Id,
+                    DisplayName = snapshot.Profile.DisplayName,
+                    RoleName = snapshot.Profile.RoleName,
+                    Expertise = snapshot.Profile.Expertise,
+                    WorkingStyle = snapshot.Profile.WorkingStyle,
+                    IsEnabled = snapshot.Profile.IsEnabled,
+                    ProfileVersion = snapshot.Profile.ProfileVersion,
+                    UpdatedAtUtc = snapshot.Profile.UpdatedAtUtc,
+                    UpdatedBy = snapshot.Profile.UpdatedBy
+                };
+            }
+            foreach (var request in PendingRequests)
+                editors.TryAdd(request.Id, new RequestEditor(request.PrefillText, string.Empty));
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not refresh the Human Collaboration Inbox.");
+            ComponentActivity.RecordFailure(nameof(HumanCollaborationInbox), "Refresh", ex);
+            statusText = "The collaboration inbox could not be refreshed. Review LocalGPT logs.";
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        await RunHumanUiOperationAsync("SaveProfile", async () =>
+        {
+            using var scope = HumanAmbientContext.PushHumanInteraction(
+                HumanCollaborationIdentity.LocalHumanProfileId,
+                profile.DisplayName,
+                nameof(HumanCollaborationInbox));
+            profile = await Collaboration.SaveProfileAsync(profile);
+            profileDirty = false;
+            statusText = profile.IsEnabled ? "Human council participation is enabled." : "Human council participation is disabled.";
+            Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Participant profile");
+        });
+    }
+
+    private async Task SubmitContributionAsync(Guid runId)
+    {
+        var content = GetContributionText(runId);
+        await RunHumanUiOperationAsync("QueueContribution", async () =>
+        {
+            using var scope = HumanAmbientContext.PushHumanInteraction(
+                HumanCollaborationIdentity.LocalHumanProfileId,
+                profile.DisplayName,
+                nameof(HumanCollaborationInbox),
+                councilRunId: runId);
+            await Collaboration.QueueContributionAsync(runId, content);
+            contributionTexts[runId] = string.Empty;
+            statusText = "Your contribution will enter the next council heartbeat without stopping the current work.";
+            Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Council contribution queued");
+        });
+    }
+
+    private async Task ResolveAsync(HumanCollaborationRequest request, bool? approved)
+    {
+        var editor = GetEditor(request);
+        await RunHumanUiOperationAsync("ResolveRequest", async () =>
+        {
+            using var scope = HumanAmbientContext.PushHumanInteraction(
+                HumanCollaborationIdentity.LocalHumanProfileId,
+                profile.DisplayName,
+                nameof(HumanCollaborationInbox),
+                request.CorrelationId,
+                request.CouncilRunId);
+            var resolved = await Collaboration.ResolveRequestAsync(
+                request.Id,
+                new HumanDecisionSubmission(approved, editor.Response, editor.Reason));
+            statusText = resolved is null ? "The request no longer exists." : $"Request marked {resolved.Status}.";
+            Notifier.ShowInfo("HumanCollaborationToasts", statusText, "Human decision recorded");
+        });
+    }
+
+    private async Task RunHumanUiOperationAsync(string operation, Func<Task> action)
+    {
+        if (isBusy)
+            return;
+        isBusy = true;
+        statusText = string.Empty;
+        try
+        {
+            await action();
+            await RefreshAsync();
+            ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), operation, "The trusted local human UI operation completed.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Human Collaboration operation {Operation} failed; user-entered content was omitted from logs.", operation);
+            ComponentActivity.RecordFailure(nameof(HumanCollaborationInbox), operation, ex);
+            statusText = ex is InvalidOperationException
+                ? ex.Message
+                : "The Human Collaboration operation failed. Review LocalGPT logs for technical details.";
+            Notifier.ShowError("HumanCollaborationToasts", statusText, "Human Collaboration");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private RequestEditor GetEditor(HumanCollaborationRequest request)
+    {
+        if (!editors.TryGetValue(request.Id, out var editor))
+        {
+            editor = new RequestEditor(request.PrefillText, string.Empty);
+            editors[request.Id] = editor;
+        }
+        return editor;
+    }
+
+    private void MarkProfileDirty() => profileDirty = true;
+
+    private static string FingerprintPrefix(string value) => value[..Math.Min(12, value.Length)];
+    private static string GetRequestCssClass(HumanCollaborationRequest request)
+    {
+        var risk = string.IsNullOrWhiteSpace(request.RiskLevel)
+            ? "medium"
+            : new string(request.RiskLevel
+                .Where(character => char.IsLetterOrDigit(character) || character == '-')
+                .Select(char.ToLowerInvariant)
+                .ToArray());
+        return $"human-request-card risk-{(string.IsNullOrWhiteSpace(risk) ? "medium" : risk)}";
+    }
+    private string GetContributionText(Guid runId) => contributionTexts.TryGetValue(runId, out var text) ? text : string.Empty;
+    private void SetContributionText(Guid runId, string text) => contributionTexts[runId] = text;
+
+    private void OnCollaborationChanged()
+    {
+        if (isDisposed)
+            return;
+
+        try
+        {
+            TaskRunner.Run(
+                nameof(HumanCollaborationInbox),
+                "RefreshAfterCollaborationChange",
+                _ => InvokeAsync(RefreshAsync),
+                lifetimeCts.Token);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            // A final service event raced with circuit disposal.
+        }
+    }
+
+    public void Dispose()
+    {
+        if (isDisposed)
+            return;
+
+        isDisposed = true;
+        Collaboration.Changed -= OnCollaborationChanged;
+        lifetimeCts.Cancel();
+        lifetimeCts.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    private sealed class RequestEditor(string response, string reason)
+    {
+        public string Response { get; set; } = response;
+        public string Reason { get; set; } = reason;
+    }
+}

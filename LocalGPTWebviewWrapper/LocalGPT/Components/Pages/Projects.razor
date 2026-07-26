@@ -1,0 +1,749 @@
+@page "/projects"
+@inject ILocalGptProjectService ProjectService
+@inject IProjectArchitectureService ProjectArchitecture
+@rendermode InteractiveServer
+@inject ILogger<Projects> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+<PageTitle>Projects</PageTitle>
+
+<main class="projects-page">
+    <ToastWrapper Name="@toastName" />
+
+    <section class="projects-header">
+        <div>
+            <h1>Human-guided projects</h1>
+            <p>Store project purpose, a user-selected file path, versions, and council topics. LocalGPT records the path but does not scan, modify, initialize Git, commit, push, or run files automatically.</p>
+        </div>
+        <DxButton Text="Refresh"
+                  RenderStyle="ButtonRenderStyle.Secondary"
+                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                  Enabled="@(!isBusy)"
+                  Click="LoadProjectsAsync" />
+    </section>
+
+    <section class="projects-layout">
+        <aside class="project-list">
+            <DxButton Text="New Project"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Enabled="@(!isBusy)"
+                      Click="NewProject" />
+
+            @if (ProjectSummaries.Count == 0)
+            {
+                <p class="muted">No projects saved yet.</p>
+            }
+            else
+            {
+                @foreach (var project in ProjectSummaries)
+                {
+                    <button type="button"
+                            class="project-select @(SelectedProject?.Project.Id == project.Id ? "selected" : string.Empty)"
+                            @onclick="@(() => SelectProjectAsync(project.Id))">
+                        <strong>@project.DisplayName</strong>
+                        <span>@project.Status · @project.TopicCount topic(s) · @project.VersionCount version(s)</span>
+                    </button>
+                }
+            }
+        </aside>
+
+        <section class="project-editor">
+            <h2>@(ProjectEdit.Id is null ? "New project" : "Edit project")</h2>
+
+            <label>
+                Name
+                <input @bind="ProjectEdit.Name" maxlength="200" />
+            </label>
+
+            <label>
+                Purpose
+                <textarea @bind="ProjectEdit.Purpose" rows="4"></textarea>
+            </label>
+
+            <label title="This is stored as text only. Saving does not access the directory.">
+                Project directory
+                <input @bind="ProjectEdit.RootPath" maxlength="1024" placeholder="C:\Projects\MyProject" />
+            </label>
+
+            <div class="form-grid">
+                <label>
+                    Current version
+                    <input @bind="ProjectEdit.CurrentVersion" maxlength="120" />
+                </label>
+                <label>
+                    Status
+                    <input @bind="ProjectEdit.Status" maxlength="80" />
+                </label>
+            </div>
+
+            <div class="check-row">
+                <label>
+                    <input type="checkbox" @bind="ProjectEdit.RecommendGit" />
+                    Recommend Git for revision history
+                </label>
+                <label>
+                    <input type="checkbox" @bind="ProjectEdit.IsArchived" />
+                    Archive project
+                </label>
+            </div>
+
+            <p class="hint">Git is only a recommendation. LocalGPT does not implement a Git helper here and never initializes, commits, resets, cleans, or pushes automatically.</p>
+
+            <DxButton Text="Save Project"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(ProjectEdit.Name))"
+                      Click="SaveProjectAsync" />
+
+            @if (SelectedProject is not null)
+            {
+                <hr />
+                <h2>Topics</h2>
+                <p class="hint">A topic is a user-approved unit of work. Selecting it in AI Council links the resulting knowledge entry after the run.</p>
+
+                <div class="form-grid">
+                    <label>
+                        Topic name
+                        <input @bind="TopicEdit.Name" maxlength="240" />
+                    </label>
+                    <label>
+                        Status
+                        <input @bind="TopicEdit.Status" maxlength="80" />
+                    </label>
+                </div>
+                <label>
+                    Topic description
+                    <textarea @bind="TopicEdit.Description" rows="3"></textarea>
+                </label>
+                <DxButton Text="Add Topic"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(TopicEdit.Name))"
+                          Click="AddTopicAsync" />
+
+                @if (SelectedProject.Topics.Count > 0)
+                {
+                    <ul class="record-list">
+                        @foreach (var topic in SelectedProject.Topics)
+                        {
+                            <li>
+                                <strong>@topic.Name</strong>
+                                <span>@topic.Status</span>
+                                <p>@topic.Description</p>
+                            </li>
+                        }
+                    </ul>
+                }
+
+                <hr />
+                <h2>Versions</h2>
+                <div class="form-grid">
+                    <label>
+                        Version
+                        <input @bind="VersionEdit.Version" maxlength="120" />
+                    </label>
+                    <label>
+                        Path snapshot
+                        <input @bind="VersionEdit.PathSnapshot" maxlength="1024" />
+                    </label>
+                </div>
+                <label>
+                    Notes
+                    <textarea @bind="VersionEdit.Notes" rows="3"></textarea>
+                </label>
+                <label>
+                    <input type="checkbox" @bind="VersionEdit.IsCurrent" />
+                    Mark as current version
+                </label>
+                <DxButton Text="Add Version"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(VersionEdit.Version))"
+                          Click="AddVersionAsync" />
+
+                @if (SelectedProject.Versions.Count > 0)
+                {
+                    <ul class="record-list">
+                        @foreach (var version in SelectedProject.Versions)
+                        {
+                            <li>
+                                <strong>@version.Version</strong>
+                                @if (version.IsCurrent)
+                                {
+                                    <span>Current</span>
+                                }
+                                <p>@version.Notes</p>
+                            </li>
+                        }
+                    </ul>
+                }
+
+                <hr />
+                <h2>Database revisions and branches</h2>
+                <p class="hint">These revisions describe project structure in SQLite for any programming language. They do not modify Git or the filesystem. A later approved CodeDOM workflow may use the structure as input.</p>
+                <div class="form-grid">
+                    <label>
+                        Branch name
+                        <input @bind="RevisionEdit.BranchName" maxlength="160" />
+                    </label>
+                    <label>
+                        Revision name
+                        <input @bind="RevisionEdit.RevisionName" maxlength="160" />
+                    </label>
+                </div>
+                <label>
+                    Parent revision
+                    <select @bind="RevisionParentValue">
+                        <option value="">No parent</option>
+                        @foreach (var revision in SelectedProject.Revisions)
+                        {
+                            <option value="@revision.Id">@revision.BranchName/@revision.RevisionName</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    Revision summary
+                    <textarea @bind="RevisionEdit.Summary" rows="3"></textarea>
+                </label>
+                <label title="JSON object or array describing folders, files, logical modules, services, controllers, functions, or other project nodes.">
+                    Project structure JSON
+                    <textarea @bind="RevisionEdit.ProjectStructureJson" rows="5"></textarea>
+                </label>
+                <label>
+                    <input type="checkbox" @bind="RevisionEdit.IsCurrent" />
+                    Mark revision as current
+                </label>
+                <DxButton Text="Save Revision"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(RevisionEdit.RevisionName))"
+                          Click="SaveRevisionAsync" />
+                @if (SelectedProject.Revisions.Count > 0)
+                {
+                    <ul class="record-list">
+                        @foreach (var revision in SelectedProject.Revisions)
+                        {
+                            <li>
+                                <strong>@revision.BranchName/@revision.RevisionName</strong>
+                                @if (revision.IsCurrent)
+                                {
+                                    <span>Current</span>
+                                }
+                                <p>@revision.Summary</p>
+                            </li>
+                        }
+                    </ul>
+                }
+
+                <hr />
+                <h2>Requirements</h2>
+                <p class="hint">Requirements give smaller models stable names for capabilities, knowledge, business objects, settings, and functions before they choose tools.</p>
+                <div class="form-grid">
+                    <label>
+                        Requirement name
+                        <input @bind="RequirementEdit.Name" maxlength="240" />
+                    </label>
+                    <label>
+                        Required capability
+                        <input @bind="RequirementEdit.RequiredCapability" maxlength="240" placeholder="C#, local knowledge import, SQL maintenance..." />
+                    </label>
+                    <label>
+                        Type
+                        <input @bind="RequirementEdit.RequirementType" maxlength="80" />
+                    </label>
+                    <label>
+                        Status
+                        <input @bind="RequirementEdit.Status" maxlength="80" />
+                    </label>
+                    <label>
+                        Priority
+                        <input @bind="RequirementEdit.Priority" maxlength="40" />
+                    </label>
+                    <label>
+                        Council rating (0-100)
+                        <input type="number" min="0" max="100" @bind="RequirementEdit.CouncilRating" />
+                    </label>
+                </div>
+                <label>
+                    Requirement description
+                    <textarea @bind="RequirementEdit.Description" rows="4"></textarea>
+                </label>
+                <DxButton Text="Save Requirement"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(RequirementEdit.Name))"
+                          Click="SaveRequirementAsync" />
+                @if (SelectedProject.Requirements.Count > 0)
+                {
+                    <ul class="record-list">
+                        @foreach (var requirement in SelectedProject.Requirements)
+                        {
+                            <li>
+                                <strong>@requirement.Name</strong>
+                                <span>@requirement.Status · @requirement.Priority · rating @requirement.CouncilRating</span>
+                                <p>@requirement.Description</p>
+                                @if (requirement.Links.Count > 0)
+                                {
+                                    <small>Links: @string.Join(", ", requirement.Links.Select(link => $"{link.TargetKind}:{link.TargetName}"))</small>
+                                }
+                            </li>
+                        }
+                    </ul>
+                    <h3>Link requirement to a named capability</h3>
+                    <div class="form-grid">
+                        <label>Requirement
+                            <select @bind="RequirementLinkRequirementValue">
+                                <option value="">Choose requirement</option>
+                                @foreach (var requirement in SelectedProject.Requirements)
+                                {
+                                    <option value="@requirement.Id">@requirement.Name</option>
+                                }
+                            </select>
+                        </label>
+                        <label>Target kind
+                            <select @bind="RequirementLinkEdit.TargetKind">
+                                @foreach (var kind in RequirementTargetKinds)
+                                {
+                                    <option value="@kind">@kind</option>
+                                }
+                            </select>
+                        </label>
+                        <label>Stable target name
+                            <input @bind="RequirementLinkEdit.TargetName" maxlength="240" placeholder="function/table/object/config name" />
+                        </label>
+                        <label>Target table
+                            <input @bind="RequirementLinkEdit.TargetTable" maxlength="160" />
+                        </label>
+                        <label>Target id
+                            <input @bind="RequirementLinkEdit.TargetId" maxlength="160" />
+                        </label>
+                    </div>
+                    <label>Why this link is relevant
+                        <textarea @bind="RequirementLinkEdit.LinkPurpose" rows="2"></textarea>
+                    </label>
+                    <DxButton Text="Save Requirement Link" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Contained" Enabled="@(!isBusy && RequirementLinkEdit.RequirementId != Guid.Empty && !string.IsNullOrWhiteSpace(RequirementLinkEdit.TargetName))" Click="SaveRequirementLinkAsync" />
+                }
+
+                <hr />
+                <h2>Project-linked artifacts</h2>
+                <p class="hint">Store named Regex, SystemVariable, Configuration, Prompt, KnowledgeReference, BusinessObjectReference, DXFunctionReference, or CodeDomTarget records. Sensitive values stay out of AI briefings and logs.</p>
+                <div class="form-grid">
+                    <label>
+                        Kind
+                        <select @bind="ArtifactEdit.ArtifactKind">
+                            @foreach (var kind in ArtifactKinds)
+                            {
+                                <option value="@kind">@kind</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        Name
+                        <input @bind="ArtifactEdit.Name" maxlength="240" />
+                    </label>
+                    <label>
+                        Data type
+                        <input @bind="ArtifactEdit.DataType" maxlength="120" />
+                    </label>
+                    <label>
+                        Flags / options
+                        <input @bind="ArtifactEdit.Flags" maxlength="160" />
+                    </label>
+                    <label>
+                        Requirement link
+                        <select @bind="ArtifactRequirementValue">
+                            <option value="">No requirement</option>
+                            @foreach (var requirement in SelectedProject.Requirements)
+                            {
+                                <option value="@requirement.Id">@requirement.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <input type="checkbox" @bind="ArtifactEdit.IsSensitive" />
+                        Sensitive value
+                    </label>
+                </div>
+                <label>
+                    Description
+                    <textarea @bind="ArtifactEdit.Description" rows="3"></textarea>
+                </label>
+                <label>
+                    Value
+                    <textarea @bind="ArtifactEdit.Value" rows="5"></textarea>
+                </label>
+                <DxButton Text="Save Project Artifact"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(ArtifactEdit.Name))"
+                          Click="SaveArtifactAsync" />
+                @if (SelectedProject.Artifacts.Count > 0)
+                {
+                    <ul class="record-list">
+                        @foreach (var artifact in SelectedProject.Artifacts)
+                        {
+                            <li>
+                                <strong>@artifact.ArtifactKind:@artifact.Name</strong>
+                                <span>@artifact.DataType · @(artifact.IsSensitive ? "sensitive" : "non-sensitive") · @artifact.CouncilReviewStatus</span>
+                                <p>@artifact.Description</p>
+                            </li>
+                        }
+                    </ul>
+                }
+            }
+        </section>
+    </section>
+</main>
+
+@code {
+    const string toastName = "ProjectToasts";
+
+    List<LocalGptProjectSummary> ProjectSummaries { get; set; } = [];
+
+    LocalGptProjectDetails? SelectedProject { get; set; }
+
+    SaveLocalGptProjectRequest ProjectEdit { get; set; } = NewProjectRequest();
+
+    AddLocalGptProjectTopicRequest TopicEdit { get; set; } = NewTopicRequest();
+
+    AddLocalGptProjectVersionRequest VersionEdit { get; set; } = NewVersionRequest();
+
+    SaveProjectRevisionRequest RevisionEdit { get; set; } = NewRevisionRequest();
+
+    SaveProjectRequirementRequest RequirementEdit { get; set; } = NewRequirementRequest();
+
+    SaveProjectRequirementLinkRequest RequirementLinkEdit { get; set; } = NewRequirementLinkRequest();
+
+    SaveProjectArtifactRequest ArtifactEdit { get; set; } = NewArtifactRequest();
+
+    string RevisionParentValue
+    {
+        get => RevisionEdit.ParentRevisionId?.ToString() ?? string.Empty;
+        set => RevisionEdit.ParentRevisionId = Guid.TryParse(value, out var id) ? id : null;
+    }
+
+    string RequirementLinkRequirementValue
+    {
+        get => RequirementLinkEdit.RequirementId == Guid.Empty ? string.Empty : RequirementLinkEdit.RequirementId.ToString();
+        set => RequirementLinkEdit.RequirementId = Guid.TryParse(value, out var id) ? id : Guid.Empty;
+    }
+
+    string ArtifactRequirementValue
+    {
+        get => ArtifactEdit.RequirementId?.ToString() ?? string.Empty;
+        set => ArtifactEdit.RequirementId = Guid.TryParse(value, out var id) ? id : null;
+    }
+
+    static readonly string[] RequirementTargetKinds =
+    [
+        "DXFunction", "BusinessObject", "Configuration", "SystemVariable", "Regex",
+        "Prompt", "Knowledge", "DatabaseTable", "Service", "Controller", "CodeDomTarget"
+    ];
+
+    static readonly string[] ArtifactKinds =
+    [
+        "Regex", "SystemVariable", "Configuration", "Prompt", "KnowledgeReference",
+        "BusinessObjectReference", "DXFunctionReference", "CodeDomTarget", "DocumentReference"
+    ];
+
+    bool isBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjectsAsync().ConfigureAwait(true);
+    }
+
+    async Task LoadProjectsAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
+
+            if (SelectedProject is not null)
+                SelectedProject = await ProjectService.GetProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+        }, "Load projects").ConfigureAwait(false);
+    }
+
+    void NewProject()
+    {
+        SelectedProject = null;
+        ProjectEdit = NewProjectRequest();
+        TopicEdit = NewTopicRequest();
+        VersionEdit = NewVersionRequest();
+        RevisionEdit = NewRevisionRequest();
+        RequirementEdit = NewRequirementRequest();
+        RequirementLinkEdit = NewRequirementLinkRequest();
+        ArtifactEdit = NewArtifactRequest();
+    }
+
+    async Task SelectProjectAsync(Guid projectId)
+    {
+        await RunUiActionAsync(async () =>
+        {
+            SelectedProject = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
+            if (SelectedProject is null)
+                throw new InvalidOperationException("The selected project no longer exists.");
+
+            var project = SelectedProject.Project;
+            ProjectEdit = new SaveLocalGptProjectRequest
+            {
+                Id = project.Id,
+                Name = project.Name,
+                Purpose = project.Purpose,
+                RootPath = project.RootPath,
+                CurrentVersion = project.CurrentVersion,
+                Status = project.Status,
+                RecommendGit = project.RecommendGit,
+                IsArchived = project.IsArchived,
+                UserConfirmed = false
+            };
+            TopicEdit = NewTopicRequest();
+            VersionEdit = NewVersionRequest(project.RootPath);
+            RevisionEdit = NewRevisionRequest();
+            RequirementEdit = NewRequirementRequest();
+            RequirementLinkEdit = NewRequirementLinkRequest();
+            ArtifactEdit = NewArtifactRequest();
+        }, "Select project").ConfigureAwait(false);
+    }
+
+    async Task SaveProjectAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            ProjectEdit.UserConfirmed = true;
+            try
+            {
+                var saved = await ProjectService.SaveProjectAsync(ProjectEdit).ConfigureAwait(false);
+                await RefreshSelectedProjectAsync(saved.Id).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "Project record saved.", "Project saved");
+            }
+            finally
+            {
+                ProjectEdit.UserConfirmed = false;
+            }
+        }, "Save project").ConfigureAwait(false);
+    }
+
+    async Task AddTopicAsync()
+    {
+        if (SelectedProject is null)
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            TopicEdit.UserConfirmed = true;
+            try
+            {
+                await ProjectService.AddTopicAsync(SelectedProject.Project.Id, TopicEdit).ConfigureAwait(false);
+                TopicEdit = NewTopicRequest();
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "Project topic added.", "Topic saved");
+            }
+            finally
+            {
+                TopicEdit.UserConfirmed = false;
+            }
+        }, "Add topic").ConfigureAwait(false);
+    }
+
+    async Task AddVersionAsync()
+    {
+        if (SelectedProject is null)
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            VersionEdit.UserConfirmed = true;
+            try
+            {
+                await ProjectService.AddVersionAsync(SelectedProject.Project.Id, VersionEdit).ConfigureAwait(false);
+                VersionEdit = NewVersionRequest(SelectedProject.Project.RootPath);
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "Project version added.", "Version saved");
+            }
+            finally
+            {
+                VersionEdit.UserConfirmed = false;
+            }
+        }, "Add version").ConfigureAwait(false);
+    }
+
+    async Task SaveRevisionAsync()
+    {
+        if (SelectedProject is null)
+            return;
+        await RunUiActionAsync(async () =>
+        {
+            RevisionEdit.UserConfirmed = true;
+            try
+            {
+                await ProjectArchitecture.SaveRevisionAsync(SelectedProject.Project.Id, RevisionEdit).ConfigureAwait(false);
+                RevisionEdit = NewRevisionRequest();
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "Database project revision saved.", "Revision saved");
+            }
+            finally
+            {
+                RevisionEdit.UserConfirmed = false;
+            }
+        }, "Save project revision").ConfigureAwait(false);
+    }
+
+    async Task SaveRequirementAsync()
+    {
+        if (SelectedProject is null)
+            return;
+        await RunUiActionAsync(async () =>
+        {
+            RequirementEdit.UserConfirmed = true;
+            try
+            {
+                RequirementEdit.RevisionId = SelectedProject.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
+                await ProjectArchitecture.SaveRequirementAsync(SelectedProject.Project.Id, RequirementEdit).ConfigureAwait(false);
+                RequirementEdit = NewRequirementRequest();
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "Project requirement saved.", "Requirement saved");
+            }
+            finally
+            {
+                RequirementEdit.UserConfirmed = false;
+            }
+        }, "Save project requirement").ConfigureAwait(false);
+    }
+
+    async Task SaveRequirementLinkAsync()
+    {
+        if (SelectedProject is null)
+            return;
+        await RunUiActionAsync(async () =>
+        {
+            RequirementLinkEdit.UserConfirmed = true;
+            try
+            {
+                await ProjectArchitecture.SaveRequirementLinkAsync(SelectedProject.Project.Id, RequirementLinkEdit).ConfigureAwait(false);
+                RequirementLinkEdit = NewRequirementLinkRequest();
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "Requirement capability link saved.", "Requirement linked");
+            }
+            finally
+            {
+                RequirementLinkEdit.UserConfirmed = false;
+            }
+        }, "Save requirement link").ConfigureAwait(false);
+    }
+
+    async Task SaveArtifactAsync()
+    {
+        if (SelectedProject is null)
+            return;
+        await RunUiActionAsync(async () =>
+        {
+            ArtifactEdit.UserConfirmed = true;
+            try
+            {
+                ArtifactEdit.RevisionId = SelectedProject.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
+                await ProjectArchitecture.SaveArtifactAsync(SelectedProject.Project.Id, ArtifactEdit).ConfigureAwait(false);
+                ArtifactEdit = NewArtifactRequest();
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "Project-linked artifact saved.", "Artifact saved");
+            }
+            finally
+            {
+                ArtifactEdit.UserConfirmed = false;
+            }
+        }, "Save project artifact").ConfigureAwait(false);
+    }
+
+    async Task RefreshSelectedProjectAsync(Guid projectId)
+    {
+        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
+        SelectedProject = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
+        if (SelectedProject is not null)
+        {
+            var project = SelectedProject.Project;
+            ProjectEdit.Id = project.Id;
+            ProjectEdit.Name = project.Name;
+            ProjectEdit.Purpose = project.Purpose;
+            ProjectEdit.RootPath = project.RootPath;
+            ProjectEdit.CurrentVersion = project.CurrentVersion;
+            ProjectEdit.Status = project.Status;
+            ProjectEdit.RecommendGit = project.RecommendGit;
+            ProjectEdit.IsArchived = project.IsArchived;
+        }
+    }
+
+    async Task RunUiActionAsync(Func<Task> action, string operation)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        isBusy = true;
+        ComponentActivity.RecordInformation(nameof(Projects), operation, "The project UI operation started.");
+        try
+        {
+            await action().ConfigureAwait(false);
+            ComponentActivity.RecordInformation(nameof(Projects), operation, "The project UI operation completed.");
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Project UI operation {Operation} was cancelled.", operation);
+            ComponentActivity.RecordWarning(nameof(Projects), operation, "The project UI operation was cancelled.");
+            Notifier.ShowWarning(toastName, "The operation was cancelled.", "Operation cancelled");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Project UI operation {Operation} failed; project content was omitted from logs.", operation);
+            ComponentActivity.RecordFailure(nameof(Projects), operation, ex);
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+        }
+        finally
+        {
+            isBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    static SaveLocalGptProjectRequest NewProjectRequest() => new()
+    {
+        CurrentVersion = "0.1.0",
+        Status = "Active",
+        RecommendGit = true
+    };
+
+    static AddLocalGptProjectTopicRequest NewTopicRequest() => new()
+    {
+        Status = "Planned"
+    };
+
+    static AddLocalGptProjectVersionRequest NewVersionRequest(string path = "") => new()
+    {
+        PathSnapshot = path,
+        IsCurrent = true
+    };
+
+    static SaveProjectRevisionRequest NewRevisionRequest() => new()
+    {
+        BranchName = "main",
+        RevisionName = $"revision-{DateTime.UtcNow:yyyyMMdd-HHmmss}",
+        ProjectStructureJson = "{}",
+        IsCurrent = true
+    };
+
+    static SaveProjectRequirementRequest NewRequirementRequest() => new()
+    {
+        RequirementType = "Functional",
+        Status = "Planned",
+        Priority = "Normal"
+    };
+
+    static SaveProjectRequirementLinkRequest NewRequirementLinkRequest() => new()
+    {
+        TargetKind = "DXFunction"
+    };
+
+    static SaveProjectArtifactRequest NewArtifactRequest() => new()
+    {
+        ArtifactKind = "Configuration",
+        DataType = "string"
+    };
+}

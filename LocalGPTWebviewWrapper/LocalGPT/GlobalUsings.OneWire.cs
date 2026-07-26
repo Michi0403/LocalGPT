@@ -1,0 +1,15 @@
+global using OneWireProtocol = LocalGPT.WireProtocol.OneWireProtocol;
+global using OneWireMessageType = LocalGPT.WireProtocol.OneWireMessageType;
+global using OneWireExecutionMode = LocalGPT.WireProtocol.OneWireExecutionMode;
+global using OneWireWorkStatus = LocalGPT.WireProtocol.OneWireWorkStatus;
+global using OneWireApprovalMode = LocalGPT.WireProtocol.OneWireApprovalMode;
+global using OneWireHardwareKind = LocalGPT.WireProtocol.OneWireHardwareKind;
+global using OneWireEnvelope = LocalGPT.WireProtocol.OneWireEnvelope;
+global using OneWireCapabilityDescriptor = LocalGPT.WireProtocol.OneWireCapabilityDescriptor;
+global using OneWireSkillDescriptor = LocalGPT.WireProtocol.OneWireSkillDescriptor;
+global using OneWirePeerAdvertisement = LocalGPT.WireProtocol.OneWirePeerAdvertisement;
+global using OneWirePermissionRule = LocalGPT.WireProtocol.OneWirePermissionRule;
+global using OneWireCouncilModelRoute = LocalGPT.WireProtocol.OneWireCouncilModelRoute;
+global using OneWireCouncilRequest = LocalGPT.WireProtocol.OneWireCouncilRequest;
+global using OneWireModelSelfAssessment = LocalGPT.WireProtocol.OneWireModelSelfAssessment;
+global using OneWireInteractionEditor = LocalGPT.WireProtocol.OneWireInteractionEditor;

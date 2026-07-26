@@ -1,0 +1,628 @@
+using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
+using LocalGPT.WireProtocol;
+using System.Text.Json;
+
+namespace LocalGPT.Services.OneWire;
+
+public sealed class OneWireOperationExecutor(
+    IServiceScopeFactory scopeFactory,
+    ILogger<OneWireOperationExecutor> logger) : IOneWireOperationExecutor
+{
+    private static readonly JsonSerializerOptions JsonOptions = OneWireEnvelopeCodec.CreateOptions();
+
+    public async Task<string> ExecuteAsync(OneWireWorkItem item, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        await using var scope = scopeFactory.CreateAsyncScope();
+        if (item.RequestType == OneWireMessageType.CouncilRequest || string.Equals(item.CapabilityKey, "council.run", StringComparison.OrdinalIgnoreCase))
+        {
+            var wireRequest = ReadPayload<OneWireCouncilRequest>(item.Request, "CouncilRequest");
+            var council = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
+            var request = new MultiModelCouncilRequest
+            {
+                Prompt = wireRequest.Prompt,
+                CouncilTeamKey = wireRequest.TeamKey,
+                CouncilLeaderModelName = wireRequest.LeaderModelName,
+                ModelNames = wireRequest.ModelNames,
+                RequestedOrganicCapabilities = wireRequest.RequestedOrganicCapabilities,
+                ExternalProjectContextJson = wireRequest.ExternalProjectContextJson,
+                OneWireCorrelationId = item.CorrelationId.ToString("D"),
+                UseOrganicCouncilWorkflow = true,
+                ProjectId = wireRequest.ProjectId,
+                ProjectTopicId = wireRequest.ProjectTopicId,
+                ProjectRevisionId = wireRequest.ProjectRevisionId,
+                MaxRounds = wireRequest.MaxRounds,
+                MaxOutputTokens = wireRequest.MaxOutputTokens,
+                MaxContextTokens = wireRequest.MaxContextTokens,
+                MaxParallelModels = wireRequest.MaxParallelModels,
+                ModelRoutes = wireRequest.ModelRoutes,
+                ResourceLoadPercent = Math.Clamp(wireRequest.ResourceLoadPercent, 0, 100),
+                AllowParallelHardwareRoads = wireRequest.AllowParallelHardwareRoads,
+                IncludeMemory = wireRequest.IncludeMemory,
+                SaveToMemory = wireRequest.SaveToMemory,
+                GenerateImplementationArtifact = wireRequest.GenerateImplementationArtifact,
+                UserConfirmedArtifactBuild = wireRequest.UserConfirmedArtifactBuild
+            };
+            var result = await council.RunAsync(request, cancellationToken).ConfigureAwait(false);
+            return JsonSerializer.Serialize(result, JsonOptions);
+        }
+
+        if (string.Equals(item.CapabilityKey, "localgpt.screenreader.help", StringComparison.OrdinalIgnoreCase))
+        {
+            var parametersInner = item.Request.Properties is not null && item.Request.Properties.TryGetValue("Parameters", out var parameterElementOuter)
+                ? parameterElementOuter.Clone()
+                : JsonSerializer.SerializeToElement(new { }, JsonOptions);
+            var userPrompt = GetString(parametersInner, "prompt", "Describe meaningful screen changes and suggest the next safe action.");
+            var selector = GetString(parametersInner, "selector", "body");
+            var dataIncluded = GetBoolean(parametersInner, "dataIncluded") || GetBoolean(parametersInner, "DataIncluded");
+            var width = GetInt(parametersInner, "pixelWidth", GetInt(parametersInner, "PixelWidth", 0));
+            var height = GetInt(parametersInner, "pixelHeight", GetInt(parametersInner, "PixelHeight", 0));
+            var council = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
+            var request = new MultiModelCouncilRequest
+            {
+                Prompt = $"""
+Recurring screen-reader evidence arrived from an explicitly connected organic plugin.
+User instruction: {userPrompt}
+Captured selector: {selector}
+Image metadata: {width}x{height}; inline image data included: {dataIncluded}.
+Analyze only the supplied evidence. Report meaningful changes, uncertainties, and one safe next action. Do not claim visual details that cannot be derived by the configured model.
+""",
+                CouncilTeamKey = "general",
+                ExternalProjectContextJson = parametersInner.GetRawText(),
+                OneWireCorrelationId = item.CorrelationId.ToString("D"),
+                UseOrganicCouncilWorkflow = true,
+                MaxRounds = 1,
+                MaxParallelModels = 1,
+                MaxOutputTokens = 1200,
+                MaxContextTokens = 16384,
+                AllowParallelHardwareRoads = false,
+                IncludeMemory = false,
+                SaveToMemory = false,
+                GenerateImplementationArtifact = false,
+                UserConfirmedArtifactBuild = false
+            };
+            var result = await council.RunAsync(request, cancellationToken).ConfigureAwait(false);
+            return JsonSerializer.Serialize(new
+            {
+                result.FinalAnswer,
+                result.RunId,
+                result.CompletedAtUtc,
+                item.CorrelationId,
+                Evidence = new { selector, width, height, dataIncluded }
+            }, JsonOptions);
+        }
+
+        var parameters = item.Request.Properties is not null && item.Request.Properties.TryGetValue("Parameters", out var parameterElement)
+            ? parameterElement.Clone()
+            : JsonSerializer.SerializeToElement(new { }, JsonOptions);
+        var functionName = string.IsNullOrWhiteSpace(item.CapabilityKey) ? item.Request.Route : item.CapabilityKey;
+        var catalog = scope.ServiceProvider.GetRequiredService<IDxAiFunctionCatalogService>();
+        var catalogEntry = await catalog.GetByFunctionNameAsync(functionName, cancellationToken).ConfigureAwait(false);
+        if (catalogEntry?.Kind == DxAiFunctionCatalogKinds.PublicServiceMethod)
+        {
+            var invoker = scope.ServiceProvider.GetRequiredService<IPublicServiceMethodInvoker>();
+            var serviceResult = await invoker.InvokeAsync(new PublicServiceMethodInvocationRequest
+            {
+                CatalogKey = catalogEntry.CatalogKey,
+                Parameters = parameters,
+                RequestedBy = string.IsNullOrWhiteSpace(item.SourcePeerId) ? "1-Wire peer" : item.SourcePeerId
+            }, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Executed configured 1-Wire service method {CatalogKey} for peer {PeerId}.", catalogEntry.CatalogKey, item.SourcePeerId);
+            return JsonSerializer.Serialize(new { Succeeded = true, Status = "Completed", Value = serviceResult }, JsonOptions);
+        }
+
+        var registry = scope.ServiceProvider.GetRequiredService<IDxAiFunctionRegistry>();
+        var invocation = new DxAiFunctionInvocationRequest
+        {
+            OperationId = item.Id,
+            Parameters = parameters,
+            UserConfirmed = item.Request.UserConfirmed,
+            AutomaticInvocation = item.Request.ExecutionMode != OneWireExecutionMode.Once,
+            ConfirmationSummaryHash = item.Request.Hash,
+            RequestedBy = string.IsNullOrWhiteSpace(item.SourcePeerId) ? "1-Wire peer" : item.SourcePeerId,
+            ApplicationVersion = $"1-Wire/{OneWireProtocol.Version}"
+        };
+        var resultValue = await registry.InvokeAsync(functionName, invocation, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Executed 1-Wire DX function {FunctionName} with status {Status}.", functionName, resultValue.Status);
+        return JsonSerializer.Serialize(resultValue, JsonOptions);
+    }
+
+    private static string GetString(JsonElement element, string name, string fallback) =>
+        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? fallback
+            : fallback;
+
+    private static bool GetBoolean(JsonElement element, string name) =>
+        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False && value.GetBoolean();
+
+    private static int GetInt(JsonElement element, string name, int fallback) =>
+        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.TryGetInt32(out var result) ? result : fallback;
+
+    private static T ReadPayload<T>(OneWireEnvelope envelope, string propertyName)
+    {
+        if (envelope.Properties is null || !envelope.Properties.TryGetValue(propertyName, out var element))
+            throw new InvalidDataException($"The 1-Wire message is missing {propertyName}.");
+        return element.Deserialize<T>(JsonOptions) ?? throw new InvalidDataException($"The 1-Wire {propertyName} payload is empty.");
+    }
+}
+
+public sealed class OneWireMessageDispatcher(
+    IOneWireEnvelopeCodec codec,
+    IOneWireCapabilityCatalog capabilities,
+    IOneWirePeerRegistry peers,
+    IOneWireWorkSpooler spooler,
+    IOneWirePendingCouncilStore pendingCouncils,
+    IHumanCollaborationService humanCollaboration,
+    ILogger<OneWireMessageDispatcher> logger) : IOneWireMessageDispatcher
+{
+    private static readonly JsonSerializerOptions JsonOptions = OneWireEnvelopeCodec.CreateOptions();
+
+    public async Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default)
+    {
+        if (!codec.Validate(envelope, out var validationError))
+            return Error(envelope, validationError);
+
+        if (envelope.MessageType != OneWireMessageType.Hello &&
+            !string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase) &&
+            peers.GetPeer(envelope.SourcePeerId)?.IsConnected != true)
+        {
+            return Error(envelope, "This transport is not an approved 1-Wire link. Link it from both frontends before exchanging capabilities or invoking work.");
+        }
+
+        switch (envelope.MessageType)
+        {
+            case OneWireMessageType.Hello:
+                if (TryRead<OneWirePeerAdvertisement>(envelope, "Peer", out var peer) && peer is not null)
+                {
+                    // A live TCP connection is not the same as a user-approved organic link.
+                    // Keep the peer visible but unlinked until the LocalGPT frontend approves it.
+                    peer.IsConnected = false;
+                    peers.Upsert(peer);
+                }
+                var linkGate = await humanCollaboration.AuthorizeOrEnqueueAsync(
+                    OneWireTargetApprovalPolicy.Create(envelope),
+                    directHumanConfirmation: false,
+                    cancellationToken).ConfigureAwait(false);
+                if (linkGate.IsDeclined)
+                    return Error(envelope, string.IsNullOrWhiteSpace(linkGate.DecisionReason) ? linkGate.Message : linkGate.DecisionReason);
+                if (!linkGate.IsAuthorized)
+                {
+                    pendingCouncils.Upsert(envelope, linkGate.RequestId);
+                    return Reply(envelope, OneWireMessageType.ApprovalRequired, new Dictionary<string, object?>
+                    {
+                        ["ApprovalRequestId"] = linkGate.RequestId,
+                        ["Status"] = linkGate.Status,
+                        ["Message"] = "Waiting for the LocalGPT frontend user to approve this organic link.",
+                        ["LinkApproval"] = true
+                    });
+                }
+                pendingCouncils.Remove(envelope.CorrelationId, out _);
+                peers.SetConnected(envelope.SourcePeerId, true);
+                return Reply(envelope, OneWireMessageType.HelloAck, new Dictionary<string, object?>
+                {
+                    ["Peer"] = LocalAdvertisement(),
+                    ["Capabilities"] = await capabilities.GetLocalCapabilitiesForPeerAsync(envelope.SourcePeerId, cancellationToken).ConfigureAwait(false),
+                    ["Skills"] = await capabilities.GetLocalSkillsAsync(cancellationToken).ConfigureAwait(false),
+                    ["UiFeatures"] = await capabilities.GetLocalUiFeaturesAsync(cancellationToken).ConfigureAwait(false),
+                    ["Hardware"] = await capabilities.GetLocalHardwareAsync(cancellationToken).ConfigureAwait(false),
+                    ["LinkedByLocalFrontend"] = true
+                });
+
+            case OneWireMessageType.CapabilityRequest:
+                return Reply(envelope, OneWireMessageType.CapabilityResponse, new Dictionary<string, object?>
+                {
+                    ["Capabilities"] = await capabilities.GetLocalCapabilitiesForPeerAsync(envelope.SourcePeerId, cancellationToken).ConfigureAwait(false),
+                    ["Skills"] = await capabilities.GetLocalSkillsAsync(cancellationToken).ConfigureAwait(false),
+                    ["UiFeatures"] = await capabilities.GetLocalUiFeaturesAsync(cancellationToken).ConfigureAwait(false),
+                    ["Hardware"] = await capabilities.GetLocalHardwareAsync(cancellationToken).ConfigureAwait(false)
+                });
+
+            case OneWireMessageType.SkillRequest:
+                return Reply(envelope, OneWireMessageType.SkillResponse, new Dictionary<string, object?>
+                {
+                    ["Skills"] = await capabilities.GetLocalSkillsAsync(cancellationToken).ConfigureAwait(false),
+                    ["UiFeatures"] = await capabilities.GetLocalUiFeaturesAsync(cancellationToken).ConfigureAwait(false)
+                });
+
+            case OneWireMessageType.CouncilRequest:
+                return await AuthorizeTargetAndQueueAsync(envelope, alwaysRequireHuman: true, cancellationToken).ConfigureAwait(false);
+
+            case OneWireMessageType.Invoke:
+                var advertised = await capabilities.GetLocalCapabilitiesForPeerAsync(envelope.SourcePeerId, cancellationToken).ConfigureAwait(false);
+                var selected = advertised.FirstOrDefault(item => item.IsEnabled && item.IsOnline && item.IsExposedToPeer &&
+                    string.Equals(item.Key, envelope.CapabilityKey, StringComparison.OrdinalIgnoreCase));
+                if (selected is null)
+                    return Error(envelope, "The requested capability is not exposed to this linked peer.");
+                if (!selected.AllowPeerInvocation)
+                    return Error(envelope, "The requested capability is discovery-only until the LocalGPT user enables peer invocation in the DX Function Catalog.");
+                envelope.RequiresHumanInteractionOnTargetSystem = selected.RequiresFrontendUserConfirmation || selected.RequiresHumanConfirmation;
+                envelope.InteractionKind = envelope.RequiresAutomatedInteractionOnTargetSystem
+                    ? (envelope.RequiresHumanInteractionOnTargetSystem ? OneWireInteractionKind.HumanAndAutomated : OneWireInteractionKind.Automated)
+                    : (envelope.RequiresHumanInteractionOnTargetSystem ? OneWireInteractionKind.Human : OneWireInteractionKind.None);
+                envelope.Properties ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                envelope.Properties["InteractionEditor"] = JsonSerializer.SerializeToElement(selected.InteractionEditor.ToString(), JsonOptions);
+                envelope.Properties["ConfigurationKey"] = JsonSerializer.SerializeToElement(selected.ConfigurationKey, JsonOptions);
+                return await AuthorizeTargetAndQueueAsync(
+                    envelope,
+                    alwaysRequireHuman: envelope.RequiresHumanInteractionOnTargetSystem,
+                    cancellationToken).ConfigureAwait(false);
+
+            case OneWireMessageType.WorkStatusRequest:
+                if (TryRead<Guid>(envelope, "WorkItemId", out var workId))
+                {
+                    var item = spooler.Get(workId);
+                    return item is null ? Error(envelope, "Unknown work item.") : Reply(envelope, OneWireMessageType.WorkResult, new Dictionary<string, object?> { ["WorkItem"] = item });
+                }
+                return Error(envelope, "WorkItemId is required.");
+
+            case OneWireMessageType.ApprovalRequired:
+                var approvalJson = envelope.Properties is null ? string.Empty : JsonSerializer.Serialize(envelope.Properties, JsonOptions);
+                spooler.MarkPendingApproval(envelope.CorrelationId, approvalJson);
+                return null;
+
+            case OneWireMessageType.WorkResult:
+                var resultJson = TryRead<string>(envelope, "ResultJson", out var result) ? result ?? string.Empty : string.Empty;
+                OneWireWorkStatus? externalStatus = null;
+                if (TryRead<string>(envelope, "Status", out var statusText) && Enum.TryParse<OneWireWorkStatus>(statusText, true, out var parsedStatus))
+                    externalStatus = parsedStatus;
+                spooler.ApplyExternalResult(envelope.CorrelationId, resultJson, envelope.Error, externalStatus);
+                return null;
+
+            case OneWireMessageType.Ping:
+                return Reply(envelope, OneWireMessageType.Pong, new Dictionary<string, object?> { ["Utc"] = DateTimeOffset.UtcNow });
+
+            default:
+                logger.LogDebug("Ignored 1-Wire message type {MessageType}.", envelope.MessageType);
+                return null;
+        }
+    }
+
+    private async Task<OneWireEnvelope> AuthorizeTargetAndQueueAsync(
+        OneWireEnvelope envelope,
+        bool alwaysRequireHuman,
+        CancellationToken cancellationToken)
+    {
+        if (!alwaysRequireHuman)
+            return Accepted(envelope, spooler.Enqueue(envelope));
+
+        var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
+            OneWireTargetApprovalPolicy.Create(envelope),
+            directHumanConfirmation: false,
+            cancellationToken).ConfigureAwait(false);
+        if (gate.IsDeclined)
+            return Error(envelope, string.IsNullOrWhiteSpace(gate.DecisionReason) ? gate.Message : gate.DecisionReason);
+        if (!gate.IsAuthorized)
+        {
+            pendingCouncils.Upsert(envelope, gate.RequestId);
+            return Reply(envelope, OneWireMessageType.ApprovalRequired, new Dictionary<string, object?>
+            {
+                ["ApprovalRequestId"] = gate.RequestId,
+                ["Status"] = gate.Status,
+                ["Message"] = gate.Message,
+                ["InteractionValueJson"] = envelope.InteractionValueJson
+            });
+        }
+        pendingCouncils.Remove(envelope.CorrelationId, out _);
+        ApplyHumanResponse(envelope, gate.UserResponse);
+        return Accepted(envelope, spooler.Enqueue(envelope));
+    }
+
+    internal static void ApplyHumanResponse(OneWireEnvelope envelope, string? userResponse)
+    {
+        if (string.IsNullOrWhiteSpace(userResponse))
+            return;
+
+        envelope.InteractionValueJson = userResponse;
+        var editor = OneWireTargetApprovalPolicy.ReadEditor(envelope);
+        envelope.InteractionValueContentType = editor == OneWireInteractionEditor.Json
+            ? "application/json"
+            : "text/plain; charset=utf-8";
+    }
+
+    private static OneWireEnvelope Accepted(OneWireEnvelope request, OneWireWorkItem item) => Reply(request, OneWireMessageType.WorkAccepted, new Dictionary<string, object?> { ["WorkItem"] = item });
+
+    private static OneWireEnvelope Error(OneWireEnvelope request, string error) => new()
+    {
+        MessageType = OneWireMessageType.Error,
+        CorrelationId = request.CorrelationId,
+        ReplyToMessageId = request.MessageId,
+        SourcePeerId = "localgpt",
+        TargetPeerId = request.SourcePeerId,
+        Error = error
+    };
+
+    private static OneWireEnvelope Reply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values)
+    {
+        var properties = values.ToDictionary(pair => pair.Key, pair => JsonSerializer.SerializeToElement(pair.Value, JsonOptions), StringComparer.Ordinal);
+        return new OneWireEnvelope
+        {
+            MessageType = type,
+            CorrelationId = request.CorrelationId,
+            ReplyToMessageId = request.MessageId,
+            SourcePeerId = "localgpt",
+            TargetPeerId = request.SourcePeerId,
+            Properties = properties
+        };
+    }
+
+    private static bool TryRead<T>(OneWireEnvelope envelope, string propertyName, out T? value)
+    {
+        value = default;
+        if (envelope.Properties is null || !envelope.Properties.TryGetValue(propertyName, out var element))
+            return false;
+        try
+        {
+            value = element.Deserialize<T>(JsonOptions);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    internal static OneWirePeerAdvertisement LocalAdvertisement() => new()
+    {
+        PeerId = "localgpt",
+        DisplayName = "LocalGPT",
+        Application = "LocalGPT",
+        ApplicationVersion = "2.0.1-organic-wire",
+        HostName = Environment.MachineName,
+        Address = "127.0.0.1",
+        ServicePort = Program.OneWirePort,
+        DiscoveryPort = Program.OneWireDiscoveryPort,
+        WebBaseUrl = Program.BaseUrl,
+        IsConnected = true
+    };
+}
+
+internal static class OneWireTargetApprovalPolicy
+{
+    public static HumanApprovalRequestSpec Create(OneWireEnvelope envelope)
+    {
+        if (envelope.MessageType == OneWireMessageType.Hello)
+        {
+            return new HumanApprovalRequestSpec(
+                $"onewire:link:{envelope.SourcePeerId}:{envelope.CorrelationId:D}",
+                $"onewire.link.{envelope.SourcePeerId}",
+                $"Link organic application {envelope.SourcePeerId}",
+                "A local application requested an organic 1-Wire link. The transport remains unlinked until the LocalGPT frontend user approves it. Future capabilities remain independently controlled by the DX Function Catalog and the receiving frontend confirmation policy.",
+                "High",
+                nameof(OneWireMessageDispatcher),
+                envelope.SourcePeerId,
+                "Local 1-Wire link reviewer",
+                RequiredBeforeCompletion: true,
+                IsSensitive: true,
+                RequestKind: HumanCollaborationRequestKinds.Approval,
+                ResponsePrompt: "Approve or decline this exact local organic application link.",
+                AllowFreeText: true,
+                ParameterFingerprint: envelope.Hash ?? envelope.SourcePeerId);
+        }
+
+        var isCouncil = envelope.MessageType == OneWireMessageType.CouncilRequest || string.Equals(envelope.CapabilityKey, "council.run", StringComparison.OrdinalIgnoreCase);
+        var operation = isCouncil ? "onewire.council.run" : $"onewire.invoke.{envelope.CapabilityKey}";
+        var title = isCouncil
+            ? $"Approve council request from {envelope.SourcePeerId}"
+            : $"Approve {envelope.CapabilityKey} from {envelope.SourcePeerId}";
+        var editor = ReadEditor(envelope);
+        var needsValue = editor is OneWireInteractionEditor.PlainText or OneWireInteractionEditor.RichText or OneWireInteractionEditor.Json;
+        var description = isCouncil
+            ? "An organic plugin requested a bounded LocalGPT council run. Review the prompt, team, project context and requested organ capabilities in the collaboration inbox."
+            : needsValue
+                ? $"A securely linked organic plugin requested {envelope.CapabilityKey}. The receiving LocalGPT frontend is authoritative. Review the exact request and provide the requested {editor} value before the scheduler continues."
+                : "A securely linked organic plugin requested a LocalGPT function. The receiving LocalGPT frontend is authoritative and must confirm the exact capability, organs, work order and payload before it is queued.";
+        return new HumanApprovalRequestSpec(
+            $"onewire:target:{envelope.SourcePeerId}:{envelope.CorrelationId:D}",
+            operation,
+            title,
+            description,
+            "High",
+            nameof(OneWireMessageDispatcher),
+            envelope.SourcePeerId,
+            "External organic-plugin request reviewer",
+            RequiredBeforeCompletion: true,
+            IsSensitive: true,
+            RequestKind: needsValue ? HumanCollaborationRequestKinds.Guidance : HumanCollaborationRequestKinds.Approval,
+            ResponsePrompt: needsValue ? $"Enter the {editor} value to return to {envelope.SourcePeerId}." : "Confirm or decline this exact invocation.",
+            PrefillText: envelope.InteractionValueJson ?? string.Empty,
+            AllowFreeText: needsValue,
+            ParameterFingerprint: envelope.Hash ?? string.Empty);
+    }
+
+    public static OneWireInteractionEditor ReadEditor(OneWireEnvelope envelope)
+    {
+        if (envelope.Properties is not null && envelope.Properties.TryGetValue("InteractionEditor", out var value))
+        {
+            if (value.ValueKind == JsonValueKind.String && Enum.TryParse<OneWireInteractionEditor>(value.GetString(), true, out var parsed))
+                return parsed;
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numeric) && Enum.IsDefined(typeof(OneWireInteractionEditor), numeric))
+                return (OneWireInteractionEditor)numeric;
+        }
+        return envelope.RequiresHumanInteractionOnTargetSystem
+            ? OneWireInteractionEditor.ConfirmationOnly
+            : OneWireInteractionEditor.None;
+    }
+}
+
+public sealed class OneWireCouncilApprovalProcessorHostedService(
+    IOneWirePendingCouncilStore pendingCouncils,
+    IHumanCollaborationService humanCollaboration,
+    IOneWireWorkSpooler spooler,
+    IOneWireConnectionRegistry connections,
+    IOneWirePeerRegistry peers,
+    IOneWireCapabilityCatalog capabilities,
+    ILogger<OneWireCouncilApprovalProcessorHostedService> logger) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        do
+        {
+            foreach (var pending in pendingCouncils.GetSnapshot())
+            {
+                if (stoppingToken.IsCancellationRequested)
+                    break;
+                if (pending.Envelope.ExpiresUtc is { } expires && expires <= DateTimeOffset.UtcNow)
+                {
+                    pendingCouncils.Remove(pending.Envelope.CorrelationId, out _);
+                    await SendErrorAsync(pending.Envelope, "The pending 1-Wire request expired before approval.", stoppingToken).ConfigureAwait(false);
+                    continue;
+                }
+                if (pending.LastCheckedUtc > DateTimeOffset.UtcNow - TimeSpan.FromMilliseconds(750))
+                    continue;
+                pendingCouncils.MarkChecked(pending.Envelope.CorrelationId);
+                try
+                {
+                    var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
+                        OneWireTargetApprovalPolicy.Create(pending.Envelope),
+                        directHumanConfirmation: false,
+                        stoppingToken).ConfigureAwait(false);
+                    if (gate.IsDeclined)
+                    {
+                        pendingCouncils.Remove(pending.Envelope.CorrelationId, out _);
+                        await SendErrorAsync(
+                            pending.Envelope,
+                            string.IsNullOrWhiteSpace(gate.DecisionReason) ? gate.Message : gate.DecisionReason,
+                            stoppingToken).ConfigureAwait(false);
+                        continue;
+                    }
+                    if (!gate.IsAuthorized)
+                        continue;
+
+                    if (!pendingCouncils.Remove(pending.Envelope.CorrelationId, out _))
+                        continue;
+
+                    if (pending.Envelope.MessageType == OneWireMessageType.Hello)
+                    {
+                        peers.SetConnected(pending.Envelope.SourcePeerId, true);
+                        await connections.SendAsync(
+                            pending.Envelope.SourcePeerId,
+                            CreateReply(pending.Envelope, OneWireMessageType.HelloAck, new Dictionary<string, object?>
+                            {
+                                ["Peer"] = OneWireMessageDispatcher.LocalAdvertisement(),
+                                ["Capabilities"] = await capabilities.GetLocalCapabilitiesForPeerAsync(pending.Envelope.SourcePeerId, stoppingToken).ConfigureAwait(false),
+                                ["Skills"] = await capabilities.GetLocalSkillsAsync(stoppingToken).ConfigureAwait(false),
+                                ["UiFeatures"] = await capabilities.GetLocalUiFeaturesAsync(stoppingToken).ConfigureAwait(false),
+                                ["Hardware"] = await capabilities.GetLocalHardwareAsync(stoppingToken).ConfigureAwait(false),
+                                ["LinkedByLocalFrontend"] = true
+                            }),
+                            stoppingToken).ConfigureAwait(false);
+                        logger.LogInformation(
+                            "LocalGPT frontend approved organic link {CorrelationId} for {PeerId}.",
+                            pending.Envelope.CorrelationId, pending.Envelope.SourcePeerId);
+                        continue;
+                    }
+
+                    OneWireMessageDispatcher.ApplyHumanResponse(pending.Envelope, gate.UserResponse);
+                    var item = spooler.Enqueue(pending.Envelope);
+                    await connections.SendAsync(
+                        pending.Envelope.SourcePeerId,
+                        CreateReply(pending.Envelope, OneWireMessageType.WorkAccepted, new Dictionary<string, object?> { ["WorkItem"] = item }),
+                        stoppingToken).ConfigureAwait(false);
+                    logger.LogInformation(
+                        "Resumed approved organic request {CorrelationId} from {PeerId} as work item {WorkItemId}.",
+                        pending.Envelope.CorrelationId, pending.Envelope.SourcePeerId, item.Id);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Could not resume pending organic request {CorrelationId}.", pending.Envelope.CorrelationId);
+                }
+            }
+        } while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false));
+    }
+
+    private Task SendErrorAsync(OneWireEnvelope request, string error, CancellationToken cancellationToken) =>
+        connections.SendAsync(request.SourcePeerId, new OneWireEnvelope
+        {
+            MessageType = OneWireMessageType.Error,
+            CorrelationId = request.CorrelationId,
+            ReplyToMessageId = request.MessageId,
+            SourcePeerId = "localgpt",
+            TargetPeerId = request.SourcePeerId,
+            Error = error
+        }, cancellationToken);
+
+    private static OneWireEnvelope CreateReply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values) => new()
+    {
+        MessageType = type,
+        CorrelationId = request.CorrelationId,
+        ReplyToMessageId = request.MessageId,
+        SourcePeerId = "localgpt",
+        TargetPeerId = request.SourcePeerId,
+        Properties = values.ToDictionary(
+            pair => pair.Key,
+            pair => JsonSerializer.SerializeToElement(pair.Value, OneWireEnvelopeCodec.CreateOptions()),
+            StringComparer.Ordinal)
+    };
+}
+
+public sealed class OneWireWorkProcessorHostedService(
+    IOneWireWorkSpooler spooler,
+    IOneWireOperationExecutor executor,
+    IOneWireConnectionRegistry connections,
+    ILogger<OneWireWorkProcessorHostedService> logger) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            OneWireWorkItem item;
+            try { item = await spooler.DequeueAsync(stoppingToken).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+            spooler.MarkRunning(item.Id);
+            if (string.Equals(item.Request.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(item.Request.TargetPeerId) &&
+                !string.Equals(item.Request.TargetPeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogDebug("1-Wire work item {WorkItemId} is awaiting execution by external peer {PeerId}.", item.Id, item.Request.TargetPeerId);
+                continue;
+            }
+            try
+            {
+                var result = await executor.ExecuteAsync(item, stoppingToken).ConfigureAwait(false);
+                spooler.Complete(item.Id, result);
+                await SendResultAsync(item, OneWireWorkStatus.Completed, result, string.Empty, stoppingToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "1-Wire work item {WorkItemId} failed.", item.Id);
+                spooler.Fail(item.Id, ex.Message);
+                await SendResultAsync(item, OneWireWorkStatus.Failed, string.Empty, ex.Message, stoppingToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task SendResultAsync(
+        OneWireWorkItem item,
+        OneWireWorkStatus status,
+        string resultJson,
+        string error,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(item.SourcePeerId) || string.Equals(item.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
+            return;
+        var envelope = new OneWireEnvelope
+        {
+            MessageType = OneWireMessageType.WorkResult,
+            CorrelationId = item.CorrelationId,
+            SourcePeerId = "localgpt",
+            TargetPeerId = item.SourcePeerId,
+            CapabilityKey = item.CapabilityKey,
+            Error = error,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["WorkItemId"] = JsonSerializer.SerializeToElement(item.Id),
+                ["Status"] = JsonSerializer.SerializeToElement(status.ToString()),
+                ["ResultJson"] = JsonSerializer.SerializeToElement(resultJson)
+            }
+        };
+        if (!await connections.SendAsync(item.SourcePeerId, envelope, cancellationToken).ConfigureAwait(false))
+            logger.LogWarning("Could not return 1-Wire work result {WorkItemId} to disconnected peer {PeerId}.", item.Id, item.SourcePeerId);
+    }
+}

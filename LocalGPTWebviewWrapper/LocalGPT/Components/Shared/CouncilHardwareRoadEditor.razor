@@ -1,0 +1,161 @@
+@inject ICouncilHardwareRoadConfigurationService RoadConfiguration
+
+<section class="council-road-editor" aria-label="Per-model CPU and GPU roads">
+    <header class="council-road-editor-header">
+        <div>
+            <strong>Model hardware roads</strong>
+            <p>Each model owns independent minimum and maximum values. The session load slider chooses a point between them; a model may optionally override it.</p>
+        </div>
+        <span class="council-road-load-badge">Session @ResourceLoadPercent%</span>
+    </header>
+
+    @if (Routes.Count == 0)
+    {
+        <p class="memory-status">Select at least one model to configure its CPU/GPU road.</p>
+    }
+    else
+    {
+        <div class="council-road-grid">
+            @foreach (var route in Routes)
+            {
+                var load = route.LoadPercentOverride ?? ResourceLoadPercent;
+                <article class="council-road-card" @key="route.ModelName">
+                    <header>
+                        <strong title="@route.ModelName">@route.ModelName</strong>
+                        <label class="inline-dx-check compact">
+                            <input type="checkbox" checked="@route.IsEnabled" @onchange="args => SetEnabled(route, args)" />
+                            <span>Enabled</span>
+                        </label>
+                    </header>
+
+                    <div class="council-road-fields">
+                        <label>Road
+                            <select value="@route.HardwareKind" @onchange="args => SetHardwareKind(route, args)">
+                                @foreach (var kind in Enum.GetValues<OneWireHardwareKind>())
+                                {
+                                    <option value="@kind">@kind</option>
+                                }
+                            </select>
+                        </label>
+                        <label>Device index
+                            <input type="number" min="-1" max="64" value="@route.HardwareIndex" @onchange="args => SetInt(route, nameof(route.HardwareIndex), args)" />
+                        </label>
+                        <label class="wide">Device name
+                            <input value="@route.HardwareName" @onchange="args => SetText(route, nameof(route.HardwareName), args)" placeholder="CPU, GPU 0, RTX 3060, iGPU…" />
+                        </label>
+                        <label>Min output
+                            <input type="number" min="1" max="262144" step="256" value="@route.MinOutputTokens" @onchange="args => SetInt(route, nameof(route.MinOutputTokens), args)" />
+                        </label>
+                        <label>Max output
+                            <input type="number" min="1" max="262144" step="256" value="@route.MaxOutputTokens" @onchange="args => SetInt(route, nameof(route.MaxOutputTokens), args)" />
+                        </label>
+                        <label>Min context
+                            <input type="number" min="256" max="1048576" step="1024" value="@route.MinContextTokens" @onchange="args => SetInt(route, nameof(route.MinContextTokens), args)" />
+                        </label>
+                        <label>Max context
+                            <input type="number" min="256" max="1048576" step="1024" value="@route.MaxContextTokens" @onchange="args => SetInt(route, nameof(route.MaxContextTokens), args)" />
+                        </label>
+                        <label>Ollama num_gpu
+                            <input type="number" min="0" max="999" value="@(route.OllamaNumGpu?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" @onchange="args => SetNullableInt(route, nameof(route.OllamaNumGpu), args)" placeholder="auto" />
+                        </label>
+                        <label>Lane concurrency
+                            <input type="number" min="1" max="16" value="@route.MaxConcurrentModelsOnLane" @onchange="args => SetInt(route, nameof(route.MaxConcurrentModelsOnLane), args)" />
+                        </label>
+                    </div>
+
+                    <div class="council-road-load-row">
+                        <label class="inline-dx-check compact" title="Enable a model-specific slider instead of the session-wide value.">
+                            <input type="checkbox" checked="@route.LoadPercentOverride.HasValue" @onchange="args => ToggleOverride(route, args)" />
+                            <span>Model override</span>
+                        </label>
+                        <input type="range" min="0" max="100" step="5" value="@load" disabled="@(!route.LoadPercentOverride.HasValue)" @oninput="args => SetLoadOverride(route, args)" />
+                        <output>@load%</output>
+                    </div>
+                    <p class="council-road-effective">
+                        Effective ceiling: @RoadConfiguration.Interpolate(route.MinOutputTokens, route.MaxOutputTokens, load).ToString("N0") output ·
+                        @RoadConfiguration.Interpolate(route.MinContextTokens, route.MaxContextTokens, load).ToString("N0") context
+                    </p>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public IReadOnlyCollection<string> ModelNames { get; set; } = [];
+    [Parameter, EditorRequired] public List<OneWireCouncilModelRoute> Routes { get; set; } = [];
+    [Parameter] public int ResourceLoadPercent { get; set; } = 30;
+    [Parameter] public EventCallback Changed { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var synchronized = RoadConfiguration.Synchronize(ModelNames, Routes);
+        if (SameRoutes(synchronized, Routes)) return;
+        Routes.Clear();
+        Routes.AddRange(synchronized);
+    }
+
+    private static bool SameRoutes(IReadOnlyList<OneWireCouncilModelRoute> left, IReadOnlyList<OneWireCouncilModelRoute> right) =>
+        left.Count == right.Count && left.Select(route => route.ModelName).SequenceEqual(right.Select(route => route.ModelName), StringComparer.OrdinalIgnoreCase);
+
+    private async Task NormalizeAndNotify(OneWireCouncilModelRoute route)
+    {
+        RoadConfiguration.Normalize(route);
+        await Changed.InvokeAsync();
+    }
+
+    private Task SetEnabled(OneWireCouncilModelRoute route, ChangeEventArgs args)
+    {
+        route.IsEnabled = args.Value is bool value && value;
+        return NormalizeAndNotify(route);
+    }
+
+    private Task SetHardwareKind(OneWireCouncilModelRoute route, ChangeEventArgs args)
+    {
+        if (Enum.TryParse<OneWireHardwareKind>(args.Value?.ToString(), out var kind)) route.HardwareKind = kind;
+        return NormalizeAndNotify(route);
+    }
+
+    private Task SetText(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
+    {
+        if (property == nameof(route.HardwareName)) route.HardwareName = args.Value?.ToString() ?? string.Empty;
+        return NormalizeAndNotify(route);
+    }
+
+    private Task SetInt(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)) return Task.CompletedTask;
+        switch (property)
+        {
+            case nameof(route.HardwareIndex): route.HardwareIndex = value; break;
+            case nameof(route.MinOutputTokens): route.MinOutputTokens = value; break;
+            case nameof(route.MaxOutputTokens): route.MaxOutputTokens = value; break;
+            case nameof(route.MinContextTokens): route.MinContextTokens = value; break;
+            case nameof(route.MaxContextTokens): route.MaxContextTokens = value; break;
+            case nameof(route.MaxConcurrentModelsOnLane): route.MaxConcurrentModelsOnLane = value; break;
+        }
+        return NormalizeAndNotify(route);
+    }
+
+    private Task SetNullableInt(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
+    {
+        var text = args.Value?.ToString();
+        int? value = int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+        if (property == nameof(route.OllamaNumGpu)) route.OllamaNumGpu = value;
+        return NormalizeAndNotify(route);
+    }
+
+    private Task ToggleOverride(OneWireCouncilModelRoute route, ChangeEventArgs args)
+    {
+        route.LoadPercentOverride = args.Value is bool value && value
+            ? RoadConfiguration.NormalizeLoadPercent(ResourceLoadPercent)
+            : null;
+        return NormalizeAndNotify(route);
+    }
+
+    private Task SetLoadOverride(OneWireCouncilModelRoute route, ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), out var value)) route.LoadPercentOverride = RoadConfiguration.NormalizeLoadPercent(value);
+        return NormalizeAndNotify(route);
+    }
+}

@@ -1,0 +1,264 @@
+using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
+using System.Collections.Concurrent;
+
+namespace LocalGPT.Services.OneWire;
+
+public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : IOneWirePeerRegistry
+{
+    private readonly ConcurrentDictionary<string, OneWirePeerAdvertisement> peers = new(StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyList<OneWirePeerAdvertisement> GetPeers() => peers.Values
+        .OrderByDescending(peer => peer.IsConnected)
+        .ThenByDescending(peer => peer.SeenUtc)
+        .Select(Clone)
+        .ToList();
+
+    public OneWirePeerAdvertisement? GetPeer(string peerId) => peers.TryGetValue(peerId, out var peer) ? Clone(peer) : null;
+
+    public void Upsert(OneWirePeerAdvertisement peer)
+    {
+        ArgumentNullException.ThrowIfNull(peer);
+        ArgumentException.ThrowIfNullOrWhiteSpace(peer.PeerId);
+        peer.SeenUtc = DateTimeOffset.UtcNow;
+        peers.AddOrUpdate(peer.PeerId, _ => Clone(peer), (_, existing) =>
+        {
+            var connected = existing.IsConnected || peer.IsConnected;
+            var replacement = Clone(peer);
+            replacement.IsConnected = connected;
+            return replacement;
+        });
+        logger.LogInformation("1-Wire peer {PeerId} advertised {CapabilityCount} capability entries.", peer.PeerId, peer.Capabilities.Count);
+    }
+
+    public void SetConnected(string peerId, bool connected)
+    {
+        if (peers.TryGetValue(peerId, out var peer))
+        {
+            peer.IsConnected = connected;
+            peer.SeenUtc = DateTimeOffset.UtcNow;
+        }
+    }
+
+    public void RemoveExpired(TimeSpan maximumAge)
+    {
+        var cutoff = DateTimeOffset.UtcNow - maximumAge;
+        foreach (var pair in peers.Where(pair => !pair.Value.IsConnected && pair.Value.SeenUtc < cutoff).ToArray())
+            peers.TryRemove(pair.Key, out _);
+    }
+
+    private static OneWirePeerAdvertisement Clone(OneWirePeerAdvertisement peer) => new()
+    {
+        PeerId = peer.PeerId,
+        DisplayName = peer.DisplayName,
+        Application = peer.Application,
+        ApplicationVersion = peer.ApplicationVersion,
+        HostName = peer.HostName,
+        Address = peer.Address,
+        ServicePort = peer.ServicePort,
+        DiscoveryPort = peer.DiscoveryPort,
+        WebBaseUrl = peer.WebBaseUrl,
+        SeenUtc = peer.SeenUtc,
+        IsConnected = peer.IsConnected,
+        Capabilities = peer.Capabilities.Select(capability => capability).ToList(),
+        Skills = peer.Skills.Select(skill => skill).ToList(),
+        UiFeatures = peer.UiFeatures.Select(feature => feature).ToList(),
+        Hardware = peer.Hardware.Select(hardware => hardware).ToList()
+    };
+}
+
+public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry> logger) : IOneWireConnectionRegistry
+{
+    private readonly ConcurrentDictionary<string, Func<OneWireEnvelope, CancellationToken, Task>> senders = new(StringComparer.OrdinalIgnoreCase);
+
+    public void Register(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
+        ArgumentNullException.ThrowIfNull(sender);
+        senders[peerId] = sender;
+        logger.LogInformation("Registered live 1-Wire connection for {PeerId}.", peerId);
+    }
+
+    public void Unregister(string peerId)
+    {
+        if (senders.TryRemove(peerId, out _))
+            logger.LogInformation("Removed live 1-Wire connection for {PeerId}.", peerId);
+    }
+
+    public bool IsConnected(string peerId) => senders.ContainsKey(peerId);
+
+    public async Task<bool> SendAsync(string peerId, OneWireEnvelope envelope, CancellationToken cancellationToken = default)
+    {
+        if (!senders.TryGetValue(peerId, out var sender))
+            return false;
+        try
+        {
+            await sender(envelope, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Could not send a 1-Wire message to {PeerId}; the connection will be removed.", peerId);
+            Unregister(peerId);
+            return false;
+        }
+    }
+}
+
+public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOneWireWorkSpooler
+{
+    private readonly ConcurrentDictionary<Guid, OneWireWorkItem> workItems = new();
+    private readonly ConcurrentQueue<Guid> queue = new();
+    private readonly SemaphoreSlim signal = new(0);
+
+    public OneWireWorkItem Enqueue(OneWireEnvelope envelope)
+    {
+        var item = new OneWireWorkItem
+        {
+            CorrelationId = envelope.CorrelationId,
+            SourcePeerId = envelope.SourcePeerId,
+            CapabilityKey = envelope.CapabilityKey,
+            RequestType = envelope.MessageType,
+            ExecutionMode = envelope.ExecutionMode,
+            NotBeforeUtc = envelope.NotBeforeUtc,
+            Request = envelope,
+            Status = OneWireWorkStatus.Queued
+        };
+        workItems[item.Id] = item;
+        queue.Enqueue(item.Id);
+        signal.Release();
+        logger.LogInformation("Queued 1-Wire work item {WorkItemId} for {CapabilityKey}.", item.Id, item.CapabilityKey);
+        return item;
+    }
+
+    public async Task<OneWireWorkItem> DequeueAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            await signal.WaitAsync(cancellationToken).ConfigureAwait(false);
+            if (!queue.TryDequeue(out var id) || !workItems.TryGetValue(id, out var item))
+                continue;
+            if (item.NotBeforeUtc is { } notBefore && notBefore > DateTimeOffset.UtcNow)
+            {
+                var delay = notBefore - DateTimeOffset.UtcNow;
+                if (delay > TimeSpan.Zero)
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
+            return item;
+        }
+    }
+
+    public IReadOnlyList<OneWireWorkItem> GetSnapshot() => workItems.Values
+        .OrderByDescending(item => item.CreatedUtc)
+        .Take(250)
+        .ToList();
+
+    public OneWireWorkItem? Get(Guid id) => workItems.GetValueOrDefault(id);
+
+    public void MarkRunning(Guid id) => Mutate(id, item => item.Status = OneWireWorkStatus.Running);
+
+    public void MarkPendingApproval(Guid correlationId, string resultJson)
+    {
+        var item = FindByCorrelation(correlationId);
+        if (item is null)
+            return;
+        Mutate(item.Id, current =>
+        {
+            current.Status = OneWireWorkStatus.PendingApproval;
+            current.ResultJson = resultJson;
+        });
+    }
+
+    public void Complete(Guid id, string resultJson) => Mutate(id, item =>
+    {
+        item.Status = OneWireWorkStatus.Completed;
+        item.ResultJson = resultJson;
+        item.Error = string.Empty;
+    });
+
+    public void Fail(Guid id, string error) => Mutate(id, item =>
+    {
+        item.Status = OneWireWorkStatus.Failed;
+        item.Error = error;
+    });
+
+    public void ApplyExternalResult(Guid correlationId, string resultJson, string error, OneWireWorkStatus? status = null)
+    {
+        var item = FindByCorrelation(correlationId);
+        if (item is null)
+            return;
+        if (status is OneWireWorkStatus.Declined)
+        {
+            Mutate(item.Id, current =>
+            {
+                current.Status = OneWireWorkStatus.Declined;
+                current.ResultJson = resultJson;
+                current.Error = error;
+            });
+            return;
+        }
+        if (status is OneWireWorkStatus.Cancelled)
+        {
+            Mutate(item.Id, current =>
+            {
+                current.Status = OneWireWorkStatus.Cancelled;
+                current.ResultJson = resultJson;
+                current.Error = error;
+            });
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(error) && status is not OneWireWorkStatus.Failed)
+            Complete(item.Id, resultJson);
+        else
+            Fail(item.Id, error);
+    }
+
+    private OneWireWorkItem? FindByCorrelation(Guid correlationId) => workItems.Values
+        .OrderByDescending(candidate => candidate.CreatedUtc)
+        .FirstOrDefault(candidate => candidate.CorrelationId == correlationId);
+
+    private void Mutate(Guid id, Action<OneWireWorkItem> mutation)
+    {
+        if (!workItems.TryGetValue(id, out var item))
+            return;
+        mutation(item);
+        item.UpdatedUtc = DateTimeOffset.UtcNow;
+    }
+}
+public sealed class OneWirePendingCouncilStore : IOneWirePendingCouncilStore
+{
+    private readonly ConcurrentDictionary<Guid, OneWirePendingCouncilRequest> pending = new();
+
+    public void Upsert(OneWireEnvelope envelope, Guid? approvalRequestId)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        pending.AddOrUpdate(
+            envelope.CorrelationId,
+            _ => new OneWirePendingCouncilRequest
+            {
+                Envelope = envelope,
+                ApprovalRequestId = approvalRequestId,
+                QueuedUtc = DateTimeOffset.UtcNow
+            },
+            (_, existing) =>
+            {
+                existing.Envelope = envelope;
+                existing.ApprovalRequestId = approvalRequestId ?? existing.ApprovalRequestId;
+                return existing;
+            });
+    }
+
+    public IReadOnlyList<OneWirePendingCouncilRequest> GetSnapshot() => pending.Values
+        .OrderBy(item => item.QueuedUtc)
+        .ToList();
+
+    public bool Remove(Guid correlationId, out OneWirePendingCouncilRequest? request) =>
+        pending.TryRemove(correlationId, out request);
+
+    public void MarkChecked(Guid correlationId)
+    {
+        if (pending.TryGetValue(correlationId, out var request))
+            request.LastCheckedUtc = DateTimeOffset.UtcNow;
+    }
+}
+

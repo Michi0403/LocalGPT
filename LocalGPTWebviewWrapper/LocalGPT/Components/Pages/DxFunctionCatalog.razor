@@ -1,0 +1,221 @@
+@page "/dx-functions"
+@rendermode InteractiveServer
+@inject IDxAiFunctionCatalogService Catalog
+@inject ILogger<DxFunctionCatalog> Logger
+@inject IComponentActivityService ComponentActivity
+@inject INotificationService Notifier
+
+<PageTitle>DX Functions &amp; 1-Wire</PageTitle>
+
+<main class="dx-catalog-page localgpt-surface">
+    <header class="dx-catalog-header">
+        <div>
+            <h1>DX Functions &amp; 1-Wire exposure</h1>
+            <p>The person using this offline frontend decides what AI chat and linked applications may see and invoke. Consequential calls return here for confirmation or requested input before execution.</p>
+        </div>
+        <div class="dx-catalog-actions">
+            <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
+            <button type="button" class="btn btn-primary" @onclick="SynchronizeAsync" disabled="@_busy">Synchronize runtime catalog</button>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="alert @(_hasError ? "alert-danger" : "alert-info")" role="status">@_status</div>
+    }
+
+    <section class="dx-catalog-toolbar">
+        <label>
+            <span>Search</span>
+            <input class="form-control" placeholder="Function, service, route or purpose" @bind="_filter" @bind:event="oninput" />
+        </label>
+        <label>
+            <span>Kind</span>
+            <select class="form-select" @bind="_kindFilter">
+                <option value="">All</option>
+                <option value="@DxAiFunctionCatalogKinds.DxFunction">DX functions</option>
+                <option value="@DxAiFunctionCatalogKinds.PublicServiceMethod">Public service methods</option>
+            </select>
+        </label>
+        <label class="form-check dx-inline-check">
+            <input class="form-check-input" type="checkbox" @bind="_onlyExposed" />
+            <span>Only exposed to 1-Wire</span>
+        </label>
+    </section>
+
+    <section class="dx-catalog-grid" aria-busy="@_busy">
+        @foreach (var entry in FilteredEntries)
+        {
+            <article class="dx-catalog-card @(entry.ExposeToOneWire ? "is-exposed" : string.Empty)">
+                <header>
+                    <div>
+                        <strong>@entry.DisplayName</strong>
+                        <small>@entry.Kind · @entry.FunctionName</small>
+                    </div>
+                    <span class="badge @(entry.IsAvailable ? "text-bg-success" : "text-bg-secondary")">@(entry.IsAvailable ? "available" : "missing")</span>
+                </header>
+                <p>@entry.Purpose</p>
+                <details>
+                    <summary>Runtime contract</summary>
+                    <dl>
+                        <dt>Route</dt><dd>@entry.Method @entry.Route</dd>
+                        <dt>Source</dt><dd>@entry.Source</dd>
+                        <dt>Catalog key</dt><dd><code>@entry.CatalogKey</code></dd>
+                        <dt>Parameters</dt><dd><pre>@entry.ParameterSchemaJson</pre></dd>
+                    </dl>
+                </details>
+                <div class="dx-policy-grid">
+                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.IsEnabled" /><span>Enabled</span></label>
+                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.ExposeToAiChat" /><span>Reveal to AI chat</span></label>
+                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.ExposeToOneWire" /><span>Reveal to linked app</span></label>
+                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.AllowRemoteInvocation" /><span>Allow linked invocation</span></label>
+                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.RequiresFrontendConfirmation" /><span>Require this frontend</span></label>
+                    <label>
+                        <span>Frontend editor</span>
+                        <select class="form-select" @bind="entry.InteractionEditor">
+                            @foreach (var editor in Enum.GetValues<OneWireInteractionEditor>())
+                            {
+                                <option value="@editor">@editor</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="wide">
+                        <span>Allowed peer IDs JSON (empty array = any explicitly connected peer)</span>
+                        <input class="form-control" @bind="entry.AllowedPeerIdsJson" />
+                    </label>
+                </div>
+                <footer>
+                    <span>@(entry.RequiresFrontendConfirmation ? "Receiving frontend is authoritative" : "May run under saved user policy")</span>
+                    <button type="button" class="btn btn-outline-primary" @onclick="() => SaveAsync(entry)" disabled="@_busy">Save policy</button>
+                </footer>
+            </article>
+        }
+    </section>
+</main>
+
+@code {
+    private List<DxAiFunctionCatalogEntry> _entries = [];
+    private string _filter = string.Empty;
+    private string _kindFilter = string.Empty;
+    private string _status = string.Empty;
+    private bool _onlyExposed;
+    private bool _busy;
+    private bool _hasError;
+
+    private IEnumerable<DxAiFunctionCatalogEntry> FilteredEntries => _entries
+        .Where(entry => string.IsNullOrWhiteSpace(_kindFilter) || entry.Kind == _kindFilter)
+        .Where(entry => !_onlyExposed || entry.ExposeToOneWire)
+        .Where(entry => string.IsNullOrWhiteSpace(_filter) ||
+            entry.DisplayName.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+            entry.FunctionName.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+            entry.Purpose.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+            entry.Route.Contains(_filter, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(entry => entry.Kind)
+        .ThenBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase);
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        _busy = true;
+        try
+        {
+            _entries = (await Catalog.GetEntriesAsync()).Select(Clone).ToList();
+            _status = $"Loaded {_entries.Count} database-backed function and service policies.";
+            _hasError = false;
+            Notifier.ShowInfo(nameof(DxFunctionCatalog), _status, "DX function catalog");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not load the DX function catalog.");
+            _status = ex.Message;
+            _hasError = true;
+            Notifier.ShowError(nameof(DxFunctionCatalog), ex.Message, "DX function catalog");
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SynchronizeAsync()
+    {
+        _busy = true;
+        try
+        {
+            _entries = (await Catalog.SynchronizeAsync()).Select(Clone).ToList();
+            _status = $"Synchronized {_entries.Count} runtime descriptors. Existing user exposure and confirmation choices were preserved.";
+            _hasError = false;
+            Notifier.ShowSuccess(nameof(DxFunctionCatalog), _status, "Catalog synchronized");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not synchronize the DX function catalog.");
+            _status = ex.Message;
+            _hasError = true;
+            Notifier.ShowError(nameof(DxFunctionCatalog), ex.Message, "DX function catalog");
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SaveAsync(DxAiFunctionCatalogEntry entry)
+    {
+        _busy = true;
+        try
+        {
+            var saved = await Catalog.SavePolicyAsync(new DxAiFunctionCatalogSaveRequest
+            {
+                CatalogKey = entry.CatalogKey,
+                IsEnabled = entry.IsEnabled,
+                ExposeToAiChat = entry.ExposeToAiChat,
+                ExposeToOneWire = entry.ExposeToOneWire,
+                AllowRemoteInvocation = entry.AllowRemoteInvocation,
+                RequiresFrontendConfirmation = entry.RequiresFrontendConfirmation,
+                InteractionEditor = entry.InteractionEditor,
+                AllowedPeerIdsJson = entry.AllowedPeerIdsJson,
+                UpdatedBy = "LocalGPT frontend user"
+            });
+            var index = _entries.FindIndex(item => item.CatalogKey == saved.CatalogKey);
+            if (index >= 0) _entries[index] = Clone(saved);
+            _status = $"Saved policy for {saved.DisplayName}.";
+            _hasError = false;
+            Notifier.ShowSuccess(nameof(DxFunctionCatalog), _status, "Policy saved");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not save DX function policy {CatalogKey}.", entry.CatalogKey);
+            _status = ex.Message;
+            _hasError = true;
+            Notifier.ShowError(nameof(DxFunctionCatalog), ex.Message, "DX function catalog");
+        }
+        finally { _busy = false; }
+    }
+
+    private static DxAiFunctionCatalogEntry Clone(DxAiFunctionCatalogEntry entry) => new()
+    {
+        CatalogKey = entry.CatalogKey,
+        Kind = entry.Kind,
+        FunctionName = entry.FunctionName,
+        DisplayName = entry.DisplayName,
+        Purpose = entry.Purpose,
+        Method = entry.Method,
+        Route = entry.Route,
+        ParameterSchemaJson = entry.ParameterSchemaJson,
+        Source = entry.Source,
+        ServiceContractTypeName = entry.ServiceContractTypeName,
+        ImplementationTypeName = entry.ImplementationTypeName,
+        ServiceMethodName = entry.ServiceMethodName,
+        ParameterTypeNamesJson = entry.ParameterTypeNamesJson,
+        IsReadOnly = entry.IsReadOnly,
+        IsAvailable = entry.IsAvailable,
+        IsEnabled = entry.IsEnabled,
+        ExposeToAiChat = entry.ExposeToAiChat,
+        ExposeToOneWire = entry.ExposeToOneWire,
+        AllowRemoteInvocation = entry.AllowRemoteInvocation,
+        RequiresFrontendConfirmation = entry.RequiresFrontendConfirmation,
+        InteractionEditor = entry.InteractionEditor,
+        AllowedPeerIdsJson = entry.AllowedPeerIdsJson,
+        DescriptorHash = entry.DescriptorHash,
+        IsSystemSeed = entry.IsSystemSeed,
+        CreatedAtUtc = entry.CreatedAtUtc,
+        UpdatedAtUtc = entry.UpdatedAtUtc,
+        UpdatedBy = entry.UpdatedBy
+    };
+}

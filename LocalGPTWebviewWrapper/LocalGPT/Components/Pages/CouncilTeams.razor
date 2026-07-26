@@ -1,0 +1,186 @@
+@page "/council-teams"
+@rendermode InteractiveServer
+@inject ICouncilTeamConfigurationService TeamConfigurations
+@inject ILogger<CouncilTeams> Logger
+@inject IComponentActivityService ComponentActivity
+@inject INotificationService Notifier
+
+<PageTitle>AI Council Teams</PageTitle>
+
+<main class="council-team-page localgpt-surface">
+    <header class="council-team-header">
+        <div>
+            <h1>AI Council teams and heartbeat scripts</h1>
+            <p>System teams are seeded into SQLite, remain selectable, and can be adjusted without overwriting existing user edits during later seed upgrades.</p>
+        </div>
+        <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="alert @(_hasError ? "alert-danger" : "alert-info")" role="status">@_status</div>
+    }
+
+    <section class="council-team-grid">
+        <aside class="council-team-list">
+            <label>
+                <span>Team</span>
+                <select class="form-select" value="@_selectedKey" @onchange="OnTeamChanged">
+                    @foreach (var team in _teams)
+                    {
+                        <option value="@team.Key">@team.DisplayName (@team.Key)</option>
+                    }
+                </select>
+            </label>
+            @foreach (var team in _teams)
+            {
+                <button type="button" class="council-team-list-item @(team.Key == _selectedKey ? "active" : string.Empty)" @onclick="() => SelectTeam(team)">
+                    <strong>@team.DisplayName</strong>
+                    <small>@team.Key · @(team.IsEnabled ? "enabled" : "disabled")</small>
+                    <span>@team.Purpose</span>
+                </button>
+            }
+            <button type="button" class="btn btn-outline-primary" @onclick="CreateTeam">Create team</button>
+        </aside>
+
+        <section class="council-team-editor">
+            <div class="council-team-fields">
+                <label><span>Key</span><input class="form-control" @bind="_editor.Key" /></label>
+                <label><span>Display name</span><input class="form-control" @bind="_editor.DisplayName" /></label>
+                <label class="wide"><span>Purpose</span><textarea class="form-control" rows="3" @bind="_editor.Purpose"></textarea></label>
+                <label class="wide"><span>Member readiness and introduction prompt</span><textarea class="form-control council-script" rows="7" @bind="_introductionPrompt"></textarea><small>Supported placeholders: {{ModelName}}, {{CouncilMembers}}, {{TeamName}}, {{TeamKey}}. This is stored as the member-readiness-introduction workflow step.</small></label>
+                <label class="wide"><span>Expert preparation prompt</span><textarea class="form-control council-script" rows="9" @bind="_editor.ExpertPreparationPromptTemplate"></textarea></label>
+                <label class="wide"><span>Leader synthesis prompt</span><textarea class="form-control council-script" rows="9" @bind="_editor.LeaderSynthesisPromptTemplate"></textarea></label>
+                <label class="wide"><span>Main-round instruction</span><textarea class="form-control council-script" rows="6" @bind="_editor.MainRoundInstructionTemplate"></textarea></label>
+                <label class="wide"><span>Roles JSON</span><textarea class="form-control council-script" rows="8" @bind="_rolesJson"></textarea></label>
+                <label class="wide"><span>Workflow steps JSON</span><textarea class="form-control council-script" rows="12" @bind="_workflowJson"></textarea></label>
+                <label class="wide"><span>Preferred organic capabilities JSON</span><textarea class="form-control council-script" rows="5" @bind="_capabilitiesJson"></textarea></label>
+                <label class="wide"><span>Architecture contracts JSON</span><textarea class="form-control council-script" rows="5" @bind="_contractsJson"></textarea></label>
+            </div>
+            <div class="council-team-savebar">
+                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_editor.IsEnabled" /><span>Enabled</span></label>
+                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_confirmed" /><span>I reviewed these prompts, roles and workflow changes</span></label>
+                <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@(_busy || !_confirmed)">Save reviewed team</button>
+            </div>
+        </section>
+    </section>
+</main>
+
+@code {
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
+    private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
+    private OrganicCouncilTeamDefinition _editor = new();
+    private string _selectedKey = string.Empty;
+    private string _rolesJson = "[]";
+    private string _workflowJson = "[]";
+    private string _introductionPrompt = string.Empty;
+    private string _capabilitiesJson = "[]";
+    private string _contractsJson = "[]";
+    private string _status = string.Empty;
+    private bool _hasError;
+    private bool _confirmed;
+    private bool _busy;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        _busy = true;
+        try
+        {
+            _teams = await TeamConfigurations.GetTeamsAsync(includeDisabled: true);
+            var selected = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
+            if (selected is not null) SelectTeam(selected);
+            _status = $"Loaded {_teams.Count} database-backed team configuration(s).";
+            _hasError = false;
+            Notifier.ShowInfo(nameof(CouncilTeams), _status, "Council teams");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not load AI Council team configurations.");
+            _status = ex.Message;
+            _hasError = true;
+            Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council teams");
+        }
+        finally { _busy = false; }
+    }
+
+    private void OnTeamChanged(ChangeEventArgs args)
+    {
+        var key = args.Value?.ToString() ?? string.Empty;
+        var team = _teams.FirstOrDefault(item => item.Key == key);
+        if (team is not null) SelectTeam(team);
+    }
+
+    private void SelectTeam(OrganicCouncilTeamDefinition team)
+    {
+        _selectedKey = team.Key;
+        _editor = Clone(team);
+        _rolesJson = Serialize(team.Roles);
+        _workflowJson = Serialize(team.WorkflowSteps);
+        _introductionPrompt = team.WorkflowSteps.FirstOrDefault(step => string.Equals(step.Key, "member-readiness-introduction", StringComparison.OrdinalIgnoreCase))?.PromptTemplate ?? string.Empty;
+        _capabilitiesJson = Serialize(team.PreferredCapabilities);
+        _contractsJson = Serialize(team.ArchitectureContracts);
+        _confirmed = false;
+    }
+
+    private void CreateTeam()
+    {
+        _selectedKey = string.Empty;
+        _editor = new OrganicCouncilTeamDefinition { Key = "new-team", DisplayName = "New Council Team", IsEnabled = true };
+        _rolesJson = "[]";
+        _workflowJson = "[]";
+        _introductionPrompt = "Introduce yourself, confirm your model-specific hardware road, directly available DXFunctions, approved skills and connected 1-Wire organs, then state evidence-backed strengths, improvement goals and exact questions.";
+        _capabilitiesJson = "[]";
+        _contractsJson = "[]";
+        _confirmed = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        try
+        {
+            _editor.Roles = Deserialize<List<OrganicCouncilRoleDefinition>>(_rolesJson);
+            _editor.WorkflowSteps = Deserialize<List<CouncilWorkflowStepDefinition>>(_workflowJson);
+            var introduction = _editor.WorkflowSteps.FirstOrDefault(step => string.Equals(step.Key, "member-readiness-introduction", StringComparison.OrdinalIgnoreCase));
+            if (introduction is null)
+            {
+                introduction = new CouncilWorkflowStepDefinition { Key = "member-readiness-introduction", DisplayName = "Member readiness and introduction", SortOrder = 5, Phase = "Readiness", Role = "Every council member", ExecutionMode = "AllMembersParallel", IsEnabled = true, CanUseOrganicFunctions = false };
+                _editor.WorkflowSteps.Add(introduction);
+            }
+            introduction.PromptTemplate = _introductionPrompt.Trim();
+            _editor.WorkflowSteps = _editor.WorkflowSteps.OrderBy(step => step.SortOrder).ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase).ToList();
+            _editor.PreferredCapabilities = Deserialize<List<string>>(_capabilitiesJson);
+            _editor.ArchitectureContracts = Deserialize<List<string>>(_contractsJson);
+            var saved = await TeamConfigurations.SaveAsync(new SaveCouncilTeamConfigurationRequest
+            {
+                Team = _editor,
+                IsEnabled = _editor.IsEnabled,
+                UserConfirmed = _confirmed
+            });
+            _selectedKey = saved.Key;
+            _status = $"Saved '{saved.DisplayName}'. Existing seed/user knowledge was retained.";
+            _hasError = false;
+            Notifier.ShowSuccess(nameof(CouncilTeams), _status, "Council team saved");
+            _confirmed = false;
+            await ReloadAsync();
+        }
+        catch (Exception ex) when (ex is System.Text.Json.JsonException or ArgumentException or InvalidOperationException)
+        {
+            Logger.LogWarning(ex, "AI Council team configuration was rejected.");
+            _status = ex.Message;
+            _hasError = true;
+            Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council team rejected");
+        }
+        finally { _busy = false; }
+    }
+
+    private static OrganicCouncilTeamDefinition Clone(OrganicCouncilTeamDefinition value) =>
+        System.Text.Json.JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(Serialize(value), JsonOptions) ?? new();
+
+    private static string Serialize<T>(T value) => System.Text.Json.JsonSerializer.Serialize(value, JsonOptions);
+
+    private static T Deserialize<T>(string json) =>
+        System.Text.Json.JsonSerializer.Deserialize<T>(json, JsonOptions) ?? throw new System.Text.Json.JsonException("The JSON value is empty.");
+}

@@ -1,0 +1,192 @@
+using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.Models;
+using LocalGPT.Interfaces;
+using System.Text.Json;
+
+namespace LocalGPT.Services;
+
+/// <summary>
+/// Database-backed regular-expression functions used by LocalGPT itself and advertised through the same
+/// DI/DX-function/1-Wire discovery path as every other council capability.
+/// </summary>
+public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "localgpt.regex.list",
+        "POST",
+        "/api/dxai/functions/localgpt.regex.list/invoke",
+        "Lists the database-maintained regular-expression catalog used for project, architecture, protocol and response analysis.",
+        "JSON parameters: take optional integer from 1 to 5000; prefix optional name prefix.",
+        "Read-only. Patterns are data, not authorization or executable code.",
+        IsReadOnly: true,
+        AvailableToAi: true,
+        RequiresHumanConfirmation: false,
+        SupportsDirectInvocation: true,
+        SupportsAutomaticInvocation: true,
+        Source: "DIHandler",
+        ParameterSchemaJson: """
+        {
+          "type":"object",
+          "properties":{
+            "take":{"type":"integer","minimum":1,"maximum":5000},
+            "prefix":{"type":"string","maxLength":128}
+          },
+          "additionalProperties":false
+        }
+        """);
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        var parameters = Deserialize<ListParameters>(request.Parameters);
+        var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, 5000)).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(parameters.Prefix))
+            rows = rows.Where(item => item.Name.StartsWith(parameters.Prefix.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+        return Completed(rows.Select(item => new
+        {
+            item.Name,
+            item.Pattern,
+            item.Flags,
+            item.CreatedOn,
+            item.UpdatedOn
+        }).ToList());
+    }
+
+    private sealed class ListParameters { public int Take { get; set; } = 5000; public string Prefix { get; set; } = string.Empty; }
+    private static T Deserialize<T>(JsonElement element) where T : new() => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+        ? new T()
+        : element.Deserialize<T>(JsonOptions) ?? new T();
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private static DxAiFunctionInvocationResult Completed(object value) => new() { Succeeded = true, Status = "Completed", Value = value };
+}
+
+public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "localgpt.regex.get",
+        "POST",
+        "/api/dxai/functions/localgpt.regex.get/invoke",
+        "Reads one exact database-backed regular-expression definition by stable name.",
+        "JSON parameters: name required.",
+        "Read-only. The returned pattern is untrusted matching data and grants no file or command access.",
+        IsReadOnly: true,
+        AvailableToAi: true,
+        RequiresHumanConfirmation: false,
+        SupportsDirectInvocation: true,
+        SupportsAutomaticInvocation: true,
+        Source: "DIHandler",
+        ParameterSchemaJson: """
+        {"type":"object","required":["name"],"properties":{"name":{"type":"string","minLength":1,"maxLength":128}},"additionalProperties":false}
+        """);
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        var name = RequiredString(request.Parameters, "name");
+        var row = (await regexPatterns.ListAllAsync().ConfigureAwait(false))
+            .SingleOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+        return row is null
+            ? new DxAiFunctionInvocationResult { Succeeded = false, Status = "NotFound", Error = $"Regex '{name}' was not found." }
+            : new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = row };
+    }
+
+    internal static string RequiredString(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
+            throw new ArgumentException($"'{propertyName}' is required.");
+        return value.GetString()!.Trim();
+    }
+}
+
+public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "localgpt.regex.upsert",
+        "POST",
+        "/api/dxai/functions/localgpt.regex.upsert/invoke",
+        "Creates or updates a named regex in LocalGPT's SQLite knowledge-maintenance catalog.",
+        "JSON parameters: name and pattern required; flags optional (i,m,s,x,n,c,compiled,ecmascript).",
+        "Knowledge self-maintenance only. The pattern is compiled with a timeout before storage, cannot execute commands, and does not authorize project/file access.",
+        IsReadOnly: false,
+        AvailableToAi: true,
+        RequiresHumanConfirmation: false,
+        SupportsDirectInvocation: true,
+        SupportsAutomaticInvocation: true,
+        Source: "DIHandler",
+        ParameterSchemaJson: """
+        {
+          "type":"object",
+          "required":["name","pattern"],
+          "properties":{
+            "name":{"type":"string","minLength":1,"maxLength":128},
+            "pattern":{"type":"string","maxLength":16000},
+            "flags":{"type":"string","maxLength":64}
+          },
+          "additionalProperties":false
+        }
+        """,
+        IsCoordinationOnly: true);
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        var name = GetRegexPatternFunction.RequiredString(request.Parameters, "name");
+        var pattern = GetRegexPatternFunction.RequiredString(request.Parameters, "pattern");
+        var flags = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("flags", out var flagsElement) && flagsElement.ValueKind == JsonValueKind.String
+            ? flagsElement.GetString()
+            : null;
+        await regexPatterns.AddOrUpdateAsync(new RegexPatternDto(name, pattern, flags)).ConfigureAwait(false);
+        return new DxAiFunctionInvocationResult
+        {
+            Succeeded = true,
+            Status = "Completed",
+            Value = new { name, flags = flags ?? string.Empty, stored = true, knowledgeSelfMaintenance = true }
+        };
+    }
+}
+
+public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "localgpt.regex.test",
+        "POST",
+        "/api/dxai/functions/localgpt.regex.test/invoke",
+        "Tests a stored regex against bounded supplied text and returns named captures.",
+        "JSON parameters: name and text required; maximumMatches optional from 1 to 1000.",
+        "Read-only, timeout-bounded matching. Input text is not persisted by this function.",
+        IsReadOnly: true,
+        AvailableToAi: true,
+        RequiresHumanConfirmation: false,
+        SupportsDirectInvocation: true,
+        SupportsAutomaticInvocation: true,
+        Source: "DIHandler",
+        ParameterSchemaJson: """
+        {
+          "type":"object",
+          "required":["name","text"],
+          "properties":{
+            "name":{"type":"string","minLength":1,"maxLength":128},
+            "text":{"type":"string"},
+            "maximumMatches":{"type":"integer","minimum":1,"maximum":1000}
+          },
+          "additionalProperties":false
+        }
+        """);
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        var name = GetRegexPatternFunction.RequiredString(request.Parameters, "name");
+        var text = GetRegexPatternFunction.RequiredString(request.Parameters, "text");
+        var maximumMatches = request.Parameters.ValueKind == JsonValueKind.Object
+            && request.Parameters.TryGetProperty("maximumMatches", out var takeElement)
+            && takeElement.TryGetInt32(out var take)
+            ? Math.Clamp(take, 1, 1000)
+            : 100;
+        var regex = await regexPatterns.GetRegexAsync(name).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Regex '{name}' was not found.");
+        var matches = regex.Matches(text).Cast<System.Text.RegularExpressions.Match>().Take(maximumMatches).Select(match => new
+        {
+            match.Index,
+            match.Length,
+            match.Value,
+            Groups = regex.GetGroupNames().Where(groupName => !int.TryParse(groupName, out _)).ToDictionary(groupName => groupName, groupName => match.Groups[groupName].Value)
+        }).ToList();
+        return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = new { name, matches, truncated = matches.Count == maximumMatches } };
+    }
+}

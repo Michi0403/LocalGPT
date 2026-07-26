@@ -1,0 +1,129 @@
+/*
+ * LocalGPT application theme contract.
+ *
+ * DevExpress owns the styling of DevExpress controls. LocalGPT custom layout and native HTML
+ * consume Bootstrap variables exposed by Classic/Bootstrap themes. Fluent themes are cloned
+ * with UseBootstrapStyles and ApplyToPageElements enabled, so the same variables remain valid.
+ * Every declaration has a local fallback to prevent a flash of unstyled or unreadable content.
+ */
+:root {
+    color-scheme: light;
+    --localgpt-body-bg: var(--bs-body-bg, #ffffff);
+    --localgpt-body-color: var(--bs-body-color, #212529);
+    --localgpt-secondary-color: var(--bs-secondary-color, #6c757d);
+    --localgpt-surface-bg: var(--bs-tertiary-bg, var(--bs-body-bg, #ffffff));
+    --localgpt-surface-raised-bg: var(--bs-secondary-bg, var(--bs-body-bg, #ffffff));
+    --localgpt-control-bg: var(--bs-body-bg, #ffffff);
+    --localgpt-control-color: var(--bs-body-color, #212529);
+    --localgpt-border-color: var(--bs-border-color, #dee2e6);
+    --localgpt-primary: var(--bs-primary, #0d6efd);
+    --localgpt-primary-rgb: var(--bs-primary-rgb, 13, 110, 253);
+    --localgpt-danger: var(--bs-danger, #dc3545);
+    --localgpt-danger-rgb: var(--bs-danger-rgb, 220, 53, 69);
+    --localgpt-warning: var(--bs-warning, #ffc107);
+    --localgpt-warning-rgb: var(--bs-warning-rgb, 255, 193, 7);
+    --localgpt-success: var(--bs-success, #198754);
+    --localgpt-success-rgb: var(--bs-success-rgb, 25, 135, 84);
+    --localgpt-info: var(--bs-info, #0dcaf0);
+    --localgpt-info-rgb: var(--bs-info-rgb, 13, 202, 240);
+    --localgpt-thinking-rgb: 255, 111, 0;
+    --localgpt-council-rgb: 80, 120, 220;
+    --localgpt-body-color-rgb: var(--bs-body-color-rgb, 33, 37, 41);
+    --localgpt-shadow-soft: 0 0.25rem 0.75rem rgba(var(--localgpt-body-color-rgb), 0.12);
+    --localgpt-shadow-raised: 0 0.75rem 2rem rgba(var(--localgpt-body-color-rgb), 0.18);
+    --localgpt-focus-ring: 0 0 0 0.25rem rgba(var(--localgpt-primary-rgb), 0.25);
+    --localgpt-radius: var(--bs-border-radius, 0.375rem);
+    --localgpt-radius-lg: var(--bs-border-radius-lg, 0.5rem);
+}
+
+html[data-bs-theme="dark"] {
+    color-scheme: dark;
+}
+
+html,
+body {
+    background-color: var(--localgpt-body-bg);
+    color: var(--localgpt-body-color);
+}
+
+/*
+ * Native and Bootstrap controls used beside DevExpress editors. Unclassed native controls are
+ * included, while DevExpress/DevExtreme-owned input classes remain outside this contract.
+ */
+:is(.form-control, .form-select, .localgpt-native-control, input:not([class]), select:not([class]), textarea:not([class])):not([type="checkbox"]):not([type="radio"]):not([class*="dxbl-"]):not([class*="dx-"]) {
+    color: var(--localgpt-control-color);
+    background-color: var(--localgpt-control-bg);
+    border-color: var(--localgpt-border-color);
+}
+
+:is(.form-control, .form-select, .localgpt-native-control, input:not([class]), select:not([class]), textarea:not([class])):not([class*="dxbl-"]):not([class*="dx-"]):focus-visible {
+    outline: none;
+    box-shadow: var(--localgpt-focus-ring);
+}
+
+/* Application surfaces only. Do not override DevExpress internal control selectors. */
+.localgpt-surface,
+.architecture-poll,
+.test-lab-panel,
+.test-lab-import-summary,
+.test-lab-downloads a {
+    color: var(--localgpt-body-color);
+    background-color: var(--localgpt-surface-bg);
+    border-color: var(--localgpt-border-color);
+}
+
+.text-muted,
+.localgpt-muted {
+    color: var(--localgpt-secondary-color) !important;
+}
+
+/* v0.1.4 theme and grid resilience: keep native controls and text readable in every Bootstrap/DevExpress theme. */
+button:not([class]):not([class*="dxbl-"]):not([class*="dx-"]),
+.localgpt-native-button {
+    color: var(--localgpt-control-color);
+    background: var(--localgpt-surface-raised-bg);
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: var(--localgpt-radius);
+}
+button:not([class]):not([class*="dxbl-"]):not([class*="dx-"]):hover,
+.localgpt-native-button:hover {
+    background: rgba(var(--localgpt-primary-rgb), .12);
+    border-color: rgba(var(--localgpt-primary-rgb), .55);
+}
+:is(button, .btn, [role="button"]):not([class*="dxbl-"]):not([class*="dx-"]) {
+    text-decoration-color: currentColor;
+}
+:is(button, .btn, [role="button"]):not([class*="dxbl-"]):not([class*="dx-"]):disabled,
+:is(button, .btn, [role="button"])[aria-disabled="true"]:not([class*="dxbl-"]):not([class*="dx-"]) {
+    opacity: .58;
+    cursor: not-allowed;
+}
+input[type="checkbox"]:not([class*="dxbl-"]):not([class*="dx-"]),
+input[type="radio"]:not([class*="dxbl-"]):not([class*="dx-"]) {
+    accent-color: var(--localgpt-primary);
+}
+:is(button, .btn, [role="button"]):not([class*="dxbl-"]):not([class*="dx-"]):focus-visible {
+    outline: none;
+    box-shadow: var(--localgpt-focus-ring);
+}
+.localgpt-surface :is(table, .table),
+.architecture-poll :is(table, .table) {
+    color: var(--localgpt-body-color);
+    border-color: var(--localgpt-border-color);
+}
+/* Long prompts, routes, paths and serialized DTO values wrap into bounded grid cells. */
+.dxbl-grid td,
+.dxbl-grid th,
+.dx-datagrid .dx-data-row > td,
+.dx-datagrid .dx-header-row > td {
+    max-width: 32rem;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.dxbl-grid .dxbl-text,
+.dx-datagrid-text-content,
+.localgpt-grid-wrap {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+}

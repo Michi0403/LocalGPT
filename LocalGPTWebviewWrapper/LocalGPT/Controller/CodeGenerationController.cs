@@ -1,0 +1,139 @@
+using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
+using LocalGPT.Security;
+using Microsoft.AspNetCore.Mvc;
+
+namespace LocalGPT.Controller;
+
+[ApiController]
+[Route("api/code-generation/reviews")]
+public sealed class CodeGenerationController(
+    ICodeGenerationWorkflowService workflow,
+    ILogger<CodeGenerationController> logger) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IResult> ListReviews(
+        [FromQuery] Guid? projectId,
+        [FromQuery] int take = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return Results.Ok(await workflow.ListReviewsAsync(projectId, take, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not list code-generation reviews.");
+            return Results.InternalServerError("Could not list code-generation reviews. Review LocalGPT application logs.");
+        }
+    }
+
+    [HttpGet("{reviewId:guid}")]
+    public async Task<IResult> GetReview(Guid reviewId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var review = await workflow.GetReviewAsync(reviewId, cancellationToken).ConfigureAwait(false);
+            return review is null ? Results.NotFound() : Results.Ok(review);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not load code-generation review {ReviewId}.", reviewId);
+            return Results.InternalServerError("Could not load the review. Review LocalGPT application logs.");
+        }
+    }
+
+    [HttpPost]
+    [HumanApprovalRequired(
+        "code-generation.review.create",
+        "Store exact code-generation review",
+        "Persist the submitted reviewed change plan so the human can inspect its files, outputs, hashes, and safety summary before execution.",
+        "Medium",
+        "Code review coordinator")]
+    public async Task<IResult> CreateReview(
+        [FromBody] CreateCodeGenerationReviewRequest request,
+        [FromQuery] bool userConfirmed,
+        CancellationToken cancellationToken)
+    {
+        if (!userConfirmed)
+            return Results.Conflict(new { Error = "Fresh human confirmation is required to store this exact change review." });
+
+        try
+        {
+            var review = await workflow.CreateReviewAsync(request, cancellationToken).ConfigureAwait(false);
+            return Results.Created($"/api/code-generation/reviews/{review.Id}", review);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Rejected invalid code-generation review request; payload content was omitted from logs.");
+            return Results.BadRequest(new { Error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not create a code-generation review; payload content was omitted from logs.");
+            return Results.InternalServerError("Could not create the review. Review LocalGPT application logs.");
+        }
+    }
+
+    [HttpPost("{reviewId:guid}/execute")]
+    [HumanApprovalRequired(
+        "code-generation.review.execute",
+        "Execute exact code-generation review",
+        "Generate the exact hash-bound reviewed files and, when requested by this same input, run the bounded build inside the isolated artifact workspace.",
+        "High",
+        "Code-generation security reviewer",
+        requiredBeforeCompletion: true)]
+    public async Task<IResult> ExecuteReview(
+        Guid reviewId,
+        [FromBody] ExecuteCodeGenerationReviewRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await workflow.ExecuteReviewAsync(reviewId, request, cancellationToken).ConfigureAwait(false);
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            logger.LogInformation(ex, "Code-generation review {ReviewId} was not found.", reviewId);
+            return Results.NotFound(new { Error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogInformation(ex, "Code-generation review {ReviewId} execution was denied by workflow policy.", reviewId);
+            return Results.Conflict(new { Error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Code-generation review {ReviewId} execution failed; generated content was omitted from logs.", reviewId);
+            return Results.InternalServerError("Generation failed. Review LocalGPT application logs.");
+        }
+    }
+
+    [HttpPost("{reviewId:guid}/reject")]
+    public async Task<IResult> RejectReview(
+        Guid reviewId,
+        [FromBody] RejectCodeGenerationReviewRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await workflow.RejectReviewAsync(reviewId, request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            logger.LogInformation(ex, "Code-generation review {ReviewId} was not found.", reviewId);
+            return Results.NotFound(new { Error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogInformation(ex, "Code-generation review {ReviewId} rejection was denied by workflow policy.", reviewId);
+            return Results.Conflict(new { Error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Code-generation review {ReviewId} rejection failed.", reviewId);
+            return Results.InternalServerError("Review rejection failed. Review LocalGPT application logs.");
+        }
+    }
+}
