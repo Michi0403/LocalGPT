@@ -350,46 +350,61 @@
 
             </DxAIChat>
         </div>
-        @if (collaborationSnapshot.ActiveRuns.Count > 0)
-        {
-            <div class="memory-toolbar human-live-contribution" aria-label="Join and add information to a running AI Council">
-                <label title="Join any council heartbeat that is still running in this LocalGPT process.">
-                    <span>Running Council session</span>
-                    <select value="@SelectedCouncilRunValue" @onchange="OnActiveCouncilRunChanged">
+        <div class="memory-toolbar human-live-contribution" aria-label="Join and add information to a running AI Council" data-testid="live-council-participation">
+            <label title="Join any council heartbeat that is still running in this LocalGPT process.">
+                <span>Running Council session</span>
+                <select value="@SelectedCouncilRunValue"
+                        @onchange="OnActiveCouncilRunChanged"
+                        disabled="@(collaborationSnapshot.ActiveRuns.Count == 0)">
+                    @if (collaborationSnapshot.ActiveRuns.Count == 0)
+                    {
+                        <option value="">No Council heartbeat is running</option>
+                    }
+                    else
+                    {
                         @foreach (var run in collaborationSnapshot.ActiveRuns.OrderByDescending(item => item.StartedAtUtc))
                         {
                             <option value="@run.RunId">@run.StartedAtUtc.ToLocalTime().ToString("g") · round @run.CurrentRound · @run.Phase · @string.Join(", ", run.CouncilMembers.Take(3))</option>
                         }
-                    </select>
-                </label>
-                <DxButton Text="Refresh running sessions"
-                          RenderStyle="ButtonRenderStyle.Secondary"
-                          RenderStyleMode="ButtonRenderStyleMode.Outline"
-                          Click="RefreshHumanCollaborationAsync" />
-                @if (!collaborationSnapshot.Profile.IsEnabled)
-                {
-                    <DxButton Text="Enable human participation"
-                              RenderStyle="ButtonRenderStyle.Success"
-                              RenderStyleMode="ButtonRenderStyleMode.Contained"
-                              Click="EnableHumanParticipationAsync" />
-                }
-                <label title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
-                    <span>Ask AI Assistant / Council correction</span>
-                    <input type="text"
-                           @bind="RunningCouncilContribution"
-                           placeholder="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
-                </label>
-                <DxButton Text="Share without stopping generation"
-                          RenderStyle="ButtonRenderStyle.Primary"
+                    }
+                </select>
+            </label>
+            <DxButton Text="Refresh running sessions"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Click="RefreshHumanCollaborationAsync" />
+            @if (!collaborationSnapshot.Profile.IsEnabled)
+            {
+                <DxButton Text="Enable human participation"
+                          RenderStyle="ButtonRenderStyle.Success"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
-                          Enabled="@(collaborationSnapshot.Profile.IsEnabled && ActiveCouncilRun is not null && !string.IsNullOrWhiteSpace(RunningCouncilContribution))"
-                          Click="QueueRunningCouncilContributionAsync" />
-                @if (ActiveCouncilRun is not null)
-                {
-                    <span class="memory-status">Joined run @ActiveCouncilRunShortId · round @ActiveCouncilRun.CurrentRound · @ActiveCouncilRun.Phase</span>
-                }
-            </div>
-        }
+                          Click="EnableHumanParticipationAsync" />
+            }
+            else
+            {
+                <span class="badge text-bg-success">Human Council member enabled</span>
+            }
+            <label title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
+                <span>Ask AI Assistant / Council correction</span>
+                <input type="text"
+                       @bind="RunningCouncilContribution"
+                       disabled="@(ActiveCouncilRun is null)"
+                       placeholder="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
+            </label>
+            <DxButton Text="Share without stopping generation"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      Enabled="@(collaborationSnapshot.Profile.IsEnabled && ActiveCouncilRun is not null && !string.IsNullOrWhiteSpace(RunningCouncilContribution))"
+                      Click="QueueRunningCouncilContributionAsync" />
+            @if (ActiveCouncilRun is not null)
+            {
+                <span class="memory-status">Joined run @ActiveCouncilRunShortId · round @ActiveCouncilRun.CurrentRound · @ActiveCouncilRun.Phase</span>
+            }
+            else
+            {
+                <span class="memory-status">Start a Council round or refresh to join one without interrupting it.</span>
+            }
+        </div>
         @if (FeedbackTargets.Count > 0)
         {
             <div class="memory-toolbar" aria-label="Assistant response feedback" data-testid="chat-feedback-controls">

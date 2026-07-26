@@ -5,11 +5,11 @@ namespace LocalGPT.WireProtocol;
 /// <summary>Stable constants and compatibility checks for the embedded protocol assembly.</summary>
 public static class OneWireProtocol
 {
-    public const string Version = "1.3";
+    public const string Version = "1.4";
     public const string MinimumCompatibleVersion = "1.0";
     public const int DefaultServicePort = 51140;
     public const int DefaultDiscoveryPort = 51141;
-    public const int MaximumMessageBytes = 1024 * 1024;
+    public const int MaximumMessageBytes = int.MaxValue;
 
     public static bool IsCompatible(string? version)
     {

@@ -1,16 +1,14 @@
 using LocalGPT;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
-using Windows.Storage;
-using WinRT.Interop;
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace WebView2_WinUI3_Sample
 {
@@ -19,66 +17,129 @@ namespace WebView2_WinUI3_Sample
     /// </summary>
     public partial class App : Application
     {
-
         private Window? _window;
         private WebApplication? _webApp;
-        private string _baseUrl = "";
+        private bool _ownsWebHost;
+        private string _baseUrl = string.Empty;
 
         /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
+        /// Initializes the singleton application object.
         /// </summary>
         public App()
         {
-            this.InitializeComponent();
-
-            // If you're shipping a fixed-version WebView2 Runtime with your app, un-comment the
-            // following lines of code, and change the version number to the version number of the
-            // WebView2 Runtime that you're packaging and shipping to users:
-
-            // StorageFolder localFolder = Windows.ApplicationModel.Package.Current.InstalledLocation;
-            // String fixedPath = Path.Combine(localFolder.Path, "FixedRuntime\\130.0.2849.39");
-            // Debug.WriteLine($"Launch path [{localFolder.Path}]");
-            // Debug.WriteLine($"FixedRuntime path [{fixedPath}]");
-            // Environment.SetEnvironmentVariable("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", fixedPath);
+            InitializeComponent();
         }
 
         /// <summary>
-        /// Invoked when the application is launched normally by the end user.  Other entry points
-        /// will be used such as when the application is launched to open a specific file.
+        /// Starts or reconnects to the loopback LocalGPT host and then opens the WebView shell.
+        /// The installer-provided positional port argument is forwarded unchanged to LocalGPT.Program.
         /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            _webApp = LocalGPT.Program.BuildWebApp();
-            await _webApp.StartAsync().ConfigureAwait(false);          // non-blocking
-            _baseUrl = LocalGPT.Program.BaseUrl;
+            try
+            {
+                var startupArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
+                _webApp = LocalGPT.Program.BuildWebApp(startupArgs);
 
-            _window = new MainWindow(_baseUrl)
+                try
+                {
+                    // Do not use ConfigureAwait(false) in the WinUI launch path: window creation and
+                    // activation must continue on the UI dispatcher thread.
+                    await _webApp.StartAsync();
+                    _ownsWebHost = true;
+                }
+                catch (Exception startupException)
+                {
+                    if (!await IsExistingLocalGptReachableAsync(LocalGPT.Program.BaseUrl))
+                        throw;
+
+                    // A previous LocalGPT desktop process can still own the installer-selected port.
+                    // Reuse that verified LocalGPT /health endpoint rather than showing a dead shell.
+                    Debug.WriteLine($"LocalGPT host already active at {LocalGPT.Program.BaseUrl}: {startupException.Message}");
+                    await _webApp.DisposeAsync();
+                    _webApp = null;
+                    _ownsWebHost = false;
+                }
+
+                _baseUrl = LocalGPT.Program.BaseUrl;
+                OpenMainWindow(_baseUrl);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+                await DisposeOwnedHostAsync();
+                OpenStartupFailureWindow(ex);
+            }
+        }
+
+        private void OpenMainWindow(string baseUrl)
+        {
+            _window = new MainWindow(baseUrl)
             {
                 Title = "LocalGPT by Michi0403"
             };
-            // ✅ Set window icon (shows in taskbar, Alt+Tab, and title)
-            var appWindow = _window.AppWindow;
-            // Set your icon file (must be an .ico, not .png)
-            string iconPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "favicon.ico");
-            if (File.Exists(iconPath))
-            {
-                appWindow.SetIcon(iconPath);
-            }
-            _window.Activate();
 
-            _window.Closed += async (_, __) =>
-            {
-                if (_webApp != null)
-                {
-                    await _webApp.StopAsync();
-                    await _webApp.DisposeAsync();
-                }
-            };
-            //_window = new MainWindow();
-            //_window.Activate();
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "favicon.ico");
+            if (File.Exists(iconPath))
+                _window.AppWindow.SetIcon(iconPath);
+
+            _window.Closed += async (_, _) => await DisposeOwnedHostAsync();
+            _window.Activate();
         }
 
+        private void OpenStartupFailureWindow(Exception exception)
+        {
+            var message = $"LocalGPT could not start.\n\n{exception.GetType().Name}: {exception.Message}\n\n" +
+                          $"Expected address: {LocalGPT.Program.BaseUrl}\n" +
+                          "Review the LocalGPT application log and verify that the installer-selected port is not owned by another application.";
+
+            _window = new Window
+            {
+                Title = "LocalGPT startup failed",
+                Content = new ScrollViewer
+                {
+                    Padding = new Thickness(24),
+                    Content = new TextBlock
+                    {
+                        Text = message,
+                        TextWrapping = TextWrapping.Wrap,
+                        IsTextSelectionEnabled = true
+                    }
+                }
+            };
+            _window.Activate();
+        }
+
+        private async Task DisposeOwnedHostAsync()
+        {
+            if (!_ownsWebHost || _webApp is null)
+                return;
+
+            try
+            {
+                await _webApp.StopAsync();
+                await _webApp.DisposeAsync();
+            }
+            finally
+            {
+                _ownsWebHost = false;
+                _webApp = null;
+            }
+        }
+
+        private static async Task<bool> IsExistingLocalGptReachableAsync(string baseUrl)
+        {
+            try
+            {
+                using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                using var http = new HttpClient { BaseAddress = new Uri(baseUrl) };
+                using var response = await http.GetAsync("/health", cancellation.Token);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
+            {
+                return false;
+            }
+        }
     }
 }

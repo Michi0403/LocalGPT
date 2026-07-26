@@ -105,8 +105,14 @@ namespace LocalGPT
             logger.LogInformation("Built web application.", logger);
             ConfigureMiddlewareAndEndpoints(app, logger);
             logger.LogInformation("Configured middleware and endpoints.", logger);
-            WriteRuntimeEndpointFile(port, logger);
-            logger.LogInformation("Wrote runtime endpoint file.", logger);
+            var runtimeEndpointLogger = app.Services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("LocalGPT.RuntimeEndpoint");
+            app.Lifetime.ApplicationStarted.Register(() =>
+            {
+                WriteRuntimeEndpointFile(Port, runtimeEndpointLogger);
+                runtimeEndpointLogger.LogInformation("Wrote runtime endpoint file after the LocalGPT listener started.");
+            });
+            app.Lifetime.ApplicationStopped.Register(() => DeleteRuntimeEndpointFile(runtimeEndpointLogger));
 
             return app;
         }
@@ -236,7 +242,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("0.1.4"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("0.1.5"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<CouncilTextService>();
                 builder.Services.AddSingleton<CouncilRuntimeService>();
@@ -735,6 +741,33 @@ namespace LocalGPT
                 //TryAppendStartupTrace(ex.ToString(), logger);
             }
         }
+
+        private static void DeleteRuntimeEndpointFile(ILogger logger)
+        {
+            try
+            {
+                var path = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "runtime",
+                    "server.json");
+                if (!File.Exists(path))
+                    return;
+
+                using var document = JsonDocument.Parse(File.ReadAllText(path));
+                if (document.RootElement.TryGetProperty("ProcessId", out var processId)
+                    && processId.TryGetInt32(out var ownerProcessId)
+                    && ownerProcessId == Environment.ProcessId)
+                {
+                    File.Delete(path);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not remove the LocalGPT runtime endpoint file during shutdown.");
+            }
+        }
+
         private static int GetFreePort(ILogger logger)
         {
             try
