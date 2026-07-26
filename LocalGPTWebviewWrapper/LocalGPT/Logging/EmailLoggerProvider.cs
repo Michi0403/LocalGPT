@@ -13,7 +13,7 @@ public sealed class EmailLoggerProvider(IOptionsMonitor<EmailLoggerCoreOptions> 
 
     public ILogger CreateLogger(string categoryName)
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
+        ObjectDisposedException.ThrowIf(System.Threading.Volatile.Read(ref disposed) != 0, this);
         return loggers.GetOrAdd(categoryName, name => new EmailLogger(name, options));
     }
 

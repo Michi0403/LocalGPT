@@ -30,10 +30,10 @@ const debugInspector = read('LocalGPTWebviewWrapper','LocalGPT','Services','Debu
 const organicInterface = read('LocalGPTWebviewWrapper','LocalGPT','Interfaces','IOrganicSkillRegistryService.cs');
 const organicService = read('LocalGPTWebviewWrapper','LocalGPT','Services','OrganicSkillRegistryService.cs');
 
-for (const project of [appProject,installerProject,wrapperProject]) assert.match(project, /<Version>0\.1\.8<\/Version>/);
+for (const project of [appProject,installerProject,wrapperProject]) assert.match(project, /<Version>2\.0\.0<\/Version>/);
 assert.match(appProject, /ProjectReference Include="\.\.\\LocalGPT\.WireProtocolVersion\\LocalGPT\.WireProtocolVersion\.csproj"/);
 assert.ok(exists('LocalGPTWebviewWrapper','LocalGPT.WireProtocolVersion','OneWireProtocolContracts.cs'));
-assert.match(wireProject, /<Version>1\.6\.0<\/Version>/);
+assert.match(wireProject, /<Version>2\.0\.0<\/Version>/);
 assert.match(wire, /public sealed class OneWireModelSelfAssessment/);
 for (const field of ['ModelName','MemberKey','DxFunctions','ControllerMethods','OrganicCapabilities','Skills','Confidence','Evidence'])
   assert.ok(wire.includes(field), `${field} missing from OneWireModelSelfAssessment.`);
@@ -100,4 +100,4 @@ assert.match(debugInspector, /MaximumInspectionBytes/);
 assert.match(debugInspector, /Windows\/native or unknown PDB/);
 assert.match(program, /DefaultPort = 5000/);
 
-console.log('LocalGPT v0.1.8 Council spooler, shared protocol and source-closure contracts passed.');
+console.log('LocalGPT v2.0.0 Council spooler, shared protocol and source-closure contracts passed.');

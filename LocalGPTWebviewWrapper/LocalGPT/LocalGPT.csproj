@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>0.1.8</Version>
+    <Version>2.0.0</Version>
 	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -1288,5 +1288,16 @@
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
+
+  <Target Name="CopyWireProtocolPackageToPublish" AfterTargets="Publish">
+    <PropertyGroup>
+      <WireProtocolProject>$(MSBuildProjectDirectory)\..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj</WireProtocolProject>
+      <WireProtocolPackageDirectory>$(MSBuildProjectDirectory)\..\..\artifacts\release\protocol</WireProtocolPackageDirectory>
+      <WireProtocolPackage>$(WireProtocolPackageDirectory)\LocalGPT.WireProtocolVersion.2.0.0.nupkg</WireProtocolPackage>
+    </PropertyGroup>
+    <MSBuild Projects="$(WireProtocolProject)" Targets="Pack" Properties="Configuration=$(Configuration);PackageOutputPath=$(WireProtocolPackageDirectory)" />
+    <MakeDir Directories="$(PublishDir)protocol" />
+    <Copy SourceFiles="$(WireProtocolPackage)" DestinationFolder="$(PublishDir)protocol" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

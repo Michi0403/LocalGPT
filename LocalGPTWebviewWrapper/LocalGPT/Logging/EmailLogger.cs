@@ -100,7 +100,7 @@ public sealed class EmailLogger : ILogger, IDisposable
         new DisposableScope(string.Empty);
 
     public bool IsEnabled(LogLevel logLevel) =>
-        Volatile.Read(ref disposed) == 0 &&
+        System.Threading.Volatile.Read(ref disposed) == 0 &&
         (int)logLevel >= (int)config.CoreLogLevel;
 
     public void Log<TState>(
