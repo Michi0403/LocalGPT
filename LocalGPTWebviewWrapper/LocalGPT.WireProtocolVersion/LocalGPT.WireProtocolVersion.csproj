@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>LocalGPT.WireProtocolVersion</AssemblyName>
     <RootNamespace>LocalGPT.WireProtocol</RootNamespace>
-    <Version>1.4.0</Version>
+    <Version>1.6.0</Version>
     <Description>Versioned, bidirectional LocalGPT organic 1-Wire protocol contracts shared by LocalGPT and organic plugin systems.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>

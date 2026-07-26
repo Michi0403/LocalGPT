@@ -242,7 +242,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("0.1.5"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("0.1.8"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<CouncilTextService>();
                 builder.Services.AddSingleton<CouncilRuntimeService>();
@@ -329,7 +329,15 @@ namespace LocalGPT
                 builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
                 builder.Services.AddScoped<ICodeGenerationWorkflowService, CodeGenerationWorkflowService>();
                 builder.Services.AddScoped<ICouncilCodeGenerationPlanService, CouncilCodeGenerationPlanService>();
+                builder.Services.AddSingleton<ICouncilSpoolerService, LocalGPT.Services.Council.CouncilSpoolerService>();
+                builder.Services.AddScoped<IRuntimeCapabilityDirectoryService, LocalGPT.Services.Council.RuntimeCapabilityDirectoryService>();
+                builder.Services.AddHostedService<LocalGPT.Services.Council.RuntimeCapabilityDirectoryHostedService>();
+                builder.Services.AddScoped<ICouncilPreflightService, LocalGPT.Services.Council.CouncilPreflightService>();
+                builder.Services.AddScoped<IDebugArtifactInspectionService, DebugArtifactInspectionService>();
                 builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
+                builder.Services.AddScoped<IDxAiFunctionCatalogService, DxAiFunctionCatalogService>();
+                builder.Services.AddScoped<IPublicServiceMethodInvoker, PublicServiceMethodInvoker>();
+                builder.Services.AddHostedService<DxAiFunctionCatalogHostedService>();
                 builder.Services.AddScoped<IChatSessionContext, ChatSessionContext>();
                 builder.Services.AddScoped<IDxAiFunctionServiceClient, DxAiFunctionServiceClient>();
 
@@ -358,7 +366,9 @@ namespace LocalGPT
                 builder.Services.AddHostedService<OneWireDiscoveryHostedService>();
                 builder.Services.AddHostedService<OneWireCouncilApprovalProcessorHostedService>();
                 builder.Services.AddHostedService<OneWireWorkProcessorHostedService>();
+                builder.Services.AddScoped<IOrganicSkillRegistryService, OrganicSkillRegistryService>();
                 builder.Services.AddScoped<IModelCapabilitySelfAssessmentService, LocalGPT.Services.Council.Skills.ModelCapabilitySelfAssessmentService>();
+                builder.Services.AddSingleton<ICouncilHardwareRoadConfigurationService, LocalGPT.Services.Council.Scheduling.CouncilHardwareRoadConfigurationService>();
                 builder.Services.AddSingleton<ICouncilHardwareRoadPlanner, LocalGPT.Services.Council.Scheduling.CouncilHardwareRoadPlanner>();
                 builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
                 builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();

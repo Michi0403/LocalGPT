@@ -18,6 +18,9 @@ namespace LocalGPT.BusinessObjects
 
         public bool AllowParallelHardwareRoads { get; set; } = true;
 
+        /// <summary>0..100 session position between each model route's independent minimum and maximum.</summary>
+        public int ResourceLoadPercent { get; set; } = 30;
+
         public List<OneWireCouncilModelRoute> ModelRoutes { get; set; } = [];
 
         public int MaxContextTokens { get; set; } = 4096;
@@ -126,6 +129,8 @@ namespace LocalGPT.BusinessObjects
 
         public List<string> Warnings { get; set; } = [];
 
+        public string PreflightSummary { get; set; } = string.Empty;
+
         public string CouncilTeamKey { get; set; } = "general";
 
         public string OneWireCorrelationId { get; set; } = string.Empty;
@@ -187,6 +192,8 @@ namespace LocalGPT.BusinessObjects
         public OneWireHardwareKind HardwareKind { get; set; } = OneWireHardwareKind.Auto;
 
         public int HardwareIndex { get; set; } = -1;
+
+        public int EffectiveLoadPercent { get; set; } = 30;
 
         public int EffectiveMaxOutputTokens { get; set; }
 

@@ -5,7 +5,7 @@ namespace LocalGPT.WireProtocol;
 /// <summary>Stable constants and compatibility checks for the embedded protocol assembly.</summary>
 public static class OneWireProtocol
 {
-    public const string Version = "1.4";
+    public const string Version = "1.6";
     public const string MinimumCompatibleVersion = "1.0";
     public const int DefaultServicePort = 51140;
     public const int DefaultDiscoveryPort = 51141;
@@ -36,6 +36,9 @@ public enum OneWireMessageType
     InteractionResult,
     ApprovalRequired,
     PermissionUpdate,
+    LinkRequest,
+    LinkStatus,
+    LinkRevoked,
     Error,
     Ping,
     Pong
@@ -47,6 +50,7 @@ public enum OneWireApprovalMode { AskEveryTime, SameCapability, CurrentWorkOrder
 public enum OneWireHardwareKind { Auto, Cpu, Gpu, Accelerator, Remote }
 public enum OneWireInteractionKind { None, Human, Automated, HumanAndAutomated }
 public enum OneWireUiFeatureState { Hidden, Disabled, Enabled }
+public enum OneWireInteractionEditor { None, ConfirmationOnly, PlainText, RichText, Json }
 
 /// <summary>
 /// Bidirectional interaction contract. "Target system" always means the receiver of the current envelope,
@@ -177,6 +181,16 @@ public sealed class OneWireCapabilityDescriptor
     public bool RequiresHumanInteractionOnTargetSystem { get; set; }
     public bool RequiresAutomatedInteractionOnTargetSystem { get; set; }
     public string InteractionValueSchemaJson { get; set; } = "{\"type\":\"object\",\"properties\":{}}";
+    /// <summary>Whether this capability is currently advertised to a securely linked peer.</summary>
+    public bool IsExposedToPeer { get; set; } = true;
+    /// <summary>Whether the receiver may invoke this capability after its local policy and confirmation checks pass.</summary>
+    public bool AllowPeerInvocation { get; set; } = true;
+    /// <summary>The receiving frontend is the authoritative confirmation surface for consequential work.</summary>
+    public bool RequiresFrontendUserConfirmation { get; set; }
+    /// <summary>Preferred frontend editor for human input that is returned through InteractionValueJson.</summary>
+    public OneWireInteractionEditor InteractionEditor { get; set; } = OneWireInteractionEditor.ConfirmationOnly;
+    /// <summary>Stable key of the local catalog entry that controls peer exposure and confirmation policy.</summary>
+    public string ConfigurationKey { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
 }
 
@@ -267,6 +281,16 @@ public sealed class OneWirePermissionRule
     public string CapabilityKey { get; set; } = string.Empty;
     public string Organ { get; set; } = string.Empty;
     public OneWireApprovalMode ApprovalMode { get; set; } = OneWireApprovalMode.AskEveryTime;
+    /// <summary>Controls whether the capability is advertised to this linked peer.</summary>
+    public bool IsExposed { get; set; } = true;
+    /// <summary>Controls whether an advertised capability can be invoked by this peer.</summary>
+    public bool AllowInvocation { get; set; } = true;
+    /// <summary>Forces the receiving application's local frontend confirmation path even when a reusable approval mode exists.</summary>
+    public bool RequiresFrontendConfirmation { get; set; } = true;
+    /// <summary>Editor shown to the local user when the request also needs human-provided information.</summary>
+    public OneWireInteractionEditor InteractionEditor { get; set; } = OneWireInteractionEditor.ConfirmationOnly;
+    /// <summary>Only a peer linked by an explicit frontend action may use this rule.</summary>
+    public bool RequireLinkedPeer { get; set; } = true;
     public string WorkOrderKey { get; set; } = string.Empty;
     public DateTimeOffset UpdatedUtc { get; set; } = DateTimeOffset.UtcNow;
     public string UpdatedBy { get; set; } = "CurrentUser";
@@ -283,6 +307,8 @@ public sealed class OneWireCouncilModelRoute
     public int MinContextTokens { get; set; } = 2048;
     public int MaxContextTokens { get; set; } = 32768;
     public int? OllamaNumGpu { get; set; }
+    /// <summary>Optional per-model override for the session load slider. Null uses the session-wide percentage.</summary>
+    public int? LoadPercentOverride { get; set; }
     public List<string> SelfReportedDxFunctions { get; set; } = [];
     public List<string> SelfReportedControllerMethods { get; set; } = [];
     public List<string> SelfReportedOrganicCapabilities { get; set; } = [];
@@ -311,6 +337,8 @@ public sealed class OneWireCouncilRequest
     public int MaxContextTokens { get; set; } = 32768;
     public int MaxParallelModels { get; set; } = 1;
     public bool AllowParallelHardwareRoads { get; set; } = true;
+    /// <summary>Session-wide 0..100 load position interpolated between every model road's own minimum and maximum.</summary>
+    public int ResourceLoadPercent { get; set; } = 30;
     public bool IncludeMemory { get; set; } = true;
     public bool SaveToMemory { get; set; } = true;
     public bool GenerateImplementationArtifact { get; set; }

@@ -47,7 +47,9 @@ assert.match(oneWireExecution, /SendResultAsync\(item, OneWireWorkStatus\.Comple
 assert.match(oneWireExecution, /SendResultAsync\(item, OneWireWorkStatus\.Failed/, 'Failed council work must be returned to the organic peer.');
 
 
-assert.match(councilText, /<localgpt-self-assessment>\{\{"modelName"/, 'Interpolated raw-string JSON braces must remain escaped for C# compilation.');
+assert.match(councilText, /var prompt = """/);
+assert.doesNotMatch(councilText, /var prompt = \$+"""/);
+assert.match(councilText, /<localgpt-self-assessment>\{"modelName"/, 'Self-assessment JSON must be literal content in a non-interpolated raw string.');
 assert.match(chat, /data-testid="council-team-picker"/);
 assert.match(chat, /Running Council session/);
 assert.match(chat, /Enable human participation/);

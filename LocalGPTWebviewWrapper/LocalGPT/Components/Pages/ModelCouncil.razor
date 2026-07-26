@@ -96,6 +96,13 @@
                     Ollama keep-alive
                     <input @bind="KeepAliveText" placeholder="auto" />
                 </label>
+                <label class="council-load-setting" title="Each model receives min + this percentage of its own configured min/max road range.">
+                    Hardware load
+                    <span class="range-with-output">
+                        <input type="range" min="0" max="100" step="5" @bind="Request.ResourceLoadPercent" @bind:event="oninput" />
+                        <output>@Request.ResourceLoadPercent%</output>
+                    </span>
+                </label>
             </div>
             <div class="run-row">
                 <DxButton Text="Low GPU Preset"
@@ -115,6 +122,20 @@
                           Click="ApplyGenerationPreset" />
             </div>
             <p class="hint">Default scheduling runs one large model at a time and can unload between models. Low GPU Preset is for diagnostics only. Real source or solution generation should use at least 64K output/context, and the Generation Preset uses 256K when the model/runtime supports it.</p>
+
+            <details class="council-road-details" open>
+                <summary>Spooler roads and per-model limits</summary>
+                <CouncilHardwareRoadEditor ModelNames="SelectedModels"
+                                           Routes="Request.ModelRoutes"
+                                           ResourceLoadPercent="Request.ResourceLoadPercent" />
+            </details>
+            <div class="run-row">
+                <DxButton Text="Join running Council in Chat"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Enabled="@(!isBusy)"
+                          Click="JoinRunningCouncil" />
+            </div>
 
             <div class="check-row">
                 <label title="Passes Ollama num_gpu=0 for this council run. This is slower, but reduces GPU pressure while debugging.">
@@ -528,6 +549,7 @@
         MaxRounds = 1,
         MaxOutputTokens = 1024,
         MaxParallelModels = 1,
+        ResourceLoadPercent = 30,
         MaxContextTokens = 4096,
         ModelTimeoutSeconds = 180,
         IncludeMemory = true,
@@ -745,6 +767,8 @@
         }
 
     }
+
+    private void JoinRunningCouncil() => Navigation.NavigateTo("/Chat?joinCouncil=active");
 
     void ToggleModel(string modelName, ChangeEventArgs args)
     {

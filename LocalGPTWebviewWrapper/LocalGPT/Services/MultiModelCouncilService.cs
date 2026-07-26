@@ -26,6 +26,8 @@ namespace LocalGPT.Services
         IHumanCollaborationService humanCollaboration,
         IDeferredDxAiInvocationService deferredDxAiInvocations,
         IOrganicCouncilBlueprintService organicCouncilBlueprints,
+        ICouncilSpoolerService councilSpooler,
+        ICouncilPreflightService councilPreflight,
         ICouncilHardwareRoadPlanner hardwareRoadPlanner,
         IModelCapabilitySelfAssessmentService modelSelfAssessment,
         IAmbientLocalGptContext ambientContext,
@@ -110,6 +112,7 @@ namespace LocalGPT.Services
                     participants,
                     request.MaxOutputTokens,
                     maxContextTokens,
+                    request.ResourceLoadPercent,
                     ollamaNumGpu);
                 var result = new MultiModelCouncilResult
                 {
@@ -135,6 +138,7 @@ namespace LocalGPT.Services
                     ? [.. participants, $"Human: {humanProfile.DisplayName}"]
                     : participants;
                 humanCollaboration.BeginCouncilRun(result.RunId, collaborationMembers);
+                councilSpooler.Begin(result);
 
                 if (request.CreateProjectForRun)
                 {
@@ -185,7 +189,12 @@ namespace LocalGPT.Services
                 if (ollamaNumGpu is null && participants.Any(filter => MultiModelCouncilServiceIsHeavyGpuRiskModel(filter,logger)))
                     result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
 
-                request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}.");
+                var preflight = await councilPreflight.PrepareAsync(request, participants, modelRoutes, cancellationToken).ConfigureAwait(false);
+                result.PreflightSummary = preflight.PromptContext;
+                result.Warnings.AddRange(preflight.Warnings);
+                result.Warnings.AddRange(preflight.MissingRequirements.Select(requirement => "Preflight question/requirement: " + requirement));
+
+                request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}. Preflight checked {preflight.RegexPatternCount} regexes, {preflight.KnowledgeEntryCount} knowledge entries, {preflight.ProjectCount} projects and {preflight.DxFunctionCount} DXFunctions.");
 
                 var bootstrap = request.IncludeMemory
                     ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken).ConfigureAwait(false)
@@ -193,6 +202,7 @@ namespace LocalGPT.Services
                 var continuationContext = MultiModelCouncilServiceBuildContinuationContext(continuedConversation, logger);
                 if (!string.IsNullOrWhiteSpace(continuationContext))
                     bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext, logger);
+                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Mandatory database, regex, function and hardware preflight", preflight.PromptContext, logger);
 
                 if (result.ProjectId is Guid projectId)
                 {
@@ -211,42 +221,74 @@ namespace LocalGPT.Services
                 var organicTeam = await organicCouncilBlueprints.FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false)
                     ?? await organicCouncilBlueprints.FindTeamAsync("general", cancellationToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("No enabled organic council team is available.");
-                if (request.UseOrganicCouncilWorkflow || !string.IsNullOrWhiteSpace(request.CouncilTeamKey) && !string.Equals(request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase))
+                var organicBriefing = await organicCouncilBlueprints.BuildBriefingAsync(request, cancellationToken).ConfigureAwait(false);
+                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Organic council and 1-Wire workflow", organicBriefing, logger);
+
+                var readinessBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Readiness and introductions", bootstrap, cancellationToken).ConfigureAwait(false);
+                await RunPhaseAsync(
+                    result,
+                    baseUri,
+                    participants,
+                    round: 0,
+                    phase: "Readiness",
+                    role: "Hardware, skill, DXFunction and organic-organ readiness introduction",
+                    promptFactory: modelName => councilPreflight.BuildMemberReadinessPrompt(modelName, participants, preflight),
+                    readinessBootstrap,
+                    request.MaxOutputTokens,
+                    maxParallelModels,
+                    keepAlive,
+                    ollamaNumGpu,
+                    maxContextTokens,
+                    modelTimeoutSeconds,
+                    request.ProgressMessage,
+                    request.StreamUpdate,
+                    request.StepCompleted,
+                    modelRoutes,
+                    request.AllowParallelHardwareRoads,
+                    cancellationToken).ConfigureAwait(false);
+                var readinessTranscript = councilText.MultiModelCouncilServiceBuildTranscript(result.Steps.Where(step => step.Phase == "Readiness"), logger);
+                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Council member readiness and introductions", readinessTranscript, logger);
+
+                var leaderModel = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase)) ?? participants[0];
+                var leaderPlan = modelRoutes.TryGetValue(leaderModel, out var configuredLeaderPlan)
+                    ? configuredLeaderPlan
+                    : new CouncilHardwareRoadPlan(leaderModel, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{leaderModel}", request.ResourceLoadPercent, request.MaxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                var preparationBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Expert preparation", bootstrap, cancellationToken).ConfigureAwait(false);
+                MultiModelCouncilStep? preparationStep;
+                using (ambientContext.PushCouncil(result.RunId, 0, "Expert preparation"))
                 {
-                    var organicBriefing = await organicCouncilBlueprints.BuildBriefingAsync(request, cancellationToken).ConfigureAwait(false);
-                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Organic council and 1-Wire workflow", organicBriefing, logger);
-
-                    var leaderModel = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase)) ?? participants[0];
-                    var preparationBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Expert preparation", bootstrap, cancellationToken).ConfigureAwait(false);
-                    MultiModelCouncilStep? preparationStep;
-                    using (ambientContext.PushCouncil(result.RunId, 0, "Expert preparation"))
-                    {
-                        preparationStep = await RunParticipantAsync(
-                            baseUri, leaderModel, participants, 0, "Expert preparation", "RegEx, language and domain preparation expert",
-                            organicCouncilBlueprints.BuildExpertPreparationPrompt(request, organicTeam), preparationBootstrap, request.MaxOutputTokens, keepAlive,
-                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(leaderModel, ollamaNumGpu, logger), maxContextTokens, modelTimeoutSeconds,
-                            request.StreamUpdate, cancellationToken).ConfigureAwait(false);
-                    }
-                    ArgumentNullException.ThrowIfNull(preparationStep);
-                    MultiModelCouncilServiceAddOrderedStep(result, preparationStep, logger);
-                    request.StepCompleted?.Invoke(preparationStep);
-                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Expert preparation result", preparationStep.VisibleContent, logger);
-
-                    var leaderBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Leader synthesis", bootstrap, cancellationToken).ConfigureAwait(false);
-                    MultiModelCouncilStep? leaderStep;
-                    using (ambientContext.PushCouncil(result.RunId, 0, "Leader synthesis"))
-                    {
-                        leaderStep = await RunParticipantAsync(
-                            baseUri, leaderModel, participants, 0, "Leader synthesis", "Council leader and UML work-order synthesizer",
-                            organicCouncilBlueprints.BuildLeaderSynthesisPrompt(request, organicTeam, preparationStep.VisibleContent), leaderBootstrap, request.MaxOutputTokens, keepAlive,
-                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(leaderModel, ollamaNumGpu, logger), maxContextTokens, modelTimeoutSeconds,
-                            request.StreamUpdate, cancellationToken).ConfigureAwait(false);
-                    }
-                    ArgumentNullException.ThrowIfNull(leaderStep);
-                    MultiModelCouncilServiceAddOrderedStep(result, leaderStep, logger);
-                    request.StepCompleted?.Invoke(leaderStep);
-                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Leader current-to-target work order", leaderStep.VisibleContent, logger);
+                    preparationStep = await RunParticipantAsync(
+                        baseUri, leaderModel, participants, 0, "Expert preparation", "RegEx, database, language, science and domain preparation expert",
+                        organicCouncilBlueprints.BuildExpertPreparationPrompt(request, organicTeam) + Environment.NewLine + Environment.NewLine +
+                        "Mandatory readiness evidence:" + Environment.NewLine + readinessTranscript + Environment.NewLine + Environment.NewLine +
+                        "Before planning, check the relevant database/project/chat-memory/knowledge/regex links. Identify missing current facts and formulate exact user questions rather than guessing.",
+                        preparationBootstrap, leaderPlan.EffectiveMaxOutputTokens, keepAlive,
+                        leaderPlan.OllamaNumGpu, leaderPlan.EffectiveMaxContextTokens, modelTimeoutSeconds,
+                        request.StreamUpdate, cancellationToken).ConfigureAwait(false);
                 }
+                ArgumentNullException.ThrowIfNull(preparationStep);
+                ApplyHardwarePlan(preparationStep, leaderPlan);
+                MultiModelCouncilServiceAddOrderedStep(result, preparationStep, logger);
+                request.StepCompleted?.Invoke(preparationStep);
+                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Expert preparation result", preparationStep.VisibleContent, logger);
+
+                var leaderBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Leader synthesis", bootstrap, cancellationToken).ConfigureAwait(false);
+                MultiModelCouncilStep? leaderStep;
+                using (ambientContext.PushCouncil(result.RunId, 0, "Leader synthesis"))
+                {
+                    leaderStep = await RunParticipantAsync(
+                        baseUri, leaderModel, participants, 0, "Leader synthesis", "Council leader, scheduler and UML work-order synthesizer",
+                        organicCouncilBlueprints.BuildLeaderSynthesisPrompt(request, organicTeam, preparationStep.VisibleContent) + Environment.NewLine + Environment.NewLine +
+                        "Verify every member has a usable hardware road, token range, direct DXFunction directory and organic-skill directory. Preserve questions and human-interaction requirements in the work order. Re-check these constraints at every Council heartbeat.",
+                        leaderBootstrap, leaderPlan.EffectiveMaxOutputTokens, keepAlive,
+                        leaderPlan.OllamaNumGpu, leaderPlan.EffectiveMaxContextTokens, modelTimeoutSeconds,
+                        request.StreamUpdate, cancellationToken).ConfigureAwait(false);
+                }
+                ArgumentNullException.ThrowIfNull(leaderStep);
+                ApplyHardwarePlan(leaderStep, leaderPlan);
+                MultiModelCouncilServiceAddOrderedStep(result, leaderStep, logger);
+                request.StepCompleted?.Invoke(leaderStep);
+                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Leader current-to-target work order", leaderStep.VisibleContent, logger);
 
                 var baseBootstrap = bootstrap;
                 var proposalBootstrap = await PrepareHumanHeartbeatAsync(
@@ -529,6 +571,8 @@ namespace LocalGPT.Services
                 if (request.SaveToMemory)
                     result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken).ConfigureAwait(false);
 
+                councilSpooler.Complete(result);
+
                 logger.LogInformation(
                     "Multi-model council {RunId} completed with {ParticipantCount} participant(s), {StepCount} step(s), memory {MemoryConversationId}, knowledge {KnowledgeEntryId}, log {LogPath}.",
                     result.RunId,
@@ -543,14 +587,18 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error in council RunAsync.");
-                return new MultiModelCouncilResult
+                var failedResult = new MultiModelCouncilResult
                 {
+                    RunId = collaborationRunId ?? Guid.NewGuid(),
                     Prompt = request?.Prompt?.Trim() ?? string.Empty,
                     ModelNames = request?.ModelNames?.ToList() ?? [],
+                    StartedAtUtc = DateTime.UtcNow,
                     CompletedAtUtc = DateTime.UtcNow,
                     FinalAnswer = "The council run failed before a complete answer could be produced.",
                     Warnings = [$"{ex.GetType().Name}: {ex.Message}"]
                 };
+                councilSpooler.Complete(failedResult, failed: true);
+                return failedResult;
             }
             finally
             {
@@ -568,6 +616,7 @@ namespace LocalGPT.Services
             CancellationToken cancellationToken)
         {
             humanCollaboration.UpdateCouncilRun(result.RunId, round, phase);
+            councilSpooler.Update(result.RunId, round, phase);
             using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase);
             var deferredOutcomes = await deferredDxAiInvocations.ExecuteApprovedForHeartbeatAsync(
                 result.RunId,
@@ -791,6 +840,16 @@ namespace LocalGPT.Services
             return review;
         }
 
+        private static void ApplyHardwarePlan(MultiModelCouncilStep step, CouncilHardwareRoadPlan plan)
+        {
+            step.HardwareLane = plan.LaneKey;
+            step.HardwareKind = plan.HardwareKind;
+            step.HardwareIndex = plan.HardwareIndex;
+            step.EffectiveLoadPercent = plan.EffectiveLoadPercent;
+            step.EffectiveMaxOutputTokens = plan.EffectiveMaxOutputTokens;
+            step.EffectiveMaxContextTokens = plan.EffectiveMaxContextTokens;
+        }
+
         private async Task RunPhaseAsync(
             MultiModelCouncilResult result,
             string baseUri,
@@ -836,24 +895,20 @@ namespace LocalGPT.Services
                     {
                         var plan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
                             ? configuredPlan
-                            : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                            : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 30, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
                         var laneKey = allowParallelHardwareRoads ? plan.LaneKey : "council:single-lane";
                         var laneGate = laneGates[laneKey];
                         await globalGate.WaitAsync(cancellationToken).ConfigureAwait(false);
                         await laneGate.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try
                         {
-                            progressMessage?.Invoke($"Starting {modelName}: {phase} / {role} on {plan.LaneKey}. Ollama num_gpu={(plan.OllamaNumGpu?.ToString() ?? "auto")}; output={plan.EffectiveMaxOutputTokens}; context={plan.EffectiveMaxContextTokens}.");
+                            progressMessage?.Invoke($"Starting {modelName}: {phase} / {role} on {plan.LaneKey} at {plan.EffectiveLoadPercent}% of its configured road. Ollama num_gpu={(plan.OllamaNumGpu?.ToString() ?? "auto")}; output={plan.EffectiveMaxOutputTokens}; context={plan.EffectiveMaxContextTokens}.");
                             var step = await RunParticipantAsync(
                                 baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap,
                                 plan.EffectiveMaxOutputTokens, keepAlive, plan.OllamaNumGpu, plan.EffectiveMaxContextTokens,
                                 modelTimeoutSeconds, streamUpdate, cancellationToken).ConfigureAwait(false);
                             ArgumentNullException.ThrowIfNull(step);
-                            step.HardwareLane = plan.LaneKey;
-                            step.HardwareKind = plan.HardwareKind;
-                            step.HardwareIndex = plan.HardwareIndex;
-                            step.EffectiveMaxOutputTokens = plan.EffectiveMaxOutputTokens;
-                            step.EffectiveMaxContextTokens = plan.EffectiveMaxContextTokens;
+                            ApplyHardwarePlan(step, plan);
                             stepCompleted?.Invoke(step);
                             return step;
                         }
@@ -1255,6 +1310,7 @@ namespace LocalGPT.Services
                 if (step.CouncilMembers.Count == 0)
                     step.CouncilMembers = result.ModelNames.ToList();
                 result.Steps.Add(step);
+                councilSpooler.AddStep(result.RunId, step);
             }
             catch (Exception ex)
             {

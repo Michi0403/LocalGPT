@@ -110,6 +110,11 @@
                        step="2048"
                        @bind="CouncilMaxContextTokens" />
             </label>
+            <label class="council-load-setting" title="Sets the session position between every selected model's own minimum and maximum CPU/GPU road values. 30% means min + 30% of that model's configured range.">
+                <span>Hardware load</span>
+                <input type="range" min="0" max="100" step="5" @bind="CouncilResourceLoadPercent" @bind:event="oninput" />
+                <output>@CouncilResourceLoadPercent%</output>
+            </label>
             @if (!string.IsNullOrWhiteSpace(modelStatus))
             {
                 <span class="memory-status">@modelStatus</span>
@@ -139,6 +144,13 @@
                 </div>
             </div>
         }
+        <details class="council-road-details" data-testid="council-hardware-road-editor">
+            <summary>Hardware spooler and per-model CPU/GPU roads</summary>
+            <CouncilHardwareRoadEditor ModelNames="SelectedCouncilModelNames"
+                                       Routes="CouncilModelRoutes"
+                                       ResourceLoadPercent="CouncilResourceLoadPercent"
+                                       Changed="OnHardwareRoadsChanged" />
+        </details>
         <div class="model-toolbar council-preset-toolbar" aria-label="AI Council model presets" data-testid="council-model-presets">
             <label title="Load a database-backed preset for council model selection and runtime limits.">
                 <span>Model preset</span>
@@ -470,6 +482,7 @@
     string? DiagnosticOllamaEndpoint { get; set; }
     int CouncilMaxOutputTokens { get; set; } = LocalGptCatalogService.DefaultCouncilOutputTokens;
     int CouncilMaxContextTokens { get; set; } = LocalGptCatalogService.DefaultCouncilContextTokens;
+    int CouncilResourceLoadPercent { get; set; } = 30;
 
     string ArchitectureUiStack { get; set; } = string.Empty;
     string ArchitectureSolutionShape { get; set; } = string.Empty;
@@ -485,6 +498,7 @@
     List<string> SelectedCouncilModelNames { get; set; } = new();
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
     List<CouncilModelPreset> ModelPresets { get; set; } = new();
+    List<OneWireCouncilModelRoute> CouncilModelRoutes { get; set; } = [];
     CouncilModelPreset? SelectedModelPreset { get; set; }
     List<OrganicCouncilTeamDefinition> CouncilTeams { get; set; } = [];
     string SelectedCouncilTeamKey { get; set; } = "general";
@@ -591,6 +605,9 @@
         await TryApplyDatabaseVariableAsync<int>(
             "DefaultHeavyModelGpuLayers",
             value => LimitedGpuLayers = Math.Clamp(value, 1, 99));
+        await TryApplyDatabaseVariableAsync<int>(
+            "DefaultCouncilResourceLoadPercent",
+            value => CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100));
         await TryApplyDatabaseVariableAsync<string>(
             "DefaultOllamaEndpoint",
             value => DefaultOllamaEndpoint = string.IsNullOrWhiteSpace(value)
@@ -998,7 +1015,8 @@
                 MaxOutputTokens = ResolveCouncilOutputTokens(),
                 MaxParallelModels = Math.Max(1, SelectedModelPreset?.MaxParallelModels ?? 1),
                 AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
-                ModelRoutes = ParseModelRoutes(SelectedModelPreset?.ModelRoutesJson),
+                ResourceLoadPercent = Math.Clamp((int)Math.Round(CouncilResourceLoadPercent / 5d) * 5, 0, 100),
+                ModelRoutes = CouncilModelRoutes.Select(CloneRoute).ToList(),
                 MaxContextTokens = ResolveCouncilContextTokens(),
                 ModelTimeoutSeconds = 1800,
                 OllamaKeepAlive = "0s",
@@ -1400,6 +1418,9 @@
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        CouncilModelRoutes = ParseModelRoutes(preset.ModelRoutesJson);
+        var loadOverrides = CouncilModelRoutes.Where(route => route.LoadPercentOverride.HasValue).Select(route => route.LoadPercentOverride!.Value).Distinct().ToList();
+        if (loadOverrides.Count == 1) CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(loadOverrides[0] / 5d) * 5, 0, 100);
         CouncilMaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, LocalGptCatalogService.MinCouncilOutputTokens, LocalGptCatalogService.MaxCouncilOutputTokens);
         CouncilMaxContextTokens = Math.Clamp(preset.MaxContextTokens, LocalGptCatalogService.MinCouncilContextTokens, LocalGptCatalogService.MaxCouncilContextTokens);
         IncludeCouncilMemory = preset.IncludeMemory;
@@ -1429,7 +1450,7 @@
                     Name = ModelPresetName,
                     Description = "Saved from the DXChat council model selector.",
                     ModelNamesJson = JsonSerializer.Serialize(SelectedCouncilModelNames),
-                    ModelRoutesJson = SelectedModelPreset?.ModelRoutesJson ?? "[]",
+                    ModelRoutesJson = JsonSerializer.Serialize(CouncilModelRoutes.Select(CloneRoute).ToList()),
                     AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
                     MaxOutputTokens = CouncilMaxOutputTokens,
                     MaxContextTokens = CouncilMaxContextTokens,
@@ -1474,6 +1495,33 @@
             }
         }, "Archive model preset").ConfigureAwait(false);
     }
+
+    private Task OnHardwareRoadsChanged()
+    {
+        SelectedModelPreset = null;
+        modelStatus = $"Custom hardware roads active at {CouncilResourceLoadPercent}% session load.";
+        return Task.CompletedTask;
+    }
+
+    private static OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
+    {
+        ModelName = route.ModelName,
+        HardwareKind = route.HardwareKind,
+        HardwareIndex = route.HardwareIndex,
+        HardwareName = route.HardwareName,
+        MinOutputTokens = route.MinOutputTokens,
+        MaxOutputTokens = route.MaxOutputTokens,
+        MinContextTokens = route.MinContextTokens,
+        MaxContextTokens = route.MaxContextTokens,
+        OllamaNumGpu = route.OllamaNumGpu,
+        LoadPercentOverride = route.LoadPercentOverride,
+        SelfReportedDxFunctions = [.. route.SelfReportedDxFunctions],
+        SelfReportedControllerMethods = [.. route.SelfReportedControllerMethods],
+        SelfReportedOrganicCapabilities = [.. route.SelfReportedOrganicCapabilities],
+        SelfReportedSkills = [.. route.SelfReportedSkills],
+        IsEnabled = route.IsEnabled,
+        MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
+    };
 
     private void ToggleCouncilModel(string modelName, ChangeEventArgs e)
     {
