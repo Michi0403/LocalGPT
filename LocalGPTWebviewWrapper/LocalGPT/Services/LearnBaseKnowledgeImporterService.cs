@@ -51,11 +51,25 @@ namespace LocalGPT.Services
                     try
                     {
                         var summary = councilRuntime.BuildProjectSummary(rootPath, projectDirectory, logger);
+                        if (summary is null)
+                        {
+                            result.Warnings.Add($"Could not build an architecture summary for {Path.GetFileName(projectDirectory)}.");
+                            continue;
+                        }
+
                         if (request.SaveToKnowledge)
                         {
-                            var entry = await knowledgeService.SaveEntryAsync(councilRuntime.ToKnowledgeEntry(summary,logger), cancellationToken).ConfigureAwait(false);
-                            summary.KnowledgeEntryId = entry.Id;
-                            result.SavedKnowledgeCount++;
+                            var knowledgeEntry = councilRuntime.ToKnowledgeEntry(summary, logger);
+                            if (knowledgeEntry is null)
+                            {
+                                result.Warnings.Add($"Could not prepare a knowledge entry for {summary.Name}.");
+                            }
+                            else
+                            {
+                                var entry = await knowledgeService.SaveEntryAsync(knowledgeEntry, cancellationToken).ConfigureAwait(false);
+                                summary.KnowledgeEntryId = entry.Id;
+                                result.SavedKnowledgeCount++;
+                            }
                         }
 
                         result.Projects.Add(summary);

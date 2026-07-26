@@ -12,3 +12,8 @@ Current unresolved work:
 4. Rich SQLite custom mask/format editing UI.
 5. Catalog-assisted requirement-link picker and validation.
 6. Real-package integration tests.
+
+
+## Latest compiler-feedback state
+
+The compiler errors and nullability warnings reported after the first database-first candidate are addressed in source. They remain **owner-verification pending** until the next Windows/DevExpress build confirms the root `LocalGPT` project and wrapper both compile. Do not close items 1 or 2 merely because static checks pass.

@@ -16,5 +16,17 @@ if ($memory.Contains('DevExpressChatService', [StringComparison]::Ordinal)) { $e
 Need 'LocalGPTWebviewWrapper/LocalGPT/Program.cs' @('AddScoped<IChatMemoryMessageMapper, ChatMemoryMessageMapper>()')
 Need 'LocalGPTWebviewWrapper/LocalGPT/Migrations/20260726010000_AddDatabaseFirstProjectArchitecture.cs' @('CouncilModelPresets', 'SqliteEditorFieldOverrides', 'CouncilKnowledgeUserRatings')
 Need 'LocalGPTWebviewWrapper/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs' @('LocalGptProjectRevision', 'CouncilModelPreset', 'SqliteEditorFieldOverride', 'CouncilKnowledgeUserRating')
+
+Need 'LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor' @('private async Task RunUiActionAsync(Func<Task> action, string operation)', 'SaveModelPresetAsync', 'ArchiveModelPresetAsync')
+Need 'LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs' @('var continuedConversation = await LoadContinuationConversationAsync(', 'result.ContinuedFromConversationId = continuedConversation.Id', '.Where(model => !string.IsNullOrWhiteSpace(model.Name))')
+Need 'LocalGPTWebviewWrapper/LocalGPT/Services/SafeTextDocumentService.cs' @('StartsWith(new byte[] { 0xEF, 0xBB, 0xBF })', 'StartsWith(new byte[] { 0xFF, 0xFE })', 'StartsWith(new byte[] { 0xFE, 0xFF })')
+Need 'LocalGPTWebviewWrapper/LocalGPT/Services/CouncilRuntimeService.cs' @('public ChatResponseUpdate CreateUpdate(', 'public MinecraftDatapackVersionInfo MinecraftDatapackVersionInfoResolve(', 'public EngineeringBenchmarkLaneResult NotRunLane(', 'public LocalGptCatalogService.GeneratedArchetypePage ArchetypePage(')
+Need 'LocalGPTWebviewWrapper/LocalGPT/Services/ThemeService.cs' @('public ThemeService(ILogger<ThemeService> logger)', 'throw new InvalidOperationException("No DevExpress themes are configured.")')
+$safeText = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/SafeTextDocumentService.cs') -Raw
+if ($safeText.Contains('StartsWith([0x', [StringComparison]::Ordinal)) { $errors.Add('Safe text BOM checks must use explicitly typed byte arrays; target-typed byte collection expressions previously failed compilation.') }
+$runtime = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/CouncilRuntimeService.cs') -Raw
+foreach ($forbidden in @('ChatResponseUpdate? CreateUpdate(', 'EngineeringBenchmarkLaneResult? NotRunLane(', 'GeneratedArchetypePage? ArchetypePage(', 'MinecraftDatapackVersionInfo? MinecraftDatapackVersionInfoKnown(')) {
+    if ($runtime.Contains($forbidden, [StringComparison]::Ordinal)) { $errors.Add("CouncilRuntimeService must not restore nullable orchestration contract '$forbidden'.") }
+}
 if ($errors.Count) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
 Write-Host 'Database-first architecture and carried-forward task contracts verified.'

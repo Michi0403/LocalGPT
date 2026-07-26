@@ -323,7 +323,7 @@ namespace LocalGPT.Services
             
         }
         //Todo get rid of it centralize
-        private async Task<LocalGptMemoryDbContext?> CreateDbContextAsync(CancellationToken cancellationToken)
+        private async Task<LocalGptMemoryDbContext> CreateDbContextAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -337,7 +337,7 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not create the LocalGPT database context.");
-                return null;
+                throw new InvalidOperationException("LocalGPT could not initialize its database context.", ex);
             }
         }
     }

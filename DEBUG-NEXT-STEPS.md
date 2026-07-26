@@ -81,3 +81,15 @@ The full release gate still requires Debug and Release builds for the exact pack
 ## What to send back
 
 Send the **first compiler errors from the LocalGPT project**, plus approximately 15 source lines around each location. Do not start with wrapper `CS0006` or `WMC1006` unless the LocalGPT project itself built successfully.
+
+
+## Compiler-feedback batch after database-first candidate
+
+The next owner build should specifically confirm:
+
+1. DXChat model preset Save/Archive resolves the shared UI action wrapper.
+2. AI Council continuation compiles and can continue a selected saved memory conversation.
+3. Safe text import recognizes UTF-8/UTF-16 BOMs without C# collection-expression errors.
+4. Theme service resolves its default theme at startup.
+5. Minecraft dependency and datapack helpers return explicit `NeedsVerification` fallbacks rather than null.
+6. Wrapper `CS0006`/`WMC1006` are evaluated only after the root `LocalGPT.dll` is produced.

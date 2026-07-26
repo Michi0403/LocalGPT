@@ -5,7 +5,7 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services
 {
-    public class ThemeService()
+    public class ThemeService
     {
         public const string DEFAULT_THEME_NAME = "office-white";
         readonly string[] NEW_BLAZOR_THEMES = [DEFAULT_THEME_NAME, "blazing-dark", "purple", "office-white", "fluent-light", "fluent-dark"];
@@ -16,18 +16,21 @@ namespace LocalGPT.Services
             { "default-dark", "androidstudio" }
         };
 
-        readonly Theme defaultTheme;
+        private readonly Theme defaultTheme;
         public Theme ActiveTheme { get; private set; }
         public List<ThemeSet> ThemeSets { get; }
         public IThemeChangeRequestDispatcher? ThemeChangeRequestDispatcher { get; set; }
         public IThemeLoadNotifier? ThemeLoadNotifier { get; set; }
         private readonly ILogger<ThemeService> logger;
-        public ThemeService(ILogger<ThemeService> logger) : this()
-        {
-            this.logger = logger;
-            ThemeSets = CreateSets(this, logger);
 
-            ActiveTheme = defaultTheme = FindThemeByName(DEFAULT_THEME_NAME)!;
+        public ThemeService(ILogger<ThemeService> logger)
+        {
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            ThemeSets = CreateSets(this, logger) ?? [];
+            defaultTheme = FindThemeByName(DEFAULT_THEME_NAME)
+                ?? ThemeSets.SelectMany(set => set.Themes).FirstOrDefault()
+                ?? throw new InvalidOperationException("No DevExpress themes are configured.");
+            ActiveTheme = defaultTheme;
         }
 
         public string GetThemeCssUrl(Theme theme)
@@ -85,7 +88,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in SetActiveThemeByName themeName {themeName.ToString()}");
+                logger.LogError(ex, "Could not activate theme {ThemeName}.", themeName);
             }
          
         }

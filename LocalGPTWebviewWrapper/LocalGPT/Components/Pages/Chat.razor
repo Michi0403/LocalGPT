@@ -1908,6 +1908,30 @@
         }
     }
 
+
+    private async Task RunUiActionAsync(Func<Task> action, string operation)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        ComponentActivity.RecordInformation(nameof(Chat), operation, "The chat UI operation started.");
+        try
+        {
+            await action().ConfigureAwait(false);
+            ComponentActivity.RecordInformation(nameof(Chat), operation, "The chat UI operation completed.");
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Chat UI operation {Operation} was cancelled.", operation);
+            ComponentActivity.RecordWarning(nameof(Chat), operation, "The chat UI operation was cancelled.");
+            Notifier.ShowWarning(toastName, "The operation was cancelled.", "Operation cancelled");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Chat UI operation {Operation} failed; prompt, model output, and preset content were omitted from logs.", operation);
+            ComponentActivity.RecordFailure(nameof(Chat), operation, ex);
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+        }
+    }
+
     private void OnHumanCollaborationChanged() => _ = InvokeAsync(RefreshHumanCollaborationAsync);
 
     public void Dispose()

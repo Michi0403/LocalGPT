@@ -109,6 +109,16 @@ namespace LocalGPT.Services
                     StartedAtUtc = DateTime.UtcNow
                 };
                 collaborationRunId = result.RunId;
+                var continuedConversation = await LoadContinuationConversationAsync(
+                    request.ContinueConversationId,
+                    cancellationToken,
+                    logger).ConfigureAwait(false);
+                if (continuedConversation is not null)
+                {
+                    result.ContinuedFromConversationId = continuedConversation.Id;
+                    result.ContinuedFromTitle = continuedConversation.Title;
+                }
+
                 var humanProfile = await humanCollaboration.GetProfileAsync(cancellationToken).ConfigureAwait(false);
                 IReadOnlyList<string> collaborationMembers = humanProfile.IsEnabled
                     ? [.. participants, $"Human: {humanProfile.DisplayName}"]
@@ -1072,19 +1082,25 @@ namespace LocalGPT.Services
                 var tags = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/tags", cancellationToken).ConfigureAwait(false) ?? new OllamaTagsResponse();
                 var running = await MultiModelCouncilServiceProbeRunningModelNamesAsync(http, cancellationToken, logger).ConfigureAwait(false);
 
-                return tags.Models.Select(model => new MultiModelCouncilModelCandidate(
-                    model.Name,
-                    "Installed Ollama",
-                    endpoint,
-                    IsInstalled: true,
-                    IsConfigured: false,
-                    IsLoaded: running.Contains(model.Name),
-                    Details: string.Join(", ", new[]
+                return tags.Models
+                    .Where(model => !string.IsNullOrWhiteSpace(model.Name))
+                    .Select(model =>
                     {
-                        model.Details?.Family,
-                        model.Details?.ParameterSize,
-                        model.Details?.QuantizationLevel
-                    }.Where(value => !string.IsNullOrWhiteSpace(value)))))
+                        var modelName = model.Name!.Trim();
+                        return new MultiModelCouncilModelCandidate(
+                            modelName,
+                            "Installed Ollama",
+                            endpoint,
+                            IsInstalled: true,
+                            IsConfigured: false,
+                            IsLoaded: running.Contains(modelName),
+                            Details: string.Join(", ", new[]
+                            {
+                                model.Details?.Family,
+                                model.Details?.ParameterSize,
+                                model.Details?.QuantizationLevel
+                            }.Where(value => !string.IsNullOrWhiteSpace(value))));
+                    })
                     .ToList();
             }
             catch (Exception ex)
@@ -1297,7 +1313,11 @@ namespace LocalGPT.Services
             try
             {
                 var running = await http.GetFromJsonAsync<OllamaTagsResponse>("/api/ps", cancellationToken).ConfigureAwait(false) ?? new OllamaTagsResponse();
-                return running.Models.Select(model => model.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                return running.Models
+                    .Select(model => model.Name)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => name!.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {

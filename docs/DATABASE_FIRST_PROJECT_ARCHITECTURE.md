@@ -23,3 +23,10 @@ Human council participation has peer-quality status but no execution authority. 
 ## Change discipline
 
 The current changelog is the canonical iteration ledger. Open items must remain present in `docs/OPEN_TASKS.md` and the current changelog. Validation fails when the ledger or required architecture contracts disappear.
+
+
+## Failure-contract rule
+
+Orchestration helpers that promise a renderable stream update, version record, benchmark lane, or generated page must return a usable object. They may return an explicit `Error`/`NeedsVerification` fallback, but must not return `null` into collection initializers or downstream rendering. Operations where absence is a legitimate domain result—such as a missing saved conversation—remain nullable and must be checked at the caller.
+
+DXChat actions that save or archive persistent state must run through the component safety wrapper so logging, notification, and bounded activity memory remain consistent. Council continuation state must be loaded once at run start and reused for bootstrap and memory persistence.

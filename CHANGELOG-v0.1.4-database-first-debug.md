@@ -17,6 +17,12 @@ Status: **debug candidate; owner compile and runtime validation required**.
 - [x] Kept the non-blocking Human Collaboration Inbox, deferred one-use approvals, ambient human/council scopes, and human council participation.
 - [x] Updated the EF model snapshot for all entities introduced by the database-first migration.
 - [x] Added repository checks for the DI-cycle boundary and tracked architecture tasks.
+- [x] Restored the shared `RunUiActionAsync` safety wrapper in DXChat model-preset actions.
+- [x] Restored council continuation loading and persisted the continued conversation identity/title before bootstrap and memory save.
+- [x] Replaced ambiguous byte collection expressions in safe-text BOM detection with explicit byte arrays.
+- [x] Removed nullable helper contracts that could silently inject null stream updates, Minecraft version records, benchmark lanes, or generated archetype pages.
+- [x] Added defensive, visibly unverified Minecraft metadata fallbacks instead of null dereferences.
+- [x] Hardened AI endpoint discovery, chat database-context initialization, model discovery filtering, learn-base import failure handling, and theme initialization.
 
 ## Open tasks carried forward
 
