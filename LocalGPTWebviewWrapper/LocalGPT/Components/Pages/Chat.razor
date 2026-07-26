@@ -15,6 +15,7 @@
 @inject IVariableStoreService VariableStore
 @inject ILocalGptProjectService ProjectService
 @inject IModelPresetService ModelPresetService
+@inject ICouncilTeamConfigurationService CouncilTeamConfigurations
 @inject IChatSessionContext SessionContext
 @inject IHumanCollaborationService HumanCollaboration
 @inject ILocalHumanInteractionContext HumanAmbientContext
@@ -167,6 +168,19 @@
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       Enabled="@(!isModelPresetBusy && SelectedModelPreset is not null)"
                       Click="ArchiveModelPresetAsync" />
+        </div>
+        <div class="memory-toolbar council-team-toolbar" aria-label="AI Council team and heartbeat configuration" data-testid="council-team-picker">
+            <label title="Selects the database-backed roles, prompts and heartbeat workflow for the next AI Council run.">
+                <span>Council team</span>
+                <select @bind="SelectedCouncilTeamKey">
+                    @foreach (var team in CouncilTeams)
+                    {
+                        <option value="@team.Key">@team.DisplayName</option>
+                    }
+                </select>
+            </label>
+            <span class="memory-status">Roles, preparation prompts and heartbeat scripts are stored in SQLite and can be adjusted without replacing compiled services.</span>
+            <a class="btn btn-outline-secondary btn-sm" href="/council-teams">Edit teams and workflow</a>
         </div>
         <div class="memory-toolbar" aria-label="Chat memory controls">
             <span title="Writes the current DXAiChat messages into the local SQLite memory database.">
@@ -331,30 +345,49 @@
                 <AIChatSettings>
                     <DxAIChatFileUploadSettings 
                         MaxFileCount="@LocalGptCatalogService.MaxUploadFiles"
-                                                MaxFileSize="@LocalGptCatalogService.MaxUploadBytes"
-                                                FileTypeFilter="@Catalog.AllowedUploadMimeTypes" 
-                                                
-                                               />
+                        MaxFileSize="@LocalGptCatalogService.MaxUploadBytes" />
                 </AIChatSettings>
 
             </DxAIChat>
         </div>
-        @if (ActiveCouncilRun is not null)
+        @if (collaborationSnapshot.ActiveRuns.Count > 0)
         {
-            <div class="memory-toolbar human-live-contribution" aria-label="Add information to running AI Council">
+            <div class="memory-toolbar human-live-contribution" aria-label="Join and add information to a running AI Council">
+                <label title="Join any council heartbeat that is still running in this LocalGPT process.">
+                    <span>Running Council session</span>
+                    <select value="@SelectedCouncilRunValue" @onchange="OnActiveCouncilRunChanged">
+                        @foreach (var run in collaborationSnapshot.ActiveRuns.OrderByDescending(item => item.StartedAtUtc))
+                        {
+                            <option value="@run.RunId">@run.StartedAtUtc.ToLocalTime().ToString("g") · round @run.CurrentRound · @run.Phase · @string.Join(", ", run.CouncilMembers.Take(3))</option>
+                        }
+                    </select>
+                </label>
+                <DxButton Text="Refresh running sessions"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="RefreshHumanCollaborationAsync" />
+                @if (!collaborationSnapshot.Profile.IsEnabled)
+                {
+                    <DxButton Text="Enable human participation"
+                              RenderStyle="ButtonRenderStyle.Success"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Click="EnableHumanParticipationAsync" />
+                }
                 <label title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
                     <span>Ask AI Assistant / Council correction</span>
                     <input type="text"
-                           maxlength="4000"
                            @bind="RunningCouncilContribution"
                            placeholder="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
                 </label>
                 <DxButton Text="Share without stopping generation"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
-                          Enabled="@(!string.IsNullOrWhiteSpace(RunningCouncilContribution))"
+                          Enabled="@(collaborationSnapshot.Profile.IsEnabled && ActiveCouncilRun is not null && !string.IsNullOrWhiteSpace(RunningCouncilContribution))"
                           Click="QueueRunningCouncilContributionAsync" />
-                <span class="memory-status">Round @ActiveCouncilRun.CurrentRound · @ActiveCouncilRun.Phase</span>
+                @if (ActiveCouncilRun is not null)
+                {
+                    <span class="memory-status">Joined run @ActiveCouncilRunShortId · round @ActiveCouncilRun.CurrentRound · @ActiveCouncilRun.Phase</span>
+                }
             </div>
         }
         @if (FeedbackTargets.Count > 0)
@@ -438,6 +471,8 @@
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
     List<CouncilModelPreset> ModelPresets { get; set; } = new();
     CouncilModelPreset? SelectedModelPreset { get; set; }
+    List<OrganicCouncilTeamDefinition> CouncilTeams { get; set; } = [];
+    string SelectedCouncilTeamKey { get; set; } = "general";
     string ModelPresetName { get; set; } = string.Empty;
     bool CreateProjectPerCouncilRun { get; set; } = true;
     bool isModelPresetBusy;
@@ -459,8 +494,15 @@
     readonly CancellationTokenSource componentLifetimeCts = new();
     bool isDisposed;
     HumanCollaborationSnapshot collaborationSnapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
+    Guid? SelectedCouncilRunId { get; set; }
+    string SelectedCouncilRunValue => SelectedCouncilRunId?.ToString() ?? string.Empty;
+    string ActiveCouncilRunShortId => ActiveCouncilRun?.RunId.ToString("N")[..8] ?? string.Empty;
     string RunningCouncilContribution { get; set; } = string.Empty;
-    HumanCouncilRunSnapshot? ActiveCouncilRun => collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault();
+    HumanCouncilRunSnapshot? ActiveCouncilRun =>
+        (SelectedCouncilRunId is Guid selected
+            ? collaborationSnapshot.ActiveRuns.FirstOrDefault(run => run.RunId == selected)
+            : null)
+        ?? collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault();
     bool autoSaveFailureNotified;
     string lastSavedSignature = string.Empty;
 
@@ -477,6 +519,7 @@
             ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions.FirstOrDefault() ?? string.Empty;
 
             await LoadDatabaseBackedDefaultsAsync();
+            await LoadCouncilTeamsAsync().ConfigureAwait(false);
             PromptSuggestions = Catalog.GetSuggestion();
             await LoadChatProjectsAsync().ConfigureAwait(false);
             await RefreshMemoryAsync().ConfigureAwait(false);
@@ -504,6 +547,16 @@
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
+    }
+
+    private async Task LoadCouncilTeamsAsync()
+    {
+        var teams = await CouncilTeamConfigurations.GetTeamsAsync(includeDisabled: false).ConfigureAwait(false);
+        CouncilTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        if (CouncilTeams.Count == 0)
+            return;
+        if (CouncilTeams.All(team => !string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
+            SelectedCouncilTeamKey = CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
     }
 
     private async Task LoadDatabaseBackedDefaultsAsync()
@@ -939,7 +992,9 @@
                 SaveToMemory = true,
                 GenerateImplementationArtifact = userConfirmedArtifactBuild,
                 UserConfirmedArtifactBuild = userConfirmedArtifactBuild,
-                Title = "DXAiChat AI Council",
+                Title = $"DXAiChat AI Council · {CouncilTeams.FirstOrDefault(team => team.Key == SelectedCouncilTeamKey)?.DisplayName ?? SelectedCouncilTeamKey}",
+                UseOrganicCouncilWorkflow = true,
+                CouncilTeamKey = string.IsNullOrWhiteSpace(SelectedCouncilTeamKey) ? "general" : SelectedCouncilTeamKey,
                 ProjectId = SessionContext.ProjectId,
                 CreateProjectForRun = CreateProjectPerCouncilRun
             };
@@ -1889,12 +1944,48 @@
     {
         try
         {
-            collaborationSnapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 20).ConfigureAwait(false);
+            collaborationSnapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 100).ConfigureAwait(false);
+            if (SelectedCouncilRunId is not null && collaborationSnapshot.ActiveRuns.All(run => run.RunId != SelectedCouncilRunId))
+                SelectedCouncilRunId = null;
+            SelectedCouncilRunId ??= collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault()?.RunId;
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not refresh running council participation state; user and model content were omitted.");
+        }
+    }
+
+    private void OnActiveCouncilRunChanged(ChangeEventArgs args)
+    {
+        SelectedCouncilRunId = Guid.TryParse(args.Value?.ToString(), out var runId) ? runId : null;
+    }
+
+    private async Task EnableHumanParticipationAsync()
+    {
+        try
+        {
+            var current = collaborationSnapshot.Profile;
+            var enabled = new HumanCouncilParticipantProfile
+            {
+                Id = current.Id,
+                DisplayName = string.IsNullOrWhiteSpace(current.DisplayName) ? "Human User" : current.DisplayName,
+                RoleName = string.IsNullOrWhiteSpace(current.RoleName) ? "Human collaborator" : current.RoleName,
+                Expertise = current.Expertise,
+                WorkingStyle = current.WorkingStyle,
+                IsEnabled = true,
+                ProfileVersion = Math.Max(1, current.ProfileVersion),
+                UpdatedAtUtc = DateTime.UtcNow,
+                UpdatedBy = string.IsNullOrWhiteSpace(current.DisplayName) ? "Human User" : current.DisplayName
+            };
+            await HumanCollaboration.SaveProfileAsync(enabled).ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, "You can now contribute to the selected running Council heartbeat.", "Human participation enabled");
+            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not enable the local human council participant profile.");
+            Notifier.ShowError(toastName, "Human participation could not be enabled. Review LocalGPT logs.", "Human participation");
         }
     }
 

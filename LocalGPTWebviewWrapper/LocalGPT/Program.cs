@@ -310,6 +310,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
                 builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
+                builder.Services.AddScoped<ILearningRoundService, LearningRoundService>();
                 builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
                 builder.Services.AddScoped<IProjectArchitectureService, ProjectArchitectureService>();
                 builder.Services.AddScoped<IModelPresetService, ModelPresetService>();
@@ -363,6 +364,19 @@ namespace LocalGPT
                 builder.Services.Configure<CircuitOptions>(options =>
                     options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
                 builder.Services.AddOptions();
+                builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+                {
+                    // LocalGPT is an offline loopback application. Keep framework limits out of the way and
+                    // let available disk/memory plus the selected local model determine the practical ceiling.
+                    options.MultipartBodyLengthLimit = long.MaxValue;
+                    options.ValueLengthLimit = int.MaxValue;
+                    options.KeyLengthLimit = int.MaxValue;
+                    options.MultipartHeadersLengthLimit = int.MaxValue;
+                    options.MultipartHeadersCountLimit = int.MaxValue;
+                    options.MemoryBufferThreshold = int.MaxValue;
+                    options.BufferBody = true;
+                    options.BufferBodyLengthLimit = long.MaxValue;
+                });
                 builder.Services.AddHttpContextAccessor();
 
             }
@@ -375,7 +389,13 @@ namespace LocalGPT
 
         private static void ConfigureSignalR(IServiceCollection services, ILogger logger)
         {
-            services.AddSignalR()
+            services.AddSignalR(options =>
+                {
+                    // Unlimited on the trusted local loopback transport. This permits large offline media and
+                    // document attachments without an arbitrary cloud-style message ceiling.
+                    options.MaximumReceiveMessageSize = null;
+                    options.EnableDetailedErrors = true;
+                })
                 .AddMessagePackProtocol(options =>
                 {
                     options.SerializerOptions = MessagePack.MessagePackSerializerOptions.Standard
@@ -394,7 +414,14 @@ namespace LocalGPT
             try
             {
                 var port = requestedPort > 0 ? requestedPort : GetFreePort(logger);
-                builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{port}");
+                builder.WebHost.ConfigureKestrel(options =>
+                {
+                    // Local-only/offline host: avoid artificial request size limits for user-selected files,
+                    // videos, audio, archives and model-compatible media. The listener remains loopback-only.
+                    options.Limits.MaxRequestBodySize = null;
+                    options.Limits.MaxRequestBufferSize = null;
+                });
+                builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
                 return port;
             }
             catch (Exception ex)

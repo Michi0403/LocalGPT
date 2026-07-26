@@ -23,6 +23,8 @@ namespace LocalGPT.Services
         IChatMemoryMessageMapper messageMapper,
         IChatSessionContext sessionContext) : IChatMemoryService
     {
+        private readonly SemaphoreSlim saveGate = new(1, 1);
+
         public string DatabasePath => databaseOptions.DatabasePath;
 
         public async Task<IReadOnlyList<ChatMemoryConversationSummary>> GetConversationsAsync(int take = 50, CancellationToken cancellationToken = default)
@@ -102,6 +104,7 @@ namespace LocalGPT.Services
             Guid? conversationId = null,
             CancellationToken cancellationToken = default)
         {
+            await saveGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 var completeMessages = messages
@@ -199,6 +202,10 @@ namespace LocalGPT.Services
             {
                 logger.LogError(ex, "Could not save the conversation for provider {ProviderName}; conversation {ConversationId}.", providerName, conversationId);
                 return null;
+            }
+            finally
+            {
+                saveGate.Release();
             }
         }
 

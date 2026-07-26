@@ -92,6 +92,7 @@ public sealed class RegexPatternService(
                 "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
                 "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
                 "compiled" => RegexOptions.Compiled,
+                "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
                 "ecmascript" => RegexOptions.ECMAScript,
                 "none" => RegexOptions.None,
                 _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
