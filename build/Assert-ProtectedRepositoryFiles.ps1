@@ -40,6 +40,7 @@ $expectedFiles = @(
     'build/README.md',
     'build/RepositoryValidation.Common.ps1',
     'build/Assert-CSharpSyntax.ps1',
+    'build/Assert-ProjectClosure.ps1',
     'build/Assert-ComponentSafety.ps1',
     'build/Assert-WorkflowContracts.ps1',
     'build/Assert-HumanCollaboration.ps1',

@@ -288,3 +288,11 @@ html, body {
     }
 }
 
+
+/* Database-backed Council team and heartbeat script editor. */
+.council-team-page{display:grid;gap:1rem;padding:1rem;color:var(--localgpt-body-color);background:var(--localgpt-body-bg)}
+.council-team-header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.council-team-header h1{margin:0 0 .35rem}.council-team-header p{margin:0;max-width:75rem;color:var(--localgpt-secondary-color)}
+.council-team-grid{display:grid;grid-template-columns:minmax(15rem,22rem) minmax(0,1fr);gap:1rem}.council-team-list,.council-team-editor{display:grid;align-content:start;gap:.75rem;padding:1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius-lg);background:var(--localgpt-surface-bg)}
+.council-team-list-item{display:grid;gap:.2rem;width:100%;padding:.7rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);text-align:left;color:var(--localgpt-body-color);background:var(--localgpt-control-bg)}.council-team-list-item.active{border-color:var(--localgpt-primary);box-shadow:inset .2rem 0 0 var(--localgpt-primary)}.council-team-list-item span,.council-team-list-item small{overflow-wrap:anywhere;color:var(--localgpt-secondary-color)}
+.council-team-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.council-team-fields label{display:grid;gap:.3rem}.council-team-fields label.wide{grid-column:1/-1}.council-script{font-family:Consolas,"Courier New",monospace;font-size:.85rem;white-space:pre-wrap}.council-team-savebar{position:sticky;bottom:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:1rem;padding:.75rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-raised-bg);box-shadow:var(--localgpt-shadow-soft)}
+@media(max-width:900px){.council-team-grid{grid-template-columns:1fr}.council-team-fields{grid-template-columns:1fr}.council-team-fields label.wide{grid-column:auto}.council-team-header{flex-direction:column}}

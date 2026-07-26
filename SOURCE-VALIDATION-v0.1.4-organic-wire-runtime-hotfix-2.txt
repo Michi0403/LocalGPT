@@ -1,0 +1,20 @@
+LocalGPT v0.1.4 organic-wire runtime hotfix 2
+Source validation report
+Generated: 2026-07-26
+
+PASSED
+- Parsed 4 maintained C# project files.
+- Resolved every maintained ProjectReference target.
+- Parsed 9 maintained JSON files.
+- Verified the authoritative LocalGPT.WireProtocolVersion project and PublisherStudio source mirror are byte-identical.
+- Verified Program.DefaultPort = 5000, public read-only Program.Port, Program.BaseUrl, and explicit System.Threading.Volatile qualification.
+- Verified protocol v1.3 bidirectional interaction fields and provider/transport interfaces.
+- Verified atomic chat snapshot replacement: transaction, set-based delete, explicit ConversationId, commit, and no tracked Messages.Clear operation.
+- Verified ThemeSwitcherContainer dispatches renderer-owned callbacks through InvokeAsync and contains no ConfigureAwait(false).
+- Verified the EF snapshot contains hardware roads, model routes, organic skills, project/member links, and editable Council team configurations.
+- Verified all 46 protected-file SHA-256 entries.
+- Verified changelog and explicit MISSING_FEATURES ledger are present.
+
+NOT CLAIMED
+- No native .NET 10, WinUI, Windows App SDK, installer, or licensed DevExpress compile was performed in this environment.
+- Michael's owner workstation remains the compiler and real hardware/browser authority.

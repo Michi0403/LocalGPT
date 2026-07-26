@@ -50,6 +50,7 @@
                 <DxGrid Data="@KnowledgeEntries"
                         PageSize="8"
                         ShowSearchBox="true"
+                        TextWrapEnabled="true"
                         CssClass="database-grid">
                     <Columns>
                         <DxGridDataColumn FieldName="@nameof(CouncilKnowledgeEntry.Topic)" Caption="Topic" />
@@ -246,6 +247,7 @@
         {
             <DxGrid Data="@Tables"
                     PageSize="8"
+                    TextWrapEnabled="true"
                     CssClass="database-grid table-list">
                 <Columns>
                     <DxGridDataColumn FieldName="@nameof(SqliteTableSummary.Name)" Caption="Table" />
@@ -264,7 +266,8 @@
                     <DxGrid Data="@GridRows"
                             PageSize="15"
                             ShowSearchBox="true"
-                            CssClass="database-grid">
+                            TextWrapEnabled="true"
+                            CssClass="database-grid database-grid-preview">
                         <Columns>
                             <DxGridDataColumn FieldName="__rowid" Caption="rowid" />
                             @foreach (var column in CurrentTable.Columns)

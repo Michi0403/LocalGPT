@@ -27,6 +27,10 @@
 	  </RuntimeIdentifiers>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj" />
+  </ItemGroup>
+
 	<ItemGroup>
 		
 		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" />

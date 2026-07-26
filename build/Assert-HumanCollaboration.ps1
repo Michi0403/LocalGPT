@@ -93,6 +93,20 @@ if (-not $layout.Contains('<HumanCollaborationInbox />', [System.StringCompariso
     $errors.Add('The Human Collaboration Inbox must remain mounted in MainLayout.')
 }
 
+
+$humanInbox = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/HumanCollaborationInbox.razor'
+$humanInboxCss = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/HumanCollaborationInbox.razor.css'
+foreach ($token in @('human-approval-bar', 'Review and work through', 'PendingRequests.Count > 0', 'OpenApprovalPanel', 'HideApprovalBar')) {
+    if (-not $humanInbox.Contains($token, [System.StringComparison]::Ordinal)) {
+        $errors.Add("Human approval work bar must retain '$token'.")
+    }
+}
+foreach ($token in @('.human-approval-bar', 'position: fixed', 'var(--bs-body-bg)', 'var(--bs-body-color)')) {
+    if (-not $humanInboxCss.Contains($token, [System.StringComparison]::Ordinal)) {
+        $errors.Add("Human approval work bar CSS must retain '$token'.")
+    }
+}
+
 $filter = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Security/HumanApprovalActionFilter.cs'
 foreach ($required in @(
     'StatusCodes.Status202Accepted',

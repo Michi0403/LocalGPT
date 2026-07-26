@@ -29,6 +29,7 @@ if ($currentFingerprint -ne $stamp.SourceFingerprint) {
     throw 'Source changed after the successful build. Re-run repository validation before packaging.'
 }
 
+& (Join-Path $PSScriptRoot 'Assert-ProjectClosure.ps1')
 & (Join-Path $PSScriptRoot 'Assert-CSharpSyntax.ps1')
 & (Join-Path $PSScriptRoot 'Assert-SourceFormatting.ps1')
 

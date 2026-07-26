@@ -113,19 +113,23 @@ namespace LocalGPT.Services
 
                 await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
+                await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
                 var now = DateTime.UtcNow;
                 ChatMemoryConversation conversation;
 
+                var isNewConversation = false;
                 if (conversationId is Guid id)
                 {
                     conversation = await db.Conversations
-                        .Include(item => item.Messages)
-                        .SingleOrDefaultAsync(item => item.Id == id, cancellationToken).ConfigureAwait(false)
+                        .SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
+                        .ConfigureAwait(false)
                         ?? new ChatMemoryConversation { Id = id, CreatedAtUtc = now };
+                    isNewConversation = db.Entry(conversation).State == EntityState.Detached;
                 }
                 else
                 {
                     conversation = new ChatMemoryConversation { CreatedAtUtc = now };
+                    isNewConversation = true;
                 }
 
                 conversation.Title = messageMapper.BuildTitle(completeMessages);
@@ -134,15 +138,36 @@ namespace LocalGPT.Services
                 conversation.ProjectVersionId = sessionContext.ProjectVersionId;
                 conversation.ApplicationVersion = sessionContext.ApplicationVersion;
                 conversation.UpdatedAtUtc = now;
-                var previousFeedback = conversation.Messages.ToDictionary(
-                    message => (message.SortOrder, message.Role, message.Content),
-                    message => new
-                    {
-                        message.IsPositiveFeedback,
-                        message.FeedbackComment,
-                        message.FeedbackUpdatedAtUtc
-                    });
-                conversation.Messages.Clear();
+
+                // Do not clear a tracked required child collection. With DeleteBehavior.Restrict that severs
+                // required relationships before EF can mark the old rows for deletion and causes conceptual-null
+                // failures during long Council autosaves. Read feedback without tracking, delete the old rows in
+                // one database operation, then insert the replacement snapshot with explicit foreign keys.
+                var previousFeedback = await db.Messages
+                    .AsNoTracking()
+                    .Where(message => message.ConversationId == conversation.Id)
+                    .ToDictionaryAsync(
+                        message => (message.SortOrder, message.Role, message.Content),
+                        message => new
+                        {
+                            message.IsPositiveFeedback,
+                            message.FeedbackComment,
+                            message.FeedbackUpdatedAtUtc
+                        },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!isNewConversation)
+                {
+                    await db.Messages
+                        .Where(message => message.ConversationId == conversation.Id)
+                        .ExecuteDeleteAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    db.Conversations.Add(conversation);
+                }
 
                 var index = 0;
                 foreach (var message in completeMessages)
@@ -150,12 +175,13 @@ namespace LocalGPT.Services
                     var sortOrder = index++;
                     var role = messageMapper.ToRoleName(message.Role);
                     previousFeedback.TryGetValue((sortOrder, role, message.Content), out var feedback);
-                    conversation.Messages.Add(new ChatMemoryMessage
+                    db.Messages.Add(new ChatMemoryMessage
                     {
+                        ConversationId = conversation.Id,
                         SortOrder = sortOrder,
                         Role = role,
                         Content = message.Content,
-                        Thinking = councilText.ExtractThinking(message.Content,logger),
+                        Thinking = councilText.ExtractThinking(message.Content, logger),
                         IsPositiveFeedback = feedback?.IsPositiveFeedback,
                         FeedbackComment = feedback?.FeedbackComment ?? string.Empty,
                         FeedbackUpdatedAtUtc = feedback?.FeedbackUpdatedAtUtc,
@@ -163,10 +189,8 @@ namespace LocalGPT.Services
                     });
                 }
 
-                if (db.Entry(conversation).State == EntityState.Detached)
-                    db.Conversations.Add(conversation);
-
                 await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                 sessionContext.SetConversation(conversation.Id);
                 logger.LogInformation("Saved chat memory conversation {ConversationId} with {MessageCount} messages.", conversation.Id, completeMessages.Count);
                 return conversation.Id;

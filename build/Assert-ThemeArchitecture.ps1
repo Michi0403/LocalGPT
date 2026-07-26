@@ -98,6 +98,17 @@ foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'Request.Cookie
     }
 }
 
+
+$themeSwitcherContainer = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor'
+foreach ($token in @('await InvokeAsync(async () =>', 'await ShownChanged.InvokeAsync(shown)', 'await ThemeNameChanged.InvokeAsync(ThemeName)')) {
+    if (-not $themeSwitcherContainer.Contains($token, [StringComparison]::Ordinal)) {
+        $errors.Add("ThemeSwitcherContainer must retain dispatcher-safe token '$token'.")
+    }
+}
+if ($themeSwitcherContainer.Contains('ConfigureAwait(false)', [StringComparison]::Ordinal)) {
+    $errors.Add('Blazor theme component callbacks must not leave the renderer dispatcher with ConfigureAwait(false).')
+}
+
 $minecraft = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Controller/MinecraftDiagnosticController.cs'
 if (-not $minecraft.Contains('?? throw new InvalidOperationException("The approved datapack build did not produce a command result.")', [StringComparison]::Ordinal)) {
     $errors.Add('MinecraftDiagnosticController must handle a missing approved command result explicitly.')

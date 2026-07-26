@@ -343,13 +343,13 @@
         {
             <div class="memory-toolbar human-live-contribution" aria-label="Add information to running AI Council">
                 <label title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
-                    <span>Join running council</span>
+                    <span>Ask AI Assistant / Council correction</span>
                     <input type="text"
                            maxlength="4000"
                            @bind="RunningCouncilContribution"
-                           placeholder="Add evidence, correction, constraint, or your own answer while the council keeps working." />
+                           placeholder="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
                 </label>
-                <DxButton Text="Add to next heartbeat"
+                <DxButton Text="Share without stopping generation"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Enabled="@(!string.IsNullOrWhiteSpace(RunningCouncilContribution))"
@@ -928,7 +928,9 @@
                 BaseUri = selectedEndpoint,
                 MaxRounds = 0,
                 MaxOutputTokens = ResolveCouncilOutputTokens(),
-                MaxParallelModels = 1,
+                MaxParallelModels = Math.Max(1, SelectedModelPreset?.MaxParallelModels ?? 1),
+                AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
+                ModelRoutes = ParseModelRoutes(SelectedModelPreset?.ModelRoutesJson),
                 MaxContextTokens = ResolveCouncilContextTokens(),
                 ModelTimeoutSeconds = 1800,
                 OllamaKeepAlive = "0s",
@@ -949,6 +951,20 @@
             return new();
         }
 
+    }
+
+    private static List<OneWireCouncilModelRoute> ParseModelRoutes(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<OneWireCouncilModelRoute>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 
     private string ResolveCouncilDownloadUrl(string downloadUrl)
@@ -1343,6 +1359,8 @@
                     Name = ModelPresetName,
                     Description = "Saved from the DXChat council model selector.",
                     ModelNamesJson = JsonSerializer.Serialize(SelectedCouncilModelNames),
+                    ModelRoutesJson = SelectedModelPreset?.ModelRoutesJson ?? "[]",
+                    AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
                     MaxOutputTokens = CouncilMaxOutputTokens,
                     MaxContextTokens = CouncilMaxContextTokens,
                     MaxParallelModels = 1,

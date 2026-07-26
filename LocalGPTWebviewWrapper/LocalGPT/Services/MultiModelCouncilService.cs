@@ -26,6 +26,8 @@ namespace LocalGPT.Services
         IHumanCollaborationService humanCollaboration,
         IDeferredDxAiInvocationService deferredDxAiInvocations,
         IOrganicCouncilBlueprintService organicCouncilBlueprints,
+        ICouncilHardwareRoadPlanner hardwareRoadPlanner,
+        IModelCapabilitySelfAssessmentService modelSelfAssessment,
         IAmbientLocalGptContext ambientContext,
         ILogger<MultiModelCouncilService> logger,
         CouncilRuntimeService councilRuntime,
@@ -103,6 +105,12 @@ namespace LocalGPT.Services
                 var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
                 var keepAlive = MultiModelCouncilServiceGetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
                 var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
+                var modelRoutes = hardwareRoadPlanner.BuildPlans(
+                    request.ModelRoutes,
+                    participants,
+                    request.MaxOutputTokens,
+                    maxContextTokens,
+                    ollamaNumGpu);
                 var result = new MultiModelCouncilResult
                 {
                     Prompt = request.Prompt.Trim(),
@@ -164,6 +172,8 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Only one council model is selected. Add another installed Ollama model on Install or type its model name manually for real cross-model negotiation.");
                 if (participants.Count > maxParallelModels)
                     result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
+                if (request.AllowParallelHardwareRoads && modelRoutes.Values.Select(route => route.LaneKey).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+                    result.Warnings.Add("Hardware-road scheduling is active: council members on different CPU/GPU lanes may contribute concurrently; each lane remains single-flight to prevent model races.");
                 if (request.MaxOutputTokens > 32768)
                     result.Warnings.Add("Very large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
                 if (maxContextTokens < 64000)
@@ -198,7 +208,9 @@ namespace LocalGPT.Services
                         bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Database-first project architecture", architectureBriefing, logger);
                 }
 
-                var organicTeam = organicCouncilBlueprints.FindTeam(request.CouncilTeamKey) ?? organicCouncilBlueprints.FindTeam("general")!;
+                var organicTeam = await organicCouncilBlueprints.FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false)
+                    ?? await organicCouncilBlueprints.FindTeamAsync("general", cancellationToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("No enabled organic council team is available.");
                 if (request.UseOrganicCouncilWorkflow || !string.IsNullOrWhiteSpace(request.CouncilTeamKey) && !string.Equals(request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase))
                 {
                     var organicBriefing = await organicCouncilBlueprints.BuildBriefingAsync(request, cancellationToken).ConfigureAwait(false);
@@ -263,6 +275,8 @@ namespace LocalGPT.Services
                     request.ProgressMessage,
                     request.StreamUpdate,
                     request.StepCompleted,
+                    modelRoutes,
+                    request.AllowParallelHardwareRoads,
                     cancellationToken).ConfigureAwait(false);
 
                 var critiqueRounds = Math.Clamp(request.MaxRounds, 0, 3);
@@ -299,6 +313,8 @@ namespace LocalGPT.Services
                         request.ProgressMessage,
                         request.StreamUpdate,
                         request.StepCompleted,
+                        modelRoutes,
+                        request.AllowParallelHardwareRoads,
                         cancellationToken).ConfigureAwait(false);
                 }
 
@@ -793,6 +809,8 @@ namespace LocalGPT.Services
             Action<string>? progressMessage,
             Action<string>? streamUpdate,
             Action<MultiModelCouncilStep>? stepCompleted,
+            IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
+            bool allowParallelHardwareRoads,
             CancellationToken cancellationToken)
         {
             try
@@ -803,23 +821,46 @@ namespace LocalGPT.Services
                 // HTML from multiple model streams. Keep streamed presentation ordered;
                 // non-streaming council runs still honor configured model parallelism.
                 var effectiveMaxParallelModels = streamUpdate is null ? maxParallelModels : 1;
-                using var gate = new SemaphoreSlim(effectiveMaxParallelModels, effectiveMaxParallelModels);
+                using var globalGate = new SemaphoreSlim(effectiveMaxParallelModels, effectiveMaxParallelModels);
+                var laneGates = modelRoutes.Values
+                    .GroupBy(plan => allowParallelHardwareRoads ? plan.LaneKey : "council:single-lane", StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => new SemaphoreSlim(
+                            allowParallelHardwareRoads ? Math.Max(1, group.Min(plan => plan.MaxConcurrentModelsOnLane)) : 1,
+                            allowParallelHardwareRoads ? Math.Max(1, group.Min(plan => plan.MaxConcurrentModelsOnLane)) : 1),
+                        StringComparer.OrdinalIgnoreCase);
+
                 var tasks = participants
                     .Select(async modelName =>
                     {
-                        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        var plan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
+                            ? configuredPlan
+                            : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                        var laneKey = allowParallelHardwareRoads ? plan.LaneKey : "council:single-lane";
+                        var laneGate = laneGates[laneKey];
+                        await globalGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        await laneGate.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try
                         {
-                            var participantGpuLayers = MultiModelCouncilServiceResolveParticipantOllamaNumGpu(modelName, ollamaNumGpu, logger);
-                            progressMessage?.Invoke($"Starting {modelName}: {phase} / {role}. Ollama num_gpu={(participantGpuLayers?.ToString() ?? "auto")}.");
-                            var step = await RunParticipantAsync(baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap, maxOutputTokens, keepAlive, participantGpuLayers, maxContextTokens, modelTimeoutSeconds, streamUpdate, cancellationToken).ConfigureAwait(false);
+                            progressMessage?.Invoke($"Starting {modelName}: {phase} / {role} on {plan.LaneKey}. Ollama num_gpu={(plan.OllamaNumGpu?.ToString() ?? "auto")}; output={plan.EffectiveMaxOutputTokens}; context={plan.EffectiveMaxContextTokens}.");
+                            var step = await RunParticipantAsync(
+                                baseUri, modelName, participants, round, phase, role, promptFactory(modelName), bootstrap,
+                                plan.EffectiveMaxOutputTokens, keepAlive, plan.OllamaNumGpu, plan.EffectiveMaxContextTokens,
+                                modelTimeoutSeconds, streamUpdate, cancellationToken).ConfigureAwait(false);
                             ArgumentNullException.ThrowIfNull(step);
+                            step.HardwareLane = plan.LaneKey;
+                            step.HardwareKind = plan.HardwareKind;
+                            step.HardwareIndex = plan.HardwareIndex;
+                            step.EffectiveMaxOutputTokens = plan.EffectiveMaxOutputTokens;
+                            step.EffectiveMaxContextTokens = plan.EffectiveMaxContextTokens;
                             stepCompleted?.Invoke(step);
                             return step;
                         }
                         finally
                         {
-                            gate.Release();
+                            laneGate.Release();
+                            globalGate.Release();
                         }
                     })
                     .ToList();
@@ -843,6 +884,9 @@ namespace LocalGPT.Services
                 {
                     MultiModelCouncilServiceAddOrderedStep(result, step, logger);
                 }
+
+                foreach (var laneGate in laneGates.Values)
+                    laneGate.Dispose();
             }
             catch (Exception ex)
             {
@@ -969,6 +1013,10 @@ namespace LocalGPT.Services
                     var visibleContent = councilText.MultiModelCouncilServiceStripThinking(content, logger);
                     if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
                         visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
+
+                    visibleContent = await modelSelfAssessment
+                        .CaptureAndStripAsync(modelName, visibleContent, participantCts.Token)
+                        .ConfigureAwait(false);
 
                     if (MultiModelCouncilServiceIsThinkingOnlyCouncilContent(visibleContent, logger))
                     {

@@ -58,8 +58,8 @@
             if (Themes.ThemeChangeRequestDispatcher is null)
                 throw new InvalidOperationException("The theme change dispatcher is not ready yet.");
 
-            await Themes.ThemeChangeRequestDispatcher.RequestThemeChangeAsync(theme).ConfigureAwait(false);
-            await ToggleThemeSwitcherPanel(false).ConfigureAwait(false);
+            await Themes.ThemeChangeRequestDispatcher.RequestThemeChangeAsync(theme);
+            await ToggleThemeSwitcherPanel(false);
         }
         catch (OperationCanceledException)
         { /* ignored – user navigated */
@@ -75,10 +75,13 @@
     public async Task NotifyThemeLoadedAsync(Theme theme) {
         try
         {
-            Themes.SetActiveTheme(theme);
-            ThemeName = theme.Name;
-            await ThemeNameChanged.InvokeAsync(ThemeName).ConfigureAwait(false);
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(async () =>
+            {
+                Themes.SetActiveTheme(theme);
+                ThemeName = theme.Name;
+                await ThemeNameChanged.InvokeAsync(ThemeName);
+                StateHasChanged();
+            });
         }
         catch (OperationCanceledException)
         { /* ignored – user navigated */
@@ -94,10 +97,14 @@
     async Task ToggleThemeSwitcherPanel(bool shown) {
         try
         {
-            if (shown == Shown)
-                return;
-            Shown = shown;
-            await ShownChanged.InvokeAsync(shown).ConfigureAwait(false);
+            await InvokeAsync(async () =>
+            {
+                if (shown == Shown)
+                    return;
+                Shown = shown;
+                await ShownChanged.InvokeAsync(shown);
+                StateHasChanged();
+            });
         }
         catch (OperationCanceledException)
         { /* ignored – user navigated */

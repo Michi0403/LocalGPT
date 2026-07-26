@@ -5,8 +5,9 @@ $initializationPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT
 $compatibilityPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/DatabaseMigrationCompatibilityService.cs'
 $initialMigrationPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Migrations/20260616222639_Initial.cs'
 $architecturePath = Join-Path $RepositoryRoot 'docs/DATABASE_MIGRATION_BOOTSTRAP.md'
+$chatMemoryPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/EfChatMemoryService.cs'
 
-foreach ($path in @($initializationPath, $compatibilityPath, $initialMigrationPath, $architecturePath)) {
+foreach ($path in @($initializationPath, $compatibilityPath, $initialMigrationPath, $architecturePath, $chatMemoryPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Required migration-bootstrap file is missing: $path"
     }
@@ -16,6 +17,7 @@ $initialization = Get-Content -LiteralPath $initializationPath -Raw
 $compatibility = Get-Content -LiteralPath $compatibilityPath -Raw
 $initial = Get-Content -LiteralPath $initialMigrationPath -Raw
 $architecture = Get-Content -LiteralPath $architecturePath -Raw
+$chatMemory = Get-Content -LiteralPath $chatMemoryPath -Raw
 $errors = [System.Collections.Generic.List[string]]::new()
 
 foreach ($token in @(
@@ -78,6 +80,33 @@ foreach ($token in @(
     if (-not $architecture.Contains($token, [StringComparison]::OrdinalIgnoreCase)) {
         $errors.Add("Database migration architecture documentation must retain '$token'.")
     }
+}
+
+
+foreach ($token in @(
+    '20260726133000_AddOrganicSkillsAndHardwareRoutes',
+    '20260726150000_AddCouncilTeamScripting',
+    'TryRepairKnownMigrationAsync',
+    'AddColumnIfMissingAsync',
+    'ArchiveMalformedIdentityTableAsync',
+    'sourceConnection.BackupDatabase(destinationConnection)')) {
+    if (-not $compatibility.Contains($token, [StringComparison]::Ordinal)) {
+        $errors.Add("Database compatibility must retain lossless organic/council repair token '$token'.")
+    }
+}
+
+foreach ($token in @(
+    'BeginTransactionAsync',
+    '.AsNoTracking()',
+    '.ExecuteDeleteAsync(cancellationToken)',
+    'ConversationId = conversation.Id',
+    'transaction.CommitAsync')) {
+    if (-not $chatMemory.Contains($token, [StringComparison]::Ordinal)) {
+        $errors.Add("Chat memory snapshot replacement must retain '$token'.")
+    }
+}
+if ($chatMemory.Contains('conversation.Messages.Clear()', [StringComparison]::Ordinal)) {
+    $errors.Add('Chat memory autosave must not clear a tracked required Messages collection; that causes conceptual-null failures with the required foreign key.')
 }
 
 $migrationDirectory = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Migrations'

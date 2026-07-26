@@ -336,6 +336,7 @@ namespace LocalGPT
                     builder.Services.AddScoped(typeof(IDxAiFunctionHandler), handlerType);
                 logger.LogInformation("Registered {DxAiFunctionHandlerCount} DI-backed DXAIFunction handler(s).", dxAiHandlerTypes.Count);
                 builder.Services.AddScoped<IProjectOrganicContextService, ProjectOrganicContextService>();
+                builder.Services.AddScoped<ICouncilTeamConfigurationService, CouncilTeamConfigurationService>();
                 builder.Services.AddScoped<IOrganicCouncilBlueprintService, OrganicCouncilBlueprintService>();
                 builder.Services.Configure<OneWireOptions>(builder.Configuration.GetSection(OneWireOptions.SectionName));
                 builder.Services.AddSingleton<IOneWireEnvelopeCodec, OneWireEnvelopeCodec>();
@@ -350,6 +351,8 @@ namespace LocalGPT
                 builder.Services.AddHostedService<OneWireDiscoveryHostedService>();
                 builder.Services.AddHostedService<OneWireCouncilApprovalProcessorHostedService>();
                 builder.Services.AddHostedService<OneWireWorkProcessorHostedService>();
+                builder.Services.AddScoped<IModelCapabilitySelfAssessmentService, LocalGPT.Services.Council.Skills.ModelCapabilitySelfAssessmentService>();
+                builder.Services.AddSingleton<ICouncilHardwareRoadPlanner, LocalGPT.Services.Council.Scheduling.CouncilHardwareRoadPlanner>();
                 builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
                 builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
                 builder.Services.AddScoped<IChatClient>(sp =>

@@ -16,6 +16,10 @@ namespace LocalGPT.BusinessObjects
 
         public int MaxParallelModels { get; set; } = 1;
 
+        public bool AllowParallelHardwareRoads { get; set; } = true;
+
+        public List<OneWireCouncilModelRoute> ModelRoutes { get; set; } = [];
+
         public int MaxContextTokens { get; set; } = 4096;
 
         public int ModelTimeoutSeconds { get; set; } = 180;
@@ -177,6 +181,16 @@ namespace LocalGPT.BusinessObjects
         public List<string> CouncilMembers { get; set; } = [];
 
         public string Role { get; set; } = string.Empty;
+
+        public string HardwareLane { get; set; } = string.Empty;
+
+        public OneWireHardwareKind HardwareKind { get; set; } = OneWireHardwareKind.Auto;
+
+        public int HardwareIndex { get; set; } = -1;
+
+        public int EffectiveMaxOutputTokens { get; set; }
+
+        public int EffectiveMaxContextTokens { get; set; }
 
         public string Content { get; set; } = string.Empty;
 

@@ -79,6 +79,34 @@ foreach ($token in @(
     }
 }
 
+
+foreach ($token in @(
+    'b.Property<string>("ModelRoutesJson").IsRequired().HasColumnType("TEXT")',
+    'b.Property<bool>("AllowParallelHardwareRoads").HasColumnType("INTEGER")',
+    'modelBuilder.Entity("LocalGPT.BusinessObjects.OrganicSkillDefinition", b =>',
+    'modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectOrganicSkillLink", b =>',
+    'modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilMemberOrganicSkillLink", b =>',
+    'modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilTeamConfiguration", b =>',
+    'b.ToTable("OrganicSkills", (string)null)',
+    'b.ToTable("CouncilTeamConfigurations", (string)null)',
+    '.WithMany("ProjectLinks")',
+    '.WithMany("MemberLinks")')) {
+    if (-not $snapshot.Contains($token, [StringComparison]::Ordinal)) {
+        $errors.Add("EF snapshot must retain organic/council architecture token '$token'.")
+    }
+}
+
+foreach ($token in @(
+    'DbSet<OrganicSkillDefinition> OrganicSkills',
+    'DbSet<ProjectOrganicSkillLink> ProjectOrganicSkillLinks',
+    'DbSet<CouncilMemberOrganicSkillLink> CouncilMemberOrganicSkillLinks',
+    'DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations',
+    'entity.Property(item => item.ModelRoutesJson).IsRequired()')) {
+    if (-not $context.Contains($token, [StringComparison]::Ordinal)) {
+        $errors.Add("DbContext must retain organic/council architecture token '$token'.")
+    }
+}
+
 if ($errors.Count -gt 0) {
     $errors | ForEach-Object { Write-Error $_ }
     exit 1

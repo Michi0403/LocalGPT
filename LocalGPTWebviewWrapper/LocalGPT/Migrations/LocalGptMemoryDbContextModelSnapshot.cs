@@ -715,6 +715,7 @@ namespace LocalGPT.Migrations
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
                     b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<bool>("AllowParallelHardwareRoads").HasColumnType("INTEGER");
                     b.Property<bool>("CreateProjectPerRun").HasColumnType("INTEGER");
                     b.Property<string>("Description").IsRequired().HasMaxLength(1000).HasColumnType("TEXT");
                     b.Property<bool>("GenerateArtifacts").HasColumnType("INTEGER");
@@ -726,6 +727,7 @@ namespace LocalGPT.Migrations
                     b.Property<int>("MaxOutputTokens").HasColumnType("INTEGER");
                     b.Property<int>("MaxParallelModels").HasColumnType("INTEGER");
                     b.Property<string>("ModelNamesJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("ModelRoutesJson").IsRequired().HasColumnType("TEXT");
                     b.Property<string>("Name").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
                     b.Property<int?>("OllamaNumGpu").HasColumnType("INTEGER");
                     b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
@@ -733,6 +735,88 @@ namespace LocalGPT.Migrations
                     b.HasIndex("Name").IsUnique();
                     b.HasIndex("IsArchived", "IsDefault", "UpdatedAtUtc");
                     b.ToTable("CouncilModelPresets", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.OrganicSkillDefinition", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("CapabilityKeysJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("Description").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<string>("DisplayName").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<bool>("IsOnline").HasColumnType("INTEGER");
+                    b.Property<bool>("IsUserApproved").HasColumnType("INTEGER");
+                    b.Property<string>("Key").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<string>("OrgansJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("SourcePeerId").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<string>("UiActivationKeysJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("Key").IsUnique();
+                    b.HasIndex("IsEnabled", "IsOnline", "UpdatedAtUtc");
+                    b.ToTable("OrganicSkills", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectOrganicSkillLink", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<bool>("IsRequired").HasColumnType("INTEGER");
+                    b.Property<string>("Notes").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<Guid>("ProjectId").HasColumnType("TEXT");
+                    b.Property<Guid>("SkillId").HasColumnType("TEXT");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("SkillId");
+                    b.HasIndex("ProjectId", "SkillId").IsUnique();
+                    b.HasIndex("ProjectId", "IsEnabled", "IsRequired");
+                    b.ToTable("ProjectOrganicSkillLinks", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilMemberOrganicSkillLink", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("ControllerMethodsJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("DxFunctionsJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("Evidence").IsRequired().HasMaxLength(4000).HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<bool>("IsSelfRevealed").HasColumnType("INTEGER");
+                    b.Property<string>("MemberKey").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<string>("OrganicCapabilitiesJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<int>("Proficiency").HasColumnType("INTEGER");
+                    b.Property<Guid>("SkillId").HasColumnType("TEXT");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("SkillId");
+                    b.HasIndex("MemberKey", "SkillId").IsUnique();
+                    b.HasIndex("MemberKey", "IsEnabled", "Proficiency");
+                    b.ToTable("CouncilMemberOrganicSkillLinks", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilTeamConfiguration", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("ArchitectureContractsJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("DisplayName").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<string>("ExpertPreparationPromptTemplate").IsRequired().HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<bool>("IsSystemSeed").HasColumnType("INTEGER");
+                    b.Property<bool>("IsUserModified").HasColumnType("INTEGER");
+                    b.Property<string>("Key").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<string>("LeaderSynthesisPromptTemplate").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("MainRoundInstructionTemplate").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("PreferredCapabilitiesJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("Purpose").IsRequired().HasMaxLength(4000).HasColumnType("TEXT");
+                    b.Property<string>("RolesJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<int>("SeedVersion").HasColumnType("INTEGER");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("WorkflowStepsJson").IsRequired().HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("Key").IsUnique();
+                    b.HasIndex("IsEnabled", "UpdatedAtUtc");
+                    b.ToTable("CouncilTeamConfigurations", (string)null);
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.SqliteEditorFieldOverride", b =>
@@ -768,6 +852,20 @@ namespace LocalGPT.Migrations
                     b.ToTable("CouncilKnowledgeUserRatings", (string)null);
                 });
 
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectOrganicSkillLink", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project").WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.HasOne("LocalGPT.BusinessObjects.OrganicSkillDefinition", "Skill").WithMany("ProjectLinks").HasForeignKey("SkillId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.Navigation("Project");
+                    b.Navigation("Skill");
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilMemberOrganicSkillLink", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.OrganicSkillDefinition", "Skill").WithMany("MemberLinks").HasForeignKey("SkillId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.Navigation("Skill");
+                });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectRevision", b =>
                 {
@@ -1323,6 +1421,12 @@ namespace LocalGPT.Migrations
                     b.Navigation("Conversation");
                 });
 
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.OrganicSkillDefinition", b =>
+                {
+                    b.Navigation("MemberLinks");
+                    b.Navigation("ProjectLinks");
+                });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProject", b =>
                 {

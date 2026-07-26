@@ -31,6 +31,10 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<CouncilModelPreset> CouncilModelPresets => Set<CouncilModelPreset>();
         public DbSet<SqliteEditorFieldOverride> SqliteEditorFieldOverrides => Set<SqliteEditorFieldOverride>();
         public DbSet<CouncilKnowledgeUserRating> CouncilKnowledgeUserRatings => Set<CouncilKnowledgeUserRating>();
+        public DbSet<OrganicSkillDefinition> OrganicSkills => Set<OrganicSkillDefinition>();
+        public DbSet<ProjectOrganicSkillLink> ProjectOrganicSkillLinks => Set<ProjectOrganicSkillLink>();
+        public DbSet<CouncilMemberOrganicSkillLink> CouncilMemberOrganicSkillLinks => Set<CouncilMemberOrganicSkillLink>();
+        public DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations => Set<CouncilTeamConfiguration>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -295,8 +299,71 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.Name).HasMaxLength(160).IsRequired();
                 entity.Property(item => item.Description).HasMaxLength(1000).IsRequired();
                 entity.Property(item => item.ModelNamesJson).IsRequired();
+                entity.Property(item => item.ModelRoutesJson).IsRequired();
                 entity.HasIndex(item => item.Name).IsUnique();
                 entity.HasIndex(item => new { item.IsArchived, item.IsDefault, item.UpdatedAtUtc });
+            });
+
+            modelBuilder.Entity<OrganicSkillDefinition>(entity =>
+            {
+                entity.ToTable("OrganicSkills");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Key).HasMaxLength(200).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Description).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.SourcePeerId).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.OrgansJson).IsRequired();
+                entity.Property(item => item.CapabilityKeysJson).IsRequired();
+                entity.Property(item => item.UiActivationKeysJson).IsRequired();
+                entity.HasIndex(item => item.Key).IsUnique();
+                entity.HasIndex(item => new { item.IsEnabled, item.IsOnline, item.UpdatedAtUtc });
+            });
+
+            modelBuilder.Entity<ProjectOrganicSkillLink>(entity =>
+            {
+                entity.ToTable("ProjectOrganicSkillLinks");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Notes).HasMaxLength(2000).IsRequired();
+                entity.HasIndex(item => new { item.ProjectId, item.SkillId }).IsUnique();
+                entity.HasIndex(item => new { item.ProjectId, item.IsEnabled, item.IsRequired });
+                entity.HasOne(item => item.Project).WithMany()
+                    .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.Skill).WithMany(skill => skill.ProjectLinks)
+                    .HasForeignKey(item => item.SkillId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CouncilMemberOrganicSkillLink>(entity =>
+            {
+                entity.ToTable("CouncilMemberOrganicSkillLinks");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.MemberKey).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Evidence).HasMaxLength(4000).IsRequired();
+                entity.Property(item => item.DxFunctionsJson).IsRequired();
+                entity.Property(item => item.ControllerMethodsJson).IsRequired();
+                entity.Property(item => item.OrganicCapabilitiesJson).IsRequired();
+                entity.HasIndex(item => new { item.MemberKey, item.SkillId }).IsUnique();
+                entity.HasIndex(item => new { item.MemberKey, item.IsEnabled, item.Proficiency });
+                entity.HasOne(item => item.Skill).WithMany(skill => skill.MemberLinks)
+                    .HasForeignKey(item => item.SkillId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+
+            modelBuilder.Entity<CouncilTeamConfiguration>(entity =>
+            {
+                entity.ToTable("CouncilTeamConfigurations");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Key).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Purpose).HasMaxLength(4000).IsRequired();
+                entity.Property(item => item.RolesJson).IsRequired();
+                entity.Property(item => item.PreferredCapabilitiesJson).IsRequired();
+                entity.Property(item => item.ArchitectureContractsJson).IsRequired();
+                entity.Property(item => item.WorkflowStepsJson).IsRequired();
+                entity.Property(item => item.ExpertPreparationPromptTemplate).IsRequired();
+                entity.Property(item => item.LeaderSynthesisPromptTemplate).IsRequired();
+                entity.Property(item => item.MainRoundInstructionTemplate).IsRequired();
+                entity.HasIndex(item => item.Key).IsUnique();
+                entity.HasIndex(item => new { item.IsEnabled, item.UpdatedAtUtc });
             });
 
             modelBuilder.Entity<SqliteEditorFieldOverride>(entity =>
