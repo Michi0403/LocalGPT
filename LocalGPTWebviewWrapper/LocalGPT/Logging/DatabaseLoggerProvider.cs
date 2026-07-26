@@ -140,16 +140,23 @@ namespace LocalGPT.Logging
         public void Dispose()
         {
             channel.Writer.TryComplete();
-            stop.Cancel();
             try
             {
-                processingTask.Wait(TimeSpan.FromSeconds(2));
+                if (!processingTask.Wait(TimeSpan.FromSeconds(2)))
+                {
+                    stop.Cancel();
+                    _ = processingTask.Wait(TimeSpan.FromSeconds(2));
+                }
             }
             catch
             {
+                stop.Cancel();
             }
-
-            stop.Dispose();
+            finally
+            {
+                stop.Cancel();
+                stop.Dispose();
+            }
         }
     }
 }

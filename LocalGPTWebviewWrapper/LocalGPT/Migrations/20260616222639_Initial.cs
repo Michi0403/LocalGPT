@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,28 +11,26 @@ namespace LocalGPT.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "ApplicationLogs",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    TimestampUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Level = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
-                    LogLevelValue = table.Column<int>(type: "INTEGER", nullable: false),
-                    Category = table.Column<string>(type: "TEXT", maxLength: 300, nullable: false),
-                    EventId = table.Column<int>(type: "INTEGER", nullable: false),
-                    EventName = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
-                    Message = table.Column<string>(type: "TEXT", nullable: false),
-                    Exception = table.Column<string>(type: "TEXT", nullable: true),
-                    MachineName = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
-                    ProcessId = table.Column<int>(type: "INTEGER", nullable: false),
-                    ThreadId = table.Column<int>(type: "INTEGER", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ApplicationLogs", x => x.Id);
-                });
+            migrationBuilder.Sql(
+                """
+                CREATE TABLE IF NOT EXISTS "ApplicationLogs" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_ApplicationLogs" PRIMARY KEY AUTOINCREMENT,
+                    "TimestampUtc" TEXT NOT NULL,
+                    "Level" TEXT NOT NULL,
+                    "LogLevelValue" INTEGER NOT NULL,
+                    "Category" TEXT NOT NULL,
+                    "EventId" INTEGER NOT NULL,
+                    "EventName" TEXT NULL,
+                    "Message" TEXT NOT NULL,
+                    "Exception" TEXT NULL,
+                    "MachineName" TEXT NOT NULL,
+                    "ProcessId" INTEGER NOT NULL,
+                    "ThreadId" INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_LogLevelValue" ON "ApplicationLogs" ("LogLevelValue");
+                CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_LogLevelValue_TimestampUtc" ON "ApplicationLogs" ("LogLevelValue", "TimestampUtc");
+                CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_TimestampUtc" ON "ApplicationLogs" ("TimestampUtc");
+                """);
 
             migrationBuilder.CreateTable(
                 name: "ChatMemoryConversations",
@@ -132,21 +130,6 @@ namespace LocalGPT.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ApplicationLogs_LogLevelValue",
-                table: "ApplicationLogs",
-                column: "LogLevelValue");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ApplicationLogs_LogLevelValue_TimestampUtc",
-                table: "ApplicationLogs",
-                columns: new[] { "LogLevelValue", "TimestampUtc" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ApplicationLogs_TimestampUtc",
-                table: "ApplicationLogs",
-                column: "TimestampUtc");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ChatMemoryConversations_UpdatedAtUtc",

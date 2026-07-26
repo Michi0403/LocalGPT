@@ -162,7 +162,7 @@ The collaboration control plane is deliberately non-blocking: analysis phases co
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.

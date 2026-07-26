@@ -39,3 +39,6 @@
 /CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md @Michi0403
 /docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md @Michi0403
 /build/Assert-EfSnapshotArchitecture.ps1 @Michi0403
+/CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md @Michi0403
+/docs/DATABASE_MIGRATION_BOOTSTRAP.md @Michi0403
+/build/Assert-DatabaseMigrationBootstrap.ps1 @Michi0403

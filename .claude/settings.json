@@ -80,7 +80,13 @@
       "Edit(docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md)",
       "Write(docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md)",
       "Edit(build/Assert-EfSnapshotArchitecture.ps1)",
-      "Write(build/Assert-EfSnapshotArchitecture.ps1)"
+      "Write(build/Assert-EfSnapshotArchitecture.ps1)",
+      "Edit(CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md)",
+      "Write(CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md)",
+      "Edit(docs/DATABASE_MIGRATION_BOOTSTRAP.md)",
+      "Write(docs/DATABASE_MIGRATION_BOOTSTRAP.md)",
+      "Edit(build/Assert-DatabaseMigrationBootstrap.ps1)",
+      "Write(build/Assert-DatabaseMigrationBootstrap.ps1)"
     ]
   }
 }

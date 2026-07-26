@@ -36,6 +36,6 @@
 
 ## Current debug iteration
 
-The active implementation ledger is `CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md`; unresolved architecture work is mirrored in `docs/OPEN_TASKS.md`. A source package must not describe an item as complete when it remains open there.
+The active implementation ledger is `CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md`; unresolved architecture work is mirrored in `docs/OPEN_TASKS.md`. A source package must not describe an item as complete when it remains open there.
 
 Migration-bearing candidates must pass `build/Assert-EfSnapshotArchitecture.ps1` and an owner startup against a disposable or backed-up SQLite database. A successful compile does not prove that the executable EF snapshot can construct its model.

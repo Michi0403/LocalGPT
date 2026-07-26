@@ -20,6 +20,7 @@ try {
     & ./build/Assert-HumanCollaboration.ps1
     & ./build/Assert-ArchitectureTasks.ps1
     & ./build/Assert-EfSnapshotArchitecture.ps1
+    & ./build/Assert-DatabaseMigrationBootstrap.ps1
     & ./build/Assert-ThemeArchitecture.ps1
 
     $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue

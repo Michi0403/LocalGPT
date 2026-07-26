@@ -7,11 +7,13 @@ function Need([string]$path, [string[]]$tokens) {
     $text = Get-Content -LiteralPath $full -Raw
     foreach ($token in $tokens) { if (-not $text.Contains($token, [StringComparison]::Ordinal)) { $errors.Add("$path must retain '$token'.") } }
 }
-Need 'CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md' @('## Closed in this iteration', '## Open tasks carried forward', '- [ ] Re-run the owner Debug startup against a disposable or backed-up database')
+Need 'CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md' @('## Closed in this iteration', '## Open tasks carried forward', '- [ ] Re-run Debug startup against the owner database and verify the compatibility backup path is logged')
 Need 'docs/OPEN_TASKS.md' @('Current unresolved work:', 'Copy every unresolved item into the next current changelog')
 Need 'docs/DATABASE_FIRST_PROJECT_ARCHITECTURE.md' @('LocalGptProjectRevision', 'LocalGptProjectRequirementLink', 'Function availability is not a reason to call it')
 Need 'docs/THEME_RUNTIME_ARCHITECTURE.md' @('DxResourceManager.RegisterTheme', 'IThemeChangeService', 'JavaScript boundary', 'Blazing Berry')
 Need 'docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md' @('properties first', 'relationships', 'Dictionary<string, object>', 'Assert-EfSnapshotArchitecture.ps1')
+Need 'docs/DATABASE_MIGRATION_BOOTSTRAP.md' @('SQLite online backup', 'complete signature', 'Refuse partially applied ambiguous schemas')
+Need 'build/Assert-DatabaseMigrationBootstrap.ps1' @('Database migration bootstrap and legacy-schema adoption contracts verified.')
 Need 'build/Assert-EfSnapshotArchitecture.ps1' @('EF migration snapshot ordering and project navigation contracts verified.', 'WithMany("Artifacts")')
 Need 'LocalGPTWebviewWrapper/LocalGPT/Services/EfChatMemoryService.cs' @('IChatMemoryMessageMapper messageMapper')
 $memory = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/EfChatMemoryService.cs') -Raw

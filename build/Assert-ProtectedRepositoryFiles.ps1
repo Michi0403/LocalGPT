@@ -59,6 +59,9 @@ $expectedFiles = @(
     'CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md',
     'docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md',
     'build/Assert-EfSnapshotArchitecture.ps1',
+    'CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md',
+    'docs/DATABASE_MIGRATION_BOOTSTRAP.md',
+    'build/Assert-DatabaseMigrationBootstrap.ps1',
     'build/protected-files.sha256'
 )
 

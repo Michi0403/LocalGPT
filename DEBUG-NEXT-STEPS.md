@@ -1,4 +1,4 @@
-# LocalGPT v0.1.4 EF snapshot, theme-runtime, and database-first debug steps
+# LocalGPT v0.1.4 database-bootstrap, EF snapshot, theme-runtime, and database-first debug steps
 
 This is a source/debug candidate. Extract it into a **new clean folder** instead of overlaying an older build tree, so stale `bin`, `obj`, `.vs`, generated Razor files, and old SQLite schemas cannot survive.
 
@@ -25,6 +25,18 @@ The full release gate still requires Debug and Release builds for the exact pack
 ./build/Invoke-RepositoryValidation.ps1
 ./build/New-VerifiedSourcePackage.ps1 -Version "0.1.4"
 ```
+
+## Existing database compatibility test
+
+1. Close every running LocalGPT instance.
+2. Keep your existing database in place; the bootstrap creates an online backup under `CompatibilityBackups/<timestamp>/` before adopting legacy history or migrating an untracked logging table.
+3. Start LocalGPT and confirm one of these paths is logged:
+   - a compatible `ApplicationLogs`-only schema is preserved and the remaining initial tables are created;
+   - verified legacy migration IDs are adopted, followed by normal pending migrations;
+   - an ambiguous partial schema is refused with exact missing table/column markers and a backup path.
+4. If the previous failed run left `__EFMigrationsLock`, a lock older than ten minutes is cleared with a warning. A recent or unreadable lock is refused; close other LocalGPT instances rather than deleting it blindly.
+5. Confirm startup reaches `LocalGPT database migration and initial data feed completed.`
+6. Inspect `__EFMigrationsHistory` from the Database page and retain the startup log for the next iteration.
 
 ## Database and main-frame smoke test
 
