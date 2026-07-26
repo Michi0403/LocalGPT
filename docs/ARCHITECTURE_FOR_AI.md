@@ -56,7 +56,7 @@ The collaboration control plane is deliberately non-blocking: analysis phases co
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-service-lifecycle-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
@@ -73,3 +73,9 @@ Use the LocalGPT Bootstrap-backed CSS variables for application surfaces and pre
 ## EF snapshot rule for AI changes
 
 Do not hand-insert navigation blocks near arbitrary entity sections. Preserve EF-generated ordering: entity properties, then relationships, then collection navigations. A premature string-named entity call can create a shared `Dictionary<string, object>` type and crash migration startup. Run `build/Assert-EfSnapshotArchitecture.ps1`.
+## Service lifecycle and supervised asynchronous work
+
+The detailed contract is in `docs/SERVICE_LIFECYCLE_AND_ASYNC_ARCHITECTURE.md`. Runtime services are DI-owned instances; static code is restricted to pure helpers/extensions, immutable constants, generated regex accessors, framework entry points, and security invariants.
+
+High-level service boundaries use injected loggers and bounded service activity while rethrowing failures. Intentionally concurrent component work uses `ISupervisedTaskRunner`; discarded tasks are forbidden. Every DevExpress theme change is awaited. Database migration compatibility is isolated from migration/seeding orchestration.
+

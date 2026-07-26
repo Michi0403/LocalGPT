@@ -3,6 +3,7 @@
 @inject ILogger<Routes> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject ISupervisedTaskRunner TaskRunner
 
 <SafeErrorBoundary @ref="routeBoundary" Area="Application routing" ToastName="ComponentSafetyToasts">
     <Router AppAssembly="typeof(Program).Assembly">
@@ -19,6 +20,8 @@
 
 @code {
     private SafeErrorBoundary? routeBoundary;
+    private readonly CancellationTokenSource lifetimeCts = new();
+    private bool isDisposed;
 
     protected override void OnInitialized()
     {
@@ -36,8 +39,24 @@
         }
     }
 
-    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args) =>
-        _ = RecoverAfterNavigationAsync(args.Location);
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        if (isDisposed)
+            return;
+
+        try
+        {
+            TaskRunner.Run(
+                nameof(Routes),
+                "RecoverAfterNavigation",
+                _ => RecoverAfterNavigationAsync(args.Location),
+                lifetimeCts.Token);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            // Navigation raced with circuit disposal.
+        }
+    }
 
     private async Task RecoverAfterNavigationAsync(string location)
     {
@@ -57,5 +76,14 @@
         }
     }
 
-    public void Dispose() => NavigationManager.LocationChanged -= HandleLocationChanged;
+    public void Dispose()
+    {
+        if (isDisposed)
+            return;
+
+        isDisposed = true;
+        NavigationManager.LocationChanged -= HandleLocationChanged;
+        lifetimeCts.Cancel();
+        lifetimeCts.Dispose();
+    }
 }

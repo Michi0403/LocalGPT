@@ -50,7 +50,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         {
             Themes.ThemeChangeRequestDispatcher = this;
             Themes.SetActiveThemeByName(InitialThemeName);
-            DevExpressThemeChangeService.SetTheme(Themes.ActiveTheme.DevExpressTheme);
+            await DevExpressThemeChangeService
+                .SetTheme(Themes.ActiveTheme.DevExpressTheme)
+                .ConfigureAwait(false);
 
             if (JsRuntime is not null)
             {
@@ -96,7 +98,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
 
         try
         {
-            DevExpressThemeChangeService.SetTheme(theme.DevExpressTheme);
+            await DevExpressThemeChangeService
+                .SetTheme(theme.DevExpressTheme)
+                .ConfigureAwait(false);
             Themes.SetActiveTheme(theme);
 
             if (_module is not null)
@@ -112,13 +116,39 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         catch (Exception ex)
         {
             _pendingTheme = null;
-            Themes.SetActiveTheme(previousTheme);
-            DevExpressThemeChangeService.SetTheme(previousTheme.DevExpressTheme);
-            Logger.LogError(ex, "Theme change from {PreviousTheme} to {ThemeName} failed.", previousTheme.Name, theme.Name);
+            var restored = false;
+            try
+            {
+                await DevExpressThemeChangeService
+                    .SetTheme(previousTheme.DevExpressTheme)
+                    .ConfigureAwait(false);
+                Themes.SetActiveTheme(previousTheme);
+                restored = true;
+            }
+            catch (Exception rollbackException)
+            {
+                Logger.LogCritical(
+                    rollbackException,
+                    "Theme rollback to {PreviousTheme} failed after {ThemeName} could not be applied.",
+                    previousTheme.Name,
+                    theme.Name);
+                ComponentActivity.RecordFailure(
+                    nameof(ThemeJsChangeDispatcher),
+                    "RollbackThemeChange",
+                    rollbackException);
+            }
+
+            Logger.LogError(
+                ex,
+                "Theme change from {PreviousTheme} to {ThemeName} failed.",
+                previousTheme.Name,
+                theme.Name);
             ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), "RequestThemeChange", ex);
             Notifier.ShowError(
                 "ComponentSafetyToasts",
-                "The selected theme could not be applied. LocalGPT restored the previous theme.",
+                restored
+                    ? "The selected theme could not be applied. LocalGPT restored the previous theme."
+                    : "The selected theme and automatic rollback both failed. Reload the page to restore the saved default theme.",
                 "Theme change failed");
         }
     }

@@ -11,7 +11,7 @@ LocalGPT supports DevExpress Classic themes, DevExpress Fluent light/dark themes
 Each LocalGPT `Theme` contains the actual DevExpress `ITheme` object. The application uses the same object in both supported phases:
 
 1. `Components/App.razor` calls `DxResourceManager.RegisterTheme(Themes.ActiveTheme.DevExpressTheme)` for startup resources.
-2. `ThemeJsChangeDispatcher` injects `IThemeChangeService` and calls `SetTheme(theme.DevExpressTheme)` for runtime changes.
+2. `ThemeJsChangeDispatcher` injects `IThemeChangeService` and **awaits** `SetTheme(theme.DevExpressTheme)` for runtime changes.
 
 ## Theme families
 
@@ -50,7 +50,7 @@ The server-rendered shell validates the `ActiveTheme` cookie before registering 
 
 ## Failure behavior
 
-A runtime failure restores the prior `ITheme`, records a technical log and bounded component-activity entry, and shows a sanitized notification. A remote Highlight.js failure is optional and time-bounded; it cannot leave DevExpress controls half-switched.
+A runtime failure performs one awaited restoration of the prior `ITheme`, records a technical log and bounded component-activity entry, and shows a sanitized notification. Rollback failure is logged separately and never hidden. A remote Highlight.js failure is optional and time-bounded; it cannot leave DevExpress controls half-switched.
 
 ## Preservation audit
 

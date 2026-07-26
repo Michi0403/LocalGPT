@@ -6,7 +6,7 @@ using DxThemes = DevExpress.Blazor.Themes;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Owns LocalGPT's selectable theme catalog and the active theme for one Blazor circuit.
+/// Owns LocalGPT's selectable theme catalog and active theme for one Blazor circuit.
 /// DevExpress theme resources are represented as <see cref="ITheme"/> instances so startup
 /// registration and runtime switching use the supported DevExpress resource pipeline.
 /// </summary>
@@ -15,34 +15,26 @@ public sealed class ThemeService
     public const string DEFAULT_THEME_NAME = "office-white";
     public const string LocalThemeContractPath = "css/localgpt-theme-contract.css";
 
-    private static readonly IReadOnlyDictionary<string, string> HighlightJsThemeNames =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [DEFAULT_THEME_NAME] = "default",
-            ["blazing-berry"] = "default",
-            ["blazing-dark"] = "androidstudio",
-            ["fluent-light"] = "default",
-            ["fluent-dark"] = "androidstudio",
-            ["cyborg"] = "androidstudio",
-            ["default-dark"] = "androidstudio",
-            ["solar"] = "androidstudio",
-            ["superhero"] = "androidstudio"
-        };
+    private readonly ILogger<ThemeService> logger;
+    private readonly IServiceActivityService serviceActivity;
+    private readonly IReadOnlyDictionary<string, string> highlightJsThemeNames;
+    private readonly Dictionary<string, Theme> themesByName;
+    private readonly Theme defaultTheme;
 
-    private readonly ILogger<ThemeService> _logger;
-    private readonly Dictionary<string, Theme> _themesByName;
-    private readonly Theme _defaultTheme;
-
-    public ThemeService(ILogger<ThemeService> logger)
+    public ThemeService(
+        ILogger<ThemeService> logger,
+        IServiceActivityService serviceActivity)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.serviceActivity = serviceActivity ?? throw new ArgumentNullException(nameof(serviceActivity));
+        highlightJsThemeNames = CreateHighlightJsThemeNames();
         ThemeSets = CreateSets();
-        _themesByName = ThemeSets
+        themesByName = ThemeSets
             .SelectMany(set => set.Themes)
             .ToDictionary(theme => theme.Name, StringComparer.OrdinalIgnoreCase);
-        _defaultTheme = FindThemeByName(DEFAULT_THEME_NAME)
+        defaultTheme = FindThemeByName(DEFAULT_THEME_NAME)
             ?? throw new InvalidOperationException($"The required default theme '{DEFAULT_THEME_NAME}' is not configured.");
-        ActiveTheme = _defaultTheme;
+        ActiveTheme = defaultTheme;
     }
 
     public Theme ActiveTheme { get; private set; }
@@ -51,14 +43,14 @@ public sealed class ThemeService
     public IThemeLoadNotifier? ThemeLoadNotifier { get; set; }
     public event Action<Theme>? ActiveThemeChanged;
 
-    public Theme GetThemeOrDefault(string? themeName) => FindThemeByName(themeName) ?? _defaultTheme;
+    public Theme GetThemeOrDefault(string? themeName) => FindThemeByName(themeName) ?? defaultTheme;
 
     public Theme? FindThemeByName(string? themeName)
     {
         if (string.IsNullOrWhiteSpace(themeName))
             return null;
 
-        return _themesByName.GetValueOrDefault(themeName.Trim());
+        return themesByName.GetValueOrDefault(themeName.Trim());
     }
 
     public void SetActiveThemeByName(string? themeName) => SetActiveTheme(GetThemeOrDefault(themeName));
@@ -76,11 +68,28 @@ public sealed class ThemeService
 
         var previousTheme = ActiveTheme;
         ActiveTheme = theme;
-        _logger.LogInformation(
-            "Application theme changed from {PreviousTheme} to {ThemeName}.",
-            previousTheme.Name,
-            theme.Name);
-        ActiveThemeChanged?.Invoke(theme);
+        try
+        {
+            logger.LogInformation(
+                "Application theme changed from {PreviousTheme} to {ThemeName}.",
+                previousTheme.Name,
+                theme.Name);
+            ActiveThemeChanged?.Invoke(theme);
+            serviceActivity.RecordInformation(
+                nameof(ThemeService),
+                nameof(SetActiveTheme),
+                $"The active theme changed from {previousTheme.Name} to {theme.Name}.");
+        }
+        catch (Exception ex)
+        {
+            ActiveTheme = previousTheme;
+            logger.LogError(
+                ex,
+                "The active-theme notification for {ThemeName} failed; the previous theme was restored.",
+                theme.Name);
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(SetActiveTheme), ex);
+            throw;
+        }
     }
 
     /// <summary>
@@ -117,11 +126,25 @@ public sealed class ThemeService
     public string GetHighlightJSThemeCssUrl(Theme theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
-        var highlightThemeName = HighlightJsThemeNames.GetValueOrDefault(theme.Name, "default");
+        var highlightThemeName = highlightJsThemeNames.GetValueOrDefault(theme.Name, "default");
         return $"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/{highlightThemeName}.min.css";
     }
 
-    private static List<ThemeSet> CreateSets()
+    private IReadOnlyDictionary<string, string> CreateHighlightJsThemeNames() =>
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [DEFAULT_THEME_NAME] = "default",
+            ["blazing-berry"] = "default",
+            ["blazing-dark"] = "androidstudio",
+            ["fluent-light"] = "default",
+            ["fluent-dark"] = "androidstudio",
+            ["cyborg"] = "androidstudio",
+            ["default-dark"] = "androidstudio",
+            ["solar"] = "androidstudio",
+            ["superhero"] = "androidstudio"
+        };
+
+    private List<ThemeSet> CreateSets()
     {
         var classicThemes = new ThemeSet(
             "DevExpress Classic Themes",
@@ -156,7 +179,7 @@ public sealed class ThemeService
         return [classicThemes, fluentThemes, bootstrapThemes];
     }
 
-    private static Theme CreateClassic(string name, string title, DxTheme sourceTheme, string bootstrapMode = "light")
+    private Theme CreateClassic(string name, string title, DxTheme sourceTheme, string bootstrapMode = "light")
     {
         var devExpressTheme = sourceTheme.Clone(properties =>
         {
@@ -166,7 +189,7 @@ public sealed class ThemeService
         return new Theme(name, devExpressTheme, false, title, bootstrapMode);
     }
 
-    private static Theme CreateFluent(string name, string title, ThemeMode mode)
+    private Theme CreateFluent(string name, string title, ThemeMode mode)
     {
         var devExpressTheme = DxThemes.Fluent.Clone(properties =>
         {
@@ -179,7 +202,7 @@ public sealed class ThemeService
         return new Theme(name, devExpressTheme, false, title, mode == ThemeMode.Dark ? "dark" : "light");
     }
 
-    private static Theme CreateBootstrap(
+    private Theme CreateBootstrap(
         string name,
         string? title = null,
         string? themePath = null,

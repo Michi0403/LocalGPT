@@ -1,4 +1,4 @@
-# Component safety and bounded UI awareness
+# Component safety and bounded application awareness
 
 LocalGPT components keep their existing features and may use different visual compositions, but they share one operational safety contract.
 
@@ -41,7 +41,7 @@ Components call `INotificationService`; they do not call the DevExpress toast se
 
 ## Bounded short-term context
 
-`ComponentActivityService` stores at most 128 process-local entries. Entries may contain:
+`ComponentActivityService` stores at most 192 process-local entries shared by the UI and high-level service-operation boundary. Entries may contain:
 
 - route paths without query strings or fragments;
 - component and operation names;
@@ -53,6 +53,12 @@ Entries never contain prompts, assistant responses, uploaded data, generated sou
 
 The read-only `/__diag/component-activity` route exposes the same sanitized bounded entries and briefing for owner-side verification. It does not expose the omitted content categories.
 
+## Supervised non-blocking work
+
+UI events that cannot return a `Task` directly—navigation notifications, collaboration-change events, and delayed autosave—must use `ISupervisedTaskRunner`. The runner observes completion and exceptions, writes sanitized service activity, and accepts the owning component lifetime cancellation token. Explicit task discards such as `_ = SomeAsync()` are forbidden.
+
+The runner does not make work autonomous or grant authority. It only supervises already-authorized application work that must continue without blocking the current event callback.
+
 ## Validation
 
 `build/Assert-ComponentSafety.ps1` verifies:
@@ -62,6 +68,7 @@ The read-only `/__diag/component-activity` route exposes the same sanitized boun
 - the shared error boundary and toast provider remain wired;
 - notification events remain connected to bounded activity memory;
 - reusable UI-operation wrappers retain logging, notification, and activity reporting;
-- the activity service remains registered and included in AI bootstrap context.
+- the activity service remains registered and included in AI bootstrap context;
+- event-driven non-blocking work remains connected to `ISupervisedTaskRunner` rather than discarded tasks.
 
 This guard runs before Roslyn parsing and full Debug and Release builds. A source package is not a verified release until those compiler builds pass for the exact packaged fingerprint.

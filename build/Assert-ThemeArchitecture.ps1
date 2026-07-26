@@ -45,7 +45,7 @@ foreach ($token in @(
 $dispatcher = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeJsChangeDispatcher.cs'
 foreach ($token in @(
     'IThemeChangeService DevExpressThemeChangeService',
-    'DevExpressThemeChangeService.SetTheme(theme.DevExpressTheme);',
+    '.SetTheme(theme.DevExpressTheme)',
     'private ThemeService Themes { get; set; } = default!;',
     'ThemeController.applyThemeState')) {
     if (-not $dispatcher.Contains($token, [StringComparison]::Ordinal)) {
@@ -54,6 +54,12 @@ foreach ($token in @(
 }
 if ($dispatcher.Contains('new ThemeService(', [StringComparison]::Ordinal)) {
     $errors.Add('ThemeJsChangeDispatcher must not construct ThemeService manually.')
+}
+
+$setThemeCount = ([regex]::Matches($dispatcher, '\.SetTheme\(')).Count
+$awaitedSetThemeCount = ([regex]::Matches($dispatcher, 'await\s+DevExpressThemeChangeService\s*\r?\n\s*\.SetTheme\(')).Count
+if ($setThemeCount -ne $awaitedSetThemeCount) {
+    $errors.Add("Every DevExpress theme change must be awaited; found $setThemeCount calls and $awaitedSetThemeCount awaited calls.")
 }
 
 $app = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/App.razor'

@@ -225,7 +225,12 @@ namespace LocalGPT
                 builder.Services.AddSingleton<AiDiscoveryService>();
                 builder.Services.AddSingleton<SqliteGridPresentationService>();
                 builder.Services.AddSingleton<NavigationUrlService>();
-                builder.Services.AddSingleton<IComponentActivityService, ComponentActivityService>();
+                builder.Services.AddSingleton<ComponentActivityService>();
+                builder.Services.AddSingleton<IComponentActivityService>(services =>
+                    services.GetRequiredService<ComponentActivityService>());
+                builder.Services.AddSingleton<IServiceActivityService>(services =>
+                    services.GetRequiredService<ComponentActivityService>());
+                builder.Services.AddSingleton<ISupervisedTaskRunner, SupervisedTaskRunner>();
                 builder.Services.AddSingleton<AmbientLocalGptContext>();
                 builder.Services.AddSingleton<IAmbientLocalGptContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
                 builder.Services.AddSingleton<ILocalHumanInteractionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
@@ -266,6 +271,7 @@ namespace LocalGPT
                     options.UseSqlite($"Data Source={databaseOptions.DatabasePath}"));
 
                 builder.Services.AddSingleton<IInitialDataCatalog, InitialDataCatalog>();
+                builder.Services.AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>();
                 builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();
                 builder.Services.AddHostedService<DatabaseInitializationHostedService>();
                 builder.Services.AddSingleton<IChatProtocolProfile, HarmonyChatProtocolProfile>();

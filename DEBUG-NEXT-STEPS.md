@@ -1,4 +1,4 @@
-# LocalGPT v0.1.4 database-bootstrap, EF snapshot, theme-runtime, and database-first debug steps
+# LocalGPT v0.1.4 service-lifecycle, database-bootstrap, theme-runtime, and database-first debug steps
 
 This is a source/debug candidate. Extract it into a **new clean folder** instead of overlaying an older build tree, so stale `bin`, `obj`, `.vs`, generated Razor files, and old SQLite schemas cannot survive.
 
@@ -92,6 +92,16 @@ The full release gate still requires Debug and Release builds for the exact pack
 4. Confirm DevExpress controls retain their vendor styling while LocalGPT surfaces, Bootstrap/native controls, status panels, and focus rings follow the active theme.
 5. Disconnect the browser during a switch and confirm the circuit ends without a stuck pending theme or an unhandled exception.
 6. If Highlight.js cannot load, confirm the DevExpress theme still completes within the bounded timeout.
+
+## Service lifecycle and async supervision test
+
+1. Confirm the root project compiles with `signature.Requirements.Length` and no `CS4014` warnings from `ThemeJsChangeDispatcher`.
+2. Switch themes repeatedly and confirm every selected theme and rollback finishes before the next state transition is announced.
+3. Navigate rapidly while a routed error boundary is recovering; confirm no unobserved-task exception appears.
+4. Trigger Human Collaboration changes during an active council and confirm refresh work is supervised and cancelled when the owning component is disposed.
+5. Type during Chat autosave, navigate away, and confirm pending autosave is cancelled or completed with a logged supervised outcome.
+6. Inspect `/__diag/component-activity?take=40` and confirm service start/success/cancel/failure entries are sanitized and bounded.
+7. Confirm no service exposes mutable static `HashSet`, `Dictionary`, `List`, queue, or bag state; shared extension catalogs are `FrozenSet<string>`.
 
 ## Component safety checks
 

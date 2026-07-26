@@ -23,6 +23,7 @@
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject ISupervisedTaskRunner TaskRunner
 
 <PageTitle>AI Chat</PageTitle>
 
@@ -455,6 +456,8 @@
     bool isMemoryBusy;
     bool isModelRefreshBusy;
     CancellationTokenSource? autoSaveCts;
+    readonly CancellationTokenSource componentLifetimeCts = new();
+    bool isDisposed;
     HumanCollaborationSnapshot collaborationSnapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
     string RunningCouncilContribution { get; set; } = string.Empty;
     HumanCouncilRunSnapshot? ActiveCouncilRun => collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault();
@@ -1812,8 +1815,12 @@
             if (autoSaveCts is not null)
                 return;
 
-            autoSaveCts = new CancellationTokenSource();
-            _ = AutoSaveLoopAsync(autoSaveCts.Token);
+            autoSaveCts = CancellationTokenSource.CreateLinkedTokenSource(componentLifetimeCts.Token);
+            TaskRunner.Run(
+                nameof(Chat),
+                "AutoSaveLoop",
+                AutoSaveLoopAsync,
+                autoSaveCts.Token);
         }
         catch (Exception ex)
         {
@@ -1932,15 +1939,38 @@
         }
     }
 
-    private void OnHumanCollaborationChanged() => _ = InvokeAsync(RefreshHumanCollaborationAsync);
+    private void OnHumanCollaborationChanged()
+    {
+        if (isDisposed)
+            return;
+
+        try
+        {
+            TaskRunner.Run(
+                nameof(Chat),
+                "RefreshHumanCollaboration",
+                _ => InvokeAsync(RefreshHumanCollaborationAsync),
+                componentLifetimeCts.Token);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            // A collaboration event raced with circuit disposal.
+        }
+    }
 
     public void Dispose()
     {
         try
         {
+            if (isDisposed)
+                return;
+
+            isDisposed = true;
             HumanCollaboration.Changed -= OnHumanCollaborationChanged;
+            componentLifetimeCts.Cancel();
             autoSaveCts?.Cancel();
             autoSaveCts?.Dispose();
+            componentLifetimeCts.Dispose();
             if (DxAiChat is not null)
                 SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
         }

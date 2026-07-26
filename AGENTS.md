@@ -53,8 +53,11 @@ The following governance and enforcement files are **protected**. Automated agen
 - `docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md`
 - `build/Assert-EfSnapshotArchitecture.ps1`
 - `CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md`
+- `CHANGELOG-v0.1.4-service-lifecycle-debug.md`
 - `docs/DATABASE_MIGRATION_BOOTSTRAP.md`
 - `build/Assert-DatabaseMigrationBootstrap.ps1`
+- `build/Assert-ServiceArchitecture.ps1`
+- `docs/SERVICE_LIFECYCLE_AND_ASYNC_ARCHITECTURE.md`
 - `build/protected-files.sha256`
 
 Only the human maintainer, Michael Fleischer (`Michi0403`), may intentionally change this protected set. Such a change must be made manually in a dedicated governance commit, with the hash manifest refreshed and reviewed. An agent may describe a proposed governance change or provide a patch in chat, but it must not apply the patch to the repository.
@@ -162,7 +165,7 @@ Review the full diff, parse JSON/XML, scan for conflict markers and forbidden im
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-service-lifecycle-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
@@ -182,3 +185,14 @@ Review the full diff, parse JSON/XML, scan for conflict markers and forbidden im
 - Treat `LocalGptMemoryDbContextModelSnapshot.cs` as executable model-building code. Entity scalar/property blocks must precede relationships, and relationships must precede collection-navigation declarations.
 - Never remove `LocalGptProject` collections merely to silence a migration error. Preserve `Artifacts`, `Requirements`, `Revisions`, `Topics`, and `Versions`.
 - Run `build/Assert-EfSnapshotArchitecture.ps1` after changing EF entities, DbContext relationships, migrations, or the snapshot. A real owner migration smoke test remains mandatory.
+## Service lifecycle and asynchronous supervision
+
+- Runtime services, clients, registries, and runners are DI instances. Do not create static service classes.
+- Static code is limited to pure extensions, explicitly named helper classes under a helper boundary, immutable constants/generated regex accessors, framework entry points, and security invariants with no runtime state.
+- High-level service operations use constructor-injected `ILogger<T>` and either a rethrowing local `try/catch` or `IServiceActivityService.RunAsync` so sanitized start/success/cancel/failure state reaches bounded LocalGPT short-term context.
+- Do not duplicate logging in EF materializers, pure mappers, or low-level hot paths when a boundary service already owns the operation.
+- Never discard a returned `Task`/`ValueTask`. Await it, return it, or pass intentionally concurrent work to `ISupervisedTaskRunner` with an owner-lifetime cancellation token.
+- Every `IThemeChangeService.SetTheme` call must be awaited. Theme rollback is a separate awaited operation with its own failure logging.
+- Preserve the `DatabaseInitializationService` / `DatabaseMigrationCompatibilityService` responsibility split.
+- Run `build/Assert-ServiceArchitecture.ps1` before packaging.
+

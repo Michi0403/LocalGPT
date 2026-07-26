@@ -19,6 +19,10 @@ LocalGPT must support databases created by earlier development builds that wrote
 11. Run normal EF `MigrateAsync` for every genuinely pending migration.
 12. Seed catalog data only after migration succeeds.
 
+## Responsibility split
+
+`DatabaseInitializationService` is the high-level hosted-operation boundary. It owns health checking, invokes compatibility preparation, runs EF migration, and seeds initial data. `DatabaseMigrationCompatibilityService` separately owns schema inspection, SQLite online backup, verified migration-history adoption, and stale-lock handling. Both are DI services with constructor-injected logging and bounded service-activity reporting; neither is static.
+
 ## Security and data-preservation rules
 
 - Never drop or recreate a compatible user table merely to satisfy migration history.

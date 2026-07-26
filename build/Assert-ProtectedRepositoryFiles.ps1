@@ -62,6 +62,9 @@ $expectedFiles = @(
     'CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md',
     'docs/DATABASE_MIGRATION_BOOTSTRAP.md',
     'build/Assert-DatabaseMigrationBootstrap.ps1',
+    'CHANGELOG-v0.1.4-service-lifecycle-debug.md',
+    'docs/SERVICE_LIFECYCLE_AND_ASYNC_ARCHITECTURE.md',
+    'build/Assert-ServiceArchitecture.ps1',
     'build/protected-files.sha256'
 )
 

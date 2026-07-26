@@ -34,7 +34,7 @@ Before presenting code as complete, run `build/Assert-CSharpSyntax.ps1` and `bui
 
 ## Database-first iteration ledger
 
-- The current `CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
+- The current `CHANGELOG-v0.1.4-service-lifecycle-debug.md` and `docs/OPEN_TASKS.md` are the canonical unresolved-work ledger.
 - Never remove or silently mark an open item complete. Close it only after implementation, compatibility review, validation coverage, and user-visible verification.
 - Carry every unresolved item into the next current changelog.
 - Preserve the `IChatMemoryMessageMapper` seam: persistence must not depend on `DevExpressChatService`, because that recreates the memory/function-registry DI cycle.
@@ -47,3 +47,14 @@ Do not construct `ThemeService`, swap DevExpress stylesheet links from JavaScrip
 ## EF migration snapshot boundary
 
 Keep EF snapshot ordering as properties first, relationships second, collection navigations last. Never resolve a snapshot failure by deleting database-first project relationships. Run `build/Assert-EfSnapshotArchitecture.ps1` after EF model or migration changes.
+## Service lifecycle and asynchronous supervision
+
+- Runtime services, clients, registries, and runners are DI instances. Do not create static service classes.
+- Static code is limited to pure extensions, explicitly named helper classes under a helper boundary, immutable constants/generated regex accessors, framework entry points, and security invariants with no runtime state.
+- High-level service operations use constructor-injected `ILogger<T>` and either a rethrowing local `try/catch` or `IServiceActivityService.RunAsync` so sanitized start/success/cancel/failure state reaches bounded LocalGPT short-term context.
+- Do not duplicate logging in EF materializers, pure mappers, or low-level hot paths when a boundary service already owns the operation.
+- Never discard a returned `Task`/`ValueTask`. Await it, return it, or pass intentionally concurrent work to `ISupervisedTaskRunner` with an owner-lifetime cancellation token.
+- Every `IThemeChangeService.SetTheme` call must be awaited. Theme rollback is a separate awaited operation with its own failure logging.
+- Preserve the `DatabaseInitializationService` / `DatabaseMigrationCompatibilityService` responsibility split.
+- Run `build/Assert-ServiceArchitecture.ps1` before packaging.
+

@@ -16,6 +16,7 @@ try {
     & ./build/Assert-SecurityPolicy.ps1
     & ./build/Assert-CSharpSyntax.ps1
     & ./build/Assert-ComponentSafety.ps1
+    & ./build/Assert-ServiceArchitecture.ps1
     & ./build/Assert-WorkflowContracts.ps1
     & ./build/Assert-HumanCollaboration.ps1
     & ./build/Assert-ArchitectureTasks.ps1

@@ -39,3 +39,14 @@ See `AGENTS.md`, `SECURITY.md`, `docs/HUMAN_AI_COLLABORATION.md`, and `docs/SECU
 ## Theme runtime
 
 Do not instantiate `ThemeService` or replace DevExpress theme links from JavaScript. Register startup `ITheme` resources through `DxResourceManager.RegisterTheme`, change them through `IThemeChangeService.SetTheme`, register external Bootstrap files with `AddFilePaths`, and follow `docs/THEME_RUNTIME_ARCHITECTURE.md`.
+## Service lifecycle and asynchronous supervision
+
+- Runtime services, clients, registries, and runners are DI instances. Do not create static service classes.
+- Static code is limited to pure extensions, explicitly named helper classes under a helper boundary, immutable constants/generated regex accessors, framework entry points, and security invariants with no runtime state.
+- High-level service operations use constructor-injected `ILogger<T>` and either a rethrowing local `try/catch` or `IServiceActivityService.RunAsync` so sanitized start/success/cancel/failure state reaches bounded LocalGPT short-term context.
+- Do not duplicate logging in EF materializers, pure mappers, or low-level hot paths when a boundary service already owns the operation.
+- Never discard a returned `Task`/`ValueTask`. Await it, return it, or pass intentionally concurrent work to `ISupervisedTaskRunner` with an owner-lifetime cancellation token.
+- Every `IThemeChangeService.SetTheme` call must be awaited. Theme rollback is a separate awaited operation with its own failure logging.
+- Preserve the `DatabaseInitializationService` / `DatabaseMigrationCompatibilityService` responsibility split.
+- Run `build/Assert-ServiceArchitecture.ps1` before packaging.
+
