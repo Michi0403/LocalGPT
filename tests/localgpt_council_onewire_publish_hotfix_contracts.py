@@ -60,9 +60,9 @@ def main() -> None:
 
     ET.fromstring(app_project)
     ET.fromstring(protocol_project)
-    assert "GlobalPropertiesToRemove=\"RuntimeIdentifier;RuntimeIdentifiers;SelfContained" in app_project
+    assert "GlobalPropertiesToRemove=\"Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained" in app_project
     assert "BeforeTargets=\"ComputeFilesToPublish\"" in app_project
-    assert "RemoveProperties=\"RuntimeIdentifier;RuntimeIdentifiers;SelfContained" in app_project
+    assert "PackageReference Include=\"LocalGPT.WireProtocolVersion\"" in app_project
     assert "<GeneratePackageOnBuild>false</GeneratePackageOnBuild>" in protocol_project
 
     print("LocalGPT Council, compact 1-Wire discovery, DI, and RID-safe publish source contracts passed.")

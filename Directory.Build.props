@@ -6,6 +6,11 @@
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
 
+    <!-- The protocol is RID-neutral. Local source builds use the project; release builds may switch to the NuGet package. -->
+    <LocalGptWireProtocolVersion>2.0.1</LocalGptWireProtocolVersion>
+    <UseLocalWireProtocolProject Condition="'$(UseLocalWireProtocolProject)' == ''">true</UseLocalWireProtocolProject>
+    <LocalGptWireProtocolPackageDirectory Condition="'$(LocalGptWireProtocolPackageDirectory)' == ''">$(MSBuildThisFileDirectory)packages</LocalGptWireProtocolPackageDirectory>
+
     <!-- Audit direct and transitive NuGet dependencies during restore. -->
     <NuGetAudit>true</NuGetAudit>
     <NuGetAuditMode>all</NuGetAuditMode>

@@ -1,6 +1,6 @@
 param(
     [string]$Configuration = "Release",
-    [string]$Version = "2.0.0",
+    [string]$Version = "2.0.1",
     [string[]]$ReleaseDirectories = @()
 )
 
@@ -12,7 +12,7 @@ $packageName = "LocalGPT.WireProtocolVersion.$Version.nupkg"
 $packagePath = Join-Path $packageRoot $packageName
 
 New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
-dotnet pack $project -c $Configuration -p:PackageVersion=$Version -o $packageRoot
+dotnet pack $project -c $Configuration -p:PackageVersion=$Version -p:RuntimeIdentifier= -p:RuntimeIdentifiers= -p:Platform=AnyCPU -o $packageRoot
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $packagePath)) {
     throw "The authoritative LocalGPT 1-Wire NuGet package was not created: $packagePath"
 }

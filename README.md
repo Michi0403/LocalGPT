@@ -60,6 +60,44 @@ When the Council proposes source, scripts, addons, DLLs, executables, or solutio
 
 See `docs/DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md`.
 
+## Optional organic 1-Wire integration and protocol package
+
+LocalGPT works without PublisherStudio. The organic 1-Wire connection is an optional, local integration example: a second application can announce a compact identity and TCP endpoint through UDP, request a user-approved connection, exchange its complete capability directory over TCP, and expose bounded “eyes”, “hands” or generation functions to the AI Council. Discovery never grants authority. Every sensitive operation still passes the local permission policy and current human approval.
+
+This is also a practical example of LocalGPT's organic adaptation model. A locally running application can describe a new capability, its input/output contract and its safety requirements. LocalGPT can then help generate an adapter, capability mapping and Council workflow for that user's own installation. Generated integration code remains reviewable source; it is not installed or executed merely because a model proposed it.
+
+The shared `LocalGPT.WireProtocolVersion` assembly is deliberately RID-neutral and supports two development/deployment modes:
+
+- **Local source mode (default):** both solutions reference their checked-in `LocalGPT.WireProtocolVersion.csproj`. Use this while changing the protocol in both repositories.
+- **NuGet package mode:** applications reference `LocalGPT.WireProtocolVersion.2.0.1.nupkg`. This keeps standalone builds and release publishing independent from the other repository.
+
+Place the package at:
+
+```text
+<repository>\packages\LocalGPT.WireProtocolVersion.2.0.1.nupkg
+```
+
+For normal local development:
+
+```powershell
+.\Build-LocalDevelopment.ps1 -Configuration Debug -Platform x64
+```
+
+To prove package mode locally:
+
+```powershell
+.\build\Publish-WireProtocolPackage.ps1 -Version 2.0.1
+.\Build-LocalDevelopment.ps1 -Configuration Debug -Platform x64 -UseWireProtocolPackage
+```
+
+For all supported release RIDs:
+
+```powershell
+.\Build-Release.ps1 -Runtime all
+```
+
+`Build-Release.ps1` packs the protocol once without a runtime identifier, restores each application for its own RID, and publishes only the cross-platform LocalGPT application and installer for Linux/macOS. The Windows-only WinUI wrapper is optional (`-IncludeWindowsWrapper`) and is never allowed to break Linux or macOS publishing. The resulting `.nupkg` should be attached to the official LocalGPT GitHub release so PublisherStudio and other organic integrations can consume the exact same public contract.
+
 ## Security and CVEs
 
 Security work is cooperative: confirm advisories, contain exposure, patch or replace affected dependencies, document the decision, and validate the result. Never exploit a CVE, scan unrelated systems, bypass permissions, publish sensitive payloads, or suppress an audit merely to make the build green.
@@ -78,6 +116,10 @@ This source package intentionally excludes build output, IDE state, runtime data
 ## Installer safety
 
 Running the setup helper without arguments shows help and performs no installation. Destructive replacement or uninstall requires explicit `--force-delete`. Review target paths before confirming. Downloads and archive extraction fail closed when a platform asset or safe extraction path cannot be verified. Uninstall removes application files, launchers, and shortcuts but preserves the learning base, including forced uninstall.
+
+## Logging integrity guardrail
+
+Logging is not removed as “cleanup”. Structured service/controller diagnostics, exception logging and expected-cancellation handling are protected by `build/Assert-LoggingIntegrity.ps1` and `build/logging-baseline.json`. The baseline is monotonic: a refactor may add diagnostics, but silently reducing existing logger references, log calls or catch/log boundaries fails the dedicated CI workflow. The same guard runs from the provided development/release scripts and from direct Windows MSBuild/Visual Studio application builds. See `docs/LOGGING_INTEGRITY.md`.
 
 ## License
 

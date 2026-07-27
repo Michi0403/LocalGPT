@@ -28,12 +28,11 @@
     <Manifest Include="$(ApplicationManifest)" />
 
 	
-  <ProjectReference Include="..\LocalGPT\LocalGPT.csproj">
-	  <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
-	  <Private>true</Private>
-	  <IncludeAssets>all</IncludeAssets>
-	  <ExcludeAssets>none</ExcludeAssets>
-	  <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+  <ProjectReference Include="..\LocalGPT\LocalGPT.csproj"
+                    SetPlatform="AnyCPU"
+                    GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot">
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>true</Private>
     </ProjectReference>
   </ItemGroup>
 </Project>

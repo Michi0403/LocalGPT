@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    Direct Windows/Visual Studio builds must not bypass the monotonic logging baseline.
+    Release/development scripts run the same guard once and set SkipLoggingIntegrityGuard.
+  -->
+  <Target Name="AssertLocalGptLoggingIntegrity"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipLoggingIntegrityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)build\Assert-LoggingIntegrity.ps1&quot;" />
+  </Target>
+</Project>
