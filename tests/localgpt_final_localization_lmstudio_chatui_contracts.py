@@ -41,6 +41,10 @@ for marker in ["localgpt-chat-composer", "localgpt-send-button", "localgpt-uploa
 localization = (APP / "wwwroot/js/localgpt-localization.js").read_text(encoding="utf-8")
 require("return complete ? translated : value" in localization, "Missing translations must not produce mixed-language labels.")
 
+localization_service = (APP / "Services/Localization/LocalGptLocalizationService.cs").read_text(encoding="utf-8")
+require("ILogger<LocalGptLocalizationService>" in localization_service, "LocalGPT localization service must participate in the structured logging policy.")
+require("logger.Log" in localization_service and "catch (" in localization_service, "LocalGPT localization service must retain structured diagnostics and catch/log boundaries.")
+
 factory = (APP / "Services/ChatClientFactory.cs").read_text(encoding="utf-8")
 require('endpoint.TrimEnd(\'/\') + "/models"' in factory, "Local OpenAI-compatible providers must discover their actual model ids.")
 require("LM Studio / OpenAI-compatible" in factory, "LM Studio must remain a first-class local OpenAI-compatible chat provider.")

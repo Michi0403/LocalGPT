@@ -1,0 +1,206 @@
+@page "/onewire-security"
+@rendermode InteractiveServer
+@using System.Text.Json
+@inject IOneWireRuntimeSecurityService Security
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+@inject ILogger<OneWireSecurity> Logger
+@inject IJSRuntime JS
+
+<PageTitle>1-Wire Security</PageTitle>
+<ToastWrapper Name="OneWireSecurityToasts" />
+
+<main class="onewire-security-page">
+    <header class="onewire-security-hero">
+        <div>
+            <p>LocalGPT · Organic system</p>
+            <h1>Runtime 1-Wire identity and trust</h1>
+            <span>Generate, rotate or delete the local identity at runtime. No private key, MFA seed or trust database is compiled into LocalGPT.</span>
+        </div>
+        <span class="onewire-security-state">@(_status.HasSecret ? "Identity ready" : "Not initialized")</span>
+    </header>
+
+    <section class="onewire-security-card">
+        <div class="onewire-security-facts">
+            <span><strong>Fingerprint</strong>@(_status.HasSecret ? _status.Fingerprint : "Not created")</span>
+            <span><strong>Trusted peers</strong>@_status.TrustedPeerCount</span>
+            <span><strong>Secret file</strong><code>@_status.SecretPath</code></span>
+        </div>
+        <div class="onewire-security-actions">
+            <DxButton Text="Create identity" Enabled="@(!_status.HasSecret)" Click="CreateAsync" RenderStyle="ButtonRenderStyle.Primary" />
+            <DxButton Text="Create pairing material" Enabled="@_status.HasSecret" Click="CreatePairingMaterialAsync" />
+            <DxButton Text="Regenerate identity" Enabled="@(_status.HasSecret && _allowReset)" Click="RegenerateAsync" RenderStyle="ButtonRenderStyle.Warning" />
+            <DxButton Text="Delete identity" Enabled="@(_status.HasSecret && _allowReset)" Click="DeleteAsync" RenderStyle="ButtonRenderStyle.Danger" />
+            <label><input type="checkbox" @bind="_allowReset" /> allow trust reset</label>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_status.Warning))
+        {
+            <p class="onewire-security-error">@_status.Warning</p>
+        }
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(_pairingTicketJson) || !string.IsNullOrWhiteSpace(_otpUri))
+    {
+        <section class="onewire-security-grid">
+            <article class="onewire-security-card">
+                <h2>Authenticator enrollment</h2>
+                <p>Scan this QR code with an Authenticator-compatible app. Generate it only when you are ready to enroll this local runtime identity.</p>
+                <div id="localgpt-security-otp-qr" class="onewire-security-qr" aria-label="LocalGPT Authenticator QR code"></div>
+                <textarea rows="5" readonly>@_otpUri</textarea>
+            </article>
+            <article class="onewire-security-card">
+                <h2>Public pairing ticket</h2>
+                <p>This short-lived ticket contains public keys and a signature only. Scan or import it in PublisherStudio or a compatible organic add-on.</p>
+                <div id="localgpt-security-ticket-qr" class="onewire-security-qr" aria-label="LocalGPT public pairing ticket QR code"></div>
+                <textarea rows="12" readonly>@_pairingTicketJson</textarea>
+            </article>
+        </section>
+    }
+
+    <section class="onewire-security-grid">
+        <article class="onewire-security-card">
+            <h2>Trust a remote peer</h2>
+            <label>Remote public pairing ticket
+                <textarea rows="11" @bind="_remoteTicketJson" @bind:event="oninput" placeholder="Paste the PublisherStudio, ESP32 gateway or custom add-on pairing-ticket JSON."></textarea>
+            </label>
+            <div class="onewire-security-inline">
+                <label>Current LocalGPT MFA code <input inputmode="numeric" maxlength="8" @bind="_mfaCode" /></label>
+                <label>Validity in minutes <input type="number" min="5" max="525600" @bind="_validForMinutes" /></label>
+            </div>
+            <DxButton Text="Verify MFA and trust peer" Click="EstablishTrustAsync" RenderStyle="ButtonRenderStyle.Primary" />
+            <p>Trust is reciprocal. Repeat the process in the remote application with LocalGPT's public ticket. Private material never crosses the wire.</p>
+        </article>
+        <article class="onewire-security-card">
+            <h2>Trusted peers</h2>
+            @if (_trustedPeers.Count == 0)
+            {
+                <p>No encrypted peer trust exists yet. Discovery and explicit frontend link approval can still be used without encrypted payloads.</p>
+            }
+            else
+            {
+                @foreach (var peer in _trustedPeers)
+                {
+                    <div class="onewire-security-peer" @key="peer.PeerId">
+                        <div>
+                            <strong>@peer.DisplayName</strong>
+                            <span>@peer.PeerId</span>
+                            <small>@peer.TrustLevel · valid until @(peer.ValidUntilUtc?.LocalDateTime.ToString("g") ?? "manual revocation")</small>
+                        </div>
+                        <DxButton Text="Revoke" Click="() => RevokeAsync(peer.PeerId)" RenderStyle="ButtonRenderStyle.Danger" />
+                    </div>
+                }
+            }
+        </article>
+    </section>
+</main>
+
+@code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private OneWireRuntimeSecurityStatus _status = new();
+    private IReadOnlyList<OneWireTrustedPeerDescriptor> _trustedPeers = [];
+    private string _otpUri = string.Empty;
+    private string _pairingTicketJson = string.Empty;
+    private string _remoteTicketJson = string.Empty;
+    private string _mfaCode = string.Empty;
+    private int _validForMinutes = 1440;
+    private bool _allowReset;
+    private bool _renderQr;
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_renderQr) return;
+        _renderQr = false;
+        await JS.InvokeVoidAsync("localGptOneWireSecurity.renderQr", "localgpt-security-otp-qr", _otpUri, "LocalGPT Authenticator enrollment");
+        await JS.InvokeVoidAsync("localGptOneWireSecurity.renderQr", "localgpt-security-ticket-qr", _pairingTicketJson, "LocalGPT public 1-Wire pairing ticket");
+    }
+
+    private async Task RefreshAsync()
+    {
+        _status = await Security.GetStatusAsync();
+        _trustedPeers = await Security.GetTrustedPeersAsync();
+    }
+
+    private async Task CreateAsync() => await RunAsync(async () =>
+    {
+        await Security.EnsureCreatedAsync();
+        Notifier.ShowSuccess("OneWireSecurityToasts", "Runtime 1-Wire identity created.", "1-Wire security");
+    }, "Could not create the runtime 1-Wire identity.");
+
+    private async Task CreatePairingMaterialAsync() => await RunAsync(async () =>
+    {
+        await Security.EnsureCreatedAsync();
+        _otpUri = await Security.GetOtpAuthUriAsync();
+        _pairingTicketJson = JsonSerializer.Serialize(await Security.CreatePairingTicketAsync(TimeSpan.FromMinutes(15)), JsonOptions);
+        _renderQr = true;
+        Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created.", "1-Wire security");
+    }, "Could not create 1-Wire pairing material.");
+
+    private async Task RegenerateAsync() => await RunAsync(async () =>
+    {
+        if (!_allowReset) return;
+        await Security.RegenerateAsync();
+        ClearMaterial();
+        Notifier.ShowWarning("OneWireSecurityToasts", "The LocalGPT runtime identity was regenerated. Previous encrypted trust is invalid.", "1-Wire trust reset");
+    }, "Could not regenerate the runtime 1-Wire identity.");
+
+    private async Task DeleteAsync() => await RunAsync(async () =>
+    {
+        if (!_allowReset) return;
+        await Security.DeleteAsync();
+        ClearMaterial();
+        Notifier.ShowWarning("OneWireSecurityToasts", "The LocalGPT runtime identity and local trust bindings were deleted.", "1-Wire trust reset");
+    }, "Could not delete the runtime 1-Wire identity.");
+
+    private async Task EstablishTrustAsync() => await RunAsync(async () =>
+    {
+        var ticket = JsonSerializer.Deserialize<OneWirePairingTicket>(_remoteTicketJson, JsonOptions)
+            ?? throw new InvalidDataException("The remote pairing ticket is empty or invalid.");
+        var accepted = await Security.EstablishTrustAsync(new OneWireTrustEstablishmentRequest
+        {
+            Ticket = ticket,
+            MfaCode = _mfaCode.Trim(),
+            ValidForMinutes = _validForMinutes
+        });
+        if (!accepted)
+        {
+            Notifier.ShowWarning("OneWireSecurityToasts", "The current LocalGPT MFA code was not accepted.", "1-Wire trust");
+            return;
+        }
+        _mfaCode = string.Empty;
+        Notifier.ShowSuccess("OneWireSecurityToasts", $"Trusted {ticket.DisplayName} for the selected validity period.", "1-Wire trust");
+    }, "Could not establish trust for the remote 1-Wire peer.");
+
+    private async Task RevokeAsync(string peerId) => await RunAsync(async () =>
+    {
+        await Security.RevokeTrustAsync(peerId);
+        Notifier.ShowWarning("OneWireSecurityToasts", $"Trust for {peerId} was revoked.", "1-Wire trust");
+    }, "Could not revoke the selected 1-Wire trust binding.");
+
+    private async Task RunAsync(Func<Task> action, string message)
+    {
+        const string operation = "RuntimeSecurityAction";
+        ComponentActivity.RecordInformation(nameof(OneWireSecurity), operation, "A runtime 1-Wire security UI operation started.");
+        try
+        {
+            await action();
+            await RefreshAsync();
+            ComponentActivity.RecordInformation(nameof(OneWireSecurity), operation, "The runtime 1-Wire security UI operation completed.");
+        }
+        catch (Exception ex)
+        {
+            ComponentActivity.RecordFailure(nameof(OneWireSecurity), operation, ex);
+            Logger.LogError(ex, "{Message}", message);
+            Notifier.ShowError("OneWireSecurityToasts", $"{message} {ex.Message}", "1-Wire security");
+        }
+    }
+
+    private void ClearMaterial()
+    {
+        _otpUri = string.Empty;
+        _pairingTicketJson = string.Empty;
+        _allowReset = false;
+        _renderQr = true;
+    }
+}
