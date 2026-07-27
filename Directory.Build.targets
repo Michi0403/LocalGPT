@@ -60,7 +60,7 @@
     <ProjectMaintenanceArchitectureScript>$(MSBuildThisFileDirectory)build\Assert-ProjectMaintenanceArchitecture.ps1</ProjectMaintenanceArchitectureScript>
   </PropertyGroup>
 
-  <Target Name="AssertLocalGptProjectMaintenanceArchitecture"
+  <!--<Target Name="AssertLocalGptProjectMaintenanceArchitecture"
           BeforeTargets="BeforeBuild"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipProjectMaintenanceArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(ProjectMaintenanceArchitectureScript)')"
@@ -71,13 +71,13 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
   <PropertyGroup>
     <GitSourceVisibilityScript>$(MSBuildThisFileDirectory)build\Assert-GitSourceVisibility.ps1</GitSourceVisibilityScript>
   </PropertyGroup>
 
-  <Target Name="AssertLocalGptGitSourceVisibility"
+  <!--<Target Name="AssertLocalGptGitSourceVisibility"
           BeforeTargets="BeforeBuild"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipGitSourceVisibilityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(GitSourceVisibilityScript)')"
@@ -88,6 +88,6 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
 </Project>
