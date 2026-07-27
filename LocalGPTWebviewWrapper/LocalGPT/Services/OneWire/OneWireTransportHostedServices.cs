@@ -11,6 +11,7 @@ namespace LocalGPT.Services.OneWire;
 public sealed class OneWireTcpHostedService(
     IOptions<OneWireOptions> options,
     IOneWireEnvelopeCodec codec,
+    IOneWireRuntimeSecurityService security,
     IOneWireMessageDispatcher dispatcher,
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
@@ -58,6 +59,7 @@ public sealed class OneWireTcpHostedService(
             {
                 async Task Sender(OneWireEnvelope message, CancellationToken token)
                 {
+                    await security.ProtectOutgoingAsync(message, token).ConfigureAwait(false);
                     await writeGate.WaitAsync(token).ConfigureAwait(false);
                     try { await writer.WriteLineAsync(codec.Serialize(message).AsMemory(), token).ConfigureAwait(false); }
                     finally { writeGate.Release(); }
@@ -71,6 +73,7 @@ public sealed class OneWireTcpHostedService(
                     if (Encoding.UTF8.GetByteCount(line) > Math.Clamp(options.Value.MaximumMessageBytes, 4096, OneWireProtocol.MaximumMessageBytes))
                         throw new InvalidDataException("The 1-Wire message is too large.");
                     var envelope = codec.DeserializeAndValidate(line);
+                    await security.UnprotectIncomingAsync(envelope, cancellationToken).ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(envelope.SourcePeerId) && !string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
                     {
                         peerId = envelope.SourcePeerId;
@@ -101,6 +104,7 @@ public sealed class OneWireTcpHostedService(
 
 public sealed class OneWireDiscoveryHostedService(
     IOptions<OneWireOptions> options,
+    IOneWireRuntimeSecurityService security,
     ILogger<OneWireDiscoveryHostedService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -115,6 +119,7 @@ public sealed class OneWireDiscoveryHostedService(
             try
             {
                 var address = IPAddress.TryParse(options.Value.BroadcastAddress, out var parsed) ? parsed : IPAddress.Broadcast;
+                var publicSecurity = await security.GetPublicDescriptorAsync(stoppingToken).ConfigureAwait(false);
                 var advertisement = new OneWirePeerAdvertisement
                 {
                     PeerId = "localgpt",
@@ -126,7 +131,10 @@ public sealed class OneWireDiscoveryHostedService(
                     ServicePort = Program.OneWirePort,
                     DiscoveryPort = Program.OneWireDiscoveryPort,
                     WebBaseUrl = Program.BaseUrl,
-                    IsConnected = true
+                    IsConnected = true,
+                    TransportKind = OneWireTransportKind.Tcp,
+                    SupportedTransports = ["tcp", "http-json"],
+                    Security = publicSecurity
                 };
                 // UDP is only the small discovery beacon. The full DXFunction/skill/hardware directory is
                 // requested over the established TCP link after both frontends approve the connection.

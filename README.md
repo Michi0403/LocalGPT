@@ -66,12 +66,14 @@ LocalGPT works without PublisherStudio. The organic 1-Wire connection is an opti
 
 This is also a practical example of LocalGPT's organic adaptation model. A locally running application can describe a new capability, its input/output contract and its safety requirements. LocalGPT can then help generate an adapter, capability mapping and Council workflow for that user's own installation. Generated integration code remains reviewable source; it is not installed or executed merely because a model proposed it.
 
-The shared `LocalGPT.WireProtocolVersion` assembly is deliberately RID-neutral and has one source authority: this LocalGPT repository. LocalGPT itself may use the project reference while developing the contract or its generated NuGet package when proving release behavior. Consumer repositories, including PublisherStudio, use only `LocalGPT.WireProtocolVersion.2.0.1.nupkg` and must not keep a second Git-revisioned protocol project.
+Runtime trust is equally optional. Each application creates its own random secret file only at runtime, and the user can create, rotate or delete it from the frontend to reset trust. Public pairing tickets and Authenticator MFA can establish time-limited reciprocal trust; private keys and MFA seeds never cross the wire. Once trusted, sensitive envelope content is encrypted and signed while routing metadata stays compact. The same JSON contract is available through HTTP/JSON endpoints for user-built gateways and constrained clients such as an ESP32. See `docs/ONEWIRE_RUNTIME_SECURITY_HTTP_JSON.md`.
+
+The shared `LocalGPT.WireProtocolVersion` assembly is deliberately RID-neutral and has one source authority: this LocalGPT repository. LocalGPT itself may use the project reference while developing the contract or its generated NuGet package when proving release behavior. Consumer repositories, including PublisherStudio, use only `LocalGPT.WireProtocolVersion.2.1.0.nupkg` and must not keep a second Git-revisioned protocol project.
 
 Place the package at:
 
 ```text
-<repository>\packages\LocalGPT.WireProtocolVersion.2.0.1.nupkg
+<repository>\packages\LocalGPT.WireProtocolVersion.2.1.0.nupkg
 ```
 
 For normal local development:
@@ -83,7 +85,7 @@ For normal local development:
 To prove package mode locally:
 
 ```powershell
-.\build\Publish-WireProtocolPackage.ps1 -Version 2.0.1
+.\build\Publish-WireProtocolPackage.ps1 -Version 2.1.0
 .\Build-LocalDevelopment.ps1 -Configuration Debug -Platform x64 -UseWireProtocolPackage
 ```
 

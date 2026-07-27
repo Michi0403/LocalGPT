@@ -26,10 +26,10 @@
 
 <button type="button"
         class="human-inbox-launcher @(PendingCount > 0 ? "has-pending" : string.Empty)"
-        title="Human Collaboration Inbox"
+        title="Approvals, permissions and human Council participation"
         @onclick="TogglePanel">
-    <span aria-hidden="true">◎</span>
-    <span>Human team</span>
+    <span aria-hidden="true">🔒</span>
+    <span>Approvals & team</span>
     @if (PendingCount > 0)
     {
         <strong>@PendingCount</strong>

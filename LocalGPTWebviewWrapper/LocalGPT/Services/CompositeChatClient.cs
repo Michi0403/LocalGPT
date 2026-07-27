@@ -105,6 +105,20 @@ public class CompositeChatClient : IChatClient
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
+    private static bool IsConnectionRefused(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is System.Net.Sockets.SocketException socketException
+                && socketException.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionRefused)
+                return true;
+            if (current.Message.Contains("connection refused", StringComparison.OrdinalIgnoreCase)
+                || current.Message.Contains("Verbindung verweigert", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
     public void Dispose()
     {
         try
@@ -291,6 +305,49 @@ public class CompositeChatClient : IChatClient
         finally
         {
             await updates.DisposeAsync().ConfigureAwait(false);
+        }
+
+        if (streamFailure is not null && responseText.Length == 0 && !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Retrying streaming chat once for session {SessionName} because the first attempt produced no output.", session.Name);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent("The provider did not answer. LocalGPT is retrying once…")]);
+            await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken).ConfigureAwait(false);
+            streamFailure = null;
+            var retryUpdates = session.Client
+                .GetStreamingResponseAsync(enrichedMessages, resolvedOptions, cancellationToken)
+                .GetAsyncEnumerator(cancellationToken);
+            try
+            {
+                while (true)
+                {
+                    ChatResponseUpdate update;
+                    try
+                    {
+                        if (!await retryUpdates.MoveNextAsync().ConfigureAwait(false))
+                            break;
+                        update = retryUpdates.Current;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        yield break;
+                    }
+                    catch (Exception retryException)
+                    {
+                        _logger.LogError(retryException, "Streaming retry failed for session {SessionName}.", session.Name);
+                        streamFailure = IsConnectionRefused(retryException)
+                            ? "The selected local AI provider is not running or refused the connection. Start Ollama/LM Studio, then refresh models and retry."
+                            : "The selected AI session failed twice. Review LocalGPT application logs and the provider health settings.";
+                        break;
+                    }
+
+                    responseText.Append(update.Text);
+                    yield return update;
+                }
+            }
+            finally
+            {
+                await retryUpdates.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         if (streamFailure is not null)

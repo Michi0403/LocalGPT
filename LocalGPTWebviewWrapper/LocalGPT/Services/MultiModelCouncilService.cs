@@ -98,7 +98,9 @@ namespace LocalGPT.Services
                     throw new InvalidOperationException("The council needs a prompt.");
 
                 var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri, logger);
-                var participants = SelectParticipants(request);
+                var selectedParticipants = SelectParticipants(request);
+                var participantSelection = await ApplyApprovedOneRunModelExclusionsAsync(selectedParticipants, cancellationToken).ConfigureAwait(false);
+                var participants = participantSelection.Active;
                 var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
                 var maxContextTokens = Math.Clamp(
                     request.MaxContextTokens <= 0 ? DefaultContextTokens : request.MaxContextTokens,
@@ -122,6 +124,8 @@ namespace LocalGPT.Services
                     OneWireCorrelationId = request.OneWireCorrelationId,
                     StartedAtUtc = DateTime.UtcNow
                 };
+                foreach (var excludedModel in participantSelection.Excluded)
+                    result.Warnings.Add($"{excludedModel} was excluded from this Council run by a previously approved one-run model-health decision.");
                 collaborationRunId = result.RunId;
                 var continuedConversation = await LoadContinuationConversationAsync(
                     request.ContinueConversationId,
@@ -249,7 +253,8 @@ namespace LocalGPT.Services
                 var readinessTranscript = councilText.MultiModelCouncilServiceBuildTranscript(result.Steps.Where(step => step.Phase == "Readiness"), logger);
                 bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Council member readiness and introductions", readinessTranscript, logger);
 
-                var leaderModel = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase)) ?? participants[0];
+                var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
+                var leaderModel = SelectHealthyParticipant(result, participants, requestedLeader);
                 var leaderPlan = modelRoutes.TryGetValue(leaderModel, out var configuredLeaderPlan)
                     ? configuredLeaderPlan
                     : new CouncilHardwareRoadPlan(leaderModel, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{leaderModel}", request.ResourceLoadPercent, request.MaxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
@@ -380,12 +385,13 @@ namespace LocalGPT.Services
                         baseBootstrap,
                         cancellationToken).ConfigureAwait(false);
                     var finalTranscript = councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger);
+                    var consensusModel = SelectHealthyParticipant(result, participants);
                     MultiModelCouncilStep? consensusStep;
                     using (ambientContext.PushCouncil(result.RunId, consensusRound, "Consensus"))
                     {
                         consensusStep = await RunParticipantAsync(
                             baseUri,
-                            participants[0],
+                            consensusModel,
                             participants,
                             round: consensusRound,
                             phase: "Consensus",
@@ -394,7 +400,7 @@ namespace LocalGPT.Services
                             consensusBootstrap,
                             request.MaxOutputTokens,
                             keepAlive,
-                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu, logger),
+                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(consensusModel, ollamaNumGpu, logger),
                             maxContextTokens,
                             modelTimeoutSeconds,
                             request.StreamUpdate,
@@ -415,12 +421,15 @@ namespace LocalGPT.Services
                             "Verification",
                             baseBootstrap,
                             cancellationToken).ConfigureAwait(false);
+                        var verificationModel = SelectHealthyParticipant(
+                            result,
+                            participants.Where(model => !string.Equals(model, consensusModel, StringComparison.OrdinalIgnoreCase)).ToList());
                         MultiModelCouncilStep? verificationStep;
                         using (ambientContext.PushCouncil(result.RunId, verificationRound, "Verification"))
                         {
                             verificationStep = await RunParticipantAsync(
                                 baseUri,
-                                participants[1],
+                                verificationModel,
                                 participants,
                                 round: verificationRound,
                                 phase: "Verification",
@@ -429,7 +438,7 @@ namespace LocalGPT.Services
                                 verificationBootstrap,
                                 request.MaxOutputTokens,
                                 keepAlive,
-                                MultiModelCouncilServiceResolveParticipantOllamaNumGpu(participants[1], ollamaNumGpu, logger),
+                                MultiModelCouncilServiceResolveParticipantOllamaNumGpu(verificationModel, ollamaNumGpu, logger),
                                 maxContextTokens,
                                 modelTimeoutSeconds,
                                 request.StreamUpdate,
@@ -458,12 +467,13 @@ namespace LocalGPT.Services
                 if (result.Steps.Count > stepCountBeforeFinalHumanHeartbeat)
                 {
                     request.ProgressMessage?.Invoke("A late human contribution joined before completion. The council is integrating it without restarting the whole run.");
+                    var integrationModel = SelectHealthyParticipant(result, participants);
                     MultiModelCouncilStep? humanIntegrationStep;
                     using (ambientContext.PushCouncil(result.RunId, finalHumanRound, "Human follow-up integration"))
                     {
                         humanIntegrationStep = await RunParticipantAsync(
                             baseUri,
-                            participants[0],
+                            integrationModel,
                             participants,
                             finalHumanRound,
                             "Human follow-up integration",
@@ -476,7 +486,7 @@ namespace LocalGPT.Services
                             finalHumanBootstrap,
                             request.MaxOutputTokens,
                             keepAlive,
-                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(participants[0], ollamaNumGpu, logger),
+                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(integrationModel, ollamaNumGpu, logger),
                             maxContextTokens,
                             modelTimeoutSeconds,
                             request.StreamUpdate,
@@ -505,6 +515,14 @@ namespace LocalGPT.Services
                     var warning = $"{failedStep.ModelName} failed during {failedStep.Phase}: {failedStep.Error}";
                     if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
                         result.Warnings.Add(warning);
+                }
+
+                foreach (var failedModel in result.Steps
+                    .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+                    .Select(step => step.ModelName)
+                    .Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    await QueueModelHealthExclusionReviewAsync(result, failedModel, cancellationToken).ConfigureAwait(false);
                 }
 
                 result.UserPoll = councilRuntime.MultiModelCouncilServiceBuildUserPoll(result, logger);
@@ -543,6 +561,7 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Implementation generation was not prepared because the user prompt did not explicitly ask LocalGPT to generate, create, or continue a downloadable/code artifact.");
                 }
 
+                AppendRuntimeBenchmarkSummary(result);
                 result.KnowledgeEntryId = await knowledgeService.SaveFromCouncilRunAsync(result, cancellationToken).ConfigureAwait(false);
 
                 if (result.ProjectTopicId is Guid projectTopicId && result.KnowledgeEntryId is Guid knowledgeEntryId && knowledgeEntryId != Guid.Empty)
@@ -875,6 +894,20 @@ namespace LocalGPT.Services
             try
             {
                 using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase);
+                var failedModels = result.Steps
+                    .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+                    .Select(step => step.ModelName)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var phaseParticipants = OrderParticipantsByObservedHealth(
+                    result,
+                    participants.Where(model => !failedModels.Contains(model))).ToList();
+                if (phaseParticipants.Count == 0)
+                    phaseParticipants.Add(SelectHealthyParticipant(result, participants));
+                if (phaseParticipants.Count < participants.Count)
+                {
+                    var excluded = participants.Where(model => !phaseParticipants.Contains(model, StringComparer.OrdinalIgnoreCase));
+                    progressMessage?.Invoke($"Council health guard excluded {string.Join(", ", excluded)} from {phase} after recovery failed earlier in this run.");
+                }
                 progressMessage?.Invoke($"Starting council phase: round {round}, {phase}, role {role}.");
                 // A single append-only DXAIChat response cannot safely interleave nested
                 // HTML from multiple model streams. Keep streamed presentation ordered;
@@ -890,12 +923,12 @@ namespace LocalGPT.Services
                             allowParallelHardwareRoads ? Math.Max(1, group.Min(plan => plan.MaxConcurrentModelsOnLane)) : 1),
                         StringComparer.OrdinalIgnoreCase);
 
-                var tasks = participants
+                var tasks = phaseParticipants
                     .Select(async modelName =>
                     {
                         var plan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
                             ? configuredPlan
-                            : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 30, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                            : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
                         var laneKey = allowParallelHardwareRoads ? plan.LaneKey : "council:single-lane";
                         var laneGate = laneGates[laneKey];
                         await globalGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -931,7 +964,7 @@ namespace LocalGPT.Services
                     steps.Add(step);
                 }
 
-                var participantOrder = participants
+                var participantOrder = phaseParticipants
                     .Select((modelName, index) => new { modelName, index })
                     .ToDictionary(item => item.modelName, item => item.index, StringComparer.OrdinalIgnoreCase);
 
@@ -1009,7 +1042,8 @@ namespace LocalGPT.Services
             int maxContextTokens,
             int modelTimeoutSeconds,
             Action<string>? streamUpdate,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool allowRecovery = true)
         {
             try
             {
@@ -1113,6 +1147,15 @@ namespace LocalGPT.Services
                     stopwatch.Stop();
                     var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
                     logger.LogWarning(ex, "{Message}", message);
+                    if (allowRecovery)
+                    {
+                        var recovered = await RetryParticipantWithSafeLimitsAsync(
+                            baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,
+                            maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds,
+                            streamUpdate, cancellationToken, message).ConfigureAwait(false);
+                        if (recovered is not null)
+                            return recovered;
+                    }
                     return new MultiModelCouncilStep
                     {
                         Round = round,
@@ -1132,6 +1175,15 @@ namespace LocalGPT.Services
                 {
                     stopwatch.Stop();
                     logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
+                    if (allowRecovery)
+                    {
+                        var recovered = await RetryParticipantWithSafeLimitsAsync(
+                            baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,
+                            maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds,
+                            streamUpdate, cancellationToken, ex.Message).ConfigureAwait(false);
+                        if (recovered is not null)
+                            return recovered;
+                    }
                     return new MultiModelCouncilStep
                     {
                         Round = round,
@@ -1157,6 +1209,224 @@ namespace LocalGPT.Services
             {
                 logger.LogError(ex, "Council participant failed for model {ModelName}, round {Round}, phase {Phase}, role {Role}, max output {MaxOutputTokens}, max context {MaxContextTokens}, timeout {TimeoutSeconds}s.", modelName, round, phase, role, maxOutputTokens, maxContextTokens, modelTimeoutSeconds);
                 return null;
+            }
+        }
+
+        private async Task<MultiModelCouncilStep?> RetryParticipantWithSafeLimitsAsync(
+            string baseUri,
+            string modelName,
+            IReadOnlyList<string> councilMembers,
+            int round,
+            string phase,
+            string role,
+            string prompt,
+            string bootstrap,
+            int maxOutputTokens,
+            string keepAlive,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
+            Action<string>? streamUpdate,
+            CancellationToken cancellationToken,
+            string originalFailure)
+        {
+            try
+            {
+                var recoveryOutput = Math.Clamp(Math.Min(maxOutputTokens, 8192), MinOutputTokens, MaxOutputTokens);
+                var recoveryContext = Math.Clamp(Math.Min(maxContextTokens, 65536), MinContextTokens, MaxContextTokens);
+                streamUpdate?.Invoke(
+                    Environment.NewLine + Environment.NewLine +
+                    $"> {WebUtility.HtmlEncode(modelName)} failed in {WebUtility.HtmlEncode(phase)}. LocalGPT is retrying once with safe CPU and bounded context/output settings." +
+                    Environment.NewLine + Environment.NewLine);
+                logger.LogInformation(
+                    "Retrying Council participant {ModelName} after failure in {Phase} with output {MaxOutputTokens}, context {MaxContextTokens}, CPU fallback.",
+                    modelName,
+                    phase,
+                    recoveryOutput,
+                    recoveryContext);
+                var recovered = await RunParticipantAsync(
+                    baseUri,
+                    modelName,
+                    councilMembers,
+                    round,
+                    phase,
+                    $"{role} (automatic recovery)",
+                    prompt + Environment.NewLine + Environment.NewLine +
+                    "Recovery instruction: the previous attempt failed. Produce a concise final answer, avoid optional tools, and report only actionable blockers.",
+                    bootstrap,
+                    recoveryOutput,
+                    keepAlive,
+                    0,
+                    recoveryContext,
+                    Math.Max(60, Math.Min(modelTimeoutSeconds, 600)),
+                    streamUpdate,
+                    cancellationToken,
+                    allowRecovery: false).ConfigureAwait(false);
+                if (recovered is null)
+                    return null;
+                if (string.IsNullOrWhiteSpace(recovered.Error))
+                {
+                    recovered.VisibleContent = $"_Automatic recovery succeeded after: {originalFailure}_" + Environment.NewLine + Environment.NewLine + recovered.VisibleContent;
+                    recovered.Content = recovered.VisibleContent;
+                    return recovered;
+                }
+
+                recovered.Error = $"{originalFailure} | Recovery failed: {recovered.Error}";
+                recovered.VisibleContent = $"**{modelName} failed and its automatic recovery also failed.**" + Environment.NewLine + recovered.Error;
+                recovered.Content = recovered.VisibleContent;
+                return recovered;
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning(ex, "Automatic Council recovery failed for {ModelName} in {Phase}.", modelName, phase);
+                return null;
+            }
+        }
+
+        private static string SelectHealthyParticipant(
+            MultiModelCouncilResult result,
+            IReadOnlyList<string> participants,
+            string? preferredModel = null)
+        {
+            if (participants.Count == 0)
+                throw new InvalidOperationException("The Council has no model participant available.");
+
+            var failedModels = result.Steps
+                .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+                .Select(step => step.ModelName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(preferredModel) && !failedModels.Contains(preferredModel))
+                return preferredModel;
+            return participants.FirstOrDefault(model => !failedModels.Contains(model)) ?? participants[0];
+        }
+
+        private async Task<(List<string> Active, List<string> Excluded)> ApplyApprovedOneRunModelExclusionsAsync(
+            List<string> selectedParticipants,
+            CancellationToken cancellationToken)
+        {
+            var active = selectedParticipants.ToList();
+            var excluded = new List<string>();
+            try
+            {
+                var snapshot = await humanCollaboration.GetSnapshotAsync(includeResolved: true, take: 200, cancellationToken).ConfigureAwait(false);
+                foreach (var modelName in selectedParticipants)
+                {
+                    var spec = CreateModelHealthExclusionRequest(modelName, null, string.Empty);
+                    var approved = snapshot.Requests.FirstOrDefault(request =>
+                        string.Equals(request.CorrelationId, spec.CorrelationId, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(request.OperationKey, spec.OperationKey, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(request.Status, HumanCollaborationStatuses.Approved, StringComparison.OrdinalIgnoreCase));
+                    if (approved is null || active.Count <= 1)
+                        continue;
+
+                    var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(spec, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    if (!gate.IsAuthorized)
+                        continue;
+                    active.RemoveAll(model => string.Equals(model, modelName, StringComparison.OrdinalIgnoreCase));
+                    excluded.Add(modelName);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Approved one-run model exclusions could not be applied. The selected Council models remain available.");
+            }
+            return (active, excluded);
+        }
+
+        private async Task QueueModelHealthExclusionReviewAsync(
+            MultiModelCouncilResult result,
+            string modelName,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var failures = result.Steps
+                    .Where(step => string.Equals(step.ModelName, modelName, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(step.Error))
+                    .Select(step => $"{step.Phase}: {step.Error}")
+                    .Take(4)
+                    .ToList();
+                var spec = CreateModelHealthExclusionRequest(modelName, result.RunId, string.Join(" | ", failures));
+                await humanCollaboration.AuthorizeOrEnqueueAsync(spec, cancellationToken: cancellationToken).ConfigureAwait(false);
+                result.Warnings.Add($"A local approval was queued to exclude {modelName} from one subsequent Council run. This does not permanently disable the model.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not queue a model-health review for {ModelName}.", modelName);
+            }
+        }
+
+        private static HumanApprovalRequestSpec CreateModelHealthExclusionRequest(
+            string modelName,
+            Guid? councilRunId,
+            string failureSummary)
+        {
+            var normalized = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(modelName.Trim())))[..16].ToLowerInvariant();
+            return new HumanApprovalRequestSpec(
+                CorrelationId: $"council:model-health:{normalized}",
+                OperationKey: $"council.model.exclude-next-run.{normalized}",
+                Title: $"Exclude failed model once: {modelName}",
+                Description: string.IsNullOrWhiteSpace(failureSummary)
+                    ? $"A previous Council run requested that {modelName} be skipped for one run after repeated recovery failure."
+                    : $"{modelName} failed after LocalGPT's bounded automatic recovery. Approving skips it for one subsequent Council run, then it becomes eligible for benchmarking again. Evidence: {failureSummary}",
+                RiskLevel: "Low",
+                Source: nameof(MultiModelCouncilService),
+                RequestedBy: "AI Council health guard",
+                RequestedRole: "Local model reliability reviewer",
+                CouncilRunId: councilRunId,
+                EarliestCouncilRound: 0,
+                RequiredBeforeCompletion: false,
+                IsSensitive: false,
+                SuggestedResponsesText: "Exclude for one run\nKeep available and retry",
+                ResponsePrompt: "Approve only when the failed model should be skipped for the next Council run.",
+                AllowFreeText: true);
+        }
+
+        private static IEnumerable<string> OrderParticipantsByObservedHealth(
+            MultiModelCouncilResult result,
+            IEnumerable<string> participants)
+        {
+            var originalOrder = participants.Select((model, index) => new { Model = model, Index = index }).ToList();
+            return originalOrder
+                .Select(item => new
+                {
+                    item.Model,
+                    item.Index,
+                    Failed = result.Steps.Count(step =>
+                        string.Equals(step.ModelName, item.Model, StringComparison.OrdinalIgnoreCase) &&
+                        !string.IsNullOrWhiteSpace(step.Error)),
+                    SuccessfulDurations = result.Steps
+                        .Where(step =>
+                            string.Equals(step.ModelName, item.Model, StringComparison.OrdinalIgnoreCase) &&
+                            string.IsNullOrWhiteSpace(step.Error) &&
+                            step.DurationSeconds > 0)
+                        .Select(step => step.DurationSeconds)
+                        .ToList()
+                })
+                .OrderBy(item => item.Failed)
+                .ThenBy(item => item.SuccessfulDurations.Count == 0 ? double.MaxValue : item.SuccessfulDurations.Average())
+                .ThenBy(item => item.Index)
+                .Select(item => item.Model);
+        }
+
+        private static void AppendRuntimeBenchmarkSummary(MultiModelCouncilResult result)
+        {
+            foreach (var group in result.Steps
+                .Where(step => !string.IsNullOrWhiteSpace(step.ModelName))
+                .GroupBy(step => step.ModelName, StringComparer.OrdinalIgnoreCase))
+            {
+                var completed = group.Where(step => string.IsNullOrWhiteSpace(step.Error)).ToList();
+                var measured = completed.Where(step => step.DurationSeconds > 0).ToList();
+                var failed = group.Count(step => !string.IsNullOrWhiteSpace(step.Error));
+                var successRate = group.Any() ? (int)Math.Round(completed.Count * 100d / group.Count()) : 0;
+                var averageSeconds = measured.Count == 0 ? 0 : measured.Average(step => step.DurationSeconds);
+                var maximumLoad = group.Max(step => step.EffectiveLoadPercent);
+                var maximumOutput = group.Max(step => step.EffectiveMaxOutputTokens);
+                var maximumContext = group.Max(step => step.EffectiveMaxContextTokens);
+                result.Warnings.Add(
+                    $"Runtime benchmark {group.Key}: {successRate}% successful across {group.Count()} step(s), " +
+                    $"average {averageSeconds:0.0}s for completed measured steps, {failed} failure(s), " +
+                    $"observed road up to {maximumLoad}% / output {maximumOutput:n0} / context {maximumContext:n0}. " +
+                    "This run-local evidence is persisted with the Council knowledge entry and does not silently rewrite user-approved hardware roads.");
             }
         }
 

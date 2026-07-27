@@ -96,6 +96,20 @@ Analyze only the supplied evidence. Report meaningful changes, uncertainties, an
         var parameters = item.Request.Properties is not null && item.Request.Properties.TryGetValue("Parameters", out var parameterElement)
             ? parameterElement.Clone()
             : JsonSerializer.SerializeToElement(new { }, JsonOptions);
+        if (string.Equals(item.CapabilityKey, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase))
+        {
+            var ocr = scope.ServiceProvider.GetRequiredService<ILocalVisionOcrService>();
+            var request = new LocalVisionOcrRequest
+            {
+                ImageDataUrl = GetString(parameters, "imageDataUrl", GetString(parameters, "dataUrl", string.Empty)),
+                Prompt = GetString(parameters, "prompt", string.Empty),
+                ModelName = GetString(parameters, "modelName", string.Empty),
+                MaximumOutputTokens = GetInt(parameters, "maximumOutputTokens", 1600)
+            };
+            var ocrResult = await ocr.RecognizeAsync(request, cancellationToken).ConfigureAwait(false);
+            return JsonSerializer.Serialize(ocrResult, JsonOptions);
+        }
+
         var functionName = string.IsNullOrWhiteSpace(item.CapabilityKey) ? item.Request.Route : item.CapabilityKey;
         var catalog = scope.ServiceProvider.GetRequiredService<IDxAiFunctionCatalogService>();
         var catalogEntry = await catalog.GetByFunctionNameAsync(functionName, cancellationToken).ConfigureAwait(false);
@@ -154,14 +168,19 @@ public sealed class OneWireMessageDispatcher(
     IOneWireWorkSpooler spooler,
     IOneWirePendingCouncilStore pendingCouncils,
     IHumanCollaborationService humanCollaboration,
+    IOneWireRuntimeSecurityService security,
     ILogger<OneWireMessageDispatcher> logger) : IOneWireMessageDispatcher
 {
     private static readonly JsonSerializerOptions JsonOptions = OneWireEnvelopeCodec.CreateOptions();
 
     public async Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        if (!codec.Validate(envelope, out var validationError))
+        // TCP/HTTP adapters validate the sealed transport form before optional decryption.
+        // Revalidating the now-decrypted fields against the encrypted-form hash would reject valid secured messages.
+        if (envelope.SecurityMode == OneWireSecurityMode.None && !codec.Validate(envelope, out var validationError))
             return Error(envelope, validationError);
+        if (!OneWireProtocol.IsCompatible(envelope.ProtocolVersion))
+            return Error(envelope, $"Unsupported 1-Wire protocol version '{envelope.ProtocolVersion}'.");
 
         if (envelope.MessageType != OneWireMessageType.Hello &&
             !string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase) &&
@@ -202,8 +221,17 @@ public sealed class OneWireMessageDispatcher(
                 return Reply(envelope, OneWireMessageType.HelloAck, new Dictionary<string, object?>
                 {
                     ["Peer"] = LocalAdvertisement(),
+                    ["Security"] = await security.GetPublicDescriptorAsync(cancellationToken).ConfigureAwait(false),
                     ["LinkedByLocalFrontend"] = true,
                     ["CapabilityDirectoryTransport"] = "tcp-request"
+                });
+
+            case OneWireMessageType.SecurityProfileRequest:
+                return Reply(envelope, OneWireMessageType.SecurityProfileResponse, new Dictionary<string, object?>
+                {
+                    ["Security"] = await security.GetPublicDescriptorAsync(cancellationToken).ConfigureAwait(false),
+                    ["TransportKinds"] = new[] { "tcp", "http-json" },
+                    ["RuntimeProvisioned"] = (await security.GetStatusAsync(cancellationToken).ConfigureAwait(false)).HasSecret
                 });
 
             case OneWireMessageType.CapabilityRequest:
@@ -364,12 +392,14 @@ public sealed class OneWireMessageDispatcher(
         PeerId = "localgpt",
         DisplayName = "LocalGPT",
         Application = "LocalGPT",
-        ApplicationVersion = "2.0.1-organic-wire",
+        ApplicationVersion = "2.1.0-organic-wire",
         HostName = Environment.MachineName,
         Address = "127.0.0.1",
         ServicePort = Program.OneWirePort,
         DiscoveryPort = Program.OneWireDiscoveryPort,
         WebBaseUrl = Program.BaseUrl,
+        TransportKind = OneWireTransportKind.Tcp,
+        SupportedTransports = ["tcp", "http-json"],
         IsConnected = true
     };
 }
@@ -448,7 +478,7 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
     IOneWireWorkSpooler spooler,
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
-    IOneWireCapabilityCatalog capabilities,
+    IOneWireRuntimeSecurityService security,
     ILogger<OneWireCouncilApprovalProcessorHostedService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -498,6 +528,7 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
                             CreateReply(pending.Envelope, OneWireMessageType.HelloAck, new Dictionary<string, object?>
                             {
                                 ["Peer"] = OneWireMessageDispatcher.LocalAdvertisement(),
+                                ["Security"] = await security.GetPublicDescriptorAsync(stoppingToken).ConfigureAwait(false),
                                 ["LinkedByLocalFrontend"] = true,
                                 ["CapabilityDirectoryTransport"] = "tcp-request"
                             }),

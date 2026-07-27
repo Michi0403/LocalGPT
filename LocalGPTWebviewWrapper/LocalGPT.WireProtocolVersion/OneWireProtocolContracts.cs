@@ -5,7 +5,7 @@ namespace LocalGPT.WireProtocol;
 /// <summary>Stable constants and compatibility checks for the embedded protocol assembly.</summary>
 public static class OneWireProtocol
 {
-    public const string Version = "2.0";
+    public const string Version = "2.1";
     public const string MinimumCompatibleVersion = "2.0";
     public const int DefaultServicePort = 51140;
     public const int DefaultDiscoveryPort = 51141;
@@ -40,12 +40,21 @@ public enum OneWireMessageType
     LinkRequest,
     LinkStatus,
     LinkRevoked,
+    SecurityProfileRequest,
+    SecurityProfileResponse,
+    MfaChallenge,
+    MfaProof,
+    TrustEstablished,
+    TrustRevoked,
     Error,
     Ping,
     Pong
 }
 
 public enum OneWireExecutionMode { Once, SequentialSpool, Scheduled, Recurring }
+public enum OneWireTransportKind { Tcp, Http, Mqtt, Uart, Spi, Custom }
+public enum OneWireSecurityMode { None, Signed, EncryptedAndSigned }
+public enum OneWireTrustLevel { Untrusted, Discovered, Linked, MfaVerified, Trusted }
 public enum OneWireWorkStatus { PendingApproval, Queued, Running, Completed, Failed, Declined, Cancelled }
 public enum OneWireApprovalMode { AskEveryTime, SameCapability, CurrentWorkOrder, AlwaysAllow, Deny }
 public enum OneWireHardwareKind { Auto, Cpu, Gpu, Accelerator, Remote }
@@ -91,6 +100,10 @@ public interface IOneWireEnvelope : IOneWireInteractionContract
     List<string> Skills { get; set; }
     Dictionary<string, JsonElement>? Properties { get; set; }
     string? EncryptedPayload { get; set; }
+    OneWireSecurityMode SecurityMode { get; set; }
+    string SecurityKeyId { get; set; }
+    string? EncryptionNonce { get; set; }
+    string? AuthenticationTag { get; set; }
     string? Signature { get; set; }
     string? Hash { get; set; }
     string? ErrorCheck { get; set; }
@@ -123,6 +136,10 @@ public sealed class OneWireEnvelope : IOneWireEnvelope
     public List<string> Skills { get; set; } = [];
     public Dictionary<string, JsonElement>? Properties { get; set; }
     public string? EncryptedPayload { get; set; }
+    public OneWireSecurityMode SecurityMode { get; set; } = OneWireSecurityMode.None;
+    public string SecurityKeyId { get; set; } = string.Empty;
+    public string? EncryptionNonce { get; set; }
+    public string? AuthenticationTag { get; set; }
     public string? Signature { get; set; }
     public string? Hash { get; set; }
     public string? ErrorCheck { get; set; }
@@ -182,6 +199,16 @@ public sealed class OneWireCapabilityDescriptor
     public bool RequiresHumanInteractionOnTargetSystem { get; set; }
     public bool RequiresAutomatedInteractionOnTargetSystem { get; set; }
     public string InteractionValueSchemaJson { get; set; } = "{\"type\":\"object\",\"properties\":{}}";
+    /// <summary>Human-readable description of required inputs, suitable for Council prompt teaching and small external clients.</summary>
+    public string InputContract { get; set; } = string.Empty;
+    /// <summary>Human-readable description of the produced result.</summary>
+    public string OutputContract { get; set; } = string.Empty;
+    /// <summary>Security and approval behavior that every Council member must respect.</summary>
+    public string SecurityContract { get; set; } = string.Empty;
+    /// <summary>Typical organic use case, such as eyes, hands, OCR or reviewed text feedback.</summary>
+    public string OrganicUseCase { get; set; } = string.Empty;
+    /// <summary>Suggested Council roles or model abilities, for example OCR-capable vision members.</summary>
+    public List<string> SuggestedCouncilRoles { get; set; } = [];
     /// <summary>Whether this capability is currently advertised to a securely linked peer.</summary>
     public bool IsExposedToPeer { get; set; } = true;
     /// <summary>Whether the receiver may invoke this capability after its local policy and confirmation checks pass.</summary>
@@ -222,10 +249,91 @@ public sealed class OneWirePeerAdvertisement
     public string WebBaseUrl { get; set; } = string.Empty;
     public DateTimeOffset SeenUtc { get; set; } = DateTimeOffset.UtcNow;
     public bool IsConnected { get; set; }
+    public OneWireTransportKind TransportKind { get; set; } = OneWireTransportKind.Tcp;
+    public List<string> SupportedTransports { get; set; } = ["tcp", "http-json"];
+    public OneWireSecurityDescriptor Security { get; set; } = new();
     public List<OneWireCapabilityDescriptor> Capabilities { get; set; } = [];
     public List<OneWireSkillDescriptor> Skills { get; set; } = [];
     public List<OneWireUiFeatureDescriptor> UiFeatures { get; set; } = [];
     public List<OneWireHardwareDescriptor> Hardware { get; set; } = [];
+}
+
+
+/// <summary>Compact public security metadata safe to advertise during discovery and handshake.</summary>
+public sealed class OneWireSecurityDescriptor
+{
+    public bool HasRuntimeSecret { get; set; }
+    public bool SupportsSigning { get; set; } = true;
+    public bool SupportsEncryption { get; set; } = true;
+    public bool SupportsMfaPairing { get; set; } = true;
+    public string KeyId { get; set; } = string.Empty;
+    public string Fingerprint { get; set; } = string.Empty;
+    public string KeyAgreementPublicKey { get; set; } = string.Empty;
+    public string SigningPublicKey { get; set; } = string.Empty;
+    public string PairingScheme { get; set; } = "onewire-pair-v1";
+}
+
+/// <summary>Serializable pairing ticket. It contains public material only and is suitable for QR/barcode transport.</summary>
+public sealed class OneWirePairingTicket
+{
+    public string Scheme { get; set; } = "onewire-pair-v1";
+    public string PeerId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Application { get; set; } = string.Empty;
+    public string ProtocolVersion { get; set; } = OneWireProtocol.Version;
+    public string KeyId { get; set; } = string.Empty;
+    public string Fingerprint { get; set; } = string.Empty;
+    public string KeyAgreementPublicKey { get; set; } = string.Empty;
+    public string SigningPublicKey { get; set; } = string.Empty;
+    public DateTimeOffset CreatedUtc { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ExpiresUtc { get; set; } = DateTimeOffset.UtcNow.AddMinutes(10);
+    public string Nonce { get; set; } = string.Empty;
+    public string Signature { get; set; } = string.Empty;
+}
+
+/// <summary>Runtime-only security status shown by each application frontend. No private key material is exposed.</summary>
+public sealed class OneWireRuntimeSecurityStatus
+{
+    public bool HasSecret { get; set; }
+    public string SecretPath { get; set; } = string.Empty;
+    public string KeyId { get; set; } = string.Empty;
+    public string Fingerprint { get; set; } = string.Empty;
+    public DateTimeOffset? CreatedUtc { get; set; }
+    public DateTimeOffset? RotatedUtc { get; set; }
+    public int TrustedPeerCount { get; set; }
+    public bool MfaEnrolled { get; set; }
+    public string Warning { get; set; } = string.Empty;
+}
+
+/// <summary>Frontend request used when a user imports a public pairing ticket and authorizes trust.</summary>
+public sealed class OneWireTrustEstablishmentRequest
+{
+    public OneWirePairingTicket Ticket { get; set; } = new();
+    public string MfaCode { get; set; } = string.Empty;
+    public int ValidForMinutes { get; set; } = 1440;
+}
+
+/// <summary>Persisted trust metadata. Private keys and MFA seeds never belong in this transferable contract.</summary>
+public sealed class OneWireTrustedPeerDescriptor
+{
+    public string PeerId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Fingerprint { get; set; } = string.Empty;
+    public string KeyAgreementPublicKey { get; set; } = string.Empty;
+    public string SigningPublicKey { get; set; } = string.Empty;
+    public OneWireTrustLevel TrustLevel { get; set; } = OneWireTrustLevel.Untrusted;
+    public DateTimeOffset TrustedUtc { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ValidUntilUtc { get; set; }
+    public DateTimeOffset? MfaVerifiedUntilUtc { get; set; }
+}
+
+/// <summary>Encrypted payload body kept intentionally simple for .NET, ESP32 and future transport adapters.</summary>
+public sealed class OneWireSensitivePayload
+{
+    public Dictionary<string, JsonElement>? Properties { get; set; }
+    public string? InteractionValueJson { get; set; }
+    public string InteractionValueContentType { get; set; } = "application/json";
+    public string WorkflowJson { get; set; } = string.Empty;
 }
 
 

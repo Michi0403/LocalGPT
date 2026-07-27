@@ -11,6 +11,8 @@
     <Platforms>x86;x64;ARM64</Platforms>
     <UseWinUI>true</UseWinUI>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
 	  <TargetPlatformMinVersion>10.0.26100.0</TargetPlatformMinVersion>
 	  <SupportedOSPlatformVersion>10.0.26100.0</SupportedOSPlatformVersion>
 	  <WindowsPackageType>None</WindowsPackageType>
@@ -29,7 +31,6 @@
 
 	
   <ProjectReference Include="..\LocalGPT\LocalGPT.csproj"
-                    SetPlatform="AnyCPU"
                     GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
       <Private>true</Private>

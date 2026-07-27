@@ -328,3 +328,188 @@ internal static class OrganicDxFunctionSupport
 
     public static DxAiFunctionInvocationResult Invalid(string error) => new() { Status = "InvalidParameters", Error = error };
 }
+
+/// <summary>Asks the PublisherStudio user for reviewed text and returns it through the queued work result.</summary>
+public sealed class RequestPublisherReviewedTextFunction(
+    IOneWireConnectionRegistry connections,
+    IOneWirePeerRegistry peers,
+    IOneWireWorkSpooler spooler,
+    ILogger<RequestPublisherReviewedTextFunction> logger) : IDxAiFunctionHandler
+{
+    private const string CapabilityKey = "publisher.text.edit.request";
+
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        Name: "publisher.text.feedback.request",
+        Method: "POST",
+        Route: "/api/onewire/peers/connected/text/review",
+        Purpose: "Asks the connected PublisherStudio user for specific reviewed text. PublisherStudio opens its bounded text editor, saves the response, closes the editor and returns the exact text through the same 1-Wire correlation.",
+        Parameters: "question, initialText, title, peerId, workOrderKey",
+        SafetyNotes: "Requires a fresh LocalGPT approval and PublisherStudio frontend approval. Text is returned only to the exact queued request and must be read with organic.plugin.work.read.",
+        IsReadOnly: false,
+        AvailableToAi: true,
+        RequiresHumanConfirmation: true,
+        SupportsDirectInvocation: true,
+        SupportsAutomaticInvocation: false,
+        Source: "OneWire",
+        ParameterSchemaJson: """{"type":"object","required":["question"],"properties":{"question":{"type":"string"},"initialText":{"type":"string"},"title":{"type":"string"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
+        IsCoordinationOnly: true,
+        SupportsDeferredApprovalRequest: true,
+        ApprovalRequiredBeforeCompletion: true);
+
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
+        PublisherInteractionDxSupport.QueueAsync(
+            request, CapabilityKey, connections, peers, spooler, logger,
+            parameters =>
+            {
+                var question = OrganicDxFunctionSupport.GetString(parameters, "question");
+                if (string.IsNullOrWhiteSpace(question)) throw new ArgumentException("question is required.");
+                return JsonSerializer.SerializeToElement(new
+                {
+                    title = OrganicDxFunctionSupport.GetString(parameters, "title", "LocalGPT Council text request"),
+                    question,
+                    initialText = OrganicDxFunctionSupport.GetString(parameters, "initialText")
+                });
+            }, cancellationToken);
+}
+
+/// <summary>Requests one fresh browser-mediated screenshot from PublisherStudio.</summary>
+public sealed class RequestPublisherScreenCaptureFunction(
+    IOneWireConnectionRegistry connections,
+    IOneWirePeerRegistry peers,
+    IOneWireWorkSpooler spooler,
+    ILogger<RequestPublisherScreenCaptureFunction> logger) : IDxAiFunctionHandler
+{
+    private const string CapabilityKey = "publisher.screen.capture";
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        Name: "publisher.screen.capture.request", Method: "POST", Route: "/api/onewire/peers/connected/screen/capture",
+        Purpose: "Requests one user-selected PublisherStudio/browser screenshot for visual Council evidence.",
+        Parameters: "reason, peerId, workOrderKey",
+        SafetyNotes: "Always requires LocalGPT approval, PublisherStudio approval and the browser's current screen-selection prompt. Saved permission cannot bypass getDisplayMedia.",
+        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,
+        Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"reason":{"type":"string"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
+        IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
+
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
+        PublisherInteractionDxSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
+            parameters => JsonSerializer.SerializeToElement(new { reason = OrganicDxFunctionSupport.GetString(parameters, "reason", "Visual evidence requested by the AI Council.") }), cancellationToken);
+}
+
+/// <summary>Requests one short browser-mediated screen recording from PublisherStudio.</summary>
+public sealed class RequestPublisherScreenRecordFunction(
+    IOneWireConnectionRegistry connections,
+    IOneWirePeerRegistry peers,
+    IOneWireWorkSpooler spooler,
+    ILogger<RequestPublisherScreenRecordFunction> logger) : IDxAiFunctionHandler
+{
+    private const string CapabilityKey = "publisher.screen.record";
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        Name: "publisher.screen.record.request", Method: "POST", Route: "/api/onewire/peers/connected/screen/record",
+        Purpose: "Requests a short user-selected PublisherStudio/browser screen recording for temporal Council evidence.",
+        Parameters: "reason, maximumSeconds, includeAudio, peerId, workOrderKey",
+        SafetyNotes: "Always requires LocalGPT approval, PublisherStudio approval and a new browser screen-selection prompt. Recording is limited to 15 seconds and bounded by the 1-Wire message limit.",
+        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,
+        Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"reason":{"type":"string"},"maximumSeconds":{"type":"integer","minimum":1,"maximum":15},"includeAudio":{"type":"boolean"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
+        IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
+
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
+        PublisherInteractionDxSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
+            parameters => JsonSerializer.SerializeToElement(new
+            {
+                reason = OrganicDxFunctionSupport.GetString(parameters, "reason", "Temporal visual evidence requested by the AI Council."),
+                maximumSeconds = parameters.TryGetProperty("maximumSeconds", out var seconds) && seconds.TryGetInt32(out var value) ? Math.Clamp(value, 1, 15) : 10,
+                includeAudio = parameters.TryGetProperty("includeAudio", out var audio) && audio.ValueKind is JsonValueKind.True or JsonValueKind.False && audio.GetBoolean()
+            }), cancellationToken);
+}
+
+/// <summary>Requests bounded user-approved HTML/DIV/document content from PublisherStudio.</summary>
+public sealed class RequestPublisherWebsiteContentFunction(
+    IOneWireConnectionRegistry connections,
+    IOneWirePeerRegistry peers,
+    IOneWireWorkSpooler spooler,
+    ILogger<RequestPublisherWebsiteContentFunction> logger) : IDxAiFunctionHandler
+{
+    private const string CapabilityKey = "publisher.website.content.request";
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        Name: "publisher.website.content.request", Method: "POST", Route: "/api/onewire/peers/connected/web-content/request",
+        Purpose: "Asks PublisherStudio for bounded user-approved HTML, DIV or document content that can be shown in LocalGPT chat or reused by another organic add-on.",
+        Parameters: "question, initialContent, format, sourceUrl, maximumCharacters, peerId, workOrderKey",
+        SafetyNotes: "Requires fresh approval in both applications. PublisherStudio returns only the text explicitly reviewed in its frontend; no arbitrary URL is fetched automatically.",
+        IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,
+        Source: "OneWire", ParameterSchemaJson: """{"type":"object","required":["question"],"properties":{"question":{"type":"string"},"initialContent":{"type":"string"},"format":{"type":"string","enum":["html","div","text","document"]},"sourceUrl":{"type":"string"},"maximumCharacters":{"type":"integer","minimum":1000,"maximum":200000},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
+        IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
+
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
+        PublisherInteractionDxSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
+            parameters =>
+            {
+                var question = OrganicDxFunctionSupport.GetString(parameters, "question");
+                if (string.IsNullOrWhiteSpace(question)) throw new ArgumentException("question is required.");
+                return JsonSerializer.SerializeToElement(new
+                {
+                    question,
+                    initialText = OrganicDxFunctionSupport.GetString(parameters, "initialContent"),
+                    format = OrganicDxFunctionSupport.GetString(parameters, "format", "html"),
+                    sourceUrl = OrganicDxFunctionSupport.GetString(parameters, "sourceUrl"),
+                    maximumCharacters = parameters.TryGetProperty("maximumCharacters", out var maximum) && maximum.TryGetInt32(out var value) ? Math.Clamp(value, 1000, 200000) : 120000
+                });
+            }, cancellationToken);
+}
+
+internal static class PublisherInteractionDxSupport
+{
+    public static async Task<DxAiFunctionInvocationResult> QueueAsync<TLogger>(
+        DxAiFunctionInvocationRequest request,
+        string capabilityKey,
+        IOneWireConnectionRegistry connections,
+        IOneWirePeerRegistry peers,
+        IOneWireWorkSpooler spooler,
+        ILogger<TLogger> logger,
+        Func<JsonElement, JsonElement> createPayload,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (request.Parameters.ValueKind != JsonValueKind.Object)
+                return OrganicDxFunctionSupport.Invalid("Parameters must be a JSON object.");
+            var requestedPeerId = OrganicDxFunctionSupport.GetString(request.Parameters, "peerId");
+            var matching = peers.GetPeers()
+                .Where(peer => connections.IsConnected(peer.PeerId) && OrganicDxFunctionSupport.FindCapability(peer, capabilityKey) is not null)
+                .ToList();
+            var peer = string.IsNullOrWhiteSpace(requestedPeerId)
+                ? matching.Count == 1 ? matching[0] : null
+                : matching.FirstOrDefault(candidate => string.Equals(candidate.PeerId, requestedPeerId, StringComparison.OrdinalIgnoreCase));
+            if (peer is null)
+            {
+                var error = matching.Count > 1
+                    ? $"More than one connected peer advertises {capabilityKey}; supply peerId."
+                    : $"No connected peer currently advertises {capabilityKey}.";
+                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = error };
+            }
+
+            var payload = createPayload(request.Parameters);
+            var capability = OrganicDxFunctionSupport.FindCapability(peer, capabilityKey)!;
+            var envelope = OrganicDxFunctionSupport.CreateInvokeEnvelope(
+                peer.PeerId, capability, payload, OneWireExecutionMode.SequentialSpool,
+                OrganicDxFunctionSupport.GetString(request.Parameters, "workOrderKey", $"{capabilityKey}:{Guid.NewGuid():N}"),
+                null, request.UserConfirmed, payload.GetRawText());
+            var work = spooler.Enqueue(envelope);
+            if (!await connections.SendAsync(peer.PeerId, envelope, cancellationToken).ConfigureAwait(false))
+            {
+                spooler.Fail(work.Id, "PublisherStudio disconnected before the request was sent.");
+                return new DxAiFunctionInvocationResult { Status = "Failed", Error = "PublisherStudio disconnected before the request was sent." };
+            }
+            logger.LogInformation("Queued PublisherStudio interaction {WorkItemId} for {CapabilityKey} on peer {PeerId}.", work.Id, capabilityKey, peer.PeerId);
+            return OrganicDxFunctionSupport.Queued(work, peer.PeerId, capabilityKey);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Rejected invalid parameters for PublisherStudio capability {CapabilityKey}.", capabilityKey);
+            return OrganicDxFunctionSupport.Invalid(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not queue PublisherStudio capability {CapabilityKey}.", capabilityKey);
+            return new DxAiFunctionInvocationResult { Status = "Failed", Error = ex.Message };
+        }
+    }
+}

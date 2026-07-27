@@ -547,11 +547,13 @@
             "- what privacy, safety, and user-control limits should exist.\n\n" +
             "Separate what LocalGPT already does from proposed future improvements. Mark anything uncertain under Needs verification.",
         MaxRounds = 1,
-        MaxOutputTokens = 1024,
+        MaxOutputTokens = 262144,
         MaxParallelModels = 1,
-        ResourceLoadPercent = 30,
-        MaxContextTokens = 4096,
-        ModelTimeoutSeconds = 180,
+        ResourceLoadPercent = 100,
+        MaxContextTokens = 262144,
+        ModelTimeoutSeconds = 1800,
+        OllamaKeepAlive = "0s",
+        OllamaNumGpu = null,
         IncludeMemory = true,
         SaveToMemory = true,
         GenerateImplementationArtifact = false
@@ -599,13 +601,13 @@
 
            if (SelectedModels.Count == 0)
            {
-               foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled || candidate.IsConfigured).Take(2))
+               foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled).Take(2))
                    SelectedModels.Add(candidate.ModelName);
            }
 
            statusText = Candidates.Count == 0
                ? "No Ollama models found."
-               : $"Found {Candidates.Count} Ollama model(s).";
+               : $"Found {Candidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s); {Candidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) are currently offline.";
        }, "LoadCandidatesAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -832,6 +834,7 @@
             Request.MaxRounds = 0;
             Request.MaxOutputTokens = 1024;
             Request.MaxParallelModels = 1;
+            Request.ResourceLoadPercent = 25;
             Request.MaxContextTokens = 2048;
             Request.ModelTimeoutSeconds = 300;
             Request.OllamaKeepAlive = "0s";
@@ -854,6 +857,7 @@
             Request.MaxRounds = 1;
             Request.MaxOutputTokens = 65536;
             Request.MaxParallelModels = 1;
+            Request.ResourceLoadPercent = 75;
             Request.MaxContextTokens = 65536;
             Request.ModelTimeoutSeconds = 900;
             Request.OllamaKeepAlive = null;
@@ -876,13 +880,14 @@
             Request.MaxRounds = 1;
             Request.MaxOutputTokens = 262144;
             Request.MaxParallelModels = 1;
+            Request.ResourceLoadPercent = 100;
             Request.MaxContextTokens = 262144;
             Request.ModelTimeoutSeconds = 1800;
             Request.OllamaKeepAlive = "0s";
-            Request.OllamaNumGpu = 0;
+            Request.OllamaNumGpu = null;
             Request.IncludeMemory = true;
             Request.SaveToMemory = true;
-            statusText = "Generation preset active: 256K output/context, sequential CPU-only model calls, and unload after each model.";
+            statusText = "Generation preset active: 256K output/context, 100% of each configured hardware road, automatic GPU scheduling, bounded recovery fallback, and unload after each model.";
         }
         catch (Exception ex)
         {

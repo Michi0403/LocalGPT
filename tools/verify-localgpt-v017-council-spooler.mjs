@@ -33,7 +33,7 @@ const organicService = read('LocalGPTWebviewWrapper','LocalGPT','Services','Orga
 for (const project of [appProject,installerProject,wrapperProject]) assert.match(project, /<Version>2\.0\.1<\/Version>/);
 assert.match(appProject, /ProjectReference Include="\.\.\\LocalGPT\.WireProtocolVersion\\LocalGPT\.WireProtocolVersion\.csproj"/);
 assert.ok(exists('LocalGPTWebviewWrapper','LocalGPT.WireProtocolVersion','OneWireProtocolContracts.cs'));
-assert.match(wireProject, /<Version>2\.0\.0<\/Version>/);
+assert.match(wireProject, /<Version>2\.1\.0<\/Version>/);
 assert.match(wire, /public sealed class OneWireModelSelfAssessment/);
 for (const field of ['ModelName','MemberKey','DxFunctions','ControllerMethods','OrganicCapabilities','Skills','Confidence','Evidence'])
   assert.ok(wire.includes(field), `${field} missing from OneWireModelSelfAssessment.`);

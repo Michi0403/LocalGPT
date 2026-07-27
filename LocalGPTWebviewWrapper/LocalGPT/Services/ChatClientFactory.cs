@@ -9,6 +9,8 @@ using OpenAI;
 using System.ClientModel;
 using System.ClientModel.Primitives;
 using System.ServiceModel.Channels;
+using System.Net.Http.Headers;
+using System.Text.Json;
 namespace LocalGPT.Services
 {
 
@@ -58,7 +60,7 @@ namespace LocalGPT.Services
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
-                        $"Ollama — {ollama.ModelName}"
+                        $"Ollama — {ollama.ModelName}", "Ollama", ollama.ModelName, ollama.Uri
                     ));
                 }
 
@@ -84,7 +86,7 @@ namespace LocalGPT.Services
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(azureClient, loggerFactory.CreateLogger("AI.AzureOpenAI")),
-                        $"Azure OpenAI — {az.DeploymentName}"
+                        $"Azure OpenAI — {az.DeploymentName}", "Azure OpenAI", az.DeploymentName, az.Endpoint
                     ));
                 }
 
@@ -115,39 +117,42 @@ namespace LocalGPT.Services
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(modelChat, loggerFactory.CreateLogger("AI.OpenAI")),
-                        $"OpenAI — {openai.ModelName}"
+                        $"OpenAI — {openai.ModelName}", "OpenAI", openai.ModelName, endpoint
                     ));
                 }
 
                 // --- Local OpenAI-compatible (LM Studio / vLLM / text-gen-webui) ---
-                if (options.ChatGPTLocalCore is { Endpoint.Length: > 0, ModelName.Length: > 0 } loc)
+                if (options.ChatGPTLocalCore is { Endpoint.Length: > 0 } loc)
                 {
-                    logger.LogInformation("Found local OpenAI-compatible provider at {Endpoint} for model {Model}.", loc.Endpoint, loc.ModelName);
-
-                    var endpoint = loc.Endpoint.TrimEnd('/');
-                    if (endpoint.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
-                        endpoint = endpoint[..^3]; // strip trailing /v1
-
-                    var localClient = new OpenAIClient(
-                        new ApiKeyCredential(string.IsNullOrWhiteSpace(loc.ApiKey) ? "local-no-key" : loc.ApiKey),
-                        new OpenAIClientOptions
-                        {
-                            Endpoint = new Uri(endpoint, uriKind: UriKind.Absolute),
-                            ClientLoggingOptions = new ClientLoggingOptions
+                    var endpoint = NormalizeOpenAiCompatibleEndpoint(loc.Endpoint);
+                    var resolvedModel = ResolveOpenAiCompatibleModel(endpoint, loc.ModelName, loc.ApiKey, logger);
+                    if (!string.IsNullOrWhiteSpace(resolvedModel))
+                    {
+                        logger.LogInformation("Found reachable local OpenAI-compatible provider at {Endpoint} for model {Model}.", endpoint, resolvedModel);
+                        var localClient = new OpenAIClient(
+                            new ApiKeyCredential(string.IsNullOrWhiteSpace(loc.ApiKey) ? "local-no-key" : loc.ApiKey),
+                            new OpenAIClientOptions
                             {
-                                EnableLogging = true,
-                                EnableMessageLogging = false,
-                                EnableMessageContentLogging = false,
-                                LoggerFactory = loggerFactory
-                            }
-                        });
+                                Endpoint = new Uri(endpoint, uriKind: UriKind.Absolute),
+                                ClientLoggingOptions = new ClientLoggingOptions
+                                {
+                                    EnableLogging = true,
+                                    EnableMessageLogging = false,
+                                    EnableMessageContentLogging = false,
+                                    LoggerFactory = loggerFactory
+                                }
+                            });
 
-                    var localChat = localClient.GetChatClient(loc.ModelName).AsIChatClient();
-
-                    sessions.Add(new ChatClientSession(
-                        new LoggingChatClient(localChat, loggerFactory.CreateLogger("AI.LocalOpenAI")),
-                        $"Local — {loc.ModelName}"
-                    ));
+                        var localChat = localClient.GetChatClient(resolvedModel).AsIChatClient();
+                        sessions.Add(new ChatClientSession(
+                            new LoggingChatClient(localChat, loggerFactory.CreateLogger("AI.LocalOpenAI")),
+                            $"LM Studio / OpenAI-compatible — {resolvedModel}", "LM Studio / OpenAI-compatible", resolvedModel, endpoint
+                        ));
+                    }
+                    else
+                    {
+                        logger.LogInformation("The configured local OpenAI-compatible endpoint {Endpoint} is offline or exposes no models; it was not added to the active chat selector.", endpoint);
+                    }
                 }
 
                 if (sessions.Count == 0)
@@ -170,6 +175,46 @@ namespace LocalGPT.Services
                 logger.LogError(ex, "💥 ChatClientFactory.Build failed: {Message}", ex.Message);
                 throw;
             }
+        }
+
+        private static string? ResolveOpenAiCompatibleModel(string endpoint, string? configuredModel, string? apiKey, ILogger logger)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+                if (!string.IsNullOrWhiteSpace(apiKey))
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                using var response = client.GetAsync(endpoint.TrimEnd('/') + "/models").GetAwaiter().GetResult();
+                if (!response.IsSuccessStatusCode) return null;
+                var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                using var document = JsonDocument.Parse(body);
+                if (!document.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return null;
+                var models = data.EnumerateArray()
+                    .Select(item => item.TryGetProperty("id", out var id) ? id.GetString() : null)
+                    .Where(model => !string.IsNullOrWhiteSpace(model))
+                    .Cast<string>()
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                if (models.Length == 0) return null;
+                var configured = configuredModel?.Trim();
+                return models.FirstOrDefault(model => string.Equals(model, configured, StringComparison.OrdinalIgnoreCase))
+                    ?? models[0];
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                logger.LogDebug(exception, "Local OpenAI-compatible model discovery failed for {Endpoint}.", endpoint);
+                return null;
+            }
+        }
+
+        private static string NormalizeOpenAiCompatibleEndpoint(string value)
+        {
+            var endpoint = value.Trim().TrimEnd('/');
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+                throw new InvalidOperationException("The local OpenAI-compatible endpoint is not a valid absolute URI.");
+            if (string.IsNullOrWhiteSpace(uri.AbsolutePath) || uri.AbsolutePath == "/")
+                endpoint += "/v1";
+            return endpoint;
         }
     }
 }

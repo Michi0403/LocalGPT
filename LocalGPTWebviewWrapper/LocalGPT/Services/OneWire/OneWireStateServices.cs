@@ -60,6 +60,20 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
         WebBaseUrl = peer.WebBaseUrl,
         SeenUtc = peer.SeenUtc,
         IsConnected = peer.IsConnected,
+        TransportKind = peer.TransportKind,
+        SupportedTransports = peer.SupportedTransports.ToList(),
+        Security = new OneWireSecurityDescriptor
+        {
+            HasRuntimeSecret = peer.Security.HasRuntimeSecret,
+            SupportsSigning = peer.Security.SupportsSigning,
+            SupportsEncryption = peer.Security.SupportsEncryption,
+            SupportsMfaPairing = peer.Security.SupportsMfaPairing,
+            KeyId = peer.Security.KeyId,
+            Fingerprint = peer.Security.Fingerprint,
+            KeyAgreementPublicKey = peer.Security.KeyAgreementPublicKey,
+            SigningPublicKey = peer.Security.SigningPublicKey,
+            PairingScheme = peer.Security.PairingScheme
+        },
         Capabilities = peer.Capabilities.Select(capability => capability).ToList(),
         Skills = peer.Skills.Select(skill => skill).ToList(),
         UiFeatures = peer.UiFeatures.Select(feature => feature).ToList(),

@@ -140,7 +140,7 @@ def main() -> int:
     assert "class ProposePublisherTextFunction" in organic_dx
     assert 'Name: "publisher.text.proposal.request"' in organic_dx
 
-    assert 'public const string Version = "2.0";' in wire
+    assert 'public const string Version = "2.1";' in wire
     assert "public const int MaximumMessageBytes = 8 * 1024 * 1024;" in wire
     assert "public const int MaximumDiscoveryBytes = 32 * 1024;" in wire
 

@@ -38,3 +38,21 @@ public sealed class OneWireOptions
     public int PeerExpirySeconds { get; set; } = 30;
     public int MaximumMessageBytes { get; set; } = OneWireProtocol.MaximumMessageBytes;
 }
+
+
+public sealed class LocalVisionOcrRequest
+{
+    public string ImageDataUrl { get; set; } = string.Empty;
+    public string Prompt { get; set; } = string.Empty;
+    public string ModelName { get; set; } = string.Empty;
+    public int MaximumOutputTokens { get; set; } = 1600;
+}
+
+public sealed class LocalVisionOcrResult
+{
+    public string Text { get; set; } = string.Empty;
+    public string ModelName { get; set; } = string.Empty;
+    public string ProviderUri { get; set; } = string.Empty;
+    public string MediaType { get; set; } = string.Empty;
+    public bool NeedsHumanReview { get; set; } = true;
+}

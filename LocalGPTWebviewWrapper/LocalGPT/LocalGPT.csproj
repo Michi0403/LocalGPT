@@ -29,7 +29,6 @@
 
   <ItemGroup Condition="'$(UseLocalWireProtocolProject)' == 'true'">
     <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
-                      SetPlatform="AnyCPU"
                       GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
   </ItemGroup>
   <ItemGroup Condition="'$(UseLocalWireProtocolProject)' != 'true'">
@@ -66,7 +65,9 @@
 	
   <ItemGroup>
     <PackageReference Include="DevExpress.Blazor" Version="25.2.*" />
+    <PackageReference Include="DevExpress.Blazor.de" Version="25.2.*" />
     <PackageReference Include="DevExpress.Blazor.RichEdit" Version="25.2.*" />
+    <PackageReference Include="DevExpress.Blazor.RichEdit.de" Version="25.2.*" />
     <PackageReference Include="DevExpress.Blazor.PivotTable" Version="25.2.*" />
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="25.2.*" />
     <PackageReference Include="Markdig" Version="1.3.2" />
@@ -1311,4 +1312,7 @@
     </ItemGroup>
   </Target>
 
+  <ItemGroup>
+    <Content Update="Localization\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

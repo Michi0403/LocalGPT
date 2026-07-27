@@ -6,6 +6,7 @@
 @inject ILogger<App> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 @{
     string? InitialThemeName = HttpContextAccessor.HttpContext?.Request.Cookies["ActiveTheme"];
@@ -21,7 +22,7 @@
     //     StringComparison.OrdinalIgnoreCase);
 }
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="@Themes.ActiveTheme.BootstrapThemeMode" data-localgpt-theme="@Themes.ActiveTheme.Name">
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.Name" data-bs-theme="@Themes.ActiveTheme.BootstrapThemeMode" data-localgpt-theme="@Themes.ActiveTheme.Name">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -48,8 +49,8 @@
 <body>
     <div id="switcher-container" data-permanent></div>
     <div id="interactive-startup-overlay" class="interactive-startup-overlay" data-permanent>
-        <strong>LocalGPT UI is connecting</strong>
-        <span>Controls become active after Blazor finishes attaching.</span>
+        <strong>@Localization.Get("Startup.Connecting", fallback: "LocalGPT UI is connecting")</strong>
+        <span>@Localization.Get("Startup.Attaching", fallback: "Controls become active after Blazor finishes attaching.")</span>
     </div>
     <ToastWrapper Name="ComponentSafetyToasts" />
     <Routes></Routes>
@@ -66,6 +67,11 @@
     <script type="module" src="js/getScreenWidth.js"></script>
     <script type="module" src="js/scrollChatToBottom.js"></script>
     <script type="module" src="js/scrollWindowToBottom.js"></script>
+    <script src="js/vendor/qrcode-generator.js"></script>
+    <script src="js/oneWireSecurityQr.js"></script>
+    <script src="js/localgpt-context-menu.js"></script>
+    <script src="js/localgpt-chat-ui.js"></script>
+    <script src="js/localgpt-localization.js"></script>
     <script type="module" src="js/chat-details-state.js"></script>
     <script type="module" src="js/webApiCallsInBrowser.js"></script>
   @*   @if (isE2E)

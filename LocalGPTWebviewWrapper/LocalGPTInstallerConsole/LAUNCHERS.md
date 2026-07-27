@@ -1,5 +1,6 @@
-# Installer launcher policy
+# LocalGPT launcher behavior
 
-The source repository does not ship one-click `.cmd` launchers for installation, forced deletion, model downloads, learning-base imports, or startup. Those launchers made consequential operations too easy to trigger without reviewing their combined effects.
-
-Run `LocalGPTInstallerConsole` manually with only the explicit options required for the current task. Review its help output first. Forced deletion, network downloads, model pulls, learning-base changes, and application startup are separate human decisions.
+- `Install.cmd` performs a reviewed fresh application install, creates shortcuts, starts LocalGPT on `http://127.0.0.1:5000`, prints the actual runtime URL, and opens it. A fresh install replaces the application directory.
+- `Update.cmd` updates without `--force-delete`, preserving the runtime identity, MFA trust, local databases, and user data.
+- `Start.cmd` reuses a running LocalGPT process or starts it on the canonical loopback port, waits for the PID-owned `server.json`, prints the clickable URL, and opens the browser.
+- `Uninstall.cmd` removes LocalGPT application files and shortcuts. The learning base, Ollama, and installed models are not removed.

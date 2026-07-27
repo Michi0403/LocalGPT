@@ -16,6 +16,7 @@ public sealed class CouncilPreflightService(
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IRuntimeCapabilityDirectoryService capabilityDirectory,
+    IOneWirePeerRegistry oneWirePeers,
     ICouncilTeamConfigurationService teams,
     ILogger<CouncilPreflightService> logger) : ICouncilPreflightService
 {
@@ -73,6 +74,21 @@ public sealed class CouncilPreflightService(
             RegexNames = regexNames
         };
         report.Warnings.AddRange(directory.Warnings);
+
+        report.CapabilityTeachings = oneWirePeers.GetPeers()
+            .Where(peer => peer.IsConnected)
+            .SelectMany(peer => peer.Capabilities.Select(capability => new { Peer = peer, Capability = capability }))
+            .Where(item => item.Capability.IsEnabled && item.Capability.IsOnline && item.Capability.IsExposedToPeer)
+            .OrderBy(item => item.Peer.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Capability.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(120)
+            .Select(item =>
+            {
+                var capability = item.Capability;
+                var roles = capability.SuggestedCouncilRoles.Count == 0 ? "not role-restricted" : string.Join(", ", capability.SuggestedCouncilRoles);
+                return $"{item.Peer.DisplayName}/{capability.Key} | input: {capability.InputContract} | output: {capability.OutputContract} | security: {capability.SecurityContract} | organic use: {capability.OrganicUseCase} | suggested roles: {roles}";
+            })
+            .ToList();
 
         var allCallableFunctions = functionDirectory
             .Where(item => item.AvailableToAi)
@@ -191,6 +207,10 @@ public sealed class CouncilPreflightService(
                 : $"Your road is {member.LaneKey} ({member.HardwareKind} {member.HardwareIndex}, {member.HardwareName}) at {member.EffectiveLoadPercent}% with output {member.EffectiveMaxOutputTokens:n0}, context {member.EffectiveMaxContextTokens:n0}, Ollama num_gpu {(member.OllamaNumGpu?.ToString() ?? "auto")}.",
             $"DXFunctions directly available to you in this run: {string.Join(", ", assignedFunctions.Take(200))}.",
             $"Approved online organic skills/organs directly available to you: {string.Join(", ", assignedSkills.Take(120))}.",
+            report.CapabilityTeachings.Count == 0
+                ? "No connected peer currently exposes a detailed 1-Wire capability contract. Do not invent external organs."
+                : "Connected 1-Wire capability teaching (exact input, output, security, organic use and suggested role):" + Environment.NewLine + string.Join(Environment.NewLine, report.CapabilityTeachings.Select(value => "- " + value)),
+            "For any 1-Wire call, preserve the returned CorrelationId, handle ApprovalRequired without reissuing the request, and continue only from the matching WorkResult.",
             "Introduce yourself to the other members. State what you believe your strongest useful skills are, what evidence would verify them, what you want to improve in LocalGPT, and which DXFunctions or 1-Wire organs you can best use.",
             "Do not claim a function is available unless it appears in the supplied directory. Ask the user for missing compiler versions, scientific constants, project files, matching debug symbols or other current facts instead of guessing.",
             "Leaders and preparation experts must verify every member's hardware road, function directory and skill/organ access before accepting the substantive round.",
@@ -229,7 +249,7 @@ public sealed class CouncilPreflightService(
             .AppendLine($"Checked UTC: {report.CheckedAtUtc:O}")
             .AppendLine($"Team: {report.TeamName} ({report.TeamKey})")
             .AppendLine($"Database: {report.RegexPatternCount} regexes; {report.KnowledgeEntryCount} knowledge entries; {report.ProjectCount} active projects.")
-            .AppendLine($"Runtime directory: {report.DxFunctionCount} DXFunctions; {report.OrganicSkillCount} online/known organic skills.")
+            .AppendLine($"Runtime directory: {report.DxFunctionCount} DXFunctions; {report.OrganicSkillCount} online/known organic skills; {report.CapabilityTeachings.Count} connected detailed 1-Wire capability contracts.")
             .AppendLine($"Projects: {string.Join(", ", report.ProjectNames)}")
             .AppendLine($"Relevant reusable regex directory: {string.Join(", ", SelectRelevantRegexes(report.RegexNames, request.Prompt))}")
             .AppendLine("Before answering, inspect the database-grounded project, chat-memory, logs, knowledge, regex, source-file, changelog and function evidence needed for the topic. Fill deterministic seed gaps automatically. Ask the current user for missing volatile facts, versions, files, matching debug symbols or requirements. Never guess current compiler/framework/scientific values.")

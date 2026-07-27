@@ -1,4 +1,4 @@
-﻿::deep .welcome-gridlayout {
+::deep .welcome-gridlayout {
     margin: auto;
     width: auto;
     height: auto;
@@ -370,3 +370,385 @@
         min-width: 0;
     }
 }
+
+
+/* LocalGPT 2.0.1 command-center layout: keep advanced Council controls available without
+   letting them push the actual chat below or outside the viewport. */
+.main-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+}
+
+.top-container {
+    display: grid;
+    grid-template-columns: auto minmax(14rem, 1fr) repeat(2, minmax(13rem, auto));
+    align-items: center;
+    gap: .65rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.top-container > *,
+.model-toolbar > *,
+.memory-toolbar > *,
+.council-picker,
+.council-team-toolbar {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.council-command-center,
+.chat-memory-project-center,
+.architecture-poll {
+    width: 100%;
+    min-width: 0;
+    margin: .65rem 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .65rem;
+    background: var(--bs-tertiary-bg, var(--bs-body-bg));
+}
+
+.council-command-center > summary,
+.chat-memory-project-center > summary,
+.architecture-poll > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    min-height: 2.75rem;
+    padding: .6rem .8rem;
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--bs-body-color);
+}
+
+.council-command-center > summary small,
+.chat-memory-project-center > summary small,
+.architecture-poll > summary small {
+    min-width: 0;
+    color: var(--bs-secondary-color);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.council-command-center[open],
+.chat-memory-project-center[open] {
+    padding: 0 .75rem .75rem;
+}
+
+.council-command-center[open] > summary,
+.chat-memory-project-center[open] > summary {
+    margin: 0 -.75rem .25rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.model-toolbar,
+.memory-toolbar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+    align-items: end;
+    width: 100%;
+}
+
+.model-toolbar .inline-dx-check,
+.memory-toolbar .inline-dx-check {
+    align-self: center;
+}
+
+.council-member-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+}
+
+.council-member-list label,
+.council-team-toolbar select,
+.human-live-contribution select,
+.memory-selector,
+.ollama-mode-setting select,
+.council-token-setting input {
+    width: 100%;
+    min-width: 0;
+}
+
+.demo-chat {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: clamp(34rem, calc(100dvh - 15rem), 58rem);
+    min-height: 34rem;
+    overflow: hidden;
+}
+
+/* DevExpress AI Chat prompt suggestions inherited a light foreground in dark themes.
+   These selectors intentionally cover both current and previous DevExpress class names. */
+.demo-chat ::deep [class*="prompt-suggestion"],
+.demo-chat ::deep [class*="prompt-suggestions"] button,
+.demo-chat ::deep button[class*="suggestion"] {
+    color: var(--bs-body-color) !important;
+    background: var(--bs-tertiary-bg, var(--bs-body-bg)) !important;
+    border-color: var(--bs-border-color) !important;
+    opacity: 1 !important;
+}
+
+.demo-chat ::deep [class*="prompt-suggestion"] *,
+.demo-chat ::deep [class*="prompt-suggestions"] button *,
+.demo-chat ::deep button[class*="suggestion"] * {
+    color: inherit !important;
+    opacity: 1 !important;
+}
+
+/* Keep Send comfortably touchable on phone, mouse and controller-like input. */
+.demo-chat ::deep button[aria-label*="Send" i],
+.demo-chat ::deep button[title*="Send" i],
+.demo-chat ::deep [class*="send-button"],
+.demo-chat ::deep [class*="submit-button"] {
+    min-width: 3.25rem !important;
+    width: 3.25rem !important;
+    min-height: 3.25rem !important;
+    height: 3.25rem !important;
+    flex: 0 0 3.25rem !important;
+    border-radius: .65rem !important;
+}
+
+.demo-chat ::deep textarea,
+.demo-chat ::deep [contenteditable="true"] {
+    min-height: 3.25rem;
+    font-size: 1rem;
+}
+
+@media (max-width: 1100px) {
+    .top-container {
+        grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .top-container {
+        grid-template-columns: 1fr;
+    }
+
+    .top-container ::deep .dxbl-btn,
+    .top-container ::deep .dxbl-combobox,
+    .top-container > span,
+    .top-container > label {
+        width: 100%;
+    }
+
+    .council-command-center > summary,
+    .chat-memory-project-center > summary,
+    .architecture-poll > summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .demo-chat {
+        height: calc(100dvh - 10rem);
+        min-height: 30rem;
+    }
+}
+
+/* Final responsive chat command surface. The main application drawer remains the only global menu. */
+.main-container {
+    font-size: clamp(0.98rem, 0.18vw + 0.94rem, 1.08rem);
+}
+
+.chat-session-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .55rem;
+    width: 100%;
+    min-width: 0;
+    margin: 0 0 .75rem;
+}
+.chat-session-toolbar ::deep .dxbl-toolbar-item {
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.chat-provider-row {
+    display: grid;
+    grid-template-columns: minmax(18rem, 2fr) minmax(15rem, 1fr) minmax(15rem, 1fr);
+    align-items: center;
+    gap: .75rem;
+    min-width: 0;
+    margin-bottom: .75rem;
+}
+
+.chat-provider-row > *,
+.chat-provider-selector,
+.chat-provider-selector ::deep .dxbl-combobox {
+    min-width: 0;
+    width: 100%;
+}
+
+.chat-provider-selector {
+    display: grid;
+    gap: .3rem;
+    font-weight: 650;
+}
+
+.ai-kernel-option {
+    display: grid;
+    min-width: 0;
+    line-height: 1.2;
+    padding: .12rem 0;
+}
+
+.ai-kernel-option strong,
+.council-kernel-label strong {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 1.03rem;
+    font-weight: 800;
+    color: var(--bs-body-color);
+}
+
+.ai-kernel-option small,
+.council-kernel-label small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--bs-secondary-color);
+    font-size: .84rem;
+    font-weight: 500;
+}
+
+.council-member-list {
+    max-height: min(38dvh, 30rem);
+    overflow: auto;
+    align-content: start;
+    padding-right: .25rem;
+}
+
+.council-member-list label {
+    align-items: flex-start;
+    min-height: 3.4rem;
+    padding: .5rem .6rem;
+}
+
+.council-kernel-label {
+    min-width: 0;
+    display: grid;
+    line-height: 1.25;
+}
+
+.council-command-center[open] {
+    max-height: min(70dvh, 58rem);
+    overflow: auto;
+}
+
+.demo-chat {
+    font-size: clamp(1rem, .22vw + .96rem, 1.12rem);
+}
+
+.demo-chat ::deep [class*="input-container"],
+.demo-chat ::deep [class*="prompt-input"],
+.demo-chat ::deep [class*="composer"] {
+    min-height: 4.5rem !important;
+}
+
+.demo-chat ::deep button[aria-label*="Send" i],
+.demo-chat ::deep button[title*="Send" i],
+.demo-chat ::deep [class*="send-button"],
+.demo-chat ::deep [class*="submit-button"] {
+    min-width: 4rem !important;
+    width: 4rem !important;
+    min-height: 4rem !important;
+    height: 4rem !important;
+    flex-basis: 4rem !important;
+    font-size: 1.3rem !important;
+}
+
+.demo-chat ::deep button[aria-label*="Attach" i],
+.demo-chat ::deep button[title*="Attach" i],
+.demo-chat ::deep button[aria-label*="Upload" i],
+.demo-chat ::deep button[title*="Upload" i],
+.demo-chat ::deep [class*="attach-button"],
+.demo-chat ::deep [class*="upload-button"] {
+    min-width: 3.5rem !important;
+    width: 3.5rem !important;
+    min-height: 3.5rem !important;
+    height: 3.5rem !important;
+    font-size: 1.2rem !important;
+}
+
+.demo-chat ::deep textarea,
+.demo-chat ::deep [contenteditable="true"] {
+    min-height: 4rem !important;
+    padding: .8rem !important;
+    font-size: clamp(1.02rem, .2vw + 1rem, 1.14rem) !important;
+    line-height: 1.45 !important;
+}
+
+.memory-thoughts p {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.55;
+}
+
+@media (max-width: 1050px) {
+    .chat-provider-row { grid-template-columns: 1fr 1fr; }
+    .chat-provider-selector { grid-column: 1 / -1; }
+    .council-member-list { grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr)); }
+}
+
+@media (max-width: 680px) {
+    .chat-provider-row { grid-template-columns: 1fr; }
+    .chat-provider-selector { grid-column: auto; }
+    .council-command-center[open] { max-height: 62dvh; }
+    .demo-chat {
+        min-height: 32rem;
+        height: calc(100dvh - 8.5rem);
+    }
+}
+
+/* Runtime-tagged DevExpress AI Chat controls. The production observer adds these
+   classes after DevExpress renders or re-renders its internal composer DOM. */
+.demo-chat ::deep .localgpt-send-button {
+    min-width: 4.5rem !important;
+    width: 4.5rem !important;
+    min-height: 4.5rem !important;
+    height: 4.5rem !important;
+    flex: 0 0 4.5rem !important;
+    border-radius: .7rem !important;
+    font-size: 1.45rem !important;
+}
+.demo-chat ::deep .localgpt-upload-button {
+    min-width: 3.75rem !important;
+    width: 3.75rem !important;
+    min-height: 3.75rem !important;
+    height: 3.75rem !important;
+    flex: 0 0 3.75rem !important;
+    border-radius: .65rem !important;
+    font-size: 1.25rem !important;
+}
+.demo-chat ::deep .localgpt-chat-textarea {
+    min-height: 5rem !important;
+    font-size: clamp(1.08rem, .22vw + 1rem, 1.22rem) !important;
+    line-height: 1.5 !important;
+}
+@media (max-width: 680px) {
+    .chat-session-toolbar { display:grid; grid-template-columns:1fr 1fr; }
+    .chat-session-toolbar ::deep .dxbl-toolbar-item { width:100%; }
+    .demo-chat ::deep .localgpt-send-button { min-width:4rem!important;width:4rem!important;min-height:4rem!important;height:4rem!important;flex-basis:4rem!important; }
+    .demo-chat ::deep .localgpt-upload-button { min-width:3.5rem!important;width:3.5rem!important;min-height:3.5rem!important;height:3.5rem!important;flex-basis:3.5rem!important; }
+}
+
+
+/* Adaptive DevExpress toolbar in normal document flow; never overlays the application drawer. */
+.chat-session-toolbar{position:relative;z-index:1;width:100%;min-width:0;margin:0 0 .75rem;overflow:visible}
+.chat-session-toolbar ::deep .localgpt-chat-toolbar{width:100%;min-width:0;border:1px solid var(--localgpt-border-color);border-radius:.65rem;background:var(--localgpt-surface-bg);box-shadow:var(--localgpt-shadow-soft)}
+.chat-session-toolbar ::deep .dxbl-toolbar-item{min-height:2.9rem;font-size:1rem;font-weight:700}
+.chat-session-toolbar ::deep .dxbl-toolbar-title{font-size:1.02rem;font-weight:800}
+@media(max-width:680px){.chat-session-toolbar ::deep .dxbl-toolbar-item{min-height:3.15rem}}

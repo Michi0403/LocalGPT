@@ -18,6 +18,9 @@ using LocalGPT.Services.OneWire;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.Extensions.Options;
+using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -356,6 +359,8 @@ namespace LocalGPT
                 builder.Services.AddScoped<IOrganicCouncilBlueprintService, OrganicCouncilBlueprintService>();
                 builder.Services.Configure<OneWireOptions>(builder.Configuration.GetSection(OneWireOptions.SectionName));
                 builder.Services.AddSingleton<IOneWireEnvelopeCodec, OneWireEnvelopeCodec>();
+                builder.Services.AddSingleton<IOneWireRuntimeSecurityService, OneWireRuntimeSecurityService>();
+                builder.Services.AddSingleton<ILocalVisionOcrService, LocalVisionOcrService>();
                 builder.Services.AddSingleton<IOneWirePeerRegistry, OneWirePeerRegistry>();
                 builder.Services.AddSingleton<IOneWireConnectionRegistry, OneWireConnectionRegistry>();
                 builder.Services.AddSingleton<IOneWireWorkSpooler, OneWireWorkSpooler>();
@@ -580,8 +585,18 @@ namespace LocalGPT
                 StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
                 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+                builder.Services.AddLocalization();
+                builder.Services.AddSingleton<LocalGPT.Services.Localization.ILocalGptLocalizationService, LocalGPT.Services.Localization.LocalGptLocalizationService>();
+                builder.Services.Configure<RequestLocalizationOptions>(options =>
+                {
+                    var cultures = new[] { new CultureInfo("en-US"), new CultureInfo("de-DE") };
+                    options.DefaultRequestCulture = new RequestCulture("en-US");
+                    options.SupportedCultures = cultures;
+                    options.SupportedUICultures = cultures;
+                    options.RequestCultureProviders = [new CookieRequestCultureProvider()];
+                });
                 builder.Services.AddHealthChecks();
-                builder.Services.AddDevExpressBlazor(options => options.SizeMode = DevExpress.Blazor.SizeMode.Small);
+                builder.Services.AddDevExpressBlazor(options => options.SizeMode = DevExpress.Blazor.SizeMode.Medium);
                 builder.Services.AddMvc();
                 builder.Services.AddScoped<ThemeService>();
                 builder.Services.AddDevExpressServerSideBlazorPdfViewer();
@@ -745,6 +760,8 @@ namespace LocalGPT
                 File.WriteAllText(
                     Path.Combine(directory, "server.json"),
                     JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
+                Console.WriteLine($"LocalGPT listening on {BaseUrl}");
+                logger.LogInformation("LocalGPT runtime endpoint {BaseUrl} was written for process {ProcessId}.", BaseUrl, Environment.ProcessId);
             }
             catch (Exception ex)
             {

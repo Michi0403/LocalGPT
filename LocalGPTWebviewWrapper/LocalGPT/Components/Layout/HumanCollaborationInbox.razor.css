@@ -230,3 +230,39 @@
         flex-wrap: wrap;
     }
 }
+
+
+/* Persistent approval/security rail. It stays visible without covering the chat composer. */
+.human-inbox-launcher {
+    right: .65rem;
+    top: 5rem;
+    bottom: auto;
+    border-radius: .65rem 0 0 .65rem;
+    padding: .7rem .8rem;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+.human-inbox-launcher span:first-child {
+    writing-mode: horizontal-tb;
+    font-size: 1.1rem;
+}
+
+.human-inbox-launcher strong {
+    writing-mode: horizontal-tb;
+}
+
+.human-inbox-panel {
+    width: min(42rem, 100vw);
+    height: 100dvh;
+}
+
+@media (max-width: 780px) {
+    .human-inbox-launcher {
+        top: auto;
+        right: .75rem;
+        bottom: .75rem;
+        writing-mode: horizontal-tb;
+        border-radius: 999px;
+    }
+}

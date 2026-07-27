@@ -20,4 +20,40 @@
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
   </Target>
+
+  <PropertyGroup>
+    <OneWireArchitectureScript>$(MSBuildThisFileDirectory)build\Assert-OneWireArchitecture.ps1</OneWireArchitectureScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptOneWireArchitecture"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOneWireArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(OneWireArchitectureScript)')"
+           Text="1-Wire architecture guard script is missing: $(OneWireArchitectureScript)" />
+    <Exec Condition="Exists('$(OneWireArchitectureScript)')"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(OneWireArchitectureScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
+
+  <PropertyGroup>
+    <LocalizationIntegrityScript>$(MSBuildThisFileDirectory)build\Assert-LocalizationIntegrity.ps1</LocalizationIntegrityScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptLocalizationIntegrity"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipLocalizationIntegrityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(LocalizationIntegrityScript)')"
+           Text="Localization integrity guard script is missing: $(LocalizationIntegrityScript)" />
+    <Exec Condition="Exists('$(LocalizationIntegrityScript)')"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalizationIntegrityScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
 </Project>

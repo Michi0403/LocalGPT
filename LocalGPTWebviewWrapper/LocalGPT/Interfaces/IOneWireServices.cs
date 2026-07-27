@@ -9,6 +9,28 @@ public interface IOneWireEnvelopeCodec
     bool Validate(OneWireEnvelope envelope, out string error);
 }
 
+
+public interface IOneWireRuntimeSecurityService
+{
+    Task<OneWireRuntimeSecurityStatus> GetStatusAsync(CancellationToken cancellationToken = default);
+    Task EnsureCreatedAsync(CancellationToken cancellationToken = default);
+    Task RegenerateAsync(CancellationToken cancellationToken = default);
+    Task DeleteAsync(CancellationToken cancellationToken = default);
+    Task<OneWireSecurityDescriptor> GetPublicDescriptorAsync(CancellationToken cancellationToken = default);
+    Task<OneWirePairingTicket> CreatePairingTicketAsync(TimeSpan lifetime, CancellationToken cancellationToken = default);
+    Task<string> GetOtpAuthUriAsync(CancellationToken cancellationToken = default);
+    Task<bool> EstablishTrustAsync(OneWireTrustEstablishmentRequest request, CancellationToken cancellationToken = default);
+    Task<bool> RevokeTrustAsync(string peerId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<OneWireTrustedPeerDescriptor>> GetTrustedPeersAsync(CancellationToken cancellationToken = default);
+    Task ProtectOutgoingAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default);
+    Task UnprotectIncomingAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default);
+}
+
+public interface ILocalVisionOcrService
+{
+    Task<LocalVisionOcrResult> RecognizeAsync(LocalVisionOcrRequest request, CancellationToken cancellationToken = default);
+}
+
 public interface IOneWireCapabilityCatalog
 {
     Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesAsync(CancellationToken cancellationToken = default);

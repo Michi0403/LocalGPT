@@ -19,11 +19,11 @@ const preflight = read('LocalGPTWebviewWrapper','LocalGPT','Services','Council',
 const councilText = read('LocalGPTWebviewWrapper','LocalGPT','Services','CouncilTextService.cs');
 const imports = read('LocalGPTWebviewWrapper','LocalGPT','Components','_Imports.razor');
 for (const project of [app, installer, wrapper]) assert.match(project, /<Version>2\.0\.1<\/Version>/);
-assert.match(wireProject, /<PackageVersion>2\.0\.0<\/PackageVersion>/);
-assert.match(wireProject, /<GeneratePackageOnBuild>true<\/GeneratePackageOnBuild>/);
+assert.match(wireProject, /<PackageVersion>2\.1\.0<\/PackageVersion>/);
+assert.match(wireProject, /<GeneratePackageOnBuild>false<\/GeneratePackageOnBuild>/);
 assert.match(wireProject, /<PackageReadmeFile>README\.md<\/PackageReadmeFile>/);
 assert.match(wireProject, /<None Update="README\.md" Pack="true"/);
-assert.match(wire, /public const string Version = "2\.0"/);
+assert.match(wire, /public const string Version = "2\.1"/);
 assert.match(wire, /public const string MinimumCompatibleVersion = "2\.0"/);
 assert.match(wire, /public sealed class OneWireModelSelfAssessment/);
 assert.doesNotMatch(publicInvoker, /private sealed class Parameters\b/);

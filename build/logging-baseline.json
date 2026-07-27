@@ -312,6 +312,11 @@
       "logCalls": 9,
       "catchBlocks": 6
     },
+    "LocalGPTWebviewWrapper/LocalGPT/Services/OneWire/LocalVisionOcrService.cs": {
+      "loggerReferences": 1,
+      "logCalls": 3,
+      "catchBlocks": 2
+    },
     "LocalGPTWebviewWrapper/LocalGPT/Services/OneWire/OneWireCapabilityCatalog.cs": {
       "loggerReferences": 1,
       "logCalls": 1,
@@ -327,6 +332,11 @@
       "logCalls": 9,
       "catchBlocks": 6
     },
+    "LocalGPTWebviewWrapper/LocalGPT/Services/OneWire/OneWireRuntimeSecurityService.cs": {
+      "loggerReferences": 1,
+      "logCalls": 20,
+      "catchBlocks": 14
+    },
     "LocalGPTWebviewWrapper/LocalGPT/Services/OneWire/OneWireStateServices.cs": {
       "loggerReferences": 3,
       "logCalls": 5,
@@ -338,9 +348,9 @@
       "catchBlocks": 6
     },
     "LocalGPTWebviewWrapper/LocalGPT/Services/OneWire/OrganicPluginDxAiFunctions.cs": {
-      "loggerReferences": 3,
-      "logCalls": 3,
-      "catchBlocks": 0
+      "loggerReferences": 8,
+      "logCalls": 6,
+      "catchBlocks": 2
     },
     "LocalGPTWebviewWrapper/LocalGPT/Services/OrganicCouncilBlueprintService.cs": {
       "loggerReferences": 2,

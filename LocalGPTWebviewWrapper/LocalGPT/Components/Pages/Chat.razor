@@ -32,24 +32,49 @@
     @if (ChatClientProvider is not null)
     {
         <ToastWrapper Name="@toastName" />
+        <div class="chat-session-toolbar" data-testid="chat-session-actions">
+            <DxToolbar Title="Chat actions"
+                       CssClass="localgpt-chat-toolbar"
+                       AdaptivityAutoCollapseItemsToIcons="true"
+                       ItemClick="OnChatToolbarItemClick">
+                <Items>
+                    <DxToolbarItem Name="new-chat" Text="Start new chat" IconCssClass="oi oi-plus" RenderStyle="ButtonRenderStyle.Primary" />
+                    <DxToolbarItem Name="provider-setup" Text="Provider setup" IconCssClass="oi oi-cog" />
+                    <DxToolbarItem Name="refresh-models" Text="Refresh local models" IconCssClass="oi oi-reload" Enabled="@(!isModelRefreshBusy)" />
+                    <DxToolbarItem Name="onewire-security" Text="1-Wire security" IconCssClass="oi oi-lock-locked" />
+                    <DxToolbarItem Name="council-teams" Text="Council teams" IconCssClass="oi oi-people" />
+                </Items>
+            </DxToolbar>
+        </div>
 
-        <div class="top-container" data-testid="chat-top-controls">
-            <span title="Clears the visible chat and starts a fresh memory thread.">
-                <DxButton RenderStyle="ButtonRenderStyle.Primary"
-                          RenderStyleMode="ButtonRenderStyleMode.Contained"
-                          IconCssClass="refresh"
-                          IconPosition="ButtonIconPosition.BeforeText"
-                          CssClass="refresh-button"
-                          Text="Start New Chat"
-                          Click="ClearHistoryAsync" />
-            </span>
-            <span title="Choose the local or cloud model for the next response.">
+        <div class="chat-provider-row" data-testid="chat-top-controls">
+            <label class="chat-provider-selector" title="Choose the local or cloud model for the next response.">
+                <span>AI provider</span>
                 <DxComboBox Data="@ModelsList"
                             Value="ChatClientProvider.SelectedSession"
                             CssClass="selector-container-combo-editor"
                             TextFieldName="@nameof(ChatClientSession.Name)"
-                            ValueChanged="@((ChatClientSession session) => OnModelChanged(session))" />
-            </span>
+                            ValueChanged="@((ChatClientSession session) => OnModelChanged(session))">
+                    <ItemDisplayTemplate>
+                        @if (context.DataItem is ChatClientSession session)
+                        {
+                            <div class="ai-kernel-option">
+                                <strong>@session.ModelName</strong>
+                                <small><span>@session.Provider</span>@if (!string.IsNullOrWhiteSpace(session.Endpoint)) { <span> · @session.Endpoint</span> }</small>
+                            </div>
+                        }
+                    </ItemDisplayTemplate>
+                    <EditBoxDisplayTemplate>
+                        @if (context.DataItem is ChatClientSession session)
+                        {
+                            <div class="ai-kernel-option ai-kernel-selected">
+                                <strong>@session.ModelName</strong>
+                                <small><span>@session.Provider</span>@if (!string.IsNullOrWhiteSpace(session.Endpoint)) { <span> · @session.Endpoint</span> }</small>
+                            </div>
+                        }
+                    </EditBoxDisplayTemplate>
+                </DxComboBox>
+            </label>
             <label class="inline-dx-check" title="Keeps the current chat visible when switching to another configured AI.">
                 <DxCheckBox @bind-Checked="ReuseContextWhenSwitching" />
                 <span>Reuse context when switching AI</span>
@@ -59,6 +84,11 @@
                 <span>Auto-load latest memory</span>
             </label>
         </div>
+        <details class="council-command-center" data-testid="council-command-center">
+            <summary title="Open model, hardware, team and artifact settings for AI Council runs.">
+                <span>AI Council controls</span>
+                <small>@SelectedCouncilModelNames.Count model@(SelectedCouncilModelNames.Count == 1 ? string.Empty : "s") · @CouncilResourceLoadPercent% power · @CouncilMaxContextTokens.ToString("N0") context</small>
+            </summary>
         <div class="model-toolbar" aria-label="DXAiChat model and council controls" data-testid="chat-model-toolbar">
             <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
                 <DxButton Text="Refresh Ollama Models"
@@ -110,6 +140,14 @@
                        step="2048"
                        @bind="CouncilMaxContextTokens" />
             </label>
+            <label class="council-token-setting" title="Number of peer critique/refinement rounds after the initial proposal. One is the balanced default; three is the most thorough and slowest mode.">
+                <span>Peer review rounds</span>
+                <input type="number"
+                       min="0"
+                       max="3"
+                       step="1"
+                       @bind="CouncilCritiqueRounds" />
+            </label>
             <label class="council-load-setting" title="Sets the session position between every selected model's own minimum and maximum CPU/GPU road values. 30% means min + 30% of that model's configured range.">
                 <span>Hardware load</span>
                 <input type="range" min="0" max="100" step="5" @bind="CouncilResourceLoadPercent" @bind:event="oninput" />
@@ -134,11 +172,10 @@
                             <input type="checkbox"
                                    checked="@SelectedCouncilModelNames.Contains(candidate.ModelName)"
                                    @onchange="@((ChangeEventArgs e) => ToggleCouncilModel(candidate.ModelName, e))" />
-                            <span>@CouncilRuntime.BuildCandidateLabel(candidate, Logger)</span>
-                            @if (candidate.IsLoaded)
-                            {
-                                <small>loaded</small>
-                            }
+                            <span class="council-kernel-label">
+                                <strong>@candidate.ModelName</strong>
+                                <small><span>@candidate.Provider · @candidate.Endpoint</span>@if (candidate.IsLoaded) { <span> · loaded</span> }</small>
+                            </span>
                         </label>
                     }
                 </div>
@@ -194,6 +231,12 @@
             <span class="memory-status">Roles, preparation prompts and heartbeat scripts are stored in SQLite and can be adjusted without replacing compiled services.</span>
             <a class="btn btn-outline-secondary btn-sm" href="/council-teams">Edit teams and workflow</a>
         </div>
+        </details>
+        <details class="chat-memory-project-center">
+            <summary title="Open saved memory and project-version controls.">
+                <span>Memory & project context</span>
+                <small>@(SelectedChatProjectDetails?.Project.Name ?? "No project selected")</small>
+            </summary>
         <div class="memory-toolbar" aria-label="Chat memory controls">
             <span title="Writes the current DXAiChat messages into the local SQLite memory database.">
                 <DxButton Text="Save Memory"
@@ -249,6 +292,7 @@
             </label>
             <span class="memory-status">LocalGPT @SessionContext.ApplicationVersion</span>
         </div>
+        </details>
         @if (RecentThoughts.Count > 0)
         {
             <div class="memory-thoughts">
@@ -257,7 +301,7 @@
                 {
                     <details>
                         <summary>@thought.ConversationTitle</summary>
-                        <p>@thought.Thinking</p>
+                        <div class="former-thought-content">@NormalizeFormerThought(thought.Thinking)</div>
                     </details>
                 }
             </div>
@@ -482,7 +526,8 @@
     string? DiagnosticOllamaEndpoint { get; set; }
     int CouncilMaxOutputTokens { get; set; } = LocalGptCatalogService.DefaultCouncilOutputTokens;
     int CouncilMaxContextTokens { get; set; } = LocalGptCatalogService.DefaultCouncilContextTokens;
-    int CouncilResourceLoadPercent { get; set; } = 30;
+    int CouncilResourceLoadPercent { get; set; } = 100;
+    int CouncilCritiqueRounds { get; set; } = 1;
 
     string ArchitectureUiStack { get; set; } = string.Empty;
     string ArchitectureSolutionShape { get; set; } = string.Empty;
@@ -516,6 +561,7 @@
     string FeedbackComment { get; set; } = string.Empty;
     string memoryStatus = string.Empty;
     string modelStatus = string.Empty;
+    string modelSelectionNotice = string.Empty;
     string feedbackStatus = string.Empty;
     bool isMemoryBusy;
     bool isModelRefreshBusy;
@@ -535,6 +581,42 @@
     bool autoSaveFailureNotified;
     string lastSavedSignature = string.Empty;
 
+
+
+    private async Task OnChatToolbarItemClick(ToolbarItemClickEventArgs args)
+    {
+        switch (args.ItemName)
+        {
+            case "new-chat": await ClearHistoryAsync(); break;
+            case "provider-setup": OpenProviderSetup(); break;
+            case "refresh-models": await RefreshOllamaModelsAsync(); break;
+            case "onewire-security": OpenOneWireSecurity(); break;
+            case "council-teams": OpenCouncilTeams(); break;
+        }
+    }
+
+    private void OpenProviderSetup() => NavigationManager.NavigateTo("/install");
+    private void OpenOneWireSecurity() => NavigationManager.NavigateTo("/onewire-security");
+    private void OpenCouncilTeams() => NavigationManager.NavigateTo("/council-teams");
+
+    private static string NormalizeFormerThought(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var text = value.Trim();
+        // Historical memories contain both literal and HTML-encoded pre/code wrappers.
+        // Decode twice, then remove only presentation wrappers while retaining line breaks.
+        text = System.Net.WebUtility.HtmlDecode(System.Net.WebUtility.HtmlDecode(text));
+        text = Regex.Replace(text, @"<br\s*/?>", Environment.NewLine, RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"</?(?:pre|code)(?:\s[^>]*)?>", string.Empty, RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"```(?:[a-z0-9_+.-]+)?\s*", string.Empty, RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"\s*```", string.Empty, RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"</?(?:p|div|span)(?:\s[^>]*)?>", match =>
+            match.Value.StartsWith("</", StringComparison.Ordinal) ? Environment.NewLine : string.Empty,
+            RegexOptions.IgnoreCase);
+        return Regex.Replace(text, @"(?:
+?
+){3,}", Environment.NewLine + Environment.NewLine).Trim();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -590,6 +672,7 @@
 
     private async Task LoadDatabaseBackedDefaultsAsync()
     {
+        await MigrateCouncilDefaultsAsync().ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<int>(
             "DefaultMaxOutputTokens",
             value => CouncilMaxOutputTokens = Math.Clamp(
@@ -608,11 +691,44 @@
         await TryApplyDatabaseVariableAsync<int>(
             "DefaultCouncilResourceLoadPercent",
             value => CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100));
+        await TryApplyDatabaseVariableAsync<int>(
+            "DefaultCouncilCritiqueRounds",
+            value => CouncilCritiqueRounds = Math.Clamp(value, 0, 3));
         await TryApplyDatabaseVariableAsync<string>(
             "DefaultOllamaEndpoint",
             value => DefaultOllamaEndpoint = string.IsNullOrWhiteSpace(value)
                 ? LocalGptCatalogService.DefaultOllamaEndpoint
                 : value.Trim());
+    }
+
+    private async Task MigrateCouncilDefaultsAsync()
+    {
+        const int targetVersion = 2;
+        try
+        {
+            int version;
+            try { version = await VariableStore.GetAsync<int>("CouncilDefaultsVersion").ConfigureAwait(false); }
+            catch { version = 0; }
+            if (version >= targetVersion) return;
+
+            try
+            {
+                var previousLoad = await VariableStore.GetAsync<int>("DefaultCouncilResourceLoadPercent").ConfigureAwait(false);
+                if (previousLoad == 30)
+                    await VariableStore.SetAsync("DefaultCouncilResourceLoadPercent", 100).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogDebug(ex, "The previous Council power default was unavailable during migration.");
+            }
+
+            await VariableStore.SetAsync("CouncilDefaultsVersion", targetVersion).ConfigureAwait(false);
+            Logger.LogInformation("Migrated AI Council defaults to version {Version}.", targetVersion);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not migrate AI Council defaults; compiled defaults remain available.");
+        }
     }
 
     private async Task TryApplyDatabaseVariableAsync<T>(string name, Action<T> apply)
@@ -853,16 +969,19 @@
 
                 if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
                 {
-                    var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
-                        ?? OllamaCandidates.FirstOrDefault();
+                    var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled && candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
+                        ?? OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled);
                     if (preferred is not null)
                         SelectedCouncilModelNames.Add(preferred.ModelName);
                 }
 
+                modelSelectionNotice = string.Empty;
                 RebuildDynamicSessions();
                 modelStatus = OllamaCandidates.Count == 0
                     ? "No installed Ollama models detected."
-                    : $"Detected {OllamaCandidates.Count} Ollama model(s). Added missing models and AI Council to DXAiChat.";
+                    : $"Detected {OllamaCandidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s) and {OllamaCandidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured offline model(s). Only reachable models were added to DXAiChat and AI Council.";
+                if (!string.IsNullOrWhiteSpace(modelSelectionNotice))
+                    modelStatus = $"{modelStatus} {modelSelectionNotice}";
                 if (DiagnosticCouncilModelNames.Count > 0)
                 {
                     modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
@@ -908,7 +1027,7 @@
                 session.Client.Dispose();
             }
 
-            foreach (var candidate in OllamaCandidates)
+            foreach (var candidate in OllamaCandidates.Where(candidate => candidate.IsInstalled))
             {
                 if (candidate.IsConfigured && HasConfiguredSessionForModel(candidate.ModelName) && !ShouldAddRuntimeProfileSession())
                     continue;
@@ -922,7 +1041,7 @@
                         contextLength: ResolveCouncilContextTokens(),
                         timeout: TimeSpan.FromMinutes(30),
                         numGpu: ResolveOllamaNumGpu()),
-                    CouncilRuntime.BuildDynamicSessionName(candidate, Logger));
+                    CouncilRuntime.BuildDynamicSessionName(candidate, Logger), candidate.Provider, candidate.ModelName, candidate.Endpoint);
 
                 if (previousMessages.TryGetValue(session.Name, out var messages))
                     session.Messages.AddRange(messages);
@@ -934,15 +1053,29 @@
        
             var councilSession = new ChatClientSession(
                 new CouncilChatClient(CouncilService, CreateCouncilRequest, Logger, CouncilRuntime, CouncilText, ResolveCouncilDownloadUrl),
-                LocalGptCatalogService.CouncilSessionName);
+                LocalGptCatalogService.CouncilSessionName, "LocalGPT", "AI Council", Program.BaseUrl);
             if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
                 councilSession.Messages.AddRange(councilMessages);
             ChatClientProvider.AvailableChatClients.Add(councilSession);
 
-            ChatClientProvider.SelectedSession =
-                ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name == previousSelection)
-                ?? ChatClientProvider.SelectedSession
-                ?? ChatClientProvider.AvailableChatClients.FirstOrDefault();
+            var preservedSelection = ChatClientProvider.AvailableChatClients
+                .FirstOrDefault(session => session.Name.Equals(previousSelection, StringComparison.OrdinalIgnoreCase));
+            var explicitlyRequestedDiagnostic = !string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName);
+            var configuredOllamaUnavailable = !explicitlyRequestedDiagnostic && IsUnavailableConfiguredOllamaSession(preservedSelection);
+
+            ChatClientProvider.SelectedSession = configuredOllamaUnavailable
+                ? SelectReachableFallbackSession()
+                : preservedSelection
+                    ?? SelectReachableFallbackSession();
+
+            if (configuredOllamaUnavailable && ChatClientProvider.SelectedSession is not null)
+            {
+                modelSelectionNotice = $"The previously selected Ollama model is configured but not reachable. LocalGPT selected {ChatClientProvider.SelectedSession.Name} instead.";
+                Logger.LogWarning(
+                    "Configured Ollama session {PreviousSession} was unavailable; selected fallback session {FallbackSession}.",
+                    previousSelection,
+                    ChatClientProvider.SelectedSession.Name);
+            }
         }
         catch (Exception ex)
         {
@@ -951,6 +1084,49 @@
         }
     }
     
+
+    private bool IsUnavailableConfiguredOllamaSession(ChatClientSession? session)
+    {
+        try
+        {
+            if (session is null || !session.Name.StartsWith("Ollama — ", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var modelName = session.Name["Ollama — ".Length..].Trim();
+            return !OllamaCandidates.Any(candidate =>
+                candidate.IsInstalled &&
+                candidate.ModelName.Equals(modelName, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not determine whether the configured Ollama session is reachable.");
+            return false;
+        }
+    }
+
+    private ChatClientSession? SelectReachableFallbackSession()
+    {
+        try
+        {
+            if (ChatClientProvider is null)
+                return null;
+
+            return ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
+                       session.Name.StartsWith(LocalGptCatalogService.DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase))
+                   ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
+                       !session.Name.StartsWith("Ollama — ", StringComparison.OrdinalIgnoreCase) &&
+                       !session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+                   ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
+                       session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+                   ?? ChatClientProvider.AvailableChatClients.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not select a reachable fallback AI session.");
+            return ChatClientProvider?.AvailableChatClients.FirstOrDefault();
+        }
+    }
+
     private void EnsureDiagnosticOllamaSession(IReadOnlyDictionary<string, List<BlazorChatMessage>> previousMessages)
     {
         try
@@ -978,7 +1154,7 @@
                         contextLength: ResolveCouncilContextTokens(),
                         timeout: TimeSpan.FromMinutes(30),
                         numGpu: ResolveOllamaNumGpu()),
-                $"{LocalGptCatalogService.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilText.TrimEndpoint(endpoint, Logger)}");
+                $"{LocalGptCatalogService.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilText.TrimEndpoint(endpoint, Logger)}", "Ollama", DiagnosticRequestedSessionName, endpoint);
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
                 session.Messages.AddRange(messages);
@@ -1011,7 +1187,7 @@
             {
                 ModelNames = (CouncilRuntime.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
                 BaseUri = selectedEndpoint,
-                MaxRounds = 0,
+                MaxRounds = Math.Clamp(CouncilCritiqueRounds, 0, 3),
                 MaxOutputTokens = ResolveCouncilOutputTokens(),
                 MaxParallelModels = Math.Max(1, SelectedModelPreset?.MaxParallelModels ?? 1),
                 AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
@@ -1275,8 +1451,9 @@
         try
         {
             return ChatClientProvider?.AvailableChatClients.Any(session =>
-            !(CouncilRuntime.IsDynamicSession(session, Logger) == false) &&
-            session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
+                !(CouncilRuntime.IsDynamicSession(session, Logger) ?? false) &&
+                session.Name.StartsWith("Ollama — ", StringComparison.OrdinalIgnoreCase) &&
+                session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
         }
         catch (Exception ex)
         {

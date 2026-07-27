@@ -92,8 +92,9 @@
         <DxFormLayout>
             <DxFormLayoutTabPages>
 
-                <DxFormLayoutTabPage Caption="Local (OpenAI-compatible)">
-                    <DxFormLayoutItem Caption="Endpoint (host, no /v1)">
+                <DxFormLayoutTabPage Caption="LM Studio / local OpenAI-compatible">
+                    <p class="field-help">LM Studio works through its OpenAI-compatible server. Start the server in LM Studio, keep the default http://localhost:1234/v1 or enter another /v1 endpoint, then use Test Connection. The active model id is discovered from /v1/models.</p>
+                    <DxFormLayoutItem Caption="Endpoint (OpenAI-compatible base URL, usually /v1)">
                         <DxTextBox @bind-Text="Model.ChatGPTLocalCore.Endpoint" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="API Key">
@@ -266,8 +267,8 @@
             if (string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore?.Endpoint)) return;
 
             var ep = Model.ChatGPTLocalCore.Endpoint.Trim().TrimEnd('/');
-            if (ep.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
-                ep = ep[..^3]; // remove "/v1"
+            if (Uri.TryCreate(ep, UriKind.Absolute, out var uri) && (string.IsNullOrWhiteSpace(uri.AbsolutePath) || uri.AbsolutePath == "/"))
+                ep += "/v1";
             Model.ChatGPTLocalCore.Endpoint = ep;
         }
         catch (Exception ex)
@@ -486,7 +487,7 @@
             {
                 Model.ChatGPTLocalCore.Endpoint = host.Endpoint;
                 Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
-                    ? "local-key"
+                    ? (string.Equals(host.Provider, "LM Studio", StringComparison.OrdinalIgnoreCase) ? "lm-studio" : "local-key")
                     : Model.ChatGPTLocalCore.ApiKey;
                 Model.ChatGPTLocalCore.ModelName = model.Name;
                 await Append($"Selected {host.Provider} model {model.Name} at {host.Endpoint}.").ConfigureAwait(false);
@@ -531,7 +532,7 @@
             {
                 Model.ChatGPTLocalCore.Endpoint = best.Host.Endpoint;
                 Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
-                    ? "local-key"
+                    ? (string.Equals(best.Host.Provider, "LM Studio", StringComparison.OrdinalIgnoreCase) ? "lm-studio" : "local-key")
                     : Model.ChatGPTLocalCore.ApiKey;
                 Model.ChatGPTLocalCore.ModelName = best.Model.Name;
             }

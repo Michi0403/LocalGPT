@@ -567,6 +567,20 @@ internal static class Program
             AddCmdShortcutIfExists(
                 shortcuts,
                 localGptRoot,
+                "Install.cmd",
+                "LocalGPT Install.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Update.cmd",
+                "LocalGPT Update.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
                 "Start.cmd",
                 "LocalGPT Start.url",
                 logger);
@@ -574,50 +588,8 @@ internal static class Program
             AddCmdShortcutIfExists(
                 shortcuts,
                 localGptRoot,
-                "Pull-Models-Slim.cmd",
-                "LocalGPT Pull Models Slim.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Pull-Models-RTX306012GSet.cmd",
-                "LocalGPT Pull Models RTX3060 12G Set.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Pull-Models-RX7900XTXSet.cmd",
-                "LocalGPT Pull Models RX7900XTX Set.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Force-Delete-Repull-LB-Slim-Model.cmd",
-                "LocalGPT Force Delete Repull Learnbase Slim Model.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Install-Force-Delete-Start.cmd",
-                "LocalGPT Install Force Delete Start.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "LocalGPT-Install-Start.cmd",
-                "LocalGPT Install Start.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Update-Default-Learnbase.cmd",
-                "LocalGPT Update Default Learnbase.url",
+                "Uninstall.cmd",
+                "LocalGPT Uninstall.url",
                 logger);
 
             return shortcuts;
@@ -1160,20 +1132,39 @@ internal static class Program
                     $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
 
             var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
-            var url = $"http://127.0.0.1:{port}";
 
             logger.LogInformation($"Starting LocalGPT: {exePath}");
-            logger.LogInformation($"LocalGPT port: {port}");
+            logger.LogInformation($"LocalGPT requested loopback port: {port}");
 
-            Process.Start(new ProcessStartInfo
+            if (TryGetRunningEndpoint("LocalGPT", "LocalGPT", out var existingUrl, logger))
+            {
+                Console.WriteLine();
+                Console.WriteLine($"LocalGPT is already running: {existingUrl}");
+                Console.WriteLine("Ctrl+click the URL above if your console does not open links on a normal click.");
+                if (options.OpenBrowser)
+                    OpenDefaultBrowser(existingUrl, logger);
+                return;
+            }
+
+            var process = Process.Start(new ProcessStartInfo
             {
                 FileName = exePath,
-                ArgumentList = { port.ToString() },
+                ArgumentList = { "--port", port.ToString() },
                 UseShellExecute = true,
                 WorkingDirectory = Path.GetDirectoryName(exePath)
-            });
+            }) ?? throw new InvalidOperationException("LocalGPT process could not be started.");
 
-            Thread.Sleep(TimeSpan.FromSeconds(2));
+            var url = WaitForRuntimeEndpoint(
+                productName: "LocalGPT",
+                runtimeProductDirectory: "LocalGPT",
+                process: process,
+                fallbackPort: port,
+                logger: logger);
+
+            Console.WriteLine();
+            Console.WriteLine($"LocalGPT is ready: {url}");
+            Console.WriteLine("Ctrl+click the URL above if your console does not open links on a normal click.");
+            logger.LogInformation("LocalGPT is ready at {BaseUrl}.", url);
 
             if (options.OpenBrowser)
             {
@@ -1187,6 +1178,153 @@ internal static class Program
             throw;
         }
     }
+    private static bool TryGetRunningEndpoint(
+        string productName,
+        string runtimeProductDirectory,
+        out string url,
+        ILogger logger)
+    {
+        url = string.Empty;
+        var endpointPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            runtimeProductDirectory,
+            "runtime",
+            "server.json");
+        try
+        {
+            if (!File.Exists(endpointPath))
+                return false;
+
+            using var document = JsonDocument.Parse(File.ReadAllText(endpointPath));
+            var root = document.RootElement;
+            if (!root.TryGetProperty("ProcessId", out var processIdElement)
+                || !processIdElement.TryGetInt32(out var processId)
+                || processId <= 0
+                || !root.TryGetProperty("BaseUrl", out var baseUrlElement))
+                return false;
+
+            var baseUrl = baseUrlElement.GetString();
+            if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri)
+                || !uri.IsLoopback
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                return false;
+
+            using var process = Process.GetProcessById(processId);
+            process.Refresh();
+            if (process.HasExited)
+                return false;
+
+            url = uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+            logger.LogInformation("Using already running {ProductName} process {ProcessId} at {BaseUrl}.", productName, processId, url);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Could not inspect the existing {ProductName} runtime endpoint.", productName);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Could not inspect the existing {ProductName} runtime endpoint.", productName);
+            return false;
+        }
+        catch (JsonException ex)
+        {
+            logger.LogDebug(ex, "Ignored an invalid existing {ProductName} runtime endpoint file.", productName);
+            return false;
+        }
+    }
+
+    private static string WaitForRuntimeEndpoint(
+        string productName,
+        string runtimeProductDirectory,
+        Process process,
+        int fallbackPort,
+        ILogger logger)
+    {
+        var endpointPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            runtimeProductDirectory,
+            "runtime",
+            "server.json");
+        var fallbackUrl = $"http://127.0.0.1:{fallbackPort}";
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(45);
+        Exception? lastReadFailure = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            process.Refresh();
+            if (process.HasExited)
+            {
+                throw new InvalidOperationException(
+                    $"{productName} exited with code {process.ExitCode} before publishing its runtime URL.");
+            }
+
+            if (File.Exists(endpointPath))
+            {
+                try
+                {
+                    using var document = JsonDocument.Parse(File.ReadAllText(endpointPath));
+                    var root = document.RootElement;
+                    if (!root.TryGetProperty("ProcessId", out var processIdElement)
+                        || !processIdElement.TryGetInt32(out var endpointProcessId)
+                        || endpointProcessId != process.Id)
+                    {
+                        Thread.Sleep(250);
+                        continue;
+                    }
+
+                    if (!root.TryGetProperty("BaseUrl", out var baseUrlElement))
+                    {
+                        throw new JsonException("Runtime endpoint file does not contain BaseUrl.");
+                    }
+
+                    var baseUrl = baseUrlElement.GetString();
+                    if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri)
+                        || !uri.IsLoopback
+                        || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                    {
+                        throw new InvalidDataException(
+                            $"{productName} published an invalid non-loopback runtime URL '{baseUrl}'.");
+                    }
+
+                    return uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+                }
+                catch (IOException ex)
+                {
+                    lastReadFailure = ex;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    lastReadFailure = ex;
+                }
+                catch (JsonException ex)
+                {
+                    lastReadFailure = ex;
+                }
+            }
+
+            Thread.Sleep(250);
+        }
+
+        logger.LogError(
+            lastReadFailure,
+            "{ProductName} did not publish a usable runtime endpoint at {EndpointPath}. Requested fallback was {FallbackUrl}.",
+            productName,
+            endpointPath,
+            fallbackUrl);
+        throw new TimeoutException(
+            $"{productName} did not become ready within 45 seconds. Requested URL: {fallbackUrl}");
+    }
+
     private static void OpenDefaultBrowser(string url, ILogger logger)
     {
         try

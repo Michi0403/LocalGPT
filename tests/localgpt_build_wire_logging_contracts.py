@@ -21,7 +21,8 @@ class LocalGptBuildWireLoggingContracts(unittest.TestCase):
         project = (ROOT / "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj").read_text(encoding="utf-8")
         self.assertIn("Condition=\"'$(UseLocalWireProtocolProject)' == 'true'\"", project)
         self.assertIn("PackageReference Include=\"LocalGPT.WireProtocolVersion\"", project)
-        self.assertIn("SetPlatform=\"AnyCPU\"", project)
+        self.assertNotIn("SetPlatform=\"AnyCPU\"", project)
+        self.assertNotIn("AdditionalProperties=\"Platform=AnyCPU\"", project)
         self.assertIn("GlobalPropertiesToRemove=\"Platform;PlatformTarget;RuntimeIdentifier", project)
         self.assertNotIn("MSBuild Projects=\"..\\LocalGPT.WireProtocolVersion", project)
 
@@ -45,7 +46,7 @@ class LocalGptBuildWireLoggingContracts(unittest.TestCase):
     def test_optional_wiring_and_package_location_are_documented(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("Optional organic 1-Wire integration and protocol package", readme)
-        self.assertIn("packages\\LocalGPT.WireProtocolVersion.2.0.1.nupkg", readme)
+        self.assertIn("packages\\LocalGPT.WireProtocolVersion.2.1.0.nupkg", readme)
         self.assertIn("organic adaptation model", readme)
         self.assertIn("Build-Release.ps1 -Runtime all", readme)
 

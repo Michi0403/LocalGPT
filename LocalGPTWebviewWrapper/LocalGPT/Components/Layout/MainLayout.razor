@@ -31,6 +31,10 @@
                             <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Back to Home" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="icon icon-back"></DxButton>
                         </NavLink>
                     }
+                    <div class="language-switcher" aria-label="Language">
+                        <a href="@CultureUrl("en-US")" lang="en">EN</a>
+                        <a href="@CultureUrl("de-DE")" lang="de">DE</a>
+                    </div>
                 </div>
                 <SafeErrorBoundary @key="NavigationManager.Uri" Area="MainLayout" ToastName="ComponentSafetyToasts">
                     @Body
@@ -51,6 +55,12 @@
     {
         ComponentActivity.RecordInformation(nameof(MainLayout), "LayoutState", ToggledSidebar ? "Navigation drawer is open." : "Navigation drawer is closed.", NavigationManager.Uri);
     }
+    private string CultureUrl(string culture)
+    {
+        var returnUrl = new Uri(NavigationManager.Uri).PathAndQuery;
+        return $"api/localization/select?culture={Uri.EscapeDataString(culture)}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
     private RenderFragment drawerHeader => @<div class="navigation-drawer-header">
         <img class="logo" src="images/TacosLogos.svg" alt="LocalGPT logo" />
         <NavLink href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">

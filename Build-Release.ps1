@@ -3,7 +3,7 @@ param(
     [string]$Runtime = "all",
     [ValidateSet("Release", "Debug")]
     [string]$Configuration = "Release",
-    [string]$WireProtocolVersion = "2.0.1",
+    [string]$WireProtocolVersion = "2.1.0",
     [string]$WireProtocolPackageUrl = "",
     [switch]$UseBundledWireProtocolPackage,
     [switch]$IncludeWindowsWrapper
@@ -27,6 +27,7 @@ $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplication
 
 $loggingGuard = Join-Path $root "build\Assert-LoggingIntegrity.ps1"
 & $loggingGuard
+& (Join-Path $root "build\Assert-OneWireArchitecture.ps1")
 
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
@@ -169,7 +170,10 @@ function Publish-Runtime {
             "-r", $Rid,
             "--disable-parallel",
             "-p:Platform=$($profile.WrapperPlatform)",
-            "-p:UseLocalWireProtocolProject=true",
+            "-p:UseLocalWireProtocolProject=false",
+            "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
+            "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
+            "-p:RestoreAdditionalProjectSources=$packageDirectory",
             "-p:SkipLoggingIntegrityGuard=true"
         ) -FailureMessage "WinUI wrapper restore failed for $Rid."
         Invoke-DotNet -Arguments @(
@@ -179,7 +183,10 @@ function Publish-Runtime {
             "--self-contained", "true",
             "--no-restore",
             "-p:Platform=$($profile.WrapperPlatform)",
-            "-p:UseLocalWireProtocolProject=true",
+            "-p:UseLocalWireProtocolProject=false",
+            "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
+            "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
+            "-p:RestoreAdditionalProjectSources=$packageDirectory",
             "-p:PublishSingleFile=false",
             "-o", $wrapperFolder,
             "-p:SkipLoggingIntegrityGuard=true"

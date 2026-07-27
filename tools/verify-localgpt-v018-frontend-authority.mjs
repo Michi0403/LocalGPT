@@ -28,8 +28,8 @@ const selfAssessmentInterface = read('LocalGPTWebviewWrapper','LocalGPT','Interf
 const selfAssessmentService = read('LocalGPTWebviewWrapper','LocalGPT','Services','OrganicSkillRegistryService.cs');
 
 assert.match(appProject, /<Version>2\.0\.1<\/Version>/);
-assert.match(wireProject, /<Version>2\.0\.0<\/Version>/);
-assert.match(wire, /public const string Version = "2\.0";/);
+assert.match(wireProject, /<Version>2\.1\.0<\/Version>/);
+assert.match(wire, /public const string Version = "2\.1";/);
 for (const token of [
   'OneWireInteractionEditor', 'IsExposedToPeer', 'AllowPeerInvocation',
   'RequiresFrontendUserConfirmation', 'ConfigurationKey', 'RequiresFrontendConfirmation',

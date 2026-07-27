@@ -95,6 +95,24 @@ public sealed class OneWireCapabilityCatalog(
         });
         functions.Add(new OneWireCapabilityDescriptor
         {
+            Key = "localgpt.vision.ocr", DisplayName = "Local vision OCR",
+            Description = "Recognizes text in one explicitly approved image using a configured local Ollama-compatible OCR/vision model such as DeepSeek OCR.",
+            Controller = "OneWire", Method = "POST", Route = "/api/onewire/http-json", Organs = ["eyes", "brain"],
+            Skills = ["vision", "ocr", "text-recognition"], RequiredSkillKeys = ["vision", "ocr"],
+            UiActivationKeys = ["publisherstudio.picture.ocr"], IsReadOnly = true, RequiresHumanConfirmation = true,
+            RequiresHumanInteractionOnTargetSystem = true, RequiresFrontendUserConfirmation = true, IsExposedToPeer = true,
+            AllowPeerInvocation = true, InteractionEditor = OneWireInteractionEditor.ConfirmationOnly,
+            ParameterSchemaJson = "{\"type\":\"object\",\"required\":[\"imageDataUrl\"],\"properties\":{\"imageDataUrl\":{\"type\":\"string\"},\"prompt\":{\"type\":\"string\"},\"modelName\":{\"type\":\"string\"},\"maximumOutputTokens\":{\"type\":\"integer\",\"minimum\":128,\"maximum\":4096}}}",
+            ConfigurationKey = "builtin:localgpt.vision.ocr", Source = "LocalGPT",
+            InputContract = "A base64 image data URL rendered in the requesting frontend, plus an optional OCR prompt and configured model name.",
+            OutputContract = "JSON containing recognized text, the model used, media type and NeedsHumanReview=true.",
+            SecurityContract = "Both frontends must approve the current request. Image content is encrypted when an MFA-verified trusted link exists and is never accepted as a server file path.",
+            OrganicUseCase = "Eyes organ for OCR in Picture Studio and other user-installed organic clients.",
+            SuggestedCouncilRoles = ["OCR-capable vision member", "DeepSeek OCR", "evidence verification specialist"]
+        });
+
+        functions.Add(new OneWireCapabilityDescriptor
+        {
             Key = "organic.skills.manage", DisplayName = "Maintain organic skills",
             Description = "Maintains user-approved organic skills and links them to projects and Council members.",
             Controller = "OneWire", Method = "POST", Route = "/api/onewire/skills", Organs = ["brain"],
@@ -121,6 +139,9 @@ public sealed class OneWireCapabilityCatalog(
                 ConfigurationKey = serviceEntry.CatalogKey, Source = serviceEntry.Source
             });
         }
+
+        foreach (var capability in functions)
+            PopulateTeaching(capability);
 
         logger.LogDebug("Published {CapabilityCount} LocalGPT 1-Wire capabilities for peer {PeerId}.", functions.Count, peerId ?? "local-ui");
         return functions.OrderBy(capability => capability.Key, StringComparer.OrdinalIgnoreCase).ToList();
@@ -235,4 +256,25 @@ public sealed class OneWireCapabilityCatalog(
         var tokens = $"{name} {purpose}".Split([' ', '.', '-', '_', '/', ':'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return tokens.Where(token => token.Length >= 4).Select(token => token.ToLowerInvariant()).Distinct().Take(12).ToList();
     }
+
+    private static void PopulateTeaching(OneWireCapabilityDescriptor capability)
+    {
+        capability.InputContract = string.IsNullOrWhiteSpace(capability.InputContract)
+            ? $"Parameters matching this JSON schema: {capability.ParameterSchemaJson}"
+            : capability.InputContract;
+        capability.OutputContract = string.IsNullOrWhiteSpace(capability.OutputContract)
+            ? "A bounded JSON WorkResult associated with the original CorrelationId."
+            : capability.OutputContract;
+        capability.SecurityContract = string.IsNullOrWhiteSpace(capability.SecurityContract)
+            ? capability.RequiresFrontendUserConfirmation || capability.RequiresHumanConfirmation
+                ? "The receiving frontend is authoritative and must approve the exact current request; reusable permission rules cannot bypass forced frontend or browser security prompts."
+                : "The capability remains limited to an explicitly linked peer and the local exposure/invocation policy."
+            : capability.SecurityContract;
+        capability.OrganicUseCase = string.IsNullOrWhiteSpace(capability.OrganicUseCase)
+            ? $"Organic {string.Join("/", capability.Organs.DefaultIfEmpty("service"))} capability supplied by {capability.Source}."
+            : capability.OrganicUseCase;
+        if (capability.SuggestedCouncilRoles.Count == 0)
+            capability.SuggestedCouncilRoles = capability.Skills.Concat(capability.Organs).Distinct(StringComparer.OrdinalIgnoreCase).Take(6).ToList();
+    }
+
 }

@@ -1,0 +1,14 @@
+LocalGPT 2.0.1 / Organic 1-Wire 2.1 compiler hotfix 2
+
+Fixes the maintainer-side compiler result:
+  OneWireHttpController.cs(36): CS0103 OneWireMessageDispatcher not found
+
+Changes:
+- imports LocalGPT.Services.OneWire in OneWireHttpController;
+- removes the unused IOneWireCapabilityCatalog constructor dependency from
+  OneWireCouncilApprovalProcessorHostedService (removes CS9113 warning);
+- adds a source regression assertion for the controller namespace;
+- aligns historical protocol source checks with protocol/package 2.1/2.1.0;
+- brings OneWireSecurity into the existing component-activity instrumentation contract.
+
+This environment still has no dotnet SDK. Run Build-LocalDevelopment.cmd on Windows.

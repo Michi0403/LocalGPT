@@ -8,13 +8,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>LocalGPT.WireProtocolVersion</AssemblyName>
     <RootNamespace>LocalGPT.WireProtocol</RootNamespace>
-    <Version>2.0.1</Version>
+    <Version>2.1.0</Version>
     <Description>Versioned, bidirectional LocalGPT organic 1-Wire protocol contracts shared by LocalGPT and organic plugin systems.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <IsPackable>true</IsPackable>
     <PackageId>LocalGPT.WireProtocolVersion</PackageId>
-    <PackageVersion>2.0.1</PackageVersion>
+    <PackageVersion>2.1.0</PackageVersion>
     <Authors>Michi0403 / LocalGPT</Authors>
     <PackageTags>LocalGPT;OneWire;OrganicAI;Protocol</PackageTags>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

@@ -34,6 +34,9 @@ public sealed class OllamaChatMessage
     public string Content { get; set; } = string.Empty;
     public string? Thinking { get; set; }
 
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
+
     [JsonPropertyName("tool_calls")]
     public List<OllamaToolCall>? ToolCalls { get; set; }
 
