@@ -32,9 +32,15 @@ class LocalGptBuildWireLoggingContracts(unittest.TestCase):
         self.assertIn('"restore", $appProject, "-r", $Rid', script)
         self.assertIn('"publish", $appProject', script)
         self.assertIn('UseLocalWireProtocolProject=false', script)
+        self.assertIn('--disable-parallel', script)
+        self.assertIn('Updated shared LocalGPT protocol package cache', script)
         self.assertIn('IncludeWireProtocolPackageInPublish=true', script)
         self.assertNotIn('publish", $solution', script)
-        self.assertTrue((ROOT / "Build-LocalDevelopment.ps1").is_file())
+        local_build = (ROOT / "Build-LocalDevelopment.ps1").read_text(encoding="utf-8")
+        self.assertIn('Restoring the authoritative RID-neutral protocol project first', local_build)
+        self.assertIn('BuildProjectReferences=false', local_build)
+        self.assertIn('--disable-parallel', local_build)
+        self.assertLess(local_build.index('restore", $wireProject'), local_build.index('restore", $appProject'))
 
     def test_optional_wiring_and_package_location_are_documented(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

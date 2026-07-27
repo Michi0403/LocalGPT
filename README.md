@@ -66,10 +66,7 @@ LocalGPT works without PublisherStudio. The organic 1-Wire connection is an opti
 
 This is also a practical example of LocalGPT's organic adaptation model. A locally running application can describe a new capability, its input/output contract and its safety requirements. LocalGPT can then help generate an adapter, capability mapping and Council workflow for that user's own installation. Generated integration code remains reviewable source; it is not installed or executed merely because a model proposed it.
 
-The shared `LocalGPT.WireProtocolVersion` assembly is deliberately RID-neutral and supports two development/deployment modes:
-
-- **Local source mode (default):** both solutions reference their checked-in `LocalGPT.WireProtocolVersion.csproj`. Use this while changing the protocol in both repositories.
-- **NuGet package mode:** applications reference `LocalGPT.WireProtocolVersion.2.0.1.nupkg`. This keeps standalone builds and release publishing independent from the other repository.
+The shared `LocalGPT.WireProtocolVersion` assembly is deliberately RID-neutral and has one source authority: this LocalGPT repository. LocalGPT itself may use the project reference while developing the contract or its generated NuGet package when proving release behavior. Consumer repositories, including PublisherStudio, use only `LocalGPT.WireProtocolVersion.2.0.1.nupkg` and must not keep a second Git-revisioned protocol project.
 
 Place the package at:
 

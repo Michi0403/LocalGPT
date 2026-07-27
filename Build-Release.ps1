@@ -22,6 +22,8 @@ $wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebvie
 $wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
 $wirePackageName = "LocalGPT.WireProtocolVersion.$WireProtocolVersion.nupkg"
 $wirePackage = Join-Path $packageDirectory $wirePackageName
+$localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+$sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
 
 $loggingGuard = Join-Path $root "build\Assert-LoggingIntegrity.ps1"
 & $loggingGuard
@@ -107,7 +109,7 @@ function Publish-Runtime {
     )
 
     Write-Host "Restoring LocalGPT application for $Rid in package mode..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments (@("restore", $appProject, "-r", $Rid) + $sharedProperties) -FailureMessage "LocalGPT restore failed for $Rid."
+    Invoke-DotNet -Arguments (@("restore", $appProject, "-r", $Rid, "--disable-parallel") + $sharedProperties) -FailureMessage "LocalGPT restore failed for $Rid."
 
     Write-Host "Publishing LocalGPT application for $Rid..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments (@(
@@ -126,7 +128,7 @@ function Publish-Runtime {
     ) + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
 
     Write-Host "Restoring LocalGPT setup for $Rid..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Rid, "-p:SkipLoggingIntegrityGuard=true") -FailureMessage "LocalGPT setup restore failed for $Rid."
+    Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Rid, "--disable-parallel", "-p:SkipLoggingIntegrityGuard=true") -FailureMessage "LocalGPT setup restore failed for $Rid."
 
     Write-Host "Publishing LocalGPT setup for $Rid..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @(
@@ -165,6 +167,7 @@ function Publish-Runtime {
         Invoke-DotNet -Arguments @(
             "restore", $wrapperProject,
             "-r", $Rid,
+            "--disable-parallel",
             "-p:Platform=$($profile.WrapperPlatform)",
             "-p:UseLocalWireProtocolProject=true",
             "-p:SkipLoggingIntegrityGuard=true"
@@ -193,6 +196,11 @@ function Publish-Runtime {
 New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
 Ensure-WireProtocolPackage
 Copy-Item $wirePackage (Join-Path $artifacts $wirePackageName) -Force
+if ($sharedWirePackageDirectory) {
+    New-Item -ItemType Directory -Path $sharedWirePackageDirectory -Force | Out-Null
+    Copy-Item $wirePackage (Join-Path $sharedWirePackageDirectory $wirePackageName) -Force
+    Write-Host "Updated shared LocalGPT protocol package cache: $sharedWirePackageDirectory" -ForegroundColor Green
+}
 
 $runtimes = if ($Runtime -eq "all") {
     @("win-x64", "win-x86", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")
