@@ -67,7 +67,7 @@ LocalGPTWebviewWrapper/**/localgpt-memory-example-database.db
 build/[A-Za-z0-9]????????/
 build/*_repo_to_text*.txt
 build/*_repo_snapshot*/
-localgpt/
+/localgpt/
 
 # User- and machine-specific IDE state
 **/*.csproj.user
@@ -95,5 +95,3 @@ packages/*.snupkg
 !tests/*.py
 !LocalGPTWebviewWrapper/LocalGPT/Localization/
 !LocalGPTWebviewWrapper/LocalGPT/Localization/*.json
-tests/__pycache__/localgpt_council_onewire_publish_hotfix_contracts.cpython-313.pyc
-tests/__pycache__/

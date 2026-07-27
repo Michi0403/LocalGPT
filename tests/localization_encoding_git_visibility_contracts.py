@@ -25,6 +25,12 @@ class LocalizationEncodingAndGitVisibilityContracts(unittest.TestCase):
         self.assertNotIn(MARKER, guard)
         self.assertNotIn("â", guard)
 
+    def test_scratch_clone_rule_is_root_anchored_and_cannot_hide_the_product_tree(self):
+        ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("/localgpt/", ignore)
+        self.assertNotIn("\nlocalgpt/", ignore)
+        self.assertIn("!LocalGPTWebviewWrapper/LocalGPT/Localization/", ignore)
+
     def test_build_and_git_visibility_wiring_is_present(self):
         target = (ROOT / "Directory.Build.targets").read_text(encoding="utf-8")
         self.assertIn("AssertLocalGptGitSourceVisibility", target)

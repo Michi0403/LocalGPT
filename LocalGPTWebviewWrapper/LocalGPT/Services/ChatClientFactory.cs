@@ -124,44 +124,16 @@ namespace LocalGPT.Services
                 // --- Local OpenAI-compatible (LM Studio / vLLM / text-gen-webui) ---
                 if (options.ChatGPTLocalCore is { Endpoint.Length: > 0 } loc)
                 {
-                    // 1. Define candidate endpoints: configured endpoint first, followed by standard local fallbacks.
-                    var candidateEndpoints = new[]
+                    var endpoint = NormalizeOpenAiCompatibleEndpoint(loc.Endpoint);
+                    var resolvedModel = ResolveOpenAiCompatibleModel(endpoint, loc.ModelName, loc.ApiKey, logger);
+                    if (!string.IsNullOrWhiteSpace(resolvedModel))
                     {
-        loc.Endpoint,
-        "http://localhost:11434/v1", // Standard Ollama OpenAI-compatible port
-        "http://127.0.0.1:11434/v1",
-        "http://localhost:1234/v1",  // Standard LM Studio OpenAI-compatible port
-        "http://127.0.0.1:1234/v1"
-    }
-                    .Where(ep => !string.IsNullOrWhiteSpace(ep))
-                    .Select(NormalizeOpenAiCompatibleEndpoint)
-                    .Distinct(StringComparer.OrdinalIgnoreCase);
-
-                    string? activeEndpoint = null;
-                    string? resolvedModel = null;
-
-                    // 2. Iterate through endpoints until a reachable provider with an active model is found
-                    foreach (var endpoint in candidateEndpoints)
-                    {
-                        var model = ResolveOpenAiCompatibleModel(endpoint, loc.ModelName, loc.ApiKey, logger);
-                        if (!string.IsNullOrWhiteSpace(model))
-                        {
-                            activeEndpoint = endpoint;
-                            resolvedModel = model;
-                            break; // Stop at the first working endpoint
-                        }
-                    }
-
-                    // 3. Register the client session if any candidate succeeded, or log the fallback failure
-                    if (!string.IsNullOrWhiteSpace(activeEndpoint) && !string.IsNullOrWhiteSpace(resolvedModel))
-                    {
-                        logger.LogInformation("Found reachable local OpenAI-compatible provider at {Endpoint} for model {Model}.", activeEndpoint, resolvedModel);
-
+                        logger.LogInformation("Found reachable local OpenAI-compatible provider at {Endpoint} for model {Model}.", endpoint, resolvedModel);
                         var localClient = new OpenAIClient(
                             new ApiKeyCredential(string.IsNullOrWhiteSpace(loc.ApiKey) ? "local-no-key" : loc.ApiKey),
                             new OpenAIClientOptions
                             {
-                                Endpoint = new Uri(activeEndpoint, UriKind.Absolute),
+                                Endpoint = new Uri(endpoint, uriKind: UriKind.Absolute),
                                 ClientLoggingOptions = new ClientLoggingOptions
                                 {
                                     EnableLogging = true,
@@ -174,12 +146,12 @@ namespace LocalGPT.Services
                         var localChat = localClient.GetChatClient(resolvedModel).AsIChatClient();
                         sessions.Add(new ChatClientSession(
                             new LoggingChatClient(localChat, loggerFactory.CreateLogger("AI.LocalOpenAI")),
-                            $"LM Studio / OpenAI-compatible — {resolvedModel}", "LM Studio / OpenAI-compatible", resolvedModel, activeEndpoint
+                            $"LM Studio / OpenAI-compatible — {resolvedModel}", "LM Studio / OpenAI-compatible", resolvedModel, endpoint
                         ));
                     }
                     else
                     {
-                        logger.LogInformation("The configured local endpoint ({Endpoint}) and common fallbacks (Ollama: 11434, LM Studio: 1234) are offline or expose no models; none were added to the active chat selector.", loc.Endpoint);
+                        logger.LogInformation("The configured local OpenAI-compatible endpoint {Endpoint} is offline or exposes no models; it was not added to the active chat selector.", endpoint);
                     }
                 }
 
