@@ -51,6 +51,11 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Layout\MainLayout.razor
     'ILogger<MainLayout>',
     'INotificationService'
 ) 'Layout diagnostics boundary'
+Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Routes.razor' @(
+    '<SafeErrorBoundary\s+@key="NavigationManager\.Uri"',
+    'RecordNavigation\(',
+    'LocationChanged\s*\+=\s*HandleLocationChanged'
+) 'Route replacement and navigation diagnostics'
 
 # Chat is the highest-risk interactive page. Its attach path must not call JS itself,
 # and its operational paths keep structured logging and user notification. Dispose methods are exempt.
@@ -79,10 +84,19 @@ if (Test-Path -LiteralPath $chatPath) {
 # protected by Assert-LoggingIntegrity.ps1. This avoids injecting circuit UI services into
 # singleton/boot services, which would break startup.
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Program.cs' @(
-    'ControllerRequestLoggingFilter',
+    'AddScoped<ControllerRequestLoggingFilter>',
+    'Filters\.AddService<ControllerRequestLoggingFilter>',
     'AddScoped<INotificationService',
     'AddHostedService<DatabaseInitializationHostedService>'
 ) 'Controller, notifier, and startup diagnostics registration'
+Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs' @(
+    'IAsyncActionFilter',
+    'ILogger<ControllerRequestLoggingFilter>',
+    'IComponentActivityService',
+    'LogInformation',
+    'LogError',
+    'RecordFailure'
+) 'Global controller action diagnostics'
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Services\Persistence\DatabaseInitializationService.cs' @(
     'MigrateAsync\(cancellationToken\)',
     'ILogger<DatabaseInitializationService>',

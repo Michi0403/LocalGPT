@@ -95,7 +95,7 @@
     <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>
   </PropertyGroup>
 
-  <!--<Target Name="AssertLocalGptOperationalDiagnostics"
+  <Target Name="AssertLocalGptOperationalDiagnostics"
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptLoggingIntegrity"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOperationalDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
@@ -107,6 +107,6 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>-->
+  </Target>
 
 </Project>

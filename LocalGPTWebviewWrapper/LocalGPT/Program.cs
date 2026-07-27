@@ -7,6 +7,7 @@ using DevExpress.XtraCharts;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Components;
+using LocalGPT.Diagnostics;
 using LocalGPT.Endpoints;
 using LocalGPT.Helper;
 using LocalGPT.Hubs;
@@ -598,7 +599,9 @@ namespace LocalGPT
                 });
                 builder.Services.AddHealthChecks();
                 builder.Services.AddDevExpressBlazor(options => options.SizeMode = DevExpress.Blazor.SizeMode.Medium);
-                builder.Services.AddMvc();
+                builder.Services.AddScoped<ControllerRequestLoggingFilter>();
+                builder.Services.AddMvc(options =>
+                    options.Filters.AddService<ControllerRequestLoggingFilter>());
                 builder.Services.AddScoped<ThemeService>();
                 builder.Services.AddDevExpressServerSideBlazorPdfViewer();
             }

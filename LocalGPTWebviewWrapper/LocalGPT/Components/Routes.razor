@@ -3,9 +3,8 @@
 @inject ILogger<Routes> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
-@inject ISupervisedTaskRunner TaskRunner
 
-<SafeErrorBoundary @ref="routeBoundary" Area="Application routing" ToastName="ComponentSafetyToasts">
+<SafeErrorBoundary @key="NavigationManager.Uri" Area="Application routing" ToastName="ComponentSafetyToasts">
     <Router AppAssembly="typeof(Program).Assembly">
         <Found Context="routeData">
             <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
@@ -19,8 +18,6 @@
 </SafeErrorBoundary>
 
 @code {
-    private SafeErrorBoundary? routeBoundary;
-    private readonly CancellationTokenSource lifetimeCts = new();
     private bool isDisposed;
 
     protected override void OnInitialized()
@@ -28,13 +25,12 @@
         try
         {
             NavigationManager.LocationChanged += HandleLocationChanged;
-            ComponentActivity.RecordNavigation(NavigationManager.Uri);
-            Logger.LogInformation("LocalGPT navigation initialized at {Route}.", new Uri(NavigationManager.Uri).AbsolutePath);
+            RecordNavigation(NavigationManager.Uri, "initialized");
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Could not initialize LocalGPT navigation tracking.");
-            ComponentActivity.RecordFailure(nameof(Routes), "InitializeNavigation", ex);
+            ComponentActivity.RecordFailure(nameof(Routes), nameof(OnInitialized), ex);
             Notifier.ShowError("ComponentSafetyToasts", "Navigation tracking could not initialize. Core routing remains available.", "Navigation warning");
         }
     }
@@ -46,34 +42,24 @@
 
         try
         {
-            TaskRunner.Run(
-                nameof(Routes),
-                "RecoverAfterNavigation",
-                _ => RecoverAfterNavigationAsync(args.Location),
-                lifetimeCts.Token);
-        }
-        catch (ObjectDisposedException) when (isDisposed)
-        {
-            // Navigation raced with circuit disposal.
-        }
-    }
-
-    private async Task RecoverAfterNavigationAsync(string location)
-    {
-        try
-        {
-            await InvokeAsync(() =>
-            {
-                routeBoundary?.Recover();
-                ComponentActivity.RecordNavigation(location);
-                Logger.LogInformation("LocalGPT navigated to {Route}; the routed error boundary was reset.", new Uri(location).AbsolutePath);
-            });
+            RecordNavigation(args.Location, args.IsNavigationIntercepted ? "intercepted" : "programmatic");
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Could not recover or record a LocalGPT route change.");
-            ComponentActivity.RecordFailure(nameof(Routes), "RecoverAfterNavigation", ex);
+            Logger.LogWarning(ex, "Could not record the LocalGPT route change to {Location}.", args.Location);
+            ComponentActivity.RecordFailure(nameof(Routes), nameof(HandleLocationChanged), ex);
+            Notifier.ShowWarning("ComponentSafetyToasts", "The route changed, but its diagnostic state could not be recorded.", "Navigation diagnostics warning");
         }
+    }
+
+    private void RecordNavigation(string location, string navigationKind)
+    {
+        var route = new Uri(location).AbsolutePath;
+        ComponentActivity.RecordNavigation(location);
+        Logger.LogInformation(
+            "LocalGPT navigated to {Route} through {NavigationKind} navigation.",
+            route,
+            navigationKind);
     }
 
     public void Dispose()
@@ -83,7 +69,5 @@
 
         isDisposed = true;
         NavigationManager.LocationChanged -= HandleLocationChanged;
-        lifetimeCts.Cancel();
-        lifetimeCts.Dispose();
     }
 }

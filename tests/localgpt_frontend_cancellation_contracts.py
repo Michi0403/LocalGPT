@@ -21,6 +21,21 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
         self.assertIn('<ToastWrapper Name="ComponentSafetyToasts" />', layout)
         self.assertNotIn('<ToastWrapper Name="ComponentSafetyToasts"', app)
 
+    def test_route_changes_replace_the_body_without_error_boundary_recovery_races(self):
+        routes = (APP / "Components" / "Routes.razor").read_text(encoding="utf-8")
+        self.assertIn('<SafeErrorBoundary @key="NavigationManager.Uri"', routes)
+        self.assertIn("LocationChanged += HandleLocationChanged", routes)
+        self.assertNotIn("routeBoundary?.Recover()", routes)
+        self.assertNotIn("RecoverAfterNavigationAsync", routes)
+
+    def test_controller_diagnostics_filter_is_implemented_and_registered(self):
+        program = (APP / "Program.cs").read_text(encoding="utf-8")
+        filter_source = (APP / "Diagnostics" / "ControllerRequestLoggingFilter.cs").read_text(encoding="utf-8")
+        self.assertIn("AddScoped<ControllerRequestLoggingFilter>()", program)
+        self.assertIn("Filters.AddService<ControllerRequestLoggingFilter>()", program)
+        self.assertIn("IAsyncActionFilter", filter_source)
+        self.assertIn("RecordFailure", filter_source)
+
     def test_chat_autosave_starts_after_interactive_attach_without_cancelled_delay(self):
         chat = (APP / "Components" / "Pages" / "Chat.razor").read_text(encoding="utf-8")
         self.assertIn("interactiveAttached = true;", chat)

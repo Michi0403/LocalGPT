@@ -144,6 +144,15 @@ if (-not (Test-Path -LiteralPath $policyPath) -or (Get-Content -LiteralPath $pol
     $failures.Add('Logging integrity policy is missing or was weakened.')
 }
 
+$localGptProgramPath = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Program.cs'
+if (Test-Path -LiteralPath $localGptProgramPath) {
+    $program = Get-Content -LiteralPath $localGptProgramPath -Raw
+    $filter = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs'
+    if (-not (Test-Path -LiteralPath $filter) -or $program -notmatch 'Filters\.AddService<ControllerRequestLoggingFilter>') {
+        $failures.Add('LocalGPT global controller logging filter is missing or not registered.')
+    }
+}
+
 $publisherProgramPath = Join-Path $root 'src\PublisherStudio.Web\Program.cs'
 if (Test-Path -LiteralPath $publisherProgramPath) {
     $program = Get-Content -LiteralPath $publisherProgramPath -Raw
