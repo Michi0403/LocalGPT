@@ -835,6 +835,7 @@ namespace LocalGPT.Services
             var reviewRequest = new CreateCodeGenerationReviewRequest
             {
                 ProjectId = result.ProjectId,
+                ProjectRevisionId = result.ProjectRevisionId,
                 ProjectTopicId = result.ProjectTopicId,
                 CouncilRunId = result.RunId,
                 Title = string.IsNullOrWhiteSpace(request.Title) ? $"Council change review - {targetArea}" : request.Title,
@@ -842,9 +843,9 @@ namespace LocalGPT.Services
                 CurrentProjectState = currentState,
                 CouncilSummary = result.FinalAnswer,
                 ChangeSummary = parsedPlan.Found
-                    ? $"Generate the council-authored structured plan from {parsedPlan.SourceFormat}: {files.Count} explicit file(s), {codeDomTypes.Count} CodeDOM type(s), and {outputs.Count} output target(s). No source is integrated into the selected project automatically."
-                    : $"Generate the bounded fallback plan for {targetArea}: {files.Count} explicit file(s), {codeDomTypes.Count} CodeDOM type(s), and {outputs.Count} output target(s). No source is integrated into the selected project automatically.",
-                SafetySummary = "This heartbeat records the exact proposed payload before generation. Execution requires the current user to approve the matching review hash. Writes stay inside LocalGPT's artifact workspace; builds require a separate current confirmation; generated scripts, DLLs, and executables are never run or loaded automatically.",
+                    ? $"Generate the council-authored structured plan from {parsedPlan.SourceFormat}: {files.Count} explicit file(s), {codeDomTypes.Count} CodeDOM type(s), and {outputs.Count} output target(s). When a project revision is selected, unchanged approved files are cloned byte-for-byte into its isolated workspace and only the exact reviewed files are replaced; the source checkout is never overwritten."
+                    : $"Generate the bounded fallback plan for {targetArea}: {files.Count} explicit file(s), {codeDomTypes.Count} CodeDOM type(s), and {outputs.Count} output target(s). When a project revision is selected, unchanged approved files are cloned byte-for-byte into its isolated workspace and only the exact reviewed files are replaced; the source checkout is never overwritten.",
+                SafetySummary = "This heartbeat records the exact proposed payload before generation. Execution requires the current user to approve the matching review hash. Writes stay inside the resolved project-revision workspace; builds require a separate current confirmation; generated scripts, DLLs, and executables are never run or loaded automatically.",
                 Files = files,
                 CodeDomTypes = codeDomTypes,
                 Outputs = outputs

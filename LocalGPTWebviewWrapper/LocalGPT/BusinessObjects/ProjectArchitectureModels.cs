@@ -20,6 +20,16 @@ public sealed class LocalGptProjectRevision
     [MaxLength(120)] public string CreatedBy { get; set; } = "Human User";
     public bool IsCurrent { get; set; }
     public bool IsUserApproved { get; set; }
+    public bool CompileVerified { get; set; }
+    public bool CouncilVerified { get; set; }
+    public bool ReadyForTesting { get; set; }
+    public DateTime? ApprovedForTestingAtUtc { get; set; }
+    [MaxLength(128)] public string SourceSnapshotHash { get; set; } = string.Empty;
+    [MaxLength(2048)] public string SnapshotArchivePath { get; set; } = string.Empty;
+    [MaxLength(2048)] public string SourceRootPath { get; set; } = string.Empty;
+    [MaxLength(2048)] public string SolutionPath { get; set; } = string.Empty;
+    public ICollection<LocalGptProjectTrackedFile> TrackedFiles { get; set; } = [];
+    public ICollection<ProjectBuildVerification> BuildVerifications { get; set; } = [];
 }
 
 public sealed class LocalGptProjectRequirement

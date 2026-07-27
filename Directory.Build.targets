@@ -56,4 +56,21 @@
           StandardErrorImportance="High" />
   </Target>
 
+  <PropertyGroup>
+    <ProjectMaintenanceArchitectureScript>$(MSBuildThisFileDirectory)build\Assert-ProjectMaintenanceArchitecture.ps1</ProjectMaintenanceArchitectureScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptProjectMaintenanceArchitecture"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipProjectMaintenanceArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(ProjectMaintenanceArchitectureScript)')"
+           Text="Project maintenance architecture guard script is missing: $(ProjectMaintenanceArchitectureScript)" />
+    <Exec Condition="Exists('$(ProjectMaintenanceArchitectureScript)')"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ProjectMaintenanceArchitectureScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
 </Project>

@@ -19,6 +19,16 @@ public sealed class LocalGptProject
 
     public string RootPath { get; set; } = string.Empty;
 
+    public string ProjectType { get; set; } = "DotNetSolution";
+
+    public string SolutionPath { get; set; } = string.Empty;
+
+    public string SolutionSearchPattern { get; set; } = @"(?i)\.(sln|slnx)$";
+
+    public string FileIncludePattern { get; set; } = @"(?s).*";
+
+    public string FileExcludePattern { get; set; } = @"(?i)(^|[\\/])(bin|obj|node_modules|\.git|\.vs|artifacts|security|secrets?)([\\/]|$)|(^|[\\/])(\.env(?:\..*)?|[^\\/]+\.(?:pfx|p12|key|pem))$";
+
     public string CurrentVersion { get; set; } = "0.1.0";
 
     public string Status { get; set; } = "Active";
@@ -36,6 +46,12 @@ public sealed class LocalGptProject
     public ICollection<LocalGptProjectRequirement> Requirements { get; set; } = [];
 
     public ICollection<LocalGptProjectArtifact> Artifacts { get; set; } = [];
+
+    public ICollection<ProjectWorkspaceRoot> WorkspaceRoots { get; set; } = [];
+
+    public ICollection<LocalGptProjectTrackedFile> TrackedFiles { get; set; } = [];
+
+    public ICollection<ProjectBuildVerification> BuildVerifications { get; set; } = [];
 }
 
 public sealed class LocalGptProjectTopic
@@ -132,6 +148,12 @@ public sealed class LocalGptProjectDetails
     public IReadOnlyList<LocalGptProjectRequirement> Requirements { get; init; } = [];
 
     public IReadOnlyList<LocalGptProjectArtifact> Artifacts { get; init; } = [];
+
+    public IReadOnlyList<ProjectWorkspaceRoot> WorkspaceRoots { get; init; } = [];
+
+    public IReadOnlyList<LocalGptProjectTrackedFile> TrackedFiles { get; init; } = [];
+
+    public IReadOnlyList<ProjectBuildVerification> BuildVerifications { get; init; } = [];
 }
 
 public sealed class SaveLocalGptProjectRequest
@@ -143,6 +165,16 @@ public sealed class SaveLocalGptProjectRequest
     public string Purpose { get; set; } = string.Empty;
 
     public string RootPath { get; set; } = string.Empty;
+
+    public string ProjectType { get; set; } = "DotNetSolution";
+
+    public string SolutionPath { get; set; } = string.Empty;
+
+    public string SolutionSearchPattern { get; set; } = @"(?i)\.(sln|slnx)$";
+
+    public string FileIncludePattern { get; set; } = @"(?s).*";
+
+    public string FileExcludePattern { get; set; } = @"(?i)(^|[\\/])(bin|obj|node_modules|\.git|\.vs|artifacts|security|secrets?)([\\/]|$)|(^|[\\/])(\.env(?:\..*)?|[^\\/]+\.(?:pfx|p12|key|pem))$";
 
     public string CurrentVersion { get; set; } = "0.1.0";
 

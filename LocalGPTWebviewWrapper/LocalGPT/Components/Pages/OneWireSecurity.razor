@@ -125,7 +125,7 @@
     private async Task CreateAsync() => await RunAsync(async () =>
     {
         await Security.EnsureCreatedAsync();
-        Notifier.ShowSuccess("OneWireSecurityToasts", "Runtime 1-Wire identity created.", "1-Wire security");
+        Notifier.ShowSuccess("OneWireSecurityToasts", "Runtime 1-Wire identity created.", "1-Wire Security");
     }, "Could not create the runtime 1-Wire identity.");
 
     private async Task CreatePairingMaterialAsync() => await RunAsync(async () =>
@@ -134,7 +134,7 @@
         _otpUri = await Security.GetOtpAuthUriAsync();
         _pairingTicketJson = JsonSerializer.Serialize(await Security.CreatePairingTicketAsync(TimeSpan.FromMinutes(15)), JsonOptions);
         _renderQr = true;
-        Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created.", "1-Wire security");
+        Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created.", "1-Wire Security");
     }, "Could not create 1-Wire pairing material.");
 
     private async Task RegenerateAsync() => await RunAsync(async () =>
@@ -181,18 +181,18 @@
     private async Task RunAsync(Func<Task> action, string message)
     {
         const string operation = "RuntimeSecurityAction";
-        ComponentActivity.RecordInformation(nameof(OneWireSecurity), operation, "A runtime 1-Wire security UI operation started.");
+        ComponentActivity.RecordInformation(nameof(OneWireSecurity), operation, "A runtime 1-Wire Security UI operation started.");
         try
         {
             await action();
             await RefreshAsync();
-            ComponentActivity.RecordInformation(nameof(OneWireSecurity), operation, "The runtime 1-Wire security UI operation completed.");
+            ComponentActivity.RecordInformation(nameof(OneWireSecurity), operation, "The runtime 1-Wire Security UI operation completed.");
         }
         catch (Exception ex)
         {
             ComponentActivity.RecordFailure(nameof(OneWireSecurity), operation, ex);
             Logger.LogError(ex, "{Message}", message);
-            Notifier.ShowError("OneWireSecurityToasts", $"{message} {ex.Message}", "1-Wire security");
+            Notifier.ShowError("OneWireSecurityToasts", $"{message} {ex.Message}", "1-Wire Security");
         }
     }
 

@@ -10,7 +10,7 @@
 <main class="council-team-page localgpt-surface">
     <header class="council-team-header">
         <div>
-            <h1>AI Council teams and heartbeat scripts</h1>
+            <h1>AI Council Teams and heartbeat scripts</h1>
             <p>System teams are seeded into SQLite, remain selectable, and can be adjusted without overwriting existing user edits during later seed upgrades.</p>
         </div>
         <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
@@ -93,14 +93,14 @@
             if (selected is not null) SelectTeam(selected);
             _status = $"Loaded {_teams.Count} database-backed team configuration(s).";
             _hasError = false;
-            Notifier.ShowInfo(nameof(CouncilTeams), _status, "Council teams");
+            Notifier.ShowInfo(nameof(CouncilTeams), _status, "Council Teams");
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Could not load AI Council team configurations.");
             _status = ex.Message;
             _hasError = true;
-            Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council teams");
+            Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council Teams");
         }
         finally { _busy = false; }
     }

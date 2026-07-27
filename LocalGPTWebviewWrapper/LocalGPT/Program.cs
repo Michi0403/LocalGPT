@@ -323,6 +323,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<ILearningRoundService, LearningRoundService>();
                 builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
                 builder.Services.AddScoped<IProjectArchitectureService, ProjectArchitectureService>();
+                builder.Services.AddScoped<IProjectMaintenanceService, ProjectMaintenanceService>();
                 builder.Services.AddScoped<IModelPresetService, ModelPresetService>();
                 builder.Services.AddScoped<ISqliteEditorPreferenceService, SqliteEditorPreferenceService>();
                 builder.Services.AddScoped<ISafeTextDocumentService, SafeTextDocumentService>();

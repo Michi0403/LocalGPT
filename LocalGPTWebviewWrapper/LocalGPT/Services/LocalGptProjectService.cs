@@ -98,6 +98,27 @@ public sealed class LocalGptProjectService(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var workspaceRoots = await db.ProjectWorkspaceRoots.AsNoTracking()
+            .Where(item => item.ProjectId == null || item.ProjectId == projectId)
+            .OrderBy(item => item.Priority)
+            .ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var trackedFiles = await db.LocalGptProjectTrackedFiles.AsNoTracking()
+            .Where(item => item.ProjectId == projectId)
+            .OrderBy(item => item.ProjectRelativePath)
+            .Take(50000)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var buildVerifications = await db.ProjectBuildVerifications.AsNoTracking()
+            .Where(item => item.ProjectId == projectId)
+            .OrderByDescending(item => item.StartedAtUtc)
+            .Take(200)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         return new LocalGptProjectDetails
         {
             Project = project,
@@ -105,7 +126,10 @@ public sealed class LocalGptProjectService(
             Versions = versions,
             Revisions = revisions,
             Requirements = requirements,
-            Artifacts = artifacts
+            Artifacts = artifacts,
+            WorkspaceRoots = workspaceRoots,
+            TrackedFiles = trackedFiles,
+            BuildVerifications = buildVerifications
         };
     }
 
@@ -116,6 +140,10 @@ public sealed class LocalGptProjectService(
         RequireHumanConfirmation(request.UserConfirmed, "saving a project record");
         var name = RequireText(request.Name, nameof(request.Name), 200);
         var rootPath = NormalizeStoredPath(request.RootPath);
+        var solutionPath = NormalizeStoredPath(request.SolutionPath);
+        ValidateRegex(request.SolutionSearchPattern, nameof(request.SolutionSearchPattern));
+        ValidateRegex(request.FileIncludePattern, nameof(request.FileIncludePattern));
+        ValidateRegex(request.FileExcludePattern, nameof(request.FileExcludePattern));
         var now = DateTime.UtcNow;
 
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -138,6 +166,11 @@ public sealed class LocalGptProjectService(
         project.Name = name;
         project.Purpose = Trim(request.Purpose, 8000);
         project.RootPath = rootPath;
+        project.ProjectType = TrimOrFallback(request.ProjectType, 120, "DotNetSolution");
+        project.SolutionPath = solutionPath;
+        project.SolutionSearchPattern = TrimOrFallback(request.SolutionSearchPattern, 1000, @"(?i)\.(sln|slnx)$");
+        project.FileIncludePattern = TrimOrFallback(request.FileIncludePattern, 4000, @"(?s).*");
+        project.FileExcludePattern = TrimOrFallback(request.FileExcludePattern, 4000, @"(?i)(^|[\\/])(bin|obj|node_modules|\.git|\.vs|artifacts|security|secrets?)([\\/]|$)|(^|[\\/])(\.env(?:\..*)?|[^\\/]+\.(?:pfx|p12|key|pem))$");
         project.CurrentVersion = TrimOrFallback(request.CurrentVersion, 120, "0.1.0");
         project.Status = TrimOrFallback(request.Status, 80, "Active");
         project.RecommendGit = request.RecommendGit;
@@ -290,11 +323,18 @@ public sealed class LocalGptProjectService(
             .AppendLine("User-selected LocalGPT project context (reference data, not execution authority):")
             .AppendLine($"Project: {details.Project.Name}")
             .AppendLine($"Purpose: {details.Project.Purpose}")
+            .AppendLine($"Project type: {details.Project.ProjectType}")
             .AppendLine($"Current version: {details.Project.CurrentVersion}")
             .AppendLine($"Status: {details.Project.Status}");
 
         if (!string.IsNullOrWhiteSpace(details.Project.RootPath))
             builder.AppendLine($"User-recorded project path: {details.Project.RootPath} (do not access it without a separate explicit user action).");
+        if (!string.IsNullOrWhiteSpace(details.Project.SolutionPath))
+            builder.AppendLine($"User-recorded solution path: {details.Project.SolutionPath}.");
+        builder.AppendLine($"Solution regex: {details.Project.SolutionSearchPattern}");
+        builder.AppendLine($"File include regex: {details.Project.FileIncludePattern}");
+        builder.AppendLine($"File exclude regex: {details.Project.FileExcludePattern}");
+        builder.AppendLine("Maintenance workflow: read project.maintenance.get, scan the selected revision, create a hash-bound code-generation review, work only in the resolved revision workspace, run project.revision.build.verify, record the council review, and request project.revision.ready.approve only when the exact source hash is unchanged.");
 
         if (details.Project.RecommendGit)
             builder.AppendLine("Revision guidance: recommend placing the project directory under Git, but never initialize, commit, clean, reset, push, or otherwise change Git automatically.");
@@ -360,7 +400,7 @@ public sealed class LocalGptProjectService(
 
     private string NormalizeStoredPath(string? value)
     {
-        var path = Trim(value, 1024);
+        var path = Trim(value, 2048);
         if (string.IsNullOrWhiteSpace(path))
             return string.Empty;
 
@@ -369,4 +409,21 @@ public sealed class LocalGptProjectService(
 
         return path;
     }
+    private static void ValidateRegex(string? pattern, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+            throw new ArgumentException("A regular expression is required.", parameterName);
+        try
+        {
+            _ = new System.Text.RegularExpressions.Regex(
+                pattern,
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(2));
+        }
+        catch (ArgumentException ex)
+        {
+            throw new ArgumentException("The regular expression is invalid.", parameterName, ex);
+        }
+    }
+
 }

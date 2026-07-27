@@ -3,24 +3,30 @@
 @inject ILogger<NavMenu> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <div data-testid="main-navigation">
     <ToastWrapper Name="LoginDisplayToasts" />
     <DxMenu Orientation="@Orientation.Vertical" CssClass="menu menu-item" ItemsStretched="true" SizeMode="SizeMode.Large" Title="Navigation">
         <Items>
-            <DxMenuItem NavigateUrl="/" Stretched="true" Text="Home"  CssClass="menu-item"  IconCssClass="icon home-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/Chat" Stretched="true" Text="AI Chat Module" CssClass="menu-item" IconCssClass="icon aichat-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/model-council" Stretched="true" Text="AI Council" CssClass="menu-item" IconCssClass="icon council-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/council-teams" Stretched="true" Text="Council Teams" CssClass="menu-item" IconCssClass="icon council-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/projects" Stretched="true" Text="Projects" CssClass="menu-item" IconCssClass="icon projects-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/database" Stretched="true" Text="SQLite Database" CssClass="menu-item" IconCssClass="icon database-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/dx-functions" Stretched="true" Text="DX Functions &amp; 1-Wire" CssClass="menu-item" IconCssClass="icon council-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/onewire-security" Stretched="true" Text="1-Wire Security" CssClass="menu-item" IconCssClass="icon council-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/minecraft-mod-builder" Stretched="true" Text="Minecraft Mod Builder" CssClass="menu-item" IconCssClass="icon minecraft-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/test-lab" Stretched="true" Text="Test Lab" CssClass="menu-item" IconCssClass="icon testlab-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/install" Stretched="true" Text="Install" CssClass="menu-item" IconCssClass="icon installation-icon"></DxMenuItem>
-            <DxMenuItem NavigateUrl="/help" Stretched="true" Text="Help" CssClass="menu-item" IconCssClass="icon help-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/" Stretched="true" Text='@T("Nav.Home", "Home")'  CssClass="menu-item"  IconCssClass="icon home-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/Chat" Stretched="true" Text='@T("Nav.Chat", "AI Chat Module")' CssClass="menu-item" IconCssClass="icon aichat-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/model-council" Stretched="true" Text='@T("Nav.Council", "AI Council")' CssClass="menu-item" IconCssClass="icon council-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/council-teams" Stretched="true" Text='@T("Nav.CouncilTeams", "Council Teams")' CssClass="menu-item" IconCssClass="icon council-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/projects" Stretched="true" Text='@T("Nav.Projects", "Projects")' CssClass="menu-item" IconCssClass="icon projects-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/project-maintenance" Stretched="true" Text='@T("Nav.ProjectMaintenance", "Project Maintenance")' CssClass="menu-item" IconCssClass="icon projects-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/database" Stretched="true" Text='@T("Nav.Database", "SQLite Database")' CssClass="menu-item" IconCssClass="icon database-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/dx-functions" Stretched="true" Text='@T("Nav.DxFunctions", "DX Functions & 1-Wire")' CssClass="menu-item" IconCssClass="icon council-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/onewire-security" Stretched="true" Text='@T("Nav.OneWireSecurity", "1-Wire Security")' CssClass="menu-item" IconCssClass="icon council-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/minecraft-mod-builder" Stretched="true" Text='@T("Nav.Minecraft", "Minecraft Mod Builder")' CssClass="menu-item" IconCssClass="icon minecraft-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/test-lab" Stretched="true" Text='@T("Nav.TestLab", "Test Lab")' CssClass="menu-item" IconCssClass="icon testlab-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/install" Stretched="true" Text='@T("Nav.Install", "Install")' CssClass="menu-item" IconCssClass="icon installation-icon"></DxMenuItem>
+            <DxMenuItem NavigateUrl="/help" Stretched="true" Text='@T("Nav.Help", "Help")' CssClass="menu-item" IconCssClass="icon help-icon"></DxMenuItem>
 
         </Items>
     </DxMenu>
 </div>
+
+@code {
+    string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+}

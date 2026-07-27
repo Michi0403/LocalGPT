@@ -62,10 +62,27 @@
                 <textarea @bind="ProjectEdit.Purpose" rows="4"></textarea>
             </label>
 
-            <label title="This is stored as text only. Saving does not access the directory.">
+            <label title="This is stored as path metadata. Scanning or building still requires a separate explicit approval.">
                 Project directory
-                <input @bind="ProjectEdit.RootPath" maxlength="1024" placeholder="C:\Projects\MyProject" />
+                <input @bind="ProjectEdit.RootPath" maxlength="2048" placeholder="C:\Projects\MyProject" />
             </label>
+
+            <div class="form-grid">
+                <label>
+                    Project type
+                    <input @bind="ProjectEdit.ProjectType" maxlength="120" placeholder="DotNetSolution, Java, Python, Cpp..." />
+                </label>
+                <label>
+                    Solution file path
+                    <input @bind="ProjectEdit.SolutionPath" maxlength="2048" placeholder="C:\Projects\MyProject\MyProject.sln" />
+                </label>
+            </div>
+            <details>
+                <summary>Solution and file discovery regular expressions</summary>
+                <label>Solution regex<input @bind="ProjectEdit.SolutionSearchPattern" /></label>
+                <label>Included files regex<textarea @bind="ProjectEdit.FileIncludePattern" rows="2"></textarea></label>
+                <label>Excluded paths regex<textarea @bind="ProjectEdit.FileExcludePattern" rows="2"></textarea></label>
+            </details>
 
             <div class="form-grid">
                 <label>
@@ -493,6 +510,11 @@
                 Name = project.Name,
                 Purpose = project.Purpose,
                 RootPath = project.RootPath,
+                ProjectType = project.ProjectType,
+                SolutionPath = project.SolutionPath,
+                SolutionSearchPattern = project.SolutionSearchPattern,
+                FileIncludePattern = project.FileIncludePattern,
+                FileExcludePattern = project.FileExcludePattern,
                 CurrentVersion = project.CurrentVersion,
                 Status = project.Status,
                 RecommendGit = project.RecommendGit,
@@ -667,6 +689,11 @@
             ProjectEdit.Name = project.Name;
             ProjectEdit.Purpose = project.Purpose;
             ProjectEdit.RootPath = project.RootPath;
+            ProjectEdit.ProjectType = project.ProjectType;
+            ProjectEdit.SolutionPath = project.SolutionPath;
+            ProjectEdit.SolutionSearchPattern = project.SolutionSearchPattern;
+            ProjectEdit.FileIncludePattern = project.FileIncludePattern;
+            ProjectEdit.FileExcludePattern = project.FileExcludePattern;
             ProjectEdit.CurrentVersion = project.CurrentVersion;
             ProjectEdit.Status = project.Status;
             ProjectEdit.RecommendGit = project.RecommendGit;
@@ -705,6 +732,10 @@
 
     static SaveLocalGptProjectRequest NewProjectRequest() => new()
     {
+        ProjectType = "DotNetSolution",
+        SolutionSearchPattern = @"(?i)\.(sln|slnx)$",
+        FileIncludePattern = @"(?s).*",
+        FileExcludePattern = @"(?i)(^|[\\/])(bin|obj|node_modules|\.git|\.vs|artifacts|security|secrets?)([\\/]|$)|(^|[\\/])(\.env(?:\..*)?|[^\\/]+\.(?:pfx|p12|key|pem))$",
         CurrentVersion = "0.1.0",
         Status = "Active",
         RecommendGit = true

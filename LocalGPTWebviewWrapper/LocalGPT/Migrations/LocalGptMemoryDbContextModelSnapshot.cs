@@ -130,6 +130,9 @@ namespace LocalGPT.Migrations
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("ProjectRevisionId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("ProjectTopicId")
                         .HasColumnType("TEXT");
 
@@ -168,6 +171,8 @@ namespace LocalGPT.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CouncilRunId");
+
+                    b.HasIndex("ProjectRevisionId");
 
                     b.HasIndex("ReviewHash");
 
@@ -584,8 +589,14 @@ namespace LocalGPT.Migrations
 
                     b.Property<string>("RootPath")
                         .IsRequired()
-                        .HasMaxLength(1024)
+                        .HasMaxLength(2048)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("ProjectType").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
+                    b.Property<string>("SolutionPath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("SolutionSearchPattern").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("FileIncludePattern").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("FileExcludePattern").IsRequired().HasColumnType("TEXT");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -612,6 +623,14 @@ namespace LocalGPT.Migrations
                     b.Property<string>("CreatedBy").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
                     b.Property<bool>("IsCurrent").HasColumnType("INTEGER");
                     b.Property<bool>("IsUserApproved").HasColumnType("INTEGER");
+                    b.Property<bool>("CompileVerified").HasColumnType("INTEGER");
+                    b.Property<bool>("CouncilVerified").HasColumnType("INTEGER");
+                    b.Property<bool>("ReadyForTesting").HasColumnType("INTEGER");
+                    b.Property<DateTime?>("ApprovedForTestingAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("SourceSnapshotHash").IsRequired().HasMaxLength(128).HasColumnType("TEXT");
+                    b.Property<string>("SnapshotArchivePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("SourceRootPath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("SolutionPath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
                     b.Property<Guid?>("ParentRevisionId").HasColumnType("TEXT");
                     b.Property<Guid>("ProjectId").HasColumnType("TEXT");
                     b.Property<string>("ProjectStructureJson").IsRequired().HasColumnType("TEXT");
@@ -852,6 +871,143 @@ namespace LocalGPT.Migrations
                     b.ToTable("CouncilKnowledgeUserRatings", (string)null);
                 });
 
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectWorkspaceRoot", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<bool>("IsDefault").HasColumnType("INTEGER");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<DateTime?>("LastResolvedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("LastResolutionStatus").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<int>("Priority").HasColumnType("INTEGER");
+                    b.Property<Guid?>("ProjectId").HasColumnType("TEXT");
+                    b.Property<string>("ProjectTypePattern").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<string>("RootPath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("ScopeKind").IsRequired().HasMaxLength(40).HasColumnType("TEXT");
+                    b.Property<string>("SolutionPattern").IsRequired().HasMaxLength(1000).HasColumnType("TEXT");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("RootPath");
+                    b.HasIndex("ScopeKind", "ProjectId", "Priority");
+                    b.ToTable("ProjectWorkspaceRoots", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectCompilerInstallation", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("Architecture").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<string>("CompilerHomePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("DiscoverySource").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<string>("EnvironmentVariablesJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("ExecutablePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<bool>("IsDefaultForLanguage").HasColumnType("INTEGER");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<bool>("LastValidationSucceeded").HasColumnType("INTEGER");
+                    b.Property<DateTime?>("LastValidatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("LastValidationMessage").IsRequired().HasMaxLength(4000).HasColumnType("TEXT");
+                    b.Property<string>("Language").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("ValidationArguments").IsRequired().HasMaxLength(500).HasColumnType("TEXT");
+                    b.Property<string>("Version").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("ExecutablePath").IsUnique();
+                    b.HasIndex("Language", "IsDefaultForLanguage", "IsEnabled");
+                    b.ToTable("ProjectCompilerInstallations", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectTrackedFile", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("AbsolutePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("ContentFormatRegex").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("ContentHash").IsRequired().HasMaxLength(128).HasColumnType("TEXT");
+                    b.Property<string>("ContentType").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
+                    b.Property<string>("EncodingName").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<bool>("Exists").HasColumnType("INTEGER");
+                    b.Property<string>("Extension").IsRequired().HasMaxLength(40).HasColumnType("TEXT");
+                    b.Property<string>("FileName").IsRequired().HasMaxLength(260).HasColumnType("TEXT");
+                    b.Property<string>("FileRole").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
+                    b.Property<bool>("IsGenerated").HasColumnType("INTEGER");
+                    b.Property<bool>("IsUserApproved").HasColumnType("INTEGER");
+                    b.Property<DateTime>("LastSeenAtUtc").HasColumnType("TEXT");
+                    b.Property<DateTime?>("LastWriteTimeUtc").HasColumnType("TEXT");
+                    b.Property<Guid>("ProjectId").HasColumnType("TEXT");
+                    b.Property<string>("ProjectFilePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("ProjectRelativePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<Guid?>("RevisionId").HasColumnType("TEXT");
+                    b.Property<long>("SizeBytes").HasColumnType("INTEGER");
+                    b.Property<string>("SolutionPath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("StableFileKey").IsRequired().HasMaxLength(128).HasColumnType("TEXT");
+                    b.Property<string>("StructureRegex").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("WorkspaceRelativePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("RevisionId");
+                    b.HasIndex("ProjectId", "RevisionId", "ProjectRelativePath").IsUnique();
+                    b.HasIndex("ProjectId", "RevisionId", "Exists");
+                    b.ToTable("LocalGptProjectTrackedFiles", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectBuildVerification", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("Arguments").IsRequired().HasColumnType("TEXT");
+                    b.Property<bool>("BuildSucceeded").HasColumnType("INTEGER");
+                    b.Property<bool>("TestsExecuted").HasColumnType("INTEGER");
+                    b.Property<bool>("SourceChangedDuringVerification").HasColumnType("INTEGER");
+                    b.Property<Guid?>("CompilerInstallationId").HasColumnType("TEXT");
+                    b.Property<DateTime?>("CompletedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("Configuration").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<string>("CouncilReviewSummary").IsRequired().HasColumnType("TEXT");
+                    b.Property<bool>("CouncilReviewSucceeded").HasColumnType("INTEGER");
+                    b.Property<string>("ExecutablePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<int?>("ExitCode").HasColumnType("INTEGER");
+                    b.Property<string>("EvidenceManifestPath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("OutputHash").IsRequired().HasMaxLength(128).HasColumnType("TEXT");
+                    b.Property<string>("OutputLogPath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<Guid>("ProjectId").HasColumnType("TEXT");
+                    b.Property<Guid>("RevisionId").HasColumnType("TEXT");
+                    b.Property<string>("RuntimeIdentifier").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<string>("SnapshotArchivePath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("SourceSnapshotHash").IsRequired().HasMaxLength(128).HasColumnType("TEXT");
+                    b.Property<DateTime>("StartedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("Summary").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("TargetFramework").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<bool>("TestsSucceeded").HasColumnType("INTEGER");
+                    b.Property<bool>("UserApprovedReadyForTest").HasColumnType("INTEGER");
+                    b.Property<string>("WorkingDirectory").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("CompilerInstallationId");
+                    b.HasIndex("ProjectId", "RevisionId", "CompletedAtUtc");
+                    b.ToTable("ProjectBuildVerifications", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectWorkspaceRoot", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project").WithMany("WorkspaceRoots").HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Restrict);
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectTrackedFile", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project").WithMany("TrackedFiles").HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision").WithMany("TrackedFiles").HasForeignKey("RevisionId").OnDelete(DeleteBehavior.Restrict);
+                    b.Navigation("Project");
+                    b.Navigation("Revision");
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectBuildVerification", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.ProjectCompilerInstallation", "CompilerInstallation").WithMany().HasForeignKey("CompilerInstallationId").OnDelete(DeleteBehavior.Restrict);
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project").WithMany("BuildVerifications").HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision").WithMany("BuildVerifications").HasForeignKey("RevisionId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("CompilerInstallation");
+                    b.Navigation("Project");
+                    b.Navigation("Revision");
+                });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectOrganicSkillLink", b =>
                 {
@@ -1432,6 +1588,12 @@ namespace LocalGPT.Migrations
                 {
                     b.Navigation("Artifacts");
 
+                    b.Navigation("BuildVerifications");
+
+                    b.Navigation("TrackedFiles");
+
+                    b.Navigation("WorkspaceRoots");
+
                     b.Navigation("Requirements");
 
                     b.Navigation("Revisions");
@@ -1443,7 +1605,9 @@ namespace LocalGPT.Migrations
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectRevision", b =>
                 {
+                    b.Navigation("BuildVerifications");
                     b.Navigation("ChildRevisions");
+                    b.Navigation("TrackedFiles");
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectRequirement", b =>

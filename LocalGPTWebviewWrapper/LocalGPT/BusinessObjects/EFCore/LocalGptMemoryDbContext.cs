@@ -35,6 +35,10 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<ProjectOrganicSkillLink> ProjectOrganicSkillLinks => Set<ProjectOrganicSkillLink>();
         public DbSet<CouncilMemberOrganicSkillLink> CouncilMemberOrganicSkillLinks => Set<CouncilMemberOrganicSkillLink>();
         public DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations => Set<CouncilTeamConfiguration>();
+        public DbSet<ProjectWorkspaceRoot> ProjectWorkspaceRoots => Set<ProjectWorkspaceRoot>();
+        public DbSet<ProjectCompilerInstallation> ProjectCompilerInstallations => Set<ProjectCompilerInstallation>();
+        public DbSet<LocalGptProjectTrackedFile> LocalGptProjectTrackedFiles => Set<LocalGptProjectTrackedFile>();
+        public DbSet<ProjectBuildVerification> ProjectBuildVerifications => Set<ProjectBuildVerification>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -146,7 +150,12 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasKey(project => project.Id);
                 entity.Property(project => project.Name).HasMaxLength(200).IsRequired();
                 entity.Property(project => project.Purpose).IsRequired();
-                entity.Property(project => project.RootPath).HasMaxLength(1024).IsRequired();
+                entity.Property(project => project.RootPath).HasMaxLength(2048).IsRequired();
+                entity.Property(project => project.ProjectType).HasMaxLength(120).IsRequired();
+                entity.Property(project => project.SolutionPath).HasMaxLength(2048).IsRequired();
+                entity.Property(project => project.SolutionSearchPattern).IsRequired();
+                entity.Property(project => project.FileIncludePattern).IsRequired();
+                entity.Property(project => project.FileExcludePattern).IsRequired();
                 entity.Property(project => project.CurrentVersion).HasMaxLength(120).IsRequired();
                 entity.Property(project => project.Status).HasMaxLength(80).IsRequired();
                 entity.HasIndex(project => project.Name);
@@ -210,6 +219,10 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.Summary).IsRequired();
                 entity.Property(item => item.ProjectStructureJson).IsRequired();
                 entity.Property(item => item.CreatedBy).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.SourceSnapshotHash).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.SnapshotArchivePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.SourceRootPath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.SolutionPath).HasMaxLength(2048).IsRequired();
                 entity.HasIndex(item => new { item.ProjectId, item.BranchName, item.RevisionName }).IsUnique();
                 entity.HasIndex(item => new { item.ProjectId, item.IsCurrent, item.UpdatedAtUtc });
                 entity.HasOne(item => item.Project).WithMany(project => project.Revisions)
@@ -411,6 +424,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(review => review.UpdatedAtUtc);
                 entity.HasIndex(review => new { review.ProjectId, review.Status, review.UpdatedAtUtc });
                 entity.HasIndex(review => review.CouncilRunId);
+                entity.HasIndex(review => review.ProjectRevisionId);
                 entity.HasIndex(review => review.ReviewHash);
             });
 
@@ -479,6 +493,86 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.ResultSummary).HasMaxLength(8000).IsRequired();
                 entity.HasIndex(item => item.ApprovalRequestId).IsUnique();
                 entity.HasIndex(item => new { item.CouncilRunId, item.Status, item.CreatedAtUtc });
+            });
+
+            modelBuilder.Entity<ProjectWorkspaceRoot>(entity =>
+            {
+                entity.ToTable("ProjectWorkspaceRoots");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Name).HasMaxLength(200).IsRequired();
+                entity.Property(item => item.RootPath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.ScopeKind).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.ProjectTypePattern).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.SolutionPattern).HasMaxLength(1000).IsRequired();
+                entity.Property(item => item.LastResolutionStatus).HasMaxLength(80).IsRequired();
+                entity.HasIndex(item => new { item.ScopeKind, item.ProjectId, item.Priority });
+                entity.HasIndex(item => item.RootPath);
+                entity.HasOne(item => item.Project).WithMany(project => project.WorkspaceRoots).HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ProjectCompilerInstallation>(entity =>
+            {
+                entity.ToTable("ProjectCompilerInstallations");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Name).HasMaxLength(200).IsRequired();
+                entity.Property(item => item.Language).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ExecutablePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.CompilerHomePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.Version).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Architecture).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.DiscoverySource).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ValidationArguments).HasMaxLength(500).IsRequired();
+                entity.Property(item => item.EnvironmentVariablesJson).IsRequired();
+                entity.Property(item => item.LastValidationMessage).HasMaxLength(4000).IsRequired();
+                entity.HasIndex(item => item.ExecutablePath).IsUnique();
+                entity.HasIndex(item => new { item.Language, item.IsDefaultForLanguage, item.IsEnabled });
+            });
+
+            modelBuilder.Entity<LocalGptProjectTrackedFile>(entity =>
+            {
+                entity.ToTable("LocalGptProjectTrackedFiles");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.StableFileKey).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.AbsolutePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.ProjectRelativePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.WorkspaceRelativePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.SolutionPath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.ProjectFilePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.FileName).HasMaxLength(260).IsRequired();
+                entity.Property(item => item.Extension).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.ContentType).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.EncodingName).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.FileRole).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.StructureRegex).IsRequired();
+                entity.Property(item => item.ContentFormatRegex).IsRequired();
+                entity.Property(item => item.ContentHash).HasMaxLength(128).IsRequired();
+                entity.HasIndex(item => new { item.ProjectId, item.RevisionId, item.ProjectRelativePath }).IsUnique();
+                entity.HasIndex(item => new { item.ProjectId, item.RevisionId, item.Exists });
+                entity.HasOne(item => item.Project).WithMany(project => project.TrackedFiles).HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.Revision).WithMany(revision => revision.TrackedFiles).HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ProjectBuildVerification>(entity =>
+            {
+                entity.ToTable("ProjectBuildVerifications");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Configuration).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.TargetFramework).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.RuntimeIdentifier).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ExecutablePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.Arguments).IsRequired();
+                entity.Property(item => item.WorkingDirectory).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.OutputLogPath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.EvidenceManifestPath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.OutputHash).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.SourceSnapshotHash).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.SnapshotArchivePath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.CouncilReviewSummary).IsRequired();
+                entity.Property(item => item.Summary).IsRequired();
+                entity.HasIndex(item => new { item.ProjectId, item.RevisionId, item.CompletedAtUtc });
+                entity.HasOne(item => item.Project).WithMany(project => project.BuildVerifications).HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.Revision).WithMany(revision => revision.BuildVerifications).HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.CompilerInstallation).WithMany().HasForeignKey(item => item.CompilerInstallationId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<NativeCommandLogEntry>(entity =>

@@ -30,6 +30,7 @@ public sealed class CodeGenerationChangeReview
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid? ProjectId { get; set; }
+    public Guid? ProjectRevisionId { get; set; }
     public Guid? ProjectTopicId { get; set; }
     public Guid? CouncilRunId { get; set; }
     public string Title { get; set; } = string.Empty;
@@ -82,6 +83,7 @@ public sealed class CodeGenerationOutputSpec
 public sealed class CreateCodeGenerationReviewRequest
 {
     public Guid? ProjectId { get; set; }
+    public Guid? ProjectRevisionId { get; set; }
     public Guid? ProjectTopicId { get; set; }
     public Guid? CouncilRunId { get; set; }
     public string Title { get; set; } = string.Empty;
@@ -122,6 +124,7 @@ public sealed class CodeGenerationReviewSnapshot
 {
     public Guid Id { get; set; }
     public Guid? ProjectId { get; set; }
+    public Guid? ProjectRevisionId { get; set; }
     public Guid? ProjectTopicId { get; set; }
     public Guid? CouncilRunId { get; set; }
     public string Title { get; set; } = string.Empty;

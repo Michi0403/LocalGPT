@@ -17,6 +17,7 @@ public sealed class CodeGenerationWorkflowService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ICouncilArtifactService councilArtifacts,
     IArtifactBuildExecutor artifactBuildExecutor,
+    IProjectMaintenanceService projectMaintenance,
     ILogger<CodeGenerationWorkflowService> logger) : ICodeGenerationWorkflowService
 {
     private const int MaxPayloadCharacters = 4_000_000;
@@ -40,6 +41,7 @@ public sealed class CodeGenerationWorkflowService(
             ["OperationId"] = operationId,
             ["Operation"] = "CreateCodeGenerationReview",
             ["ProjectId"] = request.ProjectId,
+            ["ProjectRevisionId"] = request.ProjectRevisionId,
             ["CouncilRunId"] = request.CouncilRunId
         });
 
@@ -60,11 +62,12 @@ public sealed class CodeGenerationWorkflowService(
             throw new InvalidOperationException($"The proposed generation payload exceeds the {MaxPayloadCharacters:n0}-character review limit.");
 
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        await ValidateProjectReferencesAsync(db, request.ProjectId, request.ProjectTopicId, cancellationToken).ConfigureAwait(false);
+        await ValidateProjectReferencesAsync(db, request.ProjectId, request.ProjectRevisionId, request.ProjectTopicId, cancellationToken).ConfigureAwait(false);
 
         var entity = new CodeGenerationChangeReview
         {
             ProjectId = request.ProjectId,
+            ProjectRevisionId = request.ProjectRevisionId,
             ProjectTopicId = request.ProjectTopicId,
             CouncilRunId = request.CouncilRunId,
             Title = Limit(request.Title, 240, "Code generation change review"),
@@ -73,7 +76,7 @@ public sealed class CodeGenerationWorkflowService(
             CouncilSummary = Limit(request.CouncilSummary, 24_000, "Council summary was not supplied."),
             ChangeSummary = Limit(request.ChangeSummary, 20_000, BuildDefaultChangeSummary(payload)),
             SafetySummary = Limit(request.SafetySummary, 8_000,
-                "Generation is restricted to a LocalGPT artifact workspace. No generated program or script is executed automatically. Builds require a separate current human confirmation."),
+                "Generation is restricted to an isolated LocalGPT workspace. When a project revision is selected, approved tracked files are cloned byte-for-byte before reviewed changes are applied. No generated program or script is executed automatically. Builds require a separate current human confirmation."),
             PayloadJson = payloadJson,
             Status = CodeGenerationReviewStatuses.AwaitingUserDecision,
             CreatedAtUtc = DateTime.UtcNow,
@@ -191,7 +194,13 @@ public sealed class CodeGenerationWorkflowService(
         {
             var payload = DeserializePayload(entity.PayloadJson);
             var workspaceName = $"review-{entity.Id:N}";
-            var workspaceRoot = Path.Combine(councilArtifacts.ArtifactRoot, "CodeGeneration", workspaceName);
+            var workspaceBase = councilArtifacts.ArtifactRoot;
+            if (entity.ProjectId is Guid workspaceProjectId)
+            {
+                var resolution = await projectMaintenance.ResolveWorkspaceAsync(workspaceProjectId, cancellationToken).ConfigureAwait(false);
+                workspaceBase = resolution.RootPath;
+            }
+            var workspaceRoot = Path.Combine(workspaceBase, "LocalGPT-CodeGeneration", workspaceName);
             if (Directory.Exists(workspaceRoot))
                 Directory.Delete(workspaceRoot, recursive: true);
             Directory.CreateDirectory(workspaceRoot);
@@ -199,6 +208,10 @@ public sealed class CodeGenerationWorkflowService(
             entity.WorkspaceName = workspaceName;
             result.WorkspaceName = workspaceName;
             result.WorkspacePath = workspaceRoot;
+
+            string clonedSolutionPath = string.Empty;
+            if (entity.ProjectId is Guid projectId)
+                clonedSolutionPath = await CopyTrackedProjectIntoWorkspaceAsync(workspaceRoot, projectId, entity.ProjectRevisionId, result, cancellationToken).ConfigureAwait(false);
 
             await WriteReviewDocumentAsync(workspaceRoot, entity, payload, cancellationToken).ConfigureAwait(false);
             result.WrittenFiles.Add("CHANGE_REVIEW.md");
@@ -231,8 +244,34 @@ public sealed class CodeGenerationWorkflowService(
             foreach (var output in payload.Outputs)
                 await ScaffoldOutputAsync(workspaceRoot, output, reviewedSources, result.WrittenFiles, buildTargets, cancellationToken).ConfigureAwait(false);
 
+            var registeredSolutionPath = string.Empty;
+            if (entity.ProjectId is Guid registeredProjectId && entity.ProjectRevisionId is Guid registeredRevisionId)
+            {
+                registeredSolutionPath = FindPreferredSolutionPath(workspaceRoot, clonedSolutionPath);
+                await projectMaintenance.RegisterRevisionWorkspaceAsync(
+                    registeredProjectId,
+                    registeredRevisionId,
+                    workspaceRoot,
+                    registeredSolutionPath,
+                    userConfirmed: true,
+                    cancellationToken).ConfigureAwait(false);
+                await projectMaintenance.ScanProjectFilesAsync(
+                    registeredProjectId,
+                    new ScanProjectFilesRequest
+                    {
+                        RevisionId = registeredRevisionId,
+                        MaximumFiles = 100000,
+                        MaximumFileBytes = 4L * 1024 * 1024 * 1024,
+                        UserConfirmed = true
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                logger.LogInformation("Registered and scanned generated workspace for project {ProjectId} revision {RevisionId} after approved code generation.", registeredProjectId, registeredRevisionId);
+            }
+
             if (request.BuildAfterGeneration)
             {
+                if (buildTargets.Count == 0 && !string.IsNullOrWhiteSpace(registeredSolutionPath) && File.Exists(registeredSolutionPath))
+                    buildTargets.Add(registeredSolutionPath);
                 if (buildTargets.Count == 0)
                 {
                     result.Warnings.Add("Build was requested, but the review contains no .sln or .csproj output target.");
@@ -374,6 +413,7 @@ public sealed class CodeGenerationWorkflowService(
     private static async Task ValidateProjectReferencesAsync(
         LocalGptMemoryDbContext db,
         Guid? projectId,
+        Guid? projectRevisionId,
         Guid? projectTopicId,
         CancellationToken cancellationToken)
     {
@@ -384,6 +424,17 @@ public sealed class CodeGenerationWorkflowService(
                 .ConfigureAwait(false);
             if (!projectExists)
                 throw new InvalidOperationException("The selected LocalGPT project does not exist or is archived.");
+        }
+
+        if (projectRevisionId is Guid selectedRevisionId)
+        {
+            if (projectId is not Guid selectedProjectId)
+                throw new InvalidOperationException("A project revision can only be selected together with its project.");
+            var revisionExists = await db.LocalGptProjectRevisions
+                .AnyAsync(revision => revision.Id == selectedRevisionId && revision.ProjectId == selectedProjectId && revision.IsUserApproved, cancellationToken)
+                .ConfigureAwait(false);
+            if (!revisionExists)
+                throw new InvalidOperationException("The selected project revision does not exist, is not user-approved, or belongs to another project.");
         }
 
         if (projectTopicId is Guid selectedTopicId)
@@ -452,12 +503,13 @@ public sealed class CodeGenerationWorkflowService(
     }
 
     private static string BuildDefaultChangeSummary(CodeGenerationReviewPayload payload) =>
-        $"Create {payload.Files.Count} explicit source file(s), {payload.CodeDomTypes.Count} CodeDOM-generated type(s), and {payload.Outputs.Count} output target(s) in an isolated LocalGPT artifact workspace.";
+        $"Create {payload.Files.Count} explicit source file(s), {payload.CodeDomTypes.Count} CodeDOM-generated type(s), and {payload.Outputs.Count} output target(s) in an isolated LocalGPT workspace; when a project revision is linked, preserve every unchanged approved tracked file byte-for-byte.";
 
     private static string ComputeReviewHash(CodeGenerationChangeReview entity)
     {
         var canonical = string.Join("\n",
             entity.ProjectId?.ToString("D") ?? string.Empty,
+            entity.ProjectRevisionId?.ToString("D") ?? string.Empty,
             entity.ProjectTopicId?.ToString("D") ?? string.Empty,
             entity.CouncilRunId?.ToString("D") ?? string.Empty,
             entity.Title,
@@ -485,6 +537,7 @@ public sealed class CodeGenerationWorkflowService(
     {
         Id = entity.Id,
         ProjectId = entity.ProjectId,
+        ProjectRevisionId = entity.ProjectRevisionId,
         ProjectTopicId = entity.ProjectTopicId,
         CouncilRunId = entity.CouncilRunId,
         Title = entity.Title,
@@ -527,6 +580,7 @@ public sealed class CodeGenerationWorkflowService(
             .AppendLine($"- Review ID: `{review.Id}`")
             .AppendLine($"- Review hash: `{review.ReviewHash}`")
             .AppendLine($"- Project ID: `{review.ProjectId?.ToString() ?? "not linked"}`")
+            .AppendLine($"- Project revision ID: `{review.ProjectRevisionId?.ToString() ?? "not linked"}`")
             .AppendLine($"- Council run ID: `{review.CouncilRunId?.ToString() ?? "not linked"}`")
             .AppendLine()
             .AppendLine("## Goal")
@@ -560,6 +614,79 @@ public sealed class CodeGenerationWorkflowService(
             .AppendLine("Generated source and scripts are not executed automatically. A bounded .NET build occurs only when separately enabled and confirmed by the current human for this exact review hash.");
 
         await File.WriteAllTextAsync(Path.Combine(workspaceRoot, "CHANGE_REVIEW.md"), builder.ToString(), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<string> CopyTrackedProjectIntoWorkspaceAsync(
+        string workspaceRoot,
+        Guid projectId,
+        Guid? revisionId,
+        CodeGenerationExecutionResult result,
+        CancellationToken cancellationToken)
+    {
+        var tracked = await projectMaintenance.GetTrackedFilesAsync(projectId, revisionId, cancellationToken).ConfigureAwait(false);
+        var approved = tracked.Where(item => item.Exists && item.IsUserApproved && !item.IsGenerated).OrderBy(item => item.ProjectRelativePath, StringComparer.Ordinal).ToList();
+        if (approved.Count == 0)
+        {
+            result.Warnings.Add("No approved tracked project files were available to clone. Scan the selected project revision before executing a maintenance review.");
+            return string.Empty;
+        }
+
+        string solutionPath = string.Empty;
+        var recorded = 0;
+        foreach (var file in approved)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!File.Exists(file.AbsolutePath))
+                throw new FileNotFoundException("A tracked project file disappeared before the approved maintenance workspace was created.", file.AbsolutePath);
+            var sourceHash = await ComputeFileHashAsync(file.AbsolutePath, cancellationToken).ConfigureAwait(false);
+            if (!string.Equals(sourceHash, file.ContentHash, StringComparison.Ordinal))
+                throw new InvalidOperationException($"Tracked file '{file.ProjectRelativePath}' changed after the approved scan. Rescan the revision before creating a maintenance workspace.");
+            var relativePath = NormalizeRelativePath(file.ProjectRelativePath);
+            var destination = ResolveInsideRoot(workspaceRoot, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination) ?? workspaceRoot);
+            await using (var source = new FileStream(file.AbsolutePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true))
+            await using (var target = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            {
+                await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
+                await target.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+            var destinationHash = await ComputeFileHashAsync(destination, cancellationToken).ConfigureAwait(false);
+            if (!string.Equals(sourceHash, destinationHash, StringComparison.Ordinal))
+                throw new IOException($"The isolated copy of '{file.ProjectRelativePath}' did not preserve the approved file bytes.");
+            if (recorded++ < 5000)
+                result.WrittenFiles.Add(relativePath.Replace('\\', '/'));
+            if (Path.GetExtension(relativePath).Equals(".sln", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(relativePath).Equals(".slnx", StringComparison.OrdinalIgnoreCase))
+                solutionPath = destination;
+        }
+        if (approved.Count > 5000)
+            result.Warnings.Add($"The complete approved project tree with {approved.Count:n0} files was cloned; the response lists only the first 5,000 paths.");
+        logger.LogInformation("Cloned {FileCount} approved tracked file(s) into isolated maintenance workspace for project {ProjectId} revision {RevisionId}; paths omitted from logs.", approved.Count, projectId, revisionId);
+        return solutionPath;
+    }
+
+
+    private static async Task<string> ComputeFileHashAsync(string path, CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+        return Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
+    }
+
+    private static string FindPreferredSolutionPath(string workspaceRoot, string clonedSolutionPath)
+    {
+        if (!string.IsNullOrWhiteSpace(clonedSolutionPath) && File.Exists(clonedSolutionPath))
+            return clonedSolutionPath;
+        try
+        {
+            return Directory.EnumerateFiles(workspaceRoot, "*.sln", SearchOption.AllDirectories)
+                .Concat(Directory.EnumerateFiles(workspaceRoot, "*.slnx", SearchOption.AllDirectories))
+                .OrderBy(path => path.Count(character => character == Path.DirectorySeparatorChar))
+                .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault() ?? string.Empty;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return string.Empty;
+        }
     }
 
     private static string GenerateCodeDomSource(CodeDomTypeSpec spec)

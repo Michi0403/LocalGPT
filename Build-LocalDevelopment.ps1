@@ -28,6 +28,8 @@ function Invoke-DotNet {
 
 & (Join-Path $root "build\Assert-LoggingIntegrity.ps1")
 & (Join-Path $root "build\Assert-OneWireArchitecture.ps1")
+& (Join-Path $root "build\Assert-LocalizationIntegrity.ps1")
+& (Join-Path $root "build\Assert-ProjectMaintenanceArchitecture.ps1")
 
 if ($Clean) {
     Get-ChildItem $solutionRoot -Directory -Recurse -Force |
@@ -42,7 +44,10 @@ $wireBuildProperties = @(
     "-p:PlatformTarget=AnyCPU",
     "-p:RuntimeIdentifier=",
     "-p:RuntimeIdentifiers=",
-    "-p:SkipLoggingIntegrityGuard=true"
+    "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
 )
 
 Write-Host "Restoring the authoritative RID-neutral protocol project first..." -ForegroundColor Cyan
@@ -63,7 +68,10 @@ $appProperties = @(
     "-p:LocalGptWireProtocolVersion=$wireVersion",
     "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
     "-p:RestoreAdditionalProjectSources=$packageDirectory",
-    "-p:SkipLoggingIntegrityGuard=true"
+    "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
 )
 
 Write-Host "Restoring LocalGPT only after its protocol dependency is ready..." -ForegroundColor Cyan
@@ -72,8 +80,14 @@ Write-Host "Building LocalGPT in deterministic project order..." -ForegroundColo
 Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false") + $appProperties) -FailureMessage "LocalGPT application build failed."
 
 Write-Host "Restoring and building the installer after LocalGPT..." -ForegroundColor Cyan
-Invoke-DotNet -Arguments @("restore", $setupProject, "--disable-parallel", "--force-evaluate", "-p:SkipLoggingIntegrityGuard=true") -FailureMessage "LocalGPT installer restore failed."
-Invoke-DotNet -Arguments @("build", $setupProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:SkipLoggingIntegrityGuard=true") -FailureMessage "LocalGPT installer build failed."
+Invoke-DotNet -Arguments @("restore", $setupProject, "--disable-parallel", "--force-evaluate", "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true") -FailureMessage "LocalGPT installer restore failed."
+Invoke-DotNet -Arguments @("build", $setupProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true") -FailureMessage "LocalGPT installer build failed."
 
 # Rebuild the application once against the package before WinUI evaluates its metadata closure.
 # This keeps direct/Visual Studio development source-based while guaranteeing that the wrapper,
@@ -83,7 +97,10 @@ $packageAppProperties = @(
     "-p:LocalGptWireProtocolVersion=$wireVersion",
     "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
     "-p:RestoreAdditionalProjectSources=$packageDirectory",
-    "-p:SkipLoggingIntegrityGuard=true"
+    "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
 )
 Write-Host "Rebinding LocalGPT to the RID-neutral package graph for WinUI metadata resolution..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $packageAppProperties) -FailureMessage "LocalGPT package-mode restore for WinUI failed."
@@ -96,7 +113,10 @@ $wrapperProperties = @(
     "-p:LocalGptWireProtocolVersion=$wireVersion",
     "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
     "-p:RestoreAdditionalProjectSources=$packageDirectory",
-    "-p:SkipLoggingIntegrityGuard=true"
+    "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
 )
 Invoke-DotNet -Arguments (@("restore", $wrapperProject, "--disable-parallel", "--force-evaluate") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper restore failed."
 Invoke-DotNet -Arguments (@("build", $wrapperProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper build failed."
