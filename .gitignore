@@ -80,3 +80,4 @@ localgpt/
 LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/devextreme-license.js
 **/DevExpress_License*
 **/*devexpress*license*.key
+packages/
