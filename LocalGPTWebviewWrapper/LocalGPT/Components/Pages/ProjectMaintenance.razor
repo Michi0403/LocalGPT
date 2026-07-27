@@ -1,0 +1,447 @@
+@page "/project-maintenance"
+@rendermode InteractiveServer
+@using LocalGPT.Services.Localization
+@inject ILocalGptProjectService Projects
+@inject IProjectMaintenanceService Maintenance
+@inject ILocalGptLocalizationService Localization
+@inject ILogger<ProjectMaintenance> Logger
+@inject INotificationService Notifier
+
+<PageTitle>@T("ProjectMaintenance.Title", "Project maintenance")</PageTitle>
+
+<main class="maintenance-page">
+    <ToastWrapper Name="ProjectMaintenanceToasts" />
+    <header class="maintenance-header">
+        <div>
+            <h1>@T("ProjectMaintenance.Title", "Project maintenance")</h1>
+            <p>@T("ProjectMaintenance.Intro", "Configure project-specific or project-type workspaces, compiler installations, solution discovery, file metadata, and the build/council/approval gate for ready-to-test revisions.")</p>
+        </div>
+        <DxButton Text='@T("Common.Refresh", "Refresh")' Enabled="@(!busy)" Click="LoadAsync" />
+    </header>
+
+    <section class="maintenance-grid">
+        <article class="maintenance-card">
+            <h2>@T("ProjectMaintenance.Project", "Project and solution")</h2>
+            <label>
+                @T("ProjectMaintenance.SelectedProject", "Selected project")
+                <select @bind="SelectedProjectValue" disabled="@busy">
+                    <option value="">@T("ProjectMaintenance.SelectProject", "Select a project")</option>
+                    @foreach (var project in projectSummaries)
+                    {
+                        <option value="@project.Id">@project.DisplayName</option>
+                    }
+                </select>
+            </label>
+            @if (selectedProject is not null)
+            {
+                <dl class="metadata-list">
+                    <dt>@T("ProjectMaintenance.ProjectRoot", "Project root")</dt><dd>@selectedProject.Project.RootPath</dd>
+                    <dt>@T("ProjectMaintenance.SolutionPath", "Solution path")</dt><dd>@(string.IsNullOrWhiteSpace(selectedProject.Project.SolutionPath) ? T("Common.NotDetected", "Not detected") : selectedProject.Project.SolutionPath)</dd>
+                    <dt>@T("ProjectMaintenance.ProjectType", "Project type")</dt><dd>@selectedProject.Project.ProjectType</dd>
+                    <dt>@T("ProjectMaintenance.TrackedFiles", "Tracked files")</dt><dd>@selectedProject.TrackedFiles.Count</dd>
+                </dl>
+                <label>
+                    @T("ProjectMaintenance.Revision", "Revision")
+                    <select @bind="SelectedRevisionValue">
+                        <option value="">@T("ProjectMaintenance.SelectRevision", "Select a revision")</option>
+                        @foreach (var revision in selectedProject.Revisions)
+                        {
+                            <option value="@revision.Id">@revision.BranchName/@revision.RevisionName @(revision.ReadyForTesting ? "✓" : string.Empty)</option>
+                        }
+                    </select>
+                </label>
+                @if (selectedRevisionId is Guid)
+                {
+                    <div class="field-grid revision-workspace">
+                        <label class="span-all">@T("ProjectMaintenance.RevisionSourceRoot", "Revision source root")<input @bind="revisionWorkspaceEdit.SourceRootPath" /></label>
+                        <label class="span-all">@T("ProjectMaintenance.RevisionSolutionPath", "Revision solution path")<input @bind="revisionWorkspaceEdit.SolutionPath" /></label>
+                    </div>
+                    <div class="action-row">
+                        <DxButton Text='@T("ProjectMaintenance.SaveRevisionWorkspace", "Save revision workspace")' RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy && !string.IsNullOrWhiteSpace(revisionWorkspaceEdit.SourceRootPath))" Click="SaveRevisionWorkspaceAsync" />
+                    </div>
+                }
+                <DxButton Text='@T("ProjectMaintenance.ScanProject", "Scan project files")'
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          Enabled="@(!busy)"
+                          Click="ScanProjectAsync" />
+            }
+        </article>
+
+        <article class="maintenance-card wide">
+            <h2>@T("ProjectMaintenance.FilePatterns", "Tracked file structure patterns")</h2>
+            <p>@T("ProjectMaintenance.FilePatternsHelp", "Each tracked file keeps its stable identity, absolute and relative paths, content hash, role, and optional regular expressions that help Council members arrange and validate its structure without changing the file.")</p>
+            @if (trackedFiles.Count == 0)
+            {
+                <p class="hint">@T("ProjectMaintenance.ScanBeforePatterns", "Scan the selected project revision before editing file metadata.")</p>
+            }
+            else
+            {
+                <label>
+                    @T("ProjectMaintenance.TrackedFile", "Tracked file")
+                    <select @bind="SelectedTrackedFileValue">
+                        <option value="">@T("ProjectMaintenance.SelectTrackedFile", "Select a tracked file")</option>
+                        @foreach (var file in trackedFiles)
+                        {
+                            <option value="@file.Id">@file.ProjectRelativePath</option>
+                        }
+                    </select>
+                </label>
+                @if (selectedTrackedFileId is Guid && selectedTrackedFile is not null)
+                {
+                    <dl class="metadata-list">
+                        <dt>@T("Common.Path", "Path")</dt><dd>@selectedTrackedFile.AbsolutePath</dd>
+                        <dt>@T("ProjectMaintenance.ProjectRelativePath", "Project-relative path")</dt><dd>@selectedTrackedFile.ProjectRelativePath</dd>
+                        <dt>@T("ProjectMaintenance.ContentHash", "Content hash")</dt><dd><code>@selectedTrackedFile.ContentHash</code></dd>
+                    </dl>
+                    <div class="field-grid">
+                        <label>@T("ProjectMaintenance.FileRole", "File role")<input @bind="filePatternEdit.FileRole" /></label>
+                        <label class="span-all">@T("ProjectMaintenance.StructureRegex", "Structure regex")<textarea @bind="filePatternEdit.StructureRegex" rows="4"></textarea></label>
+                        <label class="span-all">@T("ProjectMaintenance.ContentFormatRegex", "Content-format regex")<textarea @bind="filePatternEdit.ContentFormatRegex" rows="4"></textarea></label>
+                    </div>
+                    <DxButton Text='@T("ProjectMaintenance.SaveFilePatterns", "Save file patterns")' Enabled="@(!busy)" Click="SaveFilePatternsAsync" />
+                }
+            }
+        </article>
+
+        <article class="maintenance-card">
+            <h2>@T("ProjectMaintenance.WorkspaceRoots", "Workspace roots")</h2>
+            <p>@T("ProjectMaintenance.WorkspaceHelp", "Project scope wins over project-type scope; global scope is the fallback. Source projects are never overwritten by revision snapshots.")</p>
+            <div class="field-grid">
+                <label>@T("Common.Name", "Name")<input @bind="workspaceEdit.Name" /></label>
+                <label>@T("Common.Path", "Path")<input @bind="workspaceEdit.RootPath" placeholder="C:\LocalGPT-Workspaces" /></label>
+                <label>@T("Common.Scope", "Scope")
+                    <select @bind="workspaceEdit.ScopeKind">
+                        <option value="Project">@T("ProjectMaintenance.ScopeProject", "Selected project")</option>
+                        <option value="ProjectType">@T("ProjectMaintenance.ScopeProjectType", "Project type regex")</option>
+                        <option value="Global">@T("ProjectMaintenance.ScopeGlobal", "Global")</option>
+                    </select>
+                </label>
+                <label>@T("ProjectMaintenance.ProjectTypeRegex", "Project type regex")<input @bind="workspaceEdit.ProjectTypePattern" placeholder="(?i)DotNet.*" /></label>
+                <label>@T("ProjectMaintenance.SolutionRegex", "Solution regex")<input @bind="workspaceEdit.SolutionPattern" /></label>
+                <label>@T("Common.Priority", "Priority")<input type="number" @bind="workspaceEdit.Priority" /></label>
+            </div>
+            <label class="check"><input type="checkbox" @bind="workspaceEdit.IsDefault" /> @T("Common.Default", "Default")</label>
+            <label class="check"><input type="checkbox" @bind="workspaceEdit.IsEnabled" /> @T("Common.Enabled", "Enabled")</label>
+            <DxButton Text='@T("ProjectMaintenance.SaveWorkspace", "Save workspace root")' Enabled="@(!busy && !string.IsNullOrWhiteSpace(workspaceEdit.Name) && !string.IsNullOrWhiteSpace(workspaceEdit.RootPath))" Click="SaveWorkspaceAsync" />
+            <ul class="compact-list">
+                @foreach (var workspace in workspaceRoots)
+                {
+                    <li><strong>@workspace.Name</strong><span>@workspace.ScopeKind · @workspace.LastResolutionStatus</span><code>@workspace.RootPath</code></li>
+                }
+            </ul>
+        </article>
+
+        <article class="maintenance-card wide">
+            <h2>@T("ProjectMaintenance.Compilers", "Compiler installations")</h2>
+            <p>@T("ProjectMaintenance.CompilerHelp", "Discovery checks PATH, common installation directories, and optional custom roots. Version probes and builds run only after fresh confirmation.")</p>
+            <label>@T("ProjectMaintenance.CustomCompilerRoots", "Additional compiler search roots")
+                <textarea @bind="customCompilerRoots" rows="3" placeholder="D:\SDKs\dotnet&#10;D:\Toolchains\jdk-23"></textarea>
+            </label>
+            <div class="action-row">
+                <DxButton Text='@T("ProjectMaintenance.DiscoverCompilers", "Discover compilers")' Enabled="@(!busy)" Click="DiscoverCompilersAsync" />
+                @if (selectedCompilerId is Guid compilerId)
+                {
+                    <DxButton Text='@T("ProjectMaintenance.ValidateCompiler", "Validate selected compiler")' RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy)" Click="@(() => ValidateCompilerAsync(compilerId))" />
+                }
+            </div>
+            <div class="compiler-grid">
+                @foreach (var compiler in compilers)
+                {
+                    <button type="button" class="compiler-item @(selectedCompilerId == compiler.Id ? "selected" : string.Empty)" @onclick="@(() => selectedCompilerId = compiler.Id)">
+                        <strong>@compiler.Name</strong>
+                        <span>@compiler.Language · @(string.IsNullOrWhiteSpace(compiler.Version) ? T("Common.Unvalidated", "Unvalidated") : compiler.Version)</span>
+                        <code>@compiler.ExecutablePath</code>
+                    </button>
+                }
+            </div>
+            <details>
+                <summary>@T("ProjectMaintenance.AddCustomCompiler", "Add custom compiler installation")</summary>
+                <div class="field-grid">
+                    <label>@T("Common.Name", "Name")<input @bind="compilerEdit.Name" /></label>
+                    <label>@T("Common.Language", "Language")<select @bind="compilerEdit.Language"><option>DotNet</option><option>Java</option><option>Python</option><option>Cpp</option><option>PowerShell</option></select></label>
+                    <label>@T("ProjectMaintenance.ExecutablePath", "Executable path")<input @bind="compilerEdit.ExecutablePath" /></label>
+                    <label>@T("ProjectMaintenance.CompilerHome", "Compiler home")<input @bind="compilerEdit.CompilerHomePath" /></label>
+                    <label>@T("ProjectMaintenance.ValidationArguments", "Validation arguments")<input @bind="compilerEdit.ValidationArguments" /></label>
+                    <label class="span-all">@T("ProjectMaintenance.CompilerEnvironment", "Compiler environment JSON")<textarea @bind="compilerEdit.EnvironmentVariablesJson" rows="3" placeholder='{"DOTNET_ROOT":"D:\SDKs\dotnet-10"}'></textarea></label>
+                </div>
+                <label class="check"><input type="checkbox" @bind="compilerEdit.IsDefaultForLanguage" /> @T("ProjectMaintenance.DefaultForLanguage", "Default for this language")</label>
+                <DxButton Text='@T("ProjectMaintenance.SaveCompiler", "Save compiler")' Enabled="@(!busy && !string.IsNullOrWhiteSpace(compilerEdit.Name) && !string.IsNullOrWhiteSpace(compilerEdit.ExecutablePath))" Click="SaveCompilerAsync" />
+            </details>
+        </article>
+
+        <article class="maintenance-card wide">
+            <h2>@T("ProjectMaintenance.ReadyGate", "Build, council review, and ready-for-test gate")</h2>
+            <p>@T("ProjectMaintenance.ReadyGateHelp", "A revision becomes ready only after a successful compiler run, requested tests, a stored council review, and fresh user approval. The final snapshot copies exact file bytes into a separate ZIP.")</p>
+            <div class="field-grid">
+                <label>@T("ProjectMaintenance.Compiler", "Compiler")
+                    <select @bind="SelectedCompilerValue">
+                        <option value="">@T("ProjectMaintenance.SelectCompiler", "Select a compiler")</option>
+                        @foreach (var compiler in compilers.Where(item => item.IsEnabled))
+                        {
+                            <option value="@compiler.Id">@compiler.Language · @compiler.Name</option>
+                        }
+                    </select>
+                </label>
+                <label>@T("Common.Configuration", "Configuration")<input @bind="buildEdit.Configuration" /></label>
+                <label>@T("ProjectMaintenance.BuildArguments", "Build arguments")<input @bind="buildEdit.Arguments" placeholder="Leave empty for safe project-type default" /></label>
+                <label>@T("ProjectMaintenance.TestArguments", "Test arguments")<input @bind="buildEdit.TestArguments" placeholder="test &quot;solution.sln&quot; --configuration Debug" /></label>
+            </div>
+            <DxButton Text='@T("ProjectMaintenance.RunBuildVerification", "Run build verification")' Enabled="@(CanVerifyBuild)" Click="RunBuildVerificationAsync" />
+
+            @if (selectedProject is not null && selectedProject.BuildVerifications.Count > 0)
+            {
+                <h3>@T("ProjectMaintenance.BuildEvidence", "Build evidence")</h3>
+                <ul class="compact-list">
+                    @foreach (var verification in selectedProject.BuildVerifications)
+                    {
+                        <li>
+                            <strong>@verification.StartedAtUtc.ToLocalTime().ToString("g")</strong>
+                            <span>@T("ProjectMaintenance.BuildStatus", "Build")=@verification.BuildSucceeded · @T("ProjectMaintenance.TestsStatus", "tests")=@(verification.TestsExecuted ? verification.TestsSucceeded.ToString() : T("Common.NotRun", "not run")) · @T("ProjectMaintenance.SourceChanged", "source changed")=@verification.SourceChangedDuringVerification · @T("ProjectMaintenance.CouncilStatus", "council")=@verification.CouncilReviewSucceeded · @T("ProjectMaintenance.ReadyStatus", "ready")=@verification.UserApprovedReadyForTest</span>
+                            <code>@verification.OutputLogPath</code>
+                            <div class="action-row">
+                                <DxButton Text='@T("ProjectMaintenance.RecordCouncilReview", "Record council review")' RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy && verification.BuildSucceeded && !verification.SourceChangedDuringVerification)" Click="@(() => SelectVerificationForReview(verification))" />
+                                <DxButton Text='@T("ProjectMaintenance.ApproveReady", "Approve ready for testing")' RenderStyle="ButtonRenderStyle.Success" Enabled="@(!busy && verification.BuildSucceeded && !verification.SourceChangedDuringVerification && verification.CouncilReviewSucceeded)" Click="@(() => ApproveReadyAsync(verification))" />
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+            @if (reviewVerificationId is Guid)
+            {
+                <label>@T("ProjectMaintenance.CouncilReviewSummary", "Council review summary")<textarea @bind="councilReviewEdit.Summary" rows="4"></textarea></label>
+                <label class="check"><input type="checkbox" @bind="councilReviewEdit.CompileErrorsAbsent" /> @T("ProjectMaintenance.NoCompileErrors", "Council confirms no compile errors in the stored evidence")</label>
+                <DxButton Text='@T("ProjectMaintenance.SaveCouncilReview", "Save council review")' Enabled="@(!busy)" Click="SaveCouncilReviewAsync" />
+            }
+        </article>
+    </section>
+</main>
+
+@code {
+    const string ToastName = "ProjectMaintenanceToasts";
+    List<LocalGptProjectSummary> projectSummaries = [];
+    LocalGptProjectDetails? selectedProject;
+    List<ProjectWorkspaceRoot> workspaceRoots = [];
+    List<ProjectCompilerInstallation> compilers = [];
+    List<LocalGptProjectTrackedFile> trackedFiles = [];
+    LocalGptProjectTrackedFile? selectedTrackedFile;
+    SaveProjectWorkspaceRootRequest workspaceEdit = NewWorkspace();
+    SaveProjectCompilerInstallationRequest compilerEdit = NewCompiler();
+    RunProjectBuildVerificationRequest buildEdit = new() { Configuration = "Debug", TimeoutSeconds = 1200 };
+    RecordCouncilBuildReviewRequest councilReviewEdit = new();
+    SaveTrackedFilePatternRequest filePatternEdit = new();
+    RegisterRevisionWorkspaceRequest revisionWorkspaceEdit = new();
+    Guid? selectedProjectId;
+    Guid? selectedRevisionId;
+    Guid? selectedCompilerId;
+    Guid? reviewVerificationId;
+    Guid? selectedTrackedFileId;
+    string customCompilerRoots = string.Empty;
+    bool busy;
+
+    string SelectedProjectValue
+    {
+        get => selectedProjectId?.ToString() ?? string.Empty;
+        set { selectedProjectId = Guid.TryParse(value, out var id) ? id : null; _ = SelectProjectAsync(); }
+    }
+    string SelectedRevisionValue { get => selectedRevisionId?.ToString() ?? string.Empty; set { selectedRevisionId = Guid.TryParse(value, out var id) ? id : null; SelectRevision(); _ = RefreshTrackedFilesAsync(); } }
+    string SelectedCompilerValue { get => selectedCompilerId?.ToString() ?? string.Empty; set { selectedCompilerId = Guid.TryParse(value, out var id) ? id : null; buildEdit.CompilerInstallationId = selectedCompilerId ?? Guid.Empty; } }
+    string SelectedTrackedFileValue { get => selectedTrackedFileId?.ToString() ?? string.Empty; set { selectedTrackedFileId = Guid.TryParse(value, out var id) ? id : null; SelectTrackedFile(); } }
+    bool CanVerifyBuild => !busy && selectedProjectId is not null && selectedRevisionId is not null && selectedCompilerId is not null;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    async Task LoadAsync() => await RunAsync(async () =>
+    {
+        projectSummaries = (await Projects.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
+        workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList();
+        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
+        if (selectedProjectId is Guid id)
+        {
+            selectedProject = await Projects.GetProjectAsync(id).ConfigureAwait(false);
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(id, selectedRevisionId).ConfigureAwait(false)).ToList();
+        }
+    }, T("ProjectMaintenance.LoadFailed", "Could not load project maintenance settings.")).ConfigureAwait(false);
+
+    async Task SelectProjectAsync()
+    {
+        if (selectedProjectId is null) { selectedProject = null; selectedRevisionId = null; return; }
+        await RunAsync(async () =>
+        {
+            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false);
+            selectedRevisionId = selectedProject?.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
+            SelectRevision();
+            workspaceEdit.ProjectId = selectedProjectId;
+            workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList();
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(selectedProjectId.Value, selectedRevisionId).ConfigureAwait(false)).ToList();
+            selectedTrackedFileId = null;
+            selectedTrackedFile = null;
+        }, T("ProjectMaintenance.SelectFailed", "Could not select the project.")).ConfigureAwait(false);
+    }
+
+    void SelectRevision()
+    {
+        var revision = selectedRevisionId is Guid id ? selectedProject?.Revisions.FirstOrDefault(item => item.Id == id) : null;
+        revisionWorkspaceEdit = revision is null
+            ? new RegisterRevisionWorkspaceRequest()
+            : new RegisterRevisionWorkspaceRequest
+            {
+                SourceRootPath = string.IsNullOrWhiteSpace(revision.SourceRootPath) ? selectedProject?.Project.RootPath ?? string.Empty : revision.SourceRootPath,
+                SolutionPath = string.IsNullOrWhiteSpace(revision.SolutionPath) ? selectedProject?.Project.SolutionPath ?? string.Empty : revision.SolutionPath
+            };
+    }
+
+    async Task SaveRevisionWorkspaceAsync()
+    {
+        if (selectedProjectId is not Guid projectId || selectedRevisionId is not Guid revisionId) return;
+        await RunAsync(async () =>
+        {
+            revisionWorkspaceEdit.UserConfirmed = true;
+            try
+            {
+                await Maintenance.RegisterRevisionWorkspaceAsync(projectId, revisionId, revisionWorkspaceEdit.SourceRootPath, revisionWorkspaceEdit.SolutionPath, true).ConfigureAwait(false);
+                selectedProject = await Projects.GetProjectAsync(projectId).ConfigureAwait(false);
+                SelectRevision();
+                Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.RevisionWorkspaceSaved", "Revision workspace saved."), T("Common.Saved", "Saved"));
+            }
+            finally { revisionWorkspaceEdit.UserConfirmed = false; }
+        }, T("ProjectMaintenance.RevisionWorkspaceSaveFailed", "Could not save the revision workspace.")).ConfigureAwait(false);
+    }
+
+    async Task RefreshTrackedFilesAsync()
+    {
+        if (selectedProjectId is not Guid projectId) { trackedFiles = []; return; }
+        await RunAsync(async () =>
+        {
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(projectId, selectedRevisionId).ConfigureAwait(false)).ToList();
+            selectedTrackedFileId = null;
+            selectedTrackedFile = null;
+        }, T("ProjectMaintenance.FileMetadataLoadFailed", "Could not load tracked file metadata.")).ConfigureAwait(false);
+    }
+
+    async Task SaveWorkspaceAsync() => await RunAsync(async () =>
+    {
+        workspaceEdit.ProjectId = workspaceEdit.ScopeKind == "Project" ? selectedProjectId : null;
+        workspaceEdit.UserConfirmed = true;
+        try { await Maintenance.SaveWorkspaceRootAsync(workspaceEdit).ConfigureAwait(false); workspaceEdit = NewWorkspace(); workspaceEdit.ProjectId = selectedProjectId; workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.WorkspaceSaved", "Workspace root saved."), T("Common.Saved", "Saved")); }
+        finally { workspaceEdit.UserConfirmed = false; }
+    }, T("ProjectMaintenance.WorkspaceSaveFailed", "Could not save the workspace root.")).ConfigureAwait(false);
+
+    async Task DiscoverCompilersAsync() => await RunAsync(async () =>
+    {
+        var request = new DiscoverProjectCompilersRequest { UserConfirmed = true, SaveDiscovered = true, CustomSearchRoots = customCompilerRoots.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() };
+        await Maintenance.DiscoverCompilerInstallationsAsync(request).ConfigureAwait(false);
+        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
+        Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerDiscoveryComplete", "Compiler discovery completed."), T("Common.Completed", "Completed"));
+    }, T("ProjectMaintenance.CompilerDiscoveryFailed", "Compiler discovery failed.")).ConfigureAwait(false);
+
+    async Task SaveCompilerAsync() => await RunAsync(async () =>
+    {
+        compilerEdit.UserConfirmed = true;
+        try { await Maintenance.SaveCompilerInstallationAsync(compilerEdit).ConfigureAwait(false); compilerEdit = NewCompiler(); compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerSaved", "Compiler installation saved."), T("Common.Saved", "Saved")); }
+        finally { compilerEdit.UserConfirmed = false; }
+    }, T("ProjectMaintenance.CompilerSaveFailed", "Could not save the compiler installation.")).ConfigureAwait(false);
+
+    async Task ValidateCompilerAsync(Guid id) => await RunAsync(async () =>
+    {
+        await Maintenance.ValidateCompilerInstallationAsync(id, true).ConfigureAwait(false);
+        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
+        Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerValidated", "Compiler validation completed."), T("Common.Completed", "Completed"));
+    }, T("ProjectMaintenance.CompilerValidationFailed", "Compiler validation failed.")).ConfigureAwait(false);
+
+    async Task ScanProjectAsync()
+    {
+        if (selectedProjectId is null) return;
+        await RunAsync(async () =>
+        {
+            await Maintenance.ScanProjectFilesAsync(selectedProjectId.Value, new ScanProjectFilesRequest { RevisionId = selectedRevisionId, UserConfirmed = true }).ConfigureAwait(false);
+            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false);
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(selectedProjectId.Value, selectedRevisionId).ConfigureAwait(false)).ToList();
+            Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.ProjectScanned", "Project files and solution metadata were scanned."), T("Common.Completed", "Completed"));
+        }, T("ProjectMaintenance.ProjectScanFailed", "Project scanning failed.")).ConfigureAwait(false);
+    }
+
+    void SelectTrackedFile()
+    {
+        selectedTrackedFile = selectedTrackedFileId is Guid id ? trackedFiles.FirstOrDefault(item => item.Id == id) : null;
+        filePatternEdit = selectedTrackedFile is null
+            ? new SaveTrackedFilePatternRequest()
+            : new SaveTrackedFilePatternRequest
+            {
+                FileRole = selectedTrackedFile.FileRole,
+                StructureRegex = selectedTrackedFile.StructureRegex,
+                ContentFormatRegex = selectedTrackedFile.ContentFormatRegex
+            };
+    }
+
+    async Task SaveFilePatternsAsync()
+    {
+        if (selectedTrackedFileId is not Guid id) return;
+        await RunAsync(async () =>
+        {
+            filePatternEdit.UserConfirmed = true;
+            try
+            {
+                var saved = await Maintenance.SaveTrackedFilePatternAsync(id, filePatternEdit).ConfigureAwait(false);
+                var index = trackedFiles.FindIndex(item => item.Id == saved.Id);
+                if (index >= 0) trackedFiles[index] = saved;
+                selectedTrackedFile = saved;
+                Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.FilePatternsSaved", "Tracked file patterns saved."), T("Common.Saved", "Saved"));
+            }
+            finally { filePatternEdit.UserConfirmed = false; }
+        }, T("ProjectMaintenance.FilePatternsSaveFailed", "Could not save the tracked file patterns.")).ConfigureAwait(false);
+    }
+
+    async Task RunBuildVerificationAsync()
+    {
+        if (selectedProjectId is null || selectedRevisionId is null || selectedCompilerId is null) return;
+        await RunAsync(async () =>
+        {
+            buildEdit.RevisionId = selectedRevisionId.Value;
+            buildEdit.CompilerInstallationId = selectedCompilerId.Value;
+            buildEdit.UserConfirmed = true;
+            try { await Maintenance.RunBuildVerificationAsync(selectedProjectId.Value, buildEdit).ConfigureAwait(false); selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.BuildCompleted", "Build verification completed."), T("Common.Completed", "Completed")); }
+            finally { buildEdit.UserConfirmed = false; }
+        }, T("ProjectMaintenance.BuildFailed", "Build verification failed.")).ConfigureAwait(false);
+    }
+
+    void SelectVerificationForReview(ProjectBuildVerification verification)
+    {
+        reviewVerificationId = verification.Id;
+        councilReviewEdit = new RecordCouncilBuildReviewRequest { Summary = verification.CouncilReviewSummary, CompileErrorsAbsent = verification.CouncilReviewSucceeded };
+    }
+
+    async Task SaveCouncilReviewAsync()
+    {
+        if (reviewVerificationId is not Guid id) return;
+        await RunAsync(async () =>
+        {
+            councilReviewEdit.UserConfirmed = true;
+            try { await Maintenance.RecordCouncilBuildReviewAsync(id, councilReviewEdit).ConfigureAwait(false); if (selectedProjectId is Guid projectId) selectedProject = await Projects.GetProjectAsync(projectId).ConfigureAwait(false); reviewVerificationId = null; Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CouncilReviewSaved", "Council build review saved."), T("Common.Saved", "Saved")); }
+            finally { councilReviewEdit.UserConfirmed = false; }
+        }, T("ProjectMaintenance.CouncilReviewFailed", "Could not save the council review.")).ConfigureAwait(false);
+    }
+
+    async Task ApproveReadyAsync(ProjectBuildVerification verification)
+    {
+        if (selectedProjectId is null) return;
+        await RunAsync(async () =>
+        {
+            await Maintenance.ApproveRevisionReadyForTestAsync(selectedProjectId.Value, verification.RevisionId, new ApproveRevisionReadyForTestRequest { VerificationId = verification.Id, RequireTests = verification.TestsExecuted, CreateLosslessSnapshot = true, UserConfirmed = true }).ConfigureAwait(false);
+            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false);
+            Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.RevisionReady", "Revision approved and snapshotted for testing."), T("Common.Completed", "Completed"));
+        }, T("ProjectMaintenance.ReadyApprovalFailed", "Could not approve the revision for testing.")).ConfigureAwait(false);
+    }
+
+    async Task RunAsync(Func<Task> action, string errorText)
+    {
+        busy = true;
+        try { await action().ConfigureAwait(false); }
+        catch (OperationCanceledException) { Logger.LogInformation("Project maintenance UI operation was cancelled."); Notifier.ShowWarning(ToastName, T("Common.Cancelled", "The operation was cancelled."), T("Common.CancelledTitle", "Cancelled")); }
+        catch (Exception ex) { Logger.LogError(ex, "Project maintenance UI operation failed; project paths and source content were omitted from logs."); Notifier.ShowError(ToastName, errorText, T("Common.Error", "Error")); }
+        finally { busy = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    static SaveProjectWorkspaceRootRequest NewWorkspace() => new() { ScopeKind = "Global", SolutionPattern = @"(?i)\.(sln|slnx)$", Priority = 100, IsEnabled = true };
+    static SaveProjectCompilerInstallationRequest NewCompiler() => new() { Language = "DotNet", ValidationArguments = "--version", IsEnabled = true };
+}
