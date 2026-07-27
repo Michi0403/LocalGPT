@@ -51,6 +51,14 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
         self.assertNotIn("routeBoundary?.Recover()", routes)
         self.assertNotIn("RecoverAfterNavigationAsync", routes)
 
+    def test_operational_diagnostics_guard_matches_reviewed_render_and_async_policies(self):
+        gate = (ROOT / "build" / "Assert-OperationalDiagnostics.ps1").read_text(encoding="utf-8")
+        self.assertIn("<Routes>\\s*</Routes>", gate)
+        self.assertIn("App must not replace page/island render modes", gate)
+        self.assertIn("MainLayout must not duplicate the app-level toast host", gate)
+        self.assertNotIn("Single non-prerendered route tree", gate)
+        self.assertNotIn("Chat contains ConfigureAwait(false)", gate)
+
     def test_controller_diagnostics_filter_is_implemented_and_registered(self):
         program = (APP / "Program.cs").read_text(encoding="utf-8")
         filter_source = (APP / "Diagnostics" / "ControllerRequestLoggingFilter.cs").read_text(encoding="utf-8")

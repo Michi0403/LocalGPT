@@ -39,15 +39,16 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\_Imports.razor' @(
     '@inject\s+IComponentActivityService\s+OperationalActivity'
 ) 'Global component logger/notifier availability'
 
-# The route tree, toast host, and error boundary must share one interactive circuit.
+# The reviewed architecture uses page/island InteractiveServer boundaries. The app shell
+# owns the shared toast host and startup marker; MainLayout owns only the routed body boundary.
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\App.razor' @(
-    '<Routes\s+@rendermode="@\(new InteractiveServerRenderMode\(prerender:\s*false\)\)"',
-    'Blazor\.start\(\)'
-) 'Single non-prerendered route tree'
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Layout\MainLayout.razor' @(
-    '<ToastWrapper\s+Name="ComponentSafetyToasts"',
-    '<SafeErrorBoundary',
+    '<ToastWrapper\s+Name="ComponentSafetyToasts"\s*/>',
+    '<Routes>\s*</Routes>',
     '<InteractiveStartupMarker\s*/>',
+    'Blazor\.start\(\)'
+) 'Application shell diagnostics hosts'
+Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Layout\MainLayout.razor' @(
+    '<SafeErrorBoundary\s+@key="NavigationManager\.Uri"',
     'ILogger<MainLayout>',
     'INotificationService'
 ) 'Layout diagnostics boundary'
@@ -57,9 +58,11 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Routes.razor' @(
     'LocationChanged\s*\+=\s*HandleLocationChanged'
 ) 'Route replacement and navigation diagnostics'
 
-# Chat is the highest-risk interactive page. Its attach path must not call JS itself,
-# and its operational paths keep structured logging and user notification. Dispose methods are exempt.
+# Chat is the highest-risk interactive page. It retains its reviewed InteractiveServer
+# boundary and operational diagnostics. Async continuation policy is validated separately.
+# Dispose methods are exempt.
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor' @(
+    '@rendermode\s+InteractiveServer',
     'ILogger<Chat>',
     'INotificationService',
     'interactiveAttached\s*=\s*true',
@@ -69,14 +72,26 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor' @(
     'Logger\.Log',
     'Notifier\.Show'
 ) 'Chat operational diagnostics'
+$appPath = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Components\App.razor'
+$layoutPath = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Components\Layout\MainLayout.razor'
+if (Test-Path -LiteralPath $appPath) {
+    $app = Get-Content -LiteralPath $appPath -Raw
+    if ($app -match '<(?:Routes|HeadOutlet)\s+@rendermode') {
+        $failures.Add('App must not replace page/island render modes with a root Routes or HeadOutlet render boundary.')
+    }
+}
+if (Test-Path -LiteralPath $layoutPath) {
+    $layout = Get-Content -LiteralPath $layoutPath -Raw
+    if ($layout -match '<ToastWrapper\s+Name="ComponentSafetyToasts"' -or $layout -match '<InteractiveStartupMarker\s*/>') {
+        $failures.Add('MainLayout must not duplicate the app-level toast host or interactive startup marker.')
+    }
+}
+
 $chatPath = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor'
 if (Test-Path -LiteralPath $chatPath) {
     $chat = Get-Content -LiteralPath $chatPath -Raw
     if ($chat -match 'JS\.InvokeVoidAsync\("localGptReady\.markInteractive"') {
         $failures.Add('Chat must not own the global interactive-ready JS marker; the layout marker owns it.')
-    }
-    if ($chat -match 'ConfigureAwait\(false\)') {
-        $failures.Add('Chat contains ConfigureAwait(false), which can leave the Blazor renderer synchronization context.')
     }
 }
 
@@ -109,4 +124,4 @@ if ($failures.Count -gt 0) {
     throw "Operational diagnostics validation failed with $($failures.Count) problem(s)."
 }
 
-Write-Host 'Operational diagnostics validation passed for the component circuit, Chat attach path, controllers, and automatic migration startup.' -ForegroundColor Green
+Write-Host 'Operational diagnostics validation passed for the reviewed InteractiveServer islands, Chat diagnostics, controllers, and automatic migration startup.' -ForegroundColor Green
