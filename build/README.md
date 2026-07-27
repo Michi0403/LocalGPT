@@ -7,6 +7,8 @@ The public source package intentionally contains only non-destructive validation
 - `Assert-ProtectedRepositoryFiles.ps1`
 - `Assert-CSharpSyntax.ps1` (Roslyn grammar parse; no NuGet restore required)
 - `Assert-ComponentSafety.ps1` (top-level logger/notifier/activity injection and global error-boundary contract)
+- `Assert-InteractiveServerRenderModes.ps1` (reviewed InteractiveServer page/island boundaries and App shell composition)
+- `Assert-AsyncContinuationPolicy.ps1` (monotonic ConfigureAwait(false) coverage with reviewed renderer-affine exceptions)
 - `Invoke-RepositoryValidation.ps1` (guards, restore, Debug build, Release build, fingerprinted success stamp)
 - `New-VerifiedSourcePackage.ps1` (refuses stale or missing compiler evidence)
 - `RepositoryValidation.Common.ps1`
@@ -49,3 +51,9 @@ The detailed contract is in `docs/SERVICE_LIFECYCLE_AND_ASYNC_ARCHITECTURE.md`. 
 
 High-level service boundaries use injected loggers and bounded service activity while rethrowing failures. Intentionally concurrent component work uses `ISupervisedTaskRunner`; discarded tasks are forbidden. Every DevExpress theme change is awaited. Database migration compatibility is isolated from migration/seeding orchestration.
 
+
+## Interactive rendering and async continuation policy
+
+LocalGPT intentionally uses reviewed `InteractiveServer` boundaries on routed pages and UI islands. `App.razor` hosts the static router shell and must not replace those boundaries with one persistent root render mode. The render-mode guard fails direct Visual Studio/MSBuild builds if a reviewed directive disappears or the root boundary is reintroduced.
+
+`ConfigureAwait(false)` is the default continuation policy. The async baseline records only the existing renderer-affine exceptions. Removing `ConfigureAwait(false)`, adding an unconfigured await, or adding a new `ConfigureAwait(true)` beyond the reviewed per-file allowance fails the build until the human owner explicitly reviews the baseline.

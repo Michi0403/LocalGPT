@@ -109,4 +109,37 @@
           StandardErrorImportance="High" />
   </Target>
 
+  <PropertyGroup>
+    <InteractiveServerRenderModeScript>$(MSBuildThisFileDirectory)build\Assert-InteractiveServerRenderModes.ps1</InteractiveServerRenderModeScript>
+    <AsyncContinuationScript>$(MSBuildThisFileDirectory)build\Assert-AsyncContinuationPolicy.ps1</AsyncContinuationScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptInteractiveServerRenderModes"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptOperationalDiagnostics"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipInteractiveServerRenderModeGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(InteractiveServerRenderModeScript)')"
+           Text="InteractiveServer render-mode guard script is missing: $(InteractiveServerRenderModeScript)" />
+    <Exec Condition="Exists('$(InteractiveServerRenderModeScript)')"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(InteractiveServerRenderModeScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptAsyncContinuationPolicy"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptInteractiveServerRenderModes"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipAsyncContinuationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(AsyncContinuationScript)')"
+           Text="Async continuation guard script is missing: $(AsyncContinuationScript)" />
+    <Exec Condition="Exists('$(AsyncContinuationScript)')"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(AsyncContinuationScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
 </Project>

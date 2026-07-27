@@ -1,3 +1,4 @@
+@rendermode InteractiveServer
 @page "/Chat"
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Text
@@ -624,19 +625,19 @@
         try
         {
             HumanCollaboration.Changed += OnHumanCollaborationChanged;
-            await RefreshHumanCollaborationAsync();
+            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
             ArchitectureUiStack = Catalog.ArchitectureUiStackOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions.FirstOrDefault() ?? string.Empty;
 
             await LoadDatabaseBackedDefaultsAsync();
-            await LoadCouncilTeamsAsync();
+            await LoadCouncilTeamsAsync().ConfigureAwait(false);
             PromptSuggestions = Catalog.GetSuggestion();
-            await LoadChatProjectsAsync();
-            await RefreshMemoryAsync();
+            await LoadChatProjectsAsync().ConfigureAwait(false);
+            await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
-            await LoadModelPresetsAsync();
+            await LoadModelPresetsAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: true);
             if (UseFreshDiagnosticChat)
             {
@@ -645,7 +646,7 @@
             }
             else if (AutoLoadLatestConversation)
             {
-                await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false);
+                await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false).ConfigureAwait(false);
             }
             else if (SavedConversations.Count > 0)
             {
@@ -662,7 +663,7 @@
 
     private async Task LoadCouncilTeamsAsync()
     {
-        var teams = await CouncilTeamConfigurations.GetTeamsAsync(includeDisabled: false);
+        var teams = await CouncilTeamConfigurations.GetTeamsAsync(includeDisabled: false).ConfigureAwait(false);
         CouncilTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
         if (CouncilTeams.Count == 0)
             return;
@@ -672,7 +673,7 @@
 
     private async Task LoadDatabaseBackedDefaultsAsync()
     {
-        await MigrateCouncilDefaultsAsync();
+        await MigrateCouncilDefaultsAsync().ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<int>(
             "DefaultMaxOutputTokens",
             value => CouncilMaxOutputTokens = Math.Clamp(
@@ -707,22 +708,22 @@
         try
         {
             int version;
-            try { version = await VariableStore.GetAsync<int>("CouncilDefaultsVersion"); }
+            try { version = await VariableStore.GetAsync<int>("CouncilDefaultsVersion").ConfigureAwait(false); }
             catch { version = 0; }
             if (version >= targetVersion) return;
 
             try
             {
-                var previousLoad = await VariableStore.GetAsync<int>("DefaultCouncilResourceLoadPercent");
+                var previousLoad = await VariableStore.GetAsync<int>("DefaultCouncilResourceLoadPercent").ConfigureAwait(false);
                 if (previousLoad == 30)
-                    await VariableStore.SetAsync("DefaultCouncilResourceLoadPercent", 100);
+                    await VariableStore.SetAsync("DefaultCouncilResourceLoadPercent", 100).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 Logger.LogDebug(ex, "The previous Council power default was unavailable during migration.");
             }
 
-            await VariableStore.SetAsync("CouncilDefaultsVersion", targetVersion);
+            await VariableStore.SetAsync("CouncilDefaultsVersion", targetVersion).ConfigureAwait(false);
             Logger.LogInformation("Migrated AI Council defaults to version {Version}.", targetVersion);
         }
         catch (Exception ex)
@@ -794,7 +795,7 @@
             if (ChatClientProvider?.SelectedSession is null || DxAiChat is null)
                 return;
 
-            await PersistCurrentConversationAsync(force: true, showToast: false);
+            await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
             ChatClientProvider.SelectedSession.Messages.Clear();
             ActiveConversationId = null;
             SessionContext.SetConversation(null);
@@ -829,7 +830,7 @@
             ChatClientProvider.SelectedSession.Messages.Clear();
             ChatClientProvider.SelectedSession.Messages.AddRange(messages);
             DxAiChat.LoadMessages(messages);
-            await PersistMessagesAsync(messages, force: true, showToast: false);
+            await PersistMessagesAsync(messages, force: true, showToast: false).ConfigureAwait(false);
             ArchitecturePollStatus = "Architecture decision guidance was added to the DXAiChat conversation.";
         }
         catch (Exception ex)
@@ -910,7 +911,7 @@
 
             var currentMessages = DxAiChat.SaveMessages().ToList();
             SaveMessagesForSelectedSession(currentMessages);
-            await PersistMessagesAsync(currentMessages, force: true, showToast: false);
+            await PersistMessagesAsync(currentMessages, force: true, showToast: false).ConfigureAwait(false);
 
             ChatClientProvider.LockedSessionName = null;
             ChatClientProvider.ForcedMaxOutputTokens = null;
@@ -935,7 +936,7 @@
     {
         try
         {
-            await RefreshOllamaModelsAsync(showToast: true);
+            await RefreshOllamaModelsAsync(showToast: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -957,7 +958,7 @@
                 if (DxAiChat is not null)
                     SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
 
-                OllamaCandidates = (await CouncilService.GetCandidatesAsync())
+                OllamaCandidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false))
                     .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
                     .OrderByDescending(candidate => candidate.IsLoaded)
                     .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
@@ -1548,7 +1549,7 @@
     {
         try
         {
-            ModelPresets = (await ModelPresetService.GetPresetsAsync()).ToList();
+            ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(false)).ToList();
             var defaultPreset = ModelPresets.FirstOrDefault(item => item.IsDefault);
             if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
                 ApplyModelPreset(defaultPreset);
@@ -1636,8 +1637,8 @@
                     IsDefault = SelectedModelPreset?.IsDefault ?? ModelPresets.Count == 0,
                     IsUserApproved = true
                 };
-                var savedPreset = await ModelPresetService.SavePresetAsync(preset, userConfirmed: true);
-                await LoadModelPresetsAsync();
+                var savedPreset = await ModelPresetService.SavePresetAsync(preset, userConfirmed: true).ConfigureAwait(false);
+                await LoadModelPresetsAsync().ConfigureAwait(false);
                 SelectedModelPreset = ModelPresets.FirstOrDefault(item => item.Id == savedPreset.Id);
                 Notifier.ShowSuccess(toastName, "The model preset was saved to SQLite.", "Preset saved");
             }
@@ -1645,7 +1646,7 @@
             {
                 isModelPresetBusy = false;
             }
-        }, "Save model preset");
+        }, "Save model preset").ConfigureAwait(false);
     }
 
     private async Task ArchiveModelPresetAsync()
@@ -1657,17 +1658,17 @@
             isModelPresetBusy = true;
             try
             {
-                await ModelPresetService.ArchivePresetAsync(SelectedModelPreset.Id, userConfirmed: true);
+                await ModelPresetService.ArchivePresetAsync(SelectedModelPreset.Id, userConfirmed: true).ConfigureAwait(false);
                 SelectedModelPreset = null;
                 ModelPresetName = string.Empty;
-                await LoadModelPresetsAsync();
+                await LoadModelPresetsAsync().ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "The model preset was archived.", "Preset archived");
             }
             finally
             {
                 isModelPresetBusy = false;
             }
-        }, "Archive model preset");
+        }, "Archive model preset").ConfigureAwait(false);
     }
 
     private Task OnHardwareRoadsChanged()
@@ -1756,7 +1757,7 @@
     {
         try
         {
-            await PersistCurrentConversationAsync(force: true, showToast: true);
+            await PersistCurrentConversationAsync(force: true, showToast: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1770,7 +1771,7 @@
     {
         try
         {
-            await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: true);
+            await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1788,7 +1789,7 @@
             if (SavedConversations.Count == 0)
                 return;
 
-            await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat);
+            await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1803,7 +1804,7 @@
     {
         try
         {
-            await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true);
+            await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1822,10 +1823,10 @@
             try
             {
                 if (saveCurrentFirst)
-                    await PersistCurrentConversationAsync(force: true, showToast: false);
+                    await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
 
                 isMemoryBusy = true;
-                var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id);
+                var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id).ConfigureAwait(false);
                 if (snapshot is null)
                     return;
 
@@ -1835,13 +1836,13 @@
                     snapshot.ProjectId,
                     snapshot.ProjectVersionId,
                     SessionContext.ApplicationVersion));
-                await LoadSelectedChatProjectDetailsAsync(snapshot.ProjectId);
+                await LoadSelectedChatProjectDetailsAsync(snapshot.ProjectId).ConfigureAwait(false);
                 SelectedConversation = conversation;
                 ChatClientProvider.SelectedSession.Messages.Clear();
                 ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
                 lastSavedSignature = CouncilText.CreateMessageSignature(snapshot.Messages, Logger);
                 memoryStatus = $"Loaded memory: {snapshot.Title}";
-                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(snapshot.Id)).ToList();
+                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(snapshot.Id).ConfigureAwait(false)).ToList();
 
                 if (loadIntoDxChat && DxAiChat is not null)
                     DxAiChat.LoadMessages(snapshot.Messages);
@@ -1875,7 +1876,7 @@
 
             var messages = DxAiChat.SaveMessages().ToList();
             SaveMessagesForSelectedSession(messages);
-            await PersistMessagesAsync(messages, force, showToast);
+            await PersistMessagesAsync(messages, force, showToast).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1902,7 +1903,7 @@
                 var savedConversationId = await ChatMemory.SaveConversationAsync(
                     ChatClientProvider.SelectedSession.Name,
                     messages,
-                    ActiveConversationId);
+                    ActiveConversationId).ConfigureAwait(false);
                 if (savedConversationId is not Guid persistedId)
                 {
                     memoryStatus = "The conversation could not be saved. See local application logs.";
@@ -1913,7 +1914,7 @@
                 SessionContext.SetConversation(persistedId);
                 lastSavedSignature = signature;
                 RefreshFeedbackTargets(messages);
-                await RefreshMemoryAsync();
+                await RefreshMemoryAsync().ConfigureAwait(false);
                 memoryStatus = $"Memory saved at {DateTime.Now:t}.";
 
                 if (showToast)
@@ -1942,13 +1943,13 @@
     {
         try
         {
-            SavedConversations = (await ChatMemory.GetConversationsAsync()).ToList();
-            RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync()).ToList();
+            SavedConversations = (await ChatMemory.GetConversationsAsync().ConfigureAwait(false)).ToList();
+            RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync().ConfigureAwait(false)).ToList();
 
             if (ActiveConversationId is Guid id)
             {
                 SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
-                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(id)).ToList();
+                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(id).ConfigureAwait(false)).ToList();
             }
             else
             {
@@ -1972,14 +1973,14 @@
 
     private async Task LoadChatProjectsAsync()
     {
-        ChatProjects = (await ProjectService.GetProjectsAsync()).ToList();
-        await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId);
+        ChatProjects = (await ProjectService.GetProjectsAsync().ConfigureAwait(false)).ToList();
+        await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId).ConfigureAwait(false);
     }
 
     private async Task LoadSelectedChatProjectDetailsAsync(Guid? projectId)
     {
         SelectedChatProjectDetails = projectId is Guid id
-            ? await ProjectService.GetProjectAsync(id)
+            ? await ProjectService.GetProjectAsync(id).ConfigureAwait(false)
             : null;
     }
 
@@ -1993,7 +1994,7 @@
         }
         else
         {
-            await LoadSelectedChatProjectDetailsAsync(projectId);
+            await LoadSelectedChatProjectDetailsAsync(projectId).ConfigureAwait(false);
             var currentVersion = SelectedChatProjectDetails?.Versions.FirstOrDefault(version => version.IsCurrent)
                 ?? SelectedChatProjectDetails?.Versions.OrderByDescending(version => version.CreatedAtUtc).FirstOrDefault();
             SessionContext.SetProject(projectId, currentVersion?.Id);
@@ -2003,7 +2004,7 @@
         }
 
         if (ActiveConversationId is not null)
-            await PersistCurrentConversationAsync(force: true, showToast: false);
+            await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
     }
 
     private async Task OnChatProjectVersionChangedAsync(ChangeEventArgs args)
@@ -2026,7 +2027,7 @@
             : $"Chat linked to {SelectedChatProjectDetails.Project.Name} {selectedVersion.Version}.";
 
         if (ActiveConversationId is not null)
-            await PersistCurrentConversationAsync(force: true, showToast: false);
+            await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
     }
 
     private void RefreshFeedbackTargets() =>
@@ -2088,7 +2089,7 @@
         if (SelectedFeedbackSortOrder is not int sortOrder)
             return;
 
-        await PersistCurrentConversationAsync(force: true, showToast: false);
+        await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
         if (ActiveConversationId is not Guid conversationId)
         {
             feedbackStatus = "Save the conversation before recording feedback.";
@@ -2100,14 +2101,14 @@
             sortOrder,
             isPositive,
             FeedbackComment,
-            CancellationToken.None);
+            CancellationToken.None).ConfigureAwait(false);
         if (!saved)
         {
             feedbackStatus = "The selected assistant response is no longer available.";
             return;
         }
 
-        SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(conversationId)).ToList();
+        SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(conversationId).ConfigureAwait(false)).ToList();
         feedbackStatus = isPositive switch
         {
             true => "Helpful rating saved locally.",
@@ -2135,7 +2136,7 @@
                     {
                         if (cancellationToken.IsCancellationRequested || isDisposed)
                             return;
-                        await InvokeAsync(() => RefreshOllamaModelsAsync(showToast: false));
+                        await InvokeAsync(() => RefreshOllamaModelsAsync(showToast: false)).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
                     {
@@ -2145,7 +2146,7 @@
                     {
                         Logger.LogWarning(ex, "Initial Chat model refresh failed; configured sessions remain available.");
                         ComponentActivity.RecordFailure(nameof(Chat), "InitialModelRefresh", ex);
-                        await InvokeAsync(() => Notifier.ShowWarning(toastName, "Local model refresh failed. Configured sessions remain available; see local logs for details.", "Model refresh warning"));
+                        await InvokeAsync(() => Notifier.ShowWarning(toastName, "Local model refresh failed. Configured sessions remain available; see local logs for details.", "Model refresh warning")).ConfigureAwait(false);
                     }
                 },
                 componentLifetimeCts.Token);
@@ -2180,20 +2181,20 @@
         using var registration = cancellationToken.Register(static state =>
             ((TaskCompletionSource<bool>)state!).TrySetResult(true), cancelled);
         var delay = Task.Delay(TimeSpan.FromSeconds(12));
-        var completed = await Task.WhenAny(delay, cancelled.Task);
+        var completed = await Task.WhenAny(delay, cancelled.Task).ConfigureAwait(false);
         return completed == delay && !cancellationToken.IsCancellationRequested;
     }
 
     private async Task AutoSaveLoopAsync(CancellationToken cancellationToken)
     {
-        while (await WaitForAutoSaveIntervalAsync(cancellationToken))
+        while (await WaitForAutoSaveIntervalAsync(cancellationToken).ConfigureAwait(false))
         {
             if (isDisposed)
                 break;
 
             try
             {
-                await InvokeAsync(() => PersistCurrentConversationAsync(force: false, showToast: false));
+                await InvokeAsync(() => PersistCurrentConversationAsync(force: false, showToast: false)).ConfigureAwait(false);
                 autoSaveFailureNotified = false;
             }
             catch (ObjectDisposedException) when (isDisposed)
@@ -2221,7 +2222,7 @@
     {
         try
         {
-            collaborationSnapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 100);
+            collaborationSnapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 100).ConfigureAwait(false);
             if (SelectedCouncilRunId is not null && collaborationSnapshot.ActiveRuns.All(run => run.RunId != SelectedCouncilRunId))
                 SelectedCouncilRunId = null;
             SelectedCouncilRunId ??= collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault()?.RunId;
@@ -2255,9 +2256,9 @@
                 UpdatedAtUtc = DateTime.UtcNow,
                 UpdatedBy = string.IsNullOrWhiteSpace(current.DisplayName) ? "Human User" : current.DisplayName
             };
-            await HumanCollaboration.SaveProfileAsync(enabled);
+            await HumanCollaboration.SaveProfileAsync(enabled).ConfigureAwait(false);
             Notifier.ShowSuccess(toastName, "You can now contribute to the selected running Council heartbeat.", "Human participation enabled");
-            await RefreshHumanCollaborationAsync();
+            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -2287,11 +2288,11 @@
                 councilRunId: activeRun.RunId,
                 councilRound: activeRun.CurrentRound,
                 phase: activeRun.Phase);
-            await HumanCollaboration.QueueContributionAsync(activeRun.RunId, content);
+            await HumanCollaboration.QueueContributionAsync(activeRun.RunId, content).ConfigureAwait(false);
             RunningCouncilContribution = string.Empty;
             Notifier.ShowSuccess(toastName, "Your message will enter the next council heartbeat without cancelling the current model.", "Human council contribution");
             ComponentActivity.RecordInformation(nameof(Chat), "QueueHumanContribution", "A human peer contribution was queued for the next active council heartbeat.");
-            await RefreshHumanCollaborationAsync();
+            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -2308,7 +2309,7 @@
         ComponentActivity.RecordInformation(nameof(Chat), operation, "The chat UI operation started.");
         try
         {
-            await action();
+            await action().ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(Chat), operation, "The chat UI operation completed.");
         }
         catch (OperationCanceledException)

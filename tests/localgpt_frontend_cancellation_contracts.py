@@ -6,20 +6,43 @@ APP = ROOT / "LocalGPTWebviewWrapper" / "LocalGPT"
 
 
 class LocalGptFrontendCancellationContracts(unittest.TestCase):
-    def test_routed_ui_uses_one_non_prerendered_interactive_tree(self):
+    def test_routed_ui_restores_reviewed_interactive_server_islands(self):
         app = (APP / "Components" / "App.razor").read_text(encoding="utf-8")
-        self.assertIn('<Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))">', app)
-        self.assertNotIn('<InteractiveStartupMarker />', app)
-        for path in (APP / "Components").rglob("*.razor"):
-            if path.name == "App.razor":
-                continue
-            text = path.read_text(encoding="utf-8")
-            self.assertNotIn("@rendermode", text, path)
-            self.assertNotIn("ConfigureAwait(false)", text, path)
+        self.assertIn("<HeadOutlet />", app)
+        self.assertIn("<Routes></Routes>", app)
+        self.assertIn('<ToastWrapper Name="ComponentSafetyToasts" />', app)
+        self.assertIn("<InteractiveStartupMarker />", app)
+        self.assertNotIn("<Routes @rendermode", app)
+        self.assertNotIn("<HeadOutlet @rendermode", app)
+
+        expected = {
+            "InteractiveStartupMarker.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
+            "Layout/MenuIsland.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
+            "Layout/NavMenu.razor": "@rendermode InteractiveServer",
+            "Layout/ThemeSwitcher.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: true))",
+            "Layout/ThemeSwitcherContainer.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: true))",
+            "Layout/ThemeSwitcherItem.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: true))",
+            "Layout/ToastWrapper.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
+            "Pages/Chat.razor": "@rendermode InteractiveServer",
+            "Pages/CouncilTeams.razor": "@rendermode InteractiveServer",
+            "Pages/Database.razor": "@rendermode InteractiveServer",
+            "Pages/DxFunctionCatalog.razor": "@rendermode InteractiveServer",
+            "Pages/Install.razor": "@rendermode InteractiveServer",
+            "Pages/MinecraftModBuilder.razor": "@rendermode InteractiveServer",
+            "Pages/ModelCouncil.razor": "@rendermode InteractiveServer",
+            "Pages/OneWireSecurity.razor": "@rendermode InteractiveServer",
+            "Pages/ProjectMaintenance.razor": "@rendermode InteractiveServer",
+            "Pages/Projects.razor": "@rendermode InteractiveServer",
+            "Pages/TestLab.razor": "@rendermode InteractiveServer",
+        }
+        components = APP / "Components"
+        for relative, directive in expected.items():
+            first = next(line.strip() for line in (components / relative).read_text(encoding="utf-8").splitlines() if line.strip())
+            self.assertEqual(directive, first, relative)
+
         layout = (APP / "Components" / "Layout" / "MainLayout.razor").read_text(encoding="utf-8")
-        self.assertIn("<InteractiveStartupMarker />", layout)
-        self.assertIn('<ToastWrapper Name="ComponentSafetyToasts" />', layout)
-        self.assertNotIn('<ToastWrapper Name="ComponentSafetyToasts"', app)
+        self.assertNotIn("<InteractiveStartupMarker />", layout)
+        self.assertNotIn('<ToastWrapper Name="ComponentSafetyToasts" />', layout)
 
     def test_route_changes_replace_the_body_without_error_boundary_recovery_races(self):
         routes = (APP / "Components" / "Routes.razor").read_text(encoding="utf-8")

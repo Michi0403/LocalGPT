@@ -13,6 +13,9 @@ Push-Location $repoRoot
 try {
     & ./build/Assert-ProtectedRepositoryFiles.ps1
     & ./build/Assert-LocalizationIntegrity.ps1
+    & ./build/Assert-OperationalDiagnostics.ps1
+    & ./build/Assert-InteractiveServerRenderModes.ps1
+    & ./build/Assert-AsyncContinuationPolicy.ps1
     & ./build/Assert-GitSourceVisibility.ps1
     & ./build/Assert-ProjectClosure.ps1
     & ./build/Assert-SourceFormatting.ps1

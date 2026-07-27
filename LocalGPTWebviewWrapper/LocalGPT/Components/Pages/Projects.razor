@@ -1,3 +1,4 @@
+@rendermode InteractiveServer
 @page "/projects"
 @inject ILocalGptProjectService ProjectService
 @inject IProjectArchitectureService ProjectArchitecture
@@ -475,11 +476,11 @@
     {
         await RunUiActionAsync(async () =>
         {
-            ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true)).ToList();
+            ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
 
             if (SelectedProject is not null)
-                SelectedProject = await ProjectService.GetProjectAsync(SelectedProject.Project.Id);
-        }, "Load projects");
+                SelectedProject = await ProjectService.GetProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+        }, "Load projects").ConfigureAwait(false);
     }
 
     void NewProject()
@@ -498,7 +499,7 @@
     {
         await RunUiActionAsync(async () =>
         {
-            SelectedProject = await ProjectService.GetProjectAsync(projectId);
+            SelectedProject = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
             if (SelectedProject is null)
                 throw new InvalidOperationException("The selected project no longer exists.");
 
@@ -526,7 +527,7 @@
             RequirementEdit = NewRequirementRequest();
             RequirementLinkEdit = NewRequirementLinkRequest();
             ArtifactEdit = NewArtifactRequest();
-        }, "Select project");
+        }, "Select project").ConfigureAwait(false);
     }
 
     async Task SaveProjectAsync()
@@ -536,15 +537,15 @@
             ProjectEdit.UserConfirmed = true;
             try
             {
-                var saved = await ProjectService.SaveProjectAsync(ProjectEdit);
-                await RefreshSelectedProjectAsync(saved.Id);
+                var saved = await ProjectService.SaveProjectAsync(ProjectEdit).ConfigureAwait(false);
+                await RefreshSelectedProjectAsync(saved.Id).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "Project record saved.", "Project saved");
             }
             finally
             {
                 ProjectEdit.UserConfirmed = false;
             }
-        }, "Save project");
+        }, "Save project").ConfigureAwait(false);
     }
 
     async Task AddTopicAsync()
@@ -557,16 +558,16 @@
             TopicEdit.UserConfirmed = true;
             try
             {
-                await ProjectService.AddTopicAsync(SelectedProject.Project.Id, TopicEdit);
+                await ProjectService.AddTopicAsync(SelectedProject.Project.Id, TopicEdit).ConfigureAwait(false);
                 TopicEdit = NewTopicRequest();
-                await RefreshSelectedProjectAsync(SelectedProject.Project.Id);
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "Project topic added.", "Topic saved");
             }
             finally
             {
                 TopicEdit.UserConfirmed = false;
             }
-        }, "Add topic");
+        }, "Add topic").ConfigureAwait(false);
     }
 
     async Task AddVersionAsync()
@@ -579,16 +580,16 @@
             VersionEdit.UserConfirmed = true;
             try
             {
-                await ProjectService.AddVersionAsync(SelectedProject.Project.Id, VersionEdit);
+                await ProjectService.AddVersionAsync(SelectedProject.Project.Id, VersionEdit).ConfigureAwait(false);
                 VersionEdit = NewVersionRequest(SelectedProject.Project.RootPath);
-                await RefreshSelectedProjectAsync(SelectedProject.Project.Id);
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "Project version added.", "Version saved");
             }
             finally
             {
                 VersionEdit.UserConfirmed = false;
             }
-        }, "Add version");
+        }, "Add version").ConfigureAwait(false);
     }
 
     async Task SaveRevisionAsync()
@@ -600,16 +601,16 @@
             RevisionEdit.UserConfirmed = true;
             try
             {
-                await ProjectArchitecture.SaveRevisionAsync(SelectedProject.Project.Id, RevisionEdit);
+                await ProjectArchitecture.SaveRevisionAsync(SelectedProject.Project.Id, RevisionEdit).ConfigureAwait(false);
                 RevisionEdit = NewRevisionRequest();
-                await RefreshSelectedProjectAsync(SelectedProject.Project.Id);
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "Database project revision saved.", "Revision saved");
             }
             finally
             {
                 RevisionEdit.UserConfirmed = false;
             }
-        }, "Save project revision");
+        }, "Save project revision").ConfigureAwait(false);
     }
 
     async Task SaveRequirementAsync()
@@ -622,16 +623,16 @@
             try
             {
                 RequirementEdit.RevisionId = SelectedProject.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
-                await ProjectArchitecture.SaveRequirementAsync(SelectedProject.Project.Id, RequirementEdit);
+                await ProjectArchitecture.SaveRequirementAsync(SelectedProject.Project.Id, RequirementEdit).ConfigureAwait(false);
                 RequirementEdit = NewRequirementRequest();
-                await RefreshSelectedProjectAsync(SelectedProject.Project.Id);
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "Project requirement saved.", "Requirement saved");
             }
             finally
             {
                 RequirementEdit.UserConfirmed = false;
             }
-        }, "Save project requirement");
+        }, "Save project requirement").ConfigureAwait(false);
     }
 
     async Task SaveRequirementLinkAsync()
@@ -643,16 +644,16 @@
             RequirementLinkEdit.UserConfirmed = true;
             try
             {
-                await ProjectArchitecture.SaveRequirementLinkAsync(SelectedProject.Project.Id, RequirementLinkEdit);
+                await ProjectArchitecture.SaveRequirementLinkAsync(SelectedProject.Project.Id, RequirementLinkEdit).ConfigureAwait(false);
                 RequirementLinkEdit = NewRequirementLinkRequest();
-                await RefreshSelectedProjectAsync(SelectedProject.Project.Id);
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "Requirement capability link saved.", "Requirement linked");
             }
             finally
             {
                 RequirementLinkEdit.UserConfirmed = false;
             }
-        }, "Save requirement link");
+        }, "Save requirement link").ConfigureAwait(false);
     }
 
     async Task SaveArtifactAsync()
@@ -665,22 +666,22 @@
             try
             {
                 ArtifactEdit.RevisionId = SelectedProject.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
-                await ProjectArchitecture.SaveArtifactAsync(SelectedProject.Project.Id, ArtifactEdit);
+                await ProjectArchitecture.SaveArtifactAsync(SelectedProject.Project.Id, ArtifactEdit).ConfigureAwait(false);
                 ArtifactEdit = NewArtifactRequest();
-                await RefreshSelectedProjectAsync(SelectedProject.Project.Id);
+                await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "Project-linked artifact saved.", "Artifact saved");
             }
             finally
             {
                 ArtifactEdit.UserConfirmed = false;
             }
-        }, "Save project artifact");
+        }, "Save project artifact").ConfigureAwait(false);
     }
 
     async Task RefreshSelectedProjectAsync(Guid projectId)
     {
-        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true)).ToList();
-        SelectedProject = await ProjectService.GetProjectAsync(projectId);
+        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
+        SelectedProject = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
         if (SelectedProject is not null)
         {
             var project = SelectedProject.Project;
@@ -707,7 +708,7 @@
         ComponentActivity.RecordInformation(nameof(Projects), operation, "The project UI operation started.");
         try
         {
-            await action();
+            await action().ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(Projects), operation, "The project UI operation completed.");
         }
         catch (OperationCanceledException)

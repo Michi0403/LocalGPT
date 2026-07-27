@@ -91,6 +91,7 @@ packages/*.snupkg
 !Build-Release.ps1
 !build/
 !build/*.ps1
+!build/*.json
 !tests/
 !tests/*.py
 !LocalGPTWebviewWrapper/LocalGPT/Localization/

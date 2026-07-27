@@ -8,8 +8,6 @@
 @inject IComponentActivityService ComponentActivity
 
 <div class="page" data-testid="main-layout">
-    <ToastWrapper Name="ComponentSafetyToasts" />
-
     <Drawer DrawerHeader="drawerHeader" DrawerFooter="drawerFooter">
         <DrawerBody>
             <div class="w-100">
@@ -40,7 +38,6 @@
                 <SafeErrorBoundary @key="NavigationManager.Uri" Area="MainLayout" ToastName="ComponentSafetyToasts">
                     @Body
                 </SafeErrorBoundary>
-                <InteractiveStartupMarker />
             </article>
         </DrawerTarget>
     </Drawer>
