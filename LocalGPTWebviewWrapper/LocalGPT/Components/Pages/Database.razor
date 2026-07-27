@@ -9,7 +9,6 @@
 @inject ISqliteTableEditorService TableEditor
 @inject ISqliteEditorPreferenceService EditorPreferences
 @inject IKnowledgeRatingService KnowledgeRatings
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject ILogger<Database> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -402,8 +401,8 @@
         {
             await RunUiActionAsync(async () =>
      {
-         KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
-         Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
+         KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
+         Tables = (await TableEditor.GetTablesAsync()).ToList();
          SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
          if (SelectedKnowledgeEntry is not null)
              SelectKnowledgeEntry(SelectedKnowledgeEntry);
@@ -414,10 +413,10 @@
              SelectedTable = Tables.FirstOrDefault(table => table.Name.Equals(SelectedTable.Name, StringComparison.OrdinalIgnoreCase));
          SelectedTable ??= Tables.FirstOrDefault(table => table.Name.Equals("CouncilKnowledgeEntries", StringComparison.OrdinalIgnoreCase)) ?? Tables.FirstOrDefault();
          if (SelectedTable is not null)
-             await LoadTableAsync(SelectedTable).ConfigureAwait(false);
+             await LoadTableAsync(SelectedTable);
 
          statusText = $"Loaded {Tables.Count} table(s) and {KnowledgeEntries.Count} knowledge note(s).";
-     }, "RefreshAllAsync").ConfigureAwait(false);
+     }, "RefreshAllAsync");
         }
         catch (Exception ex)
         {
@@ -469,15 +468,15 @@
         {
             await RunUiActionAsync(async () =>
        {
-           KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit).ConfigureAwait(false);
-           KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
+           KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit);
+           KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
            if (SelectedKnowledgeEntry is not null)
                KnowledgeEdit = CouncilRuntime.CopyKnowledgeEntry(SelectedKnowledgeEntry, Logger) ?? new();
-           await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
+           await RefreshTablesOnlyAsync(loadSelectedTable: true);
            statusText = $"Saved knowledge note: {KnowledgeEdit.Topic}";
            Notifier.ShowSuccess(toastName, "Council knowledge saved to SQLite.", "Knowledge saved");
-       }, "SaveKnowledgeAsync").ConfigureAwait(false);
+       }, "SaveKnowledgeAsync");
         }
         catch (Exception ex)
         {
@@ -496,14 +495,14 @@
 
             await RunUiActionAsync(async () =>
             {
-                await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id).ConfigureAwait(false);
+                await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id);
                 SelectedKnowledgeEntry = null;
                 KnowledgeEdit = Catalog.CouncilKnowledgeEntryNew;
-                KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
-                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
+                KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250), Logger);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true);
                 statusText = "Deleted council knowledge note.";
                 Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");
-            }, "DeleteKnowledgeAsync").ConfigureAwait(false);
+            }, "DeleteKnowledgeAsync");
         }
         catch (Exception ex)
         {
@@ -627,7 +626,7 @@
     {
         try
         {
-            await LoadTableAsync(table).ConfigureAwait(false);
+            await LoadTableAsync(table);
         }
         catch (Exception ex)
         {
@@ -641,7 +640,7 @@
         try
         {
             if (SelectedTable is not null)
-                await LoadTableAsync(SelectedTable).ConfigureAwait(false);
+                await LoadTableAsync(SelectedTable);
         }
         catch (Exception ex)
         {
@@ -657,8 +656,8 @@
             await RunUiActionAsync(async () =>
         {
             SelectedTable = table;
-            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
-            EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(false), StringComparer.OrdinalIgnoreCase);
+            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
+            EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name), StringComparer.OrdinalIgnoreCase);
             SessionEditorKinds.Clear();
             GridRows.Clear();
             foreach (var row in CurrentTable.Rows)
@@ -683,7 +682,7 @@
             else
                 NewSqliteRow();
             statusText = $"Loaded {CurrentTable.Rows.Count} row(s) from {CurrentTable.TableName}.";
-        }, "LoadTableAsync").ConfigureAwait(false);
+        }, "LoadTableAsync");
         }
         catch (Exception ex)
         {
@@ -747,7 +746,7 @@
 
                 if (SelectedRow is null)
                 {
-                    await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues).ConfigureAwait(false);
+                    await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues);
                     statusText = $"Inserted row into {CurrentTable.TableName}.";
                 }
                 else
@@ -755,13 +754,13 @@
                     var updates = editableValues
                         .Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value })
                         .ToList();
-                    await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates).ConfigureAwait(false);
+                    await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates);
                     statusText = $"Updated row {SelectedRow.RowId} in {CurrentTable.TableName}.";
                 }
 
-                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true);
                 Notifier.ShowSuccess(toastName, "SQLite row saved.", "Database saved");
-            }, "SaveSqliteRowAsync").ConfigureAwait(false);
+            }, "SaveSqliteRowAsync");
         }
         catch (Exception ex)
         {
@@ -780,9 +779,9 @@
 
             await RunUiActionAsync(async () =>
             {
-                await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId).ConfigureAwait(false);
+                await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId);
                 statusText = $"Deleted row {SelectedRow.RowId} from {CurrentTable.TableName}.";
-                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true);
                 Notifier.ShowSuccess(toastName, "SQLite row deleted.", "Database saved");
             }, "DeleteSqliteRowAsync");
         }
@@ -798,7 +797,7 @@
     {
         try
         {
-            Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
+            Tables = (await TableEditor.GetTablesAsync()).ToList();
             if (!loadSelectedTable || CurrentTable is null)
                 return;
 
@@ -806,8 +805,8 @@
             if (table is not null)
             {
                 SelectedTable = table;
-                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
-                EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(false), StringComparer.OrdinalIgnoreCase);
+                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit);
+                EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name), StringComparer.OrdinalIgnoreCase);
                 SessionEditorKinds.Clear();
                 GridRows.Clear();
                 foreach (var row in CurrentTable.Rows)
@@ -901,7 +900,7 @@
             NullText = existing?.NullText ?? "[null]",
             IsSensitive = kind.Equals("Secret", StringComparison.OrdinalIgnoreCase) || existing?.IsSensitive == true,
             RequireHumanApproval = existing?.RequireHumanApproval == true
-        }, userConfirmed: true).ConfigureAwait(false);
+        }, userConfirmed: true);
         EditorOverrides[column.Name] = saved;
         statusText = $"Remembered {kind} editor for {CurrentTable.TableName}.{column.Name}.";
         Notifier.ShowSuccess(toastName, statusText, "Editor preference saved");
@@ -919,7 +918,7 @@
         if (SelectedKnowledgeEntry is null)
             return;
         KnowledgeRatingEdit.KnowledgeEntryId = SelectedKnowledgeEntry.Id;
-        KnowledgeRatingEdit = await KnowledgeRatings.SaveRatingAsync(KnowledgeRatingEdit, userConfirmed: true).ConfigureAwait(false);
+        KnowledgeRatingEdit = await KnowledgeRatings.SaveRatingAsync(KnowledgeRatingEdit, userConfirmed: true);
         KnowledgeEdit.Confidence = KnowledgeRatingEdit.Rating;
         KnowledgeEdit.IsUserApproved = KnowledgeRatingEdit.ApprovedForCouncilUse;
         KnowledgeEdit.ReviewStatus = KnowledgeRatingEdit.ApprovedForCouncilUse ? "Current" : "NeedsUserReview";
@@ -934,7 +933,7 @@
         ComponentActivity.RecordInformation(nameof(Database), operation, "The database UI operation started.");
         try
         {
-            await action().ConfigureAwait(false);
+            await action();
             ComponentActivity.RecordInformation(nameof(Database), operation, "The database UI operation completed.");
         }
         catch (OperationCanceledException)

@@ -93,6 +93,21 @@ class ProjectMaintenanceContracts(unittest.TestCase):
             self.assertIn(route, controller)
         self.assertGreaterEqual(controller.count("HumanApprovalRequired"), 8)
 
+    def test_snapshot_guard_is_multiline_safe_and_startup_migrations_remain_automatic(self):
+        guard = read("build/Assert-ProjectMaintenanceArchitecture.ps1")
+        snapshot = read("LocalGPTWebviewWrapper/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs")
+        initialization = read("LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/DatabaseInitializationService.cs")
+        program = read("LocalGPTWebviewWrapper/LocalGPT/Program.cs")
+
+        self.assertIn("$snapshotWithoutWhitespace = [regex]::Replace($content.Snapshot, '\\s+', '')", guard)
+        compact_snapshot = re.sub(r"\s+", "", snapshot)
+        self.assertIn(
+            'HasIndex("ProjectId","RevisionId","ProjectRelativePath").IsUnique()',
+            compact_snapshot,
+        )
+        self.assertIn("await db.Database.MigrateAsync(cancellationToken)", initialization)
+        self.assertIn("AddHostedService<DatabaseInitializationHostedService>()", program)
+
     def test_build_scripts_run_all_five_guards(self):
         for script_name in ("Build-LocalDevelopment.ps1", "Build-Release.ps1"):
             script = read(script_name)

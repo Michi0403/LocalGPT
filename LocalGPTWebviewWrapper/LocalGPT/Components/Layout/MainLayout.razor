@@ -8,6 +8,7 @@
 @inject IComponentActivityService ComponentActivity
 
 <div class="page" data-testid="main-layout">
+    <ToastWrapper Name="ComponentSafetyToasts" />
 
     <Drawer DrawerHeader="drawerHeader" DrawerFooter="drawerFooter">
         <DrawerBody>
@@ -39,6 +40,7 @@
                 <SafeErrorBoundary @key="NavigationManager.Uri" Area="MainLayout" ToastName="ComponentSafetyToasts">
                     @Body
                 </SafeErrorBoundary>
+                <InteractiveStartupMarker />
             </article>
         </DrawerTarget>
     </Drawer>
@@ -53,12 +55,33 @@
 
     protected override void OnParametersSet()
     {
-        ComponentActivity.RecordInformation(nameof(MainLayout), "LayoutState", ToggledSidebar ? "Navigation drawer is open." : "Navigation drawer is closed.", NavigationManager.Uri);
+        try
+        {
+            Logger.LogDebug("Applying MainLayout parameters for {Path}.", new Uri(NavigationManager.Uri).LocalPath);
+            ComponentActivity.RecordInformation(nameof(MainLayout), "LayoutState", ToggledSidebar ? "Navigation drawer is open." : "Navigation drawer is closed.", NavigationManager.Uri);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "MainLayout parameter handling failed.");
+            ComponentActivity.RecordFailure(nameof(MainLayout), nameof(OnParametersSet), ex);
+            Notifier.ShowError("ComponentSafetyToasts", "The layout could not apply its navigation state. See local logs for details.", "Layout error");
+        }
     }
     private string CultureUrl(string culture)
     {
-        var returnUrl = new Uri(NavigationManager.Uri).PathAndQuery;
-        return $"api/localization/select?culture={Uri.EscapeDataString(culture)}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+        try
+        {
+            var returnUrl = new Uri(NavigationManager.Uri).PathAndQuery;
+            Logger.LogDebug("Created a localization navigation URL for culture {Culture}.", culture);
+            return $"api/localization/select?culture={Uri.EscapeDataString(culture)}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not create the localization navigation URL for culture {Culture}.", culture);
+            ComponentActivity.RecordFailure(nameof(MainLayout), nameof(CultureUrl), ex);
+            Notifier.ShowError("ComponentSafetyToasts", "The language switch link could not be created. See local logs for details.", "Language switch error");
+            return "/";
+        }
     }
 
     private RenderFragment drawerHeader => @<div class="navigation-drawer-header">

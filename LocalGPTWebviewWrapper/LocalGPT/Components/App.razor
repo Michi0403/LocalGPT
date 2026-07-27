@@ -44,7 +44,7 @@
     <link rel="apple-touch-icon" sizes="192x192" href="android-chrome-192x192.png" />
     <link rel="icon" type="image/png" href="favicon-32x32" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <HeadOutlet />
+    <HeadOutlet @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
 </head>
 <body>
     <div id="switcher-container" data-permanent></div>
@@ -52,9 +52,7 @@
         <strong>@Localization.Get("Startup.Connecting", fallback: "LocalGPT UI is connecting")</strong>
         <span>@Localization.Get("Startup.Attaching", fallback: "Controls become active after Blazor finishes attaching.")</span>
     </div>
-    <ToastWrapper Name="ComponentSafetyToasts" />
-    <Routes></Routes>
-    <InteractiveStartupMarker />
+    <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))"></Routes>
     @*     <script src="js/devextreme-license.js" type="module"></script> *@
     <script type="module" src="js/push.js"></script>
     <script type="module" src="js/loginToSetCookie.js"></script>
@@ -87,7 +85,6 @@
         };
 
         Blazor.start()
-            .then(() => window.localGptReady.markInteractive())
             .catch(error => {
                 console.error(error);
                 document.documentElement.classList.add('localgpt-interactive-error');

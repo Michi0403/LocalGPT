@@ -26,3 +26,7 @@
 @using System.Globalization
 @using LocalGPT.Extensions
 @using LocalGPT.Components.Shared
+
+@inject ILoggerFactory OperationalLoggerFactory
+@inject INotificationService OperationalNotifier
+@inject IComponentActivityService OperationalActivity

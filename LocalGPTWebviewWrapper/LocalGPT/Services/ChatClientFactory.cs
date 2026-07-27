@@ -37,6 +37,7 @@ namespace LocalGPT.Services
             {
                 var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
                 var sessions = new List<ChatClientSession>();
+                var configuredOllamaEndpoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 logger.LogInformation("Building configured chat provider sessions.");
 
@@ -44,6 +45,7 @@ namespace LocalGPT.Services
                 foreach (var ollama in councilRuntime.GetConfiguredOllamaProviders(options, logger))
                 {
                     logger.LogInformation("Found Ollama-compatible provider at {Endpoint} for model {Model}.", ollama.Uri, ollama.ModelName);
+                    configuredOllamaEndpoints.Add(NormalizeProviderIdentity(ollama.Uri));
 
                     var ollamaChat = new OllamaThinkingChatClient(
                         ollama,
@@ -124,20 +126,23 @@ namespace LocalGPT.Services
                 // --- Local OpenAI-compatible (LM Studio / vLLM / text-gen-webui) ---
                 if (options.ChatGPTLocalCore is { Endpoint.Length: > 0 } loc)
                 {
-                    // Prefer configured Ollama endpoints, then the explicitly configured local endpoint and standard fallbacks.
-                    var configuredOllamaEndpoints = options.OllamaCores
-                        .Prepend(options.OllamaCore)
-                        .Where(core => core is not null && !string.IsNullOrWhiteSpace(core.Uri))
-                        .Select(core => core.Uri);
-                    var candidateEndpoints = configuredOllamaEndpoints
-                        .Concat(new[]
+                    var configuredLocalIdentity = NormalizeProviderIdentity(loc.Endpoint);
+                    if (configuredOllamaEndpoints.Contains(configuredLocalIdentity))
+                    {
+                        logger.LogInformation(
+                            "Skipping duplicate OpenAI-compatible registration for {Endpoint}; the same Ollama provider is already available through the native client.",
+                            loc.Endpoint);
+                    }
+                    else
+                    {
+                        // Prefer the explicitly configured local endpoint, then LM Studio fallbacks.
+                        // Native Ollama endpoints are already registered above and are intentionally not probed twice.
+                        var candidateEndpoints = new[]
                         {
                             loc.Endpoint,
-                            "http://localhost:11434/v1",
-                            "http://127.0.0.1:11434/v1",
-                            "http://localhost:1234/v1",
-                            "http://127.0.0.1:1234/v1"
-                        })
+                            "http://127.0.0.1:1234/v1",
+                            "http://localhost:1234/v1"
+                        }
                         .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint))
                         .Select(NormalizeOpenAiCompatibleEndpoint)
                         .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -184,7 +189,8 @@ namespace LocalGPT.Services
                     }
                     else
                     {
-                        logger.LogInformation("The configured local endpoint ({Endpoint}) and common fallbacks (Ollama: 11434, LM Studio: 1234) are offline or expose no models; none were added to the active chat selector.", loc.Endpoint);
+                        logger.LogInformation("The configured local endpoint ({Endpoint}) and LM Studio fallback (1234) are offline or expose no models; none were added to the active chat selector.", loc.Endpoint);
+                    }
                     }
                 }
 
@@ -240,14 +246,25 @@ namespace LocalGPT.Services
             }
         }
 
+        private static string NormalizeProviderIdentity(string value)
+        {
+            var endpoint = NormalizeOpenAiCompatibleEndpoint(value);
+            var uri = new Uri(endpoint, UriKind.Absolute);
+            var host = string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ? "127.0.0.1" : uri.Host;
+            return $"{uri.Scheme}://{host}:{uri.Port}";
+        }
+
         private static string NormalizeOpenAiCompatibleEndpoint(string value)
         {
             var endpoint = value.Trim().TrimEnd('/');
             if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
                 throw new InvalidOperationException("The local OpenAI-compatible endpoint is not a valid absolute URI.");
-            if (string.IsNullOrWhiteSpace(uri.AbsolutePath) || uri.AbsolutePath == "/")
-                endpoint += "/v1";
-            return endpoint;
+            var builder = new UriBuilder(uri);
+            if (string.Equals(builder.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+                builder.Host = "127.0.0.1";
+            if (string.IsNullOrWhiteSpace(builder.Path) || builder.Path == "/")
+                builder.Path = "/v1";
+            return builder.Uri.ToString().TrimEnd('/');
         }
     }
 }

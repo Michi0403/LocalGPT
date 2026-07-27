@@ -1,5 +1,4 @@
 @inject ThemeService Themes
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject ILogger<ThemeSwitcherItem> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -18,6 +17,6 @@
         if (Theme is null)
             return;
 
-        await Click.InvokeAsync(Theme).ConfigureAwait(false);
+        await Click.InvokeAsync(Theme);
     }
 }

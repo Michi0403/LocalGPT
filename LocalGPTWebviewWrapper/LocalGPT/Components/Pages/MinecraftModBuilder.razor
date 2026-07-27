@@ -6,7 +6,6 @@
 @inject IChatClient? ChatClient
 @inject IMultiModelCouncilService CouncilService
 @inject NavigationManager Navigation
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject ILogger<MinecraftModBuilder> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -252,10 +251,10 @@
         {
             await RunUiActionAsync(async () =>
        {
-           await CreateWorkspaceCoreAsync().ConfigureAwait(false);
+           await CreateWorkspaceCoreAsync();
            if (workspace is not null)
                Notifier.ShowSuccess(toastName, workspace.RootPath, "Workspace created");
-       }, "CreateWorkspaceAsync").ConfigureAwait(false);
+       }, "CreateWorkspaceAsync");
         }
         catch (Exception ex)
         {
@@ -270,11 +269,11 @@
         {
             await RunUiActionAsync(async () =>
        {
-           await CreateWorkspaceCoreAsync().ConfigureAwait(false);
-           await RunCommandCoreAsync().ConfigureAwait(false);
+           await CreateWorkspaceCoreAsync();
+           await RunCommandCoreAsync();
            if (lastCommandResult?.Succeeded == true && !string.IsNullOrWhiteSpace(artifactDownloadUrl))
                Notifier.ShowSuccess(toastName, artifactFileName ?? "Datapack ZIP", "Datapack ZIP ready");
-       }, "CreateDatapackZipAsync").ConfigureAwait(false);
+       }, "CreateDatapackZipAsync");
         }
         catch (Exception ex)
         {
@@ -289,7 +288,7 @@
     {
         try
         {
-            workspace = await WorkspaceService.CreateWorkspaceAsync(request).ConfigureAwait(false);
+            workspace = await WorkspaceService.CreateWorkspaceAsync(request);
             ClearDownloadArtifact();
             lastCommandResult = null;
             commandFileName = "powershell.exe";
@@ -321,9 +320,9 @@
                 new ChatMessage(ChatRole.User, CreatePlanningPrompt())
                 };
 
-                var response = await ChatClient.GetResponseAsync(messages).ConfigureAwait(false);
+                var response = await ChatClient.GetResponseAsync(messages);
                 aiPlan = response.Text;
-            }, "GeneratePlanAsync").ConfigureAwait(false);
+            }, "GeneratePlanAsync");
         }
         catch (Exception ex)
         {
@@ -352,12 +351,12 @@
                OllamaNumGpu = useCpuOnlyCouncil ? 0 : null,
                IncludeMemory = true,
                SaveToMemory = true
-           }).ConfigureAwait(false);
+           });
 
            lastCouncilResult = result;
            aiPlan = result.FinalAnswer;
            Notifier.ShowSuccess(toastName, "Council plan saved to log and memory.", "AI Council complete");
-       }, "GenerateCouncilPlanAsync").ConfigureAwait(false);
+       }, "GenerateCouncilPlanAsync");
         }
         catch (Exception ex)
         {
@@ -379,12 +378,12 @@
 
             await RunUiActionAsync(async () =>
             {
-                await RunCommandCoreAsync().ConfigureAwait(false);
+                await RunCommandCoreAsync();
                 if (lastCommandResult?.Succeeded == true)
                     Notifier.ShowSuccess(toastName, "Command finished successfully.", "Command complete");
                 else
                     Notifier.ShowError(toastName, $"Exit code {lastCommandResult?.ExitCode.ToString() ?? "unknown"}", "Command failed");
-            }, "RunCommandAsync").ConfigureAwait(false);
+            }, "RunCommandAsync");
         }
         catch (Exception ex)
         {
@@ -406,7 +405,7 @@
                 commandFileName,
                 commandArguments,
                 workspace.RootPath,
-                userConfirmed: true).ConfigureAwait(false);
+                userConfirmed: true);
             ArgumentNullException.ThrowIfNull(lastCommandResult);
             if (lastCommandResult.Succeeded)
             {
@@ -566,7 +565,7 @@
         ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation started.");
         try
         {
-            await action().ConfigureAwait(false);
+            await action();
             ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation completed.");
         }
         catch (OperationCanceledException)

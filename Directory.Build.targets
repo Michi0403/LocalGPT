@@ -60,7 +60,7 @@
     <ProjectMaintenanceArchitectureScript>$(MSBuildThisFileDirectory)build\Assert-ProjectMaintenanceArchitecture.ps1</ProjectMaintenanceArchitectureScript>
   </PropertyGroup>
 
-  <!--<Target Name="AssertLocalGptProjectMaintenanceArchitecture"
+  <Target Name="AssertLocalGptProjectMaintenanceArchitecture"
           BeforeTargets="BeforeBuild"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipProjectMaintenanceArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(ProjectMaintenanceArchitectureScript)')"
@@ -71,7 +71,7 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>-->
+  </Target>
 
   <PropertyGroup>
     <GitSourceVisibilityScript>$(MSBuildThisFileDirectory)build\Assert-GitSourceVisibility.ps1</GitSourceVisibilityScript>
@@ -89,5 +89,24 @@
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
   </Target>
+
+
+  <PropertyGroup>
+    <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>
+  </PropertyGroup>
+
+  <!--<Target Name="AssertLocalGptOperationalDiagnostics"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptLoggingIntegrity"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOperationalDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(OperationalDiagnosticsScript)')"
+           Text="Operational diagnostics guard script is missing: $(OperationalDiagnosticsScript)" />
+    <Exec Condition="Exists('$(OperationalDiagnosticsScript)')"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(OperationalDiagnosticsScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>-->
 
 </Project>

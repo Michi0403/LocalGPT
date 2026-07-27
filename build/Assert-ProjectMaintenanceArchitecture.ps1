@@ -45,7 +45,8 @@ foreach ($token in @('ProjectWorkspaceRoots','ProjectCompilerInstallations','Loc
 }
 if ($content.Context -notmatch 'ProjectId,\s*item\.RevisionId,\s*item\.ProjectRelativePath') { Fail 'Tracked-file uniqueness must include the revision id.' }
 if ($content.IdentityMigration -notmatch 'IX_LocalGptProjectTrackedFiles_ProjectId_RevisionId_ProjectRelativePath') { Fail 'Revision-aware tracked-file index repair migration is missing.' }
-if ($content.Snapshot -notmatch 'HasIndex\("ProjectId",\s*"RevisionId",\s*"ProjectRelativePath"\)\.IsUnique') { Fail 'EF model snapshot does not contain the revision-aware tracked-file identity.' }
+$snapshotWithoutWhitespace = [regex]::Replace($content.Snapshot, '\s+', '')
+if ($snapshotWithoutWhitespace -notmatch 'HasIndex\("ProjectId","RevisionId","ProjectRelativePath"\)\.IsUnique\(\)') { Fail 'EF model snapshot does not contain the revision-aware tracked-file identity.' }
 if ($content.Program -notmatch 'AddScoped<IProjectMaintenanceService,\s*ProjectMaintenanceService>') { Fail 'Project maintenance service is not registered.' }
 
 foreach ($token in @(

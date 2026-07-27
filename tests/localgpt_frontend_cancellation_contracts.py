@@ -6,15 +6,26 @@ APP = ROOT / "LocalGPTWebviewWrapper" / "LocalGPT"
 
 
 class LocalGptFrontendCancellationContracts(unittest.TestCase):
-    def test_runtime_components_do_not_prerender_interactive_server_islands(self):
+    def test_routed_ui_uses_one_non_prerendered_interactive_tree(self):
+        app = (APP / "Components" / "App.razor").read_text(encoding="utf-8")
+        self.assertIn('<Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))">', app)
+        self.assertNotIn('<InteractiveStartupMarker />', app)
         for path in (APP / "Components").rglob("*.razor"):
+            if path.name == "App.razor":
+                continue
             text = path.read_text(encoding="utf-8")
-            self.assertNotIn("@rendermode InteractiveServer", text, path)
-            self.assertNotIn("prerender: true", text, path)
+            self.assertNotIn("@rendermode", text, path)
+            self.assertNotIn("ConfigureAwait(false)", text, path)
+        layout = (APP / "Components" / "Layout" / "MainLayout.razor").read_text(encoding="utf-8")
+        self.assertIn("<InteractiveStartupMarker />", layout)
+        self.assertIn('<ToastWrapper Name="ComponentSafetyToasts" />', layout)
+        self.assertNotIn('<ToastWrapper Name="ComponentSafetyToasts"', app)
 
     def test_chat_autosave_starts_after_interactive_attach_without_cancelled_delay(self):
         chat = (APP / "Components" / "Pages" / "Chat.razor").read_text(encoding="utf-8")
         self.assertIn("interactiveAttached = true;", chat)
+        self.assertIn("StartInitialModelRefresh();", chat)
+        self.assertNotIn('JS.InvokeVoidAsync("localGptReady.markInteractive")', chat)
         self.assertIn("WaitForAutoSaveIntervalAsync", chat)
         self.assertNotIn("Task.Delay(TimeSpan.FromSeconds(12), cancellationToken)", chat)
         initialized = chat.split("void ChatInitialized()", 1)[1].split("private async Task ClearHistoryAsync", 1)[0]
@@ -37,3 +48,17 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LocalGptDiagnosticsContracts(unittest.TestCase):
+    def test_operational_diagnostics_gate_is_wired(self):
+        root = ROOT
+        targets = (root / "Directory.Build.targets").read_text(encoding="utf-8")
+        gate = (root / "build" / "Assert-OperationalDiagnostics.ps1").read_text(encoding="utf-8")
+        self.assertIn("Assert-OperationalDiagnostics.ps1", targets)
+        self.assertIn("Dispose methods are exempt", gate)
+        self.assertIn("Operational diagnostics validation passed", gate)
+        imports = (APP / "Components" / "_Imports.razor").read_text(encoding="utf-8")
+        self.assertIn("OperationalLoggerFactory", imports)
+        self.assertIn("OperationalNotifier", imports)
+        self.assertIn("MigrateAsync", gate)
