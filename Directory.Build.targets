@@ -1,11 +1,23 @@
 <Project>
   <!--
     Direct Windows/Visual Studio builds must not bypass the monotonic logging baseline.
-    Release/development scripts run the same guard once and set SkipLoggingIntegrityGuard.
+    The guard is Windows PowerShell 5.1 compatible. Release/development scripts run
+    the same guard once and set SkipLoggingIntegrityGuard for nested MSBuild calls.
   -->
+  <PropertyGroup>
+    <LoggingIntegrityScript>$(MSBuildThisFileDirectory)build\Assert-LoggingIntegrity.ps1</LoggingIntegrityScript>
+  </PropertyGroup>
+
   <Target Name="AssertLocalGptLoggingIntegrity"
           BeforeTargets="BeforeBuild"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipLoggingIntegrityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)build\Assert-LoggingIntegrity.ps1&quot;" />
+    <Error Condition="!Exists('$(LoggingIntegrityScript)')"
+           Text="Logging integrity guard script is missing: $(LoggingIntegrityScript)" />
+    <Exec Condition="Exists('$(LoggingIntegrityScript)')"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LoggingIntegrityScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
   </Target>
 </Project>
