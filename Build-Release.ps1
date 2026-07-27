@@ -29,6 +29,7 @@ $loggingGuard = Join-Path $root "build\Assert-LoggingIntegrity.ps1"
 & $loggingGuard
 & (Join-Path $root "build\Assert-OneWireArchitecture.ps1")
 & (Join-Path $root "build\Assert-LocalizationIntegrity.ps1")
+& (Join-Path $root "build\Assert-GitSourceVisibility.ps1")
 & (Join-Path $root "build\Assert-ProjectMaintenanceArchitecture.ps1")
 
 function Invoke-DotNet {
@@ -86,6 +87,7 @@ function Ensure-WireProtocolPackage {
         "-p:SkipLoggingIntegrityGuard=true",
     "-p:SkipOneWireArchitectureGuard=true",
     "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true"
     ) -FailureMessage "LocalGPT 1-Wire package creation failed."
 
@@ -114,6 +116,7 @@ function Publish-Runtime {
         "-p:SkipLoggingIntegrityGuard=true",
     "-p:SkipOneWireArchitectureGuard=true",
     "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true"
     )
 
@@ -140,6 +143,7 @@ function Publish-Runtime {
     Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Rid, "--disable-parallel", "-p:SkipLoggingIntegrityGuard=true",
     "-p:SkipOneWireArchitectureGuard=true",
     "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true") -FailureMessage "LocalGPT setup restore failed for $Rid."
 
     Write-Host "Publishing LocalGPT setup for $Rid..." -ForegroundColor Cyan
@@ -159,6 +163,7 @@ function Publish-Runtime {
         "-p:SkipLoggingIntegrityGuard=true",
     "-p:SkipOneWireArchitectureGuard=true",
     "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true"
     ) -FailureMessage "LocalGPT setup publish failed for $Rid."
 
@@ -191,6 +196,7 @@ function Publish-Runtime {
             "-p:SkipLoggingIntegrityGuard=true",
     "-p:SkipOneWireArchitectureGuard=true",
     "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true"
         ) -FailureMessage "WinUI wrapper restore failed for $Rid."
         Invoke-DotNet -Arguments @(
@@ -209,6 +215,7 @@ function Publish-Runtime {
             "-p:SkipLoggingIntegrityGuard=true",
     "-p:SkipOneWireArchitectureGuard=true",
     "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true"
         ) -FailureMessage "WinUI wrapper publish failed for $Rid."
         Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force

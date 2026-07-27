@@ -28,7 +28,7 @@ class ProjectMaintenanceContracts(unittest.TestCase):
         self.assertGreaterEqual(len(catalogs[0]), 1200)
         guard = read("build/Assert-LocalizationIntegrity.ps1")
         self.assertIn("case-insensitive duplicate keys", guard)
-        self.assertLess(guard.index("case-insensitive duplicate keys"), guard.index("try { $catalog = $raw | ConvertFrom-Json"))
+        self.assertLess(guard.index("case-insensitive duplicate keys"), guard.index("try { $catalog = ConvertFrom-Json -InputObject $raw }"))
 
     def test_database_stores_revision_aware_file_paths_and_regex_metadata(self):
         models = read("LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/ProjectMaintenanceModels.cs")
@@ -93,16 +93,17 @@ class ProjectMaintenanceContracts(unittest.TestCase):
             self.assertIn(route, controller)
         self.assertGreaterEqual(controller.count("HumanApprovalRequired"), 8)
 
-    def test_build_scripts_run_all_four_guards(self):
+    def test_build_scripts_run_all_five_guards(self):
         for script_name in ("Build-LocalDevelopment.ps1", "Build-Release.ps1"):
             script = read(script_name)
             for guard in (
                 "Assert-LoggingIntegrity.ps1", "Assert-OneWireArchitecture.ps1",
-                "Assert-LocalizationIntegrity.ps1", "Assert-ProjectMaintenanceArchitecture.ps1"
+                "Assert-LocalizationIntegrity.ps1", "Assert-GitSourceVisibility.ps1", "Assert-ProjectMaintenanceArchitecture.ps1"
             ):
                 self.assertIn(guard, script, f"{guard} missing from {script_name}")
         targets = read("Directory.Build.targets")
         self.assertIn("AssertLocalGptProjectMaintenanceArchitecture", targets)
+        self.assertIn("AssertLocalGptGitSourceVisibility", targets)
 
 
 if __name__ == "__main__":

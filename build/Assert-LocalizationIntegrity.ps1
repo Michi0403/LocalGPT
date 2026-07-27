@@ -2,20 +2,44 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Fail([string]$Message) { throw "Localization integrity validation failed: $Message" }
+
+# Keep this script ASCII-only. Windows PowerShell 5.1 reads UTF-8 scripts without a
+# BOM using the active ANSI code page; non-ASCII source literals would be corrupted.
+$script:StrictUtf8 = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList @($false, $true)
+
+function Read-StrictUtf8([string]$Path) {
+    try { return [System.IO.File]::ReadAllText($Path, $script:StrictUtf8) }
+    catch { Fail "Catalog is not valid UTF-8: $Path. $($_.Exception.Message)" }
+}
+
+function Expand-SpaceMarkers([string]$Template) {
+    $spaceMarker = [string][char]0x2420
+    return $Template.Replace('<SP>', $spaceMarker)
+}
+
+function Assert-NoMojibake([string]$Raw, [string]$Path) {
+    foreach ($codePoint in @(0xFFFD, 0x00C2, 0x00C3)) {
+        if ($Raw.IndexOf([char]$codePoint) -ge 0) {
+            Fail "Catalog contains a replacement or mojibake marker (U+$('{0:X4}' -f $codePoint)): $Path"
+        }
+    }
+}
+
 function Read-Catalog([string]$Path) {
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    $raw = Read-StrictUtf8 $Path
+    Assert-NoMojibake $raw $Path
     $keyMatches = [regex]::Matches($raw, '(?m)^\s*"((?:\\.|[^"\\])*)"\s*:')
     $keys = New-Object System.Collections.Generic.List[string]
-    $seen = @{}
+    $seen = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($match in $keyMatches) {
-        try { $decoded = ('"' + $match.Groups[1].Value + '"') | ConvertFrom-Json }
+        try { $decoded = ConvertFrom-Json -InputObject ('"' + $match.Groups[1].Value + '"') }
         catch { Fail "Catalog key JSON could not be decoded in $Path. $($_.Exception.Message)" }
-        $normalized = ([string]$decoded).ToUpperInvariant()
-        if ($seen.ContainsKey($normalized)) { Fail "Catalog contains case-insensitive duplicate keys '$($seen[$normalized])' and '$decoded': $Path" }
-        $seen[$normalized] = [string]$decoded
-        $keys.Add([string]$decoded)
+        $key = [string]$decoded
+        if ($seen.ContainsKey($key)) { Fail "Catalog contains case-insensitive duplicate keys '$($seen[$key])' and '$key': $Path" }
+        $seen[$key] = $key
+        $keys.Add($key)
     }
-    try { $catalog = $raw | ConvertFrom-Json }
+    try { $catalog = ConvertFrom-Json -InputObject $raw }
     catch { Fail "A catalog is not valid JSON. $($_.Exception.Message)" }
     return [pscustomobject]@{ Catalog = $catalog; Keys = @($keys | Sort-Object) }
 }
@@ -34,12 +58,12 @@ $englishKeys = $englishResult.Keys
 $germanKeys = $germanResult.Keys
 if ($englishKeys.Count -lt 1200) { Fail "English catalog coverage unexpectedly dropped to $($englishKeys.Count) entries." }
 if (($englishKeys -join "`n") -cne ($germanKeys -join "`n")) { Fail 'English and German catalog keys differ.' }
-$required = @(
-    'Text.Start␠new␠chat',
-    'Text.Send␠message',
-    'Text.Attach␠files',
-    'Text.Former␠model␠thoughts',
-    'Text.Install␠-␠Configure␠AI␠Connectivity',
+$requiredTemplates = @(
+    'Text.Start<SP>new<SP>chat',
+    'Text.Send<SP>message',
+    'Text.Attach<SP>files',
+    'Text.Former<SP>model<SP>thoughts',
+    'Text.Install<SP>-<SP>Configure<SP>AI<SP>Connectivity',
     'Nav.ProjectMaintenance',
     'ProjectMaintenance.Title',
     'ProjectMaintenance.RevisionSourceRoot',
@@ -50,7 +74,8 @@ $required = @(
     'ProjectMaintenance.ApproveReady',
     'Common.NotRun'
 )
-foreach ($key in $required) {
+foreach ($template in $requiredTemplates) {
+    $key = Expand-SpaceMarkers $template
     $property = $german.PSObject.Properties[$key]
     if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) { Fail "Required German UI string is missing: $key" }
 }

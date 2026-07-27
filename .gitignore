@@ -84,3 +84,16 @@ LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/devextreme-license.js
 # Generated authoritative protocol package cache
 packages/*.nupkg
 packages/*.snupkg
+
+# Keep build gates, regression tests and localization catalogs visible to Git.
+!Directory.Build.targets
+!Build-LocalDevelopment.ps1
+!Build-Release.ps1
+!build/
+!build/*.ps1
+!tests/
+!tests/*.py
+!LocalGPTWebviewWrapper/LocalGPT/Localization/
+!LocalGPTWebviewWrapper/LocalGPT/Localization/*.json
+tests/__pycache__/localgpt_council_onewire_publish_hotfix_contracts.cpython-313.pyc
+tests/__pycache__/

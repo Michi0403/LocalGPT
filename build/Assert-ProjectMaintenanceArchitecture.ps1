@@ -18,6 +18,7 @@ $files = @{
     Snapshot = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Migrations\LocalGptMemoryDbContextModelSnapshot.cs'
     Program = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Program.cs'
     LocalizationGuard = Join-Path $root 'build\Assert-LocalizationIntegrity.ps1'
+    GitSourceVisibilityGuard = Join-Path $root 'build\Assert-GitSourceVisibility.ps1'
 }
 foreach ($entry in $files.GetEnumerator()) {
     if (-not (Test-Path -LiteralPath $entry.Value -PathType Leaf)) { Fail "Missing $($entry.Key): $($entry.Value)" }
@@ -80,5 +81,6 @@ foreach ($token in @('@page "/project-maintenance"','Revision source root','Stru
     if ($content.Page -notmatch [regex]::Escape($token)) { Fail "Project maintenance setup page is incomplete: $token" }
 }
 if ($content.Service -notmatch 'ILogger<ProjectMaintenanceService>' -or $content.Service -notmatch '\.LogInformation\(' -or $content.Service -notmatch '\bcatch\b') { Fail 'Project maintenance service logging/catch contract is incomplete.' }
-if ($content.LocalizationGuard -notmatch 'case-insensitive duplicate keys' -or $content.LocalizationGuard -notmatch 'ConvertFrom-Json') { Fail 'Localization duplicate-key guard is missing.' }
+if ($content.LocalizationGuard -notmatch 'case-insensitive duplicate keys' -or $content.LocalizationGuard -notmatch 'ConvertFrom-Json' -or $content.LocalizationGuard -notmatch '\[char\]0x2420') { Fail 'Localization duplicate-key/encoding guard is missing.' }
+if ($content.GitSourceVisibilityGuard -notmatch 'git check-ignore' -or $content.GitSourceVisibilityGuard -notmatch 'Required .gitignore protection rule') { Fail 'Git source visibility guard is missing.' }
 Write-Host 'Project maintenance architecture validation passed.'

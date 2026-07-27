@@ -12,6 +12,8 @@ $repoRoot = Get-LocalGptRepositoryRoot
 Push-Location $repoRoot
 try {
     & ./build/Assert-ProtectedRepositoryFiles.ps1
+    & ./build/Assert-LocalizationIntegrity.ps1
+    & ./build/Assert-GitSourceVisibility.ps1
     & ./build/Assert-ProjectClosure.ps1
     & ./build/Assert-SourceFormatting.ps1
     & ./build/Assert-SecurityPolicy.ps1
