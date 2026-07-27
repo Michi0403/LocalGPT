@@ -9,7 +9,7 @@
 @inject ISqliteTableEditorService TableEditor
 @inject ISqliteEditorPreferenceService EditorPreferences
 @inject IKnowledgeRatingService KnowledgeRatings
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject ILogger<Database> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity

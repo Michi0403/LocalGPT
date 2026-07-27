@@ -19,7 +19,7 @@
 @inject IChatSessionContext SessionContext
 @inject IHumanCollaborationService HumanCollaboration
 @inject ILocalHumanInteractionContext HumanAmbientContext
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 @inject ILogger<Chat> Logger
 @inject INotificationService Notifier
@@ -565,8 +565,9 @@
     string feedbackStatus = string.Empty;
     bool isMemoryBusy;
     bool isModelRefreshBusy;
-    CancellationTokenSource? autoSaveCts;
     readonly CancellationTokenSource componentLifetimeCts = new();
+    bool autoSaveStarted;
+    bool interactiveAttached;
     bool isDisposed;
     HumanCollaborationSnapshot collaborationSnapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
     Guid? SelectedCouncilRunId { get; set; }
@@ -749,27 +750,28 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender || isDisposed)
+            return;
+
         try
         {
-            if (!firstRender)
-                return;
-
-            try
-            {
-                await JS.InvokeVoidAsync("localGptReady.markInteractive").ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Could not mark the Chat page as interactively attached.");
-                ComponentActivity.RecordWarning(nameof(Chat), "InteractiveAttachMarker", "The Chat page could not publish its optional interactive-ready marker.");
-            }
+            await JS.InvokeVoidAsync("localGptReady.markInteractive").ConfigureAwait(false);
+            interactiveAttached = true;
+            StartAutoSaveLoop();
+        }
+        catch (JSDisconnectedException) when (isDisposed)
+        {
+            // The circuit was closed while the first interactive render was finishing.
+        }
+        catch (OperationCanceledException) when (isDisposed || componentLifetimeCts.IsCancellationRequested)
+        {
+            // Expected during navigation or application shutdown.
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Exception in OnAfterRenderAsync: {Message}", ex);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogWarning(ex, "Could not finish the Chat interactive attach sequence.");
+            ComponentActivity.RecordWarning(nameof(Chat), "InteractiveAttachMarker", "The Chat page could not finish its interactive attach sequence.");
         }
-
     }
 
     void ChatInitialized()
@@ -779,7 +781,6 @@
             ApplyDiagnosticQueryOptions(selectSession: true);
             LoadSelectedSessionMessages();
             RefreshFeedbackTargets();
-            StartAutoSaveLoop();
         }
         catch (Exception ex)
         {
@@ -2123,61 +2124,61 @@
 
     private void StartAutoSaveLoop()
     {
-        try
-        {
-            if (autoSaveCts is not null)
-                return;
+        if (autoSaveStarted || !interactiveAttached || isDisposed)
+            return;
 
-            autoSaveCts = CancellationTokenSource.CreateLinkedTokenSource(componentLifetimeCts.Token);
-            TaskRunner.Run(
-                nameof(Chat),
-                "AutoSaveLoop",
-                AutoSaveLoopAsync,
-                autoSaveCts.Token);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-        }
-      
+        autoSaveStarted = true;
+        TaskRunner.Run(
+            nameof(Chat),
+            "AutoSaveLoop",
+            AutoSaveLoopAsync,
+            componentLifetimeCts.Token);
+    }
+
+    private static async Task<bool> WaitForAutoSaveIntervalAsync(CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+            return false;
+
+        var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = cancellationToken.Register(static state =>
+            ((TaskCompletionSource<bool>)state!).TrySetResult(true), cancelled);
+        var delay = Task.Delay(TimeSpan.FromSeconds(12));
+        var completed = await Task.WhenAny(delay, cancelled.Task).ConfigureAwait(false);
+        return completed == delay && !cancellationToken.IsCancellationRequested;
     }
 
     private async Task AutoSaveLoopAsync(CancellationToken cancellationToken)
     {
-        try
+        while (await WaitForAutoSaveIntervalAsync(cancellationToken).ConfigureAwait(false))
         {
-            while (!cancellationToken.IsCancellationRequested)
+            if (isDisposed)
+                break;
+
+            try
             {
-                try
+                await InvokeAsync(() => PersistCurrentConversationAsync(force: false, showToast: false)).ConfigureAwait(false);
+                autoSaveFailureNotified = false;
+            }
+            catch (ObjectDisposedException) when (isDisposed)
+            {
+                break;
+            }
+            catch (InvalidOperationException) when (isDisposed || cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Chat memory auto-save failed; conversation content was omitted from logs.");
+                ComponentActivity.RecordFailure(nameof(Chat), "AutoSaveConversation", ex);
+                if (!autoSaveFailureNotified)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken).ConfigureAwait(false);
-                    await InvokeAsync(async () => await PersistCurrentConversationAsync(force: false, showToast: false).ConfigureAwait(false)).ConfigureAwait(false);
-                    autoSaveFailureNotified = false;
-                }
-                catch (OperationCanceledException ex)
-                {
-                    Logger.LogInformation(ex, "AutoSaveLoopAsync cancelled: {Message}", ex.Message);
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Chat memory auto-save failed; conversation content was omitted from logs.");
-                    ComponentActivity.RecordFailure(nameof(Chat), "AutoSaveConversation", ex);
-                    if (!autoSaveFailureNotified)
-                    {
-                        autoSaveFailureNotified = true;
-                        Notifier.ShowWarning(toastName, "Chat auto-save failed. Your current screen remains available; review local logs before closing the conversation.", "Auto-save warning");
-                    }
+                    autoSaveFailureNotified = true;
+                    Notifier.ShowWarning(toastName, "Chat auto-save failed. Your current screen remains available; review local logs before closing the conversation.", "Auto-save warning");
                 }
             }
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-        }
-        
     }
 
     private async Task RefreshHumanCollaborationAsync()
@@ -2317,11 +2318,13 @@
             isDisposed = true;
             HumanCollaboration.Changed -= OnHumanCollaborationChanged;
             componentLifetimeCts.Cancel();
-            autoSaveCts?.Cancel();
-            autoSaveCts?.Dispose();
+            if (interactiveAttached && DxAiChat is not null)
+            {
+                try { SaveMessagesForSelectedSession(DxAiChat.SaveMessages()); }
+                catch (OperationCanceledException) { }
+                catch (InvalidOperationException) when (isDisposed) { }
+            }
             componentLifetimeCts.Dispose();
-            if (DxAiChat is not null)
-                SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
         }
         catch (Exception ex)
         {

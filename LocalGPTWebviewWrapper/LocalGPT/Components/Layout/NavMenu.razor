@@ -1,5 +1,5 @@
 @namespace LocalGPT.Components.Layout
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject ILogger<NavMenu> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity

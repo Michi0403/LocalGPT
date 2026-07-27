@@ -1345,5 +1345,6 @@
   "ProjectMaintenance.RevisionWorkspaceSaveFailed": "Could not save the revision workspace.",
   "ProjectMaintenance.FileMetadataLoadFailed": "Could not load tracked file metadata.",
   "ProjectMaintenance.FilePatternsSaved": "Tracked file patterns saved.",
-  "ProjectMaintenance.FilePatternsSaveFailed": "Could not save the tracked file patterns."
+  "ProjectMaintenance.FilePatternsSaveFailed": "Could not save the tracked file patterns.",
+  "Text.Local␠OpenAI-compatible␠servers␠are␠detected␠automatically.␠Ollama␠normally␠uses␠http://localhost:11434/v1;␠LM␠Studio␠normally␠uses␠http://localhost:1234/v1.␠Test␠Connection␠verifies␠the␠selected␠endpoint␠and␠discovers␠the␠active␠model␠id.": "Local OpenAI-compatible servers are detected automatically. Ollama normally uses http://localhost:11434/v1; LM Studio normally uses http://localhost:1234/v1. Test Connection verifies the selected endpoint and discovers the active model id."
 }

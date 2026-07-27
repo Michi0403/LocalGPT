@@ -1,5 +1,5 @@
 @page "/dx-functions"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IDxAiFunctionCatalogService Catalog
 @inject ILogger<DxFunctionCatalog> Logger
 @inject IComponentActivityService ComponentActivity

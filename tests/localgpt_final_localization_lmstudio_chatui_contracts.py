@@ -50,7 +50,8 @@ require('endpoint.TrimEnd(\'/\') + "/models"' in factory, "Local OpenAI-compatib
 require("LM Studio / OpenAI-compatible" in factory, "LM Studio must remain a first-class local OpenAI-compatible chat provider.")
 require("ResolveOpenAiCompatibleModel" in factory, "LM Studio model discovery guard is missing.")
 settings = json.loads((APP / "appsettings.json").read_text(encoding="utf-8"))
-require(settings["AICore"]["ChatGPTLocalCore"]["Endpoint"] == "http://localhost:1234/v1", "LM Studio's documented local OpenAI base URL must remain the default.")
+require(settings["AICore"]["ChatGPTLocalCore"]["Endpoint"] == "http://localhost:11434/v1", "Fresh local OpenAI-compatible setup must use Ollama's working endpoint by default.")
+require('"http://localhost:1234/v1"' in factory, "LM Studio port 1234 must remain available as an automatic fallback.")
 
 
 # Every maintained Razor label/tooltip that can be identified statically is registered in

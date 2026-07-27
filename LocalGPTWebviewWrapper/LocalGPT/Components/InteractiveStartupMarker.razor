@@ -18,11 +18,18 @@
                 Logger.LogInformation("LocalGPT interactive UI attached successfully.");
             }
         }
+        catch (JSDisconnectedException)
+        {
+            // The application window closed before the optional ready marker completed.
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal during circuit shutdown.
+        }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            ComponentActivity.RecordFailure(nameof(InteractiveStartupMarker), "InteractiveReady", ex);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogWarning(ex, "The optional interactive-ready marker could not be published.");
+            ComponentActivity.RecordWarning(nameof(InteractiveStartupMarker), "InteractiveReady", "The optional interactive-ready marker could not be published.");
         }
     }
 }

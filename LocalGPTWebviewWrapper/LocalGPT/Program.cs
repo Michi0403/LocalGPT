@@ -686,7 +686,8 @@ namespace LocalGPT
                 _ = app.UseRequestLocalization();
                 app.UseStaticFiles();
                 app.UseRouting();
-                _ = app.UseResponseCompression();
+                if (!app.Environment.IsDevelopment())
+                    _ = app.UseResponseCompression();
                 app.UseAntiforgery();                 // ✅ after routing, before endpoints
                 app.MapControllers();
                 _ = app.MapHub<ChatHub>("/chathub");

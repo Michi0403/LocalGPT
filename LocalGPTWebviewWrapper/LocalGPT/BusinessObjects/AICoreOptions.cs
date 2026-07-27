@@ -14,9 +14,9 @@ namespace LocalGPT.BusinessObjects
     public class ChatGPTLocalCoreOptions
     {
         public const string ChatGPTLocalCore = "ChatGPTLocalCore";
-        public string Endpoint { get; set; } = "http://localhost:1234/v1";
-        public string ApiKey { get; set; } = "lm-studio";
-        public string ModelName { get; set; } = "gpt-oss-20b";
+        public string Endpoint { get; set; } = "http://localhost:11434/v1";
+        public string ApiKey { get; set; } = "local-no-key";
+        public string ModelName { get; set; } = "gpt-oss:20b";
         public bool AutoStartServer { get; set; } = false;
         public string? PythonEnvironment { get; set; }
         public string? StartScript { get; set; }  // e.g. path to run_gpt_oss_server.py

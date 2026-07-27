@@ -5,7 +5,7 @@
 @inject IConfigurationWriter Writer
 @inject IAiConnectivityProbe Probe
 @inject NavigationManager Nav
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject ILogger<Install> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -93,7 +93,7 @@
             <DxFormLayoutTabPages>
 
                 <DxFormLayoutTabPage Caption="LM Studio / local OpenAI-compatible">
-                    <p class="field-help">LM Studio works through its OpenAI-compatible server. Start the server in LM Studio, keep the default http://localhost:1234/v1 or enter another /v1 endpoint, then use Test Connection. The active model id is discovered from /v1/models.</p>
+                    <p class="field-help">Local OpenAI-compatible servers are detected automatically. Ollama normally uses http://localhost:11434/v1; LM Studio normally uses http://localhost:1234/v1. Test Connection verifies the selected endpoint and discovers the active model id.</p>
                     <DxFormLayoutItem Caption="Endpoint (OpenAI-compatible base URL, usually /v1)">
                         <DxTextBox @bind-Text="Model.ChatGPTLocalCore.Endpoint" />
                     </DxFormLayoutItem>

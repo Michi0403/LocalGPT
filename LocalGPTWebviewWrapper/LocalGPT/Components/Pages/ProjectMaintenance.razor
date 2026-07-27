@@ -1,5 +1,5 @@
 @page "/project-maintenance"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using LocalGPT.Services.Localization
 @inject ILocalGptProjectService Projects
 @inject IProjectMaintenanceService Maintenance

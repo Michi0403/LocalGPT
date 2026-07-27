@@ -6,7 +6,7 @@
 @inject CouncilTextService CouncilText
 @inject LocalGptCatalogService Catalog
 @inject NavigationManager NavigationManager
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject ILogger<TestLab> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity

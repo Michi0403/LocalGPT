@@ -6,7 +6,7 @@
 @inject IChatClient? ChatClient
 @inject IMultiModelCouncilService CouncilService
 @inject NavigationManager Navigation
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject ILogger<MinecraftModBuilder> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity

@@ -428,10 +428,10 @@ public sealed class CodeGenerationWorkflowService(
 
         if (projectRevisionId is Guid selectedRevisionId)
         {
-            if (projectId is not Guid selectedProjectId)
+            if (projectId is not Guid selectedProjectIdInner)
                 throw new InvalidOperationException("A project revision can only be selected together with its project.");
             var revisionExists = await db.LocalGptProjectRevisions
-                .AnyAsync(revision => revision.Id == selectedRevisionId && revision.ProjectId == selectedProjectId && revision.IsUserApproved, cancellationToken)
+                .AnyAsync(revision => revision.Id == selectedRevisionId && revision.ProjectId == selectedProjectIdInner && revision.IsUserApproved, cancellationToken)
                 .ConfigureAwait(false);
             if (!revisionExists)
                 throw new InvalidOperationException("The selected project revision does not exist, is not user-approved, or belongs to another project.");

@@ -42,7 +42,7 @@ class ProjectMaintenanceContracts(unittest.TestCase):
             self.assertIn(token, models)
         self.assertRegex(context, r"HasIndex\(item => new \{ item\.ProjectId, item\.RevisionId, item\.ProjectRelativePath \}\)\.IsUnique")
         self.assertIn("IX_LocalGptProjectTrackedFiles_ProjectId_RevisionId_ProjectRelativePath", migration)
-        self.assertIn('HasIndex("ProjectId", "RevisionId", "ProjectRelativePath").IsUnique()', snapshot)
+        self.assertRegex(snapshot, r'HasIndex\("ProjectId", "RevisionId", "ProjectRelativePath"\)\s*\.IsUnique\(\)')
 
     def test_workspace_scope_and_cross_platform_toolchain_inventory_are_present(self):
         service = read("LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs")
