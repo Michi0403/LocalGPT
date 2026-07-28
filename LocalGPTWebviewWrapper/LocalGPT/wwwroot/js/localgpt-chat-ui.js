@@ -43,6 +43,17 @@
             || editor?.closest('form')
             || editor?.parentElement?.parentElement;
         composer?.classList?.add('localgpt-chat-composer');
+
+        // DevExpress class names for the empty-chat suggestions have changed between
+        // releases. Tag the visible text buttons instead of relying only on vendor CSS names.
+        // Composer controls are explicitly excluded so their normal styling remains intact.
+        for (const button of buttons) {
+            if (button === send || button === upload || composer?.contains(button)) continue;
+            const text = (button.textContent || '').replace(/\s+/g, ' ').trim();
+            if (text.length < 4) continue;
+            if (/close|collapse|expand|menu|copy|retry|regenerate/i.test(marker(button))) continue;
+            button.classList.add('localgpt-prompt-suggestion');
+        }
     }
     function apply(root = document) {
         if (root instanceof Element && root.matches('[data-testid="dxaichat-host"]')) enhance(root);

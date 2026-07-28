@@ -266,3 +266,26 @@
         border-radius: 999px;
     }
 }
+
+/* final14: the persistent approval summary remains visible without intercepting the
+   DevExpress chat composer. Only its actual action controls receive pointer input. */
+.human-approval-bar {
+    bottom: 6.5rem;
+    max-width: min(46rem, calc(100vw - 10rem));
+    pointer-events: none;
+}
+
+.human-approval-bar-actions,
+.human-approval-bar-actions *,
+.human-approval-bar button,
+.human-approval-bar a {
+    pointer-events: auto;
+}
+
+@media (max-width: 780px) {
+    .human-approval-bar {
+        bottom: 6rem;
+        max-width: none;
+    }
+}
+

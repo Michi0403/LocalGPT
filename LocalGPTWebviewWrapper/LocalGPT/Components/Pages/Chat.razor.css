@@ -752,3 +752,57 @@
 .chat-session-toolbar ::deep .dxbl-toolbar-item{min-height:2.9rem;font-size:1rem;font-weight:700}
 .chat-session-toolbar ::deep .dxbl-toolbar-title{font-size:1.02rem;font-weight:800}
 @media(max-width:680px){.chat-session-toolbar ::deep .dxbl-toolbar-item{min-height:3.15rem}}
+
+/* final14: DevExpress can render prompt suggestions with version-specific class names.
+   The runtime applies localgpt-prompt-suggestion to the actual visible suggestion buttons. */
+.demo-chat ::deep .localgpt-prompt-suggestion {
+    color: var(--bs-body-color, CanvasText) !important;
+    -webkit-text-fill-color: currentColor !important;
+    background: color-mix(in srgb, var(--bs-body-bg, Canvas) 88%, var(--bs-body-color, CanvasText) 12%) !important;
+    border: 1px solid color-mix(in srgb, var(--bs-border-color, CanvasText) 75%, transparent) !important;
+    opacity: 1 !important;
+    filter: none !important;
+    text-shadow: none !important;
+}
+
+.demo-chat ::deep .localgpt-prompt-suggestion *,
+.demo-chat ::deep .localgpt-prompt-suggestion span,
+.demo-chat ::deep .localgpt-prompt-suggestion div {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+}
+
+.demo-chat ::deep .localgpt-prompt-suggestion:hover,
+.demo-chat ::deep .localgpt-prompt-suggestion:focus-visible {
+    color: var(--bs-emphasis-color, var(--bs-body-color, CanvasText)) !important;
+    background: color-mix(in srgb, var(--bs-primary, Highlight) 24%, var(--bs-body-bg, Canvas)) !important;
+    border-color: var(--bs-primary, Highlight) !important;
+}
+
+/* Keep the real composer above persistent global helper surfaces. The approval bar is
+   moved away from the composer as well, but this protects pointer input during resize. */
+.demo-chat ::deep .localgpt-chat-composer {
+    position: relative;
+    z-index: 1092;
+    isolation: isolate;
+    background: var(--bs-body-bg, Canvas);
+    color: var(--bs-body-color, CanvasText);
+}
+
+.demo-chat ::deep .localgpt-chat-composer textarea,
+.demo-chat ::deep .localgpt-chat-composer [contenteditable="true"] {
+    color: var(--bs-body-color, CanvasText) !important;
+    -webkit-text-fill-color: currentColor !important;
+    caret-color: var(--bs-primary, Highlight);
+    background: var(--bs-body-bg, Canvas) !important;
+    opacity: 1 !important;
+}
+
+.demo-chat ::deep .localgpt-chat-composer textarea::placeholder,
+.demo-chat ::deep .localgpt-chat-composer [contenteditable="true"]::before {
+    color: var(--bs-secondary-color, GrayText) !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: .9 !important;
+}
+

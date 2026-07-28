@@ -35,7 +35,7 @@ require(".localgpt-send-button" in css and "4.75rem" in css, "The AI Chat send c
 require(".localgpt-upload-button" in css and "4rem" in css, "The AI Chat upload control must remain a large touch target.")
 
 ui = (APP / "wwwroot/js/localgpt-chat-ui.js").read_text(encoding="utf-8")
-for marker in ["localgpt-chat-composer", "localgpt-send-button", "localgpt-upload-button", "Message to AI assistant"]:
+for marker in ["localgpt-chat-composer", "localgpt-send-button", "localgpt-upload-button", "localgpt-prompt-suggestion", "Message to AI assistant"]:
     require(marker in ui, f"Production AI Chat enhancer is missing {marker}.")
 
 localization = (APP / "wwwroot/js/localgpt-localization.js").read_text(encoding="utf-8")
