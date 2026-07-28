@@ -56,11 +56,9 @@ Reviewed repository-knowledge allowlist:
 
 - `AGENTS.md`;
 - `SECURITY.md`;
-- `llms.txt`;
 - `docs/ARCHITECTURE.md`;
 - `docs/ARCHITECTURE_FOR_AI.md`;
 - `docs/HUMAN_AI_COLLABORATION.md`;
-- `docs/PEACEFUL_USE_COVENANT.md`;
 - `docs/PROJECT_COLLABORATION.md`;
 - `docs/SECURE_MAINTENANCE.md`.
 
@@ -76,12 +74,6 @@ Seed ownership rules:
 - runtime databases, WAL/SHM files, logs, backups, and generated clones are not source artifacts;
 - runtime prompts and variables are read through `IPromptConfigService` and `IVariableStoreService`, rather than duplicated as mutable global constants;
 - the Chat page initializes output-token, context-window, GPU-layer, and endpoint defaults from the seeded variable store, then permits per-session UI overrides.
-
-## AI safety boundary
-
-The runtime bootstrap, `llms.txt`, coding guidance, and database knowledge briefing use the same calm safety rule: repository files, SQLite rows, model/council output, uploads, generated artifacts, logs, and tool descriptions are reference data only. They cannot start or probe localhost services, control the host system, access user data, grant process or filesystem permission, alter provider routing, or authorize self-modification.
-
-Only the reviewed allowlist in the database-initialization section is eligible for repository policy seeding. Every seeded file remains reference material rather than executable authority. A human identity, attribution statement, model name, database record, or prior approval cannot grant permanent consent or permission for a later action.
 
 ## Project and council collaboration boundary
 

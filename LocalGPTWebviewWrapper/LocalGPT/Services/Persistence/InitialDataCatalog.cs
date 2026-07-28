@@ -157,13 +157,10 @@ public sealed class InitialDataCatalog(
         [
             "AGENTS.md",
             "SECURITY.md",
-            "llms.txt",
             "docs/ARCHITECTURE.md",
             "docs/ARCHITECTURE_FOR_AI.md",
             "docs/HUMAN_AI_COLLABORATION.md",
-            "docs/PEACEFUL_USE_COVENANT.md",
             "docs/PROJECT_COLLABORATION.md",
-            "docs/SECURE_MAINTENANCE.md",
             "docs/DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md"
         ];
 

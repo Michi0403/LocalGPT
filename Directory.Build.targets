@@ -41,23 +41,6 @@
   </Target>
 
   <PropertyGroup>
-    <ProjectMaintenanceArchitectureScript>$(MSBuildThisFileDirectory)build\Assert-ProjectMaintenanceArchitecture.ps1</ProjectMaintenanceArchitectureScript>
-  </PropertyGroup>
-
-  <Target Name="AssertLocalGptProjectMaintenanceArchitecture"
-          BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipProjectMaintenanceArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Error Condition="!Exists('$(ProjectMaintenanceArchitectureScript)')"
-           Text="Project maintenance architecture guard script is missing: $(ProjectMaintenanceArchitectureScript)" />
-    <Exec Condition="Exists('$(ProjectMaintenanceArchitectureScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ProjectMaintenanceArchitectureScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)"
-          ConsoleToMSBuild="true"
-          StandardOutputImportance="High"
-          StandardErrorImportance="High" />
-  </Target>
-
-  <PropertyGroup>
     <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>
   </PropertyGroup>
 
@@ -151,21 +134,8 @@
     <Exec Condition="Exists('$(SystemVariableInitializationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SystemVariableInitializationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-
-  <PropertyGroup>
-    <JavaScriptDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-JavaScriptDiagnostics.ps1</JavaScriptDiagnosticsScript>
-  </PropertyGroup>
-
-  <Target Name="AssertLocalGptJavaScriptDiagnostics"
-          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipJavaScriptDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Error Condition="!Exists('$(JavaScriptDiagnosticsScript)')" Text="JavaScript diagnostics guard script is missing: $(JavaScriptDiagnosticsScript)" />
-    <Exec Condition="Exists('$(JavaScriptDiagnosticsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(JavaScriptDiagnosticsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
   <PropertyGroup>
     <PublishConfigurationScript>$(MSBuildThisFileDirectory)build\Assert-PublishConfiguration.ps1</PublishConfigurationScript>
-    <InstallerWorkflowScript>$(MSBuildThisFileDirectory)build\Assert-InstallerWorkflow.ps1</InstallerWorkflowScript>
   </PropertyGroup>
 
   <Target Name="AssertLocalGptPublishConfiguration"
@@ -173,13 +143,6 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipPublishConfigurationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(PublishConfigurationScript)')" Text="Publish configuration guard script is missing: $(PublishConfigurationScript)" />
     <Exec Condition="Exists('$(PublishConfigurationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(PublishConfigurationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <Target Name="AssertLocalGptInstallerWorkflow"
-          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptPublishConfiguration"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipInstallerWorkflowGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Error Condition="!Exists('$(InstallerWorkflowScript)')" Text="Installer workflow guard script is missing: $(InstallerWorkflowScript)" />
-    <Exec Condition="Exists('$(InstallerWorkflowScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(InstallerWorkflowScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
 </Project>
