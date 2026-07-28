@@ -17,6 +17,7 @@ using LocalGPT.Services.Formatting;
 using LocalGPT.Services.Persistence;
 using LocalGPT.Services.OneWire;
 using Microsoft.AspNetCore.Components.Server;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
@@ -587,6 +588,7 @@ namespace LocalGPT
                 StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
                 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+                builder.Services.AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>();
                 builder.Services.AddLocalization();
                 builder.Services.AddSingleton<LocalGPT.Services.Localization.ILocalGptLocalizationService, LocalGPT.Services.Localization.LocalGptLocalizationService>();
                 builder.Services.Configure<RequestLocalizationOptions>(options =>

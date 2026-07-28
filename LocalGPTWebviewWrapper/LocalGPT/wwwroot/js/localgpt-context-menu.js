@@ -22,6 +22,7 @@
             const anchor = document.createElement("a");
             anchor.textContent = label;
             anchor.href = href;
+            anchor.dataset.enhanceNav = "false";
             menu.appendChild(anchor);
         }
         document.body.appendChild(menu);

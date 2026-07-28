@@ -61,7 +61,7 @@
         {
             if (firstRender)
             {
-                var width = await JS.InvokeAsync<int>("getScreenWidth").ConfigureAwait(false);
+                var width = await JS.InvokeAsync<int>("getScreenWidth").ConfigureAwait(true);
 
                 if (width < 768)
                     Width = "50%";

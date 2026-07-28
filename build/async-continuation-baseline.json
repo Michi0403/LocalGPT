@@ -1,451 +1,562 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "sourceRoot": "LocalGPTWebviewWrapper/LocalGPT",
-  "policy": "ConfigureAwait(false) is the default. Existing renderer-affine awaits are capped per file; new source files may only add explicit ConfigureAwait(false) unless the baseline is intentionally reviewed.",
+  "policy": "Renderer-affine Components must never use ConfigureAwait(false). Services/controllers keep their reviewed ConfigureAwait(false) minimum; new unconfigured or ConfigureAwait(true) continuations require deliberate baseline review.",
   "files": {
     "Components/InteractiveStartupMarker.razor": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/Drawer.razor": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 1,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/HumanCollaborationInbox.razor": {
       "maxUnconfiguredAwaitCount": 11,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeJsChangeDispatcher.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 10,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeSwitcherContainer.razor": {
       "maxUnconfiguredAwaitCount": 6,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeSwitcherItem.razor": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 1,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Chat.razor": {
       "maxUnconfiguredAwaitCount": 12,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 59,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/CouncilTeams.razor": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Database.razor": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 1
+      "maxConfigureAwaitTrueCount": 30,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/DxFunctionCatalog.razor": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Install.razor": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 1
+      "maxConfigureAwaitTrueCount": 34,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/MinecraftModBuilder.razor": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 14,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/ModelCouncil.razor": {
       "maxUnconfiguredAwaitCount": 6,
-      "maxConfigureAwaitTrueCount": 3
+      "maxConfigureAwaitTrueCount": 19,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/OneWireSecurity.razor": {
-      "maxUnconfiguredAwaitCount": 20,
-      "maxConfigureAwaitTrueCount": 0
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 24,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/ProjectMaintenance.razor": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 43,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Projects.razor": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 1
+      "maxConfigureAwaitTrueCount": 30,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/TestLab.razor": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 20,
+      "minConfigureAwaitFalseCount": 0
     },
     "Components/Shared/CouncilHardwareRoadEditor.razor": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Controller/ChatController.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Controller/CodeGenerationController.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 5
     },
     "Controller/DatabaseKnowledgeController.cs": {
       "maxUnconfiguredAwaitCount": 4,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Controller/DatabaseQueryController.cs": {
       "maxUnconfiguredAwaitCount": 13,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Controller/DxAiFunctionCatalogController.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 3
     },
     "Controller/DxAiFunctionsController.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 1
     },
     "Controller/LocalGptDiagnosticController.cs": {
       "maxUnconfiguredAwaitCount": 2,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 51
     },
     "Controller/LocalGptProjectsController.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 6
     },
     "Controller/MinecraftDiagnosticController.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 4
     },
     "Controller/OneWireController.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Controller/OneWireHttpController.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 4
     },
     "Controller/ProjectMaintenanceController.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 15
     },
     "Diagnostics/ControllerRequestLoggingFilter.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Extensions/CollectionsExtensions.cs": {
       "maxUnconfiguredAwaitCount": 2,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Logging/DatabaseLoggerProvider.cs": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Logging/EmailLogger.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 2
     },
     "Program.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Security/HumanApprovalActionFilter.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 3
     },
     "Services/AIConnectivityProbe.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 5
     },
     "Services/AiContextBootstrapService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Services/AiDiscoveryService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 8
     },
     "Services/AiFeatureReportService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 1
     },
     "Services/ApplicationLogReaderService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 4
     },
     "Services/ArchitectureAndDebugDxAiFunctions.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 1
     },
     "Services/ArtifactBuildExecutor.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 6
     },
     "Services/BuildDebugInventoryService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 2
     },
     "Services/ChatHub.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 3
     },
     "Services/ChatUploadWorkspaceService.cs": {
       "maxUnconfiguredAwaitCount": 2,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 8
     },
     "Services/CodeGenerationWorkflowService.cs": {
       "maxUnconfiguredAwaitCount": 10,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 45
     },
     "Services/ComponentActivityService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 2
     },
     "Services/CompositeChatClient.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 23
     },
     "Services/ConfigurationWriter.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 2
     },
     "Services/Council/CouncilPreflightService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 10
     },
     "Services/Council/CouncilSpoolerService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 3
     },
     "Services/Council/RuntimeCapabilityDirectoryService.cs": {
       "maxUnconfiguredAwaitCount": 2,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 17
     },
     "Services/Council/Skills/ModelCapabilitySelfAssessmentService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 1
     },
     "Services/CouncilArtifactService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 49
     },
     "Services/CouncilChatClient.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 5
     },
     "Services/CouncilKnowledgeService.cs": {
       "maxUnconfiguredAwaitCount": 5,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 20
     },
     "Services/CouncilRuntimeService.cs": {
       "maxUnconfiguredAwaitCount": 2,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Services/CouncilTeamConfigurationService.cs": {
       "maxUnconfiguredAwaitCount": 4,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 14
     },
     "Services/CouncilTextService.cs": {
       "maxUnconfiguredAwaitCount": 10,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Services/DatabaseMaintenanceDxAiFunctions.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Services/DebugArtifactInspectionService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Services/DeferredDxAiInvocationService.cs": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 17
     },
     "Services/DxAiFunctionCatalogService.cs": {
       "maxUnconfiguredAwaitCount": 4,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 19
     },
     "Services/DxAiFunctionRegistry.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 15
     },
     "Services/DxAiFunctionServiceClient.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 2
     },
     "Services/EfChatMemoryService.cs": {
       "maxUnconfiguredAwaitCount": 7,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 23
     },
     "Services/EngineeringBenchmarkService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 8
     },
     "Services/HardwareInventoryService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Services/HumanCollaborationService.cs": {
       "maxUnconfiguredAwaitCount": 10,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 38
     },
     "Services/KnowledgeRatingService.cs": {
       "maxUnconfiguredAwaitCount": 2,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Services/LearnBaseKnowledgeImporterService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Services/LearningRoundDxAiFunctions.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 2
     },
     "Services/LearningRoundService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 14
     },
     "Services/LocalGptCatalogService.cs": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 0
     },
     "Services/LocalGptProjectService.cs": {
       "maxUnconfiguredAwaitCount": 6,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 34
     },
     "Services/MinecraftModWorkspaceService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 69
     },
     "Services/ModelPresetService.cs": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 14
     },
     "Services/MultiModelCouncilService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 1
+      "maxConfigureAwaitTrueCount": 1,
+      "minConfigureAwaitFalseCount": 64
     },
     "Services/NativeCommandRunner.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 14
     },
     "Services/OllamaThinkingChatClient.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 23
     },
     "Services/OneWire/LocalVisionOcrService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 2
     },
     "Services/OneWire/OneWireCapabilityCatalog.cs": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 5
     },
     "Services/OneWire/OneWireExecutionServices.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 32
     },
     "Services/OneWire/OneWireRuntimeSecurityService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 29
     },
     "Services/OneWire/OneWireStateServices.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 3
     },
     "Services/OneWire/OneWireTransportHostedServices.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 12
     },
     "Services/OneWire/OrganicPluginDxAiFunctions.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 5
     },
     "Services/OrganicCouncilBlueprintService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 3
     },
     "Services/OrganicSkillRegistryService.cs": {
       "maxUnconfiguredAwaitCount": 5,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 25
     },
     "Services/Persistence/DatabaseFileHealthService.cs": {
       "maxUnconfiguredAwaitCount": 5,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 13
     },
     "Services/Persistence/DatabaseInitializationService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 21
     },
     "Services/Persistence/DatabaseMigrationCompatibilityService.cs": {
       "maxUnconfiguredAwaitCount": 14,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 47
     },
     "Services/Persistence/InitialDataCatalog.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 1
     },
     "Services/Persistence/RegexPatternService.cs": {
       "maxUnconfiguredAwaitCount": 4,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 14
     },
     "Services/ProjectArchitectureDxAiFunctions.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 5
     },
     "Services/ProjectArchitectureService.cs": {
       "maxUnconfiguredAwaitCount": 8,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 38
     },
     "Services/ProjectLibraryInventoryService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 4
     },
     "Services/ProjectMaintenanceDxAiFunctions.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 10
     },
     "Services/ProjectMaintenanceService.cs": {
       "maxUnconfiguredAwaitCount": 17,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 84
     },
     "Services/ProjectOrganicContextService.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 5
     },
     "Services/PromptConfigService.cs": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 10
     },
     "Services/PublicServiceMethodInvoker.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 6
     },
     "Services/RegexDxAiFunctions.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 4
     },
     "Services/SafeTextDocumentService.cs": {
       "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 8
     },
     "Services/SqliteEditorPreferenceService.cs": {
       "maxUnconfiguredAwaitCount": 2,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 7
     },
     "Services/SqliteTableEditorService.cs": {
       "maxUnconfiguredAwaitCount": 13,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 27
     },
     "Services/SqliteUtilityService.cs": {
       "maxUnconfiguredAwaitCount": 8,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 6
     },
     "Services/SupervisedTaskRunner.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 1
     },
     "Services/TimeAndStateDxAiFunction.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 2
     },
     "Services/VariableStoreService.cs": {
       "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 10
     }
   }
 }

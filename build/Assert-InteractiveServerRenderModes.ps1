@@ -13,14 +13,14 @@ $expected = [ordered]@{
     'Components/Layout/ThemeSwitcherContainer.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: true))'
     'Components/Layout/ThemeSwitcherItem.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: true))'
     'Components/Layout/ToastWrapper.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
-    'Components/Pages/Chat.razor' = '@rendermode InteractiveServer'
+    'Components/Pages/Chat.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Pages/CouncilTeams.razor' = '@rendermode InteractiveServer'
     'Components/Pages/Database.razor' = '@rendermode InteractiveServer'
     'Components/Pages/DxFunctionCatalog.razor' = '@rendermode InteractiveServer'
     'Components/Pages/Install.razor' = '@rendermode InteractiveServer'
     'Components/Pages/MinecraftModBuilder.razor' = '@rendermode InteractiveServer'
     'Components/Pages/ModelCouncil.razor' = '@rendermode InteractiveServer'
-    'Components/Pages/OneWireSecurity.razor' = '@rendermode InteractiveServer'
+    'Components/Pages/OneWireSecurity.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Pages/ProjectMaintenance.razor' = '@rendermode InteractiveServer'
     'Components/Pages/Projects.razor' = '@rendermode InteractiveServer'
     'Components/Pages/TestLab.razor' = '@rendermode InteractiveServer'
@@ -53,6 +53,8 @@ foreach ($required in @(
     '<ToastWrapper Name="ComponentSafetyToasts" />',
     '<Routes></Routes>',
     '<InteractiveStartupMarker />',
+    '<body data-enhance-nav="false">',
+    'ssr: { disableDomPreservation: true }',
     '.then(() => window.localGptReady.markInteractive())'
 )) {
     if (-not $app.Contains($required)) { Fail "App.razor is missing the reviewed render contract: $required" }
@@ -62,6 +64,7 @@ if ($app -match '<Routes\s+@rendermode' -or $app -match '<HeadOutlet\s+@rendermo
 }
 if (-not $program.Contains('AddInteractiveServerComponents()')) { Fail 'Program.cs no longer registers interactive server components.' }
 if (-not $program.Contains('AddInteractiveServerRenderMode()')) { Fail 'Program.cs no longer maps the InteractiveServer render mode.' }
+if (-not $program.Contains('AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>()')) { Fail 'Program.cs no longer registers circuit diagnostics.' }
 if (-not $imports.Contains('@using static Microsoft.AspNetCore.Components.Web.RenderMode')) { Fail 'Components/_Imports.razor no longer imports RenderMode.' }
 
 Write-Host "InteractiveServer render-mode validation passed for $($expected.Count) components and pages."

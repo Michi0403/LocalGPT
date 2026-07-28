@@ -45,7 +45,9 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\App.razor' @(
     '<ToastWrapper\s+Name="ComponentSafetyToasts"\s*/>',
     '<Routes>\s*</Routes>',
     '<InteractiveStartupMarker\s*/>',
-    'Blazor\.start\(\)'
+    'Blazor\.start\(\{',
+    'disableDomPreservation:\s*true',
+    '<body\s+data-enhance-nav="false">'
 ) 'Application shell diagnostics hosts'
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Layout\MainLayout.razor' @(
     '<SafeErrorBoundary\s+@key="NavigationManager\.Uri"',
@@ -62,7 +64,7 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Routes.razor' @(
 # boundary and operational diagnostics. Async continuation policy is validated separately.
 # Dispose methods are exempt.
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor' @(
-    '@rendermode\s+InteractiveServer',
+    '@rendermode\s+@\(new\s+InteractiveServerRenderMode\(prerender:\s*false\)\)',
     'ILogger<Chat>',
     'INotificationService',
     'interactiveAttached\s*=\s*true',
@@ -95,6 +97,23 @@ if (Test-Path -LiteralPath $chatPath) {
     }
 }
 
+# Complex renderer-affine pages use non-prerendered InteractiveServer boundaries and bounded initialization.
+Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\OneWireSecurity.razor' @(
+    '@rendermode\s+@\(new\s+InteractiveServerRenderMode\(prerender:\s*false\)\)',
+    'CancelAfter\(TimeSpan\.FromSeconds\(8\)\)',
+    'InitialSecurityRefresh',
+    'InitializeAfterRenderAsync',
+    'ConfigureAwait\(true\)',
+    'OperationCanceledException',
+    'JSDisconnectedException'
+) '1-Wire renderer and timeout diagnostics'
+Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\LocalGptCircuitDiagnosticsHandler.cs' @(
+    'CircuitHandler',
+    'OnCircuitOpenedAsync',
+    'OnConnectionDownAsync',
+    'OnCircuitClosedAsync'
+) 'Blazor circuit diagnostics'
+
 # Controllers are covered centrally, while maintained service/controller files remain
 # protected by Assert-LoggingIntegrity.ps1. This avoids injecting circuit UI services into
 # singleton/boot services, which would break startup.
@@ -102,7 +121,8 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Program.cs' @(
     'AddScoped<ControllerRequestLoggingFilter>',
     'Filters\.AddService<ControllerRequestLoggingFilter>',
     'AddScoped<INotificationService',
-    'AddHostedService<DatabaseInitializationHostedService>'
+    'AddHostedService<DatabaseInitializationHostedService>',
+    'AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>'
 ) 'Controller, notifier, and startup diagnostics registration'
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs' @(
     'IAsyncActionFilter',

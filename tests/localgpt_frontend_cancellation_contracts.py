@@ -12,6 +12,8 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
         self.assertIn("<Routes></Routes>", app)
         self.assertIn('<ToastWrapper Name="ComponentSafetyToasts" />', app)
         self.assertIn("<InteractiveStartupMarker />", app)
+        self.assertIn('<body data-enhance-nav="false">', app)
+        self.assertIn('ssr: { disableDomPreservation: true }', app)
         self.assertNotIn("<Routes @rendermode", app)
         self.assertNotIn("<HeadOutlet @rendermode", app)
 
@@ -23,14 +25,14 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
             "Layout/ThemeSwitcherContainer.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: true))",
             "Layout/ThemeSwitcherItem.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: true))",
             "Layout/ToastWrapper.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
-            "Pages/Chat.razor": "@rendermode InteractiveServer",
+            "Pages/Chat.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
             "Pages/CouncilTeams.razor": "@rendermode InteractiveServer",
             "Pages/Database.razor": "@rendermode InteractiveServer",
             "Pages/DxFunctionCatalog.razor": "@rendermode InteractiveServer",
             "Pages/Install.razor": "@rendermode InteractiveServer",
             "Pages/MinecraftModBuilder.razor": "@rendermode InteractiveServer",
             "Pages/ModelCouncil.razor": "@rendermode InteractiveServer",
-            "Pages/OneWireSecurity.razor": "@rendermode InteractiveServer",
+            "Pages/OneWireSecurity.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
             "Pages/ProjectMaintenance.razor": "@rendermode InteractiveServer",
             "Pages/Projects.razor": "@rendermode InteractiveServer",
             "Pages/TestLab.razor": "@rendermode InteractiveServer",
@@ -58,6 +60,8 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
         self.assertIn("MainLayout must not duplicate the app-level toast host", gate)
         self.assertNotIn("Single non-prerendered route tree", gate)
         self.assertNotIn("Chat contains ConfigureAwait(false)", gate)
+        self.assertIn("data-enhance-nav", gate)
+        self.assertIn("LocalGptCircuitDiagnosticsHandler", gate)
 
     def test_controller_diagnostics_filter_is_implemented_and_registered(self):
         program = (APP / "Program.cs").read_text(encoding="utf-8")
@@ -75,7 +79,9 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
         self.assertIn("WaitForAutoSaveIntervalAsync", chat)
         self.assertNotIn("Task.Delay(TimeSpan.FromSeconds(12), cancellationToken)", chat)
         initialized = chat.split("void ChatInitialized()", 1)[1].split("private async Task ClearHistoryAsync", 1)[0]
-        self.assertNotIn("StartAutoSaveLoop();", initialized)
+        self.assertIn("chatControlInitialized = true;", initialized)
+        self.assertIn("StartAutoSaveLoop();", initialized)
+        self.assertIn("StartInitialModelRefresh();", initialized)
 
     def test_development_html_is_not_response_compressed(self):
         program = (APP / "Program.cs").read_text(encoding="utf-8")

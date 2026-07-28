@@ -252,30 +252,30 @@
 
     async Task LoadAsync() => await RunAsync(async () =>
     {
-        projectSummaries = (await Projects.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
-        workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList();
-        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
+        projectSummaries = (await Projects.GetProjectsAsync(includeArchived: false).ConfigureAwait(true)).ToList();
+        workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(true)).ToList();
+        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(true)).ToList();
         if (selectedProjectId is Guid id)
         {
-            selectedProject = await Projects.GetProjectAsync(id).ConfigureAwait(false);
-            trackedFiles = (await Maintenance.GetTrackedFilesAsync(id, selectedRevisionId).ConfigureAwait(false)).ToList();
+            selectedProject = await Projects.GetProjectAsync(id).ConfigureAwait(true);
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(id, selectedRevisionId).ConfigureAwait(true)).ToList();
         }
-    }, T("ProjectMaintenance.LoadFailed", "Could not load project maintenance settings.")).ConfigureAwait(false);
+    }, T("ProjectMaintenance.LoadFailed", "Could not load project maintenance settings.")).ConfigureAwait(true);
 
     async Task SelectProjectAsync()
     {
         if (selectedProjectId is null) { selectedProject = null; selectedRevisionId = null; return; }
         await RunAsync(async () =>
         {
-            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false);
+            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(true);
             selectedRevisionId = selectedProject?.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
             SelectRevision();
             workspaceEdit.ProjectId = selectedProjectId;
-            workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList();
-            trackedFiles = (await Maintenance.GetTrackedFilesAsync(selectedProjectId.Value, selectedRevisionId).ConfigureAwait(false)).ToList();
+            workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(true)).ToList();
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(selectedProjectId.Value, selectedRevisionId).ConfigureAwait(true)).ToList();
             selectedTrackedFileId = null;
             selectedTrackedFile = null;
-        }, T("ProjectMaintenance.SelectFailed", "Could not select the project.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.SelectFailed", "Could not select the project.")).ConfigureAwait(true);
     }
 
     void SelectRevision()
@@ -298,13 +298,13 @@
             revisionWorkspaceEdit.UserConfirmed = true;
             try
             {
-                await Maintenance.RegisterRevisionWorkspaceAsync(projectId, revisionId, revisionWorkspaceEdit.SourceRootPath, revisionWorkspaceEdit.SolutionPath, true).ConfigureAwait(false);
-                selectedProject = await Projects.GetProjectAsync(projectId).ConfigureAwait(false);
+                await Maintenance.RegisterRevisionWorkspaceAsync(projectId, revisionId, revisionWorkspaceEdit.SourceRootPath, revisionWorkspaceEdit.SolutionPath, true).ConfigureAwait(true);
+                selectedProject = await Projects.GetProjectAsync(projectId).ConfigureAwait(true);
                 SelectRevision();
                 Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.RevisionWorkspaceSaved", "Revision workspace saved."), T("Common.Saved", "Saved"));
             }
             finally { revisionWorkspaceEdit.UserConfirmed = false; }
-        }, T("ProjectMaintenance.RevisionWorkspaceSaveFailed", "Could not save the revision workspace.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.RevisionWorkspaceSaveFailed", "Could not save the revision workspace.")).ConfigureAwait(true);
     }
 
     async Task RefreshTrackedFilesAsync()
@@ -312,52 +312,52 @@
         if (selectedProjectId is not Guid projectId) { trackedFiles = []; return; }
         await RunAsync(async () =>
         {
-            trackedFiles = (await Maintenance.GetTrackedFilesAsync(projectId, selectedRevisionId).ConfigureAwait(false)).ToList();
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(projectId, selectedRevisionId).ConfigureAwait(true)).ToList();
             selectedTrackedFileId = null;
             selectedTrackedFile = null;
-        }, T("ProjectMaintenance.FileMetadataLoadFailed", "Could not load tracked file metadata.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.FileMetadataLoadFailed", "Could not load tracked file metadata.")).ConfigureAwait(true);
     }
 
     async Task SaveWorkspaceAsync() => await RunAsync(async () =>
     {
         workspaceEdit.ProjectId = workspaceEdit.ScopeKind == "Project" ? selectedProjectId : null;
         workspaceEdit.UserConfirmed = true;
-        try { await Maintenance.SaveWorkspaceRootAsync(workspaceEdit).ConfigureAwait(false); workspaceEdit = NewWorkspace(); workspaceEdit.ProjectId = selectedProjectId; workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.WorkspaceSaved", "Workspace root saved."), T("Common.Saved", "Saved")); }
+        try { await Maintenance.SaveWorkspaceRootAsync(workspaceEdit).ConfigureAwait(true); workspaceEdit = NewWorkspace(); workspaceEdit.ProjectId = selectedProjectId; workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(true)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.WorkspaceSaved", "Workspace root saved."), T("Common.Saved", "Saved")); }
         finally { workspaceEdit.UserConfirmed = false; }
-    }, T("ProjectMaintenance.WorkspaceSaveFailed", "Could not save the workspace root.")).ConfigureAwait(false);
+    }, T("ProjectMaintenance.WorkspaceSaveFailed", "Could not save the workspace root.")).ConfigureAwait(true);
 
     async Task DiscoverCompilersAsync() => await RunAsync(async () =>
     {
         var request = new DiscoverProjectCompilersRequest { UserConfirmed = true, SaveDiscovered = true, CustomSearchRoots = customCompilerRoots.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() };
-        await Maintenance.DiscoverCompilerInstallationsAsync(request).ConfigureAwait(false);
-        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
+        await Maintenance.DiscoverCompilerInstallationsAsync(request).ConfigureAwait(true);
+        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(true)).ToList();
         Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerDiscoveryComplete", "Compiler discovery completed."), T("Common.Completed", "Completed"));
-    }, T("ProjectMaintenance.CompilerDiscoveryFailed", "Compiler discovery failed.")).ConfigureAwait(false);
+    }, T("ProjectMaintenance.CompilerDiscoveryFailed", "Compiler discovery failed.")).ConfigureAwait(true);
 
     async Task SaveCompilerAsync() => await RunAsync(async () =>
     {
         compilerEdit.UserConfirmed = true;
-        try { await Maintenance.SaveCompilerInstallationAsync(compilerEdit).ConfigureAwait(false); compilerEdit = NewCompiler(); compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerSaved", "Compiler installation saved."), T("Common.Saved", "Saved")); }
+        try { await Maintenance.SaveCompilerInstallationAsync(compilerEdit).ConfigureAwait(true); compilerEdit = NewCompiler(); compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(true)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerSaved", "Compiler installation saved."), T("Common.Saved", "Saved")); }
         finally { compilerEdit.UserConfirmed = false; }
-    }, T("ProjectMaintenance.CompilerSaveFailed", "Could not save the compiler installation.")).ConfigureAwait(false);
+    }, T("ProjectMaintenance.CompilerSaveFailed", "Could not save the compiler installation.")).ConfigureAwait(true);
 
     async Task ValidateCompilerAsync(Guid id) => await RunAsync(async () =>
     {
-        await Maintenance.ValidateCompilerInstallationAsync(id, true).ConfigureAwait(false);
-        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
+        await Maintenance.ValidateCompilerInstallationAsync(id, true).ConfigureAwait(true);
+        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(true)).ToList();
         Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerValidated", "Compiler validation completed."), T("Common.Completed", "Completed"));
-    }, T("ProjectMaintenance.CompilerValidationFailed", "Compiler validation failed.")).ConfigureAwait(false);
+    }, T("ProjectMaintenance.CompilerValidationFailed", "Compiler validation failed.")).ConfigureAwait(true);
 
     async Task ScanProjectAsync()
     {
         if (selectedProjectId is null) return;
         await RunAsync(async () =>
         {
-            await Maintenance.ScanProjectFilesAsync(selectedProjectId.Value, new ScanProjectFilesRequest { RevisionId = selectedRevisionId, UserConfirmed = true }).ConfigureAwait(false);
-            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false);
-            trackedFiles = (await Maintenance.GetTrackedFilesAsync(selectedProjectId.Value, selectedRevisionId).ConfigureAwait(false)).ToList();
+            await Maintenance.ScanProjectFilesAsync(selectedProjectId.Value, new ScanProjectFilesRequest { RevisionId = selectedRevisionId, UserConfirmed = true }).ConfigureAwait(true);
+            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(true);
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(selectedProjectId.Value, selectedRevisionId).ConfigureAwait(true)).ToList();
             Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.ProjectScanned", "Project files and solution metadata were scanned."), T("Common.Completed", "Completed"));
-        }, T("ProjectMaintenance.ProjectScanFailed", "Project scanning failed.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.ProjectScanFailed", "Project scanning failed.")).ConfigureAwait(true);
     }
 
     void SelectTrackedFile()
@@ -381,14 +381,14 @@
             filePatternEdit.UserConfirmed = true;
             try
             {
-                var saved = await Maintenance.SaveTrackedFilePatternAsync(id, filePatternEdit).ConfigureAwait(false);
+                var saved = await Maintenance.SaveTrackedFilePatternAsync(id, filePatternEdit).ConfigureAwait(true);
                 var index = trackedFiles.FindIndex(item => item.Id == saved.Id);
                 if (index >= 0) trackedFiles[index] = saved;
                 selectedTrackedFile = saved;
                 Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.FilePatternsSaved", "Tracked file patterns saved."), T("Common.Saved", "Saved"));
             }
             finally { filePatternEdit.UserConfirmed = false; }
-        }, T("ProjectMaintenance.FilePatternsSaveFailed", "Could not save the tracked file patterns.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.FilePatternsSaveFailed", "Could not save the tracked file patterns.")).ConfigureAwait(true);
     }
 
     async Task RunBuildVerificationAsync()
@@ -399,9 +399,9 @@
             buildEdit.RevisionId = selectedRevisionId.Value;
             buildEdit.CompilerInstallationId = selectedCompilerId.Value;
             buildEdit.UserConfirmed = true;
-            try { await Maintenance.RunBuildVerificationAsync(selectedProjectId.Value, buildEdit).ConfigureAwait(false); selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.BuildCompleted", "Build verification completed."), T("Common.Completed", "Completed")); }
+            try { await Maintenance.RunBuildVerificationAsync(selectedProjectId.Value, buildEdit).ConfigureAwait(true); selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(true); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.BuildCompleted", "Build verification completed."), T("Common.Completed", "Completed")); }
             finally { buildEdit.UserConfirmed = false; }
-        }, T("ProjectMaintenance.BuildFailed", "Build verification failed.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.BuildFailed", "Build verification failed.")).ConfigureAwait(true);
     }
 
     void SelectVerificationForReview(ProjectBuildVerification verification)
@@ -416,9 +416,9 @@
         await RunAsync(async () =>
         {
             councilReviewEdit.UserConfirmed = true;
-            try { await Maintenance.RecordCouncilBuildReviewAsync(id, councilReviewEdit).ConfigureAwait(false); if (selectedProjectId is Guid projectId) selectedProject = await Projects.GetProjectAsync(projectId).ConfigureAwait(false); reviewVerificationId = null; Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CouncilReviewSaved", "Council build review saved."), T("Common.Saved", "Saved")); }
+            try { await Maintenance.RecordCouncilBuildReviewAsync(id, councilReviewEdit).ConfigureAwait(true); if (selectedProjectId is Guid projectId) selectedProject = await Projects.GetProjectAsync(projectId).ConfigureAwait(true); reviewVerificationId = null; Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CouncilReviewSaved", "Council build review saved."), T("Common.Saved", "Saved")); }
             finally { councilReviewEdit.UserConfirmed = false; }
-        }, T("ProjectMaintenance.CouncilReviewFailed", "Could not save the council review.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.CouncilReviewFailed", "Could not save the council review.")).ConfigureAwait(true);
     }
 
     async Task ApproveReadyAsync(ProjectBuildVerification verification)
@@ -426,16 +426,16 @@
         if (selectedProjectId is null) return;
         await RunAsync(async () =>
         {
-            await Maintenance.ApproveRevisionReadyForTestAsync(selectedProjectId.Value, verification.RevisionId, new ApproveRevisionReadyForTestRequest { VerificationId = verification.Id, RequireTests = verification.TestsExecuted, CreateLosslessSnapshot = true, UserConfirmed = true }).ConfigureAwait(false);
-            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false);
+            await Maintenance.ApproveRevisionReadyForTestAsync(selectedProjectId.Value, verification.RevisionId, new ApproveRevisionReadyForTestRequest { VerificationId = verification.Id, RequireTests = verification.TestsExecuted, CreateLosslessSnapshot = true, UserConfirmed = true }).ConfigureAwait(true);
+            selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(true);
             Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.RevisionReady", "Revision approved and snapshotted for testing."), T("Common.Completed", "Completed"));
-        }, T("ProjectMaintenance.ReadyApprovalFailed", "Could not approve the revision for testing.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.ReadyApprovalFailed", "Could not approve the revision for testing.")).ConfigureAwait(true);
     }
 
     async Task RunAsync(Func<Task> action, string errorText)
     {
         busy = true;
-        try { await action().ConfigureAwait(false); }
+        try { await action().ConfigureAwait(true); }
         catch (OperationCanceledException) { Logger.LogInformation("Project maintenance UI operation was cancelled."); Notifier.ShowWarning(ToastName, T("Common.Cancelled", "The operation was cancelled."), T("Common.CancelledTitle", "Cancelled")); }
         catch (Exception ex) { Logger.LogError(ex, "Project maintenance UI operation failed; project paths and source content were omitted from logs."); Notifier.ShowError(ToastName, errorText, T("Common.Error", "Error")); }
         finally { busy = false; await InvokeAsync(StateHasChanged); }

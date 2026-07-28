@@ -315,7 +315,7 @@
         {
             if (!CouncilText.IsAllowedLocalRoute(route, Logger))
             {
-                await ShowBlockedRouteAsync(route).ConfigureAwait(false);
+                await ShowBlockedRouteAsync(route).ConfigureAwait(true);
                 return;
             }
 
@@ -328,12 +328,12 @@
             {
                 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
                 var url = NavigationManager.ToAbsoluteUri(route);
-                var response = await http.GetAsync(url).ConfigureAwait(false);
-                var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var response = await http.GetAsync(url).ConfigureAwait(true);
+                var text = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
                 statusText = $"GET {route} -> {(int)response.StatusCode} {response.ReasonPhrase}";
                 resultText = CouncilText.PrettyPrintJson(text, Logger);
                 downloadLinks = ExtractDownloadLinks(text);
-                await TryRefreshArtifactWorkspacesAfterRouteAsync(text).ConfigureAwait(false);
+                await TryRefreshArtifactWorkspacesAfterRouteAsync(text).ConfigureAwait(true);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
             {
@@ -363,16 +363,16 @@
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             var response = await http.GetFromJsonAsync<LocalGptCatalogService.ArtifactWorkspaceListResponse>(
-                NavigationManager.ToAbsoluteUri("/__diag/artifact-workspaces?take=30")).ConfigureAwait(false);
+                NavigationManager.ToAbsoluteUri("/__diag/artifact-workspaces?take=30")).ConfigureAwait(true);
 
             artifactBaseUrl = response?.BaseUrl ?? NavigationManager.BaseUri.TrimEnd('/');
             artifactWorkspaces = response?.Workspaces ?? [];
             selectedArtifactWorkspace = response?.LatestWorkspace ?? artifactWorkspaces.FirstOrDefault();
-            await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(false);
+            await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(true);
             statusText = selectedArtifactWorkspace is null
                 ? "No generated artifact workspaces found yet."
                 : $"Loaded workspace {selectedArtifactWorkspace.WorkspaceName}.";
-        }, "LoadArtifactWorkspacesAsync").ConfigureAwait(false);
+        }, "LoadArtifactWorkspacesAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -388,7 +388,7 @@
         try
         {
             selectedArtifactWorkspace = workspace;
-            await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(false);
+            await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -409,7 +409,7 @@
 
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/files?take=500";
-            var response = await http.GetFromJsonAsync<LocalGptCatalogService.ArtifactWorkspaceFilesResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
+            var response = await http.GetFromJsonAsync<LocalGptCatalogService.ArtifactWorkspaceFilesResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(true);
             artifactWorkspaceFiles = response?.Files ?? [];
         }
         catch (Exception ex)
@@ -432,13 +432,13 @@
 
            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file?path={Uri.EscapeDataString(file.RelativePath)}";
-           var response = await http.GetFromJsonAsync<LocalGptCatalogService.ArtifactWorkspaceFileResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
+           var response = await http.GetFromJsonAsync<LocalGptCatalogService.ArtifactWorkspaceFileResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(true);
            openSourceRelativePath = response?.RelativePath ?? file.RelativePath;
            openSourceContent = response?.Content ?? string.Empty;
            openSourcePreviewMarkup = CouncilText.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent, Logger);
            sourcePopupVisible = true;
            statusText = $"Opened {openSourceRelativePath}.";
-       }, "OpenWorkspaceFileAsync").ConfigureAwait(false);
+       }, "OpenWorkspaceFileAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -462,15 +462,15 @@
         var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file";
         var response = await http.PostAsJsonAsync(
             NavigationManager.ToAbsoluteUri(route),
-            new LocalGptCatalogService.ArtifactWorkspaceFileSaveRequest(openSourceRelativePath, openSourceContent)).ConfigureAwait(false);
-        var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            new LocalGptCatalogService.ArtifactWorkspaceFileSaveRequest(openSourceRelativePath, openSourceContent)).ConfigureAwait(true);
+        var text = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
         statusText = response.IsSuccessStatusCode
             ? $"Saved {openSourceRelativePath}. Refresh the zip when the source is ready."
             : $"Save failed: {(int)response.StatusCode} {response.ReasonPhrase}";
         resultText = CouncilText.PrettyPrintJson(text, Logger);
         openSourcePreviewMarkup = CouncilText.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent, Logger);
-        await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(false);
-    }, "SaveWorkspaceFileAsync").ConfigureAwait(false); 
+        await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(true);
+    }, "SaveWorkspaceFileAsync").ConfigureAwait(true); 
         }
         catch (Exception ex)
         {
@@ -492,14 +492,14 @@
 
           var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/zip";
           using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-          var response = await http.GetAsync(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
-          var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+          var response = await http.GetAsync(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(true);
+          var text = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
           statusText = response.IsSuccessStatusCode
               ? $"Workspace zip refreshed for {selectedArtifactWorkspace.WorkspaceName}."
               : $"Zip refresh failed: {(int)response.StatusCode} {response.ReasonPhrase}";
           resultText = CouncilText.PrettyPrintJson(text, Logger);
           downloadLinks = ExtractDownloadLinks(text);
-          await LoadArtifactWorkspacesAsync().ConfigureAwait(false);
+          await LoadArtifactWorkspacesAsync().ConfigureAwait(true);
       }, "RefreshWorkspaceZipAsync");
         }
         catch (Exception ex)
@@ -520,7 +520,7 @@
             {
                 try
                 {
-                    await LoadArtifactWorkspacesAsync().ConfigureAwait(false);
+                    await LoadArtifactWorkspacesAsync().ConfigureAwait(true);
                 }
                 catch (Exception ex)
                 {
@@ -605,7 +605,7 @@
         ComponentActivity.RecordInformation(nameof(TestLab), operation, "The Test Lab UI operation started.");
         try
         {
-            await action().ConfigureAwait(false);
+            await action().ConfigureAwait(true);
             ComponentActivity.RecordInformation(nameof(TestLab), operation, "The Test Lab UI operation completed.");
         }
         catch (OperationCanceledException)

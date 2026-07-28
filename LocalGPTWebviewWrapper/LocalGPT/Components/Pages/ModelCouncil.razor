@@ -597,7 +597,7 @@
         {
             await RunUiActionAsync(async () =>
        {
-           Candidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false)).ToList();
+           Candidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(true)).ToList();
 
            if (SelectedModels.Count == 0)
            {
@@ -608,7 +608,7 @@
            statusText = Candidates.Count == 0
                ? "No Ollama models found."
                : $"Found {Candidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s); {Candidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) are currently offline.";
-       }, "LoadCandidatesAsync").ConfigureAwait(false);
+       }, "LoadCandidatesAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -626,13 +626,13 @@
                 Request.ModelNames = SelectedModels.ToList();
                 try
                 {
-                    LastResult = await CouncilService.RunAsync(Request).ConfigureAwait(false);
+                    LastResult = await CouncilService.RunAsync(Request).ConfigureAwait(true);
                     LastGenerationExecution = null;
                     BuildApprovedReview = false;
                     if (LastResult.MemoryConversationId is Guid memoryId)
                     {
                         Request.ContinueConversationId = memoryId;
-                        await LoadSavedCouncilConversationsAsync(showStatus: false).ConfigureAwait(false);
+                        await LoadSavedCouncilConversationsAsync(showStatus: false).ConfigureAwait(true);
                         SelectedCouncilConversation = SavedCouncilConversations.FirstOrDefault(conversation => conversation.Id == memoryId);
                     }
 
@@ -646,7 +646,7 @@
                     Request.UserConfirmedArtifactBuild = false;
                     Request.UserConfirmedProjectLink = false;
                 }
-            }, "RunCouncilAsync").ConfigureAwait(false);
+            }, "RunCouncilAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -659,7 +659,7 @@
     {
         try
         {
-            await LoadSavedCouncilConversationsAsync(showStatus: true).ConfigureAwait(false); ;
+            await LoadSavedCouncilConversationsAsync(showStatus: true).ConfigureAwait(true); ;
         }
         catch (Exception ex)
         {
@@ -675,7 +675,7 @@
         {
             await RunUiActionAsync(async () =>
        {
-           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100).ConfigureAwait(false))
+           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100).ConfigureAwait(true))
                .Where(conversation => conversation.ProviderName.StartsWith("AI Council", StringComparison.OrdinalIgnoreCase))
                .ToList();
 
@@ -685,7 +685,7 @@
 
            if (showStatus)
                statusText = $"Loaded {SavedCouncilConversations.Count} saved council conversation(s).";
-       }, "LoadSavedCouncilConversationsAsync").ConfigureAwait(false);
+       }, "LoadSavedCouncilConversationsAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -697,10 +697,10 @@
 
     async Task LoadProjectsAsync()
     {
-        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
+        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: false).ConfigureAwait(true)).ToList();
 
         if (Request.ProjectId is Guid projectId)
-            SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
+            SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(true);
     }
 
     async Task SelectProjectAsync(ChangeEventArgs args)
@@ -717,7 +717,7 @@
         }
 
         Request.ProjectId = projectId;
-        SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
+        SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(true);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -770,7 +770,7 @@
 
     }
 
-    private void JoinRunningCouncil() => Navigation.NavigateTo("/Chat?joinCouncil=active");
+    private void JoinRunningCouncil() => Navigation.NavigateTo("/Chat?joinCouncil=active", forceLoad: true);
 
     void ToggleModel(string modelName, ChangeEventArgs args)
     {
@@ -963,9 +963,9 @@
                     DecisionNote = buildAfterGeneration
                         ? "Approved in the AI Council heartbeat UI, including the bounded .NET build."
                         : "Approved in the AI Council heartbeat UI for source generation only."
-                }).ConfigureAwait(false);
+                }).ConfigureAwait(true);
 
-            var refreshed = await CodeGenerationWorkflow.GetReviewAsync(review.Id).ConfigureAwait(false);
+            var refreshed = await CodeGenerationWorkflow.GetReviewAsync(review.Id).ConfigureAwait(true);
             if (LastResult is not null)
                 LastResult.ChangeReview = refreshed;
 
@@ -988,7 +988,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Change-review execution failed for review {ReviewId}; reviewed source content was omitted from logs.", review.Id);
-            var refreshed = await CodeGenerationWorkflow.GetReviewAsync(review.Id).ConfigureAwait(false);
+            var refreshed = await CodeGenerationWorkflow.GetReviewAsync(review.Id).ConfigureAwait(true);
             if (LastResult is not null)
                 LastResult.ChangeReview = refreshed;
             statusText = "Change-review execution failed. Review local application logs using the review ID.";
@@ -1022,7 +1022,7 @@
                     ExpectedReviewHash = review.ReviewHash,
                     UserConfirmed = true,
                     DecisionNote = "Rejected in the AI Council heartbeat UI."
-                }).ConfigureAwait(false);
+                }).ConfigureAwait(true);
             if (LastResult is not null)
                 LastResult.ChangeReview = rejected;
             LastGenerationExecution = null;
@@ -1143,7 +1143,7 @@
         ComponentActivity.RecordInformation(nameof(ModelCouncil), operation, "The AI Council UI operation started.");
         try
         {
-            await action().ConfigureAwait(false);
+            await action().ConfigureAwait(true);
             ComponentActivity.RecordInformation(nameof(ModelCouncil), operation, "The AI Council UI operation completed.");
         }
         catch (OperationCanceledException)

@@ -52,15 +52,15 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             Themes.SetActiveThemeByName(InitialThemeName);
             await DevExpressThemeChangeService
                 .SetTheme(Themes.ActiveTheme.DevExpressTheme)
-                .ConfigureAwait(false);
+                .ConfigureAwait(true);
 
             if (JsRuntime is not null)
             {
                 _module = await JsRuntime
                     .InvokeAsync<IJSObjectReference>("import", "./switcher-resources/theme-controller.js")
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(true);
                 _dotNetReference = DotNetObjectReference.Create(this);
-                await ApplyClientThemeStateAsync(Themes.ActiveTheme).ConfigureAwait(false);
+                await ApplyClientThemeStateAsync(Themes.ActiveTheme).ConfigureAwait(true);
             }
 
             ComponentActivity.RecordInformation(
@@ -82,7 +82,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                 "Theme warning");
         }
 
-        await base.OnAfterRenderAsync(firstRender).ConfigureAwait(false);
+        await base.OnAfterRenderAsync(firstRender).ConfigureAwait(true);
     }
 
     public async Task RequestThemeChangeAsync(Theme theme)
@@ -100,13 +100,13 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         {
             await DevExpressThemeChangeService
                 .SetTheme(theme.DevExpressTheme)
-                .ConfigureAwait(false);
+                .ConfigureAwait(true);
             Themes.SetActiveTheme(theme);
 
             if (_module is not null)
-                await ApplyClientThemeStateAsync(theme).ConfigureAwait(false);
+                await ApplyClientThemeStateAsync(theme).ConfigureAwait(true);
             else
-                await ThemeLoadedAsync().ConfigureAwait(false);
+                await ThemeLoadedAsync().ConfigureAwait(true);
         }
         catch (JSDisconnectedException)
         {
@@ -121,7 +121,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             {
                 await DevExpressThemeChangeService
                     .SetTheme(previousTheme.DevExpressTheme)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(true);
                 Themes.SetActiveTheme(previousTheme);
                 restored = true;
             }
@@ -163,7 +163,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
 
         Themes.SetActiveTheme(loadedTheme);
         if (Themes.ThemeLoadNotifier is not null)
-            await Themes.ThemeLoadNotifier.NotifyThemeLoadedAsync(loadedTheme).ConfigureAwait(false);
+            await Themes.ThemeLoadNotifier.NotifyThemeLoadedAsync(loadedTheme).ConfigureAwait(true);
 
         ComponentActivity.RecordInformation(
             nameof(ThemeJsChangeDispatcher),
@@ -201,7 +201,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         {
             try
             {
-                await _module.DisposeAsync().ConfigureAwait(false);
+                await _module.DisposeAsync().ConfigureAwait(true);
             }
             catch (JSDisconnectedException)
             {

@@ -46,7 +46,7 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <HeadOutlet />
 </head>
-<body>
+<body data-enhance-nav="false">
     <div id="switcher-container" data-permanent></div>
     <div id="interactive-startup-overlay" class="interactive-startup-overlay" data-permanent>
         <strong>@Localization.Get("Startup.Connecting", fallback: "LocalGPT UI is connecting")</strong>
@@ -86,7 +86,9 @@
             markInteractive: () => document.documentElement.classList.add('localgpt-interactive-ready')
         };
 
-        Blazor.start()
+        Blazor.start({
+            ssr: { disableDomPreservation: true }
+        })
             .then(() => window.localGptReady.markInteractive())
             .catch(error => {
                 console.error(error);

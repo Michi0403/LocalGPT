@@ -24,7 +24,7 @@ class LocalGptRenderAndAsyncContracts(unittest.TestCase):
         self.assertIn("AssertLocalGptAsyncContinuationPolicy", targets)
         self.assertIn("SkipAsyncContinuationGuard", targets)
         manifest = json.loads((BUILD / "async-continuation-baseline.json").read_text(encoding="utf-8"))
-        self.assertEqual(1, manifest["schemaVersion"])
+        self.assertEqual(2, manifest["schemaVersion"])
         self.assertIn("Components/Pages/Chat.razor", manifest["files"])
         self.assertIn("Services/MultiModelCouncilService.cs", manifest["files"])
 
@@ -43,29 +43,38 @@ class LocalGptRenderAndAsyncContracts(unittest.TestCase):
             true_count = len(re.findall(r"\.ConfigureAwait\s*\(\s*true\s*\)", text))
             unconfigured = awaits - false_count - true_count
             relative = path.relative_to(APP).as_posix()
-            limits = baseline.get(relative, {"maxUnconfiguredAwaitCount": 0, "maxConfigureAwaitTrueCount": 0})
+            limits = baseline.get(relative, {
+                "maxUnconfiguredAwaitCount": 0,
+                "maxConfigureAwaitTrueCount": 0,
+                "minConfigureAwaitFalseCount": 0,
+            })
             self.assertLessEqual(unconfigured, limits["maxUnconfiguredAwaitCount"], relative)
             self.assertLessEqual(true_count, limits["maxConfigureAwaitTrueCount"], relative)
+            if relative.startswith("Components/"):
+                self.assertEqual(0, false_count, relative)
+            else:
+                self.assertGreaterEqual(false_count, limits["minConfigureAwaitFalseCount"], relative)
             checked += 1
         self.assertGreater(checked, 100)
 
-    def test_historically_configured_ui_files_keep_their_continuations(self):
-        expected_false_counts = {
-            "Components/Pages/Chat.razor": 58,
-            "Components/Pages/ProjectMaintenance.razor": 43,
-            "Components/Pages/Install.razor": 33,
-            "Components/Pages/Projects.razor": 29,
-            "Components/Pages/Database.razor": 29,
-            "Components/Pages/TestLab.razor": 20,
-            "Components/Pages/ModelCouncil.razor": 16,
-            "Components/Pages/MinecraftModBuilder.razor": 14,
-            "Components/Layout/ThemeSwitcherItem.razor": 1,
-            "Components/Layout/Drawer.razor": 1,
-        }
-        for relative, minimum in expected_false_counts.items():
-            text = (APP / relative).read_text(encoding="utf-8")
-            actual = len(re.findall(r"\.ConfigureAwait\s*\(\s*false\s*\)", text))
-            self.assertGreaterEqual(actual, minimum, relative)
+    def test_renderer_sources_keep_the_renderer_context_and_services_keep_false_continuations(self):
+        component_false = []
+        component_true = 0
+        for path in (APP / "Components").rglob("*"):
+            if path.suffix not in {".cs", ".razor"}:
+                continue
+            text = path.read_text(encoding="utf-8")
+            if ".ConfigureAwait(false)" in text:
+                component_false.append(path.relative_to(APP).as_posix())
+            component_true += text.count(".ConfigureAwait(true)")
+        self.assertEqual([], component_false)
+        self.assertGreater(component_true, 250)
+
+        service_false = 0
+        for folder in ("Services", "Controller"):
+            for path in (APP / folder).rglob("*.cs"):
+                service_false += path.read_text(encoding="utf-8").count(".ConfigureAwait(false)")
+        self.assertGreater(service_false, 1000)
 
     def test_repository_validation_runs_both_guards(self):
         validation = (BUILD / "Invoke-RepositoryValidation.ps1").read_text(encoding="utf-8")
