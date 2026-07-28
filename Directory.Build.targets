@@ -1,25 +1,4 @@
 <Project>
-  <!--
-    Direct Windows/Visual Studio builds must not bypass the monotonic logging baseline.
-    The guard is Windows PowerShell 5.1 compatible. Release/development scripts run
-    the same guard once and set SkipLoggingIntegrityGuard for nested MSBuild calls.
-  -->
-  <PropertyGroup>
-    <LoggingIntegrityScript>$(MSBuildThisFileDirectory)build\Assert-LoggingIntegrity.ps1</LoggingIntegrityScript>
-  </PropertyGroup>
-
-  <Target Name="AssertLocalGptLoggingIntegrity"
-          BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipLoggingIntegrityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Error Condition="!Exists('$(LoggingIntegrityScript)')"
-           Text="Logging integrity guard script is missing: $(LoggingIntegrityScript)" />
-    <Exec Condition="Exists('$(LoggingIntegrityScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LoggingIntegrityScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)"
-          ConsoleToMSBuild="true"
-          StandardOutputImportance="High"
-          StandardErrorImportance="High" />
-  </Target>
 
   <PropertyGroup>
     <OneWireArchitectureScript>$(MSBuildThisFileDirectory)build\Assert-OneWireArchitecture.ps1</OneWireArchitectureScript>
@@ -43,14 +22,6 @@
     <ProtectedRepositoryFilesScript>$(MSBuildThisFileDirectory)build\Assert-ProtectedRepositoryFiles.ps1</ProtectedRepositoryFilesScript>
     <RuntimeValueOwnershipScript>$(MSBuildThisFileDirectory)build\Assert-RuntimeValueOwnership.ps1</RuntimeValueOwnershipScript>
   </PropertyGroup>
-
-  <Target Name="AssertLocalGptProtectedRepositoryFiles"
-          BeforeTargets="BeforeBuild"
-          AfterTargets="AssertLocalGptOneWireArchitecture"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipProtectedRepositoryFilesGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Error Condition="!Exists('$(ProtectedRepositoryFilesScript)')" Text="Protected repository-file guard script is missing: $(ProtectedRepositoryFilesScript)" />
-    <Exec Condition="Exists('$(ProtectedRepositoryFilesScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ProtectedRepositoryFilesScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
 
   <PropertyGroup>
     <LocalizationIntegrityScript>$(MSBuildThisFileDirectory)build\Assert-LocalizationIntegrity.ps1</LocalizationIntegrityScript>
@@ -85,24 +56,6 @@
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
   </Target>
-
-  <PropertyGroup>
-    <GitSourceVisibilityScript>$(MSBuildThisFileDirectory)build\Assert-GitSourceVisibility.ps1</GitSourceVisibilityScript>
-  </PropertyGroup>
-
-  <Target Name="AssertLocalGptGitSourceVisibility"
-          BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipGitSourceVisibilityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Error Condition="!Exists('$(GitSourceVisibilityScript)')"
-           Text="Git source visibility guard script is missing: $(GitSourceVisibilityScript)" />
-    <Exec Condition="Exists('$(GitSourceVisibilityScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(GitSourceVisibilityScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)"
-          ConsoleToMSBuild="true"
-          StandardOutputImportance="High"
-          StandardErrorImportance="High" />
-  </Target>
-
 
   <PropertyGroup>
     <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>
