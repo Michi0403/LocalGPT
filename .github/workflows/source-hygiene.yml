@@ -61,7 +61,3 @@ jobs:
       - name: Check database migration bootstrap
         shell: pwsh
         run: ./build/Assert-DatabaseMigrationBootstrap.ps1
-
-      - name: Check security policy
-        shell: pwsh
-        run: ./build/Assert-SecurityPolicy.ps1

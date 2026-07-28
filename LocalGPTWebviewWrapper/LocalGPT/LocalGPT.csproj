@@ -40,7 +40,6 @@
 		
 		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\llms.txt" Link="llms.txt" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\SECURITY.md" Link="SECURITY.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\ARCHITECTURE.md" Link="docs\ARCHITECTURE.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\ARCHITECTURE_FOR_AI.md" Link="docs\ARCHITECTURE_FOR_AI.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md" Link="docs\COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md" CopyToOutputDirectory="PreserveNewest" />
@@ -48,7 +47,6 @@
 		<Content Include="..\..\docs\HUMAN_AI_COLLABORATION.md" Link="docs\HUMAN_AI_COLLABORATION.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\PEACEFUL_USE_COVENANT.md" Link="docs\PEACEFUL_USE_COVENANT.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\PROJECT_COLLABORATION.md" Link="docs\PROJECT_COLLABORATION.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\SECURE_MAINTENANCE.md" Link="docs\SECURE_MAINTENANCE.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md" Link="docs\DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md" CopyToOutputDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\CHAT_PROTOCOLS_AND_SESSION_CONTEXT.md" Link="docs\CHAT_PROTOCOLS_AND_SESSION_CONTEXT.md" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>

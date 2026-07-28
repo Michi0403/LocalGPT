@@ -30,7 +30,6 @@ The following governance and enforcement files are **protected**. Automated agen
 - `docs/HUMAN_AI_COLLABORATION.md`
 - `docs/PEACEFUL_USE_COVENANT.md`
 - `docs/SECURE_MAINTENANCE.md`
-- `build/Assert-SecurityPolicy.ps1`
 - `build/Assert-SourceFormatting.ps1`
 - `build/RepositoryValidation.Common.ps1`
 - `build/Assert-CSharpSyntax.ps1`

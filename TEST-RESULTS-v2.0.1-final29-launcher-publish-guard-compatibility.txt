@@ -1,8 +1,0 @@
-LocalGPT 2.0.1 final29 validation
-
-- Parsed all maintained MSBuild/XML project, target, props and publish-profile files successfully.
-- 60 Python contract tests passed.
-- Protected repository manifest passed for 131 expected files.
-- final19 security/1-Wire preservation manifest passed with all 8 protected files unchanged.
-- The unchanged 1-Wire launcher assertion now recognizes the explicit Start.cmd publish item.
-- Native dotnet compilation was not run because dotnet is unavailable in the validation environment.

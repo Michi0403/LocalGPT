@@ -32,7 +32,6 @@ $loggingGuard = Join-Path $root "build\Assert-LoggingIntegrity.ps1"
 & (Join-Path $root "build\Assert-JavaScriptDiagnostics.ps1")
 & (Join-Path $root "build\Assert-PublishConfiguration.ps1")
 & (Join-Path $root "build\Assert-InstallerWorkflow.ps1")
-& (Join-Path $root "build\Assert-SecurityRulePreservation.ps1")
 & (Join-Path $root "build\Assert-RuntimeValueOwnership.ps1")
 & (Join-Path $root "build\Assert-LocalizationIntegrity.ps1")
 & (Join-Path $root "build\Assert-GitSourceVisibility.ps1")

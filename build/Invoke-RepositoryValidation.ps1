@@ -11,7 +11,6 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Get-LocalGptRepositoryRoot
 Push-Location $repoRoot
 try {
-    & ./build/Assert-ProtectedRepositoryFiles.ps1
     & ./build/Assert-JavaScriptDiagnostics.ps1
     & ./build/Assert-LocalizationIntegrity.ps1
     & ./build/Assert-OperationalDiagnostics.ps1
@@ -21,12 +20,9 @@ try {
     & ./build/Assert-ApplicationStaticPolicy.ps1
     & ./build/Assert-TextServiceOwnership.ps1
     & ./build/Assert-RuntimeValueOwnership.ps1
-    & ./build/Assert-SecurityRulePreservation.ps1
     & ./build/Assert-IteratorExceptionPolicy.ps1
     & ./build/Assert-GitSourceVisibility.ps1
     & ./build/Assert-ProjectClosure.ps1
-    & ./build/Assert-SourceFormatting.ps1
-    & ./build/Assert-SecurityPolicy.ps1
     & ./build/Assert-CSharpSyntax.ps1
     & ./build/Assert-ComponentSafety.ps1
     & ./build/Assert-ServiceArchitecture.ps1

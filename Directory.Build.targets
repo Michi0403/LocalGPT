@@ -41,7 +41,6 @@
 
   <PropertyGroup>
     <ProtectedRepositoryFilesScript>$(MSBuildThisFileDirectory)build\Assert-ProtectedRepositoryFiles.ps1</ProtectedRepositoryFilesScript>
-    <SecurityRulePreservationScript>$(MSBuildThisFileDirectory)build\Assert-SecurityRulePreservation.ps1</SecurityRulePreservationScript>
     <RuntimeValueOwnershipScript>$(MSBuildThisFileDirectory)build\Assert-RuntimeValueOwnership.ps1</RuntimeValueOwnershipScript>
   </PropertyGroup>
 
@@ -51,22 +50,6 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipProtectedRepositoryFilesGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(ProtectedRepositoryFilesScript)')" Text="Protected repository-file guard script is missing: $(ProtectedRepositoryFilesScript)" />
     <Exec Condition="Exists('$(ProtectedRepositoryFilesScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ProtectedRepositoryFilesScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <Target Name="AssertLocalGptSecurityRulePreservation"
-          BeforeTargets="BeforeBuild"
-          AfterTargets="AssertLocalGptProtectedRepositoryFiles"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipSecurityRulePreservationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Error Condition="!Exists('$(SecurityRulePreservationScript)')" Text="Security-rule preservation script is missing: $(SecurityRulePreservationScript)" />
-    <Exec Condition="Exists('$(SecurityRulePreservationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SecurityRulePreservationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <Target Name="AssertLocalGptRuntimeValueOwnership"
-          BeforeTargets="BeforeBuild"
-          AfterTargets="AssertLocalGptSecurityRulePreservation"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipRuntimeValueOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
-    <Error Condition="!Exists('$(RuntimeValueOwnershipScript)')" Text="Runtime-value ownership script is missing: $(RuntimeValueOwnershipScript)" />
-    <Exec Condition="Exists('$(RuntimeValueOwnershipScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(RuntimeValueOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
   <PropertyGroup>

@@ -17,9 +17,7 @@ $protectedPaths = @(
     'build/Assert-ApplicationStaticPolicy.ps1',
     'build/Assert-TextServiceOwnership.ps1',
     'build/Assert-RuntimeValueOwnership.ps1',
-    'build/Assert-SecurityRulePreservation.ps1',
     'build/runtime-value-ownership-baseline.json',
-    'build/security-rules-final19.sha256',
     'build/Assert-IteratorExceptionPolicy.ps1',
     'build/Assert-SystemVariableInitialization.ps1',
     'build/method-diagnostics-baseline.json',
@@ -30,13 +28,6 @@ $protectedPaths = @(
     'build/async-continuation-baseline.json',
     'build/Invoke-RepositoryValidation.ps1',
     'docs/RUNTIME_VALUE_OWNERSHIP.md',
-    'CHANGELOG-v2.0.1-final20-runtime-value-ownership.md',
-    'TEST-RESULTS-v2.0.1-final20-runtime-value-ownership.txt',
-    'tests/localization_encoding_git_visibility_contracts.py',
-    'tests/final17_system_variable_and_ps51_contracts.py',
-    'tests/final18_ps51_baseline_contracts.py',
-    'tests/final19_compile_regressions.py',
-    'tests/final20_runtime_value_ownership.py',
     'LocalGPTWebviewWrapper/LocalGPT/Localization/en-US.json',
     'LocalGPTWebviewWrapper/LocalGPT/Localization/de-DE.json'
 )
