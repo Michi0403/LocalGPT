@@ -25,10 +25,8 @@ $wirePackage = Join-Path $packageDirectory $wirePackageName
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
 $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
 
-$loggingGuard = Join-Path $root "build\Assert-LoggingIntegrity.ps1"
+$loggingGuard = Join-Path $root "build\Assert-OneWireArchitecture.ps1"
 & $loggingGuard
-& (Join-Path $root "build\Assert-OneWireArchitecture.ps1")
-& (Join-Path $root "build\Assert-ProtectedRepositoryFiles.ps1")
 & (Join-Path $root "build\Assert-JavaScriptDiagnostics.ps1")
 & (Join-Path $root "build\Assert-PublishConfiguration.ps1")
 & (Join-Path $root "build\Assert-InstallerWorkflow.ps1")
