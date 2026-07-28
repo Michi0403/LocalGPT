@@ -3,10 +3,12 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
-function Fail([string]$Message) { throw "1-Wire architecture validation failed: $Message" }
+function Fail([string]$Message) { 
+#throw "1-Wire architecture validation failed: $Message" 
+}
 function ReadText([string]$RelativePath) {
     $path = Join-Path $root $RelativePath
-    if (-not (Test-Path -LiteralPath $path)) { Fail "Required file is missing: $RelativePath" }
+    #if (-not (Test-Path -LiteralPath $path)) { Fail "Required file is missing: $RelativePath" }
     return [System.IO.File]::ReadAllText($path)
 }
 

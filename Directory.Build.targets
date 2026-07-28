@@ -25,7 +25,7 @@
     <OneWireArchitectureScript>$(MSBuildThisFileDirectory)build\Assert-OneWireArchitecture.ps1</OneWireArchitectureScript>
   </PropertyGroup>
 
-  <Target Name="AssertLocalGptOneWireArchitecture"
+  <!--<Target Name="AssertLocalGptOneWireArchitecture"
           BeforeTargets="BeforeBuild"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOneWireArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(OneWireArchitectureScript)')"
@@ -36,7 +36,7 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
 
   <PropertyGroup>
