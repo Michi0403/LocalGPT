@@ -25,14 +25,14 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
             "Layout/ThemeSwitcherContainer.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: true))",
             "Layout/ThemeSwitcherItem.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: true))",
             "Layout/ToastWrapper.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
-            "Pages/Chat.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
+            "Pages/Chat.razor": "@rendermode InteractiveServer",
             "Pages/CouncilTeams.razor": "@rendermode InteractiveServer",
             "Pages/Database.razor": "@rendermode InteractiveServer",
             "Pages/DxFunctionCatalog.razor": "@rendermode InteractiveServer",
             "Pages/Install.razor": "@rendermode InteractiveServer",
             "Pages/MinecraftModBuilder.razor": "@rendermode InteractiveServer",
             "Pages/ModelCouncil.razor": "@rendermode InteractiveServer",
-            "Pages/OneWireSecurity.razor": "@rendermode @(new InteractiveServerRenderMode(prerender: false))",
+            "Pages/OneWireSecurity.razor": "@rendermode InteractiveServer",
             "Pages/ProjectMaintenance.razor": "@rendermode InteractiveServer",
             "Pages/Projects.razor": "@rendermode InteractiveServer",
             "Pages/TestLab.razor": "@rendermode InteractiveServer",
@@ -78,10 +78,18 @@ class LocalGptFrontendCancellationContracts(unittest.TestCase):
         self.assertNotIn('JS.InvokeVoidAsync("localGptReady.markInteractive")', chat)
         self.assertIn("WaitForAutoSaveIntervalAsync", chat)
         self.assertNotIn("Task.Delay(TimeSpan.FromSeconds(12), cancellationToken)", chat)
-        initialized = chat.split("void ChatInitialized()", 1)[1].split("private async Task ClearHistoryAsync", 1)[0]
+        initialized = chat.split("private Task ChatInitialized()", 1)[1].split("private void ScheduleChatRuntimeActivation", 1)[0]
+        schedule = chat.split("private void ScheduleChatRuntimeActivation", 1)[1].split("private async Task TryStartChatRuntimeAsync", 1)[0]
+        activation = chat.split("private async Task TryStartChatRuntimeAsync", 1)[1].split("private async Task ClearHistoryAsync", 1)[0]
         self.assertIn("chatControlInitialized = true;", initialized)
-        self.assertIn("StartAutoSaveLoop();", initialized)
-        self.assertIn("StartInitialModelRefresh();", initialized)
+        self.assertNotIn("LoadSelectedSessionMessages();", initialized)
+        self.assertIn('"ActivateChatRuntime"', schedule)
+        self.assertIn("InvokeAsync(TryStartChatRuntimeAsync)", schedule)
+        self.assertNotIn("Task.Yield", activation)
+        self.assertIn("StartAutoSaveLoop();", activation)
+        self.assertIn("StartInitialModelRefresh();", activation)
+        self.assertIn("DiscoverAndApplyOllamaModelsAsync", chat)
+        self.assertIn("hasPersistableState", chat)
 
     def test_development_html_is_not_response_compressed(self):
         program = (APP / "Program.cs").read_text(encoding="utf-8")

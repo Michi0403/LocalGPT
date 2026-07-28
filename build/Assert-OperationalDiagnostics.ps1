@@ -64,7 +64,7 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Routes.razor' @(
 # boundary and operational diagnostics. Async continuation policy is validated separately.
 # Dispose methods are exempt.
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor' @(
-    '@rendermode\s+@\(new\s+InteractiveServerRenderMode\(prerender:\s*false\)\)',
+    '@rendermode\s+InteractiveServer',
     'ILogger<Chat>',
     'INotificationService',
     'interactiveAttached\s*=\s*true',
@@ -97,9 +97,9 @@ if (Test-Path -LiteralPath $chatPath) {
     }
 }
 
-# Complex renderer-affine pages use non-prerendered InteractiveServer boundaries and bounded initialization.
+# Complex renderer-affine pages use their reviewed InteractiveServer boundaries and bounded initialization.
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\OneWireSecurity.razor' @(
-    '@rendermode\s+@\(new\s+InteractiveServerRenderMode\(prerender:\s*false\)\)',
+    '@rendermode\s+InteractiveServer',
     'CancelAfter\(TimeSpan\.FromSeconds\(8\)\)',
     'InitialSecurityRefresh',
     'InitializeAfterRenderAsync',

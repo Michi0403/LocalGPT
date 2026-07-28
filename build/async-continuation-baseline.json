@@ -35,7 +35,7 @@
     },
     "Components/Pages/Chat.razor": {
       "maxUnconfiguredAwaitCount": 12,
-      "maxConfigureAwaitTrueCount": 59,
+      "maxConfigureAwaitTrueCount": 67,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/CouncilTeams.razor": {
@@ -70,7 +70,7 @@
     },
     "Components/Pages/OneWireSecurity.razor": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 24,
+      "maxConfigureAwaitTrueCount": 25,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/ProjectMaintenance.razor": {

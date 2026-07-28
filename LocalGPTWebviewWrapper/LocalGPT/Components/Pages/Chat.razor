@@ -1,4 +1,4 @@
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@rendermode InteractiveServer
 @page "/Chat"
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Text
@@ -569,6 +569,8 @@
     bool autoSaveStarted;
     bool interactiveAttached;
     bool chatControlInitialized;
+    bool chatRuntimeStarted;
+    bool chatRuntimeActivationScheduled;
     bool isDisposed;
     HumanCollaborationSnapshot collaborationSnapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
     Guid? SelectedCouncilRunId { get; set; }
@@ -759,6 +761,7 @@
             interactiveAttached = true;
             Logger.LogInformation("Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
             ComponentActivity.RecordInformation(nameof(Chat), "InteractiveAttach", "The Chat page attached to the interactive circuit and is waiting for its chat control.");
+            ScheduleChatRuntimeActivation();
         }
         catch (Exception ex)
         {
@@ -766,27 +769,78 @@
             ComponentActivity.RecordFailure(nameof(Chat), "InteractiveAttach", ex);
             Notifier.ShowError(toastName, "Chat could not finish attaching to the interactive UI. See local logs for details.", "Chat attach error");
         }
-
         return Task.CompletedTask;
     }
 
-    void ChatInitialized()
+    private Task ChatInitialized()
     {
         try
         {
-            ApplyDiagnosticQueryOptions(selectSession: true);
-            LoadSelectedSessionMessages();
-            RefreshFeedbackTargets();
             chatControlInitialized = true;
-            StartAutoSaveLoop();
-            StartInitialModelRefresh();
-            Logger.LogInformation("DXAiChat initialized; model refresh and auto-save supervision are now active.");
-            ComponentActivity.RecordInformation(nameof(Chat), nameof(ChatInitialized), "The DXAiChat control initialized and background supervision started.");
+            Logger.LogInformation("DXAiChat initialized; activation is queued until the DevExpress initialization callback has returned.");
+            ComponentActivity.RecordInformation(nameof(Chat), nameof(ChatInitialized), "The DXAiChat control initialized; runtime activation was queued outside its initialization callback.");
+            ScheduleChatRuntimeActivation();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Exception in ChatInitialized: {Message}", ex);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "Exception in ChatInitialized: {Message}", ex.Message);
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(ChatInitialized), ex);
+            Notifier.ShowError(toastName, "The chat control could not finish initializing. See local application logs for technical details.", "Chat initialization failed");
+        }
+        return Task.CompletedTask;
+    }
+
+    private void ScheduleChatRuntimeActivation()
+    {
+        if (chatRuntimeActivationScheduled || chatRuntimeStarted || isDisposed || !interactiveAttached || !chatControlInitialized)
+            return;
+
+        chatRuntimeActivationScheduled = true;
+        TaskRunner.Run(
+            nameof(Chat),
+            "ActivateChatRuntime",
+            async cancellationToken =>
+            {
+                // Do not call LoadMessages/SaveMessages from inside DxAIChat.Initialized. A short
+                // asynchronous boundary lets DevExpress finish its own render and JS attachment.
+                await Task.Delay(TimeSpan.FromMilliseconds(150), cancellationToken).ConfigureAwait(true);
+                if (cancellationToken.IsCancellationRequested || isDisposed)
+                    return;
+                await InvokeAsync(TryStartChatRuntimeAsync).ConfigureAwait(true);
+            },
+            componentLifetimeCts.Token);
+    }
+
+    private async Task TryStartChatRuntimeAsync()
+    {
+        if (chatRuntimeStarted || isDisposed || !interactiveAttached || !chatControlInitialized)
+            return;
+        if (DxAiChat is null)
+        {
+            chatRuntimeActivationScheduled = false;
+            return;
+        }
+
+        chatRuntimeStarted = true;
+        try
+        {
+            ApplyDiagnosticQueryOptions(selectSession: true);
+            var initialMessages = ChatClientProvider?.SelectedSession?.Messages?.ToList() ?? [];
+            if (initialMessages.Count > 0)
+                DxAiChat.LoadMessages(initialMessages);
+            RefreshFeedbackTargets(initialMessages);
+
+            StartAutoSaveLoop();
+            StartInitialModelRefresh();
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+            Logger.LogInformation("Chat runtime activated after DevExpress initialization completed; the UI remains responsive while supervised work runs off-dispatcher.");
+            ComponentActivity.RecordInformation(nameof(Chat), nameof(TryStartChatRuntimeAsync), "The Chat runtime activated after the DevExpress initialization callback completed.");
+        }
+        catch
+        {
+            chatRuntimeStarted = false;
+            chatRuntimeActivationScheduled = false;
+            throw;
         }
     }
 
@@ -938,77 +992,86 @@
 
     private async Task RefreshOllamaModelsAsync()
     {
-        try
-        {
-            await RefreshOllamaModelsAsync(showToast: true).ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-        }
+        await DiscoverAndApplyOllamaModelsAsync(showToast: true, componentLifetimeCts.Token).ConfigureAwait(true);
     }
 
     private async Task RefreshOllamaModelsAsync(bool showToast)
     {
+        await DiscoverAndApplyOllamaModelsAsync(showToast, componentLifetimeCts.Token).ConfigureAwait(true);
+    }
+
+    private async Task DiscoverAndApplyOllamaModelsAsync(bool showToast, CancellationToken cancellationToken)
+    {
+        if (ChatClientProvider is null || isDisposed || cancellationToken.IsCancellationRequested)
+            return;
+
         try
         {
-            if (ChatClientProvider is null)
+            await InvokeAsync(() => isModelRefreshBusy = true).ConfigureAwait(true);
+
+            // Discovery runs from the supervised task context. Only the small state-application
+            // phase is marshalled back to the renderer, so a slow Ollama probe cannot monopolize
+            // the Blazor circuit or freeze unrelated controls.
+            var discovered = await CouncilService.GetCandidatesAsync(cancellationToken).ConfigureAwait(true);
+            if (isDisposed || cancellationToken.IsCancellationRequested)
                 return;
 
-            try
-            {
-                isModelRefreshBusy = true;
-                if (DxAiChat is not null)
-                    SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
-
-                OllamaCandidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(true))
-                    .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
-                    .OrderByDescending(candidate => candidate.IsLoaded)
-                    .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
-                {
-                    var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled && candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
-                        ?? OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled);
-                    if (preferred is not null)
-                        SelectedCouncilModelNames.Add(preferred.ModelName);
-                }
-
-                modelSelectionNotice = string.Empty;
-                RebuildDynamicSessions();
-                modelStatus = OllamaCandidates.Count == 0
-                    ? "No installed Ollama models detected."
-                    : $"Detected {OllamaCandidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s) and {OllamaCandidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured offline model(s). Only reachable models were added to DXAiChat and AI Council.";
-                if (!string.IsNullOrWhiteSpace(modelSelectionNotice))
-                    modelStatus = $"{modelStatus} {modelSelectionNotice}";
-                if (DiagnosticCouncilModelNames.Count > 0)
-                {
-                    modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
-                }
-
-                if (showToast)
-                    Notifier.ShowSuccess(toastName, modelStatus, "Ollama models refreshed");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "RefreshOllamaModelsAsync failed: {Message}", ex.Message);
-                modelStatus = $"Model refresh failed: {ex.Message}";
-                if (showToast)
-                    Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            }
-            finally
-            {
-                isModelRefreshBusy = false;
-            }
+            await InvokeAsync(() => ApplyDiscoveredOllamaModels(discovered, showToast)).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Ollama model discovery stopped during navigation or shutdown.");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "RefreshOllamaModelsAsync failed: {Message}", ex.Message);
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(DiscoverAndApplyOllamaModelsAsync), ex);
+            await InvokeAsync(() =>
+            {
+                modelStatus = "Model refresh failed. Configured sessions remain available; see local logs for details.";
+                if (showToast)
+                    Notifier.ShowError(toastName, modelStatus, "Model refresh failed");
+            }).ConfigureAwait(true);
         }
+        finally
+        {
+            if (!isDisposed)
+            {
+                try { await InvokeAsync(() => isModelRefreshBusy = false).ConfigureAwait(true); }
+                catch (InvalidOperationException) when (isDisposed) { }
+            }
+        }
+    }
+
+    private void ApplyDiscoveredOllamaModels(IReadOnlyList<MultiModelCouncilModelCandidate> discovered, bool showToast)
+    {
+        OllamaCandidates = discovered
+            .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
+            .OrderByDescending(candidate => candidate.IsLoaded)
+            .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
+        {
+            var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled && candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
+                ?? OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled);
+            if (preferred is not null)
+                SelectedCouncilModelNames.Add(preferred.ModelName);
+        }
+
+        modelSelectionNotice = string.Empty;
+        RebuildDynamicSessions();
+        modelStatus = OllamaCandidates.Count == 0
+            ? "No installed Ollama models detected."
+            : $"Detected {OllamaCandidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s) and {OllamaCandidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured offline model(s). Only reachable models were added to DXAiChat and AI Council.";
+        if (!string.IsNullOrWhiteSpace(modelSelectionNotice))
+            modelStatus = $"{modelStatus} {modelSelectionNotice}";
+        if (DiagnosticCouncilModelNames.Count > 0)
+            modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
+
+        if (showToast)
+            Notifier.ShowSuccess(toastName, modelStatus, "Ollama models refreshed");
     }
 
     private void RebuildDynamicSessions()
@@ -2131,6 +2194,12 @@
                 return;
 
             initialModelRefreshStarted = true;
+            if (ChatClientProvider?.AvailableChatClients.Count > 0)
+            {
+                Logger.LogInformation("Skipping automatic model discovery because {SessionCount} configured chat session(s) are already available; manual refresh remains available.", ChatClientProvider.AvailableChatClients.Count);
+                return;
+            }
+
             TaskRunner.Run(
                 nameof(Chat),
                 "InitialModelRefresh",
@@ -2140,10 +2209,10 @@
                     {
                         if (cancellationToken.IsCancellationRequested || isDisposed)
                             return;
-                        await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken).ConfigureAwait(true);
+                        await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(true);
                         if (cancellationToken.IsCancellationRequested || isDisposed)
                             return;
-                        await InvokeAsync(() => RefreshOllamaModelsAsync(showToast: false)).ConfigureAwait(true);
+                        await DiscoverAndApplyOllamaModelsAsync(showToast: false, cancellationToken).ConfigureAwait(true);
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
                     {
@@ -2201,6 +2270,15 @@
 
             try
             {
+                // Do not call the synchronous DevExpress SaveMessages API for a brand-new empty
+                // control. That work has no persistence value and can contend with the control's
+                // first client-side render. Once a session contains data or has a persisted ID,
+                // the normal supervised auto-save path remains active.
+                var hasPersistableState = ActiveConversationId is not null
+                    || (ChatClientProvider?.SelectedSession?.Messages.Count ?? 0) > 0;
+                if (!hasPersistableState)
+                    continue;
+
                 await InvokeAsync(() => PersistCurrentConversationAsync(force: false, showToast: false)).ConfigureAwait(true);
                 autoSaveFailureNotified = false;
             }

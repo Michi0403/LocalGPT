@@ -1,4 +1,4 @@
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@rendermode InteractiveServer
 @page "/onewire-security"
 @using System.Text.Json
 @inject IOneWireRuntimeSecurityService Security
@@ -166,9 +166,14 @@
     {
         try
         {
-            await InvokeAsync(async () =>
+            // Read runtime state outside the renderer dispatcher. The previous implementation
+            // wrapped the entire security I/O sequence in InvokeAsync, which could monopolize the
+            // circuit until the timeout fired. Only the final state assignment belongs on the UI.
+            var state = await LoadSecurityStateAsync(cancellationToken).ConfigureAwait(true);
+            await InvokeAsync(() =>
             {
-                await RefreshAsync(cancellationToken).ConfigureAwait(true);
+                _status = state.Status;
+                _trustedPeers = state.TrustedPeers;
                 Logger.LogInformation("1-Wire Security page initialized with {TrustedPeerCount} trusted peer(s).", _trustedPeers.Count);
                 ComponentActivity.RecordInformation(nameof(OneWireSecurity), nameof(InitializeAfterRenderAsync), "The 1-Wire Security runtime state finished loading after the interactive shell rendered.");
                 StateHasChanged();
@@ -210,12 +215,20 @@
         }
     }
 
-    private async Task RefreshAsync(CancellationToken cancellationToken = default)
+    private async Task<(OneWireRuntimeSecurityStatus Status, IReadOnlyList<OneWireTrustedPeerDescriptor> TrustedPeers)> LoadSecurityStateAsync(CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(8));
-        _status = await Security.GetStatusAsync(timeoutCts.Token).ConfigureAwait(true);
-        _trustedPeers = await Security.GetTrustedPeersAsync(timeoutCts.Token).ConfigureAwait(true);
+        var status = await Security.GetStatusAsync(timeoutCts.Token).ConfigureAwait(true);
+        var peers = await Security.GetTrustedPeersAsync(timeoutCts.Token).ConfigureAwait(true);
+        return (status, peers);
+    }
+
+    private async Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        var state = await LoadSecurityStateAsync(cancellationToken).ConfigureAwait(true);
+        _status = state.Status;
+        _trustedPeers = state.TrustedPeers;
     }
 
     private async Task CreateAsync() => await RunAsync(async cancellationToken =>

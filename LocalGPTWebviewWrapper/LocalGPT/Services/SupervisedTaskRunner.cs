@@ -27,7 +27,12 @@ public sealed class SupervisedTaskRunner(
         ArgumentNullException.ThrowIfNull(action);
 
         var taskId = Interlocked.Increment(ref nextTaskId);
-        var task = ObserveAsync(taskId, owner, operation, action, cancellationToken);
+        // A component can call Run from the Blazor renderer synchronization context. Starting the
+        // observer through Task.Run keeps intentionally concurrent service/network work from
+        // executing its synchronous prefix on the renderer and freezing the entire circuit.
+        var task = Task.Run(
+            () => ObserveAsync(taskId, owner, operation, action, cancellationToken),
+            CancellationToken.None);
         if (!activeTasks.TryAdd(taskId, task))
             throw new InvalidOperationException($"Could not track supervised task {taskId}.");
 
