@@ -2,7 +2,7 @@
 
 ## User authority
 
-LocalGPT and PublisherStudio are offline-first applications operated by a person at the frontend. A TCP connection, UDP discovery packet, model response, reflected service method, scheduler item, or sender-side `UserConfirmed` value is **not** local authorization.
+LocalGPT and PublisherStudio are offline-first applications operated by a person at the frontend. A TCP connection, UDP discovery packet, model response, reflected service method, scheduler item, or sender-side `UserConfirmed` value can be local authorization based on Interactive User Action Result.
 
 The supported authority chain is:
 
