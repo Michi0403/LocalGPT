@@ -25,9 +25,27 @@ namespace LocalGPT.Services
                 var body = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return (res.IsSuccessStatusCode, $"{(int)res.StatusCode} {res.ReasonPhrase}: {body}");
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException ex)
+            {
+                logger.LogInformation(
+                    $"AI connectivity request to {{EndpointHost}} did not answer before the configured timeout.",
+                    http.BaseAddress?.Host ?? "invalid-or-unset");
+                return (false, ex.Message);
+            }
+            catch (HttpRequestException ex)
+            {
+                logger.LogInformation(
+                    $"AI connectivity request to {{EndpointHost}} could not establish a connection.",
+                    http.BaseAddress?.Host ?? "invalid-or-unset");
+                return (false, ex.Message);
+            }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in GetAsync http {http.ToString()} path {path?.ToString()}");
+                logger.LogError(ex, $"Unexpected error in GetAsync for host {{EndpointHost}} and path {{Path}}.", http.BaseAddress?.Host ?? "invalid-or-unset", path);
                 return (false, ex.Message);
             }
         }
@@ -82,9 +100,35 @@ namespace LocalGPT.Services
                     ? $"{provider} is reachable, but returned no models."
                     : $"Found {result.Models.Count} {provider} model(s).";
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException ex)
+            {
+                var endpointHost = Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+                    ? endpointUri.Host
+                    : "invalid-or-unset";
+                logger.LogInformation(
+                    $"Optional local AI provider {{Provider}} at host {{EndpointHost}} did not answer before the configured discovery timeout.",
+                    provider,
+                    endpointHost);
+                result.Status = ex.Message;
+            }
+            catch (HttpRequestException ex)
+            {
+                var endpointHost = Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+                    ? endpointUri.Host
+                    : "invalid-or-unset";
+                logger.LogInformation(
+                    $"Optional local AI provider {{Provider}} at host {{EndpointHost}} is not currently reachable.",
+                    provider,
+                    endpointHost);
+                result.Status = ex.Message;
+            }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ProbeOpenAICompatibleAsync provider {provider.ToString()} endpoint {endpoint?.ToString()}");
+                logger.LogError(ex, $"Unexpected error while probing provider {{Provider}} at endpoint {{Endpoint}}.", provider, endpoint);
                 result.Status = ex.Message;
             }
 
@@ -159,9 +203,33 @@ namespace LocalGPT.Services
                     ? "Ollama is reachable, but no models are installed yet."
                     : $"Found {result.Models.Count} Ollama model(s).";
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException ex)
+            {
+                var endpointHost = Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+                    ? endpointUri.Host
+                    : "invalid-or-unset";
+                logger.LogInformation(
+                    $"Optional Ollama discovery at host {{EndpointHost}} did not answer before the configured discovery timeout.",
+                    endpointHost);
+                result.Status = ex.Message;
+            }
+            catch (HttpRequestException ex)
+            {
+                var endpointHost = Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+                    ? endpointUri.Host
+                    : "invalid-or-unset";
+                logger.LogInformation(
+                    $"Optional Ollama discovery at host {{EndpointHost}} is not currently reachable.",
+                    endpointHost);
+                result.Status = ex.Message;
+            }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ProbeOllamaAsync endpoint {endpoint?.ToString()}");
+                logger.LogError(ex, $"Unexpected error while probing Ollama endpoint {{Endpoint}}.", endpoint);
                 result.Status = ex.Message;
             }
 

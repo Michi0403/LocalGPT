@@ -169,7 +169,7 @@ internal static class Program
             // success after partial installation.
             if (options.InstallOllama)
             {
-                logger.LogInformation("Installing Ollama after explicit command-line selection.");
+                logger.LogInformation("Installing or verifying Ollama for the selected setup workflow.");
                 await InstallOllamaAsync(options, logger).ConfigureAwait(false);
             }
 
@@ -202,7 +202,7 @@ internal static class Program
             if (options.StartLocalGpt)
                 StartLocalGpt(options, logger);
 
-            logger.LogInformation("All explicitly requested setup operations completed.");
+            logger.LogInformation("All selected setup operations completed.");
             return 0;
         }
         catch (Exception ex)
@@ -241,7 +241,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "The explicitly requested Ollama installation failed; option paths were omitted from logs.");
+            logger.LogError(ex, "The selected Ollama installation or verification step failed; option paths were omitted from logs.");
             throw;
         }
     }
@@ -556,41 +556,40 @@ internal static class Program
     {
         try
         {
-            var shortcuts = new List<ShortcutDefinition>();
+            var shortcuts = new List<ShortcutDefinition>
+            {
+                new(
+                    ShortcutName: "LocalGPT Folder.lnk",
+                    TargetPath: localGptRoot,
+                    Arguments: string.Empty,
+                    WorkingDirectory: localGptRoot)
+            };
 
-            shortcuts.Add(new ShortcutDefinition(
-                ShortcutName: "LocalGPT Folder.lnk",
-                TargetPath: localGptRoot,
-                Arguments: string.Empty,
-                WorkingDirectory: localGptRoot));
+            var launchers = new (string FileName, string ShortcutName)[]
+            {
+                ("Default.cmd", "LocalGPT Default Install and Update.url"),
+                ("Install.cmd", "LocalGPT Install.url"),
+                ("Update.cmd", "LocalGPT Update.url"),
+                ("Start.cmd", "LocalGPT Start.url"),
+                ("Start-NoBrowser.cmd", "LocalGPT Start without Browser.url"),
+                ("Install-Ollama.cmd", "LocalGPT Install Ollama.url"),
+                ("Pull-Models-Slim.cmd", "LocalGPT Pull Slim Models.url"),
+                ("Pull-Models-RTX3060.cmd", "LocalGPT Pull RTX 3060 Models.url"),
+                ("Pull-Models-Full.cmd", "LocalGPT Pull Full Models.url"),
+                ("Setup-Learning-Base.cmd", "LocalGPT Setup Learning Base.url"),
+                ("Import-Recommended.cmd", "LocalGPT Import Recommended Sources.url"),
+                ("Uninstall.cmd", "LocalGPT Uninstall.url")
+            };
 
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Install.cmd",
-                "LocalGPT Install.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Update.cmd",
-                "LocalGPT Update.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Start.cmd",
-                "LocalGPT Start.url",
-                logger);
-
-            AddCmdShortcutIfExists(
-                shortcuts,
-                localGptRoot,
-                "Uninstall.cmd",
-                "LocalGPT Uninstall.url",
-                logger);
+            foreach (var launcher in launchers)
+            {
+                AddCmdShortcutIfExists(
+                    shortcuts,
+                    localGptRoot,
+                    launcher.FileName,
+                    launcher.ShortcutName,
+                    logger);
+            }
 
             return shortcuts;
         }
@@ -2030,7 +2029,18 @@ internal sealed class CliOptions
         var options = new CliOptions();
         if (argsList.Count == 0)
         {
-            options.ShowHelp = true;
+            options.InstallLocalGptWin = true;
+            options.StartLocalGpt = true;
+            options.Range = ModelRange.Slim;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                options.InstallOllama = true;
+                options.PullOllamaModels = true;
+                options.DesktopShortcuts = true;
+                options.StartMenuShortcuts = true;
+            }
+
             return options;
         }
         for (var i = 0; i < argsList.Count; i++)

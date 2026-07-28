@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-call "%~dp0LocalGPTInstallerConsole.exe" --start-localgpt --port 5000
+call "%~dp0LocalGPTInstallerConsole.exe" --setup-learning-base
 set "EXITCODE=%ERRORLEVEL%"
 echo.
 pause

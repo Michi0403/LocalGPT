@@ -12,9 +12,10 @@
 	  <IsPackable>false</IsPackable>
 	  <CopySatelliteAssemblies>true</CopySatelliteAssemblies>
 	  
-	  <SelfContained>false</SelfContained>
+	  <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
 	  <PublishTrimmed>false</PublishTrimmed>
 	  <PublishSingleFile>false</PublishSingleFile>
+	  <PublishReadyToRun>false</PublishReadyToRun>
 	  <Optimize>False</Optimize>
 	  <RuntimeIdentifiers>
 		  win-x64;
@@ -91,12 +92,8 @@
 	  <PackageReference Include="DevExpress.AIIntegration.OpenAI" Version="25.2.*" />
   </ItemGroup>
   <ItemGroup>
-	  <Content Update="appsettings.Development.json">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	  <Content Update="appsettings.json">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
+	  <Content Update="appsettings.Development.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="PreserveNewest" />
+	  <Content Update="appsettings.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="PreserveNewest" />
 	  <Content Update="wwwroot\about.txt">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>

@@ -1,8 +1,8 @@
 # LocalGPT Installer Console
 
-Argument-driven C# console helper for explicit LocalGPT setup and maintenance.
+C# console helper for LocalGPT setup, update, startup and maintenance.
 
-Running it without arguments prints help and performs no installation, download, model pull, deletion, or process start. Review every target path and option before confirming a destructive operation.
+Running it without arguments starts the default preservation-first install and update routine. On Windows it installs or verifies Ollama, checks and pulls the Slim minimal model set, restores the maintained shortcuts, installs or updates LocalGPT, and starts the application. It does not delete the existing LocalAppData installation. Destructive deletion remains limited to an explicit uninstall/force command.
 
 ## Ollama installation
 
@@ -20,7 +20,7 @@ After installation it resolves `ollama.exe` from:
 4. `%ProgramFiles%\Ollama\ollama.exe`;
 5. `%ProgramFiles(x86)%\Ollama\ollama.exe`.
 
-No model is pulled by default. Model pulls require explicit `--pull-models` options.
+The no-command routine checks and pulls the Slim minimal model set. Other ranges require an explicit `--pull-models --range ...` selection.
 
 ## Safety behavior
 
@@ -38,8 +38,8 @@ No model is pulled by default. Model pulls require explicit `--pull-models` opti
 localgpt-setup --install-ollama
 localgpt-setup --pull-models --range Slim
 localgpt-setup --pull-models --range RTX3060 --ollama-exe "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"
-localgpt-setup --install-localgpt --force
-localgpt-setup --import-recommended --force
+localgpt-setup --install-localgpt
+localgpt-setup --import-recommended
 localgpt-setup --uninstall
 localgpt-setup --uninstall --force-delete
 ```
@@ -47,5 +47,5 @@ localgpt-setup --uninstall --force-delete
 ## Build
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishReadyToRun=false
 ```

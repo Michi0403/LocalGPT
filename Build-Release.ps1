@@ -30,11 +30,21 @@ $loggingGuard = Join-Path $root "build\Assert-LoggingIntegrity.ps1"
 & (Join-Path $root "build\Assert-OneWireArchitecture.ps1")
 & (Join-Path $root "build\Assert-ProtectedRepositoryFiles.ps1")
 & (Join-Path $root "build\Assert-JavaScriptDiagnostics.ps1")
+& (Join-Path $root "build\Assert-PublishConfiguration.ps1")
+& (Join-Path $root "build\Assert-InstallerWorkflow.ps1")
 & (Join-Path $root "build\Assert-SecurityRulePreservation.ps1")
 & (Join-Path $root "build\Assert-RuntimeValueOwnership.ps1")
 & (Join-Path $root "build\Assert-LocalizationIntegrity.ps1")
 & (Join-Path $root "build\Assert-GitSourceVisibility.ps1")
 & (Join-Path $root "build\Assert-ProjectMaintenanceArchitecture.ps1")
+
+$multiFileSelfContainedProperties = @(
+    "--self-contained", "true",
+    "-p:PublishTrimmed=false",
+    "-p:PublishSingleFile=false",
+    "-p:PublishReadyToRun=false",
+    "-p:DeleteExistingFiles=true"
+)
 
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
@@ -133,15 +143,10 @@ function Publish-Runtime {
         "-c", $Configuration,
         "-f", "net10.0",
         "-r", $Rid,
-        "--self-contained", "true",
         "--no-restore",
-        "-p:PublishTrimmed=false",
-        "-p:PublishSingleFile=false",
-        "-p:PublishReadyToRun=false",
         "-p:IncludeWireProtocolPackageInPublish=true",
-        "-p:DeleteExistingFiles=true",
         "-o", $appFolder
-    ) + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
+    ) + $multiFileSelfContainedProperties + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
 
     Write-Host "Restoring LocalGPT setup for $Rid..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Rid, "--disable-parallel", "-p:SkipLoggingIntegrityGuard=true",
@@ -151,25 +156,21 @@ function Publish-Runtime {
     "-p:SkipProjectMaintenanceArchitectureGuard=true") -FailureMessage "LocalGPT setup restore failed for $Rid."
 
     Write-Host "Publishing LocalGPT setup for $Rid..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments @(
+    Invoke-DotNet -Arguments (@(
         "publish", $setupProject,
         "-c", $Configuration,
         "-f", "net10.0",
         "-r", $Rid,
-        "--self-contained", "true",
         "--no-restore",
-        "-p:PublishSingleFile=true",
-        "-p:IncludeNativeLibrariesForSelfExtract=true",
         "-p:DebugType=None",
         "-p:DebugSymbols=false",
-        "-p:DeleteExistingFiles=true",
         "-o", $setupFolder,
         "-p:SkipLoggingIntegrityGuard=true",
     "-p:SkipOneWireArchitectureGuard=true",
     "-p:SkipLocalizationIntegrityGuard=true",
     "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true"
-    ) -FailureMessage "LocalGPT setup publish failed for $Rid."
+    ) + $multiFileSelfContainedProperties) -FailureMessage "LocalGPT setup publish failed for $Rid."
 
     $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
     $setupExecutable = if ($Rid.StartsWith("win-")) { "LocalGPTInstallerConsole.exe" } else { "LocalGPTInstallerConsole" }
@@ -179,6 +180,14 @@ function Publish-Runtime {
     if (-not (Test-Path (Join-Path $setupFolder $setupExecutable))) {
         throw "Published LocalGPT setup executable not found: $(Join-Path $setupFolder $setupExecutable)"
     }
+
+    $requiredSetupFiles = @(
+        "Default.cmd", "Install.cmd", "Update.cmd", "Start.cmd", "Start-NoBrowser.cmd",
+        "Install-Ollama.cmd", "Pull-Models-Slim.cmd", "Pull-Models-RTX3060.cmd",
+        "Pull-Models-Full.cmd", "Setup-Learning-Base.cmd", "Import-Recommended.cmd", "Uninstall.cmd"
+    )
+    $missingSetupFiles = @($requiredSetupFiles | Where-Object { -not (Test-Path (Join-Path $setupFolder $_)) })
+    if ($missingSetupFiles.Count -gt 0) { throw "Published LocalGPT setup is incomplete. Missing: $($missingSetupFiles -join ', ')" }
 
     $protocolSetupDirectory = Join-Path $setupFolder "protocol"
     New-Item -ItemType Directory -Path $protocolSetupDirectory -Force | Out-Null
@@ -203,25 +212,23 @@ function Publish-Runtime {
     "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true"
         ) -FailureMessage "WinUI wrapper restore failed for $Rid."
-        Invoke-DotNet -Arguments @(
+        Invoke-DotNet -Arguments (@(
             "publish", $wrapperProject,
             "-c", $Configuration,
             "-r", $Rid,
-            "--self-contained", "true",
             "--no-restore",
             "-p:Platform=$($profile.WrapperPlatform)",
             "-p:UseLocalWireProtocolProject=false",
             "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
             "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
             "-p:RestoreAdditionalProjectSources=$packageDirectory",
-            "-p:PublishSingleFile=false",
             "-o", $wrapperFolder,
             "-p:SkipLoggingIntegrityGuard=true",
     "-p:SkipOneWireArchitectureGuard=true",
     "-p:SkipLocalizationIntegrityGuard=true",
     "-p:SkipGitSourceVisibilityGuard=true",
     "-p:SkipProjectMaintenanceArchitectureGuard=true"
-        ) -FailureMessage "WinUI wrapper publish failed for $Rid."
+        ) + $multiFileSelfContainedProperties) -FailureMessage "WinUI wrapper publish failed for $Rid."
         Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force
     }
 

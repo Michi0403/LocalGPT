@@ -2,7 +2,8 @@
 setlocal
 cd /d "%~dp0"
 
-call "%~dp0LocalGPTInstallerConsole.exe" --install-localgpt --force-delete --shortcuts --start-localgpt --port 5000
+rem Preservation-first install: existing LocalAppData state is merged, never deleted.
+call "%~dp0LocalGPTInstallerConsole.exe" --install-localgpt --install-ollama --pull-models --range Slim --shortcuts --start-localgpt --port 5000
 set "EXITCODE=%ERRORLEVEL%"
 
 echo.

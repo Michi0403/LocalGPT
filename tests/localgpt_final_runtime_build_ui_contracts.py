@@ -48,9 +48,10 @@ assert "WaitForRuntimeEndpoint" in installer
 assert "TryGetRunningEndpoint" in installer
 assert "LocalGPT is already running: {existingUrl}" in installer
 assert "LocalGPT is ready: {url}" in installer
-assert all(name in installer_project for name in ['Install.cmd', 'Update.cmd', 'Start.cmd', 'Uninstall.cmd'])
+assert '<None Update="*.cmd" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />' in installer_project
 assert "--start-localgpt --port 5000" in start_cmd
-assert "--install-localgpt --force-delete --shortcuts --start-localgpt --port 5000" in install_cmd
+assert "--install-localgpt --install-ollama --pull-models --range Slim --shortcuts --start-localgpt --port 5000" in install_cmd
+assert "--force-delete" not in install_cmd
 assert "--force-delete" not in update_cmd
 assert "--uninstall --force-delete" in uninstall_cmd
 assert 'Thread.Sleep(TimeSpan.FromSeconds(2))' not in installer

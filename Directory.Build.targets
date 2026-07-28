@@ -227,4 +227,23 @@
     <Exec Condition="Exists('$(JavaScriptDiagnosticsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(JavaScriptDiagnosticsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
+  <PropertyGroup>
+    <PublishConfigurationScript>$(MSBuildThisFileDirectory)build\Assert-PublishConfiguration.ps1</PublishConfigurationScript>
+    <InstallerWorkflowScript>$(MSBuildThisFileDirectory)build\Assert-InstallerWorkflow.ps1</InstallerWorkflowScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptPublishConfiguration"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptJavaScriptDiagnostics"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipPublishConfigurationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(PublishConfigurationScript)')" Text="Publish configuration guard script is missing: $(PublishConfigurationScript)" />
+    <Exec Condition="Exists('$(PublishConfigurationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(PublishConfigurationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptInstallerWorkflow"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptPublishConfiguration"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipInstallerWorkflowGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(InstallerWorkflowScript)')" Text="Installer workflow guard script is missing: $(InstallerWorkflowScript)" />
+    <Exec Condition="Exists('$(InstallerWorkflowScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(InstallerWorkflowScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
 </Project>

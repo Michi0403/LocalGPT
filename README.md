@@ -114,7 +114,7 @@ This source package intentionally excludes build output, IDE state, runtime data
 
 ## Installer safety
 
-Running the setup helper without arguments shows help and performs no installation. Destructive replacement or uninstall requires explicit `--force-delete`. Review target paths before confirming. Downloads and archive extraction fail closed when a platform asset or safe extraction path cannot be verified. Uninstall removes application files, launchers, and shortcuts but preserves the learning base, including forced uninstall.
+Running the setup helper without arguments performs the preservation-first default install and update routine. On Windows it verifies or installs Ollama, checks the Slim minimal model set, restores the maintained shortcuts, installs or updates LocalGPT, and starts the application without deleting the existing LocalAppData installation. Destructive deletion requires an explicit uninstall/`--force-delete` command. Downloads and archive extraction fail closed when a platform asset or safe extraction path cannot be verified. Uninstall removes application files, launchers, and shortcuts but preserves the learning base, including forced uninstall.
 
 ## Logging integrity guardrail
 

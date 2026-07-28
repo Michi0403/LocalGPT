@@ -21,6 +21,8 @@ $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVe
 $useProject = if ($UseWireProtocolPackage) { "false" } else { "true" }
 
 function Invoke-DotNet {
+& (Join-Path $root "build\Assert-PublishConfiguration.ps1")
+& (Join-Path $root "build\Assert-InstallerWorkflow.ps1")
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
     & dotnet @Arguments
     if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
