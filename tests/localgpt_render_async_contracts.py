@@ -76,6 +76,11 @@ class LocalGptRenderAndAsyncContracts(unittest.TestCase):
                 service_false += path.read_text(encoding="utf-8").count(".ConfigureAwait(false)")
         self.assertGreater(service_false, 1000)
 
+    def test_async_guard_is_windows_powershell_51_parser_safe(self):
+        gate = (BUILD / "Assert-AsyncContinuationPolicy.ps1").read_text(encoding="utf-8")
+        self.assertIn('"${relative}: continuation count exceeds await count', gate)
+        self.assertNotRegex(gate, r'"[^"\r\n]*\$[A-Za-z_][A-Za-z0-9_]*:')
+
     def test_repository_validation_runs_both_guards(self):
         validation = (BUILD / "Invoke-RepositoryValidation.ps1").read_text(encoding="utf-8")
         self.assertIn("Assert-InteractiveServerRenderModes.ps1", validation)

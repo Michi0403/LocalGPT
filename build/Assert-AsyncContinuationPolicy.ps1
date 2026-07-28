@@ -40,7 +40,7 @@ foreach ($file in $files) {
     $isRendererSource = $relative.StartsWith('Components/', [System.StringComparison]::OrdinalIgnoreCase)
 
     if ($unconfigured -lt 0) {
-        $failures.Add("$relative: continuation count exceeds await count; inspect strings/comments and update the guard deliberately.")
+        $failures.Add("${relative}: continuation count exceeds await count; inspect strings/comments and update the guard deliberately.")
         continue
     }
 
