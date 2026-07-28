@@ -1,0 +1,11 @@
+LocalGPT 2.0.1 final24 validation
+
+PASS: 47 Python contract tests.
+PASS: 23 maintained/local JavaScript files passed Node syntax checking.
+PASS: JavaScript diagnostics inventory and normalized SHA-256 entries match.
+PASS: Streamed chat and former-thought output expose stable copyable markers.
+PASS: Native browser context menu is preserved for copyable output and active selections before preventDefault is reached.
+PASS: Fluid chat-height contract grows into viewport space released by collapsed optional controls.
+PASS: Existing final19 security and 1-Wire preservation sources remain byte-identical to final23.
+
+Not run: native dotnet build and Windows PowerShell execution; neither runtime is installed in the packaging environment.

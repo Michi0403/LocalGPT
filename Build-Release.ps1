@@ -28,6 +28,10 @@ $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplication
 $loggingGuard = Join-Path $root "build\Assert-LoggingIntegrity.ps1"
 & $loggingGuard
 & (Join-Path $root "build\Assert-OneWireArchitecture.ps1")
+& (Join-Path $root "build\Assert-ProtectedRepositoryFiles.ps1")
+& (Join-Path $root "build\Assert-JavaScriptDiagnostics.ps1")
+& (Join-Path $root "build\Assert-SecurityRulePreservation.ps1")
+& (Join-Path $root "build\Assert-RuntimeValueOwnership.ps1")
 & (Join-Path $root "build\Assert-LocalizationIntegrity.ps1")
 & (Join-Path $root "build\Assert-GitSourceVisibility.ps1")
 & (Join-Path $root "build\Assert-ProjectMaintenanceArchitecture.ps1")

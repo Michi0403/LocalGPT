@@ -16,6 +16,7 @@
     Logger.LogInformation("LocalGPT application shell rendered with theme {ThemeName}.", Themes.ActiveTheme.Name);
 
     string AppendVersion(string path) => FileVersionProvider.AddFileVersionToPath("/", path);
+    var themeControllerModulePath = AppendVersion("switcher-resources/theme-controller.js");
     // var isE2E = string.Equals(
     //     Environment.GetEnvironmentVariable("LOCALGPT_E2E"),
     //     "1",
@@ -34,6 +35,7 @@
         <link rel="stylesheet" href="@hlTheme" hl-theme-link />
     }
 
+    <script src="js/javascript-diagnostics.js"></script>
     @DxResourceManager.RegisterScripts()
     <link href=@AppendVersion("css/site.css") rel="stylesheet" />
     <link href=@AppendVersion("switcher-resources/css/theme-switcher.css") rel="stylesheet" />
@@ -78,20 +80,20 @@
     {
         <script type="module" src="@AppendVersion("js/localgpt-e2e.js")"></script>
     } *@
-    <script type="module" src="switcher-resources/theme-controller.js"></script>
+    <script type="module" src="@themeControllerModulePath"></script>
 
     <script src="_framework/blazor.web.js" autostart="false"></script>
     <script>
-        window.localGptReady = {
+        window.localGptReady = window.localGptJavaScriptDiagnostics.guardObject('localGptReady', {
             markInteractive: () => document.documentElement.classList.add('localgpt-interactive-ready')
-        };
+        });
 
         Blazor.start({
             ssr: { disableDomPreservation: true }
         })
             .then(() => window.localGptReady.markInteractive())
             .catch(error => {
-                console.error(error);
+                window.localGptJavaScriptDiagnostics.report('Blazor.start', error);
                 document.documentElement.classList.add('localgpt-interactive-error');
             });
     </script>

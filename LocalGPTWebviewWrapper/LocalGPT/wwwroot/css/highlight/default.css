@@ -1,0 +1,2 @@
+pre code, code.hljs { color: var(--bs-body-color, #212529); background: var(--bs-tertiary-bg, #f4f4f4); }
+.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-section,.hljs-link{color:#005cc5}.hljs-string,.hljs-title,.hljs-name,.hljs-type,.hljs-attribute,.hljs-symbol,.hljs-bullet,.hljs-addition,.hljs-variable,.hljs-template-tag,.hljs-template-variable{color:#22863a}.hljs-comment,.hljs-quote,.hljs-deletion,.hljs-meta{color:#6a737d}.hljs-number,.hljs-regexp,.hljs-built_in,.hljs-builtin-name,.hljs-params{color:#b31d28}

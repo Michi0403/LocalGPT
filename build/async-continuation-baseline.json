@@ -4,8 +4,8 @@
   "policy": "Renderer-affine Components must never use ConfigureAwait(false). Services/controllers keep their reviewed ConfigureAwait(false) minimum; new unconfigured or ConfigureAwait(true) continuations require deliberate baseline review.",
   "files": {
     "Components/InteractiveStartupMarker.razor": {
-      "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 0,
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 2,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/Drawer.razor": {
@@ -35,7 +35,7 @@
     },
     "Components/Pages/Chat.razor": {
       "maxUnconfiguredAwaitCount": 12,
-      "maxConfigureAwaitTrueCount": 67,
+      "maxConfigureAwaitTrueCount": 74,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/CouncilTeams.razor": {

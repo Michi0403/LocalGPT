@@ -289,3 +289,36 @@
     }
 }
 
+/* final15: the containing MainLayout rail controls positioning. The summary is readable,
+   while only the visible card and its buttons accept pointer input. */
+.human-approval-bar {
+    width: min(34rem, 100%);
+    max-width: 100%;
+    pointer-events: auto;
+    transition: box-shadow .16s ease, border-color .16s ease;
+}
+.human-approval-bar:hover,
+.human-approval-bar:focus-within {
+    border-color: var(--bs-warning);
+    box-shadow: 0 1rem 2.5rem rgba(var(--localgpt-body-color-rgb, 33, 37, 41), .32);
+}
+.human-approval-bar button,
+.human-inbox-launcher {
+    pointer-events: auto;
+    cursor: pointer;
+    transition: filter .14s ease, transform .14s ease, box-shadow .14s ease;
+}
+.human-approval-bar button:hover,
+.human-approval-bar button:focus-visible,
+.human-inbox-launcher:hover,
+.human-inbox-launcher:focus-visible {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+    box-shadow: 0 .25rem .7rem rgba(0, 0, 0, .24);
+}
+.human-approval-bar-summary { color: var(--bs-body-color); }
+.human-approval-bar-summary span,
+.human-approval-bar-summary small { color: var(--bs-secondary-color); opacity: 1; }
+@media (max-width: 780px) {
+    .human-approval-bar { width: 100%; max-width: none; }
+}

@@ -153,3 +153,27 @@ main,.main-container,[data-testid="chat-page"]{min-width:0;max-width:100%}
   [data-testid="dxaichat-host"] .localgpt-send-button{width:4.25rem!important;min-width:4.25rem!important;height:4.25rem!important;min-height:4.25rem!important;flex-basis:4.25rem!important}
   [data-testid="dxaichat-host"] .localgpt-upload-button{width:3.75rem!important;min-width:3.75rem!important;height:3.75rem!important;min-height:3.75rem!important;flex-basis:3.75rem!important}
 }
+
+/* final23: stretch the DevExpress AI Chat root and its interactive surface across the
+   complete host. The runtime adds localgpt-chat-root after every DevExpress re-render. */
+[data-testid="dxaichat-host"] {
+    display: flex !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+[data-testid="dxaichat-host"] > *,
+[data-testid="dxaichat-host"] .localgpt-chat-root,
+[data-testid="dxaichat-host"] .demo-chat {
+    align-self: stretch !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+[data-testid="dxaichat-host"] :is([class*="prompt-suggestions"], [class*="prompt-input"], [class*="input-container"], .localgpt-chat-composer) {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}

@@ -1,7 +1,14 @@
+// javascript-diagnostics: guarded
+var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
+    report(context, error) { try { console.error(`LocalGPT JavaScript error in ${String(context || "browser-runtime")}.`, error); } catch (reportError) { console.error("LocalGPT fallback JavaScript diagnostics failed.", reportError); } },
+    guard(context, callback) { try { return callback; } catch (error) { console.error(`LocalGPT fallback guard failed in ${String(context || "browser-runtime")}.`, error); return callback; } },
+    guardObject(context, value) { try { return value; } catch (error) { console.error(`LocalGPT fallback object guard failed in ${String(context || "browser-runtime")}.`, error); return value; } },
+    guardClass(context, value) { try { return value; } catch (error) { console.error(`LocalGPT fallback class guard failed in ${String(context || "browser-runtime")}.`, error); return value; } }
+};
 const hostStates = new WeakMap();
 const boundPanels = new WeakSet();
 
-function getHostState(host) {
+function getHostState(host) { try {
     let state = hostStates.get(host);
     if (!state) {
         state = new Map();
@@ -9,9 +16,9 @@ function getHostState(host) {
     }
 
     return state;
-}
+ } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:getHostState@5', __javascriptError); throw __javascriptError; }}
 
-function bindPanel(host, panel, index) {
+function bindPanel(host, panel, index) { try {
     const key = panel.dataset.localgptPanelKey || `panel-${index}`;
     const state = getHostState(host);
 
@@ -33,12 +40,12 @@ function bindPanel(host, panel, index) {
     // event is delivered. The toggle handler remains the authoritative fallback
     // for keyboard activation and programmatic changes.
     const summary = panel.querySelector(':scope > summary');
-    summary?.addEventListener('click', () => {
+    summary?.addEventListener('click', () => { try {
         state.set(key, !panel.open);
         panel.dataset.localgptUserTogglePending = 'true';
-    });
+     } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:callback:summary?.addEventListener@37', __javascriptError); throw __javascriptError; }});
 
-    panel.addEventListener('toggle', () => {
+    panel.addEventListener('toggle', () => { try {
         // Browsers may emit a toggle event when an `open` element is first
         // inserted. Treat only a preceding user interaction as a preference.
         if (panel.dataset.localgptUserTogglePending !== 'true') {
@@ -47,37 +54,37 @@ function bindPanel(host, panel, index) {
 
         delete panel.dataset.localgptUserTogglePending;
         state.set(key, panel.open);
-    });
-}
+     } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:callback:panel.addEventListener@42', __javascriptError); throw __javascriptError; }});
+ } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:bindPanel@15', __javascriptError); throw __javascriptError; }}
 
-function refreshHost(host) {
+function refreshHost(host) { try {
     const panels = host.querySelectorAll('details[data-localgpt-panel-key]');
-    panels.forEach((panel, index) => bindPanel(host, panel, index));
-}
+    panels.forEach((panel, index) => { try { return (bindPanel(host, panel, index)); } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:callback:panels.forEach@56', __javascriptError); throw __javascriptError; } });
+ } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:refreshHost@54', __javascriptError); throw __javascriptError; }}
 
-function bindHost(host) {
+function bindHost(host) { try {
     if (host.dataset.localgptDetailsStateBound === 'true') {
         refreshHost(host);
         return;
     }
 
     host.dataset.localgptDetailsStateBound = 'true';
-    const observer = new MutationObserver(() => refreshHost(host));
+    const observer = new MutationObserver(() => { try { return (refreshHost(host)); } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:ArrowFunction@66', __javascriptError); throw __javascriptError; } });
     observer.observe(host, { childList: true, subtree: true });
     refreshHost(host);
-}
+ } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:bindHost@59', __javascriptError); throw __javascriptError; }}
 
-function scan(root = document) {
+function scan(root = document) { try {
     if (root instanceof Element && root.matches('[data-localgpt-details-host]')) {
         bindHost(root);
     }
 
     root.querySelectorAll?.('[data-localgpt-details-host]').forEach(bindHost);
-}
+ } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:scan@71', __javascriptError); throw __javascriptError; }}
 
-function start() {
+function start() { try {
     scan(document);
-    const observer = new MutationObserver(mutations => {
+    const observer = new MutationObserver(mutations => { try {
         for (const mutation of mutations) {
             for (const node of mutation.addedNodes) {
                 if (node instanceof Element) {
@@ -85,9 +92,9 @@ function start() {
                 }
             }
         }
-    });
+     } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:ArrowFunction@81', __javascriptError); throw __javascriptError; }});
     observer.observe(document.documentElement, { childList: true, subtree: true });
-}
+ } catch (__javascriptError) { localGptDiagnostics.report('js/chat-details-state.js:start@79', __javascriptError); throw __javascriptError; }}
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });

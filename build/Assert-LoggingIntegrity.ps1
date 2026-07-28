@@ -63,7 +63,7 @@ function Get-LoggingMetrics {
 
 $sourceFiles = Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.cs' |
     Where-Object {
-        $_.FullName -notmatch '[\\/](bin|obj|artifacts|node_modules)[\\/]' -and
+        $_.FullName -notmatch '[\\/](bin|obj|artifacts|node_modules|build)[\\/]' -and
         $_.FullName -match '[\\/](Services|Controllers|HostedServices)[\\/]'
     } |
     Sort-Object FullName

@@ -1346,5 +1346,6 @@
   "ProjectMaintenance.FileMetadataLoadFailed": "Die Metadaten der verfolgten Dateien konnten nicht geladen werden.",
   "ProjectMaintenance.FilePatternsSaved": "Die Muster der verfolgten Datei wurden gespeichert.",
   "ProjectMaintenance.FilePatternsSaveFailed": "Die Muster der verfolgten Datei konnten nicht gespeichert werden.",
-  "Text.Local␠OpenAI-compatible␠servers␠are␠detected␠automatically.␠Ollama␠normally␠uses␠http://localhost:11434/v1;␠LM␠Studio␠normally␠uses␠http://localhost:1234/v1.␠Test␠Connection␠verifies␠the␠selected␠endpoint␠and␠discovers␠the␠active␠model␠id.": "Lokale OpenAI-kompatible Server werden automatisch erkannt. Ollama verwendet normalerweise http://localhost:11434/v1; LM Studio verwendet normalerweise http://localhost:1234/v1. Verbindung testen prüft den ausgewählten Endpunkt und ermittelt die aktive Modell-ID."
+  "Text.Local␠OpenAI-compatible␠servers␠are␠detected␠automatically.␠Ollama␠normally␠uses␠http://localhost:11434/v1;␠LM␠Studio␠normally␠uses␠http://localhost:1234/v1.␠Test␠Connection␠verifies␠the␠selected␠endpoint␠and␠discovers␠the␠active␠model␠id.": "Lokale OpenAI-kompatible Server werden automatisch erkannt. Ollama verwendet normalerweise http://localhost:11434/v1; LM Studio verwendet normalerweise http://localhost:1234/v1. Verbindung testen prüft den ausgewählten Endpunkt und ermittelt die aktive Modell-ID.",
+  "Text.LocalGPT␠approvals␠and␠Council␠tools": "LocalGPT-Freigaben und Council-Werkzeuge"
 }

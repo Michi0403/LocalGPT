@@ -1,0 +1,22 @@
+[
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Layout/CouncilSpoolerPanel.razor|<span>@string.Join(\", \", Selected.ModelNames)</span>",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcher.razor|string HeaderCss => $\"theme-{ThemeName.Replace(\" \", \"-\")}\" +",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor|.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor|<option value=\"@run.RunId\">@run.StartedAtUtc.ToLocalTime().ToString(\"g\") · round @run.CurrentRound · @run.Phase · @string.Join(\", \", run.CouncilMembers.Take(3))</option>",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor|modelStatus = $\"Diagnostic council model override: {string.Join(\", \", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.\";",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Install.razor|return $\"Reachable: {string.Join(\"; \", hostSummaries)}. Total detected models: {models}.\";",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/MinecraftModBuilder.razor|<dd>@string.Join(\" + \", lastCouncilResult.ModelNames)</dd>",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/MinecraftModBuilder.razor|councilModels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/MinecraftModBuilder.razor|return string.Join(Environment.NewLine, new[]",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/ModelCouncil.razor|<small>Members: @string.Join(\" + \", step.CouncilMembers.Count > 0 ? step.CouncilMembers : LastResult.ModelNames)</small>",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/ModelCouncil.razor|<span>@string.Join(\" + \", LastResult.ModelNames)</span>",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/ModelCouncil.razor|Request.Prompt = string.Join(Environment.NewLine, new[]",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/ProjectMaintenance.razor|var request = new DiscoverProjectCompilersRequest { UserConfirmed = true, SaveDiscovered = true, CustomSearchRoots = customCompilerRoots.Split(new[] { '\\r', '\\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() };",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Projects.razor|<small>Links: @string.Join(\", \", requirement.Links.Select(link => $\"{link.TargetKind}:{link.TargetName}\"))</small>",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/TestLab.razor|var label = relativeUrl.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? relativeUrl;",
+  "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/TestLab.razor|var relativeUrl = match.Groups[\"url\"].Value.Replace(\"\\\\/\", \"/\", StringComparison.Ordinal);",
+  "LocalGPTWebviewWrapper/LocalGPT/Controller/DatabaseQueryController.cs|// return Ok(new Regex(entity.Pattern, entity.Flags));",
+  "LocalGPTWebviewWrapper/LocalGPT/Controller/LocalGptDiagnosticController.cs|.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)",
+  "LocalGPTWebviewWrapper/LocalGPT/Controller/MinecraftDiagnosticController.cs|.Select(path => Path.GetRelativePath(workspace.RootPath, path).Replace('\\\\', '/'))",
+  "LocalGPTWebviewWrapper/LocalGPT/Controller/MinecraftDiagnosticController.cs|Content = string.Join(Environment.NewLine, new[]"
+]

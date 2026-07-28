@@ -1,0 +1,8 @@
+[
+  "LocalGPTWebviewWrapper/LocalGPT/Controller/LocalGptDiagnosticController.cs|messages.Add(new Microsoft.Extensions.AI.ChatMessage(ChatRole.System, \"\"\"",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/CouncilTextService.cs|details = new GeneratedAiHostModelDetails(\"gguf\", \"generated\", \"0B\", \"none\"),",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/CouncilTextService.cs|var type = new CodeTypeDeclaration(\"CouncilFeatureRequestExample\")",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs|messages.Add(new ChatMessage(ChatRole.User, $\"\"\"",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/OllamaThinkingChatClient.cs|using var httpRequest = new HttpRequestMessage(HttpMethod.Post, \"/api/chat\")",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/OneWire/LocalVisionOcrService.cs|BaseAddress = new Uri(provider.Uri.TrimEnd('/') + \"/\", UriKind.Absolute),"
+]

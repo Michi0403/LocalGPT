@@ -1,2 +1,18 @@
 .council-spooler-launcher{position:fixed;right:1rem;bottom:4.4rem;z-index:1045;display:flex;align-items:center;gap:.45rem;border:1px solid var(--bs-info);border-radius:999px;padding:.45rem .75rem;background:var(--bs-body-bg);color:var(--bs-body-color);box-shadow:0 .35rem 1rem #0004}.council-spooler-launcher b{display:grid;place-items:center;min-width:1.4rem;height:1.4rem;border-radius:50%;background:var(--bs-info);color:var(--bs-dark)}
 .council-spooler-panel{position:fixed;right:1rem;top:1rem;bottom:1rem;z-index:1055;width:min(46rem,calc(100vw - 2rem));display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden;border:1px solid var(--bs-border-color);border-radius:.75rem;background:var(--bs-body-bg);color:var(--bs-body-color);box-shadow:0 1rem 3rem #0008}.council-spooler-panel>header{display:flex;justify-content:space-between;gap:1rem;padding:.8rem 1rem;border-bottom:1px solid var(--bs-border-color)}.council-spooler-panel>header div{display:grid}.council-spooler-panel>header small{color:var(--bs-secondary-color)}.council-spooler-panel button,.council-spooler-panel select{border:1px solid var(--bs-border-color);border-radius:.35rem;background:var(--bs-tertiary-bg);color:var(--bs-body-color)}.council-spooler-toolbar{display:flex;gap:.5rem;padding:.65rem 1rem;border-bottom:1px solid var(--bs-border-color)}.council-spooler-toolbar select{min-width:0;flex:1;padding:.35rem}.council-spooler-summary{padding:.75rem 1rem;border-bottom:1px solid var(--bs-border-color);display:grid;gap:.25rem}.council-spooler-summary span{font-size:.85rem;color:var(--bs-secondary-color)}.council-spooler-summary p{margin:.35rem 0 0}.council-spooler-steps{overflow:auto;padding:.7rem}.council-spooler-steps details,.council-spooler-final{margin-bottom:.55rem;border:1px solid var(--bs-border-color);border-radius:.45rem;background:var(--bs-tertiary-bg)}.council-spooler-steps summary,.council-spooler-final summary{padding:.55rem .7rem;cursor:pointer;font-weight:600}.council-spooler-steps summary small{float:right;color:var(--bs-secondary-color)}.council-spooler-steps pre,.council-spooler-final pre{margin:0;padding:.7rem;max-height:20rem;overflow:auto;white-space:pre-wrap;color:inherit;background:transparent;border-top:1px solid var(--bs-border-color)}
+
+/* final15: launcher is positioned by the MainLayout edge rail. */
+.council-spooler-launcher {
+    position: static;
+    z-index: 1;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+.council-spooler-launcher:hover,
+.council-spooler-launcher:focus-visible {
+    filter: brightness(1.12);
+    transform: translateX(-2px);
+    box-shadow: 0 .6rem 1.3rem #0006;
+}
+.council-spooler-panel { z-index: 12020; pointer-events: auto; }

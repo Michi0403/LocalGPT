@@ -15,7 +15,7 @@ class LocalGptRenderAndAsyncContracts(unittest.TestCase):
         self.assertIn("AssertLocalGptInteractiveServerRenderModes", targets)
         self.assertIn("SkipInteractiveServerRenderModeGuard", targets)
         gate = (BUILD / "Assert-InteractiveServerRenderModes.ps1").read_text(encoding="utf-8")
-        self.assertEqual(18, len(re.findall(r"^\s+'Components/[^']+'\s*=", gate, re.MULTILINE)))
+        self.assertEqual(20, len(re.findall(r"^\s+'Components/[^']+'\s*=", gate, re.MULTILINE)))
         self.assertIn("must not replace the reviewed page/island render modes", gate)
 
     def test_async_continuation_guard_is_wired_and_baselined(self):

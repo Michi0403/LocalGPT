@@ -1,8 +1,6 @@
 @rendermode InteractiveServer
 @page "/Chat"
 @using Microsoft.AspNetCore.WebUtilities
-@using System.Text
-@using System.Text.RegularExpressions
 @using System.Text.Json
 @using LocalGPT.Extensions
 @inject CouncilRuntimeService CouncilRuntime
@@ -14,6 +12,7 @@
 @inject IJSRuntime JS
 @inject IChatContentRenderer ChatContentRenderer
 @inject IVariableStoreService VariableStore
+@inject ISystemVariableDefinitionService SystemVariables
 @inject ILocalGptProjectService ProjectService
 @inject IModelPresetService ModelPresetService
 @inject ICouncilTeamConfigurationService CouncilTeamConfigurations
@@ -38,9 +37,9 @@
                        AdaptivityAutoCollapseItemsToIcons="true"
                        ItemClick="OnChatToolbarItemClick">
                 <Items>
-                    <DxToolbarItem Name="new-chat" Text="Start new chat" IconCssClass="oi oi-plus" RenderStyle="ButtonRenderStyle.Primary" />
+                    <DxToolbarItem Name="new-chat" Text="Start new chat" CssClass="localgpt-command-new-chat" IconCssClass="oi oi-plus" RenderStyle="ButtonRenderStyle.Primary" />
                     <DxToolbarItem Name="provider-setup" Text="Provider setup" IconCssClass="oi oi-cog" />
-                    <DxToolbarItem Name="refresh-models" Text="Refresh local models" IconCssClass="oi oi-reload" Enabled="@(!isModelRefreshBusy)" />
+                    <DxToolbarItem Name="refresh-models" Text="Refresh local models" CssClass="localgpt-command-refresh-models" IconCssClass="oi oi-reload" Enabled="@(!isModelRefreshBusy)" />
                     <DxToolbarItem Name="onewire-security" Text="1-Wire Security" IconCssClass="oi oi-lock-locked" />
                     <DxToolbarItem Name="council-teams" Text="Council Teams" IconCssClass="oi oi-people" />
                 </Items>
@@ -84,7 +83,7 @@
                 <span>Auto-load latest memory</span>
             </label>
         </div>
-        <details class="council-command-center" data-testid="council-command-center">
+        <details id="localgpt-council-controls" class="council-command-center" data-testid="council-command-center">
             <summary title="Open model, hardware, team and artifact settings for AI Council runs.">
                 <span>AI Council controls</span>
                 <small>@SelectedCouncilModelNames.Count model@(SelectedCouncilModelNames.Count == 1 ? string.Empty : "s") · @CouncilResourceLoadPercent% power · @CouncilMaxContextTokens.ToString("N0") context</small>
@@ -232,7 +231,7 @@
             <a class="btn btn-outline-secondary btn-sm" href="/council-teams" data-enhance-nav="false">Edit teams and workflow</a>
         </div>
         </details>
-        <details class="chat-memory-project-center">
+        <details id="localgpt-memory-controls" class="chat-memory-project-center">
             <summary title="Open saved memory and project-version controls.">
                 <span>Memory & project context</span>
                 <small>@(SelectedChatProjectDetails?.Project.Name ?? "No project selected")</small>
@@ -301,7 +300,7 @@
                 {
                     <details>
                         <summary>@thought.ConversationTitle</summary>
-                        <div class="former-thought-content">@NormalizeFormerThought(thought.Thinking)</div>
+                        <div class="former-thought-content" data-localgpt-copyable="true">@CouncilText.NormalizeFormerThought(thought.Thinking, Logger)</div>
                     </details>
                 }
             </div>
@@ -374,7 +373,7 @@
                 <p class="memory-status">@ArchitecturePollStatus</p>
             }
         </details>
-        <div data-testid="dxaichat-host">
+        <div id="localgpt-chat-host" data-testid="dxaichat-host">
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
                       ResponseContentFormat="ResponseContentFormat.Markdown"
@@ -382,9 +381,7 @@
                       FileUploadEnabled="true"
                       @ref="DxAiChat"
                       CssClass="demo-chat"
-                        IncludeFunctionCallInfo="true"
-                        
-            >
+                      IncludeFunctionCallInfo="true">
                 <PromptSuggestions>
                     @foreach (var suggestion in PromptSuggestions)
                     {
@@ -394,7 +391,7 @@
                     }
                 </PromptSuggestions>
                 <MessageContentTemplate >
-                    <div class="demo-chat-content" data-localgpt-details-host>
+                    <div class="demo-chat-content" data-localgpt-details-host data-localgpt-copyable="true">
                         @(new MarkupString(ChatContentRenderer.Render(context.Content)))
                     </div>
                 </MessageContentTemplate>
@@ -590,37 +587,70 @@
 
     private async Task OnChatToolbarItemClick(ToolbarItemClickEventArgs args)
     {
-        switch (args.ItemName)
+        try
         {
-            case "new-chat": await ClearHistoryAsync(); break;
-            case "provider-setup": OpenProviderSetup(); break;
-            case "refresh-models": await RefreshOllamaModelsAsync(); break;
-            case "onewire-security": OpenOneWireSecurity(); break;
-            case "council-teams": OpenCouncilTeams(); break;
+            Logger.LogDebug($"{nameof(OnChatToolbarItemClick)} received command {args.ItemName}.");
+            switch (args.ItemName)
+            {
+                case "new-chat": await ClearHistoryAsync().ConfigureAwait(true); break;
+                case "provider-setup": OpenProviderSetup(); break;
+                case "refresh-models": await RefreshOllamaModelsAsync().ConfigureAwait(true); break;
+                case "onewire-security": OpenOneWireSecurity(); break;
+                case "council-teams": OpenCouncilTeams(); break;
+                default: Logger.LogWarning($"{nameof(OnChatToolbarItemClick)} ignored unknown command {args.ItemName}."); break;
+            }
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(OnChatToolbarItemClick)} failed for command {args.ItemName}.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(OnChatToolbarItemClick), exception);
+            Notifier.ShowError(toastName, "The chat command failed. See local logs for details.", "Chat command failed");
         }
     }
 
-    private void OpenProviderSetup() => NavigationManager.NavigateTo("/install", forceLoad: true);
-    private void OpenOneWireSecurity() => NavigationManager.NavigateTo("/onewire-security", forceLoad: true);
-    private void OpenCouncilTeams() => NavigationManager.NavigateTo("/council-teams", forceLoad: true);
-
-    private static string NormalizeFormerThought(string? value)
+    private void OpenProviderSetup()
     {
-        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-        var text = value.Trim();
-        // Historical memories contain both literal and HTML-encoded pre/code wrappers.
-        // Decode twice, then remove only presentation wrappers while retaining line breaks.
-        text = System.Net.WebUtility.HtmlDecode(System.Net.WebUtility.HtmlDecode(text));
-        text = Regex.Replace(text, @"<br\s*/?>", Environment.NewLine, RegexOptions.IgnoreCase);
-        text = Regex.Replace(text, @"</?(?:pre|code)(?:\s[^>]*)?>", string.Empty, RegexOptions.IgnoreCase);
-        text = Regex.Replace(text, @"```(?:[a-z0-9_+.-]+)?\s*", string.Empty, RegexOptions.IgnoreCase);
-        text = Regex.Replace(text, @"\s*```", string.Empty, RegexOptions.IgnoreCase);
-        text = Regex.Replace(text, @"</?(?:p|div|span)(?:\s[^>]*)?>", match =>
-            match.Value.StartsWith("</", StringComparison.Ordinal) ? Environment.NewLine : string.Empty,
-            RegexOptions.IgnoreCase);
-        return Regex.Replace(text, @"(?:
-?
-){3,}", Environment.NewLine + Environment.NewLine).Trim();
+        try
+        {
+            Logger.LogDebug($"{nameof(OpenProviderSetup)} is navigating from Chat to provider setup.");
+            NavigationManager.NavigateTo("/install", forceLoad: true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(OpenProviderSetup)} could not navigate from Chat to provider setup.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(OpenProviderSetup), exception);
+            Notifier.ShowError(toastName, "Navigation failed. See local logs for details.", "Navigation failed");
+        }
+    }
+
+    private void OpenOneWireSecurity()
+    {
+        try
+        {
+            Logger.LogDebug($"{nameof(OpenOneWireSecurity)} is navigating from Chat to 1-Wire Security.");
+            NavigationManager.NavigateTo("/onewire-security", forceLoad: true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(OpenOneWireSecurity)} could not navigate from Chat to 1-Wire Security.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(OpenOneWireSecurity), exception);
+            Notifier.ShowError(toastName, "Navigation failed. See local logs for details.", "Navigation failed");
+        }
+    }
+
+    private void OpenCouncilTeams()
+    {
+        try
+        {
+            Logger.LogDebug($"{nameof(OpenCouncilTeams)} is navigating from Chat to Council Teams.");
+            NavigationManager.NavigateTo("/council-teams", forceLoad: true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(OpenCouncilTeams)} could not navigate from Chat to Council Teams.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(OpenCouncilTeams), exception);
+            Notifier.ShowError(toastName, "Navigation failed. See local logs for details.", "Navigation failed");
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -634,7 +664,7 @@
             ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions.FirstOrDefault() ?? string.Empty;
 
-            await LoadDatabaseBackedDefaultsAsync();
+            await LoadDatabaseBackedDefaultsAsync().ConfigureAwait(true);
             await LoadCouncilTeamsAsync().ConfigureAwait(true);
             PromptSuggestions = Catalog.GetSuggestion();
             await LoadChatProjectsAsync().ConfigureAwait(true);
@@ -678,28 +708,28 @@
     {
         await MigrateCouncilDefaultsAsync().ConfigureAwait(true);
         await TryApplyDatabaseVariableAsync<int>(
-            "DefaultMaxOutputTokens",
+            SystemVariables.DefaultMaxOutputTokens,
             value => CouncilMaxOutputTokens = Math.Clamp(
                 value,
                 LocalGptCatalogService.MinCouncilOutputTokens,
                 LocalGptCatalogService.MaxCouncilOutputTokens));
         await TryApplyDatabaseVariableAsync<int>(
-            "DefaultContextTokens",
+            SystemVariables.DefaultContextTokens,
             value => CouncilMaxContextTokens = Math.Clamp(
                 value,
                 LocalGptCatalogService.MinCouncilContextTokens,
                 LocalGptCatalogService.MaxCouncilContextTokens));
         await TryApplyDatabaseVariableAsync<int>(
-            "DefaultHeavyModelGpuLayers",
+            SystemVariables.DefaultHeavyModelGpuLayers,
             value => LimitedGpuLayers = Math.Clamp(value, 1, 99));
         await TryApplyDatabaseVariableAsync<int>(
-            "DefaultCouncilResourceLoadPercent",
+            SystemVariables.DefaultCouncilResourceLoadPercent,
             value => CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100));
         await TryApplyDatabaseVariableAsync<int>(
-            "DefaultCouncilCritiqueRounds",
+            SystemVariables.DefaultCouncilCritiqueRounds,
             value => CouncilCritiqueRounds = Math.Clamp(value, 0, 3));
         await TryApplyDatabaseVariableAsync<string>(
-            "DefaultOllamaEndpoint",
+            SystemVariables.DefaultOllamaEndpoint,
             value => DefaultOllamaEndpoint = string.IsNullOrWhiteSpace(value)
                 ? LocalGptCatalogService.DefaultOllamaEndpoint
                 : value.Trim());
@@ -707,26 +737,26 @@
 
     private async Task MigrateCouncilDefaultsAsync()
     {
-        const int targetVersion = 2;
+        var targetVersion = SystemVariables.CouncilDefaultsVersion.DefaultValue;
         try
         {
             int version;
-            try { version = await VariableStore.GetAsync<int>("CouncilDefaultsVersion").ConfigureAwait(true); }
+            try { version = await VariableStore.GetAsync<int>(SystemVariables.CouncilDefaultsVersion.Name).ConfigureAwait(true); }
             catch { version = 0; }
             if (version >= targetVersion) return;
 
             try
             {
-                var previousLoad = await VariableStore.GetAsync<int>("DefaultCouncilResourceLoadPercent").ConfigureAwait(true);
-                if (previousLoad == 30)
-                    await VariableStore.SetAsync("DefaultCouncilResourceLoadPercent", 100).ConfigureAwait(true);
+                var previousLoad = await VariableStore.GetAsync<int>(SystemVariables.DefaultCouncilResourceLoadPercent.Name).ConfigureAwait(true);
+                if (previousLoad == SystemVariables.LegacyCouncilResourceLoadPercent)
+                    await VariableStore.SetAsync(SystemVariables.DefaultCouncilResourceLoadPercent.Name, SystemVariables.DefaultCouncilResourceLoadPercent.DefaultValue).ConfigureAwait(true);
             }
             catch (Exception ex)
             {
                 Logger.LogDebug(ex, "The previous Council power default was unavailable during migration.");
             }
 
-            await VariableStore.SetAsync("CouncilDefaultsVersion", targetVersion).ConfigureAwait(true);
+            await VariableStore.SetAsync(SystemVariables.CouncilDefaultsVersion.Name, targetVersion).ConfigureAwait(true);
             Logger.LogInformation("Migrated AI Council defaults to version {Version}.", targetVersion);
         }
         catch (Exception ex)
@@ -735,18 +765,15 @@
         }
     }
 
-    private async Task TryApplyDatabaseVariableAsync<T>(string name, Action<T> apply)
+    private async Task TryApplyDatabaseVariableAsync<T>(SystemVariableDefinition<T> definition, Action<T> apply)
     {
         try
         {
-            apply(await VariableStore.GetAsync<T>(name));
+            apply(await VariableStore.GetAsync<T>(definition.Name).ConfigureAwait(true));
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(
-                ex,
-                "Could not apply database-backed Chat default {VariableName}; retaining the compiled fallback.",
-                name);
+            Logger.LogWarning(ex, $"Could not apply database-backed Chat default {definition.Name}; retaining the compiled fallback.");
             ComponentActivity.RecordWarning(nameof(Chat), "ApplyDatabaseDefault", "A database-backed Chat default was unavailable; LocalGPT retained its compiled fallback.");
         }
     }
@@ -759,7 +786,7 @@
         try
         {
             interactiveAttached = true;
-            Logger.LogInformation("Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
+            Logger.LogInformation($"Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
             ComponentActivity.RecordInformation(nameof(Chat), "InteractiveAttach", "The Chat page attached to the interactive circuit and is waiting for its chat control.");
             ScheduleChatRuntimeActivation();
         }
@@ -777,7 +804,7 @@
         try
         {
             chatControlInitialized = true;
-            Logger.LogInformation("DXAiChat initialized; activation is queued until the DevExpress initialization callback has returned.");
+            Logger.LogInformation($"DXAiChat initialized; activation is queued until the DevExpress initialization callback has returned.");
             ComponentActivity.RecordInformation(nameof(Chat), nameof(ChatInitialized), "The DXAiChat control initialized; runtime activation was queued outside its initialization callback.");
             ScheduleChatRuntimeActivation();
         }
@@ -833,14 +860,16 @@
             StartAutoSaveLoop();
             StartInitialModelRefresh();
             await InvokeAsync(StateHasChanged).ConfigureAwait(true);
-            Logger.LogInformation("Chat runtime activated after DevExpress initialization completed; the UI remains responsive while supervised work runs off-dispatcher.");
+            Logger.LogInformation($"Chat runtime activated after DevExpress initialization completed; the UI remains responsive while supervised work runs off-dispatcher.");
             ComponentActivity.RecordInformation(nameof(Chat), nameof(TryStartChatRuntimeAsync), "The Chat runtime activated after the DevExpress initialization callback completed.");
         }
-        catch
+        catch (Exception ex)
         {
             chatRuntimeStarted = false;
             chatRuntimeActivationScheduled = false;
-            throw;
+            Logger.LogError(ex, $"{nameof(TryStartChatRuntimeAsync)} failed while activating the interactive chat runtime.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(TryStartChatRuntimeAsync), ex);
+            Notifier.ShowError(toastName, "Chat activation failed. See local logs for details.", "Chat activation");
         }
     }
 
@@ -902,47 +931,44 @@
     {
         try
         {
-            var builder = new System.Text.StringBuilder()
-            .AppendLine("# LocalGPT Architecture Poll Decision")
-            .AppendLine()
-            .AppendLine("Treat explicit non-Ask values as my current decision for the next answer. Treat my normal chat request and extra direction as binding design input too; do not downgrade a user-stated design into an unresolved Ask value.")
-            .AppendLine($"- UI stack: {ArchitectureUiStack}")
-            .AppendLine($"- Solution shape: {ArchitectureSolutionShape}")
-            .AppendLine($"- Runtime/rendering: {ArchitectureRenderMode}")
-            .AppendLine($"- Reference look: {ArchitectureReferenceLook}")
-            .AppendLine($"- Prior consent for safe sandbox details: {(AllowCouncilToChooseSandboxDetails ? "granted" : "not granted")}");
-
-            if (!string.IsNullOrWhiteSpace(ArchitecturePollNotes))
-                builder.AppendLine($"- Extra direction: {ArchitecturePollNotes.Trim()}");
-
-            builder
-                .AppendLine()
-                .AppendLine("If any selected value says \"Ask me\", first check whether my chat prompt or extra direction already answers it. If yes, treat the stated design as selected.")
-                .AppendLine("If an Ask value remains materially unresolved and prior consent is granted, choose a safe sandbox default, name that choice, and continue with a downloadable artifact.")
-                .AppendLine("If an Ask value remains materially unresolved and prior consent is not granted, stop before generating code or files. Return a concise runtime poll with concrete options and wait for my answer.")
-                .AppendLine("Do not assume Blazor or DevExpress unless I chose it, the target repository already requires it, or the requested app type clearly benefits from it.")
-                .AppendLine("When recreating a goal application, compare its layout, navigation, data flows, API routes, settings, and user workflows, then recreate the recognizable structure with the selected architecture.");
-
-            return builder.ToString().Trim();
+            var message = CouncilText.BuildArchitecturePollMessage(
+                ArchitectureUiStack,
+                ArchitectureSolutionShape,
+                ArchitectureRenderMode,
+                ArchitectureReferenceLook,
+                AllowCouncilToChooseSandboxDetails,
+                ArchitecturePollNotes,
+                Logger);
+            Logger.LogDebug($"{nameof(BuildArchitecturePollMessage)} created the architecture decision message without logging its content.");
+            return message;
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            Logger.LogError(ex, "Exception in BuildArchitecturePollMessage: {Message}", ex.Message);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(exception, $"{nameof(BuildArchitecturePollMessage)} failed; architecture choices were omitted from logs.");
+            Notifier.ShowError(toastName, "The architecture decision message could not be created. See local logs for details.", "Architecture message failed");
             return string.Empty;
         }
-
     }
 
     private void ResetArchitecturePoll()
     {
-        ArchitectureUiStack = Catalog.ArchitectureUiStackOptions[0];
-        ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions[0];
-        ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions[0];
-        ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions[0];
-        ArchitecturePollNotes = string.Empty;
-        AllowCouncilToChooseSandboxDetails = false;
-        ArchitecturePollStatus = "Architecture choices reset to ask-at-runtime defaults.";
+        try
+        {
+            ArchitectureUiStack = Catalog.ArchitectureUiStackOptions[0];
+            ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions[0];
+            ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions[0];
+            ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions[0];
+            ArchitecturePollNotes = string.Empty;
+            AllowCouncilToChooseSandboxDetails = false;
+            ArchitecturePollStatus = "Architecture choices reset to ask-at-runtime defaults.";
+            Logger.LogDebug($"{nameof(ResetArchitecturePoll)} restored the architecture poll defaults.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(ResetArchitecturePoll)} failed.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(ResetArchitecturePoll), exception);
+            Notifier.ShowError(toastName, "Architecture choices could not be reset. See local logs for details.", "Reset failed");
+        }
     }
 
     private async Task OnModelChanged(ChatClientSession value)
@@ -1282,7 +1308,7 @@
 
     }
 
-    private static List<OneWireCouncilModelRoute> ParseModelRoutes(string? json)
+    private List<OneWireCouncilModelRoute> ParseModelRoutes(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
             return [];
@@ -1379,12 +1405,7 @@
 
             if (query.TryGetValue("diagCouncilModels", out var councilModels))
             {
-                DiagnosticCouncilModelNames = councilModels
-                    .ToString()
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Where(modelName => !string.IsNullOrWhiteSpace(modelName))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                DiagnosticCouncilModelNames = CouncilText.ParseModelNames(councilModels.ToString(), Logger).ToList();
                 SelectedCouncilModelNames = DiagnosticCouncilModelNames.ToList();
             }
 
@@ -1643,7 +1664,7 @@
                 return;
             ApplyModelPreset(preset);
             modelStatus = $"Loaded model preset '{preset.Name}'.";
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -1745,7 +1766,7 @@
         return Task.CompletedTask;
     }
 
-    private static OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
+    private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
     {
         ModelName = route.ModelName,
         HardwareKind = route.HardwareKind,
@@ -2107,7 +2128,7 @@
             .Where(item => item.message.Role == ChatMessageRole.Assistant && !string.IsNullOrWhiteSpace(item.message.Content))
             .Select(item => new ChatFeedbackTarget(
                 item.sortOrder,
-                $"#{item.sortOrder + 1}: {BuildFeedbackPreview(item.message.Content)}"))
+                $"#{item.sortOrder + 1}: {CouncilText.BuildFeedbackPreview(item.message.Content, Logger)}"))
             .ToList();
 
         if (FeedbackTargets.Count == 0)
@@ -2123,33 +2144,60 @@
         LoadFeedbackEditor();
     }
 
-    private static string BuildFeedbackPreview(string content)
-    {
-        var singleLine = Regex.Replace(content, @"\s+", " ").Trim();
-        return singleLine.Length <= 72 ? singleLine : singleLine[..72] + "…";
-    }
-
     private void OnFeedbackTargetChanged(ChangeEventArgs args)
     {
-        SelectedFeedbackSortOrder = int.TryParse(
-            Convert.ToString(args.Value, CultureInfo.InvariantCulture),
-            NumberStyles.Integer,
-            CultureInfo.InvariantCulture,
-            out var sortOrder)
-            ? sortOrder
-            : null;
-        LoadFeedbackEditor();
+        try
+        {
+            SelectedFeedbackSortOrder = int.TryParse(
+                Convert.ToString(args.Value, CultureInfo.InvariantCulture),
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var sortOrder)
+                ? sortOrder
+                : null;
+            LoadFeedbackEditor();
+            Logger.LogDebug($"{nameof(OnFeedbackTargetChanged)} selected feedback target {SelectedFeedbackSortOrderValue}.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(OnFeedbackTargetChanged)} failed while changing the feedback target.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(OnFeedbackTargetChanged), exception);
+            Notifier.ShowError(toastName, "The feedback target could not be changed. See local logs for details.", "Feedback selection failed");
+        }
     }
 
     private void LoadFeedbackEditor()
     {
-        var existing = SelectedFeedbackSortOrder is int sortOrder
-            ? SavedFeedback.FirstOrDefault(item => item.SortOrder == sortOrder)
-            : null;
-        FeedbackComment = existing?.Comment ?? string.Empty;
+        try
+        {
+            var existing = SelectedFeedbackSortOrder is int sortOrder
+                ? SavedFeedback.FirstOrDefault(item => item.SortOrder == sortOrder)
+                : null;
+            FeedbackComment = existing?.Comment ?? string.Empty;
+            Logger.LogDebug($"{nameof(LoadFeedbackEditor)} loaded feedback metadata for target {SelectedFeedbackSortOrderValue}; comment content was omitted from logs.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(LoadFeedbackEditor)} failed while loading feedback metadata; comment content was omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(LoadFeedbackEditor), exception);
+            Notifier.ShowError(toastName, "The saved feedback could not be loaded. See local logs for details.", "Feedback load failed");
+        }
     }
 
-    private Task ClearSelectedFeedbackAsync() => RecordSelectedFeedbackAsync(null);
+    private async Task ClearSelectedFeedbackAsync()
+    {
+        try
+        {
+            Logger.LogDebug($"{nameof(ClearSelectedFeedbackAsync)} is clearing the selected feedback rating.");
+            await RecordSelectedFeedbackAsync(null).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(ClearSelectedFeedbackAsync)} failed while clearing the selected feedback rating.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(ClearSelectedFeedbackAsync), exception);
+            Notifier.ShowError(toastName, "The feedback rating could not be cleared. See local logs for details.", "Feedback clear failed");
+        }
+    }
 
     private async Task RecordSelectedFeedbackAsync(bool? isPositive)
     {
@@ -2248,17 +2296,32 @@
             componentLifetimeCts.Token);
     }
 
-    private static async Task<bool> WaitForAutoSaveIntervalAsync(CancellationToken cancellationToken)
+    private async Task<bool> WaitForAutoSaveIntervalAsync(CancellationToken cancellationToken)
     {
-        if (cancellationToken.IsCancellationRequested)
-            return false;
+        try
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                Logger.LogDebug($"{nameof(WaitForAutoSaveIntervalAsync)} observed cancellation before waiting.");
+                return false;
+            }
 
-        var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var registration = cancellationToken.Register(static state =>
-            ((TaskCompletionSource<bool>)state!).TrySetResult(true), cancelled);
-        var delay = Task.Delay(TimeSpan.FromSeconds(12));
-        var completed = await Task.WhenAny(delay, cancelled.Task).ConfigureAwait(true);
-        return completed == delay && !cancellationToken.IsCancellationRequested;
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var registration = cancellationToken.Register(state =>
+                ((TaskCompletionSource<bool>)state!).TrySetResult(true), cancelled);
+            var delay = Task.Delay(TimeSpan.FromSeconds(12));
+            var completed = await Task.WhenAny(delay, cancelled.Task).ConfigureAwait(true);
+            var shouldContinue = completed == delay && !cancellationToken.IsCancellationRequested;
+            Logger.LogDebug($"{nameof(WaitForAutoSaveIntervalAsync)} completed with continuation state {shouldContinue}.");
+            return shouldContinue;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(WaitForAutoSaveIntervalAsync)} failed while supervising the auto-save interval.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(WaitForAutoSaveIntervalAsync), exception);
+            Notifier.ShowError(toastName, "Auto-save supervision failed. See local logs for details.", "Auto-save error");
+            return false;
+        }
     }
 
     private async Task AutoSaveLoopAsync(CancellationToken cancellationToken)
@@ -2311,7 +2374,7 @@
             if (SelectedCouncilRunId is not null && collaborationSnapshot.ActiveRuns.All(run => run.RunId != SelectedCouncilRunId))
                 SelectedCouncilRunId = null;
             SelectedCouncilRunId ??= collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault()?.RunId;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -2442,15 +2505,26 @@
             componentLifetimeCts.Cancel();
             if (interactiveAttached && DxAiChat is not null)
             {
-                try { SaveMessagesForSelectedSession(DxAiChat.SaveMessages()); }
-                catch (OperationCanceledException) { }
-                catch (InvalidOperationException) when (isDisposed) { }
+                try
+                {
+                    SaveMessagesForSelectedSession(DxAiChat.SaveMessages());
+                    Logger.LogDebug($"{nameof(Dispose)} captured the final DXAiChat messages before disposal.");
+                }
+                catch (OperationCanceledException ex)
+                {
+                    Logger.LogDebug(ex, $"{nameof(Dispose)} skipped final message capture because disposal was cancelled.");
+                }
+                catch (InvalidOperationException ex) when (isDisposed)
+                {
+                    Logger.LogDebug(ex, $"{nameof(Dispose)} skipped final message capture because the renderer was already shutting down.");
+                }
             }
             componentLifetimeCts.Dispose();
+            Logger.LogDebug($"{nameof(Dispose)} completed Chat component disposal.");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Chat disposal failed; conversation content was omitted from logs.");
+            Logger.LogError(ex, $"{nameof(Dispose)} failed; conversation content was omitted from logs.");
             ComponentActivity.RecordFailure(nameof(Chat), "Dispose", ex);
         }
     }

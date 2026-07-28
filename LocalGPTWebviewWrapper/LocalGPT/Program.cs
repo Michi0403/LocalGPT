@@ -29,7 +29,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
@@ -222,6 +221,9 @@ namespace LocalGPT
             try
             {
 
+                if (!builder.Environment.IsDevelopment())
+                    builder.Logging.AddFilter((category, level) => level >= LogLevel.Warning);
+
                 builder.Services.AddLogging(logging =>
                     new LoggingConfigurationService(builder.Services, builder.Configuration).Configure(logging));
             }
@@ -249,6 +251,7 @@ namespace LocalGPT
                 // not mutable process-wide utility classes.
                 builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.0.1"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
+                builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
                 builder.Services.AddSingleton<CouncilTextService>();
                 builder.Services.AddSingleton<CouncilRuntimeService>();
                 builder.Services.AddSingleton<SqliteUtilityService>();
@@ -303,6 +306,7 @@ namespace LocalGPT
                 builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
                     options.UseSqlite($"Data Source={databaseOptions.DatabasePath}"));
 
+                builder.Services.AddSingleton<ISystemVariableDefinitionService, SystemVariableDefinitionService>();
                 builder.Services.AddSingleton<IInitialDataCatalog, InitialDataCatalog>();
                 builder.Services.AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>();
                 builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();

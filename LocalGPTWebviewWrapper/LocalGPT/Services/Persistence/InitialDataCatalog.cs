@@ -6,11 +6,27 @@ using System.Text;
 
 namespace LocalGPT.Services.Persistence;
 
-public sealed class InitialDataCatalog(IWebHostEnvironment environment, ILogger<InitialDataCatalog> logger)
-    : IInitialDataCatalog
+public sealed class InitialDataCatalog(
+    IWebHostEnvironment environment,
+    ILogger<InitialDataCatalog> logger,
+    ISystemVariableDefinitionService systemVariables) : IInitialDataCatalog
 {
     public IReadOnlyList<RegexPatternDto> RegexPatterns { get; } =
     [
+        new(nameof(ICouncilTextPatternDataService.FormerThoughtBreakPattern), "<br\\s*/?>", "i,c"),
+        new(nameof(ICouncilTextPatternDataService.FormerThoughtCodeWrapperPattern), "</?(?:pre|code)(?:\\s[^>]*)?>", "i,c"),
+        new(nameof(ICouncilTextPatternDataService.FormerThoughtOpeningFencePattern), "```(?:[a-z0-9_+.-]+)?\\s*", "i,c"),
+        new(nameof(ICouncilTextPatternDataService.FormerThoughtClosingFencePattern), "\\s*```", "i,c"),
+        new(nameof(ICouncilTextPatternDataService.FormerThoughtPresentationWrapperPattern), "</?(?:p|div|span)(?:\\s[^>]*)?>", "i,c"),
+        new(nameof(ICouncilTextPatternDataService.FormerThoughtExcessLineBreakPattern), "(?:\\r?\\n){3,}", "c"),
+        new(nameof(ICouncilTextPatternDataService.StructuredFieldPattern), "^\\s*(?<name>user-request-summary|missing-capability|owning-area|target-deliverable|requested-languages|requested-frameworks|requested-versions|requested-domain-knowledge|local-knowledge-sources|external-knowledge-sources|missing-localgpt-functions|safe-workflow|artifact-plan|investigation-status|next-localgpt-improvement|confidence|tags|topic|scope|helpful-sources|content)\\s*:\\s*(?<value>.*?)(?=^\\s*(?:user-request-summary|missing-capability|owning-area|target-deliverable|requested-languages|requested-frameworks|requested-versions|requested-domain-knowledge|local-knowledge-sources|external-knowledge-sources|missing-localgpt-functions|safe-workflow|artifact-plan|investigation-status|next-localgpt-improvement|confidence|tags|topic|scope|helpful-sources|content)\\s*:|\\z)", "i,m,s,c"),
+        new(nameof(ICouncilTextPatternDataService.MinecraftQuotedProjectNamePattern), "\"(?<name>[A-Z][A-Za-z0-9 _-]{2,60})\"", "c"),
+        new(nameof(ICouncilTextPatternDataService.MinecraftExplicitProjectNamePattern), "(?:called|named|titled)\\s+(?<name>[A-Z][A-Za-z0-9 _-]{2,60})", "i,c"),
+        new(nameof(ICouncilTextPatternDataService.MinecraftNamedProjectPattern), "(?:datapack|data pack|modpack|minecraft project|minecraft mod)\\s+(?:called|named|for|about)?\\s*(?<name>[A-Z][A-Za-z0-9 _-]{2,60})", "i,c"),
+        new(nameof(ICouncilTextPatternDataService.MarkdownHeadingProjectNamePattern), "^#\\s+(?<name>[A-Za-z0-9 _-]{3,60})", "m,c"),
+        new(nameof(ICouncilTextPatternDataService.IdentifierSeparatorPattern), "[^a-z0-9]+", "c"),
+        new(nameof(ICouncilTextPatternDataService.AlphaNumericWordPattern), "[A-Za-z0-9]+", "c"),
+        new(nameof(ICouncilTextPatternDataService.IntegerPattern), "\\d+", "c"),
         new("HarmonyFinal", "<\\|start\\|>assistant<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|$)|<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|<\\|start\\|>|$)", "i,s,c"),
         new("HarmonyThinking", "<\\|start\\|>assistant<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)|<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)", "i,s,c"),
         new("ThinkTag", "<think>(?<thinking>.*?)</think>", "i,s,c"),
@@ -132,24 +148,7 @@ public sealed class InitialDataCatalog(IWebHostEnvironment environment, ILogger<
             "Services should emit structured operation logs with an operation ID, service/function name, bounded status metadata, and safe identifiers so recent activity can support LocalGPT memory and troubleshooting. Do not log prompts, generated source, secrets, credentials, request bodies, model private reasoning, full database rows, or externally transmitted exception details. Technical exceptions remain in local application logs only.")
     ];
 
-    public IReadOnlyList<InitialVariable> Variables { get; } =
-    [
-        new("DefaultMaxOutputTokens", "262144", typeof(int).FullName!),
-        new("DefaultMaxPromptCharacters", int.MaxValue.ToString(), typeof(int).FullName!),
-        new("MaxBootstrapCharacters", "6000", typeof(int).FullName!),
-        new("DefaultMaxParallelModels", "1", typeof(int).FullName!),
-        new("DefaultHeavyModelGpuLayers", "20", typeof(int).FullName!),
-        new("DefaultCouncilResourceLoadPercent", "100", typeof(int).FullName!),
-        new("DefaultCouncilCritiqueRounds", "1", typeof(int).FullName!),
-        new("MinContextTokens", "2048", typeof(int).FullName!),
-        new("DefaultContextTokens", "262144", typeof(int).FullName!),
-        new("MaxContextTokens", "262144", typeof(int).FullName!),
-        new("MinOutputTokens", "64", typeof(int).FullName!),
-        new("MaxOutputTokens", "262144", typeof(int).FullName!),
-        new("DefaultOllamaEndpoint", "http://127.0.0.1:11434", typeof(string).FullName!),
-        new("ProviderSelectionPolicy", "CapabilityBased", typeof(string).FullName!),
-        new("RepositoryKnowledgeSeedVersion", "6", typeof(int).FullName!)
-    ];
+    public IReadOnlyList<InitialVariable> Variables => systemVariables.InitialValues;
 
     public async Task<IReadOnlyList<CouncilKnowledgeEntry>> LoadKnowledgeAsync(CancellationToken cancellationToken = default)
     {

@@ -4,6 +4,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.Services;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.JSInterop;
 
 namespace LocalGPT.Components.Layout;
@@ -20,6 +21,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
 
     [Inject]
     private ISafeJSRuntime? JsRuntime { get; set; }
+
+    [Inject]
+    private IFileVersionProvider FileVersionProvider { get; set; } = default!;
 
     [Inject]
     private IThemeChangeService DevExpressThemeChangeService { get; set; } = default!;
@@ -56,8 +60,11 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
 
             if (JsRuntime is not null)
             {
+                var themeModulePath = FileVersionProvider.AddFileVersionToPath(
+                    "/",
+                    "switcher-resources/theme-controller.js");
                 _module = await JsRuntime
-                    .InvokeAsync<IJSObjectReference>("import", "./switcher-resources/theme-controller.js")
+                    .InvokeAsync<IJSObjectReference>("import", themeModulePath)
                     .ConfigureAwait(true);
                 _dotNetReference = DotNetObjectReference.Create(this);
                 await ApplyClientThemeStateAsync(Themes.ActiveTheme).ConfigureAwait(true);
@@ -177,7 +184,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             return ValueTask.CompletedTask;
 
         return _module.InvokeVoidAsync(
-            "ThemeController.applyThemeState",
+            "applyThemeState",
             theme.Name,
             theme.BootstrapThemeMode,
             Themes.GetHighlightJSThemeCssUrl(theme),

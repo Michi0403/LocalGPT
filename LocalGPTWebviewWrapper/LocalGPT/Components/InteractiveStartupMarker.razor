@@ -1,35 +1,74 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
 @inject IJSRuntime JS
 @inject ILogger<InteractiveStartupMarker> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
 @code {
+    private DotNetObjectReference<InteractiveStartupMarker>? _diagnosticsReference;
+    private bool _disposed;
 
-    string toastName = "interactiveMarkerToasts";
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         try
         {
-            if (firstRender)
-            {
-                await JS.InvokeVoidAsync("localGptReady.markInteractive");
-                ComponentActivity.RecordInformation(nameof(InteractiveStartupMarker), "InteractiveReady", "The Blazor interactive circuit attached successfully.");
-                Logger.LogInformation("LocalGPT interactive UI attached successfully.");
-            }
+            if (!firstRender || _disposed)
+                return;
+
+            _diagnosticsReference = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("localGptJavaScriptDiagnostics.bindDotNet", _diagnosticsReference).ConfigureAwait(true);
+            await JS.InvokeVoidAsync("localGptReady.markInteractive").ConfigureAwait(true);
+            ComponentActivity.RecordInformation(nameof(InteractiveStartupMarker), "InteractiveReady", "The Blazor interactive circuit attached successfully and browser diagnostics are connected.");
+            Logger.LogInformation($"LocalGPT interactive UI attached successfully; JavaScript errors will be mirrored to the application logger.");
         }
-        catch (JSDisconnectedException)
+        catch (JSDisconnectedException exception)
         {
-            // The application window closed before the optional ready marker completed.
+            Logger.LogDebug(exception, $"The interactive-ready marker ended because the browser circuit disconnected.");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
-            // Normal during circuit shutdown.
+            Logger.LogDebug(exception, $"The interactive-ready marker was cancelled during circuit shutdown.");
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            Logger.LogWarning(ex, "The optional interactive-ready marker could not be published.");
-            ComponentActivity.RecordWarning(nameof(InteractiveStartupMarker), "InteractiveReady", "The optional interactive-ready marker could not be published.");
+            Logger.LogWarning(exception, $"The interactive-ready marker or JavaScript diagnostics bridge could not be initialized.");
+            ComponentActivity.RecordWarning(nameof(InteractiveStartupMarker), "InteractiveReady", "The optional interactive-ready marker or browser diagnostics bridge could not be published.");
+            Notifier.ShowWarning("ComponentSafetyToasts", "Browser diagnostics could not attach. LocalGPT remains usable; review the application log for details.", "Browser diagnostics warning");
+        }
+    }
+
+    [JSInvokable]
+    public Task ReportJavaScriptErrorAsync(string context, string message, string stack)
+    {
+        try
+        {
+            Logger.LogError($"Browser JavaScript failure in {context}: {message}{Environment.NewLine}{stack}");
+            ComponentActivity.RecordWarning(nameof(InteractiveStartupMarker), "JavaScriptError", $"Browser JavaScript failed in {context}: {message}");
+            return Task.CompletedTask;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"LocalGPT could not record a browser JavaScript failure from {context}.");
+            return Task.CompletedTask;
+        }
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            _diagnosticsReference?.Dispose();
+            _diagnosticsReference = null;
+            Logger.LogDebug($"The LocalGPT JavaScript diagnostics bridge was disposed.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, $"The LocalGPT JavaScript diagnostics bridge could not be disposed cleanly.");
         }
     }
 }

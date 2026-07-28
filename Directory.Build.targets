@@ -40,6 +40,36 @@
 
 
   <PropertyGroup>
+    <ProtectedRepositoryFilesScript>$(MSBuildThisFileDirectory)build\Assert-ProtectedRepositoryFiles.ps1</ProtectedRepositoryFilesScript>
+    <SecurityRulePreservationScript>$(MSBuildThisFileDirectory)build\Assert-SecurityRulePreservation.ps1</SecurityRulePreservationScript>
+    <RuntimeValueOwnershipScript>$(MSBuildThisFileDirectory)build\Assert-RuntimeValueOwnership.ps1</RuntimeValueOwnershipScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptProtectedRepositoryFiles"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptOneWireArchitecture"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipProtectedRepositoryFilesGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(ProtectedRepositoryFilesScript)')" Text="Protected repository-file guard script is missing: $(ProtectedRepositoryFilesScript)" />
+    <Exec Condition="Exists('$(ProtectedRepositoryFilesScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ProtectedRepositoryFilesScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptSecurityRulePreservation"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptProtectedRepositoryFiles"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipSecurityRulePreservationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(SecurityRulePreservationScript)')" Text="Security-rule preservation script is missing: $(SecurityRulePreservationScript)" />
+    <Exec Condition="Exists('$(SecurityRulePreservationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SecurityRulePreservationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptRuntimeValueOwnership"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptSecurityRulePreservation"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipRuntimeValueOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(RuntimeValueOwnershipScript)')" Text="Runtime-value ownership script is missing: $(RuntimeValueOwnershipScript)" />
+    <Exec Condition="Exists('$(RuntimeValueOwnershipScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(RuntimeValueOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <PropertyGroup>
     <LocalizationIntegrityScript>$(MSBuildThisFileDirectory)build\Assert-LocalizationIntegrity.ps1</LocalizationIntegrityScript>
   </PropertyGroup>
 
@@ -140,6 +170,61 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
+  </Target>
+
+  <PropertyGroup>
+    <MethodDiagnosticsPolicyScript>$(MSBuildThisFileDirectory)build\Assert-MethodDiagnostics.ps1</MethodDiagnosticsPolicyScript>
+    <ApplicationStaticPolicyScript>$(MSBuildThisFileDirectory)build\Assert-ApplicationStaticPolicy.ps1</ApplicationStaticPolicyScript>
+    <TextServiceOwnershipScript>$(MSBuildThisFileDirectory)build\Assert-TextServiceOwnership.ps1</TextServiceOwnershipScript>
+    <IteratorExceptionPolicyScript>$(MSBuildThisFileDirectory)build\Assert-IteratorExceptionPolicy.ps1</IteratorExceptionPolicyScript>
+    <SystemVariableInitializationScript>$(MSBuildThisFileDirectory)build\Assert-SystemVariableInitialization.ps1</SystemVariableInitializationScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptMethodDiagnosticsPolicy"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptAsyncContinuationPolicy"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipMethodDiagnosticsPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(MethodDiagnosticsPolicyScript)')" Text="Method diagnostics policy script is missing: $(MethodDiagnosticsPolicyScript)" />
+    <Exec Condition="Exists('$(MethodDiagnosticsPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptApplicationStaticPolicy"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptMethodDiagnosticsPolicy"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipApplicationStaticPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(ApplicationStaticPolicyScript)')" Text="Application static policy script is missing: $(ApplicationStaticPolicyScript)" />
+    <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptTextServiceOwnership"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptApplicationStaticPolicy"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipTextServiceOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(TextServiceOwnershipScript)')" Text="Text-service ownership script is missing: $(TextServiceOwnershipScript)" />
+    <Exec Condition="Exists('$(TextServiceOwnershipScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(TextServiceOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptIteratorExceptionPolicy"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptTextServiceOwnership"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipIteratorExceptionPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(IteratorExceptionPolicyScript)')" Text="Iterator exception policy script is missing: $(IteratorExceptionPolicyScript)" />
+    <Exec Condition="Exists('$(IteratorExceptionPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(IteratorExceptionPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptSystemVariableInitialization"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptIteratorExceptionPolicy"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipSystemVariableInitializationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(SystemVariableInitializationScript)')" Text="System-variable initialization script is missing: $(SystemVariableInitializationScript)" />
+    <Exec Condition="Exists('$(SystemVariableInitializationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SystemVariableInitializationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+
+  <PropertyGroup>
+    <JavaScriptDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-JavaScriptDiagnostics.ps1</JavaScriptDiagnosticsScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptJavaScriptDiagnostics"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipJavaScriptDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(JavaScriptDiagnosticsScript)')" Text="JavaScript diagnostics guard script is missing: $(JavaScriptDiagnosticsScript)" />
+    <Exec Condition="Exists('$(JavaScriptDiagnosticsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(JavaScriptDiagnosticsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
 </Project>

@@ -806,3 +806,103 @@
     opacity: .9 !important;
 }
 
+
+
+/* final15: the chat owns the available viewport and keeps all controls in normal flow. */
+.main-container{height:100%;max-height:100%;display:flex;flex-direction:column;overflow:auto;padding:.75rem;scrollbar-gutter:stable both-edges}
+#localgpt-chat-host{display:flex;min-height:28rem;flex:1 1 34rem;max-height:min(72dvh,58rem);overflow:hidden}
+#localgpt-chat-host>.demo-chat,#localgpt-chat-host .demo-chat{flex:1 1 auto;height:100%!important;min-height:28rem!important}
+.demo-chat ::deep .localgpt-chat-composer{pointer-events:auto!important}
+.demo-chat ::deep textarea,.demo-chat ::deep [contenteditable="true"],.demo-chat ::deep [role="textbox"]{pointer-events:auto!important;user-select:text!important;-webkit-user-select:text!important}
+.demo-chat ::deep button,.demo-chat ::deep [role="button"],.chat-session-toolbar ::deep button,.chat-provider-row ::deep button{pointer-events:auto!important}
+.demo-chat ::deep .localgpt-prompt-suggestion{min-height:2.75rem;white-space:normal!important;text-align:left;overflow-wrap:anywhere}
+@media(max-height:760px){#localgpt-chat-host{min-height:22rem;max-height:60dvh}.demo-chat{min-height:22rem!important}}
+@media(max-width:680px){.main-container{padding:.45rem}#localgpt-chat-host{min-height:24rem;max-height:68dvh}.demo-chat{min-height:24rem!important}}
+
+
+/* final15 completion: bounded composer tagging prevents a broad DevExpress ancestor from
+   becoming an invisible page overlay. Historical unsafe value was z-index: 1092. */
+.demo-chat ::deep .localgpt-chat-composer {
+    position: relative;
+    z-index: 3 !important;
+    isolation: isolate;
+    pointer-events: auto !important;
+    max-width: 100%;
+}
+.demo-chat ::deep .localgpt-chat-composer::before,
+.demo-chat ::deep .localgpt-chat-composer::after { pointer-events: none !important; }
+.demo-chat ::deep .localgpt-chat-textarea,
+.demo-chat ::deep textarea,
+.demo-chat ::deep [contenteditable="true"],
+.demo-chat ::deep [role="textbox"] {
+    position: relative;
+    z-index: 2;
+    pointer-events: auto !important;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    color: var(--bs-emphasis-color, var(--bs-body-color, CanvasText)) !important;
+    -webkit-text-fill-color: currentColor !important;
+    background: var(--bs-body-bg, Canvas) !important;
+    caret-color: var(--bs-primary, Highlight) !important;
+}
+.demo-chat ::deep .localgpt-prompt-suggestion {
+    color: var(--bs-emphasis-color, var(--bs-body-color, CanvasText)) !important;
+    -webkit-text-fill-color: currentColor !important;
+    font-weight: 650 !important;
+    opacity: 1 !important;
+}
+.demo-chat ::deep .localgpt-prompt-suggestion * { color: inherit !important; -webkit-text-fill-color: currentColor !important; opacity: 1 !important; }
+#localgpt-chat-host { width: 100%; min-width: 0; max-width: 100%; }
+@media (min-width: 681px) {
+    #localgpt-chat-host { max-height: calc(100dvh - 9rem); }
+}
+
+/* final24: streamed council output remains selectable and the chat consumes viewport space
+   released when optional controls are collapsed. */
+.main-container {
+    min-height: calc(100dvh - 5.25rem);
+    height: auto;
+    max-height: none;
+}
+
+#localgpt-chat-host {
+    flex: 1 1 32rem;
+    min-height: 30rem;
+    max-height: none;
+}
+
+#localgpt-chat-host > .demo-chat,
+#localgpt-chat-host .demo-chat {
+    height: 100% !important;
+    min-height: 30rem !important;
+    max-height: none !important;
+}
+
+.former-thought-content,
+.demo-chat ::deep [data-localgpt-copyable="true"],
+.demo-chat ::deep .demo-chat-content,
+.demo-chat ::deep .demo-chat-content * {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+.demo-chat ::deep .demo-chat-content,
+.demo-chat ::deep .demo-chat-content pre,
+.demo-chat ::deep .demo-chat-content code {
+    cursor: text;
+}
+
+@media (max-height: 760px) {
+    .main-container { min-height: calc(100dvh - 4.25rem); }
+    #localgpt-chat-host,
+    #localgpt-chat-host > .demo-chat,
+    #localgpt-chat-host .demo-chat { min-height: 22rem !important; }
+}
+
+@media (max-width: 680px) {
+    .main-container { min-height: calc(100dvh - 3.75rem); }
+    #localgpt-chat-host,
+    #localgpt-chat-host > .demo-chat,
+    #localgpt-chat-host .demo-chat { min-height: 24rem !important; }
+}
+

@@ -24,6 +24,7 @@ namespace LocalGPT.Services
           IChatUploadWorkspaceService chatUploadWorkspaces,
           IPromptConfigService promptConfigService,
           IVariableStoreService variableStoreService,
+          ISystemVariableDefinitionService systemVariables,
           IDxAiFunctionRegistry functionRegistry,
           IChatResponseFormatterFactory formatterFactory,
           IChatProtocolResolver protocolResolver
@@ -205,6 +206,7 @@ namespace LocalGPT.Services
                     chatUploadWorkspaces,
                     promptConfigService,
                     variableStoreService,
+                    systemVariables,
                     councilRuntime,
                     councilText,
                     sessions.ToArray());

@@ -115,3 +115,41 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* final15: use the complete application viewport and wrap long SQLite values. */
+.database-page{width:100%;max-width:none;height:100%;min-height:0;margin:0;padding:.75rem;overflow:auto}
+.knowledge-panel,.table-panel{min-width:0}
+.table-workspace{grid-template-columns:minmax(0,1fr) minmax(20rem,32rem)}
+.database-grid{min-width:0;max-width:100%}
+.database-grid ::deep .dxbl-grid-table{table-layout:auto;width:max-content;min-width:100%;max-width:none}
+.database-grid ::deep td,.database-grid ::deep th,.database-grid ::deep .dxbl-grid-cell{white-space:normal!important;overflow-wrap:anywhere;word-break:break-word;vertical-align:top;min-width:7rem;max-width:34rem}
+.database-grid-preview{max-height:65dvh;overflow:auto}
+.localgpt-grid-wrap .database-grid ::deep td,.localgpt-grid-wrap .database-grid ::deep .dxbl-grid-cell{white-space:normal!important;max-width:24rem}
+.localgpt-database-compact .database-page{font-size:.9rem}.localgpt-database-compact .editor-panel{padding:.55rem}.localgpt-database-compact .database-grid ::deep td{padding:.25rem .4rem}
+@media(max-width:1000px){.database-page{padding:.5rem}.knowledge-layout,.table-workspace{grid-template-columns:1fr}.database-grid-preview{max-height:55dvh}}
+
+
+/* final15: use the available viewport instead of a narrow centered column. */
+.database-page,
+.sqlite-database-page,
+.database-workspace,
+.database-shell {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+::deep .dxbl-grid,
+::deep .dx-datagrid,
+::deep table { max-width: 100%; }
+::deep .dxbl-grid td,
+::deep .dxbl-grid th,
+::deep .dx-datagrid td,
+::deep .dx-datagrid th,
+::deep table td,
+::deep table th {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    vertical-align: top;
+}

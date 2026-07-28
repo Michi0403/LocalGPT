@@ -1,4 +1,4 @@
-@import url('open.iconic/font/css/open-iconic-bootstrap.min.css');
+@import url('open-iconic-fallback.css');
 
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -322,3 +322,10 @@ html, body {
     background: var(--bs-primary);
     color: var(--bs-white, #fff);
 }
+
+
+/* final15: local icon fallback avoids missing Open Iconic font requests. */
+.localgpt-context-menu button { border:0; padding:.55rem .7rem; border-radius:.35rem; color:inherit; background:transparent; text-align:left; }
+.localgpt-context-menu button:hover,.localgpt-context-menu button:focus-visible { background:var(--bs-primary);color:var(--bs-white,#fff); }
+.localgpt-context-menu hr { width:100%;margin:.3rem 0;border:0;border-top:1px solid var(--bs-border-color); }
+.localgpt-overlays-hidden .human-approval-bar,.localgpt-overlays-hidden .human-inbox-launcher,.localgpt-overlays-hidden .council-spooler-launcher { display:none!important; }

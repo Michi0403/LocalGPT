@@ -1,3 +1,4 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 @inject IHumanCollaborationService Collaboration
 @inject ILocalHumanInteractionContext HumanAmbientContext
@@ -11,20 +12,21 @@
 @if (!isOpen && approvalBarVisible && PendingRequests.Count > 0)
 {
     var nextRequest = PendingRequests[0];
-    <aside class="human-approval-bar" role="region" aria-label="Pending LocalGPT approvals">
+    <aside class="human-approval-bar" data-localgpt-overlay="approval" role="region" aria-label="Pending LocalGPT approvals">
         <div class="human-approval-bar-summary">
             <strong>@PendingCount AI Council action@(PendingCount == 1 ? string.Empty : "s") waiting</strong>
             <span>@nextRequest.Title</span>
             <small>@nextRequest.RequestKind · @nextRequest.RiskLevel · @nextRequest.RequestedBy</small>
         </div>
         <div class="human-approval-bar-actions">
-            <button type="button" class="human-primary" @onclick="OpenApprovalPanel">Review and work through</button>
+            <button type="button" class="human-primary" data-localgpt-command="open-approvals" @onclick="OpenApprovalPanel">Review and work through</button>
             <button type="button" class="human-secondary" @onclick="HideApprovalBar">Hide bar</button>
         </div>
     </aside>
 }
 
 <button type="button"
+        data-localgpt-command="open-approvals"
         class="human-inbox-launcher @(PendingCount > 0 ? "has-pending" : string.Empty)"
         title="Approvals, permissions and human Council participation"
         @onclick="TogglePanel">

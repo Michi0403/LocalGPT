@@ -1,15 +1,17 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 @inject ICouncilSpoolerService Spooler
 @inject ILogger<CouncilSpoolerPanel> Logger
 
-<button type="button" class="council-spooler-launcher" @onclick="Toggle" title="Rejoin a running or recent AI Council session">
+<button type="button" data-localgpt-command="open-spooler"
+        class="council-spooler-launcher" @onclick="Toggle" title="Rejoin a running or recent AI Council session">
     <span>Council spooler</span>
     @if (RunningCount > 0) { <b>@RunningCount</b> }
 </button>
 
 @if (_open)
 {
-    <aside class="council-spooler-panel" aria-label="AI Council spooler and live run restore">
+    <aside class="council-spooler-panel" data-localgpt-overlay="spooler" aria-label="AI Council spooler and live run restore">
         <header>
             <div><strong>AI Council spooler</strong><small>Rejoin live runs and inspect recent checkpoints without stopping model work.</small></div>
             <button type="button" @onclick="Toggle">×</button>

@@ -153,3 +153,57 @@
 .language-switcher { margin-left: auto; display: inline-flex; gap: .25rem; align-items: center; }
 .language-switcher a { min-width: 2.5rem; min-height: 2.5rem; display: inline-grid; place-items: center; border: 1px solid var(--bs-border-color); border-radius: .45rem; color: var(--bs-body-color); text-decoration: none; font-weight: 700; }
 .language-switcher a:hover { background: var(--bs-primary); color: var(--bs-white, #fff); }
+
+
+/* final15: collaboration and Council tools live in a dedicated edge rail. The rail itself
+   never captures input outside its visible controls, so editor and chat surfaces remain usable. */
+.localgpt-assistant-rail {
+    position: fixed;
+    top: 4.75rem;
+    right: .65rem;
+    bottom: .75rem;
+    z-index: 1060;
+    width: min(34rem, calc(100vw - 5rem));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: .55rem;
+    pointer-events: none;
+}
+
+.localgpt-assistant-rail ::deep .human-approval-bar,
+.localgpt-assistant-rail ::deep .human-inbox-launcher,
+.localgpt-assistant-rail ::deep .council-spooler-launcher {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    max-width: 100%;
+}
+
+.localgpt-assistant-rail ::deep .human-approval-bar {
+    width: min(34rem, 100%);
+}
+
+.localgpt-assistant-rail ::deep .human-inbox-panel,
+.localgpt-assistant-rail ::deep .council-spooler-panel {
+    pointer-events: auto;
+}
+
+@media (max-width: 780px) {
+    .localgpt-assistant-rail {
+        top: auto;
+        left: .55rem;
+        right: .55rem;
+        bottom: .55rem;
+        width: auto;
+        max-height: 44dvh;
+        align-items: stretch;
+    }
+
+    .localgpt-assistant-rail ::deep .human-approval-bar {
+        width: 100%;
+        max-height: 28dvh;
+        overflow: auto;
+    }
+}

@@ -28,6 +28,7 @@ $modelCouncil = ReadText "LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Model
 $chatCss = ReadText "LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor.css"
 $council = ReadText "LocalGPTWebviewWrapper\LocalGPT\Services\MultiModelCouncilService.cs"
 $initialData = ReadText "LocalGPTWebviewWrapper\LocalGPT\Services\Persistence\InitialDataCatalog.cs"
+$systemVariableDefinitions = ReadText "LocalGPTWebviewWrapper\LocalGPT\Services\Persistence\SystemVariableDefinitionService.cs"
 $compositeChat = ReadText "LocalGPTWebviewWrapper\LocalGPT\Services\CompositeChatClient.cs"
 $settings = Get-Content -Raw -LiteralPath (Join-Path $root "LocalGPTWebviewWrapper\LocalGPT\appsettings.json") | ConvertFrom-Json
 
@@ -62,9 +63,9 @@ if ($council -notmatch 'RetryParticipantWithSafeLimitsAsync' -or $council -notma
 if ($council -notmatch 'AppendRuntimeBenchmarkSummary' -or $council -notmatch 'OrderParticipantsByObservedHealth') { Fail "Council runtime benchmarking and health-based phase ordering safeguards are missing." }
 if ($compositeChat -notmatch 'var retryUpdates = session\.Client' -or $compositeChat -notmatch 'retryUpdates\.MoveNextAsync') { Fail "Streaming retry must use the compiler-safe manual async enumerator pattern." }
 if ($compositeChat -match 'await foreach \(var update in session\.Client') { Fail "Streaming retry reintroduced yield-return inside a try/catch async-iterator pattern that cannot compile." }
-if ($initialData -notmatch 'DefaultCouncilResourceLoadPercent", "100"') { Fail "New installations must default Council hardware power to 100 percent." }
+if ($systemVariableDefinitions -notmatch 'DefaultCouncilResourceLoadPercent", 100') { Fail "New installations must default Council hardware power to 100 percent." }
 if ($modelCouncil -notmatch 'MaxOutputTokens = 262144' -or $modelCouncil -notmatch 'ResourceLoadPercent = 100' -or $modelCouncil -notmatch 'MaxContextTokens = 262144') { Fail "The dedicated AI Council page must use the same full-capability default as DXAIChat." }
-if ($initialData -notmatch 'DefaultCouncilCritiqueRounds", "1"' -or $chat -notmatch 'MaxRounds = Math.Clamp\(CouncilCritiqueRounds, 0, 3\)') { Fail "Council review depth must keep a balanced one-round default and bounded 0-3 range." }
+if ($systemVariableDefinitions -notmatch 'DefaultCouncilCritiqueRounds", 1' -or $chat -notmatch 'MaxRounds = Math.Clamp\(CouncilCritiqueRounds, 0, 3\)') { Fail "Council review depth must keep a balanced one-round default and bounded 0-3 range." }
 if ($httpController -notmatch 'using LocalGPT\.Services\.OneWire;') { Fail "OneWireHttpController cannot resolve OneWireMessageDispatcher." }
 if ([int]$settings.LocalGPT.Port -ne 5000) { Fail "LocalGPT default web port must remain 5000." }
 if ([int]$settings.OneWire.ServicePort -ne 51140 -or [int]$settings.OneWire.DiscoveryPort -ne 51141) { Fail "1-Wire defaults must remain TCP 51140 / UDP 51141." }

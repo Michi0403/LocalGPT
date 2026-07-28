@@ -1076,8 +1076,8 @@ namespace LocalGPT.Services
                     BinaryFileCount = binaryCount,
                     Architecture = InferArchitecture(projectDirectory, files, combined, logger),
                     ProtocolsAndComponents = InferProtocolsAndComponents(combined, files, logger),
-                    TargetFrameworks = string.Join(", ", _text.ExtractDistinct(combined, LocalGptCatalogService.TargetFrameworkPattern(), logger).Take(12)),
-                    PackageReferences = string.Join(", ", _text.ExtractDistinct(combined, LocalGptCatalogService.PackageReferencePattern(), logger).Take(24)),
+                    TargetFrameworks = string.Join(", ", _text.ExtractTargetFrameworks(combined, logger).Take(12)),
+                    PackageReferences = string.Join(", ", _text.ExtractPackageReferences(combined, logger).Take(24)),
                     ImportantFiles = BuildImportantFileList(rootPath, projectDirectory, sourceFiles, logger)
                 };
 

@@ -127,7 +127,7 @@ public sealed class ThemeService
     {
         ArgumentNullException.ThrowIfNull(theme);
         var highlightThemeName = highlightJsThemeNames.GetValueOrDefault(theme.Name, "default");
-        return $"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/{highlightThemeName}.min.css";
+        return $"css/highlight/{highlightThemeName}.css";
     }
 
     private IReadOnlyDictionary<string, string> CreateHighlightJsThemeNames() =>

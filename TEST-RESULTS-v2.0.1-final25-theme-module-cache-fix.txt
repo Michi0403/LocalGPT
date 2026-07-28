@@ -1,0 +1,11 @@
+LocalGPT 2.0.1 final25 validation
+
+PASS: 50 Python contract tests.
+PASS: 21 maintained LocalGPT JavaScript files passed Node syntax checking.
+PASS: protected repository, JavaScript diagnostics, and final19 security manifests match normalized SHA-256 values.
+PASS: the dynamic theme-module import is resolved through IFileVersionProvider.
+PASS: App.razor uses the same fingerprinted theme-controller module URL.
+PASS: the browser-runtime safeguard rejects an unversioned theme module import or script URL.
+PASS: JSON and MSBuild XML files parsed successfully.
+
+Not run: native dotnet compilation and Windows PowerShell execution; neither runtime is installed in the packaging environment.

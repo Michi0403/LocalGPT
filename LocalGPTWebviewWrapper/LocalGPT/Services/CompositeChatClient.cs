@@ -9,7 +9,6 @@ namespace LocalGPT.Services;
 
 public class CompositeChatClient : IChatClient
 {
-    private const int EmergencyDefaultMaxOutputTokens = 262144;
       public List<ChatClientSession> AvailableChatClients { get; }
     public ChatClientSession? SelectedSession { get; set; }
     public string? LockedSessionName { get; set; }
@@ -23,6 +22,7 @@ public class CompositeChatClient : IChatClient
     private readonly IChatUploadWorkspaceService? _chatUploadWorkspaces;
     private readonly IPromptConfigService? _promptConfigService;
     private readonly IVariableStoreService? _variableStoreService;
+    private readonly ISystemVariableDefinitionService _systemVariables;
     private readonly CouncilRuntimeService _councilRuntime;
     private readonly CouncilTextService _councilText;
 
@@ -34,6 +34,7 @@ public class CompositeChatClient : IChatClient
         IChatUploadWorkspaceService? chatUploadWorkspaces,
         IPromptConfigService? promptConfigService,
         IVariableStoreService? variableStoreService,
+        ISystemVariableDefinitionService systemVariables,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
         params ChatClientSession[] chatClients)
@@ -48,6 +49,7 @@ public class CompositeChatClient : IChatClient
         _chatUploadWorkspaces = chatUploadWorkspaces;
         _promptConfigService = promptConfigService;
         _variableStoreService = variableStoreService;
+        _systemVariables = systemVariables ?? throw new ArgumentNullException(nameof(systemVariables));
         _councilRuntime = councilRuntime ?? throw new ArgumentNullException(nameof(councilRuntime));
         _councilText = councilText ?? throw new ArgumentNullException(nameof(councilText));
     }
@@ -172,7 +174,7 @@ public class CompositeChatClient : IChatClient
             try
             {
                 options.MaxOutputTokens = await _variableStoreService
-                    .GetAsync<int>("DefaultMaxOutputTokens", cancellationToken)
+                    .GetAsync<int>(_systemVariables.DefaultMaxOutputTokens.Name, cancellationToken)
                     .ConfigureAwait(false);
                 return options;
             }
@@ -186,7 +188,7 @@ public class CompositeChatClient : IChatClient
             }
         }
 
-        options.MaxOutputTokens = EmergencyDefaultMaxOutputTokens;
+        options.MaxOutputTokens = _systemVariables.DefaultMaxOutputTokens.DefaultValue;
         return options;
     }
 

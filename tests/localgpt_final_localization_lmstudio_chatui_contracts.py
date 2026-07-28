@@ -26,8 +26,16 @@ chat = (APP / "Components/Pages/Chat.razor").read_text(encoding="utf-8")
 require("<DxToolbar" in chat and "<DxToolbarItem" in chat, "Chat commands must use the adaptive DevExpress toolbar.")
 require("OnChatToolbarItemClick" in chat, "Chat toolbar must have a single explicit command dispatcher.")
 require("<DxRibbon" not in chat, "A page-local Ribbon must not overlap LocalGPT's existing application menu.")
-require("HtmlDecode(System.Net.WebUtility.HtmlDecode" in chat, "Former thoughts must decode historical encoded wrappers.")
-require("(?:pre|code)" in chat and "former-thought-content" in chat, "Former thoughts must remove pre/code wrappers and preserve text formatting.")
+council_text = (APP / "Services/CouncilTextService.cs").read_text(encoding="utf-8")
+require("WebUtility.HtmlDecode(WebUtility.HtmlDecode" in council_text, "Former thoughts must decode historical encoded wrappers in the text service.")
+pattern_catalog = (APP / "Services/Persistence/InitialDataCatalog.cs").read_text(encoding="utf-8")
+require(
+    "_patterns.FormerThoughtCodeWrapperPattern" in council_text
+    and "FormerThoughtCodeWrapperPattern" in pattern_catalog
+    and "(?:pre|code)" in pattern_catalog
+    and "former-thought-content" in chat,
+    "Former thoughts must remove pre/code wrappers through the database-backed pattern service and preserve text formatting.",
+)
 
 css = (APP / "wwwroot/css/localgpt-theme-contract.css").read_text(encoding="utf-8")
 require("font-size: clamp(16px" in css, "LocalGPT must retain its accessible adaptive base font size.")
