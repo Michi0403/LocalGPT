@@ -379,6 +379,8 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IOneWirePeerRegistry, OneWirePeerRegistry>();
                 builder.Services.AddSingleton<IOneWireConnectionRegistry, OneWireConnectionRegistry>();
                 builder.Services.AddSingleton<IOneWireReplayPolicyDataService, OneWireReplayPolicyDataService>();
+                builder.Services.AddSingleton<ILocalGptRuntimePolicySeedDataService, LocalGptRuntimePolicySeedDataService>();
+                builder.Services.AddSingleton<ILocalGptRuntimePolicyStoreService, LocalGptRuntimePolicyStoreService>();
                 builder.Services.AddSingleton<ILocalGptRuntimePolicyDataService, LocalGptRuntimePolicyDataService>();
                 builder.Services.AddSingleton<IOneWireReplayGuard, OneWireReplayGuard>();
                 builder.Services.AddSingleton<IOneWireWorkSpooler, OneWireWorkSpooler>();

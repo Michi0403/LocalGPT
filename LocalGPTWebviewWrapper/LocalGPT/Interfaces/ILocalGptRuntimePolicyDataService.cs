@@ -4,6 +4,16 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Interfaces;
 
+public interface ILocalGptRuntimePolicySeedDataService
+{
+    LocalGptRuntimePolicySeedModel GetSeed();
+}
+
+public interface ILocalGptRuntimePolicyStoreService
+{
+    LocalGptRuntimePolicyDefinition GetDefinition();
+}
+
 public interface ILocalGptRuntimePolicyDataService
 {
     Guid LocalGptCoreProjectId { get; }
@@ -13,4 +23,5 @@ public interface ILocalGptRuntimePolicyDataService
     Regex PowerShellFilePattern { get; }
     Regex SensitiveArgumentPattern { get; }
     LocalGptRuntimePolicySnapshot GetSnapshot();
+    LocalGptRuntimePolicySnapshot Reload();
 }

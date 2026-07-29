@@ -13,6 +13,7 @@ $failures = @()
 $allowed = @(
     'LocalGPTWebviewWrapper/LocalGPT/Program.cs',
     'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/InitialDataCatalog.cs',
+    'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs',
     'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/SystemVariableDefinitionService.cs'
 )
 $constructorPattern = '(?m)^(?<line>[^\r\n]*(?:=\s*new\s+|Add\w*\s*\(\s*new\s+)[A-Za-z_][\w<>,.?\[\]]*\s*\([^\r\n;]*"(?:[^"\\\r\n]|\\.)*"[^\r\n;]*)$'
@@ -39,6 +40,6 @@ foreach ($file in $files) {
 if ($failures.Count -gt 0) {
     Write-Host 'System-variable initialization validation failed:'
     foreach ($failure in $failures | Sort-Object -Unique) { Write-Host "  - $failure" }
-    Fail "System-variable initialization validation failed with $($failures.Count) new problem(s). Move initialization literals to InitialDataCatalog, SystemVariableDefinitionService, or configuration-backed system variables."
+    Fail "System-variable initialization validation failed with $($failures.Count) new problem(s). Move initialization literals to an explicit Persistence seed/data service, InitialDataCatalog, SystemVariableDefinitionService, or configuration-backed system variables."
 }
 Write-Host 'System-variable initialization validation passed. Direct variable-store string keys are forbidden and new constructor initialization literals must be seed- or configuration-owned.'

@@ -134,15 +134,23 @@
     <Exec Condition="Exists('$(SystemVariableInitializationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SystemVariableInitializationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <!--<PropertyGroup>
+  <PropertyGroup>
+    <PublishConfigurationMigrationScript>$(MSBuildThisFileDirectory)build\Migrate-ObsoletePublishConfiguration.ps1</PublishConfigurationMigrationScript>
     <PublishConfigurationScript>$(MSBuildThisFileDirectory)build\Assert-PublishConfiguration.ps1</PublishConfigurationScript>
   </PropertyGroup>
 
+  <Target Name="MigrateLocalGptObsoletePublishConfiguration"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipPublishConfigurationMigration)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(PublishConfigurationMigrationScript)')" Text="Publish configuration migration script is missing: $(PublishConfigurationMigrationScript)" />
+    <Exec Condition="Exists('$(PublishConfigurationMigrationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(PublishConfigurationMigrationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
   <Target Name="AssertLocalGptPublishConfiguration"
-          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptJavaScriptDiagnostics"
+          BeforeTargets="BeforeBuild" AfterTargets="MigrateLocalGptObsoletePublishConfiguration"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipPublishConfigurationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(PublishConfigurationScript)')" Text="Publish configuration guard script is missing: $(PublishConfigurationScript)" />
     <Exec Condition="Exists('$(PublishConfigurationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(PublishConfigurationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>-->
+  </Target>
 
 </Project>

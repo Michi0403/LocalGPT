@@ -9,7 +9,8 @@ namespace LocalGPT.Services.Persistence;
 public sealed class InitialDataCatalog(
     IWebHostEnvironment environment,
     ILogger<InitialDataCatalog> logger,
-    ISystemVariableDefinitionService systemVariables) : IInitialDataCatalog
+    ISystemVariableDefinitionService systemVariables,
+    ILocalGptRuntimePolicySeedDataService runtimePolicySeed) : IInitialDataCatalog
 {
     public IReadOnlyList<RegexPatternDto> RegexPatterns { get; } =
     [
@@ -91,6 +92,7 @@ public sealed class InitialDataCatalog(
         new("builtin.installer-port-contract", "(?i)(?:default|installer|bootstrap|webview|kestrel|listen|port)[^\\r\\n]{0,120}?(?<port>\\b(?:[1-9][0-9]{2,4})\\b)", "i,c"),
         new("builtin.onewire-capability-key", "(?i)(?:capability|skill|uiActivationKey|operationKey)[^\\r\\n]{0,80}?[\"'](?<key>[a-z0-9][a-z0-9._-]+)[\"']", "i,c"),
         new("builtin.file-path-with-extension", "(?<path>(?:[A-Za-z]:)?[\\\\/A-Za-z0-9_. -]+\\.(?<extension>[A-Za-z0-9]{1,12}))", "c"),
+        .. runtimePolicySeed.GetSeed().RegexPatterns.Select(item => new RegexPatternDto(item.Name, item.Pattern, item.Flags))
     ];
 
     public IReadOnlyList<PromptConfigDto> Prompts { get; } =
@@ -144,7 +146,11 @@ public sealed class InitialDataCatalog(
             "Services should emit structured operation logs with an operation ID, service/function name, bounded status metadata, and safe identifiers so recent activity can support LocalGPT memory and troubleshooting. Do not log prompts, generated source, secrets, credentials, request bodies, model private reasoning, full database rows, or externally transmitted exception details. Technical exceptions remain in local application logs only.")
     ];
 
-    public IReadOnlyList<InitialVariable> Variables => systemVariables.InitialValues;
+    public IReadOnlyList<InitialVariable> Variables { get; } =
+    [
+        .. systemVariables.InitialValues,
+        .. runtimePolicySeed.GetSeed().SystemVariables.Select(item => new InitialVariable(item.Name, item.Value, item.DataType))
+    ];
 
     public async Task<IReadOnlyList<CouncilKnowledgeEntry>> LoadKnowledgeAsync(CancellationToken cancellationToken = default)
     {

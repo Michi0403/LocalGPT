@@ -146,7 +146,6 @@
   "LocalGPTWebviewWrapper/LocalGPT/Services/CodeGenerationWorkflowService.cs|public string Id => \"{{EscapeCSharp(output.Name)}}\";",
   "LocalGPTWebviewWrapper/LocalGPT/Services/ComponentActivityService.cs|private const int Capacity = 192;",
   "LocalGPTWebviewWrapper/LocalGPT/Services/ComponentActivityService.cs|private const int MaxSummaryCharacters = 320;",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/Council/RuntimeCapabilityDirectoryService.cs|private static readonly Guid LocalGptCoreProjectId = Guid.Parse(\"7f4d7b4a-b622-4d15-8e44-9dfae2aa6101\");",
   "LocalGPTWebviewWrapper/LocalGPT/Services/Council/Skills/ModelCapabilitySelfAssessmentService.cs|[GeneratedRegex(\"<localgpt-self-assessment>(?<json>[\\\\s\\\\S]*?)</localgpt-self-assessment>\", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]",
   "LocalGPTWebviewWrapper/LocalGPT/Services/CouncilCodeGenerationPlanService.cs|private const int MaxEmbeddedPlanCharacters = 4_000_000;",
   "LocalGPTWebviewWrapper/LocalGPT/Services/CouncilCodeGenerationPlanService.cs|private readonly Regex fencedPlanPattern = new(",

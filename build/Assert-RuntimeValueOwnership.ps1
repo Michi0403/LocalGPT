@@ -48,5 +48,91 @@ $seed = [IO.File]::ReadAllText((Join-Path $sourceRoot 'Services\Persistence\Init
 foreach ($name in @('FormerThoughtBreakPattern','FormerThoughtCodeWrapperPattern','FormerThoughtOpeningFencePattern','FormerThoughtClosingFencePattern','FormerThoughtPresentationWrapperPattern','FormerThoughtExcessLineBreakPattern','StructuredFieldPattern','MinecraftQuotedProjectNamePattern','MinecraftExplicitProjectNamePattern','MinecraftNamedProjectPattern','MarkdownHeadingProjectNamePattern','IdentifierSeparatorPattern','AlphaNumericWordPattern','IntegerPattern')) {
     if ($seed.IndexOf("nameof(ICouncilTextPatternDataService.$name)", [StringComparison]::Ordinal) -lt 0) { $failures.Add("Database seed is missing required Council text pattern: $name") }
 }
+
+$runtimePolicySeedPath = Join-Path $sourceRoot 'Services\Persistence\LocalGptRuntimePolicySeedDataService.cs'
+$runtimePolicyStorePath = Join-Path $sourceRoot 'Services\Persistence\LocalGptRuntimePolicyStoreService.cs'
+$runtimePolicyDataPath = Join-Path $sourceRoot 'Services\Persistence\LocalGptRuntimePolicyDataService.cs'
+$runtimePolicyControllerPath = Join-Path $sourceRoot 'Controller\RuntimePolicyController.cs'
+$databaseInitializationPath = Join-Path $sourceRoot 'Services\Persistence\DatabaseInitializationService.cs'
+foreach ($requiredPath in @($runtimePolicySeedPath, $runtimePolicyStorePath, $runtimePolicyDataPath, $runtimePolicyControllerPath, $databaseInitializationPath)) {
+    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) { $failures.Add("Runtime-policy data boundary is missing: $requiredPath") }
+}
+if ((Test-Path -LiteralPath $runtimePolicySeedPath -PathType Leaf) -and
+    (Test-Path -LiteralPath $runtimePolicyStorePath -PathType Leaf) -and
+    (Test-Path -LiteralPath $runtimePolicyDataPath -PathType Leaf) -and
+    (Test-Path -LiteralPath $runtimePolicyControllerPath -PathType Leaf) -and
+    (Test-Path -LiteralPath $databaseInitializationPath -PathType Leaf)) {
+    $runtimePolicySeed = [IO.File]::ReadAllText($runtimePolicySeedPath)
+    $runtimePolicyStore = [IO.File]::ReadAllText($runtimePolicyStorePath)
+    $runtimePolicyData = [IO.File]::ReadAllText($runtimePolicyDataPath)
+    $runtimePolicyController = [IO.File]::ReadAllText($runtimePolicyControllerPath)
+    $databaseInitialization = [IO.File]::ReadAllText($databaseInitializationPath)
+
+    foreach ($required in @(
+        'LocalGptRuntimeSystemVariableSeed',
+        'LocalGptRuntimeRegexSeed',
+        'runtime.native.powershell-inline-command',
+        'runtime.native.powershell-file',
+        'runtime.native.sensitive-argument',
+        'AllowedNativeExecutablesJson',
+        'RegexMatchTimeoutMilliseconds'
+    )) {
+        if ($runtimePolicySeed.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { $failures.Add("Runtime-policy seed lost required database feed token: $required") }
+    }
+    foreach ($required in @(
+        'db.SystemVariables.AsNoTracking()',
+        'db.RegexPatterns.AsNoTracking()',
+        'seed.PowerShellInlineCommandRegexName',
+        'seed.PowerShellFileRegexName',
+        'seed.SensitiveArgumentRegexName',
+        'seed.RegexTimeoutVariableName'
+    )) {
+        if ($runtimePolicyStore.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { $failures.Add("Runtime-policy store lost database ownership token: $required") }
+    }
+    foreach ($forbidden in @(
+        '-EncodedCommand',
+        'api[-_]?key',
+        'powershell.exe',
+        'Guid.Parse("7f4d7b4a-b622-4d15-8e44-9dfae2aa6101")'
+    )) {
+        if ($runtimePolicyData.IndexOf($forbidden, [StringComparison]::Ordinal) -ge 0) { $failures.Add("Runtime-policy runtime service reintroduced hidden seed data: $forbidden") }
+    }
+    foreach ($required in @(
+        'ILocalGptRuntimePolicyStoreService store',
+        'store.GetDefinition()',
+        'new Regex(',
+        'definition.PowerShellInlineCommandPattern.Pattern',
+        'definition.PowerShellFilePattern.Pattern',
+        'definition.SensitiveArgumentPattern.Pattern'
+    )) {
+        if ($runtimePolicyData.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { $failures.Add("Runtime-policy runtime service lost compiled database-backed token: $required") }
+    }
+    foreach ($required in @(
+        '[HttpGet("seed")]',
+        '[HttpGet("definition")]',
+        '[HttpPost("reload")]',
+        'runtimePolicySeed.GetSeed()',
+        'runtimePolicyStore.GetDefinition()',
+        'runtimePolicy.Reload()'
+    )) {
+        if ($runtimePolicyController.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { $failures.Add("Runtime-policy controller lost service boundary token: $required") }
+    }
+    if ($databaseInitialization.IndexOf('runtimePolicySeed.GetSeed().LocalGptCoreProjectId', [StringComparison]::Ordinal) -lt 0) {
+        $failures.Add('Database initialization must use the runtime-policy seed model for the LocalGPT Core project identifier.')
+    }
+    if ($seed.IndexOf('runtimePolicySeed.GetSeed().RegexPatterns', [StringComparison]::Ordinal) -lt 0 -or
+        $seed.IndexOf('runtimePolicySeed.GetSeed().SystemVariables', [StringComparison]::Ordinal) -lt 0) {
+        $failures.Add('InitialDataCatalog must merge the runtime-policy regex and system-variable first-run feeds.')
+    }
+    foreach ($required in @(
+        'AddSingleton<ILocalGptRuntimePolicySeedDataService, LocalGptRuntimePolicySeedDataService>()',
+        'AddSingleton<ILocalGptRuntimePolicyStoreService, LocalGptRuntimePolicyStoreService>()',
+        'AddSingleton<ILocalGptRuntimePolicyDataService, LocalGptRuntimePolicyDataService>()'
+    )) {
+        if ($program.IndexOf($required, [StringComparison]::Ordinal) -lt 0) { $failures.Add("Runtime-policy DI ownership is missing: $required") }
+    }
+}
+
 if ($failures.Count -gt 0) { $failures | ForEach-Object { Write-Error $_ }; exit 1 }
-Write-Host 'Runtime-value ownership passed. Council text values are database-backed and the removal-only magic-value baseline did not grow.'
+Write-Host 'Runtime-value ownership passed. Council text and runtime command-policy values are database-backed, and the removal-only magic-value baseline did not grow.'
+

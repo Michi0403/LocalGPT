@@ -58,6 +58,17 @@ foreach ($profile in $appProfiles) {
     Assert-Profile "LocalGPTWebviewWrapper\LocalGPT\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder
 }
 
+$migrationPath = Join-Path $root 'build\Migrate-ObsoletePublishConfiguration.ps1'
+if (-not (Test-Path -LiteralPath $migrationPath -PathType Leaf)) { Fail 'The obsolete publish-profile migration script is missing.' }
+$migration = Get-Content -LiteralPath $migrationPath -Raw
+foreach ($required in @(
+    'LocalGPTWebviewWrapper\LocalGPTInstallerConsole\Properties\PublishProfiles',
+    'LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\Properties\PublishProfiles',
+    '*.pubxml.user'
+)) {
+    if (-not $migration.Contains($required)) { Fail "The obsolete publish-profile migration lost required cleanup scope: $required" }
+}
+
 $release = Get-Content -LiteralPath (Join-Path $root 'Build-Release.ps1') -Raw
 if (-not $release.Contains('$multiFileSelfContainedProperties = @(')) { Fail 'Build-Release.ps1 must own one shared multi-file self-contained property list.' }
 if (([regex]::Matches($release, '\+\s*\$multiFileSelfContainedProperties')).Count -ne 3) { Fail 'Build-Release.ps1 must apply the shared publish properties to the application, setup and WinUI wrapper.' }

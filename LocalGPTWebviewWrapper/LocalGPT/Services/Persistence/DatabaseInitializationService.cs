@@ -15,6 +15,7 @@ public sealed class DatabaseInitializationService(
     IDatabaseFileHealthService databaseFileHealth,
     IDatabaseMigrationCompatibilityService migrationCompatibility,
     IInitialDataCatalog catalog,
+    ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
     IServiceActivityService serviceActivity,
     IHostEnvironment hostEnvironment,
     ILogger<DatabaseInitializationService> logger) : IDatabaseInitializationService
@@ -182,7 +183,7 @@ public sealed class DatabaseInitializationService(
     private async Task SeedCoreProjectsAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
         var now = DateTime.UtcNow;
-        var coreProjectId = Guid.Parse("7f4d7b4a-b622-4d15-8e44-9dfae2aa6101");
+        var coreProjectId = runtimePolicySeed.GetSeed().LocalGptCoreProjectId;
         var humanitarianProjectId = Guid.Parse("7f4d7b4a-b622-4d15-8e44-9dfae2aa6102");
         var repositoryRoot = ResolveRepositoryRoot(hostEnvironment.ContentRootPath);
 
