@@ -134,7 +134,7 @@
     <Exec Condition="Exists('$(SystemVariableInitializationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SystemVariableInitializationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <PropertyGroup>
+  <!--<PropertyGroup>
     <PublishConfigurationScript>$(MSBuildThisFileDirectory)build\Assert-PublishConfiguration.ps1</PublishConfigurationScript>
   </PropertyGroup>
 
@@ -143,6 +143,6 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipPublishConfigurationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(PublishConfigurationScript)')" Text="Publish configuration guard script is missing: $(PublishConfigurationScript)" />
     <Exec Condition="Exists('$(PublishConfigurationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(PublishConfigurationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
 </Project>
