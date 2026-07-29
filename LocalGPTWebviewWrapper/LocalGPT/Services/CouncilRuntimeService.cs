@@ -1721,8 +1721,45 @@ namespace LocalGPT.Services
                     if (string.IsNullOrWhiteSpace(text))
                         continue;
 
+                    if (message.Role == ChatRole.Assistant)
+                    {
+                        // DXAiChat stores the complete streamed Council response in chat history.
+                        // Reusing that raw value would feed live member output, status messages and
+                        // process panels into the next Council request. Preserve only the previous
+                        // consensus when the message is a formatted Council result.
+                        var resultMarker = text.LastIndexOf("# AI Council Result", StringComparison.OrdinalIgnoreCase);
+                        var consensusMarker = resultMarker >= 0
+                            ? text.IndexOf("## Consensus", resultMarker, StringComparison.OrdinalIgnoreCase)
+                            : -1;
+                        if (consensusMarker >= 0)
+                        {
+                            var consensusStart = consensusMarker + "## Consensus".Length;
+                            var consensusEnd = new[]
+                            {
+                                text.IndexOf("\n## Continue Action", consensusStart, StringComparison.OrdinalIgnoreCase),
+                                text.IndexOf("\n## Generated Artifact Links", consensusStart, StringComparison.OrdinalIgnoreCase)
+                            }
+                            .Where(index => index >= 0)
+                            .DefaultIfEmpty(-1)
+                            .Min();
+                            text = (consensusEnd >= 0 ? text[consensusStart..consensusEnd] : text[consensusStart..]).Trim();
+                        }
+                        else
+                        {
+                            text = Regex.Replace(
+                                text,
+                                @"<p\s+class=""localgpt-stream-status""[^>]*>.*?</p>\s*|<!--localgpt-council-stream-complete:[a-f0-9]{32}-->",
+                                string.Empty,
+                                RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
+                                TimeSpan.FromSeconds(2)).Trim();
+                        }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(text))
+                        continue;
+
                     builder
-                        .Append(message.Role == ChatRole.Assistant ? "Assistant" : "User")
+                        .Append(message.Role == ChatRole.Assistant ? "Previous assistant consensus" : "User")
                         .AppendLine(":")
                         .AppendLine(text)
                         .AppendLine();

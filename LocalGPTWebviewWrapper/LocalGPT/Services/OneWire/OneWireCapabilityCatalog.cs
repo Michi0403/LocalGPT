@@ -15,6 +15,18 @@ public sealed class OneWireCapabilityCatalog(
     public Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesAsync(CancellationToken cancellationToken = default) =>
         BuildCapabilitiesAsync(peerId: null, cancellationToken);
 
+    Task<IReadOnlyList<OneWireCapabilityDescriptor>> IOneWireCapabilityProvider.GetCapabilitiesAsync(CancellationToken cancellationToken) =>
+        GetLocalCapabilitiesAsync(cancellationToken);
+
+    Task<IReadOnlyList<OneWireSkillDescriptor>> IOneWireCapabilityProvider.GetSkillsAsync(CancellationToken cancellationToken) =>
+        GetLocalSkillsAsync(cancellationToken);
+
+    Task<IReadOnlyList<OneWireUiFeatureDescriptor>> IOneWireCapabilityProvider.GetUiFeaturesAsync(CancellationToken cancellationToken) =>
+        GetLocalUiFeaturesAsync(cancellationToken);
+
+    Task<IReadOnlyList<OneWireHardwareDescriptor>> IOneWireCapabilityProvider.GetHardwareAsync(CancellationToken cancellationToken) =>
+        GetLocalHardwareAsync(cancellationToken);
+
     public Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesForPeerAsync(string peerId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);

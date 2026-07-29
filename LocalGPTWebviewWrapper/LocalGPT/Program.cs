@@ -252,6 +252,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.0.1"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
+                builder.Services.AddScoped<ICouncilDxFunctionPolicyDataService, CouncilDxFunctionPolicyDataService>();
                 builder.Services.AddSingleton<CouncilTextService>();
                 builder.Services.AddSingleton<CouncilRuntimeService>();
                 builder.Services.AddSingleton<SqliteUtilityService>();
@@ -347,6 +348,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IDebugArtifactInspectionService, DebugArtifactInspectionService>();
                 builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
                 builder.Services.AddScoped<IDxAiFunctionCatalogService, DxAiFunctionCatalogService>();
+                builder.Services.AddScoped<ICouncilDxFunctionOrchestrator, CouncilDxFunctionOrchestrator>();
                 builder.Services.AddScoped<IPublicServiceMethodInvoker, PublicServiceMethodInvoker>();
                 builder.Services.AddHostedService<DxAiFunctionCatalogHostedService>();
                 builder.Services.AddScoped<IChatSessionContext, ChatSessionContext>();
@@ -374,6 +376,8 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IOneWireWorkSpooler, OneWireWorkSpooler>();
                 builder.Services.AddSingleton<IOneWirePendingCouncilStore, OneWirePendingCouncilStore>();
                 builder.Services.AddSingleton<IOneWireCapabilityCatalog, OneWireCapabilityCatalog>();
+                builder.Services.AddSingleton<IOneWireCapabilityProvider>(provider =>
+                    provider.GetRequiredService<IOneWireCapabilityCatalog>());
                 builder.Services.AddSingleton<IOneWireOperationExecutor, OneWireOperationExecutor>();
                 builder.Services.AddSingleton<IOneWireMessageDispatcher, OneWireMessageDispatcher>();
                 builder.Services.AddHostedService<OneWireTcpHostedService>();

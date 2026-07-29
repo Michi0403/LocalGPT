@@ -1686,38 +1686,36 @@ internal static class Program
     {
         try
         {
-            if (!File.Exists(source))
-                throw new FileNotFoundException($"Source file for move does not exist: {source}", source);
-
-            if (File.Exists(destination) && !options.ForceDelete)
-            {
-                throw new IOException(
-                    $"Destination already exists: {destination}. Use --force-delete only after reviewing the target path.");
-            }
-
+            _ = options;
             for (var i = 1; i <= 10; i++)
             {
                 try
                 {
-                    if (File.Exists(destination))
-                        DeleteIfExists(destination, logger);
-                    File.Move(source, destination, overwrite: false);
+                    if (!File.Exists(source))
+                        throw new FileNotFoundException($"Source file for move does not exist: {source}", source);
+
+                    // The destination is a download-cache file, not an installation directory.
+                    // Replacing an older archive must not require --force-delete. Because source
+                    // and destination are created in the same directory, File.Move(overwrite:true)
+                    // finalizes the validated .part file without exposing a half-written ZIP.
+                    File.Move(source, destination, overwrite: true);
                     return;
                 }
-                catch (IOException ex) when (i < 10)
+                catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && i < 10)
                 {
-                    logger.LogWarning(ex, $"Move failed because a file is locked. Retry {i}/10...");
-                    await Task.Delay(300).ConfigureAwait(false);
+                    logger.LogWarning(ex, "Could not finalize downloaded file {Source} as {Destination}. Retry {Attempt}/10.", source, destination, i);
+                    await Task.Delay(TimeSpan.FromMilliseconds(300 * i)).ConfigureAwait(false);
                 }
             }
 
-            if (File.Exists(destination))
-                DeleteIfExists(destination, logger);
-            File.Move(source, destination, overwrite: false);
+            if (!File.Exists(source))
+                throw new FileNotFoundException($"Source file for move does not exist: {source}", source);
+
+            File.Move(source, destination, overwrite: true);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in MoveFileWithRetryAsync. source {source} destination {destination}");
+            logger.LogError(ex, "Error in MoveFileWithRetryAsync. source {Source} destination {Destination}", source, destination);
             throw;
         }
     }
