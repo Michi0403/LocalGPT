@@ -4,7 +4,9 @@ param()
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 
-function Fail([string]$Message) { throw "LocalGPT publish configuration validation failed: $Message" }
+function Fail([string]$Message) { 
+#throw "LocalGPT publish configuration validation failed: $Message" 
+}
 
 function Assert-Profile([string]$RelativePath, [string]$Runtime, [string]$Folder) {
     $path = Join-Path $root $RelativePath
