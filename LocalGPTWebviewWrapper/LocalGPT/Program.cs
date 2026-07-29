@@ -38,6 +38,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using TacosPortal.Services;
+using LocalGPT.Services.Helpers;
 namespace LocalGPT
 {
     public static class Program

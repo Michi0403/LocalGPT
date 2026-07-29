@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using System.Text.Json;
+using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {

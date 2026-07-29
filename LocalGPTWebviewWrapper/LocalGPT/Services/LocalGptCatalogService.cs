@@ -13,40 +13,19 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
-    public sealed class LocalGptCatalogService
+    public sealed class LocalGptCatalogService(
+        ILocalGptRuntimePolicyDataService runtimePolicy,
+        ILogger<LocalGptCatalogService> logger)
     {
-        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
-        private readonly ILogger<LocalGptCatalogService> logger;
+        private readonly ILocalGptRuntimePolicyDataService _runtimePolicy =
+            runtimePolicy ?? throw new ArgumentNullException(nameof(runtimePolicy));
 
-        public LocalGptCatalogService(
-            ILocalGptRuntimePolicyDataService runtimePolicy,
-            ILogger<LocalGptCatalogService> logger)
-        {
-            this.runtimePolicy = runtimePolicy ?? throw new ArgumentNullException(nameof(runtimePolicy));
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            try
-            {
-                Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-                JsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
-                {
-                    PropertyNameCaseInsensitive = true,
-                    WriteIndented = true
-                };
-                logger.LogInformation($"Initialized the LocalGPT catalog from database-backed runtime policy.");
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, $"Could not initialize the LocalGPT catalog: {exception.Message}");
-                throw;
-            }
-        }
-
-
-        public string DefaultGradleVersion => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultGradleVersion);
-        public Encoding Utf8NoBom { get; }
-        public Regex NameCleaner => runtimePolicy.GetPattern(LocalGptRuntimePattern.NameCleaner);
-        public Regex ModIdCleaner => runtimePolicy.GetPattern(LocalGptRuntimePattern.ModIdCleaner);
-        public Regex PackagePartCleaner => runtimePolicy.GetPattern(LocalGptRuntimePattern.PackagePartCleaner);
+        public string DefaultGradleVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultGradleVersion);
+        public Encoding Utf8NoBom { get; } =
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        public Regex NameCleaner => _runtimePolicy.GetPattern(LocalGptRuntimePattern.NameCleaner);
+        public Regex ModIdCleaner => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ModIdCleaner);
+        public Regex PackagePartCleaner => _runtimePolicy.GetPattern(LocalGptRuntimePattern.PackagePartCleaner);
 
         public sealed record WorkspaceContext(
             string ProjectName,
@@ -101,10 +80,10 @@ namespace LocalGPT.Services
     string? PaperApiVersion,
     string? JavaVersion,
     string Notes);
-        public string DefaultMinecraftVersion => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultMinecraftVersion);
+        public string DefaultMinecraftVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultMinecraftVersion);
 
-        public string DefaultJavaVersion => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultJavaVersion);
-        public string FabricLoaderVersion => runtimePolicy.GetString(LocalGptRuntimeValue.FabricLoaderVersion);
+        public string DefaultJavaVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultJavaVersion);
+        public string FabricLoaderVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.FabricLoaderVersion);
         public sealed record MinecraftDatapackVersionInfo(
     string RequestedVersion,
     string MatchedVersion,
@@ -146,51 +125,51 @@ namespace LocalGPT.Services
         {
             public string Id { get; set; } = string.Empty;
         }
-        public int MaxDxAiChatPromptCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxDxAiChatPromptCharacters);
-        public int MaxVisiblePromptCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxVisiblePromptCharacters);
-        public Regex MissingFeaturePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MissingFeaturePattern);
-        public Regex CapabilityGapBlockPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.CapabilityGapBlockPattern);
-        public Regex TruncatedTailPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.TruncatedTailPattern);
-        public Regex ThinkingBlockPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ThinkingBlockPattern);
-        public Regex CouncilPromptFencePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilPromptFencePattern);
-        public Regex CouncilRequestBlockPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilRequestBlockPattern);
+        public int MaxDxAiChatPromptCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxDxAiChatPromptCharacters);
+        public int MaxVisiblePromptCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxVisiblePromptCharacters);
+        public Regex MissingFeaturePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MissingFeaturePattern);
+        public Regex CapabilityGapBlockPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.CapabilityGapBlockPattern);
+        public Regex TruncatedTailPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.TruncatedTailPattern);
+        public Regex ThinkingBlockPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ThinkingBlockPattern);
+        public Regex CouncilPromptFencePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilPromptFencePattern);
+        public Regex CouncilRequestBlockPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilRequestBlockPattern);
 
-        public FrozenSet<string> DebugExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.DebugExtensions);
-        public FrozenSet<string> TextExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.TextExtensions);
+        public FrozenSet<string> DebugExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.DebugExtensions);
+        public FrozenSet<string> TextExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.TextExtensions);
 
-        public FrozenSet<string> BinaryDiagnosticExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.BinaryDiagnosticExtensions);
-        public Regex TargetFrameworkPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.TargetFrameworkPattern);
-        public Regex PackageReferencePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.PackageReferencePattern);
-        public Regex SensitiveNamePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.SensitiveNamePattern);
-        public FrozenSet<string> ExcludedDirectoryNames => runtimePolicy.GetCollection(LocalGptRuntimeCollection.ExcludedDirectoryNames);
+        public FrozenSet<string> BinaryDiagnosticExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.BinaryDiagnosticExtensions);
+        public Regex TargetFrameworkPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.TargetFrameworkPattern);
+        public Regex PackageReferencePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.PackageReferencePattern);
+        public Regex SensitiveNamePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.SensitiveNamePattern);
+        public FrozenSet<string> ExcludedDirectoryNames => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ExcludedDirectoryNames);
 
-        public FrozenSet<string> BinaryExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.BinaryExtensions);
+        public FrozenSet<string> BinaryExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.BinaryExtensions);
 
-        public FrozenSet<string> SourceExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.SourceExtensions);
-        public string DefaultOllamaUri => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaUri);
-        public int MaxParticipants => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxParticipants);
-        public int DefaultMaxParallelModels => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultMaxParallelModels);
-        public int DefaultHeavyModelGpuLayers => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultHeavyModelGpuLayers);
-        public int MinContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MinContextTokens);
-        public int DefaultContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultContextTokens);
-        public int MaxContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxContextTokens);
-        public int MinOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MinOutputTokens);
-        public int MaxOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxOutputTokens);
-        public Regex StreamStatusPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.StreamStatusPattern);
-        public Regex WordPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.WordPattern);
-        public Regex DevelopmentRequestPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DevelopmentRequestPattern);
-        public Regex ExplicitArtifactIntentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitArtifactIntentPattern);
-        public Regex AdviceOnlyPromptPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.AdviceOnlyPromptPattern);
-        public Regex ExplicitArtifactCreationCommandPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitArtifactCreationCommandPattern);
-        public Regex ConcreteMinecraftArtifactPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ConcreteMinecraftArtifactPattern);
-        public Regex ConcreteDotNetArtifactPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ConcreteDotNetArtifactPattern);
-        public Regex AiHostSetupPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.AiHostSetupPattern);
-        public Regex ImplementationDecisionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ImplementationDecisionPattern);
-        public Regex ImplementationChoicePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ImplementationChoicePattern);
-        public Regex BlockingArtifactDecisionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.BlockingArtifactDecisionPattern);
-        public Regex SafeSandboxConsentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.SafeSandboxConsentPattern);
-        public Regex ExplicitDoNotGenerateUntilUserDecisionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitDoNotGenerateUntilUserDecisionPattern);
-        public Regex DeveloperExecutionIntentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DeveloperExecutionIntentPattern);
+        public FrozenSet<string> SourceExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.SourceExtensions);
+        public string DefaultOllamaUri => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaUri);
+        public int MaxParticipants => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxParticipants);
+        public int DefaultMaxParallelModels => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultMaxParallelModels);
+        public int DefaultHeavyModelGpuLayers => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultHeavyModelGpuLayers);
+        public int MinContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MinContextTokens);
+        public int DefaultContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultContextTokens);
+        public int MaxContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxContextTokens);
+        public int MinOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MinOutputTokens);
+        public int MaxOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxOutputTokens);
+        public Regex StreamStatusPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.StreamStatusPattern);
+        public Regex WordPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.WordPattern);
+        public Regex DevelopmentRequestPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DevelopmentRequestPattern);
+        public Regex ExplicitArtifactIntentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitArtifactIntentPattern);
+        public Regex AdviceOnlyPromptPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.AdviceOnlyPromptPattern);
+        public Regex ExplicitArtifactCreationCommandPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitArtifactCreationCommandPattern);
+        public Regex ConcreteMinecraftArtifactPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ConcreteMinecraftArtifactPattern);
+        public Regex ConcreteDotNetArtifactPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ConcreteDotNetArtifactPattern);
+        public Regex AiHostSetupPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.AiHostSetupPattern);
+        public Regex ImplementationDecisionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ImplementationDecisionPattern);
+        public Regex ImplementationChoicePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ImplementationChoicePattern);
+        public Regex BlockingArtifactDecisionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.BlockingArtifactDecisionPattern);
+        public Regex SafeSandboxConsentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.SafeSandboxConsentPattern);
+        public Regex ExplicitDoNotGenerateUntilUserDecisionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitDoNotGenerateUntilUserDecisionPattern);
+        public Regex DeveloperExecutionIntentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DeveloperExecutionIntentPattern);
 
  
         public sealed class OllamaModelResponse
@@ -220,11 +199,11 @@ namespace LocalGPT.Services
             [JsonPropertyName("keep_alive")]
             public string KeepAlive { get; set; } = "0s";
         }
-        public Regex DevExpressImportPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressImportPattern);
-        public Regex DevExpressRegistrationPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressRegistrationPattern);
-        public FrozenSet<string> ArtifactTextExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArtifactTextExtensions);
+        public Regex DevExpressImportPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressImportPattern);
+        public Regex DevExpressRegistrationPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressRegistrationPattern);
+        public FrozenSet<string> ArtifactTextExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArtifactTextExtensions);
 
-        public long MaxArtifactTextFileBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxArtifactTextFileBytes);
+        public long MaxArtifactTextFileBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxArtifactTextFileBytes);
      
         public sealed record ArtifactWorkspaceSummary(
           string WorkspaceName,
@@ -243,31 +222,31 @@ namespace LocalGPT.Services
             string RelativePath,
             string? Content);
 
-        public int MaxFiles => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles);
-        public long MaxSingleFileBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxSingleFileBytes);
-        public long MaxTotalFileBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxTotalFileBytes);
-        public int MaxZipEntries => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxZipEntries);
-        public long MaxZipEntryBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxZipEntryBytes);
-        public long MaxExtractedBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxExtractedBytes);
-        public int MaxContextCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxContextCharacters);
-        public int MaxExcerptCharactersPerFile => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxExcerptCharactersPerFile);
-        public int MaxBinaryStringCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxBinaryStringCharacters);
+        public int MaxFiles => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles);
+        public long MaxSingleFileBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxSingleFileBytes);
+        public long MaxTotalFileBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxTotalFileBytes);
+        public int MaxZipEntries => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxZipEntries);
+        public long MaxZipEntryBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxZipEntryBytes);
+        public long MaxExtractedBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxExtractedBytes);
+        public int MaxContextCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxContextCharacters);
+        public int MaxExcerptCharactersPerFile => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxExcerptCharactersPerFile);
+        public int MaxBinaryStringCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxBinaryStringCharacters);
         public sealed record AnalyzedUploadFile(
     ChatUploadWorkspaceFileSummary Summary,
     string Excerpt);
-        public string[] KnowledgeFiles => runtimePolicy.GetCollection(LocalGptRuntimeCollection.KnowledgeFiles).Select(value => value.Replace('/', Path.DirectorySeparatorChar)).ToArray();
-        public string omission => runtimePolicy.GetString(LocalGptRuntimeValue.ContextOmission);
+        public string[] KnowledgeFiles => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.KnowledgeFiles).Select(value => value.Replace('/', Path.DirectorySeparatorChar)).ToArray();
+        public string omission => _runtimePolicy.GetString(LocalGptRuntimeValue.ContextOmission);
 
-        public string shortOmission => runtimePolicy.GetString(LocalGptRuntimeValue.ShortContextOmission);
-        public Regex DownloadUrlPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DownloadUrl);
-        public string LearnBaseFilePolicySummary => runtimePolicy.GetString(LocalGptRuntimeValue.LearnBaseFilePolicySummary);
-        public string LearnBaseDuplicatePolicySummary => runtimePolicy.GetString(LocalGptRuntimeValue.LearnBaseDuplicatePolicySummary);
+        public string shortOmission => _runtimePolicy.GetString(LocalGptRuntimeValue.ShortContextOmission);
+        public Regex DownloadUrlPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DownloadUrl);
+        public string LearnBaseFilePolicySummary => _runtimePolicy.GetString(LocalGptRuntimeValue.LearnBaseFilePolicySummary);
+        public string LearnBaseDuplicatePolicySummary => _runtimePolicy.GetString(LocalGptRuntimeValue.LearnBaseDuplicatePolicySummary);
         public string LearnBasePresetList => string.Join(", ", LearnBasePresets.Select(preset => preset.Label));
 
-        public IReadOnlyList<LearnBasePreset> LearnBasePresets => runtimePolicy.GetJson<LearnBasePreset[]>(LocalGptRuntimeValue.LearnBasePresetsJson);
-        public IReadOnlyList<LearnBaseScanProfile> LearnBaseScanProfiles => runtimePolicy.GetJson<LearnBaseScanProfile[]>(LocalGptRuntimeValue.LearnBaseScanProfilesJson);
+        public IReadOnlyList<LearnBasePreset> LearnBasePresets => _runtimePolicy.GetJson<LearnBasePreset[]>(LocalGptRuntimeValue.LearnBasePresetsJson);
+        public IReadOnlyList<LearnBaseScanProfile> LearnBaseScanProfiles => _runtimePolicy.GetJson<LearnBaseScanProfile[]>(LocalGptRuntimeValue.LearnBaseScanProfilesJson);
 
-        public List<TestLabRoute> Routes => [.. runtimePolicy.GetJson<TestLabRoute[]>(LocalGptRuntimeValue.TestLabRoutesJson)];
+        public List<TestLabRoute> Routes => [.. _runtimePolicy.GetJson<TestLabRoute[]>(LocalGptRuntimeValue.TestLabRoutesJson)];
         public List<PromptSuggestion> GetSuggestion()
         {
             return new List<PromptSuggestion>()
@@ -969,29 +948,57 @@ namespace LocalGPT.Services
                 }
             }
             """;
-        public Regex DevExpressDocumentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressDocumentPattern);
-        public Regex ExportFormatPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ExportFormatPattern);
-        public Regex BlazorFrontendPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.BlazorFrontendPattern);
-        public Regex DotNetPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DotNetPattern);
-        public Regex MinecraftPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftPattern);
-        public Regex DatapackPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DatapackPattern);
-        public Regex MinecraftSkeletonMatrixPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftSkeletonMatrixPattern);
-        public Regex MinecraftVersionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftVersionPattern);
-        public Regex LeadingSlashCommandPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.LeadingSlashCommandPattern);
-        public Regex RootStorageRemovePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.RootStorageRemovePattern);
-        public Regex MalformedStorageTargetPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MalformedStorageTargetPattern);
-        public Regex FrontendPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.FrontendPattern);
-        public Regex WholeSolutionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.WholeSolutionPattern);
-        public Regex AiHostExperimentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.AiHostExperimentPattern);
-        public Regex LocalGptReplacementPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.LocalGptReplacementPattern);
-        public Regex TacosPortalPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.TacosPortalPattern);
-        public Regex BotBackendPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.BotBackendPattern);
-        public Regex LoggingPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.LoggingPattern);
+        public Regex DevExpressDocumentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressDocumentPattern);
+        public Regex ExportFormatPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ExportFormatPattern);
+        public Regex BlazorFrontendPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.BlazorFrontendPattern);
+        public Regex DotNetPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DotNetPattern);
+        public Regex MinecraftPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftPattern);
+        public Regex DatapackPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DatapackPattern);
+        public Regex MinecraftSkeletonMatrixPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftSkeletonMatrixPattern);
+        public Regex MinecraftVersionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftVersionPattern);
+        public Regex LeadingSlashCommandPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.LeadingSlashCommandPattern);
+        public Regex RootStorageRemovePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.RootStorageRemovePattern);
+        public Regex MalformedStorageTargetPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MalformedStorageTargetPattern);
+        public Regex FrontendPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.FrontendPattern);
+        public Regex WholeSolutionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.WholeSolutionPattern);
+        public Regex AiHostExperimentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.AiHostExperimentPattern);
+        public Regex LocalGptReplacementPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.LocalGptReplacementPattern);
+        public Regex TacosPortalPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.TacosPortalPattern);
+        public Regex BotBackendPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.BotBackendPattern);
+        public Regex LoggingPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.LoggingPattern);
 
 
-        public JsonSerializerOptions JsonOptions { get; }
-        public Regex WhitespacePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.WhitespacePattern);
-        public Regex HelpfulSourceLinePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.HelpfulSourceLinePattern);
+        public JsonSerializerOptions JsonOptions { get; } = CreateJsonOptions(logger);
+
+        private static JsonSerializerOptions CreateJsonOptions(
+            ILogger<LocalGptCatalogService> logger)
+        {
+            ArgumentNullException.ThrowIfNull(logger);
+
+            try
+            {
+                var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                {
+                    PropertyNameCaseInsensitive = true,
+                    WriteIndented = true
+                };
+
+                logger.LogInformation(
+                    "Initialized the LocalGPT catalog from database-backed runtime policy.");
+
+                return options;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "Could not initialize the LocalGPT catalog.");
+
+                throw;
+            }
+        }
+        public Regex WhitespacePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.WhitespacePattern);
+        public Regex HelpfulSourceLinePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.HelpfulSourceLinePattern);
         public sealed record ArtifactContractReport(
             string QualityStatus,
             string ContractStatus,
@@ -1004,31 +1011,31 @@ namespace LocalGPT.Services
             string ModId,
             string PackageName,
             string DisplayName);
-        public int MinCouncilOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MinCouncilOutputTokens);
-        public int DefaultCouncilOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultCouncilOutputTokens);
-        public int MaxCouncilOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxCouncilOutputTokens);
-        public int MinCouncilContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MinCouncilContextTokens);
-        public int DefaultCouncilContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultCouncilContextTokens);
-        public int MaxCouncilContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxCouncilContextTokens);
-        public string CouncilSessionName => runtimePolicy.GetString(LocalGptRuntimeValue.CouncilSessionName);
-        public int MaxUploadFiles => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxUploadFiles);
-        public int MaxUploadBytes => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxUploadBytes);
-        public List<string> AllowedUploadExtensions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.AllowedUploadExtensions)];
-        public List<string> AllowedUploadMimeTypes => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.AllowedUploadMimeTypes)];
-        public string OllamaModeAutoGpu => runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeAutoGpu);
-        public string OllamaModeSafeCpu => runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeSafeCpu);
-        public string OllamaModeLimitedGpu => runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeLimitedGpu);
+        public int MinCouncilOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MinCouncilOutputTokens);
+        public int DefaultCouncilOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultCouncilOutputTokens);
+        public int MaxCouncilOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxCouncilOutputTokens);
+        public int MinCouncilContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MinCouncilContextTokens);
+        public int DefaultCouncilContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultCouncilContextTokens);
+        public int MaxCouncilContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxCouncilContextTokens);
+        public string CouncilSessionName => _runtimePolicy.GetString(LocalGptRuntimeValue.CouncilSessionName);
+        public int MaxUploadFiles => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxUploadFiles);
+        public int MaxUploadBytes => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxUploadBytes);
+        public List<string> AllowedUploadExtensions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.AllowedUploadExtensions)];
+        public List<string> AllowedUploadMimeTypes => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.AllowedUploadMimeTypes)];
+        public string OllamaModeAutoGpu => _runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeAutoGpu);
+        public string OllamaModeSafeCpu => _runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeSafeCpu);
+        public string OllamaModeLimitedGpu => _runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeLimitedGpu);
  
-        public string DetectedOllamaSessionPrefix => runtimePolicy.GetString(LocalGptRuntimeValue.DetectedOllamaSessionPrefix);
-        public string DefaultOllamaEndpoint => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint);
-        public string[] ArchitectureUiStackOptions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureUiStackOptions)];
-        public string[] ArchitectureSolutionShapeOptions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureSolutionShapeOptions)];
-        public string[] ArchitectureRenderModeOptions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureRenderModeOptions)];
-        public string[] ArchitectureReferenceLookOptions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureReferenceLookOptions)];
-        public int DefaultMaxPromptCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultMaxPromptCharacters);
-        public int MaxPromptCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxPromptCharacters);
-        public int MaxBootstrapCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxBootstrapCharacters);
-        public int MaxSingleConversationMessageCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxSingleConversationMessageCharacters);
+        public string DetectedOllamaSessionPrefix => _runtimePolicy.GetString(LocalGptRuntimeValue.DetectedOllamaSessionPrefix);
+        public string DefaultOllamaEndpoint => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint);
+        public string[] ArchitectureUiStackOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureUiStackOptions)];
+        public string[] ArchitectureSolutionShapeOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureSolutionShapeOptions)];
+        public string[] ArchitectureRenderModeOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureRenderModeOptions)];
+        public string[] ArchitectureReferenceLookOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureReferenceLookOptions)];
+        public int DefaultMaxPromptCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultMaxPromptCharacters);
+        public int MaxPromptCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxPromptCharacters);
+        public int MaxBootstrapCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxBootstrapCharacters);
+        public int MaxSingleConversationMessageCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxSingleConversationMessageCharacters);
         public enum GeneratedSolutionArchetype
         {
             Generic,
