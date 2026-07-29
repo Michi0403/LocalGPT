@@ -1,6 +1,7 @@
 @rendermode InteractiveServer
 @page "/dx-functions"
 @inject IDxAiFunctionCatalogService Catalog
+@inject ILocalGptVocabularyService Vocabulary
 @inject ILogger<DxFunctionCatalog> Logger
 @inject IComponentActivityService ComponentActivity
 @inject INotificationService Notifier
@@ -33,8 +34,8 @@
             <span>Kind</span>
             <select class="form-select" @bind="_kindFilter">
                 <option value="">All</option>
-                <option value="@DxAiFunctionCatalogKinds.DxFunction">DX functions</option>
-                <option value="@DxAiFunctionCatalogKinds.PublicServiceMethod">Public service methods</option>
+                <option value="@Vocabulary.Get().CatalogDxFunction">DX functions</option>
+                <option value="@Vocabulary.Get().CatalogPublicServiceMethod">Public service methods</option>
             </select>
         </label>
         <label class="form-check dx-inline-check">

@@ -1,30 +1,21 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Collections.Frozen;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services.Persistence;
 
-/// <summary>
-/// Compiles the database-backed runtime-policy definition into reusable runtime objects.
-/// Pattern text, flags, executable names, identifiers and timeout values remain owned by
-/// <see cref="ILocalGptRuntimePolicyStoreService"/> and its database rows.
-/// </summary>
 public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDataService
 {
     private readonly ILocalGptRuntimePolicyStoreService store;
     private readonly ILogger<LocalGptRuntimePolicyDataService> logger;
     private readonly System.Threading.Lock sync = new();
-    private Guid localGptCoreProjectId;
-    private TimeSpan regexTimeout;
-    private FrozenSet<string> allowedNativeExecutables = null!;
-    private Regex powerShellInlineCommandPattern = null!;
-    private Regex powerShellFilePattern = null!;
-    private Regex sensitiveArgumentPattern = null!;
+    private FrozenDictionary<LocalGptRuntimeValue, string> values = null!;
+    private FrozenDictionary<LocalGptRuntimeCollection, FrozenSet<string>> collections = null!;
+    private FrozenDictionary<LocalGptRuntimePattern, Regex> patterns = null!;
 
-    public LocalGptRuntimePolicyDataService(
-        ILocalGptRuntimePolicyStoreService store,
-        ILogger<LocalGptRuntimePolicyDataService> logger)
+    public LocalGptRuntimePolicyDataService(ILocalGptRuntimePolicyStoreService store, ILogger<LocalGptRuntimePolicyDataService> logger)
     {
         this.store = store;
         this.logger = logger;
@@ -35,39 +26,137 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, $"Could not initialize the database-backed LocalGPT runtime policy service: {exception.Message}");
+            logger.LogError(exception, $"Could not initialize the LocalGPT runtime policy service: {exception.Message}");
             throw;
         }
     }
 
-    public Guid LocalGptCoreProjectId
+    public Guid LocalGptCoreProjectId => GetGuid(LocalGptRuntimeValue.LocalGptCoreProjectId);
+    public TimeSpan RegexTimeout => TimeSpan.FromMilliseconds(GetInt(LocalGptRuntimeValue.RegexTimeoutMilliseconds));
+    public FrozenSet<string> AllowedNativeExecutables => GetCollection(LocalGptRuntimeCollection.AllowedNativeExecutables);
+    public Regex PowerShellInlineCommandPattern => GetPattern(LocalGptRuntimePattern.PowerShellInlineCommand);
+    public Regex PowerShellFilePattern => GetPattern(LocalGptRuntimePattern.PowerShellFile);
+    public Regex SensitiveArgumentPattern => GetPattern(LocalGptRuntimePattern.SensitiveArgument);
+
+    public string GetString(LocalGptRuntimeValue key)
     {
-        get { lock (sync) return localGptCoreProjectId; }
+        try
+        {
+            lock (sync)
+            {
+                if (!values.TryGetValue(key, out var value)) throw new KeyNotFoundException($"Runtime value '{key}' is not loaded.");
+                logger.LogTrace($"Resolved LocalGPT runtime value {key}.");
+                return value;
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not resolve LocalGPT runtime value {key}: {exception.Message}");
+            throw;
+        }
     }
 
-    public TimeSpan RegexTimeout
+    public int GetInt(LocalGptRuntimeValue key)
     {
-        get { lock (sync) return regexTimeout; }
+        try
+        {
+            var raw = GetString(key);
+            if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)) throw new InvalidDataException($"Runtime value '{key}' is not a valid Int32.");
+            logger.LogTrace($"Parsed LocalGPT runtime integer {key}.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not parse LocalGPT runtime integer {key}: {exception.Message}");
+            throw;
+        }
     }
 
-    public FrozenSet<string> AllowedNativeExecutables
+    public long GetLong(LocalGptRuntimeValue key)
     {
-        get { lock (sync) return allowedNativeExecutables; }
+        try
+        {
+            var raw = GetString(key);
+            if (!long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)) throw new InvalidDataException($"Runtime value '{key}' is not a valid Int64.");
+            logger.LogTrace($"Parsed LocalGPT runtime long {key}.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not parse LocalGPT runtime long {key}: {exception.Message}");
+            throw;
+        }
     }
 
-    public Regex PowerShellInlineCommandPattern
+    public Guid GetGuid(LocalGptRuntimeValue key)
     {
-        get { lock (sync) return powerShellInlineCommandPattern; }
+        try
+        {
+            var raw = GetString(key);
+            if (!Guid.TryParse(raw, out var value)) throw new InvalidDataException($"Runtime value '{key}' is not a valid Guid.");
+            logger.LogTrace($"Parsed LocalGPT runtime GUID {key}.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not parse LocalGPT runtime GUID {key}: {exception.Message}");
+            throw;
+        }
     }
 
-    public Regex PowerShellFilePattern
+    public T GetJson<T>(LocalGptRuntimeValue key)
     {
-        get { lock (sync) return powerShellFilePattern; }
+        try
+        {
+            var raw = GetString(key);
+            var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+            jsonOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+            var value = System.Text.Json.JsonSerializer.Deserialize<T>(raw, jsonOptions)
+                ?? throw new InvalidDataException($"Runtime value '{key}' could not be deserialized as {typeof(T).Name}.");
+            logger.LogTrace($"Deserialized LocalGPT runtime document {key} as {typeof(T).Name}.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not deserialize LocalGPT runtime document {key} as {typeof(T).Name}: {exception.Message}");
+            throw;
+        }
     }
 
-    public Regex SensitiveArgumentPattern
+    public Regex GetPattern(LocalGptRuntimePattern key)
     {
-        get { lock (sync) return sensitiveArgumentPattern; }
+        try
+        {
+            lock (sync)
+            {
+                if (!patterns.TryGetValue(key, out var pattern)) throw new KeyNotFoundException($"Runtime pattern '{key}' is not loaded.");
+                logger.LogTrace($"Resolved LocalGPT runtime regex {key}.");
+                return pattern;
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not resolve LocalGPT runtime regex {key}: {exception.Message}");
+            throw;
+        }
+    }
+
+    public FrozenSet<string> GetCollection(LocalGptRuntimeCollection key)
+    {
+        try
+        {
+            lock (sync)
+            {
+                if (!collections.TryGetValue(key, out var collection)) throw new KeyNotFoundException($"Runtime collection '{key}' is not loaded.");
+                logger.LogTrace($"Resolved LocalGPT runtime collection {key} with {collection.Count} entries.");
+                return collection;
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not resolve LocalGPT runtime collection {key}: {exception.Message}");
+            throw;
+        }
     }
 
     public LocalGptRuntimePolicySnapshot Reload()
@@ -75,39 +164,25 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         try
         {
             var definition = store.GetDefinition();
-            var timeout = TimeSpan.FromMilliseconds(definition.RegexTimeoutMilliseconds);
-
-            var executableSet = definition.AllowedNativeExecutables.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-            var inlinePattern = new Regex(
-                definition.PowerShellInlineCommandPattern.Pattern,
-                ParseFlags(definition.PowerShellInlineCommandPattern),
-                timeout);
-            var filePattern = new Regex(
-                definition.PowerShellFilePattern.Pattern,
-                ParseFlags(definition.PowerShellFilePattern),
-                timeout);
-            var argumentPattern = new Regex(
-                definition.SensitiveArgumentPattern.Pattern,
-                ParseFlags(definition.SensitiveArgumentPattern),
-                timeout);
-
+            var timeoutRaw = definition.Values[LocalGptRuntimeValue.RegexTimeoutMilliseconds];
+            if (!int.TryParse(timeoutRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMilliseconds) || timeoutMilliseconds <= 0)
+                throw new InvalidDataException($"RegexTimeoutMilliseconds must be positive.");
+            var timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds);
+            var compiled = definition.RegexPatterns.ToDictionary(item => item.Key, item => new Regex(item.Value.Pattern, ParseFlags(item.Value), timeout)).ToFrozenDictionary();
+            var frozenCollections = definition.Collections.ToDictionary(item => item.Key, item => item.Value.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).ToFrozenSet(StringComparer.OrdinalIgnoreCase)).ToFrozenDictionary();
             lock (sync)
             {
-                localGptCoreProjectId = definition.LocalGptCoreProjectId;
-                regexTimeout = timeout;
-                allowedNativeExecutables = executableSet;
-                powerShellInlineCommandPattern = inlinePattern;
-                powerShellFilePattern = filePattern;
-                sensitiveArgumentPattern = argumentPattern;
+                values = definition.Values.ToFrozenDictionary();
+                collections = frozenCollections;
+                patterns = compiled;
             }
-
             var snapshot = GetSnapshot();
-            logger.LogInformation($"Reloaded the LocalGPT runtime policy from database rows with {snapshot.AllowedNativeExecutables.Count} native executable entries and a {snapshot.RegexTimeout.TotalMilliseconds:0} ms regex timeout.");
+            logger.LogInformation($"Reloaded {snapshot.Values.Count} values, {snapshot.Collections.Count} collections and {snapshot.RegexPatterns.Count} regexes from the LocalGPT database.");
             return snapshot;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, $"Could not reload the LocalGPT runtime policy from database rows: {exception.Message}");
+            logger.LogError(exception, $"Could not reload LocalGPT runtime policy data: {exception.Message}");
             throw;
         }
     }
@@ -120,30 +195,27 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             {
                 var snapshot = new LocalGptRuntimePolicySnapshot
                 {
-                    LocalGptCoreProjectId = localGptCoreProjectId,
-                    RegexTimeout = regexTimeout,
-                    AllowedNativeExecutables = [.. allowedNativeExecutables.OrderBy(item => item, StringComparer.OrdinalIgnoreCase)],
-                    PowerShellInlineCommandPattern = powerShellInlineCommandPattern.ToString(),
-                    PowerShellFilePattern = powerShellFilePattern.ToString(),
-                    SensitiveArgumentPattern = sensitiveArgumentPattern.ToString()
+                    Values = values.ToDictionary(item => item.Key.ToString(), item => item.Value),
+                    Collections = collections.ToDictionary(item => item.Key.ToString(), item => (IReadOnlyList<string>)item.Value.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray()),
+                    RegexPatterns = patterns.ToDictionary(item => item.Key.ToString(), item => item.Value.ToString())
                 };
-                logger.LogTrace($"Returned the LocalGPT runtime policy snapshot with {snapshot.AllowedNativeExecutables.Count} native executable entries.");
+                logger.LogTrace($"Returned a LocalGPT runtime-policy snapshot.");
                 return snapshot;
             }
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, $"Could not return the LocalGPT runtime policy snapshot: {exception.Message}");
+            logger.LogError(exception, $"Could not return the LocalGPT runtime-policy snapshot: {exception.Message}");
             throw;
         }
     }
-    private RegexOptions ParseFlags(LocalGptRuntimeRegexDefinition regexDefinition)
+
+    private RegexOptions ParseFlags(LocalGptRuntimeRegexDefinition definition)
     {
         try
         {
-            ArgumentNullException.ThrowIfNull(regexDefinition);
             var options = RegexOptions.CultureInvariant;
-            foreach (var token in regexDefinition.Flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            foreach (var token in definition.Flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 options |= token.ToLowerInvariant() switch
                 {
@@ -157,18 +229,16 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
                     "ecmascript" => RegexOptions.ECMAScript,
                     "none" => RegexOptions.None,
                     _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
-                    _ => throw new InvalidDataException($"Unknown regular-expression option '{token}' in runtime-policy regex '{regexDefinition.Name}'.")
+                    _ => throw new InvalidDataException($"Unknown regex option '{token}' for '{definition.Name}'.")
                 };
             }
-
-            logger.LogTrace($"Parsed persisted flags {regexDefinition.Flags} for runtime-policy regex {regexDefinition.Name}.");
+            logger.LogTrace($"Parsed runtime regex flags for {definition.Name}.");
             return options;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, $"Could not parse persisted runtime-policy regex flags for {regexDefinition?.Name ?? "unknown"}: {exception.Message}");
+            logger.LogError(exception, $"Could not parse runtime regex flags for {definition.Name}: {exception.Message}");
             throw;
         }
     }
-
 }

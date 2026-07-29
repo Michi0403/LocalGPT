@@ -2,44 +2,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LocalGPT.BusinessObjects;
 
-public static class HumanCollaborationRequestKinds
-{
-    public const string Approval = "Approval";
-    public const string Feedback = "Feedback";
-    public const string Guidance = "Guidance";
-}
 
-public static class HumanCollaborationStatuses
-{
-    public const string Pending = "Pending";
-    public const string Approved = "Approved";
-    public const string Declined = "Declined";
-    public const string Answered = "Answered";
-    public const string Consumed = "Consumed";
-    public const string Expired = "Expired";
-}
 
-public static class HumanContributionStatuses
-{
-    public const string Queued = "Queued";
-    public const string Injected = "Injected";
-    public const string Evaluated = "Evaluated";
-}
 
-public static class HumanContributionEvaluationVerdicts
-{
-    public const string Pending = "Pending";
-    public const string Supported = "Supported";
-    public const string NeedsCorrection = "NeedsCorrection";
-    public const string Mixed = "Mixed";
-    public const string NotReviewed = "NotReviewed";
-}
 
-public static class HumanCollaborationIdentity
-{
-    public static readonly Guid LocalHumanProfileId = Guid.Parse("55e37ae8-c481-4a89-9000-65041fc349f5");
-    public const string TrustedOrigin = "LocalHumanUi";
-}
 
 public sealed class HumanCollaborationRequest
 {
@@ -48,11 +14,11 @@ public sealed class HumanCollaborationRequest
     public string CorrelationId { get; set; } = string.Empty;
     public string OperationKey { get; set; } = string.Empty;
     public string ParameterFingerprint { get; set; } = string.Empty;
-    public string RequestKind { get; set; } = HumanCollaborationRequestKinds.Approval;
+    public string RequestKind { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string RiskLevel { get; set; } = "Medium";
-    public string Status { get; set; } = HumanCollaborationStatuses.Pending;
+    public string Status { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
     public string RequestedBy { get; set; } = string.Empty;
     public string RequestedRole { get; set; } = string.Empty;
@@ -82,7 +48,7 @@ public sealed class HumanCollaborationRequest
 
 public sealed class HumanCouncilParticipantProfile
 {
-    public Guid Id { get; set; } = HumanCollaborationIdentity.LocalHumanProfileId;
+    public Guid Id { get; set; }
     public string DisplayName { get; set; } = "Human User";
     public string RoleName { get; set; } = "Human collaborator";
     public string Expertise { get; set; } = string.Empty;
@@ -101,12 +67,12 @@ public sealed class HumanCouncilContribution
     public string HumanRole { get; set; } = "Human collaborator";
     public string Content { get; set; } = string.Empty;
     public int EarliestCouncilRound { get; set; } = 1;
-    public string Status { get; set; } = HumanContributionStatuses.Queued;
+    public string Status { get; set; } = string.Empty;
     public DateTime SubmittedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? InjectedAtUtc { get; set; }
     public DateTime? EvaluatedAtUtc { get; set; }
     public string Evaluation { get; set; } = string.Empty;
-    public string EvaluationVerdict { get; set; } = HumanContributionEvaluationVerdicts.Pending;
+    public string EvaluationVerdict { get; set; } = string.Empty;
     public int EvaluatedAfterRound { get; set; }
 }
 
@@ -123,7 +89,7 @@ public sealed record HumanApprovalRequestSpec(
     int EarliestCouncilRound = 0,
     bool RequiredBeforeCompletion = false,
     bool IsSensitive = true,
-    string RequestKind = HumanCollaborationRequestKinds.Approval,
+    string RequestKind = string.Empty,
     string SuggestedResponsesText = "",
     string ResponsePrompt = "",
     string PrefillText = "",
@@ -159,15 +125,6 @@ public sealed record HumanCollaborationSnapshot(
     IReadOnlyList<HumanCouncilRunSnapshot> ActiveRuns,
     IReadOnlyList<HumanCouncilContribution> Contributions);
 
-public static class DeferredDxAiInvocationStatuses
-{
-    public const string PendingApproval = "PendingApproval";
-    public const string Executing = "Executing";
-    public const string Completed = "Completed";
-    public const string Failed = "Failed";
-    public const string Declined = "Declined";
-    public const string CompletedElsewhere = "CompletedElsewhere";
-}
 
 public sealed class DeferredDxAiInvocation
 {
@@ -184,7 +141,7 @@ public sealed class DeferredDxAiInvocation
     public Guid? ProjectId { get; set; }
     public Guid? ProjectVersionId { get; set; }
     public string ApplicationVersion { get; set; } = string.Empty;
-    public string Status { get; set; } = DeferredDxAiInvocationStatuses.PendingApproval;
+    public string Status { get; set; } = string.Empty;
     public string ResultStatus { get; set; } = string.Empty;
     public string ResultSummary { get; set; } = string.Empty;
     public int AttemptCount { get; set; }

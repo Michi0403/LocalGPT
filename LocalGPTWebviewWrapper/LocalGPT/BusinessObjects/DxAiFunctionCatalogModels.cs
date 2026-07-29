@@ -9,7 +9,7 @@ namespace LocalGPT.BusinessObjects;
 public sealed class DxAiFunctionCatalogEntry
 {
     public string CatalogKey { get; set; } = string.Empty;
-    public string Kind { get; set; } = DxAiFunctionCatalogKinds.DxFunction;
+    public string Kind { get; set; } = string.Empty;
     public string FunctionName { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string Purpose { get; set; } = string.Empty;
@@ -55,11 +55,6 @@ public sealed class DxAiFunctionCatalogEntry
     }
 }
 
-public static class DxAiFunctionCatalogKinds
-{
-    public const string DxFunction = "DxFunction";
-    public const string PublicServiceMethod = "PublicServiceMethod";
-}
 
 public sealed class DxAiFunctionCatalogSaveRequest
 {

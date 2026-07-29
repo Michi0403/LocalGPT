@@ -7,7 +7,6 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
@@ -33,7 +32,7 @@ namespace LocalGPT.Services
 
                 var fileList = files
                     .Where(file => !string.IsNullOrWhiteSpace(file.Name))
-                    .Take(MaxFiles)
+                    .Take(catalog.MaxFiles)
                     .ToList();
                 var workspaceName = councilRuntime.BuildWorkspaceName(prompt, fileList, logger);
                 var root = Path.Combine(WorkspaceRoot, workspaceName);
@@ -103,14 +102,14 @@ namespace LocalGPT.Services
                         Prompt = prompt,
                         Limits = new
                         {
-                            MaxFiles,
-                            MaxSingleFileBytes,
-                            MaxTotalFileBytes,
-                            MaxZipEntries,
-                            MaxZipEntryBytes,
-                            MaxExtractedBytes,
-                            MaxContextCharacters,
-                            MaxExcerptCharactersPerFile
+                            catalog.MaxFiles,
+                            catalog.MaxSingleFileBytes,
+                            catalog.MaxTotalFileBytes,
+                            catalog.MaxZipEntries,
+                            catalog.MaxZipEntryBytes,
+                            catalog.MaxExtractedBytes,
+                            catalog.MaxContextCharacters,
+                            catalog.MaxExcerptCharactersPerFile
                         },
                         Warnings = warnings,
                         Files = analyzedFiles.Select(file => file.Summary)
@@ -295,7 +294,7 @@ namespace LocalGPT.Services
                     return null;
 
                 var info = new FileInfo(file);
-                if (info.Length > MaxSingleFileBytes)
+                if (info.Length > catalog.MaxSingleFileBytes)
                     return new ChatUploadWorkspaceFileReadResult(
                         workspaceName,
                        councilText.ToForwardSlash(Path.GetRelativePath(workspace, file), logger),
@@ -404,20 +403,20 @@ namespace LocalGPT.Services
                         continue;
 
                     entryCount++;
-                    if (entryCount > MaxZipEntries)
+                    if (entryCount > catalog.MaxZipEntries)
                     {
                         warnings.Add($"{zipFileName}: remaining entries skipped after {MaxZipEntries:n0} entries.");
                         break;
                     }
 
-                    if (entry.Length > MaxZipEntryBytes)
+                    if (entry.Length > catalog.MaxZipEntryBytes)
                     {
                         warnings.Add($"{zipFileName}: {entry.FullName} skipped because the entry is too large.");
                         continue;
                     }
 
                     extractedBytes += entry.Length;
-                    if (extractedBytes > MaxExtractedBytes)
+                    if (extractedBytes > catalog.MaxExtractedBytes)
                     {
                         warnings.Add($"{zipFileName}: remaining entries skipped after extracted byte cap.");
                         break;

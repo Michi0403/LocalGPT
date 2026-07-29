@@ -9,7 +9,8 @@ namespace LocalGPT.Services;
 /// Invokes only a public method that the local user explicitly enabled in the database-backed catalog.
 /// Parameter binding is typed from the method signature; the caller cannot choose an arbitrary CLR type or method name.
 /// </summary>
-public sealed class PublicServiceMethodInvoker(
+public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabulary,
+    
     IServiceProvider serviceProvider,
     IDxAiFunctionCatalogService catalog,
     ILogger<PublicServiceMethodInvoker> logger) : IPublicServiceMethodInvoker
@@ -21,7 +22,7 @@ public sealed class PublicServiceMethodInvoker(
         ArgumentNullException.ThrowIfNull(request);
         var entry = await catalog.GetEntryAsync(request.CatalogKey, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException($"Public service catalog entry '{request.CatalogKey}' was not found.");
-        if (entry.Kind != DxAiFunctionCatalogKinds.PublicServiceMethod || !entry.IsAvailable || !entry.IsEnabled)
+        if (entry.Kind != vocabulary.Get().CatalogPublicServiceMethod || !entry.IsAvailable || !entry.IsEnabled)
             throw new InvalidOperationException("The selected public service method is unavailable or disabled.");
         if (!entry.AllowRemoteInvocation && !entry.ExposeToAiChat)
             throw new InvalidOperationException("The selected public service method is discovery-only until the local user enables invocation in the DX Function Catalog.");

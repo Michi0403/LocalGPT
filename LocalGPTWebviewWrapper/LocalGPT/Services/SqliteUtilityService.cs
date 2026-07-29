@@ -12,10 +12,12 @@ namespace LocalGPT.Services
     public sealed class SqliteUtilityService
     {
         private readonly CouncilTextService _text;
+        private readonly LocalGptCatalogService _catalog;
 
-        public SqliteUtilityService(CouncilTextService text)
+        public SqliteUtilityService(CouncilTextService text, LocalGptCatalogService catalog)
         {
             _text = text;
+            _catalog = catalog;
         }
 
         public T ParseValue<T>(string valueString, string? dataType, ILogger logger)
@@ -1112,7 +1114,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var normalized = LocalGptCatalogService.WhitespacePattern().Replace(prompt, " ").Trim();
+                var normalized = _catalog.WhitespacePattern.Replace(prompt, " ").Trim();
                 if (string.IsNullOrWhiteSpace(normalized))
                     return "AI Council run";
 
@@ -1194,7 +1196,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var matches =LocalGptCatalogService.HelpfulSourceLinePattern()
+                var matches =_catalog.HelpfulSourceLinePattern
                 .Matches(text)
                 .Select(match => match.Groups["line"].Value.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)

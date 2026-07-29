@@ -59,7 +59,7 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
     private DxAiFunctionInvocationResult Completed(object value) => new() { Succeeded = true, Status = "Completed", Value = value };
 }
 
-public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler
+public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<GetRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.get",
@@ -80,7 +80,7 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns) 
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var name = RequiredString(request.Parameters, "name");
+        var name = parameters.GetRequiredString(request.Parameters, "name");
         var row = (await regexPatterns.ListAllAsync().ConfigureAwait(false))
             .SingleOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
         return row is null
@@ -88,15 +88,10 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns) 
             : new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = row };
     }
 
-    internal static string RequiredString(JsonElement element, string propertyName)
-    {
-        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
-            throw new ArgumentException($"'{propertyName}' is required.");
-        return value.GetString()!.Trim();
-    }
+
 }
 
-public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler
+public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<UpsertRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.upsert",
@@ -127,8 +122,8 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var name = GetRegexPatternFunction.RequiredString(request.Parameters, "name");
-        var pattern = GetRegexPatternFunction.RequiredString(request.Parameters, "pattern");
+        var name = parameters.GetRequiredString(request.Parameters, "name");
+        var pattern = parameters.GetRequiredString(request.Parameters, "pattern");
         var flags = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("flags", out var flagsElement) && flagsElement.ValueKind == JsonValueKind.String
             ? flagsElement.GetString()
             : null;
@@ -142,7 +137,7 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
     }
 }
 
-public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler
+public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<TestRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.test",
@@ -172,8 +167,8 @@ public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns)
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var name = GetRegexPatternFunction.RequiredString(request.Parameters, "name");
-        var text = GetRegexPatternFunction.RequiredString(request.Parameters, "text");
+        var name = parameters.GetRequiredString(request.Parameters, "name");
+        var text = parameters.GetRequiredString(request.Parameters, "text");
         var maximumMatches = request.Parameters.ValueKind == JsonValueKind.Object
             && request.Parameters.TryGetProperty("maximumMatches", out var takeElement)
             && takeElement.TryGetInt32(out var take)

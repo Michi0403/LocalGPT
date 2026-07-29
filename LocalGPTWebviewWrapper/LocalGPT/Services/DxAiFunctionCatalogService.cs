@@ -15,7 +15,8 @@ namespace LocalGPT.Services;
 /// destructive schema replacement: old databases receive missing records, while user-edited exposure and
 /// confirmation settings survive descriptor refreshes and application upgrades.
 /// </summary>
-public sealed class DxAiFunctionCatalogService(
+public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabulary,
+    
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDxAiFunctionRegistry registry,
@@ -170,7 +171,7 @@ public sealed class DxAiFunctionCatalogService(
         var entry = new DxAiFunctionCatalogEntry
         {
             CatalogKey = $"dx:{function.Name}",
-            Kind = DxAiFunctionCatalogKinds.DxFunction,
+            Kind = vocabulary.Get().CatalogDxFunction,
             FunctionName = function.Name,
             DisplayName = function.Name,
             Purpose = function.Purpose,
@@ -209,7 +210,7 @@ public sealed class DxAiFunctionCatalogService(
                 var entry = new DxAiFunctionCatalogEntry
                 {
                     CatalogKey = $"service:{shortHash}",
-                    Kind = DxAiFunctionCatalogKinds.PublicServiceMethod,
+                    Kind = vocabulary.Get().CatalogPublicServiceMethod,
                     FunctionName = $"service.{implementation.Name}.{method.Name}.{shortHash}",
                     DisplayName = display,
                     Purpose = $"Invoke the configured public service method {display} through dependency injection and the LocalGPT frontend confirmation path.",

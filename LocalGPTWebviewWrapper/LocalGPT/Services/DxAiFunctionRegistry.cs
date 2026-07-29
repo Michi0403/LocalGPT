@@ -180,7 +180,7 @@ public sealed class DxAiFunctionRegistry : IDxAiFunctionRegistry
             }
 
             request.UserConfirmed = true;
-            if (gate.RequestId is Guid approvalRequestId && !ambientContext.Current.HasHumanApproval)
+            if (gate.RequestId is Guid approvalRequestId && !ambientContext.Current.HasHumanApproval(vocabulary.Get()))
             {
                 var profile = await humanCollaboration.GetProfileAsync(cancellationToken).ConfigureAwait(false);
                 approvalScope = approvalExecutionContext.PushHumanApproval(
@@ -1022,7 +1022,8 @@ public sealed class ListChatMemoryConversationsFunction(
 }
 
 
-public sealed class RequestHumanCollaborationFunction(
+public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService vocabulary,
+    
     IHumanCollaborationService collaboration,
     IAmbientLocalGptContext ambientContext,
     ILogger<RequestHumanCollaborationFunction> logger) : IDxAiFunctionHandler
@@ -1079,9 +1080,9 @@ public sealed class RequestHumanCollaborationFunction(
         if (string.IsNullOrWhiteSpace(parameters.Title) || string.IsNullOrWhiteSpace(parameters.Description))
             throw new JsonException("title and description are required.");
 
-        var kind = string.Equals(parameters.Kind, HumanCollaborationRequestKinds.Guidance, StringComparison.OrdinalIgnoreCase)
-            ? HumanCollaborationRequestKinds.Guidance
-            : HumanCollaborationRequestKinds.Feedback;
+        var kind = string.Equals(parameters.Kind, vocabulary.Get().HumanRequestGuidance, StringComparison.OrdinalIgnoreCase)
+            ? vocabulary.Get().HumanRequestGuidance
+            : vocabulary.Get().HumanRequestFeedback;
         var ambient = ambientContext.Current;
         var suggestions = (parameters.SuggestedResponses ?? [])
             .Where(item => !string.IsNullOrWhiteSpace(item))
@@ -1149,7 +1150,7 @@ public sealed class RequestHumanCollaborationFunction(
 
     private sealed class RequestParameters
     {
-        public string Kind { get; set; } = HumanCollaborationRequestKinds.Feedback;
+        public string Kind { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string RequestedRole { get; set; } = "Human collaborator";

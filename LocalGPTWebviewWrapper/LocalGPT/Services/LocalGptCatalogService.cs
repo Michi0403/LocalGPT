@@ -4,6 +4,7 @@ using DevExpress.ClipboardSource.SpreadsheetML;
 using DevExpress.CodeParser;
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -12,20 +13,40 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
-    public sealed partial class LocalGptCatalogService
+    public sealed class LocalGptCatalogService
     {
+        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+        private readonly ILogger<LocalGptCatalogService> logger;
 
-        public const string DefaultGradleVersion = "8.14.2";
-        public readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        public LocalGptCatalogService(
+            ILocalGptRuntimePolicyDataService runtimePolicy,
+            ILogger<LocalGptCatalogService> logger)
+        {
+            this.runtimePolicy = runtimePolicy ?? throw new ArgumentNullException(nameof(runtimePolicy));
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            try
+            {
+                Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+                JsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                {
+                    PropertyNameCaseInsensitive = true,
+                    WriteIndented = true
+                };
+                logger.LogInformation($"Initialized the LocalGPT catalog from database-backed runtime policy.");
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, $"Could not initialize the LocalGPT catalog: {exception.Message}");
+                throw;
+            }
+        }
 
-        [GeneratedRegex("[^a-zA-Z0-9_.-]")]
-        public static partial Regex NameCleaner();
 
-        [GeneratedRegex("[^a-z0-9_]")]
-        public static partial Regex ModIdCleaner();
-
-        [GeneratedRegex("[^a-z0-9_]")]
-        public static partial Regex PackagePartCleaner();
+        public string DefaultGradleVersion => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultGradleVersion);
+        public Encoding Utf8NoBom { get; }
+        public Regex NameCleaner => runtimePolicy.GetPattern(LocalGptRuntimePattern.NameCleaner);
+        public Regex ModIdCleaner => runtimePolicy.GetPattern(LocalGptRuntimePattern.ModIdCleaner);
+        public Regex PackagePartCleaner => runtimePolicy.GetPattern(LocalGptRuntimePattern.PackagePartCleaner);
 
         public sealed record WorkspaceContext(
             string ProjectName,
@@ -80,10 +101,10 @@ namespace LocalGPT.Services
     string? PaperApiVersion,
     string? JavaVersion,
     string Notes);
-        public const string DefaultMinecraftVersion = "26.1";
+        public string DefaultMinecraftVersion => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultMinecraftVersion);
 
-        public const string DefaultJavaVersion = "25";
-        public const string FabricLoaderVersion = "0.16.9";
+        public string DefaultJavaVersion => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultJavaVersion);
+        public string FabricLoaderVersion => runtimePolicy.GetString(LocalGptRuntimeValue.FabricLoaderVersion);
         public sealed record MinecraftDatapackVersionInfo(
     string RequestedVersion,
     string MatchedVersion,
@@ -125,228 +146,51 @@ namespace LocalGPT.Services
         {
             public string Id { get; set; } = string.Empty;
         }
-        public const int MaxDxAiChatPromptCharacters = int.MaxValue;
-        public const int MaxVisiblePromptCharacters = int.MaxValue;
-        [GeneratedRegex("(missing feature|missing capability|not implemented|not yet implemented|blocked by|cannot build|requires implementation|feature gap|capability gap|<localgpt-capability-gap>)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex MissingFeaturePattern();
+        public int MaxDxAiChatPromptCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxDxAiChatPromptCharacters);
+        public int MaxVisiblePromptCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxVisiblePromptCharacters);
+        public Regex MissingFeaturePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MissingFeaturePattern);
+        public Regex CapabilityGapBlockPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.CapabilityGapBlockPattern);
+        public Regex TruncatedTailPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.TruncatedTailPattern);
+        public Regex ThinkingBlockPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ThinkingBlockPattern);
+        public Regex CouncilPromptFencePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilPromptFencePattern);
+        public Regex CouncilRequestBlockPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilRequestBlockPattern);
 
-        [GeneratedRegex("<localgpt-capability-gap>(?<body>.*?)</localgpt-capability-gap>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        public static partial Regex CapabilityGapBlockPattern();
-        [GeneratedRegex(@"\b(?:with|and|or|the|a|an|for|to|in|of|by|as|if|when|once|then|because|from|into|that|this|which|th)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex TruncatedTailPattern();
-        [GeneratedRegex("<details\\s+class=\"model-thinking open\"[^>]*>\\s*<summary>Model thinking</summary>\\s*(?<thinking>.*?)\\s*</details>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        public static partial Regex ThinkingBlockPattern();
+        public FrozenSet<string> DebugExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.DebugExtensions);
+        public FrozenSet<string> TextExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.TextExtensions);
 
-        [GeneratedRegex("```text\\s*(?<prompt>.*?)\\s*```", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        public static partial Regex CouncilPromptFencePattern();
+        public FrozenSet<string> BinaryDiagnosticExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.BinaryDiagnosticExtensions);
+        public Regex TargetFrameworkPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.TargetFrameworkPattern);
+        public Regex PackageReferencePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.PackageReferencePattern);
+        public Regex SensitiveNamePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.SensitiveNamePattern);
+        public FrozenSet<string> ExcludedDirectoryNames => runtimePolicy.GetCollection(LocalGptRuntimeCollection.ExcludedDirectoryNames);
 
-        [GeneratedRegex("AI Council (?:continuation )?request:\\s*(?<prompt>.*?)(?:\\n\\s*##|\\z)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        public static partial Regex CouncilRequestBlockPattern();
+        public FrozenSet<string> BinaryExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.BinaryExtensions);
 
-        public FrozenSet<string> DebugExtensions { get; } = new[]
-        {
-            ".pdb",
-            ".pdg",
-            ".appxsym"
-        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-        public FrozenSet<string> TextExtensions { get; } = new[]
-        {
-            ".txt",
-            ".md",
-            ".json",
-            ".xml",
-            ".csv",
-            ".cs",
-            ".razor",
-            ".cshtml",
-            ".css",
-            ".scss",
-            ".js",
-            ".ts",
-            ".tsx",
-            ".html",
-            ".htm",
-            ".xaml",
-            ".sln",
-            ".csproj",
-            ".vbproj",
-            ".fsproj",
-            ".props",
-            ".targets",
-            ".config",
-            ".editorconfig",
-            ".yml",
-            ".yaml",
-            ".toml",
-            ".sql",
-            ".ps1",
-            ".cmd",
-            ".bat",
-            ".sh",
-            ".java",
-            ".kt",
-            ".gradle",
-            ".mcfunction",
-            ".mcmeta",
-            ".properties"
-        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
-        public FrozenSet<string> BinaryDiagnosticExtensions { get; } = new[]
-        {
-            ".dll",
-            ".exe",
-            ".pdb",
-            ".appxsym",
-            ".nupkg",
-            ".wasm"
-        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-        [GeneratedRegex("<TargetFrameworks?>(?<value>[^<]+)</TargetFrameworks?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex TargetFrameworkPattern();
-
-        [GeneratedRegex("<PackageReference\\s+Include=\"(?<value>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex PackageReferencePattern();
-
-        [GeneratedRegex("(?i)(fuck|shit|bitch|cunt|dick|pussy|whore|slut|porn|xxx)")]
-        public static partial Regex SensitiveNamePattern();
-        public static FrozenSet<string> ExcludedDirectoryNames { get; } = new[]
-        {
-            ".git",
-            ".vs",
-            ".idea",
-            "bin",
-            "obj",
-            "node_modules",
-            "packages",
-            ".venv",
-            "__pycache__",
-            ".gradle",
-            ".mypy_cache",
-            ".pytest_cache",
-            "build",
-            "dist",
-            "publish",
-            "AppPackages"
-        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
-        public static FrozenSet<string> BinaryExtensions { get; } = new[]
-        {
-            ".dll",
-            ".exe",
-            ".pdb",
-            ".msi",
-            ".pfx",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".gif",
-            ".ico",
-            ".pdf",
-            ".db",
-            ".sqlite",
-            ".sqlite3",
-            ".zip",
-            ".nupkg"
-        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
-        public static FrozenSet<string> SourceExtensions { get; } = new[]
-        {
-            ".cs",
-            ".csproj",
-            ".sln",
-            ".razor",
-            ".xaml",
-            ".json",
-            ".xml",
-            ".py",
-            ".js",
-            ".ts",
-            ".html",
-            ".css",
-            ".sql",
-            ".md",
-            ".yml",
-            ".yaml",
-            ".ps1",
-            ".props",
-            ".targets",
-            ".config",
-            ".resx",
-            ".mdx",
-            ".go",
-            ".mod",
-            ".sum",
-            ".proto",
-            ".toml",
-            ".ini",
-            ".cmake",
-            ".sh",
-            ".bat",
-            ".cmd",
-            ".gotmpl",
-            ".txt",
-            ".text",
-            ".log",
-            ".csv",
-            ".tsv",
-            ".http",
-            ".rest",
-            ".tmpl"
-        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-        public const string DefaultOllamaUri = "http://localhost:11434";
-        public const int MaxParticipants = int.MaxValue;
-        public const int DefaultMaxParallelModels = 1;
-        public const int DefaultHeavyModelGpuLayers = 20;
-        public const int MinContextTokens = 2048;
-        public const int DefaultContextTokens = 65536;
-        public const int MaxContextTokens = 262144;
-        public const int MinOutputTokens = 64;
-        public const int MaxOutputTokens = 262144;
-
-
-        [GeneratedRegex("<p\\s+class=\"localgpt-stream-status\"[^>]*>.*?</p>\\s*", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-        public static partial Regex StreamStatusPattern();
-
-        [GeneratedRegex("\\b[\\p{L}\\p{N}_'-]+\\b", RegexOptions.CultureInvariant)]
-        public static partial Regex WordPattern();
-
-        [GeneratedRegex("(implement|implementation|develop|development|build|create|add|generate|scaffold|feature|code|page|component|service|endpoint|database|settings|artifact|solution|plugin|mod|datapack)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex DevelopmentRequestPattern();
-
-        [GeneratedRegex("(downloadable|download link|download route|zip|\\.zip|\\.cs\\b|\\.razor\\b|\\.dll\\b|\\.sln\\b|\\.csproj\\b|artifact|solution zip|project zip|whole solution|full solution)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex ExplicitArtifactIntentPattern();
-
-        [GeneratedRegex("(review|code review|diagnose|diagnostic|release readiness|readiness|go or no-go|blockers|evidence|what failed|why failed|build/deploy/package/publish|publish cycle|release cycle|maintenance cycle)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex AdviceOnlyPromptPattern();
-
-        [GeneratedRegex("(generate|create|produce|write|implement|make|build)\\b.{0,120}\\b(downloadable|artifact|zip|solution|source code|\\.sln|\\.csproj|\\.cs\\b|\\.razor\\b|ai host|localgpt replacement|application|app|datapack|modpack)\\b|\\b(downloadable|artifact|zip|solution)\\b.{0,120}\\b(generate|create|produce|write|implement|make|build)\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
-        public static partial Regex ExplicitArtifactCreationCommandPattern();
-
-        [GeneratedRegex("(minecraft|living cities|modpack|datapack|data pack|pack\\.mcmeta|mcfunction).*(generate|create|build|zip|download|artifact)|(generate|create|build|zip|download|artifact).*(minecraft|living cities|modpack|datapack|data pack|pack\\.mcmeta|mcfunction)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex ConcreteMinecraftArtifactPattern();
-
-        [GeneratedRegex("(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama).*(solution|project|zip|download|artifact|page|component|api|route|service)|(solution|project|zip|download|artifact|page|component|api|route|service).*(dotnet|\\.net|c#|blazor|razor|devexpress|aspnet|asp\\.net|ollama)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex ConcreteDotNetArtifactPattern();
-
-        [GeneratedRegex("(ai host|local ai host|model host|inference host|native runner|model-file runner|model file runner|iinferencerunner|nativemodelfile|llama\\.cpp|gguf)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex AiHostSetupPattern();
-
-        [GeneratedRegex("(decision poll required|user decision poll|implementation path|architecture choice|architecture decision|target platform|runtime choice|ui stack|unclear implementation|unclear scope|scope is uncertain|ownership is uncertain|ask the user|needs user choice|choose between|pick between|multiple reasonable|trade-?off|depends on|which path|which approach)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex ImplementationDecisionPattern();
-
-        [GeneratedRegex("(choose|decide|pick|option|alternative|trade-?off|depends|uncertain|scope|ownership|clarify|question)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex ImplementationChoicePattern();
-
-        [GeneratedRegex("(decision poll required|no (?:code|files?|artifacts?) will be generated until|do not generate (?:code|files?|artifacts?) until|stop before generating|await (?:your )?(?:selection|choice|answer|decision)|waiting for (?:your )?(?:selection|choice|answer|decision)|please choose .* before|select .* and reply|will generate .* once (?:chosen|selected|confirmed))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex BlockingArtifactDecisionPattern();
-
-        [GeneratedRegex("(prior consent for safe sandbox details:\\s*granted|let council choose safe sandbox details|you may decide safe sandbox details|council may choose safe sandbox defaults|make reasonable sandbox assumptions|decide yourself for the sandbox)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex SafeSandboxConsentPattern();
-
-        [GeneratedRegex("(ask me first|do not generate|don't generate|wait for my decision|stop before coding|stop before generating|no files until|no artifact until)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex ExplicitDoNotGenerateUntilUserDecisionPattern();
-
-        [GeneratedRegex("(work as (?:the )?developers|you are the developers|continue until (?:you )?(?:produce|create|generate)|develop and debug|produce .* artifact|generate .* artifact|create .* artifact)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex DeveloperExecutionIntentPattern();
+        public FrozenSet<string> SourceExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.SourceExtensions);
+        public string DefaultOllamaUri => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaUri);
+        public int MaxParticipants => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxParticipants);
+        public int DefaultMaxParallelModels => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultMaxParallelModels);
+        public int DefaultHeavyModelGpuLayers => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultHeavyModelGpuLayers);
+        public int MinContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MinContextTokens);
+        public int DefaultContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultContextTokens);
+        public int MaxContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxContextTokens);
+        public int MinOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MinOutputTokens);
+        public int MaxOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxOutputTokens);
+        public Regex StreamStatusPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.StreamStatusPattern);
+        public Regex WordPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.WordPattern);
+        public Regex DevelopmentRequestPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DevelopmentRequestPattern);
+        public Regex ExplicitArtifactIntentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitArtifactIntentPattern);
+        public Regex AdviceOnlyPromptPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.AdviceOnlyPromptPattern);
+        public Regex ExplicitArtifactCreationCommandPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitArtifactCreationCommandPattern);
+        public Regex ConcreteMinecraftArtifactPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ConcreteMinecraftArtifactPattern);
+        public Regex ConcreteDotNetArtifactPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ConcreteDotNetArtifactPattern);
+        public Regex AiHostSetupPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.AiHostSetupPattern);
+        public Regex ImplementationDecisionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ImplementationDecisionPattern);
+        public Regex ImplementationChoicePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ImplementationChoicePattern);
+        public Regex BlockingArtifactDecisionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.BlockingArtifactDecisionPattern);
+        public Regex SafeSandboxConsentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.SafeSandboxConsentPattern);
+        public Regex ExplicitDoNotGenerateUntilUserDecisionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitDoNotGenerateUntilUserDecisionPattern);
+        public Regex DeveloperExecutionIntentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DeveloperExecutionIntentPattern);
 
  
         public sealed class OllamaModelResponse
@@ -376,42 +220,11 @@ namespace LocalGPT.Services
             [JsonPropertyName("keep_alive")]
             public string KeepAlive { get; set; } = "0s";
         }
-        [GeneratedRegex("^\\s*@using\\s+(?<namespace>DevExpress(?:\\.[A-Za-z0-9_]+)+)", RegexOptions.Multiline | RegexOptions.CultureInvariant)]
-        public static partial Regex DevExpressImportPattern();
+        public Regex DevExpressImportPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressImportPattern);
+        public Regex DevExpressRegistrationPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressRegistrationPattern);
+        public FrozenSet<string> ArtifactTextExtensions => runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArtifactTextExtensions);
 
-        [GeneratedRegex("AddDevExpress[A-Za-z0-9_]*\\(", RegexOptions.CultureInvariant)]
-        public static partial Regex DevExpressRegistrationPattern();
-        public static FrozenSet<string> ArtifactTextExtensions { get; } = new[]
-        {
-            ".cs",
-            ".razor",
-            ".cshtml",
-            ".csproj",
-            ".sln",
-            ".props",
-            ".targets",
-            ".md",
-            ".txt",
-            ".json",
-            ".xml",
-            ".css",
-            ".scss",
-            ".js",
-            ".ts",
-            ".yml",
-            ".yaml",
-            ".ps1",
-            ".sql",
-            ".html",
-            ".htm",
-            ".mcfunction",
-            ".mcmeta",
-            ".toml",
-            ".properties",
-            ".java"
-        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
-        public const long MaxArtifactTextFileBytes = 2 * 1024 * 1024;
+        public long MaxArtifactTextFileBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxArtifactTextFileBytes);
      
         public sealed record ArtifactWorkspaceSummary(
           string WorkspaceName,
@@ -430,106 +243,31 @@ namespace LocalGPT.Services
             string RelativePath,
             string? Content);
 
-        public const int MaxFiles = int.MaxValue;
-        public const long MaxSingleFileBytes = int.MaxValue;
-        public const long MaxTotalFileBytes = int.MaxValue;
-        public const int MaxZipEntries = int.MaxValue;
-        public const long MaxZipEntryBytes = int.MaxValue;
-        public const long MaxExtractedBytes = int.MaxValue;
-        public const int MaxContextCharacters = int.MaxValue;
-        public const int MaxExcerptCharactersPerFile = int.MaxValue;
-        public const int MaxBinaryStringCharacters = int.MaxValue;
+        public int MaxFiles => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles);
+        public long MaxSingleFileBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxSingleFileBytes);
+        public long MaxTotalFileBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxTotalFileBytes);
+        public int MaxZipEntries => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxZipEntries);
+        public long MaxZipEntryBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxZipEntryBytes);
+        public long MaxExtractedBytes => runtimePolicy.GetLong(LocalGptRuntimeValue.MaxExtractedBytes);
+        public int MaxContextCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxContextCharacters);
+        public int MaxExcerptCharactersPerFile => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxExcerptCharactersPerFile);
+        public int MaxBinaryStringCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxBinaryStringCharacters);
         public sealed record AnalyzedUploadFile(
     ChatUploadWorkspaceFileSummary Summary,
     string Excerpt);
-        public readonly string[] KnowledgeFiles =
-       [
-           "AGENTS.md",
-            Path.Combine("docs", "ARCHITECTURE_FOR_AI.md"),
-            Path.Combine("docs", "COUNCIL_KNOWLEDGE_SEED.sql"),
-            Path.Combine("docs", "MINECRAFT_MOD_AI_BUILDER.md"),
-            Path.Combine("docs", "MINECRAFT_SOURCE_KNOWLEDGE.md"),
-            Path.Combine("docs", "AI_HOST_DOTNET_EXPERIMENT.md"),
-            Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
-            Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md"),
-            Path.Combine("docs", "DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md"),
-            Path.Combine("docs", "LOCALGPT_DEVELOPER_DIARY.md"),
-            Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md"),
-            Path.Combine("docs", "CAPABILITY_GAP_CONTRACT.md"),
-            Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
-            Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md"),
-            Path.Combine("docs", "FRONTEND_DESIGN_PATTERN_LIBRARY.md"),
-            Path.Combine("docs", "MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md"),
-            Path.Combine("docs", "EF_DEVEXPRESS_BUSINESS_OBJECTS.md"),
-            Path.Combine("docs", "GENERATION_ARCHETYPE_CONTRACTS.md")
-       ];
-        public const string omission =
-                 "\n\n[...older context trimmed by LocalGPT to fit the local model context window...]\n\n";
+        public string[] KnowledgeFiles => runtimePolicy.GetCollection(LocalGptRuntimeCollection.KnowledgeFiles).Select(value => value.Replace('/', Path.DirectorySeparatorChar)).ToArray();
+        public string omission => runtimePolicy.GetString(LocalGptRuntimeValue.ContextOmission);
 
-        public const string shortOmission =
-            "\n... truncated by LocalGPT upload workspace budget ...";
-        public readonly Regex DownloadUrlPattern =
-     new("\"downloadUrl\"\\s*:\\s*\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        public const string LearnBaseFilePolicySummary =
-            "Reads source and docs such as .cs, .razor, .csproj, .sln, .md, .yml, .json, .xml, .py, .js, .ts, .go, .ps1, and .sql. Skips build/cache folders such as bin, obj, node_modules, packages, .git, build, dist, and publish. Binary files, installers, archives, PDFs, certificates, SQLite files, and images are counted or ignored, not stored as knowledge text.";
-        public const string LearnBaseDuplicatePolicySummary =
-            "Duplicate handling: each project path and known docs-corpus section gets a stable database id. Re-importing the same source updates/upserts the existing knowledge row instead of adding another copy.";
+        public string shortOmission => runtimePolicy.GetString(LocalGptRuntimeValue.ShortContextOmission);
+        public Regex DownloadUrlPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DownloadUrl);
+        public string LearnBaseFilePolicySummary => runtimePolicy.GetString(LocalGptRuntimeValue.LearnBaseFilePolicySummary);
+        public string LearnBaseDuplicatePolicySummary => runtimePolicy.GetString(LocalGptRuntimeValue.LearnBaseDuplicatePolicySummary);
         public string LearnBasePresetList => string.Join(", ", LearnBasePresets.Select(preset => preset.Label));
 
-        public readonly IReadOnlyList<LearnBasePreset> LearnBasePresets =
-   [
-       new(
-            "All selected local learn-base",
-            @"C:\learnbaseforlocalgpt",
-            "Scans the curated local learn-base root and auto-detects known docs corpora plus project architecture roots.",
-            80),
-        new(
-            "Microsoft .NET docs + C# compiler",
-            @"C:\learnbaseforlocalgpt\docs-main\docs-main",
-            "Teaches source maps for .NET architecture, C# language/compiler diagnostics, C# 12-era syntax, ASP.NET Core, Blazor, data, and DocFX/Microsoft Learn authoring.",
-            30),
-        new(
-            "Windows developer docs",
-            @"C:\learnbaseforlocalgpt\windows-dev-docs-docs",
-            "Teaches source maps for Windows App SDK, WinUI, WebView2, MSIX, Windows setup/support, design, accessibility, and technician workflows.",
-            24),
-        new(
-            "DevExpress Blazor 25.2 samples",
-            @"C:\learnbaseforlocalgpt\Blazor-25.2\Blazor-25.2",
-            "Scans DevExpress Blazor demos and examples so generated pages can choose real components, services, layout patterns, and file/download workflows.",
-            60),
-        new(
-            "DevExpress examples",
-            @"C:\learnbaseforlocalgpt\DevExpress-Examples",
-            "Scans local DevExpress example repositories for reusable component and service wiring patterns.",
-            60),
-        new(
-            "Custom path",
-            @"C:\learnbaseforlocalgpt",
-            "Use this when you want to paste or edit a specific local source/docs folder path.",
-            40)
-   ];
-        public readonly IReadOnlyList<LearnBaseScanProfile> LearnBaseScanProfiles =
-        [
-            new("Focused scan", 12, "Best for one documentation corpus or one repository. Fast and low noise."),
-        new("Balanced scan", 40, "Best default: enough project roots to teach patterns without importing every nested sample."),
-        new("Broad scan", 100, "Best after adding many repositories or documentation corpora. Slower, but still bounded."),
-        new("Custom limit", 40, "Use the advanced import limit below.")
-        ];
+        public IReadOnlyList<LearnBasePreset> LearnBasePresets => runtimePolicy.GetJson<LearnBasePreset[]>(LocalGptRuntimeValue.LearnBasePresetsJson);
+        public IReadOnlyList<LearnBaseScanProfile> LearnBaseScanProfiles => runtimePolicy.GetJson<LearnBaseScanProfile[]>(LocalGptRuntimeValue.LearnBaseScanProfilesJson);
 
-        public readonly List<TestLabRoute> Routes =
- [
-     new("Health", "/health", ButtonRenderStyle.Secondary),
-        new("Diagnostics", "/__diag", ButtonRenderStyle.Secondary),
-        new("DXAiFunctions", "/__diag/dxaichat-functions", ButtonRenderStyle.Secondary),
-        new("Minecraft 26.1", "/__diag/minecraft/datapack-version?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
-        new("Datapack ZIP", "/__diag/council/artifact-smoke?target=datapack", ButtonRenderStyle.Primary),
-        new("AI Host ZIP", "/__diag/council/artifact-smoke?target=ai-host", ButtonRenderStyle.Primary),
-        new("Minecraft Benchmark", "/__diag/minecraft/datapack-benchmark?minecraftVersion=26.1", ButtonRenderStyle.Secondary),
-        new("Engineering Benchmark", "/__diag/benchmark/engineering?taskSet=engineering&saveToKnowledge=true", ButtonRenderStyle.Secondary),
-        new("Replacement Benchmark", "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4&saveToKnowledge=true", ButtonRenderStyle.Primary),
-        new("Council Feedback", "/__diag/council/development-feedback-talk?maxOutputTokens=2048&maxContextTokens=32768&maxRounds=0", ButtonRenderStyle.Primary)
- ];
+        public List<TestLabRoute> Routes => [.. runtimePolicy.GetJson<TestLabRoute[]>(LocalGptRuntimeValue.TestLabRoutesJson)];
         public List<PromptSuggestion> GetSuggestion()
         {
             return new List<PromptSuggestion>()
@@ -1231,79 +969,29 @@ namespace LocalGPT.Services
                 }
             }
             """;
+        public Regex DevExpressDocumentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressDocumentPattern);
+        public Regex ExportFormatPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.ExportFormatPattern);
+        public Regex BlazorFrontendPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.BlazorFrontendPattern);
+        public Regex DotNetPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DotNetPattern);
+        public Regex MinecraftPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftPattern);
+        public Regex DatapackPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.DatapackPattern);
+        public Regex MinecraftSkeletonMatrixPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftSkeletonMatrixPattern);
+        public Regex MinecraftVersionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftVersionPattern);
+        public Regex LeadingSlashCommandPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.LeadingSlashCommandPattern);
+        public Regex RootStorageRemovePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.RootStorageRemovePattern);
+        public Regex MalformedStorageTargetPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.MalformedStorageTargetPattern);
+        public Regex FrontendPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.FrontendPattern);
+        public Regex WholeSolutionPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.WholeSolutionPattern);
+        public Regex AiHostExperimentPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.AiHostExperimentPattern);
+        public Regex LocalGptReplacementPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.LocalGptReplacementPattern);
+        public Regex TacosPortalPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.TacosPortalPattern);
+        public Regex BotBackendPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.BotBackendPattern);
+        public Regex LoggingPattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.LoggingPattern);
 
 
-        [GeneratedRegex("(devexpress|richedit|pdfviewer|pivot|report|xtrareport|office|docx|xlsx|pdf export|spreadsheet|document generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex DevExpressDocumentPattern();
-
-        [GeneratedRegex("(\\.xlsx|xlsx|excel|\\.pptx|pptx|powerpoint|\\.pdf|pdf|\\.docx|docx|word|export format|file generation)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex ExportFormatPattern();
-
-        [GeneratedRegex("(blazor|razor|component|page|dxgrid|dxformlayout|dxbutton|dxmemo|dxtextbox|dxcombobox|dxaichat|devexpress blazor|interactive(server|webassembly|auto))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex BlazorFrontendPattern();
-
-        [GeneratedRegex("(dotnet|\\.net|aspnet|asp\\.net|blazor|c#|codedom|entityframework|sqlite|winui|webview2)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex DotNetPattern();
-
-        [GeneratedRegex("(minecraft|fabric|neoforge|paper|datapack|gradle|java)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex MinecraftPattern();
-
-        [GeneratedRegex("(datapack|data pack|pack\\.mcmeta|mcfunction|living cities)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex DatapackPattern();
-
-        [GeneratedRegex("(fabric.*paper.*neoforge|neoforge.*paper.*fabric|loader.*matrix|skeleton.*distinction|project skeleton distinction)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex MinecraftSkeletonMatrixPattern();
-
-        [GeneratedRegex("(?<!\\d)(?<version>(?:1\\.\\d{1,2}|26\\.\\d)(?:\\.\\d{1,2})?(?:-snapshot-\\d+)?)(?!\\d)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex MinecraftVersionPattern();
-
-        [GeneratedRegex("(?m)^\\s*/", RegexOptions.CultureInvariant)]
-        public static partial Regex LeadingSlashCommandPattern();
-
-        [GeneratedRegex("\\bdata\\s+remove\\s+storage\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex RootStorageRemovePattern();
-
-        [GeneratedRegex("\\bstore\\s+result\\s+storage\\s+[a-z0-9_.-]+:[a-z0-9_/-]+\\.[a-z0-9_.-]+\\s+(?:byte|short|int|long|float|double)\\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex MalformedStorageTargetPattern();
-
-        [GeneratedRegex("(frontend|razor|devexpress|dxaichat|css|javascript)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex FrontendPattern();
-
-        [GeneratedRegex("(whole solution|full solution|entire solution|solution zip|project zip|\\.sln|\\.csproj|all source files|tacosportalopen|localgpt\\s+(?:clone|replacement|workbench|app|application|solution)|(?:clone|replace|rebuild)\\s+localgpt|whole ai host|ai host dotnet|local ai host|whole ollama|ollama dotnet|ollama \\.net)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex WholeSolutionPattern();
-
-        [GeneratedRegex(
-            "(ai\\s*host|local\\s*model\\s*host|model[- ]file\\s*runner|native\\s*runner|ollama[- ]compatible|" +
-            "/api/(?:chat|generate|tags|ps|version)|host\\s+gpt-oss|provider[- ]compatible).*" +
-            "(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net|api|route|endpoint|sqlite|ollama|model|runner)|" +
-            "(dotnet|\\.net|blazor|devexpress|aspnet|asp\\.net|api|route|endpoint|sqlite|model|runner).*" +
-            "(ai\\s*host|local\\s*model\\s*host|model[- ]file\\s*runner|native\\s*runner|ollama[- ]compatible|" +
-            "/api/(?:chat|generate|tags|ps|version)|provider[- ]compatible)",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
-        public static partial Regex AiHostExperimentPattern();
-
-        [GeneratedRegex("(localgpt|local gpt).*(clone|replacement|workbench|app|application|solution|dxaichat|ai council|sqlite memory|test lab)|(clone|replace|rebuild).*(localgpt|local gpt)|(dxaichat|ai council|sqlite memory|test lab).*(localgpt|local gpt)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
-        public static partial Regex LocalGptReplacementPattern();
-
-        [GeneratedRegex("(tacosportalopen|tacos portal|restaurant portal|orders.*menu|menu.*orders|reservation|kitchen queue)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex TacosPortalPattern();
-
-        [GeneratedRegex("(bot backend|telegram bot|botapi|webhook|conversation state|python\\.net|whisper|translator bot)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex BotBackendPattern();
-
-        [GeneratedRegex("(log|logger|diagnostic|error|warning|telemetry)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        public static partial Regex LoggingPattern();
-
-
-        public readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-        {
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = true
-        };
-        [GeneratedRegex("\\s+", RegexOptions.CultureInvariant)]
-        public static partial Regex WhitespacePattern();
-        [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?<line>(?:helpful sources?|source request|needed sources?|references?|docs?|documentation|official docs?|examples?|sample projects?|spec(?:ification)?s?|tutorials?)\\s*[:\\-].+)$", RegexOptions.CultureInvariant)]
-        public static partial Regex HelpfulSourceLinePattern();
+        public JsonSerializerOptions JsonOptions { get; }
+        public Regex WhitespacePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.WhitespacePattern);
+        public Regex HelpfulSourceLinePattern => runtimePolicy.GetPattern(LocalGptRuntimePattern.HelpfulSourceLinePattern);
         public sealed record ArtifactContractReport(
             string QualityStatus,
             string ContractStatus,
@@ -1316,87 +1004,31 @@ namespace LocalGPT.Services
             string ModId,
             string PackageName,
             string DisplayName);
-        public const int MinCouncilOutputTokens = 256;
-        public const int DefaultCouncilOutputTokens = 262144;
-        public const int MaxCouncilOutputTokens = 262144;
-        public const int MinCouncilContextTokens = 2048;
-        public const int DefaultCouncilContextTokens = 262144;
-        public const int MaxCouncilContextTokens = 262144;
-        public const string CouncilSessionName = "AI Council — selected Ollama models";
-        public const int MaxUploadFiles = int.MaxValue;
-        public const int MaxUploadBytes = int.MaxValue;
-        public readonly List<string> AllowedUploadExtensions =
-        [
-            ".7z", ".apk", ".avi", ".bat", ".c", ".cer", ".cmd", ".conf", ".cpp", ".crt",
-            ".cs", ".csproj", ".css", ".csv", ".db", ".deb", ".doc", ".dockerfile", ".dockerignore",
-            ".docx", ".dwg", ".dxf", ".editorconfig", ".env", ".exe", ".gif", ".gitignore", ".go", ".gz",
-            ".h", ".hpp", ".html", ".img", ".ini", ".iso", ".jar", ".java", ".jpeg", ".jpg", ".js",
-            ".json", ".jsx", ".key", ".log", ".md", ".mkv", ".mov", ".mp3", ".mp4", ".msi", ".obj",
-            ".odp", ".ods", ".odt", ".parquet", ".pdf", ".pem", ".pfx", ".php", ".pkl", ".png", ".ppt",
-            ".pptx", ".ps1", ".py", ".qcow2", ".rar", ".rpm", ".rs", ".rtf", ".sh", ".sln", ".sql",
-            ".sqlite", ".srt", ".step", ".stl", ".svg", ".tar", ".tf", ".toml", ".ts", ".tsx", ".txt",
-            ".vhdx", ".vmdk", ".wav", ".webp", ".xls", ".xlsx", ".xml", ".xz", ".yaml", ".yml", ".zip",
-            ".zst"
-
-        ];
-        public readonly List<string> AllowedUploadMimeTypes =
-        [
-            // LocalGPT is intentionally an offline desktop application. Accept every browser-selectable file
-            // and preserve unknown formats as binary evidence for models/plugins that can interpret them.
-            "*/*",
-            "application/*",
-            "audio/*",
-            "image/*",
-            "model/*",
-            "text/*",
-            "video/*",
-            "application/octet-stream"
-        ];
-        public const string OllamaModeAutoGpu = "auto-gpu";
-        public const string OllamaModeSafeCpu = "safe-cpu";
-        public const string OllamaModeLimitedGpu = "limited-gpu";
+        public int MinCouncilOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MinCouncilOutputTokens);
+        public int DefaultCouncilOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultCouncilOutputTokens);
+        public int MaxCouncilOutputTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxCouncilOutputTokens);
+        public int MinCouncilContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MinCouncilContextTokens);
+        public int DefaultCouncilContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultCouncilContextTokens);
+        public int MaxCouncilContextTokens => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxCouncilContextTokens);
+        public string CouncilSessionName => runtimePolicy.GetString(LocalGptRuntimeValue.CouncilSessionName);
+        public int MaxUploadFiles => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxUploadFiles);
+        public int MaxUploadBytes => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxUploadBytes);
+        public List<string> AllowedUploadExtensions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.AllowedUploadExtensions)];
+        public List<string> AllowedUploadMimeTypes => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.AllowedUploadMimeTypes)];
+        public string OllamaModeAutoGpu => runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeAutoGpu);
+        public string OllamaModeSafeCpu => runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeSafeCpu);
+        public string OllamaModeLimitedGpu => runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeLimitedGpu);
  
-        public const string DetectedOllamaSessionPrefix = "Ollama detected — ";
-        public const string DefaultOllamaEndpoint = "http://127.0.0.1:11434";
-        public readonly string[] ArchitectureUiStackOptions =
-[
-    "Ask me before choosing UI stack",
-        "DevExpress Blazor components",
-        "Plain Blazor components",
-        "No UI / backend or tool only",
-        "Other target-specific UI"
-];
-        public readonly string[] ArchitectureSolutionShapeOptions =
-        [
-            "Ask me before choosing solution shape",
-        "Single cohesive solution",
-        "Split backend and frontend projects",
-        "Library/plugin/package only",
-        "Datapack/mod workspace only"
-        ];
-        public readonly string[] ArchitectureRenderModeOptions =
-        [
-            "Ask me before choosing runtime/rendering",
-        "Blazor Server / InteractiveServer",
-        "Blazor WebAssembly with ASP.NET Core backend",
-        "Static SSR plus interactive islands",
-        "ASP.NET Core API / backend only",
-        "Desktop wrapper / WebView2",
-        "Minecraft Java/datapack runtime",
-        "CLI/tooling runtime"
-        ];
-        public readonly string[] ArchitectureReferenceLookOptions =
-        [
-            "Ask me before choosing visual fidelity",
-        "Recreate the goal app look closely",
-        "Use LocalGPT style but preserve goal app structure",
-        "Functional prototype first",
-        "No visual reference"
-        ];
-        public const int DefaultMaxPromptCharacters = int.MaxValue;
-        public const int MaxPromptCharacters = int.MaxValue;
-        public const int MaxBootstrapCharacters = 6000;
-        public const int MaxSingleConversationMessageCharacters = int.MaxValue;
+        public string DetectedOllamaSessionPrefix => runtimePolicy.GetString(LocalGptRuntimeValue.DetectedOllamaSessionPrefix);
+        public string DefaultOllamaEndpoint => runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint);
+        public string[] ArchitectureUiStackOptions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureUiStackOptions)];
+        public string[] ArchitectureSolutionShapeOptions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureSolutionShapeOptions)];
+        public string[] ArchitectureRenderModeOptions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureRenderModeOptions)];
+        public string[] ArchitectureReferenceLookOptions => [.. runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureReferenceLookOptions)];
+        public int DefaultMaxPromptCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultMaxPromptCharacters);
+        public int MaxPromptCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxPromptCharacters);
+        public int MaxBootstrapCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxBootstrapCharacters);
+        public int MaxSingleConversationMessageCharacters => runtimePolicy.GetInt(LocalGptRuntimeValue.MaxSingleConversationMessageCharacters);
         public enum GeneratedSolutionArchetype
         {
             Generic,

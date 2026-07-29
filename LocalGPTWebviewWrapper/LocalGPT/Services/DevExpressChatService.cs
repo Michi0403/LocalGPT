@@ -11,15 +11,18 @@ namespace LocalGPT.Services
     {
         private readonly CouncilTextService _text;
         private readonly IDxAiFunctionRegistry _functionRegistry;
+        private readonly LocalGptCatalogService _catalog;
         private readonly ILogger<DevExpressChatService> _logger;
 
         public DevExpressChatService(
             CouncilTextService text,
             IDxAiFunctionRegistry functionRegistry,
+            LocalGptCatalogService catalog,
             ILogger<DevExpressChatService> logger)
         {
             _text = text;
             _functionRegistry = functionRegistry;
+            _catalog = catalog;
             _logger = logger;
         }
 
@@ -328,7 +331,7 @@ namespace LocalGPT.Services
             {
                 var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Content
                 ?? messages.First().Content;
-                var title = LocalGptCatalogService.WhitespacePattern().Replace(_text.StripThinking(firstUserMessage,logger), " ").Trim();
+                var title = _catalog.WhitespacePattern.Replace(_text.StripThinking(firstUserMessage,logger), " ").Trim();
 
                 if (string.IsNullOrWhiteSpace(title))
                     return "New conversation";
@@ -401,12 +404,12 @@ namespace LocalGPT.Services
                     var promptSection = _text.TryFindCouncilPromptSection(content, logger);
                     if (!string.IsNullOrWhiteSpace(promptSection))
                     {
-                        var fencedPrompt = LocalGptCatalogService.CouncilPromptFencePattern().Match(promptSection);
+                        var fencedPrompt = _catalog.CouncilPromptFencePattern.Match(promptSection);
                         if (fencedPrompt.Success)
                             return _text.NormalizeRecoveredPrompt(fencedPrompt.Groups["prompt"].Value, logger);
                     }
 
-                    var requestBlock = LocalGptCatalogService.CouncilRequestBlockPattern().Match(content);
+                    var requestBlock = _catalog.CouncilRequestBlockPattern.Match(content);
                     if (requestBlock.Success)
                         return _text.NormalizeRecoveredPrompt(requestBlock.Groups["prompt"].Value, logger);
                 }

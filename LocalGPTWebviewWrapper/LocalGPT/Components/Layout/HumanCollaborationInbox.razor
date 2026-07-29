@@ -1,6 +1,8 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 @inject IHumanCollaborationService Collaboration
+@inject ILocalGptVocabularyService Vocabulary
+@inject ILocalGptRuntimePolicyDataService RuntimePolicy
 @inject ILocalHumanInteractionContext HumanAmbientContext
 @inject ILogger<HumanCollaborationInbox> Logger
 @inject INotificationService Notifier
@@ -160,7 +162,7 @@
                         Reason / team note
                         <textarea @bind="editor.Reason" maxlength="2000" rows="2"></textarea>
                     </label>
-                    @if (request.RequestKind == HumanCollaborationRequestKinds.Approval)
+                    @if (request.RequestKind == Vocabulary.Get().HumanRequestApproval)
                     {
                         <div class="human-decision-row">
                             <button type="button" class="human-approve" @onclick="(() => ResolveAsync(request, true))">Approve exact request</button>
@@ -230,10 +232,10 @@
     private string statusText = string.Empty;
 
     private IReadOnlyList<HumanCollaborationRequest> PendingRequests => snapshot.Requests
-        .Where(item => item.Status == HumanCollaborationStatuses.Pending)
+        .Where(item => item.Status == Vocabulary.Get().HumanStatusPending)
         .ToList();
     private IReadOnlyList<HumanCollaborationRequest> ResolvedRequests => snapshot.Requests
-        .Where(item => item.Status != HumanCollaborationStatuses.Pending)
+        .Where(item => item.Status != Vocabulary.Get().HumanStatusPending)
         .OrderByDescending(item => item.UpdatedAtUtc)
         .ToList();
     private int PendingCount => PendingRequests.Count;
@@ -302,7 +304,7 @@
         await RunHumanUiOperationAsync("SaveProfile", async () =>
         {
             using var scope = HumanAmbientContext.PushHumanInteraction(
-                HumanCollaborationIdentity.LocalHumanProfileId,
+                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox));
             profile = await Collaboration.SaveProfileAsync(profile);
@@ -318,7 +320,7 @@
         await RunHumanUiOperationAsync("QueueContribution", async () =>
         {
             using var scope = HumanAmbientContext.PushHumanInteraction(
-                HumanCollaborationIdentity.LocalHumanProfileId,
+                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox),
                 councilRunId: runId);
@@ -335,7 +337,7 @@
         await RunHumanUiOperationAsync("ResolveRequest", async () =>
         {
             using var scope = HumanAmbientContext.PushHumanInteraction(
-                HumanCollaborationIdentity.LocalHumanProfileId,
+                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox),
                 request.CorrelationId,

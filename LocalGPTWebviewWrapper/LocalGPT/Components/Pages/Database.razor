@@ -907,7 +907,7 @@
         Notifier.ShowSuccess(toastName, statusText, "Editor preference saved");
     }
 
-    static string ToDateTimeLocalValue(string? value)
+    string ToDateTimeLocalValue(string? value)
     {
         return DateTimeOffset.TryParse(value, out var parsed)
             ? parsed.ToLocalTime().ToString("yyyy-MM-ddTHH:mm")

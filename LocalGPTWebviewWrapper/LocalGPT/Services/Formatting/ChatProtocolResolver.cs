@@ -3,25 +3,31 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Formatting;
 
-public sealed class ChatProtocolResolver : IChatProtocolResolver
+public sealed class ChatProtocolResolver(
+    IChatProtocolProfileCatalog catalog,
+    ILogger<ChatProtocolResolver> logger) : IChatProtocolResolver
 {
-    private readonly IReadOnlyList<IChatProtocolProfile> profiles;
-
-    public ChatProtocolResolver(IEnumerable<IChatProtocolProfile>? profiles = null)
-    {
-        this.profiles = (profiles ?? ChatProtocolProfileCatalog.CreateDefaults())
-            .OrderByDescending(profile => profile.Priority)
-            .ToList();
-    }
-
     public ChatResponseProtocol Resolve(OllamaCoreOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
-        if (options.ResponseProtocol != ChatResponseProtocol.Auto)
-            return options.ResponseProtocol;
+        try
+        {
+            ArgumentNullException.ThrowIfNull(options);
+            if (options.ResponseProtocol != ChatResponseProtocol.Auto)
+            {
+                logger.LogTrace($"Used explicitly configured chat protocol {options.ResponseProtocol}.");
+                return options.ResponseProtocol;
+            }
 
-        var model = options.ModelName ?? string.Empty;
-        return profiles.FirstOrDefault(profile => profile.MatchesModel(model))?.Protocol
-            ?? ChatResponseProtocol.Auto;
+            var model = options.ModelName ?? string.Empty;
+            var protocol = catalog.Profiles.FirstOrDefault(profile => profile.MatchesModel(model))?.Protocol
+                ?? ChatResponseProtocol.Auto;
+            logger.LogTrace($"Resolved chat protocol {protocol} for model {model}.");
+            return protocol;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not resolve the chat protocol: {exception.Message}");
+            throw;
+        }
     }
 }

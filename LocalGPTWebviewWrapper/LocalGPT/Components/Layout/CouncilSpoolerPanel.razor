@@ -1,6 +1,7 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 @inject ICouncilSpoolerService Spooler
+@inject ILocalGptVocabularyService Vocabulary
 @inject ILogger<CouncilSpoolerPanel> Logger
 
 <button type="button" data-localgpt-command="open-spooler"
@@ -59,7 +60,7 @@
     private bool _open;
     private List<CouncilSpoolerSnapshot> _runs = [];
     private Guid? _selectedRunId;
-    private int RunningCount => _runs.Count(item => item.Status == CouncilSpoolerStatuses.Running);
+    private int RunningCount => _runs.Count(item => item.Status == Vocabulary.Get().CouncilSpoolerRunning);
     private CouncilSpoolerSnapshot? Selected => _selectedRunId is Guid id ? _runs.FirstOrDefault(item => item.RunId == id) : _runs.FirstOrDefault();
     private string SelectedValue => (_selectedRunId ?? _runs.FirstOrDefault()?.RunId)?.ToString() ?? string.Empty;
 

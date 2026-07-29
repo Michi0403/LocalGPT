@@ -312,16 +312,21 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>();
                 builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();
                 builder.Services.AddHostedService<DatabaseInitializationHostedService>();
+                builder.Services.AddSingleton<IDxAiFunctionJsonService, DxAiFunctionJsonService>();
+                builder.Services.AddSingleton<IRegexFunctionParameterService, RegexFunctionParameterService>();
+                builder.Services.AddSingleton<IChatProtocolTextService, ChatProtocolTextService>();
                 builder.Services.AddSingleton<IChatProtocolProfile, HarmonyChatProtocolProfile>();
                 builder.Services.AddSingleton<IChatProtocolProfile, DeepSeekChatProtocolProfile>();
                 builder.Services.AddSingleton<IChatProtocolProfile, GemmaChatProtocolProfile>();
                 builder.Services.AddSingleton<IChatProtocolProfile, AppleChatProtocolProfile>();
                 builder.Services.AddSingleton<IChatProtocolProfile, ThinkTagsChatProtocolProfile>();
                 builder.Services.AddSingleton<IChatProtocolProfile, PlainTextChatProtocolProfile>();
+                builder.Services.AddSingleton<IChatProtocolProfileCatalog, ChatProtocolProfileCatalog>();
                 builder.Services.AddSingleton<IChatResponseFormatterFactory, ChatResponseFormatterFactory>();
                 builder.Services.AddSingleton<IChatContentRenderer, ChatContentRenderer>();
                 builder.Services.AddSingleton<IChatProtocolResolver, ChatProtocolResolver>();
 
+                builder.Services.AddSingleton<IOrganicCouncilBlueprintSeedDataService, OrganicCouncilBlueprintSeedDataService>();
                 builder.Services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
                 builder.Services.AddSingleton<IDeferredDxAiInvocationService, DeferredDxAiInvocationService>();
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
@@ -383,6 +388,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ILocalGptRuntimePolicySeedDataService, LocalGptRuntimePolicySeedDataService>();
                 builder.Services.AddSingleton<ILocalGptRuntimePolicyStoreService, LocalGptRuntimePolicyStoreService>();
                 builder.Services.AddSingleton<ILocalGptRuntimePolicyDataService, LocalGptRuntimePolicyDataService>();
+                builder.Services.AddSingleton<ILocalGptVocabularyService, LocalGptVocabularyService>();
                 builder.Services.AddSingleton<IOneWireReplayGuard, OneWireReplayGuard>();
                 builder.Services.AddSingleton<IOneWireWorkSpooler, OneWireWorkSpooler>();
                 builder.Services.AddSingleton<IOneWirePendingCouncilStore, OneWirePendingCouncilStore>();

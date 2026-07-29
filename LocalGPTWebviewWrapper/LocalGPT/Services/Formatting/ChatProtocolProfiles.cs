@@ -3,123 +3,407 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Formatting;
 
-public sealed class ChatProtocolProfileCatalog
+public sealed class ChatProtocolTextService(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
+    ILogger<ChatProtocolTextService> logger) : IChatProtocolTextService
 {
-    private ChatProtocolProfileCatalog() { }
-    public static IReadOnlyList<IChatProtocolProfile> CreateDefaults() =>
-    [
-        new HarmonyChatProtocolProfile(),
-        new DeepSeekChatProtocolProfile(),
-        new GemmaChatProtocolProfile(),
-        new AppleChatProtocolProfile(),
-        new ThinkTagsChatProtocolProfile(),
-        new PlainTextChatProtocolProfile()
-    ];
-
-    public static IChatProtocolProfile ResolveExact(
-        IEnumerable<IChatProtocolProfile> profiles,
-        ChatResponseProtocol protocol) =>
-        profiles.FirstOrDefault(profile => profile.Protocol == protocol)
-        ?? new PlainTextChatProtocolProfile();
-}
-
-public sealed class HarmonyChatProtocolProfile : IChatProtocolProfile
-{
-    public ChatResponseProtocol Protocol => ChatResponseProtocol.Harmony;
-    public int Priority => 100;
-    public bool MatchesModel(string modelName) =>
-        ContainsAny(modelName, "harmony", "gpt-oss");
-    public string NormalizeThinking(string text) => text;
-    public string NormalizeContent(string text) => text;
-
-    internal static bool ContainsAny(string value, params string[] needles) =>
-        needles.Any(needle => value.Contains(needle, StringComparison.OrdinalIgnoreCase));
-}
-
-public sealed class DeepSeekChatProtocolProfile : IChatProtocolProfile
-{
-    private static readonly string[] ControlTokens =
-    [
-        "<｜begin▁of▁sentence｜>",
-        "<｜end▁of▁sentence｜>",
-        "<｜User｜>",
-        "<｜Assistant｜>"
-    ];
-
-    public ChatResponseProtocol Protocol => ChatResponseProtocol.DeepSeek;
-    public int Priority => 90;
-    public bool MatchesModel(string modelName) =>
-        HarmonyChatProtocolProfile.ContainsAny(modelName, "deepseek", "deep-seek", "r1-distill");
-    public string NormalizeThinking(string text) => Strip(text);
-    public string NormalizeContent(string text) => Strip(text);
-
-    private static string Strip(string text) => ReplaceAll(text, ControlTokens);
-
-    internal static string ReplaceAll(string text, IEnumerable<string> tokens)
+    public bool ContainsAny(string value, LocalGptRuntimeCollection collection)
     {
-        var result = text;
-        foreach (var token in tokens)
-            result = result.Replace(token, string.Empty, StringComparison.OrdinalIgnoreCase);
-        return result;
+        try
+        {
+            var source = value ?? string.Empty;
+            var result = runtimePolicy.GetCollection(collection)
+                .Any(needle => source.Contains(needle, StringComparison.OrdinalIgnoreCase));
+            logger.LogTrace($"Checked chat protocol hints from {collection}; matched={result}.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not check chat protocol hints from {collection}: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string ReplaceAll(string text, LocalGptRuntimeCollection collection)
+    {
+        try
+        {
+            var result = text ?? string.Empty;
+            foreach (var token in runtimePolicy.GetCollection(collection))
+                result = result.Replace(token, string.Empty, StringComparison.OrdinalIgnoreCase);
+            logger.LogTrace($"Normalized chat protocol content using {collection}.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize chat protocol content using {collection}: {exception.Message}");
+            throw;
+        }
     }
 }
 
-public sealed class GemmaChatProtocolProfile : IChatProtocolProfile
+public sealed class ChatProtocolProfileCatalog(
+    IEnumerable<IChatProtocolProfile> profiles,
+    ILogger<ChatProtocolProfileCatalog> logger) : IChatProtocolProfileCatalog
 {
-    private readonly string[] ControlTokens =
-    [
-        "<bos>",
-        "<eos>",
-        "<start_of_turn>model\n",
-        "<start_of_turn>assistant\n",
-        "<start_of_turn>model",
-        "<start_of_turn>assistant",
-        "<end_of_turn>"
-    ];
+    public IReadOnlyList<IChatProtocolProfile> Profiles { get; } = profiles
+        .OrderByDescending(profile => profile.Priority)
+        .ToArray();
 
+    public IChatProtocolProfile ResolveExact(ChatResponseProtocol protocol)
+    {
+        try
+        {
+            var profile = Profiles.FirstOrDefault(candidate => candidate.Protocol == protocol)
+                ?? Profiles.FirstOrDefault(candidate => candidate.Protocol == ChatResponseProtocol.PlainText)
+                ?? throw new InvalidOperationException("No plain-text chat protocol profile is registered.");
+            logger.LogTrace($"Resolved exact chat protocol profile {profile.Protocol} for {protocol}.");
+            return profile;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not resolve exact chat protocol profile {protocol}: {exception.Message}");
+            throw;
+        }
+    }
+}
+
+public sealed class HarmonyChatProtocolProfile(
+    IChatProtocolTextService text,
+    ILogger<HarmonyChatProtocolProfile> logger) : IChatProtocolProfile
+{
+    public ChatResponseProtocol Protocol => ChatResponseProtocol.Harmony;
+    public int Priority => 100;
+
+    public bool MatchesModel(string modelName)
+    {
+        try
+        {
+            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatHarmonyModelHints);
+            logger.LogTrace($"Evaluated Harmony chat protocol match; matched={result}.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not evaluate Harmony chat protocol match: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeThinking(string value)
+    {
+        try
+        {
+            logger.LogTrace($"Normalized Harmony thinking content without token removal.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize Harmony thinking content: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeContent(string value)
+    {
+        try
+        {
+            logger.LogTrace($"Normalized Harmony visible content without token removal.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize Harmony visible content: {exception.Message}");
+            throw;
+        }
+    }
+}
+
+public sealed class DeepSeekChatProtocolProfile(
+    IChatProtocolTextService text,
+    ILogger<DeepSeekChatProtocolProfile> logger) : IChatProtocolProfile
+{
+    public ChatResponseProtocol Protocol => ChatResponseProtocol.DeepSeek;
+    public int Priority => 90;
+
+    public bool MatchesModel(string modelName)
+    {
+        try
+        {
+            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatDeepSeekModelHints);
+            logger.LogTrace($"Evaluated DeepSeek chat protocol match; matched={result}.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not evaluate DeepSeek chat protocol match: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeThinking(string value) {
+        try
+        {
+            logger.LogTrace($"Entering DeepSeekChatProtocolProfile.NormalizeThinking.");
+            return Normalize(value);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"DeepSeekChatProtocolProfile.NormalizeThinking failed: {exception.Message}");
+            throw;
+        }
+    }
+    public string NormalizeContent(string value) {
+        try
+        {
+            logger.LogTrace($"Entering DeepSeekChatProtocolProfile.NormalizeContent.");
+            return Normalize(value);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"DeepSeekChatProtocolProfile.NormalizeContent failed: {exception.Message}");
+            throw;
+        }
+    }
+
+    private string Normalize(string value)
+    {
+        try
+        {
+            var result = text.ReplaceAll(value, LocalGptRuntimeCollection.ChatDeepSeekControlTokens);
+            logger.LogTrace($"Normalized DeepSeek chat protocol content.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize DeepSeek chat protocol content: {exception.Message}");
+            throw;
+        }
+    }
+}
+
+public sealed class GemmaChatProtocolProfile(
+    IChatProtocolTextService text,
+    ILogger<GemmaChatProtocolProfile> logger) : IChatProtocolProfile
+{
     public ChatResponseProtocol Protocol => ChatResponseProtocol.Gemma;
     public int Priority => 80;
-    public bool MatchesModel(string modelName) =>
-        HarmonyChatProtocolProfile.ContainsAny(modelName, "gemma", "codegemma", "shieldgemma");
-    public string NormalizeThinking(string text) => DeepSeekChatProtocolProfile.ReplaceAll(text, ControlTokens);
-    public string NormalizeContent(string text) => DeepSeekChatProtocolProfile.ReplaceAll(text, ControlTokens);
+
+    public bool MatchesModel(string modelName)
+    {
+        try
+        {
+            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatGemmaModelHints);
+            logger.LogTrace($"Evaluated Gemma chat protocol match; matched={result}.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not evaluate Gemma chat protocol match: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeThinking(string value) {
+        try
+        {
+            logger.LogTrace($"Entering GemmaChatProtocolProfile.NormalizeThinking.");
+            return Normalize(value);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"GemmaChatProtocolProfile.NormalizeThinking failed: {exception.Message}");
+            throw;
+        }
+    }
+    public string NormalizeContent(string value) {
+        try
+        {
+            logger.LogTrace($"Entering GemmaChatProtocolProfile.NormalizeContent.");
+            return Normalize(value);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"GemmaChatProtocolProfile.NormalizeContent failed: {exception.Message}");
+            throw;
+        }
+    }
+
+    private string Normalize(string value)
+    {
+        try
+        {
+            var result = text.ReplaceAll(value, LocalGptRuntimeCollection.ChatGemmaControlTokens);
+            logger.LogTrace($"Normalized Gemma chat protocol content.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize Gemma chat protocol content: {exception.Message}");
+            throw;
+        }
+    }
 }
 
-public sealed class AppleChatProtocolProfile : IChatProtocolProfile
+public sealed class AppleChatProtocolProfile(
+    IChatProtocolTextService text,
+    ILogger<AppleChatProtocolProfile> logger) : IChatProtocolProfile
 {
-    private readonly string[] ControlTokens =
-    [
-        "<|start_of_role|>assistant<|end_of_role|>",
-        "<|start_of_role|>analysis<|end_of_role|>",
-        "<|start_of_turn|>assistant",
-        "<|end_of_turn|>",
-        "<|end_of_text|>",
-        "<|eot_id|>"
-    ];
-
     public ChatResponseProtocol Protocol => ChatResponseProtocol.Apple;
     public int Priority => 70;
-    public bool MatchesModel(string modelName) =>
-        HarmonyChatProtocolProfile.ContainsAny(modelName, "apple", "openelm", "afm", "foundation-model", "mlx-");
-    public string NormalizeThinking(string text) => DeepSeekChatProtocolProfile.ReplaceAll(text, ControlTokens);
-    public string NormalizeContent(string text) => DeepSeekChatProtocolProfile.ReplaceAll(text, ControlTokens);
+
+    public bool MatchesModel(string modelName)
+    {
+        try
+        {
+            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatAppleModelHints);
+            logger.LogTrace($"Evaluated Apple chat protocol match; matched={result}.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not evaluate Apple chat protocol match: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeThinking(string value) {
+        try
+        {
+            logger.LogTrace($"Entering AppleChatProtocolProfile.NormalizeThinking.");
+            return Normalize(value);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"AppleChatProtocolProfile.NormalizeThinking failed: {exception.Message}");
+            throw;
+        }
+    }
+    public string NormalizeContent(string value) {
+        try
+        {
+            logger.LogTrace($"Entering AppleChatProtocolProfile.NormalizeContent.");
+            return Normalize(value);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"AppleChatProtocolProfile.NormalizeContent failed: {exception.Message}");
+            throw;
+        }
+    }
+
+    private string Normalize(string value)
+    {
+        try
+        {
+            var result = text.ReplaceAll(value, LocalGptRuntimeCollection.ChatAppleControlTokens);
+            logger.LogTrace($"Normalized Apple chat protocol content.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize Apple chat protocol content: {exception.Message}");
+            throw;
+        }
+    }
 }
 
-public sealed class ThinkTagsChatProtocolProfile : IChatProtocolProfile
+public sealed class ThinkTagsChatProtocolProfile(
+    IChatProtocolTextService text,
+    ILogger<ThinkTagsChatProtocolProfile> logger) : IChatProtocolProfile
 {
     public ChatResponseProtocol Protocol => ChatResponseProtocol.ThinkTags;
     public int Priority => 50;
-    public bool MatchesModel(string modelName) =>
-        HarmonyChatProtocolProfile.ContainsAny(modelName, "qwq", "qwen3", "thinking");
-    public string NormalizeThinking(string text) => text;
-    public string NormalizeContent(string text) => text;
+
+    public bool MatchesModel(string modelName)
+    {
+        try
+        {
+            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatThinkTagsModelHints);
+            logger.LogTrace($"Evaluated think-tag chat protocol match; matched={result}.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not evaluate think-tag chat protocol match: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeThinking(string value)
+    {
+        try
+        {
+            logger.LogTrace($"Normalized think-tag thinking content without token removal.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize think-tag thinking content: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeContent(string value)
+    {
+        try
+        {
+            logger.LogTrace($"Normalized think-tag visible content without token removal.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize think-tag visible content: {exception.Message}");
+            throw;
+        }
+    }
 }
 
-public sealed class PlainTextChatProtocolProfile : IChatProtocolProfile
+public sealed class PlainTextChatProtocolProfile(
+    ILogger<PlainTextChatProtocolProfile> logger) : IChatProtocolProfile
 {
     public ChatResponseProtocol Protocol => ChatResponseProtocol.PlainText;
     public int Priority => 0;
-    public bool MatchesModel(string modelName) => false;
-    public string NormalizeThinking(string text) => text;
-    public string NormalizeContent(string text) => text;
+
+    public bool MatchesModel(string modelName)
+    {
+        try
+        {
+            logger.LogTrace($"Plain-text chat protocol is the fallback and does not match model names directly.");
+            return false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not evaluate plain-text chat protocol match: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeThinking(string value)
+    {
+        try
+        {
+            logger.LogTrace($"Normalized plain-text thinking content without token removal.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize plain-text thinking content: {exception.Message}");
+            throw;
+        }
+    }
+
+    public string NormalizeContent(string value)
+    {
+        try
+        {
+            logger.LogTrace($"Normalized plain-text visible content without token removal.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not normalize plain-text visible content: {exception.Message}");
+            throw;
+        }
+    }
 }

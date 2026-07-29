@@ -2,8 +2,8 @@
 @page "/Chat"
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Text.Json
-@using LocalGPT.Extensions
 @inject CouncilRuntimeService CouncilRuntime
+@inject ILocalGptRuntimePolicyDataService RuntimePolicy
 @inject CouncilTextService CouncilText
 @inject LocalGptCatalogService Catalog
 @inject IChatMemoryService ChatMemory
@@ -103,12 +103,12 @@
             <label class="ollama-mode-setting" title="Controls Ollama's num_gpu option for DXAiChat and AI Council. Auto GPU lets Ollama use your GPU; Safe CPU forces num_gpu=0; Limited GPU uses a partial GPU-layer cap.">
                 <span>Ollama acceleration</span>
                 <select value="@OllamaAccelerationMode" @onchange="OnOllamaAccelerationModeChanged">
-                    <option value="@LocalGptCatalogService.OllamaModeAutoGpu">Auto GPU</option>
-                    <option value="@LocalGptCatalogService.OllamaModeSafeCpu">Safe CPU</option>
-                    <option value="@LocalGptCatalogService.OllamaModeLimitedGpu">Limited GPU</option>
+                    <option value="@Catalog.OllamaModeAutoGpu">Auto GPU</option>
+                    <option value="@Catalog.OllamaModeSafeCpu">Safe CPU</option>
+                    <option value="@Catalog.OllamaModeLimitedGpu">Limited GPU</option>
                 </select>
             </label>
-            @if (OllamaAccelerationMode == LocalGptCatalogService.OllamaModeLimitedGpu)
+            @if (OllamaAccelerationMode == Catalog.OllamaModeLimitedGpu)
             {
                 <label class="council-token-setting" title="Ollama num_gpu layer cap used by Limited GPU mode. Lower this if the driver becomes unstable; raise it if generation is too slow and VRAM is available.">
                     <span>GPU layers</span>
@@ -187,7 +187,7 @@
         <details class="council-road-details" data-testid="council-hardware-road-editor">
             <summary>Hardware spooler and per-model CPU/GPU roads</summary>
             <CouncilHardwareRoadEditor ModelNames="SelectedCouncilModelNames"
-                                       Routes="CouncilModelRoutes"
+                                       Catalog.Routes="CouncilModelRoutes"
                                        ResourceLoadPercent="CouncilResourceLoadPercent"
                                        Changed="OnHardwareRoadsChanged" />
         </details>
@@ -401,8 +401,8 @@
                 </MessageContentTemplate>
                 <AIChatSettings>
                     <DxAIChatFileUploadSettings 
-                        MaxFileCount="@LocalGptCatalogService.MaxUploadFiles"
-                        MaxFileSize="@LocalGptCatalogService.MaxUploadBytes" />
+                        MaxFileCount="@Catalog.MaxUploadFiles"
+                        MaxFileSize="@Catalog.MaxUploadBytes" />
                 </AIChatSettings>
 
             </DxAIChat>
@@ -518,15 +518,15 @@
     bool AutoLoadLatestConversation { get; set; }
     bool UseFreshDiagnosticChat { get; set; }
 
-    string OllamaAccelerationMode { get; set; } = LocalGptCatalogService.OllamaModeAutoGpu;
+    string OllamaAccelerationMode { get; set; } = Catalog.OllamaModeAutoGpu;
     int LimitedGpuLayers { get; set; } = 20;
-    string DefaultOllamaEndpoint { get; set; } = LocalGptCatalogService.DefaultOllamaEndpoint;
+    string Catalog.DefaultOllamaEndpoint { get; set; } = Catalog.DefaultOllamaEndpoint;
     bool GenerateCouncilArtifacts { get; set; }
     bool IncludeCouncilMemory { get; set; } = true;
     string? DiagnosticRequestedSessionName { get; set; }
     string? DiagnosticOllamaEndpoint { get; set; }
-    int CouncilMaxOutputTokens { get; set; } = LocalGptCatalogService.DefaultCouncilOutputTokens;
-    int CouncilMaxContextTokens { get; set; } = LocalGptCatalogService.DefaultCouncilContextTokens;
+    int CouncilMaxOutputTokens { get; set; } = Catalog.DefaultCouncilOutputTokens;
+    int CouncilMaxContextTokens { get; set; } = Catalog.DefaultCouncilContextTokens;
     int CouncilResourceLoadPercent { get; set; } = 100;
     int CouncilCritiqueRounds { get; set; } = 1;
 
@@ -715,14 +715,14 @@
             SystemVariables.DefaultMaxOutputTokens,
             value => CouncilMaxOutputTokens = Math.Clamp(
                 value,
-                LocalGptCatalogService.MinCouncilOutputTokens,
-                LocalGptCatalogService.MaxCouncilOutputTokens));
+                Catalog.MinCouncilOutputTokens,
+                Catalog.MaxCouncilOutputTokens));
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultContextTokens,
             value => CouncilMaxContextTokens = Math.Clamp(
                 value,
-                LocalGptCatalogService.MinCouncilContextTokens,
-                LocalGptCatalogService.MaxCouncilContextTokens));
+                Catalog.MinCouncilContextTokens,
+                Catalog.MaxCouncilContextTokens));
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultHeavyModelGpuLayers,
             value => LimitedGpuLayers = Math.Clamp(value, 1, 99));
@@ -734,8 +734,8 @@
             value => CouncilCritiqueRounds = Math.Clamp(value, 0, 3));
         await TryApplyDatabaseVariableAsync<string>(
             SystemVariables.DefaultOllamaEndpoint,
-            value => DefaultOllamaEndpoint = string.IsNullOrWhiteSpace(value)
-                ? LocalGptCatalogService.DefaultOllamaEndpoint
+            value => Catalog.DefaultOllamaEndpoint = string.IsNullOrWhiteSpace(value)
+                ? Catalog.DefaultOllamaEndpoint
                 : value.Trim());
     }
 
@@ -1151,8 +1151,8 @@
             EnsureDiagnosticOllamaSession(previousMessages);
        
             var councilSession = new ChatClientSession(
-                new CouncilChatClient(CouncilService, CreateCouncilRequest, Logger, CouncilRuntime, CouncilText, ResolveCouncilDownloadUrl),
-                LocalGptCatalogService.CouncilSessionName, "LocalGPT", "AI Council", Program.BaseUrl);
+                new CouncilChatClient(CouncilService, CreateCouncilRequest, Logger, CouncilRuntime, CouncilText, Catalog, ResolveCouncilDownloadUrl),
+                Catalog.CouncilSessionName, "LocalGPT", "AI Council", Program.BaseUrl);
             if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
                 councilSession.Messages.AddRange(councilMessages);
             ChatClientProvider.AvailableChatClients.Add(councilSession);
@@ -1211,12 +1211,12 @@
                 return null;
 
             return ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
-                       session.Name.StartsWith(LocalGptCatalogService.DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase))
+                       session.Name.StartsWith(Catalog.DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase))
                    ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
                        !session.Name.StartsWith("Ollama — ", StringComparison.OrdinalIgnoreCase) &&
-                       !session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+                       !session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
                    ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
-                       session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+                       session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
                    ?? ChatClientProvider.AvailableChatClients.FirstOrDefault();
         }
         catch (Exception ex)
@@ -1242,7 +1242,7 @@
             if (string.IsNullOrWhiteSpace(endpoint))
                 endpoint = OllamaCandidates.FirstOrDefault()?.Endpoint;
             if (string.IsNullOrWhiteSpace(endpoint))
-                endpoint = DefaultOllamaEndpoint;
+                endpoint = Catalog.DefaultOllamaEndpoint;
 
             var session = new ChatClientSession(
                 new OllamaThinkingChatClient(
@@ -1257,7 +1257,7 @@
                         protocolResolver: ChatProtocolResolver,
                         promptConfigService: PromptConfigService,
                         functionRegistry: DxAiFunctionRegistry),
-                $"{LocalGptCatalogService.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilText.TrimEndpoint(endpoint, Logger)}", "Ollama", DiagnosticRequestedSessionName, endpoint);
+                $"{Catalog.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilText.TrimEndpoint(endpoint, Logger)}", "Ollama", DiagnosticRequestedSessionName, endpoint);
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
                 session.Messages.AddRange(messages);
@@ -1291,12 +1291,12 @@
                 ModelNames = (CouncilRuntime.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
                 BaseUri = selectedEndpoint,
                 MaxRounds = Math.Clamp(CouncilCritiqueRounds, 0, 3),
-                MaxOutputTokens = ResolveCouncilOutputTokens(),
+                Catalog.MaxOutputTokens = ResolveCouncilOutputTokens(),
                 MaxParallelModels = Math.Max(1, SelectedModelPreset?.MaxParallelModels ?? 1),
                 AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
                 ResourceLoadPercent = Math.Clamp((int)Math.Round(CouncilResourceLoadPercent / 5d) * 5, 0, 100),
                 ModelRoutes = CouncilModelRoutes.Select(CloneRoute).ToList(),
-                MaxContextTokens = ResolveCouncilContextTokens(),
+                Catalog.MaxContextTokens = ResolveCouncilContextTokens(),
                 ModelTimeoutSeconds = 1800,
                 OllamaKeepAlive = "0s",
                 OllamaNumGpu = ResolveOllamaNumGpu(),
@@ -1359,13 +1359,13 @@
             if (query.TryGetValue("diagCouncilMaxOutputTokens", out var maxTokens) &&
                 int.TryParse(maxTokens.ToString(), out var parsedMaxTokens))
             {
-                CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, LocalGptCatalogService.MinCouncilOutputTokens, LocalGptCatalogService.MaxCouncilOutputTokens);
+                CouncilMaxOutputTokens = Math.Clamp(parsedMaxTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
             }
 
             if (query.TryGetValue("diagCouncilMaxContextTokens", out var maxContext) &&
                 int.TryParse(maxContext.ToString(), out var parsedMaxContext))
             {
-                CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, LocalGptCatalogService.MinCouncilContextTokens, LocalGptCatalogService.MaxCouncilContextTokens);
+                CouncilMaxContextTokens = Math.Clamp(parsedMaxContext, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
             }
 
             if (query.TryGetValue("diagMaxOutputTokens", out var maxOutputTokens) &&
@@ -1402,7 +1402,7 @@
             if (query.TryGetValue("diagCpuOnly", out var cpuOnly) &&
                 bool.TryParse(cpuOnly.ToString(), out var parsedCpuOnly))
             {
-                OllamaAccelerationMode = parsedCpuOnly ? LocalGptCatalogService.OllamaModeSafeCpu : LocalGptCatalogService.OllamaModeAutoGpu;
+                OllamaAccelerationMode = parsedCpuOnly ? Catalog.OllamaModeSafeCpu : Catalog.OllamaModeAutoGpu;
             }
 
             if (query.TryGetValue("diagCouncilIncludeMemory", out var includeMemory) &&
@@ -1470,7 +1470,7 @@
                 return null;
 
             return requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase)
-                ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+                ? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
                 : ChatClientProvider.AvailableChatClients.FirstOrDefault(session => (CouncilRuntime.IsDynamicSession(session, Logger) ?? false) && session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase))
                     ?? ChatClientProvider.AvailableChatClients.FirstOrDefault(session => session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase));
         }
@@ -1488,7 +1488,7 @@
         try
         {
             if (requestedSession.Equals("council", StringComparison.OrdinalIgnoreCase))
-                return session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
+                return session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
 
             return session.Name.Contains(requestedSession, StringComparison.OrdinalIgnoreCase);
         }
@@ -1504,7 +1504,7 @@
     {
         try
         {
-            if (!OllamaAccelerationMode.Equals(LocalGptCatalogService.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase))
+            if (!OllamaAccelerationMode.Equals(Catalog.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase))
                 return true;
 
             var query = QueryHelpers.ParseQuery(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query);
@@ -1571,8 +1571,8 @@
         {
             return OllamaAccelerationMode switch
             {
-                LocalGptCatalogService.OllamaModeSafeCpu => 0,
-                LocalGptCatalogService.OllamaModeLimitedGpu => Math.Clamp(LimitedGpuLayers, 1, 99),
+                Catalog.OllamaModeSafeCpu => 0,
+                Catalog.OllamaModeLimitedGpu => Math.Clamp(LimitedGpuLayers, 1, 99),
                 _ => null
             };
         }
@@ -1589,7 +1589,7 @@
     {
         try
         {
-            return Math.Clamp(CouncilMaxOutputTokens, LocalGptCatalogService.MinCouncilOutputTokens, LocalGptCatalogService.MaxCouncilOutputTokens);
+            return Math.Clamp(CouncilMaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
         }
         catch (Exception ex)
         {
@@ -1604,7 +1604,7 @@
     {
         try
         {
-            return Math.Clamp(CouncilMaxContextTokens, LocalGptCatalogService.MinCouncilContextTokens, LocalGptCatalogService.MaxCouncilContextTokens);
+            return Math.Clamp(CouncilMaxContextTokens, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
         }
         catch (Exception ex)
         {
@@ -1620,9 +1620,9 @@
     {
         try
         {
-            var requestedMode = Convert.ToString(e.Value) ?? LocalGptCatalogService.OllamaModeAutoGpu;
+            var requestedMode = Convert.ToString(e.Value) ?? Catalog.OllamaModeAutoGpu;
             if (!CouncilRuntime.TryIsSupportedOllamaMode(requestedMode, Logger) ?? false)
-                requestedMode = LocalGptCatalogService.OllamaModeAutoGpu;
+                requestedMode = Catalog.OllamaModeAutoGpu;
 
             OllamaAccelerationMode = requestedMode;
             if (DxAiChat is not null)
@@ -1631,8 +1631,8 @@
             RebuildDynamicSessions();
             modelStatus = OllamaAccelerationMode switch
             {
-                LocalGptCatalogService.OllamaModeSafeCpu => "Ollama acceleration: Safe CPU. LocalGPT sends num_gpu=0.",
-                LocalGptCatalogService.OllamaModeLimitedGpu => $"Ollama acceleration: Limited GPU. LocalGPT sends num_gpu={Math.Clamp(LimitedGpuLayers, 1, 99)}.",
+                Catalog.OllamaModeSafeCpu => "Ollama acceleration: Safe CPU. LocalGPT sends num_gpu=0.",
+                Catalog.OllamaModeLimitedGpu => $"Ollama acceleration: Limited GPU. LocalGPT sends num_gpu={Math.Clamp(LimitedGpuLayers, 1, 99)}.",
                 _ => "Ollama acceleration: Auto GPU. LocalGPT lets Ollama choose GPU offload."
             };
         }
@@ -1696,20 +1696,20 @@
         CouncilModelRoutes = ParseModelRoutes(preset.ModelRoutesJson);
         var loadOverrides = CouncilModelRoutes.Where(route => route.LoadPercentOverride.HasValue).Select(route => route.LoadPercentOverride!.Value).Distinct().ToList();
         if (loadOverrides.Count == 1) CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(loadOverrides[0] / 5d) * 5, 0, 100);
-        CouncilMaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, LocalGptCatalogService.MinCouncilOutputTokens, LocalGptCatalogService.MaxCouncilOutputTokens);
-        CouncilMaxContextTokens = Math.Clamp(preset.MaxContextTokens, LocalGptCatalogService.MinCouncilContextTokens, LocalGptCatalogService.MaxCouncilContextTokens);
+        CouncilMaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
+        CouncilMaxContextTokens = Math.Clamp(preset.MaxContextTokens, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
         IncludeCouncilMemory = preset.IncludeMemory;
         GenerateCouncilArtifacts = preset.GenerateArtifacts;
         CreateProjectPerCouncilRun = preset.CreateProjectPerRun;
         if (preset.OllamaNumGpu == 0)
-            OllamaAccelerationMode = LocalGptCatalogService.OllamaModeSafeCpu;
+            OllamaAccelerationMode = Catalog.OllamaModeSafeCpu;
         else if (preset.OllamaNumGpu is > 0)
         {
-            OllamaAccelerationMode = LocalGptCatalogService.OllamaModeLimitedGpu;
+            OllamaAccelerationMode = Catalog.OllamaModeLimitedGpu;
             LimitedGpuLayers = Math.Clamp(preset.OllamaNumGpu.Value, 1, 99);
         }
         else
-            OllamaAccelerationMode = LocalGptCatalogService.OllamaModeAutoGpu;
+            OllamaAccelerationMode = Catalog.OllamaModeAutoGpu;
     }
 
     private async Task SaveModelPresetAsync()
@@ -1727,8 +1727,8 @@
                     ModelNamesJson = JsonSerializer.Serialize(SelectedCouncilModelNames),
                     ModelRoutesJson = JsonSerializer.Serialize(CouncilModelRoutes.Select(CloneRoute).ToList()),
                     AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
-                    MaxOutputTokens = CouncilMaxOutputTokens,
-                    MaxContextTokens = CouncilMaxContextTokens,
+                    Catalog.MaxOutputTokens = CouncilMaxOutputTokens,
+                    Catalog.MaxContextTokens = CouncilMaxContextTokens,
                     MaxParallelModels = 1,
                     OllamaNumGpu = ResolveOllamaNumGpu(),
                     IncludeMemory = IncludeCouncilMemory,
@@ -1784,10 +1784,10 @@
         HardwareKind = route.HardwareKind,
         HardwareIndex = route.HardwareIndex,
         HardwareName = route.HardwareName,
-        MinOutputTokens = route.MinOutputTokens,
-        MaxOutputTokens = route.MaxOutputTokens,
-        MinContextTokens = route.MinContextTokens,
-        MaxContextTokens = route.MaxContextTokens,
+        Catalog.MinOutputTokens = route.MinOutputTokens,
+        Catalog.MaxOutputTokens = route.MaxOutputTokens,
+        Catalog.MinContextTokens = route.MinContextTokens,
+        Catalog.MaxContextTokens = route.MaxContextTokens,
         OllamaNumGpu = route.OllamaNumGpu,
         LoadPercentOverride = route.LoadPercentOverride,
         SelfReportedDxFunctions = [.. route.SelfReportedDxFunctions],
@@ -2442,7 +2442,7 @@
         try
         {
             using var humanScope = HumanAmbientContext.PushHumanInteraction(
-                HumanCollaborationIdentity.LocalHumanProfileId,
+                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
                 collaborationSnapshot.Profile.DisplayName,
                 nameof(Chat),
                 councilRunId: activeRun.RunId,

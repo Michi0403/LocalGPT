@@ -14,6 +14,7 @@ public sealed partial class CouncilChatClient(
     ILogger logger,
     CouncilRuntimeService councilRuntime,
     CouncilTextService councilText,
+    LocalGptCatalogService catalog,
     Func<string, string>? downloadUrlResolver = null) : IChatClient
 {
 
@@ -233,7 +234,7 @@ public sealed partial class CouncilChatClient(
                     .AppendLine("<summary>Prompt sent to the AI Council</summary>")
                     .AppendLine()
                     .AppendLine("```text")
-                    .AppendLine(councilText.TrimForDisplay(result.Prompt, LocalGptCatalogService.MaxVisiblePromptCharacters, logger))
+                    .AppendLine(councilText.TrimForDisplay(result.Prompt, catalog.MaxVisiblePromptCharacters, logger))
                     .AppendLine("```")
                     .AppendLine("</details>")
                     .AppendLine();

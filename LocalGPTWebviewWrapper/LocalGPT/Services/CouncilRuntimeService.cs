@@ -15,7 +15,6 @@ using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
@@ -124,16 +123,16 @@ namespace LocalGPT.Services
         {
             var loader = string.IsNullOrWhiteSpace(loaderOverride) ? request.Loader : loaderOverride;
             var normalizedLoader = string.IsNullOrWhiteSpace(loader) ? "Fabric" : loader.Trim();
-            var minecraftVersion = string.IsNullOrWhiteSpace(request.MinecraftVersion) ? DefaultMinecraftVersion : request.MinecraftVersion.Trim();
-            var javaVersion = string.IsNullOrWhiteSpace(request.JavaVersion) ? DefaultJavaVersion : request.JavaVersion.Trim();
-            var gradleVersion = string.IsNullOrWhiteSpace(request.GradleVersion) ? DefaultGradleVersion : request.GradleVersion.Trim();
+            var minecraftVersion = string.IsNullOrWhiteSpace(request.MinecraftVersion) ? _catalog.DefaultMinecraftVersion : request.MinecraftVersion.Trim();
+            var javaVersion = string.IsNullOrWhiteSpace(request.JavaVersion) ? _catalog.DefaultJavaVersion : request.JavaVersion.Trim();
+            var gradleVersion = string.IsNullOrWhiteSpace(request.GradleVersion) ? _catalog.DefaultGradleVersion : request.GradleVersion.Trim();
             return new MinecraftDependencyVersionInfo(
                 Loader: normalizedLoader,
                 RequestedMinecraftVersion: minecraftVersion,
                 MatchedMinecraftVersion: minecraftVersion,
                 JavaVersion: javaVersion,
                 GradleVersion: gradleVersion,
-                FabricLoaderVersion: normalizedLoader.Equals("Fabric", StringComparison.OrdinalIgnoreCase) ? FabricLoaderVersion : null,
+                _catalog.FabricLoaderVersion: normalizedLoader.Equals("Fabric", StringComparison.OrdinalIgnoreCase) ? _catalog.FabricLoaderVersion : null,
                 FabricApiVersion: null,
                 NeoForgeVersion: null,
                 PaperApiVersion: null,
@@ -306,10 +305,10 @@ namespace LocalGPT.Services
             {
                 var normalizedLoader = _text.NormalizeLoader(loader, logger);
                 var requestedMinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion)
-                    ? LocalGptCatalogService.DefaultMinecraftVersion
+                    ? _catalog.DefaultMinecraftVersion
                     : minecraftVersion.Trim();
                 var requestedGradleVersion = string.IsNullOrWhiteSpace(gradleVersion)
-                    ? LocalGptCatalogService.DefaultGradleVersion
+                    ? _catalog.DefaultGradleVersion
                     : gradleVersion.Trim();
                 var knownDependencyVersions = KnownDependencyVersionInfoVersions(logger);
                 var entry = knownDependencyVersions.FirstOrDefault(item =>
@@ -326,7 +325,7 @@ namespace LocalGPT.Services
                     : knownDependencyVersions.First(item => item.MinecraftVersion == "26.1");
 
                 var requestedJavaVersion = string.IsNullOrWhiteSpace(javaVersion)
-                    ? entry.JavaVersion ?? DefaultJavaVersion
+                    ? entry.JavaVersion ?? _catalog.DefaultJavaVersion
                     : javaVersion.Trim();
 
                 var datapack = MinecraftDatapackVersionInfoResolve(requestedMinecraftVersion, logger);
@@ -346,7 +345,7 @@ namespace LocalGPT.Services
                     MatchedMinecraftVersion: entry.MinecraftVersion,
                     JavaVersion: requestedJavaVersion,
                     GradleVersion: requestedGradleVersion,
-                    FabricLoaderVersion: normalizedLoader is "Fabric" or "NeoForge" ? FabricLoaderVersion : null,
+                    _catalog.FabricLoaderVersion: normalizedLoader is "Fabric" or "NeoForge" ? _catalog.FabricLoaderVersion : null,
                     FabricApiVersion: normalizedLoader is "Fabric" ? entry.FabricApiVersion : null,
                     NeoForgeVersion: normalizedLoader is "NeoForge" ? entry.NeoForgeVersion : null,
                     PaperApiVersion: normalizedLoader is "Paper" ? entry.PaperApiVersion : null,
@@ -363,9 +362,9 @@ namespace LocalGPT.Services
                     new MinecraftModBuildRequest
                     {
                         Loader = loader ?? "Fabric",
-                        MinecraftVersion = minecraftVersion ?? DefaultMinecraftVersion,
-                        JavaVersion = javaVersion ?? DefaultJavaVersion,
-                        GradleVersion = gradleVersion ?? DefaultGradleVersion
+                        MinecraftVersion = minecraftVersion ?? _catalog.DefaultMinecraftVersion,
+                        JavaVersion = javaVersion ?? _catalog.DefaultJavaVersion,
+                        GradleVersion = gradleVersion ?? _catalog.DefaultGradleVersion
                     },
                     loader,
                     ex.Message);
@@ -377,7 +376,7 @@ namespace LocalGPT.Services
             try
             {
                 var requested = string.IsNullOrWhiteSpace(minecraftVersion)
-                ? DefaultMinecraftVersion
+                ? _catalog.DefaultMinecraftVersion
                 : minecraftVersion.Trim();
                 var knownVersions = MinecraftDatapackVersionKnownVersions(logger);
                 var exact = knownVersions.FirstOrDefault(item =>
@@ -393,10 +392,10 @@ namespace LocalGPT.Services
                     return prefix with { RequestedVersion = requested, IsExactMatch = false, NeedsVerification = true, Notes = $"{prefix.Notes} Version matched by prefix; verify against the official Minecraft version manifest before friend testing." };
 
                 var fallback = requested.StartsWith("26.", StringComparison.OrdinalIgnoreCase)
-                    ? knownVersions.First(item => item.MatchedVersion == DefaultMinecraftVersion)
+                    ? knownVersions.First(item => item.MatchedVersion == _catalog.DefaultMinecraftVersion)
                     : requested.StartsWith("1.21", StringComparison.OrdinalIgnoreCase)
                     ? knownVersions.First(item => item.MatchedVersion == "1.21.4")
-                    : knownVersions.First(item => item.MatchedVersion == DefaultMinecraftVersion);
+                    : knownVersions.First(item => item.MatchedVersion == _catalog.DefaultMinecraftVersion);
 
                 return fallback with
                 {
@@ -409,10 +408,10 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not resolve datapack metadata for Minecraft version {MinecraftVersion}.", minecraftVersion);
-                var requested = string.IsNullOrWhiteSpace(minecraftVersion) ? DefaultMinecraftVersion : minecraftVersion.Trim();
+                var requested = string.IsNullOrWhiteSpace(minecraftVersion) ? _catalog.DefaultMinecraftVersion : minecraftVersion.Trim();
                 return new MinecraftDatapackVersionInfo(
                     RequestedVersion: requested,
-                    MatchedVersion: DefaultMinecraftVersion,
+                    MatchedVersion: _catalog.DefaultMinecraftVersion,
                     PackFormat: "101.1",
                     FunctionRegistryFolder: "function",
                     IsExactMatch: false,
@@ -1054,9 +1053,9 @@ namespace LocalGPT.Services
             {
                 var files = EnumerateUsefulFiles(projectDirectory, logger).Take(1600).ToArray();
                 var sourceFiles = files
-                    .Where(file => LocalGptCatalogService.SourceExtensions.Contains(file.Extension))
+                    .Where(file => _catalog.SourceExtensions.Contains(file.Extension))
                     .ToArray();
-                var binaryCount = files.Count(file => LocalGptCatalogService.BinaryExtensions.Contains(file.Extension));
+                var binaryCount = files.Count(file => _catalog.BinaryExtensions.Contains(file.Extension));
                 var textSamples = sourceFiles
                     .Where(file => file.Length is > 0 and < 256_000)
                     .Take(80)
@@ -1203,13 +1202,13 @@ namespace LocalGPT.Services
 
                     foreach (var subdirectory in subdirectories)
                     {
-                        if (!LocalGptCatalogService.ExcludedDirectoryNames.Contains(subdirectory.Name))
+                        if (!_catalog.ExcludedDirectoryNames.Contains(subdirectory.Name))
                             stack.Push(subdirectory);
                     }
 
                     foreach (var file in files)
                     {
-                        if (LocalGptCatalogService.SourceExtensions.Contains(file.Extension) || LocalGptCatalogService.BinaryExtensions.Contains(file.Extension))
+                        if (_catalog.SourceExtensions.Contains(file.Extension) || _catalog.BinaryExtensions.Contains(file.Extension))
                             yield return file;
                     }
                 }
@@ -1401,7 +1400,7 @@ namespace LocalGPT.Services
                 while (stack.Count > 0)
                 {
                     var current = stack.Pop();
-                    if (LocalGptCatalogService.ExcludedDirectoryNames.Contains(current.Name))
+                    if (_catalog.ExcludedDirectoryNames.Contains(current.Name))
                         continue;
 
                     if (LooksLikeArchitectureRoot(current.FullName, logger))
@@ -1434,7 +1433,7 @@ namespace LocalGPT.Services
             {
                 return new DirectoryInfo(rootPath)
                     .EnumerateDirectories()
-                    .Where(directory => !LocalGptCatalogService.ExcludedDirectoryNames.Contains(directory.Name))
+                    .Where(directory => !_catalog.ExcludedDirectoryNames.Contains(directory.Name))
                     .OrderBy(directory => directory.FullName, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
             }
@@ -1766,9 +1765,9 @@ namespace LocalGPT.Services
                 }
 
                 var prompt = builder.ToString().Trim();
-                return prompt.Length <= MaxDxAiChatPromptCharacters
+                return prompt.Length <= _catalog.MaxDxAiChatPromptCharacters
                     ? prompt
-                    : prompt[^MaxDxAiChatPromptCharacters..];
+                    : prompt[^_catalog.MaxDxAiChatPromptCharacters..];
             }
             catch (Exception ex)
             {
@@ -1844,7 +1843,7 @@ namespace LocalGPT.Services
                     DateTime.UtcNow,
                     includedInPrompt,
                     note),
-                _text.TrimForPrompt(excerpt, MaxExcerptCharactersPerFile, logger));
+                _text.TrimForPrompt(excerpt, _catalog.MaxExcerptCharactersPerFile, logger));
             }
             catch (Exception ex)
             {
@@ -1912,7 +1911,7 @@ namespace LocalGPT.Services
                 var extension = Path.GetExtension(relativePath);
                 if (_catalog.BinaryDiagnosticExtensions.Contains(extension))
                 {
-                    var strings = _text.ExtractPrintableStrings(bytes, MaxBinaryStringCharacters, logger);
+                    var strings = _text.ExtractPrintableStrings(bytes, _catalog.MaxBinaryStringCharacters, logger);
                     var note = extension.Equals(".pdb", StringComparison.OrdinalIgnoreCase)
                         ? "PDB/debug file summarized with printable strings only."
                         : "Binary file summarized with printable strings only.";
@@ -1984,13 +1983,13 @@ namespace LocalGPT.Services
                 builder.AppendLine();
                 builder.AppendLine("## Extracted context");
 
-                var remainingCharacters = MaxContextCharacters - builder.Length;
+                var remainingCharacters = _catalog.MaxContextCharacters - builder.Length;
                 foreach (var file in analyzedFiles.Where(file => file.Summary.IncludedInPrompt))
                 {
                     if (remainingCharacters <= 0)
                         break;
 
-                    var excerpt = _text.TrimForPrompt(file.Excerpt, Math.Min(MaxExcerptCharactersPerFile, remainingCharacters), logger);
+                    var excerpt = _text.TrimForPrompt(file.Excerpt, Math.Min(_catalog.MaxExcerptCharactersPerFile, remainingCharacters), logger);
                     if (string.IsNullOrWhiteSpace(excerpt))
                         continue;
 
@@ -2011,7 +2010,7 @@ namespace LocalGPT.Services
                     remainingCharacters -= section.Length;
                 }
 
-                return _text.TrimForPrompt(builder.ToString(), MaxContextCharacters, logger);
+                return _text.TrimForPrompt(builder.ToString(), _catalog.MaxContextCharacters, logger);
             }
             catch (Exception ex)
             {
@@ -2501,11 +2500,11 @@ namespace LocalGPT.Services
                     return false;
 
                 var text = result.Prompt;
-                if (ImplementationDecisionPattern().IsMatch(text))
+                if (_catalog.ImplementationDecisionPattern.IsMatch(text))
                     return true;
 
                 var areaHits = MultiModelCouncilServiceCountImplementationAreaHits(text, logger);
-                return areaHits >= 3 && ImplementationChoicePattern().IsMatch(text);
+                return areaHits >= 3 && _catalog.ImplementationChoicePattern.IsMatch(text);
             }
             catch (Exception ex)
             {
@@ -2520,7 +2519,7 @@ namespace LocalGPT.Services
             try
             {
                 var text = result.Prompt;
-                if (!AiHostSetupPattern().IsMatch(text))
+                if (!_catalog.AiHostSetupPattern.IsMatch(text))
                     return false;
 
                 return text.Contains("setup needed", StringComparison.OrdinalIgnoreCase) ||
@@ -2543,7 +2542,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(prompt))
                     return false;
 
-                return DevelopmentRequestPattern().IsMatch(prompt);
+                return _catalog.DevelopmentRequestPattern.IsMatch(prompt);
             }
             catch (Exception ex)
             {
@@ -2559,9 +2558,9 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(prompt))
                     return false;
 
-                return ExplicitArtifactIntentPattern().IsMatch(prompt) ||
-                    ConcreteMinecraftArtifactPattern().IsMatch(prompt) ||
-                    ConcreteDotNetArtifactPattern().IsMatch(prompt);
+                return _catalog.ExplicitArtifactIntentPattern.IsMatch(prompt) ||
+                    _catalog.ConcreteMinecraftArtifactPattern.IsMatch(prompt) ||
+                    _catalog.ConcreteDotNetArtifactPattern.IsMatch(prompt);
             }
             catch (Exception ex)
             {
@@ -2579,7 +2578,7 @@ namespace LocalGPT.Services
                     return false;
 
                 var text = $"{result.Prompt} {result.FinalAnswer}";
-                return BlockingArtifactDecisionPattern().IsMatch(text);
+                return _catalog.BlockingArtifactDecisionPattern.IsMatch(text);
             }
             catch (Exception ex)
             {
@@ -2596,7 +2595,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(prompt))
                     return false;
 
-                return SafeSandboxConsentPattern().IsMatch(prompt);
+                return _catalog.SafeSandboxConsentPattern.IsMatch(prompt);
             }
             catch (Exception ex)
             {
@@ -2613,11 +2612,11 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(prompt))
                     return false;
 
-                if (ExplicitDoNotGenerateUntilUserDecisionPattern().IsMatch(prompt))
+                if (_catalog.ExplicitDoNotGenerateUntilUserDecisionPattern.IsMatch(prompt))
                     return false;
 
                 return MultiModelCouncilServiceHasExplicitArtifactIntent(prompt, logger) ||
-                    DeveloperExecutionIntentPattern().IsMatch(prompt);
+                    _catalog.DeveloperExecutionIntentPattern.IsMatch(prompt);
             }
             catch (Exception ex)
             {
@@ -2749,7 +2748,7 @@ namespace LocalGPT.Services
                     return;
 
                 var text = await File.ReadAllTextAsync(importsPath, cancellationToken).ConfigureAwait(false);
-                var imports = LocalGptCatalogService.DevExpressImportPattern()
+                var imports = _catalog.DevExpressImportPattern
                     .Matches(text)
                     .Select(match => match.Groups["namespace"].Value.Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -2779,7 +2778,7 @@ namespace LocalGPT.Services
                     return;
 
                 var text = await File.ReadAllTextAsync(programPath, cancellationToken).ConfigureAwait(false);
-                var registrations = LocalGptCatalogService.DevExpressRegistrationPattern()
+                var registrations = _catalog.DevExpressRegistrationPattern
                     .Matches(text)
                     .Select(match => match.Value.TrimEnd('('))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -3281,7 +3280,7 @@ namespace LocalGPT.Services
             try
             {
                 var extension = Path.GetExtension(path);
-                return LocalGptCatalogService.ArtifactTextExtensions.Contains(extension);
+                return _catalog.ArtifactTextExtensions.Contains(extension);
             }
             catch (Exception ex)
             {
@@ -3347,13 +3346,13 @@ namespace LocalGPT.Services
         {
             try
             {
-                var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? LocalGptCatalogService.DefaultMaxPromptCharacters, 512, LocalGptCatalogService.MaxPromptCharacters);
+                var maxPromptCharacters = Math.Clamp(forcedMaxPromptCharacters ?? _catalog.DefaultMaxPromptCharacters, 512, _catalog.MaxPromptCharacters);
                 if (messages.Sum(EstimateTextLength) <= maxPromptCharacters)
                     return messages;
 
                 var result = new List<ChatMessage>();
                 var usedCharacters = 0;
-                var remainingSystemBudget = Math.Min(LocalGptCatalogService.MaxBootstrapCharacters, Math.Max(maxPromptCharacters / 2, 0));
+                var remainingSystemBudget = Math.Min(_catalog.MaxBootstrapCharacters, Math.Max(maxPromptCharacters / 2, 0));
 
                 foreach (var message in messages.Where(message => message.Role == ChatRole.System))
                 {
@@ -3384,7 +3383,7 @@ namespace LocalGPT.Services
 
                     var message = conversationMessages[index];
                     var text = message.Text ?? string.Empty;
-                    var messageBudget = Math.Min(LocalGptCatalogService.MaxSingleConversationMessageCharacters, remainingBudget);
+                    var messageBudget = Math.Min(_catalog.MaxSingleConversationMessageCharacters, remainingBudget);
                     var trimmed = _text.TrimForPrompt(text, messageBudget, logger, keepBothEnds: true);
                     if (string.IsNullOrWhiteSpace(trimmed))
                         continue;
@@ -3410,9 +3409,9 @@ namespace LocalGPT.Services
         {
             try
             {
-                return mode.Equals(LocalGptCatalogService.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase) ||
-            mode.Equals(LocalGptCatalogService.OllamaModeSafeCpu, StringComparison.OrdinalIgnoreCase) ||
-            mode.Equals(LocalGptCatalogService.OllamaModeLimitedGpu, StringComparison.OrdinalIgnoreCase);
+                return mode.Equals(_catalog.OllamaModeAutoGpu, StringComparison.OrdinalIgnoreCase) ||
+            mode.Equals(_catalog.OllamaModeSafeCpu, StringComparison.OrdinalIgnoreCase) ||
+            mode.Equals(_catalog.OllamaModeLimitedGpu, StringComparison.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {
@@ -3427,7 +3426,7 @@ namespace LocalGPT.Services
             try
             {
                 return targetArea.Contains("Blazor/DevExpress frontend", StringComparison.OrdinalIgnoreCase) ||
-               LocalGptCatalogService.BlazorFrontendPattern().IsMatch($"{prompt} {finalAnswer}");
+               _catalog.BlazorFrontendPattern.IsMatch($"{prompt} {finalAnswer}");
             }
             catch (Exception ex)
             {
@@ -3443,7 +3442,7 @@ namespace LocalGPT.Services
             {
                 var isAiHostExperimentTarget = IsAiHostExperimentTarget(prompt, finalAnswer, logger);
                 bool isAiHostExperimentTargetBool = isAiHostExperimentTarget ?? false;
-                return LocalGptCatalogService.WholeSolutionPattern().IsMatch(prompt) || isAiHostExperimentTargetBool;
+                return _catalog.WholeSolutionPattern.IsMatch(prompt) || isAiHostExperimentTargetBool;
             }
             catch (Exception ex)
             {
@@ -3457,7 +3456,7 @@ namespace LocalGPT.Services
             try
             {
 
-                return LocalGptCatalogService.AiHostExperimentPattern().IsMatch(prompt);
+                return _catalog.AiHostExperimentPattern.IsMatch(prompt);
             }
             catch (Exception ex)
             {
@@ -3473,8 +3472,8 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(prompt))
                     return false;
 
-                return LocalGptCatalogService.AdviceOnlyPromptPattern().IsMatch(prompt) &&
-                    !LocalGptCatalogService.ExplicitArtifactCreationCommandPattern().IsMatch(prompt);
+                return _catalog.AdviceOnlyPromptPattern.IsMatch(prompt) &&
+                    !_catalog.ExplicitArtifactCreationCommandPattern.IsMatch(prompt);
             }
             catch (Exception ex)
             {
@@ -3487,13 +3486,13 @@ namespace LocalGPT.Services
         {
             try
             {
-                if (LocalGptCatalogService.AiHostExperimentPattern().IsMatch(prompt))
+                if (_catalog.AiHostExperimentPattern.IsMatch(prompt))
                     return LocalGptCatalogService.GeneratedSolutionArchetype.AiHost;
-                if (LocalGptCatalogService.LocalGptReplacementPattern().IsMatch(prompt))
+                if (_catalog.LocalGptReplacementPattern.IsMatch(prompt))
                     return LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt;
-                if (LocalGptCatalogService.TacosPortalPattern().IsMatch(prompt))
+                if (_catalog.TacosPortalPattern.IsMatch(prompt))
                     return LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal;
-                if (LocalGptCatalogService.BotBackendPattern().IsMatch(prompt))
+                if (_catalog.BotBackendPattern.IsMatch(prompt))
                     return LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend;
 
                 return LocalGptCatalogService.GeneratedSolutionArchetype.Generic;
@@ -3543,11 +3542,11 @@ namespace LocalGPT.Services
                 foreach (var functionFile in Directory.EnumerateFiles(dataPath, "*.mcfunction", SearchOption.AllDirectories))
                 {
                     var content = File.ReadAllText(functionFile);
-                    if (LocalGptCatalogService.LeadingSlashCommandPattern().IsMatch(content))
+                    if (_catalog.LeadingSlashCommandPattern.IsMatch(content))
                         throw new InvalidOperationException($"Generated function contains a leading slash command: {Path.GetRelativePath(rootPath, functionFile)}");
-                    if (LocalGptCatalogService.RootStorageRemovePattern().IsMatch(content))
+                    if (_catalog.RootStorageRemovePattern.IsMatch(content))
                         throw new InvalidOperationException($"Generated function uses data remove storage root syntax: {Path.GetRelativePath(rootPath, functionFile)}");
-                    if (LocalGptCatalogService.MalformedStorageTargetPattern().IsMatch(content))
+                    if (_catalog.MalformedStorageTargetPattern.IsMatch(content))
                         throw new InvalidOperationException($"Generated function appears to put an NBT path into the storage id instead of after it: {Path.GetRelativePath(rootPath, functionFile)}");
                 }
             }
@@ -3718,7 +3717,7 @@ namespace LocalGPT.Services
                 }
 
                 AddIf(
-                    LocalGptCatalogService.DevExpressDocumentPattern().IsMatch(text) || LocalGptCatalogService.ExportFormatPattern().IsMatch(text),
+                    _catalog.DevExpressDocumentPattern.IsMatch(text) || _catalog.ExportFormatPattern.IsMatch(text),
                     "Document Exports",
                     "Promise-derived surface for report, Office, PDF, spreadsheet, presentation, and document export work owned by backend services.",
                     ["Report template", "Format mapping", "Backend service", "Download route"]);
@@ -3903,8 +3902,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                return session.Name.StartsWith(LocalGptCatalogService.DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase) ||
-            session.Name.Equals(LocalGptCatalogService.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
+                return session.Name.StartsWith(_catalog.DetectedOllamaSessionPrefix, StringComparison.OrdinalIgnoreCase) ||
+            session.Name.Equals(_catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {
@@ -3935,7 +3934,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return $"{LocalGptCatalogService.DetectedOllamaSessionPrefix}{candidate.ModelName} @ {_text.TrimEndpoint(candidate.Endpoint, logger)}";
+                return $"{_catalog.DetectedOllamaSessionPrefix}{candidate.ModelName} @ {_text.TrimEndpoint(candidate.Endpoint, logger)}";
             }
             catch (Exception ex)
             {

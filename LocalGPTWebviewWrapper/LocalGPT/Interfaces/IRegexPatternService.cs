@@ -14,3 +14,7 @@ public interface IRegexPatternService
 
     Task DeleteAsync(string name);
 }
+public interface IRegexFunctionParameterService
+{
+    string GetRequiredString(System.Text.Json.JsonElement element, string propertyName);
+}

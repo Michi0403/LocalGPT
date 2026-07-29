@@ -8,6 +8,7 @@ namespace LocalGPT.Services;
 
 public sealed class ChatMemoryMessageMapper(
     CouncilTextService text,
+    LocalGptCatalogService catalog,
     ILogger<ChatMemoryMessageMapper> logger) : IChatMemoryMessageMapper
 {
     public string BuildTitle(IReadOnlyList<BlazorChatMessage> messages)
@@ -17,7 +18,7 @@ public sealed class ChatMemoryMessageMapper(
             var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Content
                 ?? messages.FirstOrDefault()?.Content
                 ?? string.Empty;
-            var title = LocalGptCatalogService.WhitespacePattern()
+            var title = catalog.WhitespacePattern
                 .Replace(text.StripThinking(firstUserMessage, logger), " ")
                 .Trim();
 
@@ -101,12 +102,12 @@ public sealed class ChatMemoryMessageMapper(
             var promptSection = text.TryFindCouncilPromptSection(content, logger);
             if (!string.IsNullOrWhiteSpace(promptSection))
             {
-                var fencedPrompt = LocalGptCatalogService.CouncilPromptFencePattern().Match(promptSection);
+                var fencedPrompt = catalog.CouncilPromptFencePattern.Match(promptSection);
                 if (fencedPrompt.Success)
                     return text.NormalizeRecoveredPrompt(fencedPrompt.Groups["prompt"].Value, logger);
             }
 
-            var requestBlock = LocalGptCatalogService.CouncilRequestBlockPattern().Match(content);
+            var requestBlock = catalog.CouncilRequestBlockPattern.Match(content);
             if (requestBlock.Success)
                 return text.NormalizeRecoveredPrompt(requestBlock.Groups["prompt"].Value, logger);
         }

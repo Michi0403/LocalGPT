@@ -18,8 +18,6 @@ public sealed class NativeCommandRunner(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     SqliteUtilityService sqliteUtility) : INativeCommandRunner
 {
-    private const int MinimumTimeoutSeconds = 5;
-    private const int MaximumTimeoutSeconds = 3600;
     public async Task<CommandExecutionResult?> RunAsync(
         string fileName,
         string arguments,
@@ -40,7 +38,7 @@ public sealed class NativeCommandRunner(
         {
             if (!userConfirmed)
             {
-                var confirmationPolicy = CommandPolicyDecision.Deny(
+                var confirmationPolicy = DenyDecision(
                     "Fresh human confirmation is required for this exact native command.");
                 await SaveCommandLogAsync(
                     fileName,
@@ -109,8 +107,8 @@ public sealed class NativeCommandRunner(
 
             var timeoutSeconds = Math.Clamp(
                 commandOptions.CurrentValue.MaxDurationSeconds,
-                MinimumTimeoutSeconds,
-                MaximumTimeoutSeconds);
+                runtimePolicy.GetInt(LocalGptRuntimeValue.NativeCommandMinimumTimeoutSeconds),
+                runtimePolicy.GetInt(LocalGptRuntimeValue.NativeCommandMaximumTimeoutSeconds));
             using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutSource.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
@@ -217,26 +215,26 @@ public sealed class NativeCommandRunner(
         var policyOptions = commandOptions.CurrentValue;
         if (!policyOptions.Enabled)
         {
-            return CommandPolicyDecision.Deny(
+            return DenyDecision(
                 "Native command execution is disabled. The repository owner must explicitly enable NativeCommands:Enabled.");
         }
 
         var executable = Path.GetFileName(fileName.Trim());
         if (!runtimePolicy.AllowedNativeExecutables.Contains(executable))
-            return CommandPolicyDecision.Deny($"Executable '{executable}' is not allowlisted.");
+            return DenyDecision($"Executable '{executable}' is not allowlisted.");
 
         if (sqliteUtility.ContainsPathSegment(fileName, logger))
         {
             var executablePath = Path.GetFullPath(Path.Combine(workingDirectory, fileName));
             if (!workspaceService.IsPathInsideWorkspaceRoot(executablePath))
-                return CommandPolicyDecision.Deny("Executable paths must stay inside the LocalGPT Minecraft workspace root.");
+                return DenyDecision("Executable paths must stay inside the LocalGPT Minecraft workspace root.");
         }
 
         if (sqliteUtility.IsPowerShell(executable, logger))
         {
             if (!policyOptions.AllowPowerShellWorkspaceScripts)
             {
-                return CommandPolicyDecision.Deny(
+                return DenyDecision(
                     "PowerShell workspace scripts are disabled. The repository owner must explicitly enable NativeCommands:AllowPowerShellWorkspaceScripts.");
             }
 
@@ -244,7 +242,7 @@ public sealed class NativeCommandRunner(
         }
 
         var profile = sqliteUtility.ClassifyCommandProfile(executable, arguments, logger);
-        return CommandPolicyDecision.Allow(
+        return AllowDecision(
             profile,
             $"Profile '{profile}' selected for allowlisted executable '{executable}'.");
     }
@@ -252,23 +250,23 @@ public sealed class NativeCommandRunner(
     private CommandPolicyDecision ValidatePowerShellPolicy(string arguments, string workingDirectory)
     {
         if (runtimePolicy.PowerShellInlineCommandPattern.IsMatch(arguments))
-            return CommandPolicyDecision.Deny("PowerShell inline commands are blocked; use -File with a workspace script.");
+            return DenyDecision("PowerShell inline commands are blocked; use -File with a workspace script.");
 
         var match = runtimePolicy.PowerShellFilePattern.Match(arguments);
         if (!match.Success)
-            return CommandPolicyDecision.Deny("PowerShell commands must use -File with a workspace script.");
+            return DenyDecision("PowerShell commands must use -File with a workspace script.");
 
         var scriptPath = match.Groups["path"].Value;
         if (!scriptPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
-            return CommandPolicyDecision.Deny("PowerShell -File must target a .ps1 script.");
+            return DenyDecision("PowerShell -File must target a .ps1 script.");
 
         var fullScriptPath = Path.GetFullPath(Path.Combine(workingDirectory, scriptPath));
         if (!workspaceService.IsPathInsideWorkspaceRoot(fullScriptPath))
-            return CommandPolicyDecision.Deny("PowerShell script paths must stay inside the LocalGPT Minecraft workspace root.");
+            return DenyDecision("PowerShell script paths must stay inside the LocalGPT Minecraft workspace root.");
         if (!File.Exists(fullScriptPath))
-            return CommandPolicyDecision.Deny("The requested PowerShell workspace script does not exist.");
+            return DenyDecision("The requested PowerShell workspace script does not exist.");
 
-        return CommandPolicyDecision.Allow(
+        return AllowDecision(
             "PowerShellWorkspaceScript",
             "PowerShell -File script is inside the LocalGPT Minecraft workspace root.");
     }
@@ -378,4 +376,43 @@ public sealed class NativeCommandRunner(
         return runtimePolicy.SensitiveArgumentPattern.Replace(arguments, match =>
             $"{match.Groups["name"].Value}{match.Groups["separator"].Value}[REDACTED]");
     }
+    private CommandPolicyDecision AllowDecision(string profile, string reason)
+    {
+        try
+        {
+            var decision = new CommandPolicyDecision(
+                true,
+                runtimePolicy.GetString(LocalGptRuntimeValue.CommandPolicyAllowedDecision),
+                reason,
+                profile);
+            logger.LogTrace("Created allowed native-command policy decision for profile {Profile}.", profile);
+            return decision;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not create an allowed native-command policy decision for profile {Profile}.", profile);
+            throw;
+        }
+    }
+
+    private CommandPolicyDecision DenyDecision(string reason)
+    {
+        try
+        {
+            var denied = runtimePolicy.GetString(LocalGptRuntimeValue.CommandPolicyDeniedDecision);
+            var decision = new CommandPolicyDecision(
+                false,
+                denied,
+                reason,
+                runtimePolicy.GetString(LocalGptRuntimeValue.CommandPolicyDeniedProfile));
+            logger.LogTrace("Created denied native-command policy decision.");
+            return decision;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not create a denied native-command policy decision.");
+            throw;
+        }
+    }
+
 }

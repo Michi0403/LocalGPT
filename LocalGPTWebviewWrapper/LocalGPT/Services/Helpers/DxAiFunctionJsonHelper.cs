@@ -1,28 +1,44 @@
 using System.Text.Json;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Helpers;
 
-/// <summary>
-/// Pure JSON/result helpers shared by DI-backed DXAI function handlers.
-/// This helper owns no mutable runtime state.
-/// </summary>
-internal static class DxAiFunctionJsonHelper
+internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> logger) : IDxAiFunctionJsonService
 {
-    internal static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    public JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
-    internal static T Deserialize<T>(JsonElement element) where T : new() =>
-        element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new T()
-            : element.Deserialize<T>(Options) ?? new T();
-
-    internal static DxAiFunctionInvocationResult Success(object? value = null, string status = "Completed") => new()
+    public T Deserialize<T>(JsonElement element) where T : new()
     {
-        Succeeded = true,
-        Status = status,
-        Value = value
-    };
+        try
+        {
+            var value = element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                ? new T()
+                : element.Deserialize<T>(Options) ?? new T();
+            logger.LogTrace("Deserialized DXAI function parameters as {ParameterType}.", typeof(T).FullName);
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not deserialize DXAI function parameters as {ParameterType}.", typeof(T).FullName);
+            throw;
+        }
+    }
+
+    public DxAiFunctionInvocationResult Success(object? value = null, string status = "Completed")
+    {
+        try
+        {
+            logger.LogTrace("Created a successful DXAI function result with status {Status}.", status);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = status, Value = value };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not create a successful DXAI function result with status {Status}.", status);
+            throw;
+        }
+    }
 }

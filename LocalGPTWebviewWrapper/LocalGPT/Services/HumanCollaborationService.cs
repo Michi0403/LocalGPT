@@ -7,10 +7,12 @@ using System.Text;
 
 namespace LocalGPT.Services;
 
-public sealed class HumanCollaborationService(
+public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabulary,
+    
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IAmbientLocalGptContext ambientContext,
     IComponentActivityService componentActivity,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<HumanCollaborationService> logger) : IHumanCollaborationService
 {
     private const int MaxTextLength = 1_000_000;
@@ -27,10 +29,10 @@ public sealed class HumanCollaborationService(
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var query = db.HumanCollaborationRequests.AsNoTracking();
         if (!includeResolved)
-            query = query.Where(item => item.Status == HumanCollaborationStatuses.Pending);
+            query = query.Where(item => item.Status == vocabulary.Get().HumanStatusPending);
 
         var requests = await query
-            .OrderBy(item => item.Status == HumanCollaborationStatuses.Pending ? 0 : 1)
+            .OrderBy(item => item.Status == vocabulary.Get().HumanStatusPending ? 0 : 1)
             .ThenByDescending(item => item.UpdatedAtUtc)
             .Take(Math.Clamp(take, 1, 200))
             .ToListAsync(cancellationToken)
@@ -42,9 +44,9 @@ public sealed class HumanCollaborationService(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         var profile = await db.HumanCouncilParticipantProfiles.AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == HumanCollaborationIdentity.LocalHumanProfileId, cancellationToken)
+            .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId), cancellationToken)
             .ConfigureAwait(false)
-            ?? new HumanCouncilParticipantProfile();
+            ?? new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId) };
 
         return new HumanCollaborationSnapshot(
             profile,
@@ -65,7 +67,7 @@ public sealed class HumanCollaborationService(
         var ambient = ambientContext.Current;
         if (directHumanConfirmation)
         {
-            if (!ambient.IsTrustedHumanInteraction)
+            if (!ambient.IsTrustedHumanInteraction(vocabulary.Get()))
             {
                 logger.LogWarning(
                     "Rejected direct confirmation claim for operation {OperationKey}; no trusted local human UI context was active.",
@@ -84,7 +86,7 @@ public sealed class HumanCollaborationService(
                     true,
                     false,
                     ambient.ApprovalRequestId,
-                    HumanCollaborationStatuses.Approved,
+                    vocabulary.Get().HumanStatusApproved,
                     "Trusted local human confirmation accepted.",
                     CorrelationId: request.CorrelationId);
             }
@@ -110,10 +112,10 @@ public sealed class HumanCollaborationService(
                         existing.OperationKey);
                     existing = null;
                 }
-                else if ((existing.Status == HumanCollaborationStatuses.Approved || existing.Status == HumanCollaborationStatuses.Answered) && existing.ConsumedAtUtc is null)
+                else if ((existing.Status == vocabulary.Get().HumanStatusApproved || existing.Status == vocabulary.Get().HumanStatusAnswered) && existing.ConsumedAtUtc is null)
                 {
                     var resolvedStatus = existing.Status;
-                    existing.Status = HumanCollaborationStatuses.Consumed;
+                    existing.Status = vocabulary.Get().HumanStatusConsumed;
                     existing.ConsumedAtUtc = DateTime.UtcNow;
                     existing.UpdatedAtUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -124,14 +126,14 @@ public sealed class HumanCollaborationService(
                         false,
                         existing.Id,
                         existing.Status,
-                        resolvedStatus == HumanCollaborationStatuses.Answered
+                        resolvedStatus == vocabulary.Get().HumanStatusAnswered
                             ? "The human-provided interaction value was consumed for this exact operation."
                             : "The queued human approval was consumed for this exact operation.",
                         existing.DecisionReason,
                         existing.CorrelationId,
                         existing.UserResponse);
                 }
-                else if (existing.Status == HumanCollaborationStatuses.Declined)
+                else if (existing.Status == vocabulary.Get().HumanStatusDeclined)
                 {
                     return new HumanApprovalGateResult(
                         false,
@@ -143,7 +145,7 @@ public sealed class HumanCollaborationService(
                         existing.CorrelationId,
                         existing.UserResponse);
                 }
-                else if (existing.Status == HumanCollaborationStatuses.Pending)
+                else if (existing.Status == vocabulary.Get().HumanStatusPending)
                 {
                     return new HumanApprovalGateResult(
                         false,
@@ -155,11 +157,11 @@ public sealed class HumanCollaborationService(
                 }
             }
 
-            if (requestKind != HumanCollaborationRequestKinds.Approval)
+            if (requestKind != vocabulary.Get().HumanRequestApproval)
             {
                 var pendingCoordinationRequests = await db.HumanCollaborationRequests
-                    .CountAsync(item => item.Status == HumanCollaborationStatuses.Pending &&
-                        item.RequestKind != HumanCollaborationRequestKinds.Approval &&
+                    .CountAsync(item => item.Status == vocabulary.Get().HumanStatusPending &&
+                        item.RequestKind != vocabulary.Get().HumanRequestApproval &&
                         item.CouncilRunId == request.CouncilRunId, cancellationToken)
                     .ConfigureAwait(false);
                 if (pendingCoordinationRequests >= 12)
@@ -197,6 +199,7 @@ public sealed class HumanCollaborationService(
                 RequiredBeforeCompletion = request.RequiredBeforeCompletion,
                 IsSensitive = request.IsSensitive,
                 AllowFreeText = request.AllowFreeText,
+                Status = vocabulary.Get().HumanStatusPending,
                 RequestedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
@@ -240,32 +243,32 @@ public sealed class HumanCollaborationService(
             var request = await db.HumanCollaborationRequests
                 .SingleOrDefaultAsync(item => item.Id == requestId, cancellationToken)
                 .ConfigureAwait(false);
-            if (request is null || request.Status != HumanCollaborationStatuses.Pending)
+            if (request is null || request.Status != vocabulary.Get().HumanStatusPending)
                 return request;
 
-            if (request.RequestKind == HumanCollaborationRequestKinds.Approval && submission.Approved is null)
+            if (request.RequestKind == vocabulary.Get().HumanRequestApproval && submission.Approved is null)
                 throw new InvalidOperationException("Approval requests require an explicit approve or decline decision.");
-            if (request.RequestKind == HumanCollaborationRequestKinds.Approval &&
+            if (request.RequestKind == vocabulary.Get().HumanRequestApproval &&
                 submission.Approved == false &&
                 string.IsNullOrWhiteSpace(submission.Reason))
                 throw new InvalidOperationException("A decline reason is required so the LocalGPT team can adapt its next step.");
-            if (request.RequestKind != HumanCollaborationRequestKinds.Approval &&
+            if (request.RequestKind != vocabulary.Get().HumanRequestApproval &&
                 string.IsNullOrWhiteSpace(submission.Response))
                 throw new InvalidOperationException("Feedback and guidance requests require a response.");
 
             request.UserResponse = NormalizeMultiline(submission.Response, MaxTextLength);
             request.DecisionReason = NormalizeMultiline(submission.Reason, 2000);
             request.DecisionBy = Normalize(ambientContext.Current.ActorDisplayName, 120, "Human User");
-            request.DecisionByProfileId = ambientContext.Current.HumanProfileId ?? HumanCollaborationIdentity.LocalHumanProfileId;
+            request.DecisionByProfileId = ambientContext.Current.HumanProfileId ?? runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId);
             request.DecidedAtUtc = DateTime.UtcNow;
             request.UpdatedAtUtc = DateTime.UtcNow;
-            request.Status = request.RequestKind == HumanCollaborationRequestKinds.Approval
+            request.Status = request.RequestKind == vocabulary.Get().HumanRequestApproval
                 ? submission.Approved == true
-                    ? HumanCollaborationStatuses.Approved
-                    : HumanCollaborationStatuses.Declined
-                : HumanCollaborationStatuses.Answered;
+                    ? vocabulary.Get().HumanStatusApproved
+                    : vocabulary.Get().HumanStatusDeclined
+                : vocabulary.Get().HumanStatusAnswered;
 
-            if (request.RequestKind == HumanCollaborationRequestKinds.Approval && submission.Approved == false)
+            if (request.RequestKind == vocabulary.Get().HumanRequestApproval && submission.Approved == false)
             {
                 db.HumanCollaborationRequests.Add(new HumanCollaborationRequest
                 {
@@ -273,11 +276,11 @@ public sealed class HumanCollaborationService(
                     CorrelationId = $"decline-feedback:{request.Id:N}",
                     OperationKey = "human.decline.feedback",
                     ParameterFingerprint = request.ParameterFingerprint,
-                    RequestKind = HumanCollaborationRequestKinds.Guidance,
+                    RequestKind = vocabulary.Get().HumanRequestGuidance,
                     Title = $"Declined action feedback: {request.Title}",
                     Description = "The local human declined a guarded operation and supplied a reason so the team can adapt rather than retry the same action unchanged.",
                     RiskLevel = "Low",
-                    Status = HumanCollaborationStatuses.Answered,
+                    Status = vocabulary.Get().HumanStatusAnswered,
                     Source = "Human Collaboration Inbox",
                     RequestedBy = request.DecisionBy,
                     RequestedRole = request.RequestedRole,
@@ -317,9 +320,9 @@ public sealed class HumanCollaborationService(
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         return await db.HumanCouncilParticipantProfiles.AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == HumanCollaborationIdentity.LocalHumanProfileId, cancellationToken)
+            .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId), cancellationToken)
             .ConfigureAwait(false)
-            ?? new HumanCouncilParticipantProfile();
+            ?? new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId) };
     }
 
     public async Task<HumanCouncilParticipantProfile> SaveProfileAsync(
@@ -333,15 +336,15 @@ public sealed class HumanCollaborationService(
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var existing = await db.HumanCouncilParticipantProfiles
-                .SingleOrDefaultAsync(item => item.Id == HumanCollaborationIdentity.LocalHumanProfileId, cancellationToken)
+                .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId), cancellationToken)
                 .ConfigureAwait(false);
             if (existing is null)
             {
-                existing = new HumanCouncilParticipantProfile();
+                existing = new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId) };
                 db.HumanCouncilParticipantProfiles.Add(existing);
             }
 
-            existing.Id = HumanCollaborationIdentity.LocalHumanProfileId;
+            existing.Id = runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId);
             existing.DisplayName = Normalize(profile.DisplayName, 120, "Human User");
             existing.RoleName = Normalize(profile.RoleName, 180, "Human collaborator");
             existing.Expertise = NormalizeMultiline(profile.Expertise, 2000);
@@ -388,7 +391,8 @@ public sealed class HumanCollaborationService(
             HumanRole = profile.RoleName,
             Content = normalized,
             EarliestCouncilRound = Math.Max(1, active.CurrentRound + 1),
-            Status = HumanContributionStatuses.Queued,
+            Status = vocabulary.Get().ContributionQueued,
+            EvaluationVerdict = vocabulary.Get().VerdictPending,
             SubmittedAtUtc = DateTime.UtcNow
         };
 
@@ -419,7 +423,7 @@ public sealed class HumanCollaborationService(
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var contributions = await db.HumanCouncilContributions
                 .Where(item => item.CouncilRunId == councilRunId &&
-                    item.Status == HumanContributionStatuses.Queued &&
+                    item.Status == vocabulary.Get().ContributionQueued &&
                     item.EarliestCouncilRound <= currentRound)
                 .OrderBy(item => item.SubmittedAtUtc)
                 .ToListAsync(cancellationToken)
@@ -427,7 +431,7 @@ public sealed class HumanCollaborationService(
 
             foreach (var contribution in contributions)
             {
-                contribution.Status = HumanContributionStatuses.Injected;
+                contribution.Status = vocabulary.Get().ContributionInjected;
                 contribution.InjectedAtUtc = DateTime.UtcNow;
             }
             if (contributions.Count > 0)
@@ -452,7 +456,7 @@ public sealed class HumanCollaborationService(
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var contributions = await db.HumanCouncilContributions
-                .Where(item => item.CouncilRunId == councilRunId && item.Status == HumanContributionStatuses.Injected)
+                .Where(item => item.CouncilRunId == councilRunId && item.Status == vocabulary.Get().ContributionInjected)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
             if (contributions.Count == 0)
@@ -462,7 +466,7 @@ public sealed class HumanCollaborationService(
             var evaluationVerdict = DetermineEvaluationVerdict(normalizedEvaluation);
             foreach (var contribution in contributions)
             {
-                contribution.Status = HumanContributionStatuses.Evaluated;
+                contribution.Status = vocabulary.Get().ContributionEvaluated;
                 contribution.EvaluatedAtUtc = DateTime.UtcNow;
                 contribution.EvaluatedAfterRound = Math.Max(0, afterRound);
                 contribution.Evaluation = normalizedEvaluation;
@@ -488,9 +492,9 @@ public sealed class HumanCollaborationService(
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var recentAnswers = await db.HumanCollaborationRequests
-                .Where(item => item.RequestKind != HumanCollaborationRequestKinds.Approval &&
+                .Where(item => item.RequestKind != vocabulary.Get().HumanRequestApproval &&
                     (item.CouncilRunId == councilRunId || item.CouncilRunId == null) &&
-                    item.Status == HumanCollaborationStatuses.Answered &&
+                    item.Status == vocabulary.Get().HumanStatusAnswered &&
                     item.EarliestCouncilRound <= currentRound)
                 .OrderBy(item => item.DecidedAtUtc)
                 .Take(6)
@@ -521,7 +525,7 @@ public sealed class HumanCollaborationService(
                     if (!string.IsNullOrWhiteSpace(answer.UserResponse))
                         builder.Append(": ").Append(answer.UserResponse);
                     builder.AppendLine();
-                    answer.Status = HumanCollaborationStatuses.Consumed;
+                    answer.Status = vocabulary.Get().HumanStatusConsumed;
                     answer.ConsumedAtUtc = DateTime.UtcNow;
                     answer.UpdatedAtUtc = DateTime.UtcNow;
                 }
@@ -542,7 +546,7 @@ public sealed class HumanCollaborationService(
         return await db.HumanCollaborationRequests.AsNoTracking()
             .AnyAsync(item => item.CouncilRunId == councilRunId &&
                 item.RequiredBeforeCompletion &&
-                item.Status == HumanCollaborationStatuses.Pending,
+                item.Status == vocabulary.Get().HumanStatusPending,
                 cancellationToken)
             .ConfigureAwait(false);
     }
@@ -574,7 +578,7 @@ public sealed class HumanCollaborationService(
 
     private void EnsureTrustedHumanInteraction(string operation)
     {
-        if (!ambientContext.Current.IsTrustedHumanInteraction)
+        if (!ambientContext.Current.IsTrustedHumanInteraction(vocabulary.Get()))
             throw new InvalidOperationException($"Only the trusted local human UI may {operation}.");
     }
 
@@ -597,21 +601,21 @@ public sealed class HumanCollaborationService(
     private string DetermineEvaluationVerdict(string evaluation)
     {
         if (evaluation.Contains("Human peer assessment: Supported", StringComparison.OrdinalIgnoreCase))
-            return HumanContributionEvaluationVerdicts.Supported;
+            return vocabulary.Get().VerdictSupported;
         if (evaluation.Contains("Human peer assessment: Needs correction", StringComparison.OrdinalIgnoreCase))
-            return HumanContributionEvaluationVerdicts.NeedsCorrection;
+            return vocabulary.Get().VerdictNeedsCorrection;
         if (evaluation.Contains("Human peer assessment: Mixed", StringComparison.OrdinalIgnoreCase))
-            return HumanContributionEvaluationVerdicts.Mixed;
-        return HumanContributionEvaluationVerdicts.NotReviewed;
+            return vocabulary.Get().VerdictMixed;
+        return vocabulary.Get().VerdictNotReviewed;
     }
 
     private string NormalizeRequestKind(string? value)
     {
-        if (string.Equals(value, HumanCollaborationRequestKinds.Feedback, StringComparison.OrdinalIgnoreCase))
-            return HumanCollaborationRequestKinds.Feedback;
-        if (string.Equals(value, HumanCollaborationRequestKinds.Guidance, StringComparison.OrdinalIgnoreCase))
-            return HumanCollaborationRequestKinds.Guidance;
-        return HumanCollaborationRequestKinds.Approval;
+        if (string.Equals(value, vocabulary.Get().HumanRequestFeedback, StringComparison.OrdinalIgnoreCase))
+            return vocabulary.Get().HumanRequestFeedback;
+        if (string.Equals(value, vocabulary.Get().HumanRequestGuidance, StringComparison.OrdinalIgnoreCase))
+            return vocabulary.Get().HumanRequestGuidance;
+        return vocabulary.Get().HumanRequestApproval;
     }
 
     private string Normalize(string? value, int maxLength, string fallback = "")

@@ -13,7 +13,8 @@ namespace LocalGPT.Endpoints
     [Route("")]
     public class MinecraftDiagnosticController(ILogger<MinecraftDiagnosticController> logger,
         CouncilRuntimeService councilRuntime,
-        CouncilTextService councilText) : ControllerBase
+        CouncilTextService councilText,
+        LocalGptCatalogService catalog) : ControllerBase
     {
         private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
             userConfirmed
@@ -111,7 +112,7 @@ namespace LocalGPT.Endpoints
                     ModId = "living_cities_smoke",
                     PackageName = "com.localgpt.livingcitiessmoke",
                     Loader = string.IsNullOrWhiteSpace(loader) ? "Fabric" : loader,
-                    MinecraftVersion = LocalGptCatalogService.DefaultMinecraftVersion,
+                    MinecraftVersion = catalog.DefaultMinecraftVersion,
                     JavaVersion = "25",
                     GradleVersion = "8.14.2",
                     Ide = "Eclipse",
@@ -160,7 +161,7 @@ namespace LocalGPT.Endpoints
                     ModId = "living_cities",
                     PackageName = "com.localgpt.livingcities",
                     Loader = "Datapack",
-                    MinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion) ? LocalGptCatalogService.DefaultMinecraftVersion : minecraftVersion,
+                    MinecraftVersion = string.IsNullOrWhiteSpace(minecraftVersion) ? catalog.DefaultMinecraftVersion : minecraftVersion,
                     JavaVersion = "25",
                     GradleVersion = "8.14.2",
                     Ide = "Eclipse",

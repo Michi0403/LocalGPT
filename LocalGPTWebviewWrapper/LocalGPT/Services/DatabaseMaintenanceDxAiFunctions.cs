@@ -5,7 +5,7 @@ using LocalGPT.Services.Helpers;
 
 namespace LocalGPT.Services;
 
-public sealed class ListSqliteTablesFunction(
+public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json, 
     ISqliteTableEditorService editor,
     ILogger<ListSqliteTablesFunction> logger) : IDxAiFunctionHandler
 {
@@ -26,11 +26,11 @@ public sealed class ListSqliteTablesFunction(
     {
         var tables = await editor.GetTablesAsync(cancellationToken).ConfigureAwait(false);
         logger.LogDebug("DXAIFunction listed {TableCount} SQLite tables.", tables.Count);
-        return DxAiFunctionJsonHelper.Success(tables);
+        return json.Success(tables);
     }
 }
 
-public sealed class PreviewSqliteTableFunction(
+public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json, 
     ISqliteTableEditorService editor,
     ILogger<PreviewSqliteTableFunction> logger) : IDxAiFunctionHandler
 {
@@ -52,7 +52,7 @@ public sealed class PreviewSqliteTableFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = DxAiFunctionJsonHelper.Deserialize<ReadTableParameters>(request.Parameters);
+        var parameters = json.Deserialize<ReadTableParameters>(request.Parameters);
         ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
         var snapshot = await editor.GetTableAsync(parameters.TableName, Math.Clamp(parameters.Take, 1, 100), cancellationToken).ConfigureAwait(false);
         foreach (var row in snapshot.Rows)
@@ -64,7 +64,7 @@ public sealed class PreviewSqliteTableFunction(
             }
         }
         logger.LogDebug("DXAIFunction previewed SQLite table {TableName} with {RowCount} row(s).", parameters.TableName, snapshot.Rows.Count);
-        return DxAiFunctionJsonHelper.Success(snapshot);
+        return json.Success(snapshot);
     }
 
     private bool IsSensitiveColumn(string name) =>
@@ -83,7 +83,7 @@ public sealed class PreviewSqliteTableFunction(
     }
 }
 
-public sealed class ReadExactSqliteTableFunction(
+public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json, 
     ISqliteTableEditorService editor,
     ILogger<ReadExactSqliteTableFunction> logger) : IDxAiFunctionHandler
 {
@@ -107,11 +107,11 @@ public sealed class ReadExactSqliteTableFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = DxAiFunctionJsonHelper.Deserialize<ReadTableParameters>(request.Parameters);
+        var parameters = json.Deserialize<ReadTableParameters>(request.Parameters);
         ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
         var snapshot = await editor.GetTableAsync(parameters.TableName, Math.Clamp(parameters.Take, 1, 100), cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved exact SQLite read completed for table {TableName} with {RowCount} row(s); values omitted from logs.", parameters.TableName, snapshot.Rows.Count);
-        return DxAiFunctionJsonHelper.Success(snapshot);
+        return json.Success(snapshot);
     }
 
     private sealed class ReadTableParameters
@@ -121,7 +121,7 @@ public sealed class ReadExactSqliteTableFunction(
     }
 }
 
-public sealed class UpsertSqliteRowFunction(
+public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json, 
     ISqliteTableEditorService editor,
     ILogger<UpsertSqliteRowFunction> logger) : IDxAiFunctionHandler
 {
@@ -145,7 +145,7 @@ public sealed class UpsertSqliteRowFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = DxAiFunctionJsonHelper.Deserialize<UpsertParameters>(request.Parameters);
+        var parameters = json.Deserialize<UpsertParameters>(request.Parameters);
         ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
         if (parameters.Values.Count == 0)
             throw new JsonException("At least one column value is required.");
@@ -157,12 +157,12 @@ public sealed class UpsertSqliteRowFunction(
                 parameters.Values.Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value }).ToList(),
                 cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Approved SQLite update completed for {TableName} row {RowId}; values omitted from logs.", parameters.TableName, rowId);
-            return DxAiFunctionJsonHelper.Success(new { parameters.TableName, RowId = rowId, Operation = "Updated" });
+            return json.Success(new { parameters.TableName, RowId = rowId, Operation = "Updated" });
         }
 
         await editor.InsertRowAsync(parameters.TableName, parameters.Values, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved SQLite insert completed for {TableName}; values omitted from logs.", parameters.TableName);
-        return DxAiFunctionJsonHelper.Success(new { parameters.TableName, Operation = "Inserted" });
+        return json.Success(new { parameters.TableName, Operation = "Inserted" });
     }
 
     private sealed class UpsertParameters
@@ -173,7 +173,7 @@ public sealed class UpsertSqliteRowFunction(
     }
 }
 
-public sealed class DeleteSqliteRowFunction(
+public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json, 
     ISqliteTableEditorService editor,
     ILogger<DeleteSqliteRowFunction> logger) : IDxAiFunctionHandler
 {
@@ -197,11 +197,11 @@ public sealed class DeleteSqliteRowFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = DxAiFunctionJsonHelper.Deserialize<DeleteParameters>(request.Parameters);
+        var parameters = json.Deserialize<DeleteParameters>(request.Parameters);
         ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
         await editor.DeleteRowAsync(parameters.TableName, parameters.RowId, cancellationToken).ConfigureAwait(false);
         logger.LogWarning("Approved SQLite delete completed for {TableName} row {RowId}.", parameters.TableName, parameters.RowId);
-        return DxAiFunctionJsonHelper.Success(new { parameters.TableName, parameters.RowId, Operation = "Deleted" });
+        return json.Success(new { parameters.TableName, parameters.RowId, Operation = "Deleted" });
     }
 
     private sealed class DeleteParameters
@@ -211,7 +211,7 @@ public sealed class DeleteSqliteRowFunction(
     }
 }
 
-public sealed class ImportProjectTextDocumentFunction(
+public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService json, 
     ISafeTextDocumentService documents,
     ILogger<ImportProjectTextDocumentFunction> logger) : IDxAiFunctionHandler
 {
@@ -235,10 +235,10 @@ public sealed class ImportProjectTextDocumentFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = DxAiFunctionJsonHelper.Deserialize<ImportParameters>(request.Parameters);
+        var parameters = json.Deserialize<ImportParameters>(request.Parameters);
         var imported = await documents.ImportAsync(parameters.ProjectId, parameters.RevisionId, parameters.FilePath, userConfirmed: true, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved project text import completed as {ImportId}; content omitted from logs.", imported.Id);
-        return DxAiFunctionJsonHelper.Success(new
+        return json.Success(new
         {
             imported.Id,
             imported.ProjectId,

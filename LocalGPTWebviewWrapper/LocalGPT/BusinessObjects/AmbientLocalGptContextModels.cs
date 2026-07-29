@@ -1,26 +1,12 @@
 namespace LocalGPT.BusinessObjects;
 
-public static class AmbientActorKinds
-{
-    public const string System = "System";
-    public const string Human = "Human";
-    public const string AiModel = "AiModel";
-    public const string Council = "Council";
-    public const string ApiClient = "ApiClient";
-}
 
-public static class AmbientAuthorityKinds
-{
-    public const string None = "None";
-    public const string HumanInteraction = "HumanInteraction";
-    public const string HumanApproval = "HumanApproval";
-}
 
 public sealed record AmbientLocalGptContextSnapshot(
     string CorrelationId,
     string ActorKind,
     string ActorDisplayName,
-    string AuthorityKind = AmbientAuthorityKinds.None,
+    string AuthorityKind = "",
     Guid? HumanProfileId = null,
     Guid? CouncilRunId = null,
     int CouncilRound = 0,
@@ -29,11 +15,12 @@ public sealed record AmbientLocalGptContextSnapshot(
     string Source = "")
 {
     public DateTime CreatedAtUtc { get; init; } = DateTime.UtcNow;
-    public bool IsTrustedHumanInteraction =>
-        ActorKind == AmbientActorKinds.Human &&
-        AuthorityKind is AmbientAuthorityKinds.HumanInteraction or AmbientAuthorityKinds.HumanApproval;
-    public bool HasHumanApproval =>
-        ActorKind == AmbientActorKinds.Human &&
-        AuthorityKind == AmbientAuthorityKinds.HumanApproval &&
+    public bool IsTrustedHumanInteraction(LocalGptVocabularySnapshot vocabulary) =>
+        ActorKind == vocabulary.ActorHuman &&
+        (AuthorityKind == vocabulary.AuthorityHumanInteraction || AuthorityKind == vocabulary.AuthorityHumanApproval);
+
+    public bool HasHumanApproval(LocalGptVocabularySnapshot vocabulary) =>
+        ActorKind == vocabulary.ActorHuman &&
+        AuthorityKind == vocabulary.AuthorityHumanApproval &&
         ApprovalRequestId is not null;
 }

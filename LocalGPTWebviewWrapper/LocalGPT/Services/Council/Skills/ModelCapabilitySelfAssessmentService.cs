@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.WireProtocol;
 
@@ -9,19 +10,17 @@ namespace LocalGPT.Services.Council.Skills;
 /// Accepts optional model self-reports as untrusted evidence. Self-reported skills are persisted disabled for
 /// automatic authority decisions until the current user approves them in the organic-skill registry.
 /// </summary>
-public sealed partial class ModelCapabilitySelfAssessmentService(
+public sealed class ModelCapabilitySelfAssessmentService(
     IOrganicSkillRegistryService skillRegistry,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ModelCapabilitySelfAssessmentService> logger) : IModelCapabilitySelfAssessmentService
 {
-    [GeneratedRegex("<localgpt-self-assessment>(?<json>[\\s\\S]*?)</localgpt-self-assessment>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex AssessmentRegex();
-
     public async Task<string> CaptureAndStripAsync(string modelName, string visibleContent, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(visibleContent))
             return visibleContent;
 
-        var matches = AssessmentRegex().Matches(visibleContent);
+        var matches = runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelCapabilitySelfAssessment).Matches(visibleContent);
         foreach (Match match in matches)
         {
             try
@@ -42,6 +41,6 @@ public sealed partial class ModelCapabilitySelfAssessmentService(
             }
         }
 
-        return AssessmentRegex().Replace(visibleContent, string.Empty).Trim();
+        return runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelCapabilitySelfAssessment).Replace(visibleContent, string.Empty).Trim();
     }
 }

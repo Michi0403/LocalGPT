@@ -22,17 +22,18 @@ using System.Reactive;
 using System.Security.AccessControl;
 using System.ServiceModel.Channels;
 using System.Text;
-using static LocalGPT.Services.LocalGptCatalogService;
 namespace LocalGPT.Services
 {
     
     public sealed partial class CouncilTextService
     {
         private readonly ICouncilTextPatternDataService _patterns;
+        private readonly LocalGptCatalogService _catalog;
 
-        public CouncilTextService(ICouncilTextPatternDataService patterns)
+        public CouncilTextService(ICouncilTextPatternDataService patterns, LocalGptCatalogService catalog)
         {
             _patterns = patterns ?? throw new ArgumentNullException(nameof(patterns));
+            _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         }
 
 
@@ -1254,7 +1255,7 @@ namespace LocalGPT.Services
             ## Toolchain
 
             - Java: JDK {{request.JavaVersion}}
-            - Gradle: {{(string.IsNullOrWhiteSpace(request.GradleVersion) ? DefaultGradleVersion : request.GradleVersion)}}
+            - Gradle: {{(string.IsNullOrWhiteSpace(request.GradleVersion) ? _catalog.DefaultGradleVersion : request.GradleVersion)}}
             - Minecraft: {{request.MinecraftVersion}}
             - Loader: {{loader}}
             - Recommended IDE: {{request.Ide}}
@@ -1372,7 +1373,7 @@ namespace LocalGPT.Services
                         yield break;
 
                     var directoryName = Path.GetFileName(directory);
-                    if (LocalGptCatalogService.ExcludedDirectoryNames.Contains(directoryName) || !emitted.Add(directory))
+                    if (_catalog.ExcludedDirectoryNames.Contains(directoryName) || !emitted.Add(directory))
                         continue;
 
                     yield return directory;
@@ -1507,9 +1508,9 @@ namespace LocalGPT.Services
         {
             try
             {
-                var sourceExtensions = string.Join(", ", LocalGptCatalogService.SourceExtensions.Order(StringComparer.OrdinalIgnoreCase));
-                var binaryExtensions = string.Join(", ", LocalGptCatalogService.BinaryExtensions.Order(StringComparer.OrdinalIgnoreCase));
-                var excludedDirectories = string.Join(", ", LocalGptCatalogService.ExcludedDirectoryNames.Order(StringComparer.OrdinalIgnoreCase));
+                var sourceExtensions = string.Join(", ", _catalog.SourceExtensions.Order(StringComparer.OrdinalIgnoreCase));
+                var binaryExtensions = string.Join(", ", _catalog.BinaryExtensions.Order(StringComparer.OrdinalIgnoreCase));
+                var excludedDirectories = string.Join(", ", _catalog.ExcludedDirectoryNames.Order(StringComparer.OrdinalIgnoreCase));
                 return "Reads source/documentation-like files: " + sourceExtensions +
                     ". Counts but does not store binary/package files: " + binaryExtensions +
                     ". Skips noisy build/cache directories: " + excludedDirectories + ".";
@@ -2423,7 +2424,7 @@ namespace LocalGPT.Services
             try
             {
                 return string.IsNullOrWhiteSpace(endpoint)
-                ? LocalGptCatalogService.DefaultOllamaUri
+                ? _catalog.DefaultOllamaUri
                 : endpoint.Trim().TrimEnd('/');
             }
             catch (Exception ex)
@@ -2565,22 +2566,22 @@ namespace LocalGPT.Services
 
                
 
-                if (maxCharacters <= LocalGptCatalogService. omission.Length + 40)
+                if (maxCharacters <= _catalog.omission.Length + 40)
                 {
                     return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
                 }
 
                 if (!keepBothEnds)
                 {
-                    var available = maxCharacters - LocalGptCatalogService.shortOmission.Length;
+                    var available = maxCharacters - _catalog.shortOmission.Length;
 
                     if (available <= 0)
                         return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
 
-                    return $"{normalized[..available].TrimEnd()}{LocalGptCatalogService.shortOmission}";
+                    return $"{normalized[..available].TrimEnd()}{_catalog.shortOmission}";
                 }
 
-                var remaining = maxCharacters - LocalGptCatalogService.omission.Length;
+                var remaining = maxCharacters - _catalog.omission.Length;
 
                 if (remaining <= 0)
                     return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
@@ -2588,7 +2589,7 @@ namespace LocalGPT.Services
                 var head = Math.Max(remaining / 2, 1);
                 var tail = Math.Max(remaining - head, 1);
 
-                return $"{normalized[..head].TrimEnd()}{LocalGptCatalogService.omission}{normalized[^tail..].TrimStart()}";
+                return $"{normalized[..head].TrimEnd()}{_catalog.omission}{normalized[^tail..].TrimStart()}";
             }
             catch (Exception ex)
             {
@@ -3131,7 +3132,7 @@ namespace LocalGPT.Services
                     };
                 }
 
-                public static string NormalizeModel(string? model)
+                public string NormalizeModel(string? model)
                 {
                     return string.IsNullOrWhiteSpace(model)
                         ? "gpt-oss:20b"
@@ -3445,7 +3446,7 @@ namespace LocalGPT.Services
                     };
                 }
 
-                public static string NormalizeModel(string? model, string fallbackModel)
+                public string NormalizeModel(string? model, string fallbackModel)
                 {
                     return string.IsNullOrWhiteSpace(model)
                         ? fallbackModel
@@ -3559,7 +3560,7 @@ namespace LocalGPT.Services
                     return null;
                 }
 
-                public static string? ResolveDirectGguf(string root, string model)
+                public string? ResolveDirectGguf(string root, string model)
                 {
                     var sanitized = model.Replace(':', '-').Replace('/', '-').Replace('\\', '-');
                     foreach (var candidate in new[]
@@ -3585,7 +3586,7 @@ namespace LocalGPT.Services
                     }
                 }
 
-                public static string? ResolveOllamaManagedBlob(string root, string model)
+                public string? ResolveOllamaManagedBlob(string root, string model)
                 {
                     var (name, tag) = SplitModelName(model);
                     var manifest = Path.Combine(root, "manifests", "registry.ollama.ai", "library", name, tag);
@@ -3618,7 +3619,7 @@ namespace LocalGPT.Services
                     }
                 }
 
-                public static IReadOnlyList<string> BuildRunnerArguments(string modelPath, string prompt, GeneratedRequestOptions? requestOptions)
+                public IReadOnlyList<string> BuildRunnerArguments(string modelPath, string prompt, GeneratedRequestOptions? requestOptions)
                 {
                     var ctx = Math.Clamp(requestOptions?.NumCtx ?? 2048, 256, 262144);
                     var predict = Math.Clamp(requestOptions?.NumPredict ?? 1024, 1, 262144);
@@ -3641,7 +3642,7 @@ namespace LocalGPT.Services
                     return args;
                 }
 
-                public static string BuildPrompt(GeneratedChatRequest request)
+                public string BuildPrompt(GeneratedChatRequest request)
                 {
                     var builder = new StringBuilder();
                     foreach (var message in request.Messages.Where(message => !string.IsNullOrWhiteSpace(message.Content)))
@@ -3652,20 +3653,20 @@ namespace LocalGPT.Services
                     return builder.ToString();
                 }
 
-                public static (string Name, string Tag) SplitModelName(string model)
+                public (string Name, string Tag) SplitModelName(string model)
                 {
                     var parts = model.Split(':', 2, StringSplitOptions.TrimEntries);
                     return (parts[0], parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1] : "latest");
                 }
 
-                public static string NormalizeModel(string? model, string fallbackModel)
+                public string NormalizeModel(string? model, string fallbackModel)
                 {
                     return string.IsNullOrWhiteSpace(model)
                         ? fallbackModel
                         : model.Trim();
                 }
 
-                public static string ExpandPath(string? path)
+                public string ExpandPath(string? path)
                 {
                     if (string.IsNullOrWhiteSpace(path))
                         return string.Empty;
@@ -3679,7 +3680,7 @@ namespace LocalGPT.Services
                         : expanded;
                 }
 
-                public static GeneratedChatResponse BuildStatusResponse(string model, string message)
+                public GeneratedChatResponse BuildStatusResponse(string model, string message)
                 {
                     return new GeneratedChatResponse(
                         model,
@@ -3688,7 +3689,7 @@ namespace LocalGPT.Services
                         true);
                 }
 
-                public static void TryKill(Process process)
+                public void TryKill(Process process)
                 {
                     try
                     {
@@ -4493,7 +4494,7 @@ namespace LocalGPT.Services
 
             - `{{projectName}}.sln`
             - `src/{{projectName}}/{{projectName}}.csproj`
-            - Blazor Web App `Program.cs`, `App.razor`, `Routes.razor`
+            - Blazor Web App `Program.cs`, `App.razor`, `_catalog.Routes.razor`
             - Routable Razor pages under `Components/Pages`
             - Service/model code under `Services` and `Models`
             - `wwwroot/app.css`
@@ -4618,7 +4619,7 @@ namespace LocalGPT.Services
 
             - `src/{{projectName}}/Program.cs` - ASP.NET Core service registration, DevExpress setup, and app pipeline.
             - `src/{{projectName}}/Components/App.razor` - document shell and static asset links.
-            - `src/{{projectName}}/Components/Routes.razor` - Blazor route discovery.
+            - `src/{{projectName}}/Components/_catalog.Routes.razor` - Blazor route discovery.
             - `src/{{projectName}}/Components/GeneratedNavigation.razor` - generated app navigation.
             - `src/{{projectName}}/Components/Pages/Index.razor` - first viewport and page hub.
             - `src/{{projectName}}/Components/Pages/GeneratedDashboard.razor` - health/status grid.
@@ -5421,7 +5422,7 @@ namespace LocalGPT.Services
                 var match = _patterns.MinecraftVersionPattern.Match(text);
                 return match.Success
                     ? match.Groups["version"].Value
-                    : LocalGptCatalogService.DefaultMinecraftVersion;
+                    : _catalog.DefaultMinecraftVersion;
             }
             catch (Exception ex)
             {
@@ -6856,7 +6857,7 @@ namespace LocalGPT.Services
             try
             {
                 var requested = string.IsNullOrWhiteSpace(minecraftVersion)
-                ? DefaultMinecraftVersion
+                ? _catalog.DefaultMinecraftVersion
                 : minecraftVersion.Trim();
                 var knownVersions = MinecraftDatapackVersionKnownVersions(logger);
                 var exact = knownVersions.FirstOrDefault(item =>
@@ -6872,10 +6873,10 @@ namespace LocalGPT.Services
                     return prefix with { RequestedVersion = requested, IsExactMatch = false, NeedsVerification = true, Notes = $"{prefix.Notes} Version matched by prefix; verify against the official Minecraft version manifest before friend testing." };
 
                 var fallback = requested.StartsWith("26.", StringComparison.OrdinalIgnoreCase)
-                    ? knownVersions.First(item => item.MatchedVersion == DefaultMinecraftVersion)
+                    ? knownVersions.First(item => item.MatchedVersion == _catalog.DefaultMinecraftVersion)
                     : requested.StartsWith("1.21", StringComparison.OrdinalIgnoreCase)
                     ? knownVersions.First(item => item.MatchedVersion == "1.21.4")
-                    : knownVersions.First(item => item.MatchedVersion == DefaultMinecraftVersion);
+                    : knownVersions.First(item => item.MatchedVersion == _catalog.DefaultMinecraftVersion);
 
                 return fallback with
                 {
@@ -6888,10 +6889,10 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not resolve datapack metadata for Minecraft version {MinecraftVersion}.", minecraftVersion);
-                var requested = string.IsNullOrWhiteSpace(minecraftVersion) ? DefaultMinecraftVersion : minecraftVersion.Trim();
+                var requested = string.IsNullOrWhiteSpace(minecraftVersion) ? _catalog.DefaultMinecraftVersion : minecraftVersion.Trim();
                 return new MinecraftDatapackVersionInfo(
                     RequestedVersion: requested,
-                    MatchedVersion: DefaultMinecraftVersion,
+                    MatchedVersion: _catalog.DefaultMinecraftVersion,
                     PackFormat: "101.1",
                     FunctionRegistryFolder: "function",
                     IsExactMatch: false,
@@ -6962,7 +6963,7 @@ namespace LocalGPT.Services
                 while (stack.Count > 0)
                 {
                     var current = stack.Pop();
-                    if (LocalGptCatalogService.ExcludedDirectoryNames.Contains(current.Name))
+                    if (_catalog.ExcludedDirectoryNames.Contains(current.Name))
                         continue;
 
                     if (LooksLikeArchitectureRoot(current.FullName, logger))
@@ -6997,7 +6998,7 @@ namespace LocalGPT.Services
             {
                 return new DirectoryInfo(rootPath)
                     .EnumerateDirectories()
-                    .Where(directory => !LocalGptCatalogService.ExcludedDirectoryNames.Contains(directory.Name))
+                    .Where(directory => !_catalog.ExcludedDirectoryNames.Contains(directory.Name))
                     .OrderBy(directory => directory.FullName, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
             }

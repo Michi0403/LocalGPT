@@ -1,7 +1,6 @@
 using Azure;
 using Azure.AI.OpenAI;
 using LocalGPT.BusinessObjects;
-using LocalGPT.Extensions;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;

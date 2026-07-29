@@ -442,6 +442,6 @@
     }
 
     string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
-    static SaveProjectWorkspaceRootRequest NewWorkspace() => new() { ScopeKind = "Global", SolutionPattern = @"(?i)\.(sln|slnx)$", Priority = 100, IsEnabled = true };
-    static SaveProjectCompilerInstallationRequest NewCompiler() => new() { Language = "DotNet", ValidationArguments = "--version", IsEnabled = true };
+    SaveProjectWorkspaceRootRequest NewWorkspace() => new() { ScopeKind = "Global", SolutionPattern = @"(?i)\.(sln|slnx)$", Priority = 100, IsEnabled = true };
+    SaveProjectCompilerInstallationRequest NewCompiler() => new() { Language = "DotNet", ValidationArguments = "--version", IsEnabled = true };
 }

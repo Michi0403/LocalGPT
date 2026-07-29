@@ -6,11 +6,11 @@ using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
-using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
-    public sealed partial class MultiModelCouncilService(
+    public sealed partial class MultiModelCouncilService(ILocalGptVocabularyService vocabulary,
+    
         IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
         IAiContextBootstrapService bootstrapService,
         IChatMemoryService chatMemory,
@@ -35,7 +35,8 @@ namespace LocalGPT.Services
         IAmbientLocalGptContext ambientContext,
         ILogger<MultiModelCouncilService> logger,
         CouncilRuntimeService councilRuntime,
-        CouncilTextService councilText) : IMultiModelCouncilService
+        CouncilTextService councilText,
+        LocalGptCatalogService catalog) : IMultiModelCouncilService
     {
    
 
@@ -45,7 +46,7 @@ namespace LocalGPT.Services
             {
                 var providers = GetConfiguredOllamaProviders().ToList();
                 if (providers.Count == 0)
-                    providers.Add(new OllamaCoreOptions { Uri = DefaultOllamaUri, ModelName = "gpt-oss:20b" });
+                    providers.Add(new OllamaCoreOptions { Uri = catalog.DefaultOllamaUri, ModelName = "gpt-oss:20b" });
 
                 var candidates = new Dictionary<string, MultiModelCouncilModelCandidate>(StringComparer.OrdinalIgnoreCase);
 
@@ -99,15 +100,15 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(request.Prompt))
                     throw new InvalidOperationException("The council needs a prompt.");
 
-                var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri, logger);
+                var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? catalog.DefaultOllamaUri, logger);
                 var selectedParticipants = SelectParticipants(request);
                 var participantSelection = await ApplyApprovedOneRunModelExclusionsAsync(selectedParticipants, cancellationToken).ConfigureAwait(false);
                 var participants = participantSelection.Active;
-                var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
+                var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? catalog.DefaultMaxParallelModels : request.MaxParallelModels, 1, catalog.MaxParticipants);
                 var maxContextTokens = Math.Clamp(
-                    request.MaxContextTokens <= 0 ? DefaultContextTokens : request.MaxContextTokens,
-                    MinContextTokens,
-                    MaxContextTokens);
+                    request.MaxContextTokens <= 0 ? catalog.DefaultContextTokens : request.MaxContextTokens,
+                    catalog.MinContextTokens,
+                    catalog.MaxContextTokens);
                 var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
                 var keepAlive = MultiModelCouncilServiceGetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
                 var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
@@ -1057,7 +1058,7 @@ namespace LocalGPT.Services
                 .Select(model => model.Trim())
                 .Where(model => !string.IsNullOrWhiteSpace(model))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(MaxParticipants)
+                .Take(catalog.MaxParticipants)
                 .ToList();
 
                 if (selected.Count > 0)
@@ -1069,7 +1070,7 @@ namespace LocalGPT.Services
 
                 foreach (var configured in options.OllamaCores.Select(core => core.ModelName).Where(name => !string.IsNullOrWhiteSpace(name)))
                 {
-                    if (selected.Count >= MaxParticipants)
+                    if (selected.Count >= catalog.MaxParticipants)
                         break;
                     if (!selected.Contains(configured, StringComparer.OrdinalIgnoreCase))
                         selected.Add(configured.Trim());
@@ -1147,7 +1148,7 @@ namespace LocalGPT.Services
                             (List<ChatMessage>) messages,
                             new ChatOptions
                             {
-                                MaxOutputTokens = Math.Clamp(maxOutputTokens, MinOutputTokens, MaxOutputTokens),
+                                catalog.MaxOutputTokens = Math.Clamp(maxOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens),
                                 Temperature = 0.2f
                             },
                             participantCts.Token).WithCancellation(participantCts.Token).ConfigureAwait(true))
@@ -1179,7 +1180,7 @@ namespace LocalGPT.Services
                             modelName,
                             phase,
                             messages,
-                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 2048), 8192), MinOutputTokens, MaxOutputTokens),
+                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 2048), 8192), catalog.MinOutputTokens, catalog.MaxOutputTokens),
                             streamUpdate,
                             participantCts.Token,logger).ConfigureAwait(false);
 
@@ -1296,8 +1297,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                var recoveryOutput = Math.Clamp(Math.Min(maxOutputTokens, 8192), MinOutputTokens, MaxOutputTokens);
-                var recoveryContext = Math.Clamp(Math.Min(maxContextTokens, 65536), MinContextTokens, MaxContextTokens);
+                var recoveryOutput = Math.Clamp(Math.Min(maxOutputTokens, 8192), catalog.MinOutputTokens, catalog.MaxOutputTokens);
+                var recoveryContext = Math.Clamp(Math.Min(maxContextTokens, 65536), catalog.MinContextTokens, catalog.MaxContextTokens);
                 streamUpdate?.Invoke(
                     Environment.NewLine + Environment.NewLine +
                     $"> {WebUtility.HtmlEncode(modelName)} failed in {WebUtility.HtmlEncode(phase)}. LocalGPT is retrying once with safe CPU and bounded context/output settings." +
@@ -1379,7 +1380,7 @@ namespace LocalGPT.Services
                     var approved = snapshot.Requests.FirstOrDefault(request =>
                         string.Equals(request.CorrelationId, spec.CorrelationId, StringComparison.OrdinalIgnoreCase)
                         && string.Equals(request.OperationKey, spec.OperationKey, StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(request.Status, HumanCollaborationStatuses.Approved, StringComparison.OrdinalIgnoreCase));
+                        && string.Equals(request.Status, vocabulary.Get().HumanStatusApproved, StringComparison.OrdinalIgnoreCase));
                     if (approved is null || active.Count <= 1)
                         continue;
 
@@ -1617,7 +1618,7 @@ namespace LocalGPT.Services
                         messages,
                         new ChatOptions
                         {
-                            MaxOutputTokens = maxOutputTokens,
+                            catalog.MaxOutputTokens = maxOutputTokens,
                             Temperature = 0.1f
                         },
                         cancellationToken).WithCancellation(cancellationToken))
@@ -1700,7 +1701,7 @@ namespace LocalGPT.Services
                     return false;
 
                 var letterCount = trimmed.Count(char.IsLetter);
-                var wordCount = LocalGptCatalogService.WordPattern().Matches(trimmed).Count;
+                var wordCount = catalog.WordPattern.Matches(trimmed).Count;
                 return letterCount >= 40 && wordCount >= 10;
             }
             catch (Exception ex)
@@ -1769,7 +1770,7 @@ namespace LocalGPT.Services
                 if (requestedNumGpu is not null)
                     return requestedNumGpu;
 
-                return MultiModelCouncilServiceIsHeavyGpuRiskModel(modelName, logger) ? DefaultHeavyModelGpuLayers : null;
+                return MultiModelCouncilServiceIsHeavyGpuRiskModel(modelName, logger) ? catalog.DefaultHeavyModelGpuLayers : null;
             }
             catch (Exception ex)
             {

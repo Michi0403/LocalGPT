@@ -17,6 +17,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     private readonly object mutationGate = new();
     private readonly SemaphoreSlim persistenceGate = new(1, 1);
     private readonly ILogger<CouncilSpoolerService> logger;
+    private readonly ILocalGptVocabularyService vocabulary;
     private CancellationTokenSource? pendingPersist;
     private bool disposed;
     private string CheckpointPath { get; } = Path.Combine(
@@ -25,8 +26,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         "CouncilSpooler",
         "recent-runs.json");
 
-    public CouncilSpoolerService(ILogger<CouncilSpoolerService> logger)
+    public CouncilSpoolerService(ILocalGptVocabularyService vocabulary, ILogger<CouncilSpoolerService> logger)
     {
+        this.vocabulary = vocabulary;
         this.logger = logger;
         LoadCheckpoint();
     }
@@ -43,7 +45,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 RunId = result.RunId,
                 StartedAtUtc = result.StartedAtUtc,
                 UpdatedAtUtc = DateTime.UtcNow,
-                Status = CouncilSpoolerStatuses.Running,
+                Status = vocabulary.Get().CouncilSpoolerRunning,
                 Prompt = result.Prompt,
                 CouncilTeamKey = result.CouncilTeamKey,
                 ModelNames = [.. result.ModelNames]
@@ -94,7 +96,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 snapshot = new CouncilSpoolerSnapshot { RunId = result.RunId, StartedAtUtc = result.StartedAtUtc };
                 runs[result.RunId] = snapshot;
             }
-            snapshot.Status = failed ? CouncilSpoolerStatuses.Failed : CouncilSpoolerStatuses.Completed;
+            snapshot.Status = failed ? vocabulary.Get().CouncilSpoolerFailed : vocabulary.Get().CouncilSpoolerCompleted;
             snapshot.CompletedAtUtc = result.CompletedAtUtc ?? DateTime.UtcNow;
             snapshot.UpdatedAtUtc = DateTime.UtcNow;
             snapshot.FinalAnswer = result.FinalAnswer;
@@ -112,8 +114,8 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         lock (mutationGate)
         {
             return runs.Values
-                .Where(item => includeCompleted || item.Status == CouncilSpoolerStatuses.Running)
-                .OrderByDescending(item => item.Status == CouncilSpoolerStatuses.Running)
+                .Where(item => includeCompleted || item.Status == vocabulary.Get().CouncilSpoolerRunning)
+                .OrderByDescending(item => item.Status == vocabulary.Get().CouncilSpoolerRunning)
                 .ThenByDescending(item => item.UpdatedAtUtc)
                 .Take(Math.Clamp(take, 1, 100))
                 .Select(CloneSnapshot)
@@ -180,9 +182,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
             {
                 // A process restart cannot keep the actual model task alive. Preserve the transcript and
                 // mark previously-running checkpoints as failed/recoverable context instead of pretending.
-                if (snapshot.Status == CouncilSpoolerStatuses.Running)
+                if (snapshot.Status == vocabulary.Get().CouncilSpoolerRunning)
                 {
-                    snapshot.Status = CouncilSpoolerStatuses.Failed;
+                    snapshot.Status = vocabulary.Get().CouncilSpoolerFailed;
                     snapshot.CompletedAtUtc ??= DateTime.UtcNow;
                     snapshot.Warnings.Add("The LocalGPT process restarted. The saved transcript remains rejoinable, but the former in-flight model call cannot be resumed automatically.");
                 }

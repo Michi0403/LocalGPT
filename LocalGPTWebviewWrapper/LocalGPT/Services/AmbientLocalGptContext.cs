@@ -3,13 +3,14 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
-public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logger)
+public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary,
+    ILogger<AmbientLocalGptContext> logger)
     : IAmbientLocalGptContext, ILocalHumanInteractionContext, IHumanApprovalExecutionContext
 {
     private readonly AsyncLocal<ContextHolder?> CurrentHolder = new();
     private readonly AmbientLocalGptContextSnapshot Fallback = new(
         "ambient-unset",
-        AmbientActorKinds.System,
+        vocabulary.Get().ActorSystem,
         "LocalGPT",
         Source: "AmbientFallback");
 
@@ -36,7 +37,7 @@ public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logge
 
     public IDisposable PushSystem(string source, string? correlationId = null) => Push(new AmbientLocalGptContextSnapshot(
         NormalizeCorrelationId(correlationId),
-        AmbientActorKinds.System,
+        vocabulary.Get().ActorSystem,
         "LocalGPT",
         Source: Normalize(source, 160, "System")));
 
@@ -49,9 +50,9 @@ public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logge
         int councilRound = 0,
         string phase = "") => Push(new AmbientLocalGptContextSnapshot(
             NormalizeCorrelationId(correlationId),
-            AmbientActorKinds.Human,
+            vocabulary.Get().ActorHuman,
             Normalize(displayName, 120, "Human User"),
-            AmbientAuthorityKinds.HumanInteraction,
+            vocabulary.Get().AuthorityHumanInteraction,
             humanProfileId,
             councilRunId,
             Math.Max(0, councilRound),
@@ -68,9 +69,9 @@ public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logge
         int councilRound = 0,
         string phase = "") => Push(new AmbientLocalGptContextSnapshot(
             NormalizeCorrelationId(correlationId),
-            AmbientActorKinds.Human,
+            vocabulary.Get().ActorHuman,
             Normalize(displayName, 120, "Human User"),
-            AmbientAuthorityKinds.HumanApproval,
+            vocabulary.Get().AuthorityHumanApproval,
             humanProfileId,
             councilRunId,
             Math.Max(0, councilRound),
@@ -84,7 +85,7 @@ public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logge
         string phase,
         string? correlationId = null) => Push(new AmbientLocalGptContextSnapshot(
             NormalizeCorrelationId(correlationId ?? councilRunId.ToString("N")),
-            AmbientActorKinds.Council,
+            vocabulary.Get().ActorCouncil,
             "AI Council",
             CouncilRunId: councilRunId,
             CouncilRound: Math.Max(0, councilRound),

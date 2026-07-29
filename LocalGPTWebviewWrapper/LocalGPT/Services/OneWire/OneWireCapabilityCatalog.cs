@@ -5,7 +5,8 @@ using System.Text.Json;
 
 namespace LocalGPT.Services.OneWire;
 
-public sealed class OneWireCapabilityCatalog(
+public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabulary,
+    
     IServiceScopeFactory scopeFactory,
     IOneWirePeerRegistry peers,
     IOneWireConnectionRegistry connections,
@@ -41,7 +42,7 @@ public sealed class OneWireCapabilityCatalog(
             ? await functionCatalog.GetEntriesAsync(cancellationToken).ConfigureAwait(false)
             : await functionCatalog.GetExposedToPeerAsync(peerId, cancellationToken).ConfigureAwait(false);
         var functions = entries
-            .Where(entry => entry.Kind == DxAiFunctionCatalogKinds.DxFunction && entry.IsAvailable && entry.IsEnabled &&
+            .Where(entry => entry.Kind == vocabulary.Get().CatalogDxFunction && entry.IsAvailable && entry.IsEnabled &&
                 (string.IsNullOrWhiteSpace(peerId) || entry.ExposeToOneWire))
             .Select(entry => new OneWireCapabilityDescriptor
             {
@@ -134,7 +135,7 @@ public sealed class OneWireCapabilityCatalog(
             AllowPeerInvocation = true, InteractionEditor = OneWireInteractionEditor.Json, ConfigurationKey = "builtin:organic.skills.manage", Source = "LocalGPT"
         });
 
-        foreach (var serviceEntry in entries.Where(entry => entry.Kind == DxAiFunctionCatalogKinds.PublicServiceMethod && entry.IsAvailable && entry.IsEnabled &&
+        foreach (var serviceEntry in entries.Where(entry => entry.Kind == vocabulary.Get().CatalogPublicServiceMethod && entry.IsAvailable && entry.IsEnabled &&
             (string.IsNullOrWhiteSpace(peerId) || entry.ExposeToOneWire)))
         {
             functions.Add(new OneWireCapabilityDescriptor

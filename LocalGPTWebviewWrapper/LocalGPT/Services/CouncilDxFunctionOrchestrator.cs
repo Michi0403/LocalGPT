@@ -10,7 +10,8 @@ namespace LocalGPT.Services;
 /// scoped function client. Catalog exposure and invocation metadata remain the source of truth.
 /// A failed function call becomes a readable Council step instead of aborting the whole run.
 /// </summary>
-public sealed class CouncilDxFunctionOrchestrator(
+public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService vocabulary,
+    
     ICouncilTextPatternDataService patterns,
     ICouncilDxFunctionPolicyDataService policies,
     IDxAiFunctionCatalogService catalog,
@@ -85,7 +86,7 @@ public sealed class CouncilDxFunctionOrchestrator(
                 acceptedCount++;
                 var entry = await catalog.GetByFunctionNameAsync(functionName, cancellationToken).ConfigureAwait(false);
                 if (entry is null ||
-                    entry.Kind != DxAiFunctionCatalogKinds.DxFunction ||
+                    entry.Kind != vocabulary.Get().CatalogDxFunction ||
                     !entry.IsAvailable ||
                     !entry.IsEnabled ||
                     !entry.ExposeToAiChat)

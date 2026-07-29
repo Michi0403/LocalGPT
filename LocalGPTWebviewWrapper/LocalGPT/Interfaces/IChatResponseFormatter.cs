@@ -19,6 +19,18 @@ public interface IChatProtocolResolver
     ChatResponseProtocol Resolve(OllamaCoreOptions options);
 }
 
+public interface IChatProtocolProfileCatalog
+{
+    IReadOnlyList<IChatProtocolProfile> Profiles { get; }
+    IChatProtocolProfile ResolveExact(ChatResponseProtocol protocol);
+}
+
+public interface IChatProtocolTextService
+{
+    bool ContainsAny(string value, LocalGptRuntimeCollection collection);
+    string ReplaceAll(string text, LocalGptRuntimeCollection collection);
+}
+
 /// <summary>
 /// A model-family-specific protocol boundary. Profiles are stateless and
 /// selected once per response stream; they must never modify another

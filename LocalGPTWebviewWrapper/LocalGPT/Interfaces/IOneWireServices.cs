@@ -169,3 +169,8 @@ public interface IProjectOrganicContextService
     Task<ProjectOrganicContext> SaveAsync(Guid projectId, SaveProjectOrganicContextRequest request, CancellationToken cancellationToken = default);
     Task<string> BuildBriefingAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default);
 }
+
+public interface IOrganicCouncilBlueprintSeedDataService
+{
+    IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeams();
+}

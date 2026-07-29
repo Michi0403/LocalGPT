@@ -453,13 +453,13 @@
         set => ArtifactEdit.RequirementId = Guid.TryParse(value, out var id) ? id : null;
     }
 
-    static readonly string[] RequirementTargetKinds =
+    readonly string[] RequirementTargetKinds =
     [
         "DXFunction", "BusinessObject", "Configuration", "SystemVariable", "Regex",
         "Prompt", "Knowledge", "DatabaseTable", "Service", "Controller", "CodeDomTarget"
     ];
 
-    static readonly string[] ArtifactKinds =
+    readonly string[] ArtifactKinds =
     [
         "Regex", "SystemVariable", "Configuration", "Prompt", "KnowledgeReference",
         "BusinessObjectReference", "DXFunctionReference", "CodeDomTarget", "DocumentReference"
@@ -730,7 +730,7 @@
         }
     }
 
-    static SaveLocalGptProjectRequest NewProjectRequest() => new()
+    SaveLocalGptProjectRequest NewProjectRequest() => new()
     {
         ProjectType = "DotNetSolution",
         SolutionSearchPattern = @"(?i)\.(sln|slnx)$",
@@ -741,18 +741,18 @@
         RecommendGit = true
     };
 
-    static AddLocalGptProjectTopicRequest NewTopicRequest() => new()
+    AddLocalGptProjectTopicRequest NewTopicRequest() => new()
     {
         Status = "Planned"
     };
 
-    static AddLocalGptProjectVersionRequest NewVersionRequest(string path = "") => new()
+    AddLocalGptProjectVersionRequest NewVersionRequest(string path = "") => new()
     {
         PathSnapshot = path,
         IsCurrent = true
     };
 
-    static SaveProjectRevisionRequest NewRevisionRequest() => new()
+    SaveProjectRevisionRequest NewRevisionRequest() => new()
     {
         BranchName = "main",
         RevisionName = $"revision-{DateTime.UtcNow:yyyyMMdd-HHmmss}",
@@ -760,19 +760,19 @@
         IsCurrent = true
     };
 
-    static SaveProjectRequirementRequest NewRequirementRequest() => new()
+    SaveProjectRequirementRequest NewRequirementRequest() => new()
     {
         RequirementType = "Functional",
         Status = "Planned",
         Priority = "Normal"
     };
 
-    static SaveProjectRequirementLinkRequest NewRequirementLinkRequest() => new()
+    SaveProjectRequirementLinkRequest NewRequirementLinkRequest() => new()
     {
         TargetKind = "DXFunction"
     };
 
-    static SaveProjectArtifactRequest NewArtifactRequest() => new()
+    SaveProjectArtifactRequest NewArtifactRequest() => new()
     {
         ArtifactKind = "Configuration",
         DataType = "string"

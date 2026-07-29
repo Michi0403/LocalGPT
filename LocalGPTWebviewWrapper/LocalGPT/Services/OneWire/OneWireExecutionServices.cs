@@ -113,7 +113,7 @@ Analyze only the supplied evidence. Report meaningful changes, uncertainties, an
         var functionName = string.IsNullOrWhiteSpace(item.CapabilityKey) ? item.Request.Route : item.CapabilityKey;
         var catalog = scope.ServiceProvider.GetRequiredService<IDxAiFunctionCatalogService>();
         var catalogEntry = await catalog.GetByFunctionNameAsync(functionName, cancellationToken).ConfigureAwait(false);
-        if (catalogEntry?.Kind == DxAiFunctionCatalogKinds.PublicServiceMethod)
+        if (catalogEntry?.Kind == vocabulary.Get().CatalogPublicServiceMethod)
         {
             var invoker = scope.ServiceProvider.GetRequiredService<IPublicServiceMethodInvoker>();
             var serviceResult = await invoker.InvokeAsync(new PublicServiceMethodInvocationRequest
@@ -435,7 +435,7 @@ public sealed class OneWireMessageDispatcher(
     };
 }
 
-public sealed class OneWireTargetApprovalPolicy : IOneWireTargetApprovalPolicy
+public sealed class OneWireTargetApprovalPolicy(ILocalGptVocabularyService vocabulary) : IOneWireTargetApprovalPolicy
 {
     public HumanApprovalRequestSpec Create(OneWireEnvelope envelope)
     {
@@ -452,7 +452,7 @@ public sealed class OneWireTargetApprovalPolicy : IOneWireTargetApprovalPolicy
                 "Local 1-Wire link reviewer",
                 RequiredBeforeCompletion: true,
                 IsSensitive: true,
-                RequestKind: HumanCollaborationRequestKinds.Approval,
+                RequestKind: vocabulary.Get().HumanRequestApproval,
                 ResponsePrompt: "Approve or decline this exact local organic application link.",
                 AllowFreeText: true,
                 ParameterFingerprint: envelope.Hash ?? envelope.SourcePeerId);
@@ -481,7 +481,7 @@ public sealed class OneWireTargetApprovalPolicy : IOneWireTargetApprovalPolicy
             "External organic-plugin request reviewer",
             RequiredBeforeCompletion: true,
             IsSensitive: true,
-            RequestKind: needsValue ? HumanCollaborationRequestKinds.Guidance : HumanCollaborationRequestKinds.Approval,
+            RequestKind: needsValue ? vocabulary.Get().HumanRequestGuidance : vocabulary.Get().HumanRequestApproval,
             ResponsePrompt: needsValue ? $"Enter the {editor} value to return to {envelope.SourcePeerId}." : "Confirm or decline this exact invocation.",
             PrefillText: envelope.InteractionValueJson ?? string.Empty,
             AllowFreeText: needsValue,

@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace LocalGPT.Services;
 
-public sealed class GetPublicArchitectureDirectoryFunction(
+public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonService json, 
     IDxAiFunctionRegistry registry,
     ILogger<GetPublicArchitectureDirectoryFunction> logger) : IDxAiFunctionHandler
 {
@@ -48,7 +48,7 @@ public sealed class GetPublicArchitectureDirectoryFunction(
             .ToList();
         var functions = registry.GetFunctions();
         logger.LogDebug("Published {MethodCount} public methods and {FunctionCount} DXFunctions.", methods.Count, functions.Count);
-        return Task.FromResult(DxAiFunctionJsonHelper.Success(new { Methods = methods, DxFunctions = functions }));
+        return Task.FromResult(json.Success(new { Methods = methods, DxFunctions = functions }));
     }
 
     private string FriendlyName(Type type) => type.FullName ?? type.Name;
@@ -64,7 +64,7 @@ public sealed class GetPublicArchitectureDirectoryFunction(
     }
 }
 
-public sealed class InspectDebugArtifactFunction(IDebugArtifactInspectionService inspector) : IDxAiFunctionHandler
+public sealed class InspectDebugArtifactFunction(IDxAiFunctionJsonService json, IDebugArtifactInspectionService inspector) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.debug.inspect",
@@ -83,9 +83,9 @@ public sealed class InspectDebugArtifactFunction(IDebugArtifactInspectionService
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = DxAiFunctionJsonHelper.Deserialize<Parameters>(request.Parameters);
+        var parameters = json.Deserialize<Parameters>(request.Parameters);
         var result = await inspector.InspectAsync(parameters.FilePath, cancellationToken).ConfigureAwait(false);
-        return DxAiFunctionJsonHelper.Success(result);
+        return json.Success(result);
     }
 
     private sealed class Parameters

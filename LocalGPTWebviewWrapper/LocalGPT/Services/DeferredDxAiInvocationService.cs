@@ -6,7 +6,8 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
-public sealed class DeferredDxAiInvocationService(
+public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService vocabulary,
+    
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IServiceScopeFactory scopeFactory,
     ILogger<DeferredDxAiInvocationService> logger) : IDeferredDxAiInvocationService
@@ -55,7 +56,7 @@ public sealed class DeferredDxAiInvocationService(
                 ProjectId = request.ProjectId,
                 ProjectVersionId = request.ProjectVersionId,
                 ApplicationVersion = Limit(request.ApplicationVersion, 80),
-                Status = DeferredDxAiInvocationStatuses.PendingApproval,
+                Status = vocabulary.Get().DeferredPendingApproval,
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             });
@@ -99,7 +100,7 @@ public sealed class DeferredDxAiInvocationService(
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var candidates = await db.DeferredDxAiInvocations
                 .Where(item => item.CouncilRunId == councilRunId &&
-                    item.Status == DeferredDxAiInvocationStatuses.PendingApproval)
+                    item.Status == vocabulary.Get().DeferredPendingApproval)
                 .OrderBy(item => item.CreatedAtUtc)
                 .Take(8)
                 .ToListAsync(cancellationToken)
@@ -118,28 +119,28 @@ public sealed class DeferredDxAiInvocationService(
             {
                 if (!approvalStatuses.TryGetValue(candidate.ApprovalRequestId, out var approvalStatus))
                     continue;
-                if (approvalStatus == HumanCollaborationStatuses.Declined)
+                if (approvalStatus == vocabulary.Get().HumanStatusDeclined)
                 {
-                    candidate.Status = DeferredDxAiInvocationStatuses.Declined;
-                    candidate.ResultStatus = HumanCollaborationStatuses.Declined;
+                    candidate.Status = vocabulary.Get().DeferredDeclined;
+                    candidate.ResultStatus = vocabulary.Get().HumanStatusDeclined;
                     candidate.ResultSummary = "The local human declined this exact invocation.";
                     candidate.CompletedAtUtc = DateTime.UtcNow;
                     candidate.UpdatedAtUtc = DateTime.UtcNow;
                     continue;
                 }
-                if (approvalStatus == HumanCollaborationStatuses.Consumed)
+                if (approvalStatus == vocabulary.Get().HumanStatusConsumed)
                 {
-                    candidate.Status = DeferredDxAiInvocationStatuses.CompletedElsewhere;
-                    candidate.ResultStatus = HumanCollaborationStatuses.Consumed;
+                    candidate.Status = vocabulary.Get().DeferredCompletedElsewhere;
+                    candidate.ResultStatus = vocabulary.Get().HumanStatusConsumed;
                     candidate.ResultSummary = "The exact approval was consumed by another retry path.";
                     candidate.CompletedAtUtc = DateTime.UtcNow;
                     candidate.UpdatedAtUtc = DateTime.UtcNow;
                     continue;
                 }
-                if (approvalStatus != HumanCollaborationStatuses.Approved)
+                if (approvalStatus != vocabulary.Get().HumanStatusApproved)
                     continue;
 
-                candidate.Status = DeferredDxAiInvocationStatuses.Executing;
+                candidate.Status = vocabulary.Get().DeferredExecuting;
                 candidate.AttemptCount++;
                 candidate.LastAttemptAtUtc = DateTime.UtcNow;
                 candidate.UpdatedAtUtc = DateTime.UtcNow;
@@ -207,7 +208,7 @@ public sealed class DeferredDxAiInvocationService(
             candidate.Id,
             candidate.ApprovalRequestId,
             candidate.FunctionName,
-            result.Succeeded ? DeferredDxAiInvocationStatuses.Completed : DeferredDxAiInvocationStatuses.Failed,
+            result.Succeeded ? vocabulary.Get().DeferredCompleted : vocabulary.Get().DeferredFailed,
             result.Status,
             summary);
     }
@@ -226,8 +227,8 @@ public sealed class DeferredDxAiInvocationService(
                 .SingleAsync(item => item.Id == deferredInvocationId, cancellationToken)
                 .ConfigureAwait(false);
             entity.Status = result.Succeeded
-                ? DeferredDxAiInvocationStatuses.Completed
-                : DeferredDxAiInvocationStatuses.Failed;
+                ? vocabulary.Get().DeferredCompleted
+                : vocabulary.Get().DeferredFailed;
             entity.ResultStatus = Limit(result.Status, 80);
             entity.ResultSummary = summary;
             entity.CompletedAtUtc = DateTime.UtcNow;

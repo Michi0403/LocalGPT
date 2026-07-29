@@ -5,7 +5,7 @@ using LocalGPT.Services.Helpers;
 
 namespace LocalGPT.Services;
 
-public sealed class GetProjectMaintenanceFunction(
+public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json, 
     ILocalGptProjectService projects,
     IProjectMaintenanceService maintenance,
     ILogger<GetProjectMaintenanceFunction> logger) : IDxAiFunctionHandler
@@ -22,14 +22,14 @@ public sealed class GetProjectMaintenanceFunction(
     {
         try
         {
-            var parameters = DxAiFunctionJsonHelper.Deserialize<Parameters>(request.Parameters);
+            var parameters = json.Deserialize<Parameters>(request.Parameters);
             var details = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
             if (details is null) return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The project was not found." };
             var workspace = await maintenance.ResolveWorkspaceAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
             var compilers = await maintenance.GetCompilerInstallationsAsync(cancellationToken).ConfigureAwait(false);
             var files = await maintenance.GetTrackedFilesAsync(parameters.ProjectId, parameters.RevisionId, cancellationToken).ConfigureAwait(false);
             logger.LogDebug("DXAIFunction returned project maintenance metadata for project {ProjectId} with {FileCount} tracked file(s).", parameters.ProjectId, files.Count);
-            return DxAiFunctionJsonHelper.Success(new
+            return json.Success(new
             {
             Project = new { details.Project.Id, details.Project.Name, details.Project.ProjectType, details.Project.RootPath, details.Project.SolutionPath, details.Project.SolutionSearchPattern, details.Project.FileIncludePattern, details.Project.FileExcludePattern },
             Workspace = workspace,
@@ -48,7 +48,7 @@ public sealed class GetProjectMaintenanceFunction(
     private sealed class Parameters { public Guid ProjectId { get; set; } public Guid? RevisionId { get; set; } }
 }
 
-public sealed class RegisterProjectRevisionWorkspaceFunction(IProjectMaintenanceService maintenance, ILogger<RegisterProjectRevisionWorkspaceFunction> logger) : IDxAiFunctionHandler
+public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<RegisterProjectRevisionWorkspaceFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.workspace.register", "POST", "/api/dxai/functions/project.revision.workspace.register/invoke",
@@ -59,7 +59,7 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IProjectMaintenance
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<Parameters>(DxAiFunctionJsonHelper.Options) ?? throw new JsonException("projectId and revisionId are required.");
+        var parameters = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId and revisionId are required.");
         var revision = await maintenance.RegisterRevisionWorkspaceAsync(
             parameters.ProjectId,
             parameters.RevisionId,
@@ -68,7 +68,7 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IProjectMaintenance
             userConfirmed: true,
             cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved workspace registration completed for project {ProjectId} revision {RevisionId}; paths omitted from logs.", parameters.ProjectId, parameters.RevisionId);
-        return DxAiFunctionJsonHelper.Success(new { revision.Id, revision.ProjectId, revision.SourceRootPath, revision.SolutionPath, revision.CompileVerified, revision.CouncilVerified, revision.ReadyForTesting });
+        return json.Success(new { revision.Id, revision.ProjectId, revision.SourceRootPath, revision.SolutionPath, revision.CompileVerified, revision.CouncilVerified, revision.ReadyForTesting });
     }
 
     private sealed class Parameters
@@ -80,7 +80,7 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IProjectMaintenance
     }
 }
 
-public sealed class ScanProjectFilesFunction(IProjectMaintenanceService maintenance, ILogger<ScanProjectFilesFunction> logger) : IDxAiFunctionHandler
+public sealed class ScanProjectFilesFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<ScanProjectFilesFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.files.scan", "POST", "/api/dxai/functions/project.files.scan/invoke",
@@ -90,16 +90,16 @@ public sealed class ScanProjectFilesFunction(IProjectMaintenanceService maintena
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var p = request.Parameters.Deserialize<Parameters>(DxAiFunctionJsonHelper.Options) ?? throw new JsonException("projectId is required.");
+        var p = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId is required.");
         p.Request.UserConfirmed = true;
         var result = await maintenance.ScanProjectFilesAsync(p.ProjectId, p.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved project scan completed for project {ProjectId} with {FileCount} stored files.", p.ProjectId, result.FilesStored);
-        return DxAiFunctionJsonHelper.Success(result);
+        return json.Success(result);
     }
     private sealed class Parameters { public Guid ProjectId { get; set; } public ScanProjectFilesRequest Request { get; set; } = new(); }
 }
 
-public sealed class SaveProjectFilePatternsFunction(IProjectMaintenanceService maintenance, ILogger<SaveProjectFilePatternsFunction> logger) : IDxAiFunctionHandler
+public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<SaveProjectFilePatternsFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.file.patterns.save", "POST", "/api/dxai/functions/project.file.patterns.save/invoke",
@@ -110,11 +110,11 @@ public sealed class SaveProjectFilePatternsFunction(IProjectMaintenanceService m
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<Parameters>(DxAiFunctionJsonHelper.Options) ?? throw new JsonException("trackedFileId is required.");
+        var parameters = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("trackedFileId is required.");
         parameters.Request.UserConfirmed = true;
         var result = await maintenance.SaveTrackedFilePatternAsync(parameters.TrackedFileId, parameters.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved regex metadata was saved for tracked file {TrackedFileId}; regex content omitted from logs.", parameters.TrackedFileId);
-        return DxAiFunctionJsonHelper.Success(result);
+        return json.Success(result);
     }
 
     private sealed class Parameters
@@ -124,7 +124,7 @@ public sealed class SaveProjectFilePatternsFunction(IProjectMaintenanceService m
     }
 }
 
-public sealed class VerifyProjectRevisionBuildFunction(IProjectMaintenanceService maintenance, ILogger<VerifyProjectRevisionBuildFunction> logger) : IDxAiFunctionHandler
+public sealed class VerifyProjectRevisionBuildFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<VerifyProjectRevisionBuildFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.build.verify", "POST", "/api/dxai/functions/project.revision.build.verify/invoke",
@@ -134,16 +134,16 @@ public sealed class VerifyProjectRevisionBuildFunction(IProjectMaintenanceServic
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var p = request.Parameters.Deserialize<Parameters>(DxAiFunctionJsonHelper.Options) ?? throw new JsonException("projectId is required.");
+        var p = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId is required.");
         p.Request.UserConfirmed = true;
         var result = await maintenance.RunBuildVerificationAsync(p.ProjectId, p.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved build verification {VerificationId} completed for project {ProjectId}.", result.Id, p.ProjectId);
-        return DxAiFunctionJsonHelper.Success(result);
+        return json.Success(result);
     }
     private sealed class Parameters { public Guid ProjectId { get; set; } public RunProjectBuildVerificationRequest Request { get; set; } = new(); }
 }
 
-public sealed class RecordProjectCouncilBuildReviewFunction(IProjectMaintenanceService maintenance, ILogger<RecordProjectCouncilBuildReviewFunction> logger) : IDxAiFunctionHandler
+public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<RecordProjectCouncilBuildReviewFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.council-review", "POST", "/api/dxai/functions/project.revision.council-review/invoke",
@@ -153,16 +153,16 @@ public sealed class RecordProjectCouncilBuildReviewFunction(IProjectMaintenanceS
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var p = request.Parameters.Deserialize<Parameters>(DxAiFunctionJsonHelper.Options) ?? throw new JsonException("verificationId is required.");
+        var p = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("verificationId is required.");
         p.Request.UserConfirmed = true;
         var result = await maintenance.RecordCouncilBuildReviewAsync(p.VerificationId, p.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved council review recorded for verification {VerificationId}.", p.VerificationId);
-        return DxAiFunctionJsonHelper.Success(result);
+        return json.Success(result);
     }
     private sealed class Parameters { public Guid VerificationId { get; set; } public RecordCouncilBuildReviewRequest Request { get; set; } = new(); }
 }
 
-public sealed class ApproveProjectRevisionReadyFunction(IProjectMaintenanceService maintenance, ILogger<ApproveProjectRevisionReadyFunction> logger) : IDxAiFunctionHandler
+public sealed class ApproveProjectRevisionReadyFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<ApproveProjectRevisionReadyFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.ready.approve", "POST", "/api/dxai/functions/project.revision.ready.approve/invoke",
@@ -172,11 +172,11 @@ public sealed class ApproveProjectRevisionReadyFunction(IProjectMaintenanceServi
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var p = request.Parameters.Deserialize<Parameters>(DxAiFunctionJsonHelper.Options) ?? throw new JsonException("projectId and revisionId are required.");
+        var p = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId and revisionId are required.");
         p.Request.UserConfirmed = true;
         var result = await maintenance.ApproveRevisionReadyForTestAsync(p.ProjectId, p.RevisionId, p.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved revision {RevisionId} for project {ProjectId} as ready for testing.", p.RevisionId, p.ProjectId);
-        return DxAiFunctionJsonHelper.Success(result);
+        return json.Success(result);
     }
     private sealed class Parameters { public Guid ProjectId { get; set; } public Guid RevisionId { get; set; } public ApproveRevisionReadyForTestRequest Request { get; set; } = new(); }
 }

@@ -22,6 +22,18 @@ public interface ILocalGptRuntimePolicyDataService
     Regex PowerShellInlineCommandPattern { get; }
     Regex PowerShellFilePattern { get; }
     Regex SensitiveArgumentPattern { get; }
+    string GetString(LocalGptRuntimeValue key);
+    int GetInt(LocalGptRuntimeValue key);
+    long GetLong(LocalGptRuntimeValue key);
+    Guid GetGuid(LocalGptRuntimeValue key);
+    T GetJson<T>(LocalGptRuntimeValue key);
+    Regex GetPattern(LocalGptRuntimePattern key);
+    FrozenSet<string> GetCollection(LocalGptRuntimeCollection key);
     LocalGptRuntimePolicySnapshot GetSnapshot();
     LocalGptRuntimePolicySnapshot Reload();
+}
+
+public interface ILocalGptVocabularyService
+{
+    LocalGptVocabularySnapshot Get();
 }

@@ -4,7 +4,6 @@ using LocalGPT.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
@@ -12,7 +11,8 @@ namespace LocalGPT.Services
         ICouncilKnowledgeService knowledgeService,
         ILogger<LearnBaseKnowledgeImporterService> logger,
         CouncilRuntimeService councilRuntime,
-        CouncilTextService councilText) : ILearnBaseKnowledgeImporterService
+        CouncilTextService councilText,
+        LocalGptCatalogService catalog) : ILearnBaseKnowledgeImporterService
     {
 
 

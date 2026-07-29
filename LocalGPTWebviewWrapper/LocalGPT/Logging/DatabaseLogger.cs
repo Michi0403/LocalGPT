@@ -5,7 +5,8 @@ namespace LocalGPT.Logging
 {
     public sealed class DatabaseLogger(string categoryName, DatabaseLoggerProvider provider) : ILogger
     {
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+        private readonly NullScope nullScope = new();
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => nullScope;
 
         public bool IsEnabled(LogLevel logLevel) => provider.IsEnabled(categoryName, logLevel);
 
@@ -49,7 +50,6 @@ namespace LocalGPT.Logging
 
         public sealed class NullScope : IDisposable
         {
-            public static readonly NullScope Instance = new();
             public void Dispose()
             {
             }

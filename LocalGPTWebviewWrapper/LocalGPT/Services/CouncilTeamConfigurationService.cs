@@ -13,6 +13,7 @@ namespace LocalGPT.Services;
 public sealed class CouncilTeamConfigurationService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    IOrganicCouncilBlueprintSeedDataService seedData,
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
     private const int CurrentSeedVersion = 5;
@@ -60,7 +61,7 @@ public sealed class CouncilTeamConfigurationService(
 
         ApplyDefinition(row, request.Team);
         row.IsEnabled = request.IsEnabled;
-        row.IsSystemSeed = row.IsSystemSeed && OrganicCouncilBlueprintService.CreateDefaultTeams().Any(team => team.Key == key);
+        row.IsSystemSeed = row.IsSystemSeed && seedData.CreateDefaultTeams().Any(team => team.Key == key);
         row.IsUserModified = true;
         row.SeedVersion = CurrentSeedVersion;
         row.UpdatedAtUtc = DateTime.UtcNow;
@@ -76,7 +77,7 @@ public sealed class CouncilTeamConfigurationService(
         var existingRows = await db.CouncilTeamConfigurations.ToListAsync(cancellationToken).ConfigureAwait(false);
         var existing = existingRows.ToDictionary(item => item.Key, StringComparer.OrdinalIgnoreCase);
         var changed = false;
-        foreach (var definition in OrganicCouncilBlueprintService.CreateDefaultTeams())
+        foreach (var definition in seedData.CreateDefaultTeams())
         {
             NormalizeDefaults(definition);
             if (!existing.TryGetValue(definition.Key, out var row))
