@@ -2,7 +2,6 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.Services.Formatting;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Logging.Abstractions;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -52,7 +51,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.councilRuntime = councilRuntime ?? throw new ArgumentNullException(nameof(councilRuntime));
         providerOptions = options;
-        this.formatterFactory = formatterFactory ?? new ChatResponseFormatterFactory(NullLoggerFactory.Instance);
+        this.formatterFactory = formatterFactory ?? throw new ArgumentNullException(nameof(formatterFactory));
         this.protocolResolver = protocolResolver ?? new ChatProtocolResolver();
         this.promptConfigService = promptConfigService;
         this.functionRegistry = functionRegistry;
