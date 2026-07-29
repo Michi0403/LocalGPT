@@ -34,21 +34,42 @@ public sealed class LocalGptRuntimePolicyStoreService(
                 {
                     if (!variables.TryGetValue(name, out var value) || value is null)
                         throw new InvalidDataException($"Required runtime-policy value '{name}' is missing.");
-                    logger.LogTrace($"Read runtime-policy value {name}.");
+                    logger.LogTrace("Read runtime-policy value {RuntimePolicyValueName}.", name);
                     return value;
                 }
                 catch (Exception exception)
                 {
-                    logger.LogError(exception, $"Could not read runtime-policy value {name}: {exception.Message}");
+                    logger.LogError(exception, "Could not read runtime-policy value {RuntimePolicyValueName}: {ErrorMessage}", name, exception.Message);
                     throw;
                 }
             }
 
+            IReadOnlyList<string> ReadCollection(LocalGptRuntimeCollectionSeed item)
+            {
+                var persistedValue = ReadRequired(item.Name);
+                try
+                {
+                    var values = JsonSerializer.Deserialize<string[]>(persistedValue);
+                    if (values is not null)
+                        return values;
+
+                    logger.LogWarning(
+                        "Runtime-policy collection {RuntimePolicyCollectionName} contained JSON null. Seed defaults are used for this load.",
+                        item.Name);
+                }
+                catch (JsonException exception)
+                {
+                    logger.LogWarning(
+                        exception,
+                        "Runtime-policy collection {RuntimePolicyCollectionName} contained legacy or malformed data. Seed defaults are used for this load.",
+                        item.Name);
+                }
+
+                return item.Values.ToArray();
+            }
+
             var valueMap = seed.Values.ToDictionary(item => item.Key, item => ReadRequired(item.Name));
-            var collectionMap = seed.Collections.ToDictionary(
-                item => item.Key,
-                item => (IReadOnlyList<string>)(JsonSerializer.Deserialize<string[]>(ReadRequired(item.Name))
-                    ?? throw new InvalidDataException($"Runtime-policy collection '{item.Name}' is not a JSON string array.")));
+            var collectionMap = seed.Collections.ToDictionary(item => item.Key, ReadCollection);
             var regexMap = seed.RegexPatterns.ToDictionary(
                 item => item.Key,
                 item =>
@@ -57,7 +78,7 @@ public sealed class LocalGptRuntimePolicyStoreService(
                     {
                         if (!regexRows.TryGetValue(item.Name, out var row) || string.IsNullOrWhiteSpace(row.Pattern))
                             throw new InvalidDataException($"Required runtime-policy regex '{item.Name}' is missing.");
-                        logger.LogTrace($"Read runtime-policy regex {item.Name}.");
+                        logger.LogTrace("Read runtime-policy regex {RuntimePolicyRegexName}.", item.Name);
                         return new LocalGptRuntimeRegexDefinition
                         {
                             Key = item.Key,
@@ -69,16 +90,20 @@ public sealed class LocalGptRuntimePolicyStoreService(
                     }
                     catch (Exception exception)
                     {
-                        logger.LogError(exception, $"Could not read runtime-policy regex {item.Name}: {exception.Message}");
+                        logger.LogError(exception, "Could not read runtime-policy regex {RuntimePolicyRegexName}: {ErrorMessage}", item.Name, exception.Message);
                         throw;
                     }
                 });
-            logger.LogInformation($"Loaded {valueMap.Count} values, {collectionMap.Count} collections and {regexMap.Count} regexes from the LocalGPT database.");
+            logger.LogInformation(
+                "Loaded {RuntimeValueCount} values, {RuntimeCollectionCount} collections and {RuntimeRegexCount} regexes from the LocalGPT database.",
+                valueMap.Count,
+                collectionMap.Count,
+                regexMap.Count);
             return new LocalGptRuntimePolicyDefinition { Values = valueMap, Collections = collectionMap, RegexPatterns = regexMap };
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, $"Could not load the LocalGPT runtime policy: {exception.Message}");
+            logger.LogError(exception, "Could not load the LocalGPT runtime policy: {ErrorMessage}", exception.Message);
             throw;
         }
     }

@@ -124,6 +124,18 @@ public sealed class DatabaseInitializationService(
                 continue;
             }
 
+            if (item.DataType.Equals(typeof(string[]).FullName, StringComparison.Ordinal)
+                && !IsJsonStringArray(row.ValueString))
+            {
+                row.ValueString = item.Value;
+                row.DataType = item.DataType;
+                row.LastUpdated = DateTime.UtcNow;
+                logger.LogWarning(
+                    "Repaired legacy runtime-policy collection {RuntimePolicyCollectionName} with its canonical JSON seed value.",
+                    item.Name);
+                continue;
+            }
+
             // Lossless default evolution: only replace values that exactly match a previous built-in default.
             // Any user-edited value remains authoritative.
             if (item.Name.Equals("DefaultContextTokens", StringComparison.OrdinalIgnoreCase)
@@ -134,6 +146,26 @@ public sealed class DatabaseInitializationService(
                 row.DataType = item.DataType;
                 row.LastUpdated = DateTime.UtcNow;
             }
+        }
+    }
+
+    private bool IsJsonStringArray(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            return document.RootElement.ValueKind == JsonValueKind.Array
+                && document.RootElement.EnumerateArray().All(item => item.ValueKind == JsonValueKind.String);
+        }
+        catch (JsonException exception)
+        {
+            logger.LogDebug(
+                exception,
+                "Runtime-policy collection candidate is not a JSON string array and requires compatibility repair.");
+            return false;
         }
     }
 
