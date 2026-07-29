@@ -83,39 +83,100 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 
 public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry> logger) : IOneWireConnectionRegistry
 {
-    private readonly ConcurrentDictionary<string, Func<OneWireEnvelope, CancellationToken, Task>> senders = new(StringComparer.OrdinalIgnoreCase);
+    private sealed record ConnectionRegistration(Guid Id, Func<OneWireEnvelope, CancellationToken, Task> Sender);
 
-    public void Register(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender)
+    private readonly ConcurrentDictionary<string, ConnectionRegistration> senders = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object registrationGate = new();
+
+    public void Register(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender) =>
+        RegisterOwned(peerId, sender);
+
+    public Guid RegisterOwned(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ArgumentNullException.ThrowIfNull(sender);
-        senders[peerId] = sender;
-        logger.LogInformation("Registered live 1-Wire connection for {PeerId}.", peerId);
+        var registration = new ConnectionRegistration(Guid.NewGuid(), sender);
+        lock (registrationGate)
+            senders[peerId] = registration;
+        logger.LogInformation("Registered live 1-Wire connection {ConnectionId} for {PeerId}.", registration.Id, peerId);
+        return registration.Id;
     }
 
     public void Unregister(string peerId)
     {
-        if (senders.TryRemove(peerId, out _))
-            logger.LogInformation("Removed live 1-Wire connection for {PeerId}.", peerId);
+        ConnectionRegistration? removed = null;
+        lock (registrationGate)
+            senders.TryRemove(peerId, out removed);
+        if (removed is not null)
+            logger.LogInformation("Removed live 1-Wire connection {ConnectionId} for {PeerId}.", removed.Id, peerId);
+    }
+
+    public bool Unregister(string peerId, Guid registrationId)
+    {
+        ConnectionRegistration? removed = null;
+        lock (registrationGate)
+        {
+            if (!senders.TryGetValue(peerId, out var current) || current.Id != registrationId)
+                return false;
+            senders.TryRemove(peerId, out removed);
+        }
+        if (removed is not null)
+            logger.LogInformation("Removed owned live 1-Wire connection {ConnectionId} for {PeerId}.", registrationId, peerId);
+        return removed is not null;
     }
 
     public bool IsConnected(string peerId) => senders.ContainsKey(peerId);
 
     public async Task<bool> SendAsync(string peerId, OneWireEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        if (!senders.TryGetValue(peerId, out var sender))
+        if (!senders.TryGetValue(peerId, out var registration))
             return false;
         try
         {
-            await sender(envelope, cancellationToken).ConfigureAwait(false);
+            await registration.Sender(envelope, cancellationToken).ConfigureAwait(false);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException or System.Security.Cryptography.CryptographicException)
         {
-            logger.LogWarning(ex, "Could not send a 1-Wire message to {PeerId}; the connection will be removed.", peerId);
-            Unregister(peerId);
+            logger.LogWarning(ex, "Could not send a 1-Wire message to {PeerId}; connection {ConnectionId} will be removed if it is still current.", peerId, registration.Id);
+            Unregister(peerId, registration.Id);
             return false;
         }
+    }
+}
+
+public sealed class OneWireReplayGuard(ILogger<OneWireReplayGuard> logger) : IOneWireReplayGuard
+{
+    private static readonly TimeSpan Retention = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan AllowedFutureSkew = TimeSpan.FromMinutes(2);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> accepted = new(StringComparer.OrdinalIgnoreCase);
+    private int cleanupCounter;
+
+    public bool TryAccept(string peerId, Guid messageId, DateTimeOffset createdUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
+        if (messageId == Guid.Empty) return false;
+
+        var now = DateTimeOffset.UtcNow;
+        if (createdUtc < now - Retention || createdUtc > now + AllowedFutureSkew)
+        {
+            logger.LogWarning("Rejected 1-Wire message {MessageId} from {PeerId} because its timestamp is outside the accepted replay window.", messageId, peerId);
+            return false;
+        }
+
+        var key = $"{peerId}\n{messageId:N}";
+        if (!accepted.TryAdd(key, now.Add(Retention)))
+        {
+            logger.LogWarning("Rejected replayed 1-Wire message {MessageId} from {PeerId}.", messageId, peerId);
+            return false;
+        }
+
+        if (Interlocked.Increment(ref cleanupCounter) % 64 == 0 || accepted.Count > 4096)
+        {
+            foreach (var stale in accepted.Where(pair => pair.Value <= now).Select(pair => pair.Key).ToArray())
+                accepted.TryRemove(stale, out _);
+        }
+        return true;
     }
 }
 

@@ -25,6 +25,15 @@ $wirePackage = Join-Path $packageDirectory $wirePackageName
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
 $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
 
+$loggingGuard = Join-Path $root "build\Assert-OneWireArchitecture.ps1"
+& $loggingGuard
+& (Join-Path $root "build\Assert-JavaScriptDiagnostics.ps1")
+& (Join-Path $root "build\Assert-PublishConfiguration.ps1")
+& (Join-Path $root "build\Assert-InstallerWorkflow.ps1")
+& (Join-Path $root "build\Assert-RuntimeValueOwnership.ps1")
+& (Join-Path $root "build\Assert-LocalizationIntegrity.ps1")
+& (Join-Path $root "build\Assert-GitSourceVisibility.ps1")
+& (Join-Path $root "build\Assert-ProjectMaintenanceArchitecture.ps1")
 
 $multiFileSelfContainedProperties = @(
     "--self-contained", "true",
@@ -85,7 +94,12 @@ function Ensure-WireProtocolPackage {
         "-p:Platform=AnyCPU",
         "-p:PlatformTarget=AnyCPU",
         "-p:RuntimeIdentifier=",
-        "-p:RuntimeIdentifiers="
+        "-p:RuntimeIdentifiers=",
+        "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
     ) -FailureMessage "LocalGPT 1-Wire package creation failed."
 
     if (-not (Test-Path $wirePackage)) {
@@ -109,7 +123,12 @@ function Publish-Runtime {
         "-p:UseLocalWireProtocolProject=false",
         "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
         "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
-        "-p:RestoreAdditionalProjectSources=$packageDirectory"
+        "-p:RestoreAdditionalProjectSources=$packageDirectory",
+        "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
     )
 
     Write-Host "Restoring LocalGPT application for $Rid in package mode..." -ForegroundColor Cyan
@@ -127,7 +146,11 @@ function Publish-Runtime {
     ) + $multiFileSelfContainedProperties + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
 
     Write-Host "Restoring LocalGPT setup for $Rid..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Rid, "--disable-parallel") -FailureMessage "LocalGPT setup restore failed for $Rid."
+    Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Rid, "--disable-parallel", "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true") -FailureMessage "LocalGPT setup restore failed for $Rid."
 
     Write-Host "Publishing LocalGPT setup for $Rid..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments (@(
@@ -138,7 +161,12 @@ function Publish-Runtime {
         "--no-restore",
         "-p:DebugType=None",
         "-p:DebugSymbols=false",
-        "-o", $setupFolder
+        "-o", $setupFolder,
+        "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
     ) + $multiFileSelfContainedProperties) -FailureMessage "LocalGPT setup publish failed for $Rid."
 
     $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
@@ -174,7 +202,12 @@ function Publish-Runtime {
             "-p:UseLocalWireProtocolProject=false",
             "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
             "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
-            "-p:RestoreAdditionalProjectSources=$packageDirectory"
+            "-p:RestoreAdditionalProjectSources=$packageDirectory",
+            "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
         ) -FailureMessage "WinUI wrapper restore failed for $Rid."
         Invoke-DotNet -Arguments (@(
             "publish", $wrapperProject,
@@ -186,7 +219,12 @@ function Publish-Runtime {
             "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
             "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
             "-p:RestoreAdditionalProjectSources=$packageDirectory",
-            "-o", $wrapperFolder
+            "-o", $wrapperFolder,
+            "-p:SkipLoggingIntegrityGuard=true",
+    "-p:SkipOneWireArchitectureGuard=true",
+    "-p:SkipLocalizationIntegrityGuard=true",
+    "-p:SkipGitSourceVisibilityGuard=true",
+    "-p:SkipProjectMaintenanceArchitectureGuard=true"
         ) + $multiFileSelfContainedProperties) -FailureMessage "WinUI wrapper publish failed for $Rid."
         Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force
     }

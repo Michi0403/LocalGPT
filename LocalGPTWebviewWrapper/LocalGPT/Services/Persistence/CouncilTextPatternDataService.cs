@@ -38,7 +38,6 @@ public sealed class CouncilTextPatternDataService(
     public Regex IdentifierSeparatorPattern => GetRequired(nameof(IdentifierSeparatorPattern));
     public Regex AlphaNumericWordPattern => GetRequired(nameof(AlphaNumericWordPattern));
     public Regex IntegerPattern => GetRequired(nameof(IntegerPattern));
-    public Regex CouncilDxFunctionCallPattern => GetRequired(nameof(CouncilDxFunctionCallPattern));
     public Regex MissingFeaturePattern => GetRequired("builtin.missing-feature-pattern");
     public Regex SensitiveNamePattern => GetRequired("builtin.sensitive-name-pattern");
     public Regex TruncatedTailPattern => GetRequired("builtin.truncated-tail-pattern");

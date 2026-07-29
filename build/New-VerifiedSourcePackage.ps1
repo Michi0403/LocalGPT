@@ -30,6 +30,7 @@ if ($currentFingerprint -ne $stamp.SourceFingerprint) {
 }
 
 & (Join-Path $PSScriptRoot 'Assert-LocalizationIntegrity.ps1')
+& (Join-Path $PSScriptRoot 'Assert-GitSourceVisibility.ps1')
 & (Join-Path $PSScriptRoot 'Assert-ProjectClosure.ps1')
 & (Join-Path $PSScriptRoot 'Assert-CSharpSyntax.ps1')
 & (Join-Path $PSScriptRoot 'Assert-SourceFormatting.ps1')

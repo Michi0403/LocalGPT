@@ -31,6 +31,8 @@ public sealed class OneWireOptions
     public const string SectionName = "OneWire";
     public bool Enabled { get; set; } = true;
     public bool EnableDiscovery { get; set; } = true;
+    public bool EnableLanTransport { get; set; }
+    public string ListenAddress { get; set; } = "127.0.0.1";
     public int ServicePort { get; set; } = OneWireProtocol.DefaultServicePort;
     public int DiscoveryPort { get; set; } = OneWireProtocol.DefaultDiscoveryPort;
     public string BroadcastAddress { get; set; } = "255.255.255.255";
@@ -39,6 +41,33 @@ public sealed class OneWireOptions
     public int MaximumMessageBytes { get; set; } = OneWireProtocol.MaximumMessageBytes;
 }
 
+
+public sealed class OneWireDispatchContext
+{
+    public string AuthenticatedPeerId { get; init; } = string.Empty;
+    public Guid ConnectionId { get; init; }
+    public bool IsInternal { get; init; }
+    public bool IsLoopback { get; init; }
+    public string Transport { get; init; } = string.Empty;
+
+    public static OneWireDispatchContext Internal(string transport = "internal") => new()
+    {
+        AuthenticatedPeerId = "localgpt",
+        ConnectionId = Guid.Empty,
+        IsInternal = true,
+        IsLoopback = true,
+        Transport = transport
+    };
+
+    public static OneWireDispatchContext External(string authenticatedPeerId, Guid connectionId, bool isLoopback, string transport) => new()
+    {
+        AuthenticatedPeerId = authenticatedPeerId ?? string.Empty,
+        ConnectionId = connectionId,
+        IsInternal = false,
+        IsLoopback = isLoopback,
+        Transport = transport ?? string.Empty
+    };
+}
 
 public sealed class LocalVisionOcrRequest
 {

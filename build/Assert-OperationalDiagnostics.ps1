@@ -115,7 +115,7 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\LocalGptCircuitDiagnos
 ) 'Blazor circuit diagnostics'
 
 # Controllers are covered centrally, while maintained service/controller files remain
-# kept separate from circuit UI services. This avoids injecting circuit UI services into
+# protected by Assert-LoggingIntegrity.ps1. This avoids injecting circuit UI services into
 # singleton/boot services, which would break startup.
 Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Program.cs' @(
     'AddScoped<ControllerRequestLoggingFilter>',

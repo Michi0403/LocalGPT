@@ -396,11 +396,7 @@ internal static class Program
                 options,
                 setupAsset: false).ConfigureAwait(false);
 
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (string.IsNullOrWhiteSpace(localAppData))
-                throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
-
-            var targetPath = Path.Combine(localAppData, "LocalGPT");
+            var targetPath = GetLocalGptInstallRoot(logger);
 
             if (options.ForceDelete)
                 DeleteIfExists(targetPath, logger);
@@ -951,7 +947,17 @@ internal static class Program
             if (string.IsNullOrWhiteSpace(localAppData))
                 throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
 
-            return Path.Combine(localAppData, "LocalGPT");
+            var canonical = Path.Combine(localAppData, "Programs", "LocalGPT");
+            var legacy = Path.Combine(localAppData, "LocalGPT");
+            if (Directory.Exists(canonical))
+                return canonical;
+            if (Directory.Exists(legacy))
+            {
+                logger.LogInformation("Using the existing legacy LocalGPT installation directory '{LegacyInstallRoot}'. Fresh installations use '{CanonicalInstallRoot}'.", legacy, canonical);
+                return legacy;
+            }
+
+            return canonical;
         }
         catch (Exception ex)
         {
@@ -2205,7 +2211,7 @@ Options:
   --import-recommended       Import the hardcoded recommended repository list.
   --repo <owner/repo>         Import one extra GitHub repository. Can be repeated.
   --learnbase <path>          Learning base target path. Default: C:\learnbaseforlocalgpt.
-  --start-localgpt           Start LocalGPT.exe from %LOCALAPPDATA%\LocalGPT.
+  --start-localgpt           Start LocalGPT.exe from %LOCALAPPDATA%\Programs\LocalGPT (existing legacy installs are auto-detected).
   --localgpt-zip <path>      Override LocalGPT ZIP download path.
   --localgpt-exe <path>      Override LocalGPT executable path.
   --ollama-exe <path>        Override Ollama executable path. Default Windows location is %LOCALAPPDATA%\Programs\Ollama\ollama.exe.

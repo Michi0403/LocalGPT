@@ -169,12 +169,19 @@ public sealed class OneWireMessageDispatcher(
     IOneWirePendingCouncilStore pendingCouncils,
     IHumanCollaborationService humanCollaboration,
     IOneWireRuntimeSecurityService security,
+    IOneWireReplayGuard replayGuard,
     ILogger<OneWireMessageDispatcher> logger) : IOneWireMessageDispatcher
 {
     private static readonly JsonSerializerOptions JsonOptions = OneWireEnvelopeCodec.CreateOptions();
 
-    public async Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default)
+    public Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default) =>
+        DispatchAsync(envelope, OneWireDispatchContext.Internal(), cancellationToken);
+
+    public async Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, OneWireDispatchContext context, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(envelope);
+        ArgumentNullException.ThrowIfNull(context);
+
         // TCP/HTTP adapters validate the sealed transport form before optional decryption.
         // Revalidating the now-decrypted fields against the encrypted-form hash would reject valid secured messages.
         if (envelope.SecurityMode == OneWireSecurityMode.None && !codec.Validate(envelope, out var validationError))
@@ -182,8 +189,31 @@ public sealed class OneWireMessageDispatcher(
         if (!OneWireProtocol.IsCompatible(envelope.ProtocolVersion))
             return Error(envelope, $"Unsupported 1-Wire protocol version '{envelope.ProtocolVersion}'.");
 
+        var isInternalLocalCall = context.IsInternal &&
+            string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase);
+        if (!context.IsInternal)
+        {
+            if (string.IsNullOrWhiteSpace(context.AuthenticatedPeerId) ||
+                !string.Equals(envelope.SourcePeerId, context.AuthenticatedPeerId, StringComparison.OrdinalIgnoreCase))
+            {
+                return Error(envelope, "The envelope SourcePeerId does not match the peer identity owned by this transport.");
+            }
+            if (string.Equals(context.AuthenticatedPeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
+                return Error(envelope, "An external transport cannot claim the LocalGPT internal peer identity.");
+
+            var protectedTransportRequired = !context.IsLoopback ||
+                string.Equals(context.Transport, "http-json", StringComparison.OrdinalIgnoreCase);
+            if (protectedTransportRequired && OneWireTransportSecurityPolicy.RequiresProtectedTransport(envelope.MessageType) &&
+                !OneWireTransportSecurityPolicy.IsProtected(envelope))
+            {
+                return Error(envelope, "This transport requires MFA-verified signing and encryption before application data can be exchanged.");
+            }
+            if (!replayGuard.TryAccept(context.AuthenticatedPeerId, envelope.MessageId, envelope.CreatedUtc))
+                return Error(envelope, "This 1-Wire message id has already been processed.");
+        }
+
         if (envelope.MessageType != OneWireMessageType.Hello &&
-            !string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase) &&
+            !isInternalLocalCall &&
             peers.GetPeer(envelope.SourcePeerId)?.IsConnected != true)
         {
             return Error(envelope, "This transport is not an approved 1-Wire link. Link it from both frontends before exchanging capabilities or invoking work.");

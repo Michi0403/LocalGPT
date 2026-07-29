@@ -25,9 +25,11 @@ public sealed class OneWireTcpHostedService(
         TcpListener? listener = null;
         try
         {
-            listener = new TcpListener(IPAddress.Any, Program.OneWirePort);
+            var listenAddress = ResolveListenAddress(options.Value);
+            listener = new TcpListener(listenAddress, Program.OneWirePort);
             listener.Start();
-            logger.LogInformation("LocalGPT 1-Wire service listening on TCP {Port}.", Program.OneWirePort);
+            logger.LogInformation("LocalGPT 1-Wire service listening on {Address}:{Port}. LAN transport is {LanState}.",
+                listenAddress, Program.OneWirePort, options.Value.EnableLanTransport ? "enabled" : "disabled");
             while (!stoppingToken.IsCancellationRequested)
             {
                 var client = await listener.AcceptTcpClientAsync(stoppingToken).ConfigureAwait(false);
@@ -49,6 +51,10 @@ public sealed class OneWireTcpHostedService(
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
         string peerId = string.Empty;
+        var registrationId = Guid.Empty;
+        var transportConnectionId = Guid.NewGuid();
+        var remoteAddress = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+        var isLoopback = OneWireTransportSecurityPolicy.IsLoopback(remoteAddress);
         var writeGate = new SemaphoreSlim(1, 1);
         try
         {
@@ -60,6 +66,12 @@ public sealed class OneWireTcpHostedService(
                 async Task Sender(OneWireEnvelope message, CancellationToken token)
                 {
                     await security.ProtectOutgoingAsync(message, token).ConfigureAwait(false);
+                    if (!isLoopback && OneWireTransportSecurityPolicy.RequiresProtectedTransport(message.MessageType) &&
+                        !OneWireTransportSecurityPolicy.IsProtected(message))
+                    {
+                        throw new System.Security.Cryptography.CryptographicException(
+                            "A non-loopback 1-Wire connection requires MFA-verified message protection before application data can be sent.");
+                    }
                     await writeGate.WaitAsync(token).ConfigureAwait(false);
                     try { await writer.WriteLineAsync(codec.Serialize(message).AsMemory(), token).ConfigureAwait(false); }
                     finally { writeGate.Release(); }
@@ -74,32 +86,48 @@ public sealed class OneWireTcpHostedService(
                         throw new InvalidDataException("The 1-Wire message is too large.");
                     var envelope = codec.DeserializeAndValidate(line);
                     await security.UnprotectIncomingAsync(envelope, cancellationToken).ConfigureAwait(false);
-                    if (!string.IsNullOrWhiteSpace(envelope.SourcePeerId) && !string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
+
+                    if (string.IsNullOrWhiteSpace(peerId))
                     {
+                        if (envelope.MessageType != OneWireMessageType.Hello || string.IsNullOrWhiteSpace(envelope.SourcePeerId))
+                            throw new InvalidDataException("A TCP 1-Wire connection must establish its peer identity with Hello before sending other messages.");
+                        if (string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidDataException("An external 1-Wire connection cannot claim the LocalGPT internal peer identity.");
                         peerId = envelope.SourcePeerId;
-                        connections.Register(peerId, Sender);
+                        registrationId = connections.RegisterOwned(peerId, Sender);
                     }
-                    var response = await dispatcher.DispatchAsync(envelope, cancellationToken).ConfigureAwait(false);
+                    else if (!string.Equals(envelope.SourcePeerId, peerId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException("The 1-Wire SourcePeerId changed after the transport identity was established.");
+                    }
+
+                    var context = OneWireDispatchContext.External(peerId, transportConnectionId, isLoopback, "tcp");
+                    var response = await dispatcher.DispatchAsync(envelope, context, cancellationToken).ConfigureAwait(false);
                     if (response is not null)
                         await Sender(response, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException or SocketException)
+        catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException or SocketException or System.Security.Cryptography.CryptographicException)
         {
-            logger.LogWarning(ex, "A 1-Wire peer connection ended after a protocol or transport error.");
+            logger.LogWarning(ex, "A 1-Wire peer connection ended after a protocol, security, or transport error.");
         }
         finally
         {
             writeGate.Dispose();
-            if (!string.IsNullOrWhiteSpace(peerId))
-            {
-                connections.Unregister(peerId);
+            if (!string.IsNullOrWhiteSpace(peerId) && registrationId != Guid.Empty && connections.Unregister(peerId, registrationId))
                 peers.SetConnected(peerId, false);
-            }
         }
     }
+
+    private static IPAddress ResolveListenAddress(OneWireOptions configured)
+    {
+        if (!configured.EnableLanTransport)
+            return IPAddress.Loopback;
+        return IPAddress.TryParse(configured.ListenAddress, out var parsed) ? parsed : IPAddress.Any;
+    }
+
 }
 
 public sealed class OneWireDiscoveryHostedService(
@@ -118,7 +146,9 @@ public sealed class OneWireDiscoveryHostedService(
         {
             try
             {
-                var address = IPAddress.TryParse(options.Value.BroadcastAddress, out var parsed) ? parsed : IPAddress.Broadcast;
+                var address = options.Value.EnableLanTransport
+                    ? (IPAddress.TryParse(options.Value.BroadcastAddress, out var parsed) ? parsed : IPAddress.Broadcast)
+                    : IPAddress.Loopback;
                 var publicSecurity = await security.GetPublicDescriptorAsync(stoppingToken).ConfigureAwait(false);
                 var advertisement = new OneWirePeerAdvertisement
                 {
@@ -127,7 +157,7 @@ public sealed class OneWireDiscoveryHostedService(
                     Application = "LocalGPT",
                     ApplicationVersion = "2.0.1-organic-wire",
                     HostName = Environment.MachineName,
-                    Address = "0.0.0.0",
+                    Address = options.Value.EnableLanTransport ? "0.0.0.0" : "127.0.0.1",
                     ServicePort = Program.OneWirePort,
                     DiscoveryPort = Program.OneWireDiscoveryPort,
                     WebBaseUrl = Program.BaseUrl,
@@ -142,10 +172,9 @@ public sealed class OneWireDiscoveryHostedService(
                 if (bytes.Length > OneWireProtocol.MaximumDiscoveryBytes)
                     throw new InvalidDataException($"The compact 1-Wire discovery advertisement is unexpectedly large ({bytes.Length} bytes).");
                 await udp.SendAsync(bytes, bytes.Length, new IPEndPoint(address, Program.OneWireDiscoveryPort)).ConfigureAwait(false);
-                if (!IPAddress.IsLoopback(address))
+                if (options.Value.EnableLanTransport && !IPAddress.IsLoopback(address))
                 {
-                    // PublisherStudio is commonly installed on the same machine. A loopback beacon avoids
-                    // depending on router broadcast reflection or a permissive Windows firewall rule.
+                    // Preserve same-machine discovery even when LAN transport is explicitly enabled.
                     await udp.SendAsync(bytes, bytes.Length, new IPEndPoint(IPAddress.Loopback, Program.OneWireDiscoveryPort)).ConfigureAwait(false);
                 }
             }

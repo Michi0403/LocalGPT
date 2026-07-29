@@ -16,7 +16,7 @@ The final source tree contains and wires the following contracts:
 - EF migration `20260725150000_AddChatSessionControl` plus matching model snapshot fields and indexes;
 - separate DI protocol profiles for Harmony/gpt-oss, DeepSeek, Gemma, Apple/OpenELM/MLX, `<think>` tags, and plain text;
 - application, installer, and desktop-wrapper version metadata set to `0.1.4`;
-- readable collaboration guidance and explicit, developer-invoked source validation.
+- readable but agent-immutable governance files, CODEOWNERS, normalized SHA-256 manifest validation, CI enforcement, and optional owner-run read-only attributes.
 
 ## Previous static validation and compile-fix review
 
@@ -72,4 +72,4 @@ The source gate now includes `Assert-HumanCollaboration.ps1`. Manual runtime val
 
 ## Database-first debug candidate
 
-Run `build/Invoke-RepositoryValidation.ps1 -Configuration Debug` on Windows with the pinned SDK and licensed DevExpress feed. The validation chain now checks the chat-memory mapper seam, current changelog/open-task ledger, database-first migration/snapshot contracts, C# syntax, component safety, human collaboration, and a real compiler build.
+Run `build/Invoke-RepositoryValidation.ps1 -Configuration Debug` on Windows with the pinned SDK and licensed DevExpress feed. The validation chain now checks the chat-memory mapper seam, current changelog/open-task ledger, database-first migration/snapshot contracts, protected governance files, C# syntax, component safety, human collaboration, and a real compiler build.

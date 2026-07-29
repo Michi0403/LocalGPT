@@ -31,7 +31,7 @@ public interface ILocalVisionOcrService
     Task<LocalVisionOcrResult> RecognizeAsync(LocalVisionOcrRequest request, CancellationToken cancellationToken = default);
 }
 
-public interface IOneWireCapabilityCatalog : IOneWireCapabilityProvider
+public interface IOneWireCapabilityCatalog
 {
     Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesForPeerAsync(string peerId, CancellationToken cancellationToken = default);
@@ -52,9 +52,16 @@ public interface IOneWirePeerRegistry
 public interface IOneWireConnectionRegistry
 {
     void Register(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender);
+    Guid RegisterOwned(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender);
     void Unregister(string peerId);
+    bool Unregister(string peerId, Guid registrationId);
     bool IsConnected(string peerId);
     Task<bool> SendAsync(string peerId, OneWireEnvelope envelope, CancellationToken cancellationToken = default);
+}
+
+public interface IOneWireReplayGuard
+{
+    bool TryAccept(string peerId, Guid messageId, DateTimeOffset createdUtc);
 }
 
 public interface IOneWireWorkSpooler
@@ -86,6 +93,7 @@ public interface IOneWireOperationExecutor
 public interface IOneWireMessageDispatcher
 {
     Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default);
+    Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, OneWireDispatchContext context, CancellationToken cancellationToken = default);
 }
 
 public interface IOrganicCouncilBlueprintService

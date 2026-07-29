@@ -55,9 +55,20 @@ public sealed class OneWireHttpController(
                 return BadRequest(new { Error = "The 1-Wire HTTP/JSON envelope is too large." });
             var envelope = codec.DeserializeAndValidate(json);
             await security.UnprotectIncomingAsync(envelope, cancellationToken).ConfigureAwait(false);
-            var response = await dispatcher.DispatchAsync(envelope, cancellationToken).ConfigureAwait(false);
+            var remoteAddress = HttpContext.Connection.RemoteIpAddress;
+            var context = OneWireDispatchContext.External(
+                envelope.SourcePeerId,
+                Guid.NewGuid(),
+                OneWireTransportSecurityPolicy.IsLoopback(remoteAddress),
+                "http-json");
+            var response = await dispatcher.DispatchAsync(envelope, context, cancellationToken).ConfigureAwait(false);
             if (response is null) return Accepted(new { envelope.CorrelationId, Status = "AcceptedWithoutImmediateResponse" });
             await security.ProtectOutgoingAsync(response, cancellationToken).ConfigureAwait(false);
+            if (OneWireTransportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
+                !OneWireTransportSecurityPolicy.IsProtected(response))
+            {
+                throw new CryptographicException("The HTTP/JSON response requires an MFA-verified peer before application data can be returned.");
+            }
             return Content(codec.Serialize(response), "application/json", Encoding.UTF8);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -78,14 +89,48 @@ public sealed class OneWireHttpController(
     }
 
     [HttpGet("work/{correlationId:guid}")]
-    public ActionResult<object> Work(Guid correlationId)
+    public async Task<IActionResult> Work(Guid correlationId, CancellationToken cancellationToken)
     {
         try
         {
             var item = spooler.GetSnapshot().FirstOrDefault(candidate => candidate.CorrelationId == correlationId);
-            return item is null
-                ? NotFound(new { CorrelationId = correlationId, Status = "NotFoundOrNotQueuedYet" })
-                : Ok(new { item.Id, item.CorrelationId, item.CapabilityKey, item.Status, item.ResultJson, item.Error, item.CreatedUtc, item.UpdatedUtc });
+            if (item is null)
+                return NotFound(new { CorrelationId = correlationId, Status = "NotFoundOrNotQueuedYet" });
+
+            var response = new OneWireEnvelope
+            {
+                MessageType = OneWireMessageType.WorkResult,
+                CorrelationId = item.CorrelationId,
+                ReplyToMessageId = item.Request.MessageId,
+                SourcePeerId = "localgpt",
+                TargetPeerId = item.SourcePeerId,
+                CapabilityKey = item.CapabilityKey,
+                Error = item.Error,
+                Properties = new Dictionary<string, JsonElement>
+                {
+                    ["WorkItemId"] = JsonSerializer.SerializeToElement(item.Id),
+                    ["Status"] = JsonSerializer.SerializeToElement(item.Status.ToString()),
+                    ["ResultJson"] = JsonSerializer.SerializeToElement(item.ResultJson),
+                    ["CreatedUtc"] = JsonSerializer.SerializeToElement(item.CreatedUtc),
+                    ["UpdatedUtc"] = JsonSerializer.SerializeToElement(item.UpdatedUtc)
+                }
+            };
+            await security.ProtectOutgoingAsync(response, cancellationToken).ConfigureAwait(false);
+            if (OneWireTransportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
+                !OneWireTransportSecurityPolicy.IsProtected(response))
+            {
+                throw new CryptographicException("The HTTP/JSON work response requires an MFA-verified peer before application data can be returned.");
+            }
+            return Content(codec.Serialize(response), "application/json", Encoding.UTF8);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return StatusCode(499);
+        }
+        catch (Exception ex) when (ex is CryptographicException or InvalidDataException or JsonException or FormatException)
+        {
+            logger.LogWarning(ex, "Rejected LocalGPT 1-Wire HTTP work polling for correlation {CorrelationId}.", correlationId);
+            return BadRequest(new { Error = ex.Message });
         }
         catch (Exception ex)
         {

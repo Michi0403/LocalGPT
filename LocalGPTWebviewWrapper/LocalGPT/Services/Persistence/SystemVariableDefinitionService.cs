@@ -28,9 +28,6 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
             RepositoryKnowledgeSeedVersion = new SystemVariableDefinition<int>("RepositoryKnowledgeSeedVersion", 6);
             CouncilDefaultsVersion = new SystemVariableDefinition<int>("CouncilDefaultsVersion", 2);
             RegexMatchTimeoutMilliseconds = new SystemVariableDefinition<int>("RegexMatchTimeoutMilliseconds", 2000);
-            CouncilDxMaximumCallsPerStep = new SystemVariableDefinition<int>("CouncilDxMaximumCallsPerStep", 3);
-            CouncilDxMaximumParameterCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumParameterCharacters", 24000);
-            CouncilDxMaximumResultCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumResultCharacters", 32000);
             LegacyCouncilResourceLoadPercent = 30;
             InitialValues =
             [
@@ -50,10 +47,7 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
                 ToInitialVariable(ProviderSelectionPolicy),
                 ToInitialVariable(RepositoryKnowledgeSeedVersion),
                 ToInitialVariable(CouncilDefaultsVersion),
-                ToInitialVariable(RegexMatchTimeoutMilliseconds),
-                ToInitialVariable(CouncilDxMaximumCallsPerStep),
-                ToInitialVariable(CouncilDxMaximumParameterCharacters),
-                ToInitialVariable(CouncilDxMaximumResultCharacters)
+                ToInitialVariable(RegexMatchTimeoutMilliseconds)
             ];
             _logger.LogInformation($"Initialized {InitialValues.Count} LocalGPT system-variable definitions and seed defaults.");
         }
@@ -81,9 +75,6 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
     public SystemVariableDefinition<int> RepositoryKnowledgeSeedVersion { get; }
     public SystemVariableDefinition<int> CouncilDefaultsVersion { get; }
     public SystemVariableDefinition<int> RegexMatchTimeoutMilliseconds { get; }
-    public SystemVariableDefinition<int> CouncilDxMaximumCallsPerStep { get; }
-    public SystemVariableDefinition<int> CouncilDxMaximumParameterCharacters { get; }
-    public SystemVariableDefinition<int> CouncilDxMaximumResultCharacters { get; }
     public int LegacyCouncilResourceLoadPercent { get; }
     public IReadOnlyList<InitialVariable> InitialValues { get; }
 

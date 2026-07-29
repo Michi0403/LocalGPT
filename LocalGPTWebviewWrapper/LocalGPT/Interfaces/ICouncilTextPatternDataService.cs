@@ -28,7 +28,6 @@ public interface ICouncilTextPatternDataService
     Regex IdentifierSeparatorPattern { get; }
     Regex AlphaNumericWordPattern { get; }
     Regex IntegerPattern { get; }
-    Regex CouncilDxFunctionCallPattern { get; }
     Regex MissingFeaturePattern { get; }
     Regex SensitiveNamePattern { get; }
     Regex TruncatedTailPattern { get; }

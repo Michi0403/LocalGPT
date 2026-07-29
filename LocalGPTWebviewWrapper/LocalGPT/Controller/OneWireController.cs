@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.Security;
+using LocalGPT.Services.OneWire;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -75,7 +76,11 @@ public sealed class OneWireController(
     [HttpPost("dispatch")]
     public async Task<IActionResult> Dispatch([FromBody] OneWireEnvelope envelope, CancellationToken cancellationToken)
     {
-        var response = await dispatcher.DispatchAsync(envelope, cancellationToken).ConfigureAwait(false);
+        if (!OneWireTransportSecurityPolicy.IsLoopback(HttpContext.Connection.RemoteIpAddress))
+            return NotFound();
+
+        envelope.SourcePeerId = "localgpt";
+        var response = await dispatcher.DispatchAsync(envelope, OneWireDispatchContext.Internal("local-http-ui"), cancellationToken).ConfigureAwait(false);
         return response is null ? Accepted() : Ok(response);
     }
 
