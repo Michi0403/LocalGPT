@@ -14,7 +14,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
 {
     private readonly ILocalGptRuntimePolicyStoreService store;
     private readonly ILogger<LocalGptRuntimePolicyDataService> logger;
-    private readonly object sync = new();
+    private readonly System.Threading.Lock sync = new();
     private Guid localGptCoreProjectId;
     private TimeSpan regexTimeout;
     private FrozenSet<string> allowedNativeExecutables = null!;
@@ -77,30 +77,6 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             var definition = store.GetDefinition();
             var timeout = TimeSpan.FromMilliseconds(definition.RegexTimeoutMilliseconds);
 
-            RegexOptions ParseFlags(LocalGptRuntimeRegexDefinition regexDefinition)
-            {
-                var options = RegexOptions.CultureInvariant;
-                foreach (var token in regexDefinition.Flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                {
-                    options |= token.ToLowerInvariant() switch
-                    {
-                        "i" or "ignorecase" => RegexOptions.IgnoreCase,
-                        "m" or "multiline" => RegexOptions.Multiline,
-                        "s" or "singleline" => RegexOptions.Singleline,
-                        "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
-                        "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
-                        "compiled" => RegexOptions.Compiled,
-                        "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
-                        "ecmascript" => RegexOptions.ECMAScript,
-                        "none" => RegexOptions.None,
-                        _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
-                        _ => throw new InvalidDataException($"Unknown regular-expression option '{token}' in runtime-policy regex '{regexDefinition.Name}'.")
-                    };
-                }
-
-                return options;
-            }
-
             var executableSet = definition.AllowedNativeExecutables.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
             var inlinePattern = new Regex(
                 definition.PowerShellInlineCommandPattern.Pattern,
@@ -146,7 +122,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
                 {
                     LocalGptCoreProjectId = localGptCoreProjectId,
                     RegexTimeout = regexTimeout,
-                    AllowedNativeExecutables = allowedNativeExecutables.OrderBy(item => item, StringComparer.OrdinalIgnoreCase).ToArray(),
+                    AllowedNativeExecutables = [.. allowedNativeExecutables.OrderBy(item => item, StringComparer.OrdinalIgnoreCase)],
                     PowerShellInlineCommandPattern = powerShellInlineCommandPattern.ToString(),
                     PowerShellFilePattern = powerShellFilePattern.ToString(),
                     SensitiveArgumentPattern = sensitiveArgumentPattern.ToString()
@@ -161,4 +137,38 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             throw;
         }
     }
+    private RegexOptions ParseFlags(LocalGptRuntimeRegexDefinition regexDefinition)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(regexDefinition);
+            var options = RegexOptions.CultureInvariant;
+            foreach (var token in regexDefinition.Flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                options |= token.ToLowerInvariant() switch
+                {
+                    "i" or "ignorecase" => RegexOptions.IgnoreCase,
+                    "m" or "multiline" => RegexOptions.Multiline,
+                    "s" or "singleline" => RegexOptions.Singleline,
+                    "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
+                    "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
+                    "compiled" => RegexOptions.Compiled,
+                    "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
+                    "ecmascript" => RegexOptions.ECMAScript,
+                    "none" => RegexOptions.None,
+                    _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
+                    _ => throw new InvalidDataException($"Unknown regular-expression option '{token}' in runtime-policy regex '{regexDefinition.Name}'.")
+                };
+            }
+
+            logger.LogTrace($"Parsed persisted flags {regexDefinition.Flags} for runtime-policy regex {regexDefinition.Name}.");
+            return options;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not parse persisted runtime-policy regex flags for {regexDefinition?.Name ?? "unknown"}: {exception.Message}");
+            throw;
+        }
+    }
+
 }

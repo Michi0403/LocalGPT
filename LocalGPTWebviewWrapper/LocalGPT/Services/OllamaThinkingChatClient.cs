@@ -51,9 +51,12 @@ public sealed class OllamaThinkingChatClient : IChatClient
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.councilRuntime = councilRuntime ?? throw new ArgumentNullException(nameof(councilRuntime));
         providerOptions = options;
-        this.formatterFactory = formatterFactory ?? throw new ArgumentNullException(nameof(formatterFactory));
-        this.protocolResolver = protocolResolver ?? new ChatProtocolResolver();
-        this.promptConfigService = promptConfigService;
+        this.formatterFactory = formatterFactory
+            ?? throw new ArgumentNullException(nameof(formatterFactory));
+        this.protocolResolver = protocolResolver
+            ?? throw new ArgumentNullException(nameof(protocolResolver));
+        this.promptConfigService = promptConfigService
+            ?? throw new ArgumentNullException(nameof(promptConfigService));
         this.functionRegistry = functionRegistry;
 
         model = string.IsNullOrWhiteSpace(options.ModelName)

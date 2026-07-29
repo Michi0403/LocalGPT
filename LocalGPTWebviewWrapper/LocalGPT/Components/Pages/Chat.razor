@@ -11,6 +11,10 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
 @inject IChatContentRenderer ChatContentRenderer
+@inject IChatResponseFormatterFactory ChatResponseFormatterFactory
+@inject IChatProtocolResolver ChatProtocolResolver
+@inject IPromptConfigService PromptConfigService
+@inject IDxAiFunctionRegistry DxAiFunctionRegistry
 @inject IVariableStoreService VariableStore
 @inject ISystemVariableDefinitionService SystemVariables
 @inject ILocalGptProjectService ProjectService
@@ -1131,7 +1135,11 @@
                         keepAlive: "0s",
                         contextLength: ResolveCouncilContextTokens(),
                         timeout: TimeSpan.FromMinutes(30),
-                        numGpu: ResolveOllamaNumGpu()),
+                        numGpu: ResolveOllamaNumGpu(),
+                        formatterFactory: ChatResponseFormatterFactory,
+                        protocolResolver: ChatProtocolResolver,
+                        promptConfigService: PromptConfigService,
+                        functionRegistry: DxAiFunctionRegistry),
                     CouncilRuntime.BuildDynamicSessionName(candidate, Logger), candidate.Provider, candidate.ModelName, candidate.Endpoint);
 
                 if (previousMessages.TryGetValue(session.Name, out var messages))
@@ -1244,7 +1252,11 @@
                     keepAlive: "0s",
                         contextLength: ResolveCouncilContextTokens(),
                         timeout: TimeSpan.FromMinutes(30),
-                        numGpu: ResolveOllamaNumGpu()),
+                        numGpu: ResolveOllamaNumGpu(),
+                        formatterFactory: ChatResponseFormatterFactory,
+                        protocolResolver: ChatProtocolResolver,
+                        promptConfigService: PromptConfigService,
+                        functionRegistry: DxAiFunctionRegistry),
                 $"{LocalGptCatalogService.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilText.TrimEndpoint(endpoint, Logger)}", "Ollama", DiagnosticRequestedSessionName, endpoint);
 
             if (previousMessages.TryGetValue(session.Name, out var messages))

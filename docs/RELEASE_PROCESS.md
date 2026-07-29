@@ -34,6 +34,11 @@ Do not publish a LocalGPT release by improvising around it.
 - Commit documentation, script, or code changes before creating the GitHub
   release. The release tag must point at the committed state being shipped.
 
+
+## Developer and scripted publish lanes
+
+The checked-in application, setup and Windows-wrapper `.pubxml` profiles are supported developer entry points. `Build-Release.ps1` is the automated packaging lane. Both lanes must stay synchronized on runtime identifiers, multi-file self-contained settings and canonical folders under `artifacts\release`. Machine-specific `.pubxml.user` overlays are not part of a source package, but developer `.pubxml` files must not be deleted by migration or validation scripts.
+
 ## Required Version Shape
 
 Use:

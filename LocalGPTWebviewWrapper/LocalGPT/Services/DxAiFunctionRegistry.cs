@@ -27,6 +27,7 @@ public sealed class DxAiFunctionRegistry : IDxAiFunctionRegistry
         IDeferredDxAiInvocationService deferredInvocations,
         IAmbientLocalGptContext ambientContext,
         IHumanApprovalExecutionContext approvalExecutionContext,
+        DxAiFunctionHandlerMapService handlerMapService,
         ILogger<DxAiFunctionRegistry> logger)
     {
         this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -35,38 +36,10 @@ public sealed class DxAiFunctionRegistry : IDxAiFunctionRegistry
         this.ambientContext = ambientContext ?? throw new ArgumentNullException(nameof(ambientContext));
         this.approvalExecutionContext = approvalExecutionContext ?? throw new ArgumentNullException(nameof(approvalExecutionContext));
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        ArgumentNullException.ThrowIfNull(handlerMapService);
         handlersByName = new Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>>(
-            () => BuildHandlerMap(this.serviceProvider.GetServices<IDxAiFunctionHandler>()),
+            () => handlerMapService.Build(this.serviceProvider.GetServices<IDxAiFunctionHandler>()),
             System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
-    }
-
-    private IReadOnlyDictionary<string, IDxAiFunctionHandler> BuildHandlerMap(IEnumerable<IDxAiFunctionHandler> handlers)
-    {
-        ArgumentNullException.ThrowIfNull(handlers);
-        var result = new Dictionary<string, IDxAiFunctionHandler>(StringComparer.OrdinalIgnoreCase);
-        foreach (var handler in handlers)
-        {
-            ArgumentNullException.ThrowIfNull(handler);
-            var descriptor = handler.Descriptor ?? throw new InvalidOperationException($"DXAIFunction handler {handler.GetType().FullName} returned no descriptor.");
-            ArgumentException.ThrowIfNullOrWhiteSpace(descriptor.Name);
-            if (!descriptor.Name.All(character => char.IsLetterOrDigit(character) || character is '.' or '_' or '-'))
-                throw new InvalidOperationException($"DXAIFunction name '{descriptor.Name}' contains unsupported characters.");
-            if (!descriptor.Method.Equals("GET", StringComparison.OrdinalIgnoreCase) && !descriptor.Method.Equals("POST", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"DXAIFunction {descriptor.Name} declares unsupported method {descriptor.Method}.");
-            try
-            {
-                using var schema = JsonDocument.Parse(string.IsNullOrWhiteSpace(descriptor.ParameterSchemaJson) ? "{}" : descriptor.ParameterSchemaJson);
-                if (schema.RootElement.ValueKind != JsonValueKind.Object)
-                    throw new JsonException("The root schema must be an object.");
-            }
-            catch (JsonException ex)
-            {
-                throw new InvalidOperationException($"DXAIFunction {descriptor.Name} has invalid parameter-schema JSON.", ex);
-            }
-            if (!result.TryAdd(descriptor.Name, handler))
-                throw new InvalidOperationException($"Duplicate DXAIFunction name '{descriptor.Name}'. Function names are stable database-link identifiers and must be unique.");
-        }
-        return result;
     }
 
     public IReadOnlyList<DxaichatFunctionInfo> GetFunctions()
