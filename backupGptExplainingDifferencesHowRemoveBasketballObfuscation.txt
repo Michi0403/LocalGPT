@@ -1,0 +1,1938 @@
+übersetze folgendes nach Deutsch und nach Englisch 天天中彩票篮球
+
+Hier sind die Übersetzungen für 天天中彩票篮球 (Tiāntiān Zhòng Cǎipiào Lánqiú):
+
+🇩🇪 Deutsch
+Wörtliche/Genaue Übersetzung: „Jeden Tag in der Lotterie gewinnen – Basketball“
+
+Kontextuelle Bedeutung (App-/Plattformname): „Tägliches Lotto-Basketball“ / „Daily Lottery Basketball“ (meist eine Sportwetten- oder Lotterie-Plattform für Basketball in China)
+
+🇬🇧 Englisch
+Wörtliche/Genaue Übersetzung: "Winning the Lottery Every Day Basketball"
+
+Kontextuelle Bedeutung: "Daily Lottery Basketball" / "Everyday Winning Basketball"
+
+Hinweis: Bei 天天中彩票 (Tiāntiān Zhòng Cǎipiào) handelt es sich in der Regel um den Namen einer bekannten chinesischen Lotterie-/Sportwetten-App. 篮球 (Lánqiú) steht für Basketball (z. B. Basketball-Sportwetten oder Ergebnisse innerhalb dieser App).
+
+Analysieren und Vergleichen der Repository-ZIPs
+
+bash -lc set -euo pipefail
+ls -l /mnt/data/*.zip
+python - <<'PY'
+import zipfile, os, json
+paths=[
+'/mnt/data/PublisherStudioCleanedByCorruption.zip',
+'/mnt/data/BlazorPublisher-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPT-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPTCleanedByCorruption.zip']
+for p in paths:
+    print('\nARCHIVE', os.path.basename(p))
+    with zipfile.ZipFile(p) as z:
+        infos=z.infolist()
+        total=sum(i.file_size for i in infos)
+        comp=sum(i.compress_size for i in infos)
+        print('entries',len(infos),'uncompressed',total,'compressed',comp)
+        bad=[i.filename for i in infos if i.filename.startswith('/') or '..' in i.filename.split('/')]
+        print('badpaths',bad[:10], 'count',len(bad))
+        tops={i.filename.split('/')[0] for i in infos if i.filename}
+        print('top-level', sorted(tops)[:20])
+        for i in infos[:20]: print(i.filename, i.file_size)
+PY
+
+Vergleichen bereinigter und ursprünglicher Dateien
+
+bash -lc python - <<'PY'
+from pathlib import Path
+import hashlib, os, collections, json
+pairs={
+'publisher':(Path('/mnt/data/review_work/publisher_clean/PublisherStudio'),Path('/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio')),
+'local':(Path('/mnt/data/review_work/local_clean/LocalGPT'),Path('/mnt/data/review_work/local_orig/LocalGPT-2.0.1-final30-source')),
+}
+exclude_parts={'.git','.vs','bin','obj','.idea','.vscode','node_modules','TestResults','artifacts'}
+# don't exclude packages yet, but classify
+text_ext={'.cs','.razor','.csproj','.sln','.props','.targets','.json','.md','.txt','.ps1','.cmd','.bat','.xml','.yml','.yaml','.js','.ts','.css','.scss','.html','.htm','.resx','.config','.editorconfig','.gitattributes','.gitignore','.sql','.sh'}
+for name,(a,b) in pairs.items():
+    def files(root):
+        out={}
+        for p in root.rglob('*'):
+            if not p.is_file(): continue
+            rel=p.relative_to(root)
+            if any(part in exclude_parts for part in rel.parts): continue
+            out[str(rel).replace('\\','/')]=p
+        return out
+    fa,fb=files(a),files(b)
+    sa,sb=set(fa),set(fb)
+    changed=[]; same=[]
+    for r in sorted(sa&sb):
+        ha=hashlib.sha256(fa[r].read_bytes()).digest(); hb=hashlib.sha256(fb[r].read_bytes()).digest()
+        (same if ha==hb else changed).append(r)
+    print('\n===',name,'===')
+    print('clean files',len(fa),'orig files',len(fb),'same',len(same),'changed',len(changed),'clean-only',len(sa-sb),'orig-only',len(sb-sa))
+    print('clean-only by ext',collections.Counter(Path(x).suffix.lower() for x in sa-sb).most_common(15))
+    print('orig-only by ext',collections.Counter(Path(x).suffix.lower() for x in sb-sa).most_common(15))
+    print('changed by ext',collections.Counter(Path(x).suffix.lower() for x in changed).most_common(15))
+    print('\nORIG ONLY:')
+    for x in sorted(sb-sa)[:200]: print(x)
+    print('\nCLEAN ONLY:')
+    for x in sorted(sa-sb)[:200]: print(x)
+    print('\nCHANGED:')
+    for x in changed[:300]: print(x)
+PY
+
+Ich werde die bereinigten Projekte systematisch prüfen, Änderungen sorgfältig zusammenführen und anschließend neue ZIP-Dateien ohne unnötige Entwicklungsartefakte erstellen. Dabei konzentriere ich mich auf statische Analyse statt Ausführung.
+
+bash -lc set -euo pipefail
+LC=/mnt/data/review_work/local_clean/LocalGPT
+PC=/mnt/data/review_work/publisher_clean/PublisherStudio
+for term in CouncilDxFunctionPolicy CouncilDxFunctionCallPattern ICouncilDxFunctionOrchestrator ICouncilDxFunctionPolicyDataService DxAiFunctionCatalogEntries IOneWireCapabilityProvider IPublisherDxFunctionCatalogDataService ObjectStoreOrganicCapabilityCatalog; do
+  echo "=== $term / Local clean ==="; rg -n --glob '!**/.git/**' --glob '!**/.vs/**' "$term" "$LC" || true
+  echo "=== $term / Publisher clean ==="; rg -n --glob '!**/.git/**' --glob '!**/.vs/**' "$term" "$PC" || true
+done
+
+Prüfen der Codebasis auf veraltete Verweise
+
+bash -lc set -euo pipefail
+LC=/mnt/data/review_work/local_clean/LocalGPT
+PC=/mnt/data/review_work/publisher_clean/PublisherStudio
+for term in CouncilDxFunctionPolicy CouncilDxFunctionCallPattern ICouncilDxFunctionOrchestrator ICouncilDxFunctionPolicyDataService DxAiFunctionCatalogEntries IOneWireCapabilityProvider IPublisherDxFunctionCatalogDataService ObjectStoreOrganicCapabilityCatalog; do
+  echo "=== $term / Local clean ==="; rg -n --glob '!**/.git/**' --glob '!**/.vs/**' "$term" "$LC" || true
+  echo "=== $term / Publisher clean ==="; rg -n --glob '!**/.git/**' --glob '!**/.vs/**' "$term" "$PC" || true
+done
+
+Ich werde die Projekte aus den sauberen Grundlagen neu aufbauen, unnötige Entwicklungsdateien entfernen, offensichtliche Skriptfehler beheben und zentrale Funktionalität vorsichtig wiederherstellen. Anschließend prüfe ich statisch Dateien, Verweise, Konfigurationen und Archive auf Konsistenz.
+
+bash -lc PC=/mnt/data/review_work/publisher_clean/PublisherStudio
+PO=/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio
+rg -n -C 3 'publisher-dx-functions|Configuration' "$PO/src/PublisherStudio.Web/PublisherStudio.Web.csproj" "$PC/src/PublisherStudio.Web/PublisherStudio.Web.csproj"
+
+Ich habe die sauberen Grundlagen und ihre Unterschiede systematisch eingegrenzt. Als Nächstes behalte ich transparente Architektur bei, entferne nur überflüssige Artefakte und stelle nützliche Kernfunktionen ohne versteckte Mechanismen wieder her.
+
+Ich stelle nützliche DX-Funktionen transparent wieder her, behalte die vereinfachte Datenhaltung bei und entferne selbstschützende Begleitmechanismen. Zusätzlich verbessere ich Fehlerbehandlung, Nutzerführung, Dokumentation und statische Validierung, ohne Laufzeittests auszuführen.
+
+bash -lc set -euo pipefail
+printf 'Local diff size: '; wc -l /mnt/data/review_work/diffs/local_changed.diff
+printf 'Publisher diff size: '; wc -l /mnt/data/review_work/diffs/publisher_changed.diff
+find /mnt/data/review_work/local_clean/LocalGPT -maxdepth 2 -type f | sed 's#^#/##' | head -80
+
+Prüfen zentraler Dateien und Diffs
+
+bash -lc set -euo pipefail
+L=/mnt/data/review_work/local_clean/LocalGPT
+O=/mnt/data/review_work/local_orig/LocalGPT-2.0.1-final30-source
+for spec in \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs:1:340" \
+ "$O/LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs:1:400" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs:1:280" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/InitialDataCatalog.cs:1:300" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Program.cs:1:260"; do
+ f=${spec%%:*}; rest=${spec#*:}; a=${rest%%:*}; b=${rest##*:};
+ echo "===== $f [$a-$b] ====="; sed -n "${a},${b}p" "$f"; done
+
+Prüfen der PowerShell-Skript-Syntax
+
+bash -lc set -euo pipefail
+ls -l /mnt/data/*.zip
+python - <<'PY'
+import zipfile, os, json
+paths=[
+'/mnt/data/PublisherStudioCleanedByCorruption.zip',
+'/mnt/data/BlazorPublisher-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPT-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPTCleanedByCorruption.zip']
+for p in paths:
+    print('\nARCHIVE', os.path.basename(p))
+    with zipfile.ZipFile(p) as z:
+        infos=z.infolist()
+        total=sum(i.file_size for i in infos)
+        comp=sum(i.compress_size for i in infos)
+        print('entries',len(infos),'uncompressed',total,'compressed',comp)
+        bad=[i.filename for i in infos if i.filename.startswith('/') or '..' in i.filename.split('/')]
+        print('badpaths',bad[:10], 'count',len(bad))
+        tops={i.filename.split('/')[0] for i in infos if i.filename}
+        print('top-level', sorted(tops)[:20])
+        for i in infos[:20]: print(i.filename, i.file_size)
+PY
+
+Vergleichen bereinigter und ursprünglicher Dateien
+
+bash -lc python - <<'PY'
+from pathlib import Path
+import hashlib, os, collections, json
+pairs={
+'publisher':(Path('/mnt/data/review_work/publisher_clean/PublisherStudio'),Path('/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio')),
+'local':(Path('/mnt/data/review_work/local_clean/LocalGPT'),Path('/mnt/data/review_work/local_orig/LocalGPT-2.0.1-final30-source')),
+}
+exclude_parts={'.git','.vs','bin','obj','.idea','.vscode','node_modules','TestResults','artifacts'}
+# don't exclude packages yet, but classify
+text_ext={'.cs','.razor','.csproj','.sln','.props','.targets','.json','.md','.txt','.ps1','.cmd','.bat','.xml','.yml','.yaml','.js','.ts','.css','.scss','.html','.htm','.resx','.config','.editorconfig','.gitattributes','.gitignore','.sql','.sh'}
+for name,(a,b) in pairs.items():
+    def files(root):
+        out={}
+        for p in root.rglob('*'):
+            if not p.is_file(): continue
+            rel=p.relative_to(root)
+            if any(part in exclude_parts for part in rel.parts): continue
+            out[str(rel).replace('\\','/')]=p
+        return out
+    fa,fb=files(a),files(b)
+    sa,sb=set(fa),set(fb)
+    changed=[]; same=[]
+    for r in sorted(sa&sb):
+        ha=hashlib.sha256(fa[r].read_bytes()).digest(); hb=hashlib.sha256(fb[r].read_bytes()).digest()
+        (same if ha==hb else changed).append(r)
+    print('\n===',name,'===')
+    print('clean files',len(fa),'orig files',len(fb),'same',len(same),'changed',len(changed),'clean-only',len(sa-sb),'orig-only',len(sb-sa))
+    print('clean-only by ext',collections.Counter(Path(x).suffix.lower() for x in sa-sb).most_common(15))
+    print('orig-only by ext',collections.Counter(Path(x).suffix.lower() for x in sb-sa).most_common(15))
+    print('changed by ext',collections.Counter(Path(x).suffix.lower() for x in changed).most_common(15))
+    print('\nORIG ONLY:')
+    for x in sorted(sb-sa)[:200]: print(x)
+    print('\nCLEAN ONLY:')
+    for x in sorted(sa-sb)[:200]: print(x)
+    print('\nCHANGED:')
+    for x in changed[:300]: print(x)
+PY
+
+Ich werde die bereinigten Projekte systematisch prüfen, Änderungen sorgfältig zusammenführen und anschließend neue ZIP-Dateien ohne unnötige Entwicklungsartefakte erstellen. Dabei konzentriere ich mich auf statische Analyse statt Ausführung.
+
+bash -lc set -euo pipefail
+LC=/mnt/data/review_work/local_clean/LocalGPT
+PC=/mnt/data/review_work/publisher_clean/PublisherStudio
+for term in CouncilDxFunctionPolicy CouncilDxFunctionCallPattern ICouncilDxFunctionOrchestrator ICouncilDxFunctionPolicyDataService DxAiFunctionCatalogEntries IOneWireCapabilityProvider IPublisherDxFunctionCatalogDataService ObjectStoreOrganicCapabilityCatalog; do
+  echo "=== $term / Local clean ==="; rg -n --glob '!**/.git/**' --glob '!**/.vs/**' "$term" "$LC" || true
+  echo "=== $term / Publisher clean ==="; rg -n --glob '!**/.git/**' --glob '!**/.vs/**' "$term" "$PC" || true
+done
+
+Ich werde die Projekte aus den sauberen Grundlagen neu aufbauen, unnötige Entwicklungsdateien entfernen, offensichtliche Skriptfehler beheben und zentrale Funktionalität vorsichtig wiederherstellen. Anschließend prüfe ich statisch Dateien, Verweise, Konfigurationen und Archive auf Konsistenz.
+
+bash -lc PC=/mnt/data/review_work/publisher_clean/PublisherStudio
+PO=/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio
+rg -n -C 3 'publisher-dx-functions|Configuration' "$PO/src/PublisherStudio.Web/PublisherStudio.Web.csproj" "$PC/src/PublisherStudio.Web/PublisherStudio.Web.csproj"
+
+Ich habe die sauberen Grundlagen und ihre Unterschiede systematisch eingegrenzt. Als Nächstes behalte ich transparente Architektur bei, entferne nur überflüssige Artefakte und stelle nützliche Kernfunktionen ohne versteckte Mechanismen wieder her.
+
+Ich stelle nützliche DX-Funktionen transparent wieder her, behalte die vereinfachte Datenhaltung bei und entferne selbstschützende Begleitmechanismen. Zusätzlich verbessere ich Fehlerbehandlung, Nutzerführung, Dokumentation und statische Validierung, ohne Laufzeittests auszuführen.
+
+bash -lc set -euo pipefail
+printf 'Local diff size: '; wc -l /mnt/data/review_work/diffs/local_changed.diff
+printf 'Publisher diff size: '; wc -l /mnt/data/review_work/diffs/publisher_changed.diff
+find /mnt/data/review_work/local_clean/LocalGPT -maxdepth 2 -type f | sed 's#^#/##' | head -80
+
+bash -lc set -euo pipefail
+L=/mnt/data/review_work/local_clean/LocalGPT
+O=/mnt/data/review_work/local_orig/LocalGPT-2.0.1-final30-source
+for spec in \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs:1:340" \
+ "$O/LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs:1:400" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs:1:280" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/InitialDataCatalog.cs:1:300" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Program.cs:1:260"; do
+ f=${spec%%:*}; rest=${spec#*:}; a=${rest%%:*}; b=${rest##*:};
+ echo "===== $f [$a-$b] ====="; sed -n "${a},${b}p" "$f"; done
+
+bash -lc set -euo pipefail
+for f in /mnt/data/review_work/out/LocalGPT/Build-Release.ps1 /mnt/data/review_work/out/PublisherStudio/Build-AllRuntimes.ps1 /mnt/data/review_work/out/PublisherStudio/Build-LocalDevelopment.ps1 /mnt/data/review_work/out/PublisherStudio/Build-Release.ps1; do
+ echo "===== $f ====="; nl -ba "$f" | sed -n '1,190p'; done
+
+Summary:
+
+Denkt nach ...
+Analysieren und Vergleichen der Repository-ZIPs
+bash -lc set -euo pipefail
+ls -l /mnt/data/*.zip
+python - <<'PY'
+import zipfile, os, json
+paths=[
+'/mnt/data/PublisherStudioCleanedByCorruption.zip',
+'/mnt/data/BlazorPublisher-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPT-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPTCleanedByCorruption.zip']
+for p in paths:
+    print('\nARCHIVE', os.path.basename(p))
+    with zipfile.ZipFile(p) as z:
+        infos=z.infolist()
+        total=sum(i.file_size for i in infos)
+        comp=sum(i.compress_size for i in infos)
+        print('entries',len(infos),'uncompressed',total,'compressed',comp)
+        bad=[i.filename for i in infos if i.filename.startswith('/') or '..' in i.filename.split('/')]
+        print('badpaths',bad[:10], 'count',len(bad))
+        tops={i.filename.split('/')[0] for i in infos if i.filename}
+        print('top-level', sorted(tops)[:20])
+        for i in infos[:20]: print(i.filename, i.file_size)
+PY
+-rw-r--r-- 1 root oai_shared 13342910 Jul 28 23:26 /mnt/data/BlazorPublisher-2.0.1-final30-source(1).zip
+-rw-r--r-- 1 root oai_shared  8156405 Jul 28 23:26 /mnt/data/LocalGPT-2.0.1-final30-source(1).zip
+-rw-r--r-- 1 root oai_shared 45351448 Jul 28 23:26 /mnt/data/LocalGPTCleanedByCorruption.zip
+-rw-r--r-- 1 root oai_shared 27130180 Jul 28 23:26 /mnt/data/PublisherStudioCleanedByCorruption.zip
+
+ARCHIVE PublisherStudioCleanedByCorruption.zip
+entries 967 uncompressed 147436492 compressed 26838626
+badpaths [] count 0
+top-level ['LICENSE', 'LICENSE.MD', 'PublisherStudio', 'README.md', 'RELEASE.md']
+PublisherStudio/ 0
+PublisherStudio/.gitignore 1040
+PublisherStudio/.vs/ 0
+PublisherStudio/.vs/ProjectEvaluation/ 0
+PublisherStudio/.vs/ProjectEvaluation/publisherstudio.metadata.v10.bin 4347
+PublisherStudio/.vs/ProjectEvaluation/publisherstudio.projects.v10.bin 390570
+PublisherStudio/.vs/ProjectEvaluation/publisherstudio.strings.v10.bin 238427
+PublisherStudio/.vs/PublisherStudio/ 0
+PublisherStudio/.vs/PublisherStudio/config/ 0
+PublisherStudio/.vs/PublisherStudio/config/applicationhost.config 83665
+PublisherStudio/.vs/PublisherStudio/DesignTimeBuild/ 0
+PublisherStudio/.vs/PublisherStudio/DesignTimeBuild/.dtbcache.v2 283525
+PublisherStudio/.vs/PublisherStudio/FileContentIndex/ 0
+PublisherStudio/.vs/PublisherStudio/FileContentIndex/33dd1ff9-7c9f-4450-90d1-09ac6d18d5d1.vsidx 4582642
+PublisherStudio/.vs/PublisherStudio/FileContentIndex/c5630f36-78ee-458d-a3f4-a177e0588376.vsidx 5270
+PublisherStudio/.vs/PublisherStudio/v18/ 0
+PublisherStudio/.vs/PublisherStudio/v18/.futdcache.v2 734
+PublisherStudio/.vs/PublisherStudio/v18/.suo 50176
+PublisherStudio/.vs/PublisherStudio/v18/DocumentLayout.backup.json 6224
+PublisherStudio/.vs/PublisherStudio/v18/DocumentLayout.json 6224
+
+ARCHIVE BlazorPublisher-2.0.1-final30-source(1).zip
+entries 793 uncompressed 74723729 compressed 13116626
+badpaths [] count 0
+top-level ['BlazorPublisher-2.0.1-final30-source']
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/.github/workflows/logging-integrity.yml 324
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/.gitignore 1040
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/AGENTS.md 16877
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/assets/PublisherStudio.ico 35967
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/assets/PublisherStudio.png 16443
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/Build-AllRuntimes.cmd 385
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/Build-AllRuntimes.ps1 1543
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/Build-LocalDevelopment.cmd 385
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/Build-LocalDevelopment.ps1 4117
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/Build-Release.cmd 377
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/Build-Release.ps1 11320
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/application-static-baseline.json 130069
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/Assert-ApplicationStaticPolicy.ps1 2036
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/Assert-AsyncContinuationPolicy.ps1 4075
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/Assert-ComponentDiagnostics.ps1 3238
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/Assert-DxFunctionExchange.ps1 5744
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/Assert-GitSourceVisibility.ps1 3456
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/Assert-InstallerWorkflow.ps1 4525
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/Assert-InteractiveServerRenderModes.ps1 2401
+BlazorPublisher-2.0.1-final30-source/PublisherStudio/build/Assert-IteratorExceptionPolicy.ps1 4030
+
+ARCHIVE LocalGPT-2.0.1-final30-source(1).zip
+entries 1025 uncompressed 21581104 compressed 7887675
+badpaths [] count 0
+top-level ['LocalGPT-2.0.1-final30-source']
+LocalGPT-2.0.1-final30-source/.claude/settings.json 4462
+LocalGPT-2.0.1-final30-source/.gitattributes 234
+LocalGPT-2.0.1-final30-source/.github/CODEOWNERS 2129
+LocalGPT-2.0.1-final30-source/.github/copilot-instructions.md 6248
+LocalGPT-2.0.1-final30-source/.github/workflows/logging-integrity.yml 324
+LocalGPT-2.0.1-final30-source/.github/workflows/source-hygiene.yml 1729
+LocalGPT-2.0.1-final30-source/.gitignore 3299
+LocalGPT-2.0.1-final30-source/AGENTS.md 17056
+LocalGPT-2.0.1-final30-source/Build-LocalDevelopment.cmd 365
+LocalGPT-2.0.1-final30-source/Build-LocalDevelopment.ps1 8303
+LocalGPT-2.0.1-final30-source/Build-Release.cmd 370
+LocalGPT-2.0.1-final30-source/Build-Release.ps1 13339
+LocalGPT-2.0.1-final30-source/build/application-static-baseline.json 61618
+LocalGPT-2.0.1-final30-source/build/Assert-ApplicationStaticPolicy.ps1 2044
+LocalGPT-2.0.1-final30-source/build/Assert-ArchitectureTasks.ps1 5904
+LocalGPT-2.0.1-final30-source/build/Assert-AsyncContinuationPolicy.ps1 4133
+LocalGPT-2.0.1-final30-source/build/Assert-ComponentSafety.ps1 6737
+LocalGPT-2.0.1-final30-source/build/Assert-CSharpSyntax.ps1 2537
+LocalGPT-2.0.1-final30-source/build/Assert-DatabaseMigrationBootstrap.ps1 6328
+LocalGPT-2.0.1-final30-source/build/Assert-DxFunctionExchange.ps1 5843
+
+ARCHIVE LocalGPTCleanedByCorruption.zip
+entries 1755 uncompressed 60529861 compressed 44873482
+badpaths [] count 0
+top-level ['LocalGPT']
+LocalGPT/ 0
+LocalGPT/.claude/ 0
+LocalGPT/.claude/settings.json 4367
+LocalGPT/.git/ 0
+LocalGPT/.git/COMMIT_EDITMSG 5
+LocalGPT/.git/config 278
+LocalGPT/.git/description 73
+LocalGPT/.git/FETCH_HEAD 376
+LocalGPT/.git/HEAD 21
+LocalGPT/.git/hooks/ 0
+LocalGPT/.git/hooks/applypatch-msg.sample 478
+LocalGPT/.git/hooks/commit-msg.sample 1972
+LocalGPT/.git/hooks/fsmonitor-watchman.sample 4611
+LocalGPT/.git/hooks/post-update.sample 189
+LocalGPT/.git/hooks/pre-applypatch.sample 424
+LocalGPT/.git/hooks/pre-commit.sample 1649
+LocalGPT/.git/hooks/pre-merge-commit.sample 416
+LocalGPT/.git/hooks/pre-push.sample 1374
+LocalGPT/.git/hooks/pre-rebase.sample 4898
+LocalGPT/.git/hooks/pre-receive.sample 544
+Vergleichen bereinigter und ursprünglicher Dateien
+bash -lc python - <<'PY'
+from pathlib import Path
+import hashlib, os, collections, json
+pairs={
+'publisher':(Path('/mnt/data/review_work/publisher_clean/PublisherStudio'),Path('/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio')),
+'local':(Path('/mnt/data/review_work/local_clean/LocalGPT'),Path('/mnt/data/review_work/local_orig/LocalGPT-2.0.1-final30-source')),
+}
+exclude_parts={'.git','.vs','bin','obj','.idea','.vscode','node_modules','TestResults','artifacts'}
+# don't exclude packages yet, but classify
+text_ext={'.cs','.razor','.csproj','.sln','.props','.targets','.json','.md','.txt','.ps1','.cmd','.bat','.xml','.yml','.yaml','.js','.ts','.css','.scss','.html','.htm','.resx','.config','.editorconfig','.gitattributes','.gitignore','.sql','.sh'}
+for name,(a,b) in pairs.items():
+    def files(root):
+        out={}
+        for p in root.rglob('*'):
+            if not p.is_file(): continue
+            rel=p.relative_to(root)
+            if any(part in exclude_parts for part in rel.parts): continue
+            out[str(rel).replace('\\','/')]=p
+        return out
+    fa,fb=files(a),files(b)
+    sa,sb=set(fa),set(fb)
+    changed=[]; same=[]
+    for r in sorted(sa&sb):
+        ha=hashlib.sha256(fa[r].read_bytes()).digest(); hb=hashlib.sha256(fb[r].read_bytes()).digest()
+        (same if ha==hb else changed).append(r)
+    print('\n===',name,'===')
+    print('clean files',len(fa),'orig files',len(fb),'same',len(same),'changed',len(changed),'clean-only',len(sa-sb),'orig-only',len(sb-sa))
+    print('clean-only by ext',collections.Counter(Path(x).suffix.lower() for x in sa-sb).most_common(15))
+    print('orig-only by ext',collections.Counter(Path(x).suffix.lower() for x in sb-sa).most_common(15))
+    print('changed by ext',collections.Counter(Path(x).suffix.lower() for x in changed).most_common(15))
+    print('\nORIG ONLY:')
+    for x in sorted(sb-sa)[:200]: print(x)
+    print('\nCLEAN ONLY:')
+    for x in sorted(sa-sb)[:200]: print(x)
+    print('\nCHANGED:')
+    for x in changed[:300]: print(x)
+PY
+
+=== publisher ===
+clean files 553 orig files 793 same 530 changed 8 clean-only 15 orig-only 255
+clean-only by ext [('.user', 14), ('.nupkg', 1)]
+orig-only by ext [('.md', 155), ('.txt', 88), ('.ps1', 4), ('.cs', 2), ('.sha256', 2), ('.diff', 1), ('.yml', 1), ('.json', 1), ('.mjs', 1)]
+changed by ext [('.ps1', 4), ('.cs', 2), ('.targets', 1), ('.md', 1)]
+
+ORIG ONLY:
+.github/workflows/logging-integrity.yml
+CHANGELOG-v0.2.md
+CHANGELOG-v0.3.1.md
+CHANGELOG-v0.3.2.md
+CHANGELOG-v0.3.md
+CHANGELOG-v0.4.1.md
+CHANGELOG-v0.4.md
+CHANGELOG-v0.5.md
+CHANGELOG-v0.6.md
+CHANGELOG-v0.7.md
+CHANGELOG-v0.8.md
+CHANGELOG-v0.9.md
+CHANGELOG-v1.0.1.md
+CHANGELOG-v1.0.10.md
+CHANGELOG-v1.0.11.md
+CHANGELOG-v1.0.19.md
+CHANGELOG-v1.0.2.md
+CHANGELOG-v1.0.20.md
+CHANGELOG-v1.0.21.md
+CHANGELOG-v1.0.22.md
+CHANGELOG-v1.0.23.md
+CHANGELOG-v1.0.24.md
+CHANGELOG-v1.0.25.md
+CHANGELOG-v1.0.26.md
+CHANGELOG-v1.0.27.md
+CHANGELOG-v1.0.28.md
+CHANGELOG-v1.0.29.md
+CHANGELOG-v1.0.3.md
+CHANGELOG-v1.0.30.md
+CHANGELOG-v1.0.31.md
+CHANGELOG-v1.0.32.md
+CHANGELOG-v1.0.33.md
+CHANGELOG-v1.0.34.md
+CHANGELOG-v1.0.35.md
+CHANGELOG-v1.0.36.md
+CHANGELOG-v1.0.37.md
+CHANGELOG-v1.0.38.md
+CHANGELOG-v1.0.39.md
+CHANGELOG-v1.0.4.md
+CHANGELOG-v1.0.40.md
+CHANGELOG-v1.0.41.md
+CHANGELOG-v1.0.42.md
+CHANGELOG-v1.0.43.md
+CHANGELOG-v1.0.44.md
+CHANGELOG-v1.0.45.md
+CHANGELOG-v1.0.46.md
+CHANGELOG-v1.0.47.md
+CHANGELOG-v1.0.48.md
+CHANGELOG-v1.0.49.md
+CHANGELOG-v1.0.5.md
+CHANGELOG-v1.0.50-hotfix.md
+CHANGELOG-v1.0.50.md
+CHANGELOG-v1.0.51.md
+CHANGELOG-v1.0.52.md
+CHANGELOG-v1.0.53.md
+CHANGELOG-v1.0.54.md
+CHANGELOG-v1.0.55.md
+CHANGELOG-v1.0.56.md
+CHANGELOG-v1.0.57.md
+CHANGELOG-v1.0.58.md
+CHANGELOG-v1.0.59.md
+CHANGELOG-v1.0.6.md
+CHANGELOG-v1.0.60.md
+CHANGELOG-v1.0.61.md
+CHANGELOG-v1.0.62.md
+CHANGELOG-v1.0.63.md
+CHANGELOG-v1.0.64.md
+CHANGELOG-v1.0.65.md
+CHANGELOG-v1.0.66.md
+CHANGELOG-v1.0.67.md
+CHANGELOG-v1.0.68.md
+CHANGELOG-v1.0.69.md
+CHANGELOG-v1.0.7.md
+CHANGELOG-v1.0.70.md
+CHANGELOG-v1.0.71.md
+CHANGELOG-v1.0.72.md
+CHANGELOG-v1.0.73.md
+CHANGELOG-v1.0.74.md
+CHANGELOG-v1.0.75.md
+CHANGELOG-v1.0.76.md
+CHANGELOG-v1.0.77.md
+CHANGELOG-v1.0.78.md
+CHANGELOG-v1.0.79.md
+CHANGELOG-v1.0.8.md
+CHANGELOG-v1.0.80.md
+CHANGELOG-v1.0.81.md
+CHANGELOG-v1.0.82.md
+CHANGELOG-v1.0.83.md
+CHANGELOG-v1.0.84.md
+CHANGELOG-v1.0.85.md
+CHANGELOG-v1.0.86.md
+CHANGELOG-v1.0.87.md
+CHANGELOG-v1.0.88.md
+CHANGELOG-v1.0.89-organic-closure-hotfix-2.md
+CHANGELOG-v1.0.89-organic-learning-hotfix-3.md
+CHANGELOG-v1.0.89.md
+CHANGELOG-v1.0.9.md
+CHANGELOG-v1.0.90-organic-runtime-completion.md
+CHANGELOG-v1.0.93-organic-frontend-authority.md
+CHANGELOG-v1.0.md
+CHANGELOG-v2.0.0-organic-suite-debug-source.md
+CHANGELOG-v2.0.1-final20-runtime-value-ownership.md
+CHANGELOG-v2.0.1-final21-build-guard-fix.md
+CHANGELOG-v2.0.1-final22-compiler-diagnostics-fix.md
+CHANGELOG-v2.0.1-final23-browser-runtime-diagnostics.md
+CHANGELOG-v2.0.1-final24-powershell-parser-fix.md
+CHANGELOG-v2.0.1-final25-javascript-bridge-diagnostics.md
+CHANGELOG-v2.0.1-final26-publisherstudio-repack.md
+CHANGELOG-v2.0.1-final27-compiler-and-maintainer-manifest-fix.md
+CHANGELOG-v2.0.1-final28-publish-configuration-sync.md
+CHANGELOG-v2.0.1-final29-launcher-publish-guard-compatibility.md
+CHANGELOG-v2.0.1-final30-dxfunction-object-store-exchange.md
+CHANGELOG-v2.0.1-organic-suite-buildfix.md
+COMPILER-HOTFIX-2026-07-27.md
+FINAL-DELIVERY-NOTES.txt
+FINAL-SOURCE-REVIEW-2.0.1.md
+FINAL4-FIXES.md
+HOTFIX-2.0.1-LOCALGPT-LINK-AND-PUBLISH.md
+MISSING_FEATURES-v1.0.89-organic-closure-hotfix-2.md
+MISSING_FEATURES-v1.0.89-organic-learning-hotfix-3.md
+MISSING_FEATURES-v1.0.90-organic-runtime-completion.md
+MISSING_FEATURES-v1.0.93-organic-frontend-authority.md
+MISSING_FEATURES-v2.0.0-organic-suite-debug-source.md
+MISSING_FEATURES-v2.0.1-organic-suite-buildfix.md
+PATCH-MANIFEST-v2.0.1-final26-publisherstudio.txt
+PATCH-v2.0.1-final26-publisherstudio.diff
+SOURCE-CHANGES-v1.0.55.txt
+SOURCE-CHANGES-v1.0.56.txt
+SOURCE-CHANGES-v1.0.57.txt
+SOURCE-CHANGES-v1.0.58.txt
+SOURCE-CHANGES-v1.0.59.txt
+SOURCE-CHANGES-v1.0.60.txt
+SOURCE-CHANGES-v1.0.61.txt
+SOURCE-CHANGES-v1.0.62.txt
+SOURCE-CHANGES-v1.0.63.txt
+SOURCE-CHANGES-v1.0.64.txt
+SOURCE-CHANGES-v1.0.65.txt
+SOURCE-CHANGES-v1.0.66.txt
+SOURCE-CHANGES-v1.0.67.txt
+SOURCE-CHANGES-v1.0.68.txt
+SOURCE-CHANGES-v1.0.69.txt
+SOURCE-CHANGES-v1.0.70.txt
+SOURCE-CHANGES-v1.0.71.txt
+SOURCE-CHANGES-v1.0.72.txt
+SOURCE-CHANGES-v1.0.73.txt
+SOURCE-CHANGES-v1.0.74.txt
+SOURCE-CHANGES-v1.0.75.txt
+SOURCE-CHANGES-v1.0.76.txt
+SOURCE-CHANGES-v1.0.77.txt
+SOURCE-CHANGES-v1.0.78.txt
+SOURCE-CHANGES-v1.0.79.txt
+SOURCE-CHANGES-v1.0.80.txt
+SOURCE-CHANGES-v1.0.81.txt
+SOURCE-CHANGES-v1.0.82.txt
+SOURCE-CHANGES-v1.0.83.txt
+SOURCE-CHANGES-v1.0.84.txt
+SOURCE-CHANGES-v1.0.85.txt
+SOURCE-CHANGES-v1.0.86.txt
+SOURCE-CHANGES-v1.0.87.txt
+SOURCE-CHANGES-v1.0.88.txt
+SOURCE-VALIDATION-v1.0.89-organic-closure-hotfix-2.txt
+TEST-RESULTS-v1.0.55.txt
+TEST-RESULTS-v1.0.56.txt
+TEST-RESULTS-v1.0.57.txt
+TEST-RESULTS-v1.0.58.txt
+TEST-RESULTS-v1.0.59.txt
+TEST-RESULTS-v1.0.60.txt
+TEST-RESULTS-v1.0.61.txt
+TEST-RESULTS-v1.0.62.txt
+TEST-RESULTS-v1.0.63.txt
+TEST-RESULTS-v1.0.64.txt
+TEST-RESULTS-v1.0.65.txt
+TEST-RESULTS-v1.0.66.txt
+TEST-RESULTS-v1.0.67.txt
+TEST-RESULTS-v1.0.68.txt
+TEST-RESULTS-v1.0.69.txt
+TEST-RESULTS-v1.0.70.txt
+TEST-RESULTS-v1.0.71.txt
+TEST-RESULTS-v1.0.72.txt
+TEST-RESULTS-v1.0.73.txt
+TEST-RESULTS-v1.0.74.txt
+TEST-RESULTS-v1.0.75.txt
+TEST-RESULTS-v1.0.76.txt
+TEST-RESULTS-v1.0.77.txt
+TEST-RESULTS-v1.0.78.txt
+TEST-RESULTS-v1.0.79.txt
+TEST-RESULTS-v1.0.80.txt
+TEST-RESULTS-v1.0.81.txt
+TEST-RESULTS-v1.0.82.txt
+TEST-RESULTS-v1.0.83.txt
+TEST-RESULTS-v1.0.84.txt
+TEST-RESULTS-v1.0.85.txt
+TEST-RESULTS-v1.0.86.txt
+TEST-RESULTS-v1.0.87.txt
+TEST-RESULTS-v1.0.88.txt
+TEST-RESULTS-v1.0.89-organic-learning-hotfix-3.txt
+TEST-RESULTS-v1.0.89-source-candidate.txt
+TEST-RESULTS-v1.0.90-organic-runtime-completion.txt
+TEST-RESULTS-v1.0.93-organic-frontend-authority.txt
+TEST-RESULTS-v2.0.0-organic-suite-debug-source.txt
+
+CLEAN ONLY:
+packages/LocalGPT.WireProtocolVersion.2.1.0.nupkg
+src/PublisherStudio.InstallerConsole/Properties/PublishProfiles/linuxarm64.pubxml.user
+src/PublisherStudio.InstallerConsole/Properties/PublishProfiles/linuxx64.pubxml.user
+src/PublisherStudio.InstallerConsole/Properties/PublishProfiles/macosarm64.pubxml.user
+src/PublisherStudio.InstallerConsole/Properties/PublishProfiles/macosx64.pubxml.user
+src/PublisherStudio.InstallerConsole/Properties/PublishProfiles/winarm64.pubxml.user
+src/PublisherStudio.InstallerConsole/Properties/PublishProfiles/winx64.pubxml.user
+src/PublisherStudio.InstallerConsole/PublisherStudio.InstallerConsole.csproj.user
+src/PublisherStudio.Web/Properties/PublishProfiles/linarm64.pubxml.user
+src/PublisherStudio.Web/Properties/PublishProfiles/linx64.pubxml.user
+src/PublisherStudio.Web/Properties/PublishProfiles/macosarm64.pubxml.user
+src/PublisherStudio.Web/Properties/PublishProfiles/macosx64.pubxml.user
+src/PublisherStudio.Web/Properties/PublishProfiles/winarm64.pubxml.user
+src/PublisherStudio.Web/Properties/PublishProfiles/winx64.pubxml.user
+src/PublisherStudio.Web/PublisherStudio.Web.csproj.user
+
+CHANGED:
+Build-AllRuntimes.ps1
+Build-LocalDevelopment.ps1
+Build-Release.ps1
+Directory.Build.targets
+build/Assert-OneWireArchitecture.ps1
+docs/ORGANIC-AI-COUNCIL-BLUEPRINT-v1.6.md
+src/PublisherStudio.Web/PublisherStudioServiceCollectionExtensions.cs
+src/PublisherStudio.Web/Services/OrganicPlugins/IOrganicPluginServices.cs
+
+=== local ===
+clean files 903 orig files 1025 same 859 changed 25 clean-only 19 orig-only 141
+clean-only by ext [('.pubxml', 7), ('.ps1', 6), ('.user', 4), ('.nupkg', 1), ('.log', 1)]
+orig-only by ext [('.md', 65), ('.py', 27), ('.txt', 20), ('.ps1', 11), ('.cs', 6), ('.mjs', 5), ('.sha256', 3), ('.yml', 2), ('.json', 1), ('', 1)]
+changed by ext [('.cs', 13), ('.ps1', 5), ('.md', 4), ('.json', 1), ('.targets', 1), ('.csproj', 1)]
+
+ORIG ONLY:
+.github/CODEOWNERS
+.github/copilot-instructions.md
+.github/workflows/logging-integrity.yml
+.github/workflows/source-hygiene.yml
+CHANGELOG-v0.1.0-rewire.md
+CHANGELOG-v0.1.1-hotfix.md
+CHANGELOG-v0.1.1-sanitization.md
+CHANGELOG-v0.1.1-service-refactor.md
+CHANGELOG-v0.1.2-dxfunctions.md
+CHANGELOG-v0.1.3-thinking-panels.md
+CHANGELOG-v0.1.4-compilefix.md
+CHANGELOG-v0.1.4-database-bootstrap-runtime-debug.md
+CHANGELOG-v0.1.4-database-first-debug.md
+CHANGELOG-v0.1.4-ef-snapshot-runtime-debug.md
+CHANGELOG-v0.1.4-human-collaboration.md
+CHANGELOG-v0.1.4-organic-learning-hotfix-3.md
+CHANGELOG-v0.1.4-organic-wire-hotfix.md
+CHANGELOG-v0.1.4-organic-wire-runtime-hotfix-2.md
+CHANGELOG-v0.1.4-service-lifecycle-debug.md
+CHANGELOG-v0.1.4-theme-runtime-debug.md
+CHANGELOG-v0.1.4-unified.md
+CHANGELOG-v0.1.4-workflow-safety.md
+CHANGELOG-v0.1.5-organic-runtime-completion.md
+CHANGELOG-v0.1.8-workspace-proof-frontend-authority.md
+CHANGELOG-v2.0.0-organic-suite-debug-source.md
+CHANGELOG-v2.0.1-final20-runtime-value-ownership.md
+CHANGELOG-v2.0.1-final21-build-guard-fix.md
+CHANGELOG-v2.0.1-final22-compiler-fix.md
+CHANGELOG-v2.0.1-final23-browser-runtime-diagnostics.md
+CHANGELOG-v2.0.1-final24-chat-stream-usability.md
+CHANGELOG-v2.0.1-final25-theme-module-cache-fix.md
+CHANGELOG-v2.0.1-final27-optional-provider-timeout-and-maintainer-manifest-fix.md
+CHANGELOG-v2.0.1-final28-publish-and-installer-workflow.md
+CHANGELOG-v2.0.1-final29-launcher-publish-guard-compatibility.md
+CHANGELOG-v2.0.1-final30-council-dxfunction-database-exchange.md
+CHANGELOG-v2.0.1-organic-suite-buildfix.md
+COMPILER-HOTFIX-2026-07-27.md
+DEBUG-NEXT-STEPS.md
+FINAL-DELIVERY-NOTES.txt
+FINAL-SOURCE-REVIEW-2.0.1.md
+FINAL4-FIXES.md
+HOTFIX-2-COMPILER-NOTES.txt
+HOTFIX-2.0.1-COUNCIL-ONEWIRE-PUBLISH.md
+LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/CouncilDxFunctionModels.cs
+LocalGPTWebviewWrapper/LocalGPT/Interfaces/ICouncilDxFunctionOrchestrator.cs
+LocalGPTWebviewWrapper/LocalGPT/Interfaces/ICouncilDxFunctionPolicyDataService.cs
+LocalGPTWebviewWrapper/LocalGPT/Migrations/20260728223000_AddDxAiFunctionCatalogEntries.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/CouncilDxFunctionOrchestrator.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/CouncilDxFunctionPolicyDataService.cs
+LocalGPTWebviewWrapper/readme.md
+MISSING_FEATURES-v0.1.4-organic-learning-hotfix-3.md
+MISSING_FEATURES-v0.1.4-organic-wire-runtime-hotfix-2.md
+MISSING_FEATURES-v0.1.5-organic-runtime-completion.md
+MISSING_FEATURES-v0.1.8-workspace-proof-frontend-authority.md
+MISSING_FEATURES-v2.0.0-organic-suite-debug-source.md
+MISSING_FEATURES-v2.0.1-organic-suite-buildfix.md
+MISSING_FEATURE_REVIEW-v0.1.4.md
+OLDREADME.md
+RELEASE.md
+REPAIR_REPORT.md
+SOURCE-VALIDATION-v0.1.4-organic-wire-runtime-hotfix-2.txt
+TEST-RESULTS-v0.1.4-organic-learning-hotfix-3.txt
+TEST-RESULTS-v0.1.4-organic-wire-source-candidate.txt
+TEST-RESULTS-v0.1.5-organic-runtime-completion.txt
+TEST-RESULTS-v0.1.8-workspace-proof-frontend-authority.txt
+TEST-RESULTS-v2.0.0-organic-suite-debug-source.txt
+TEST-RESULTS-v2.0.1-final20-runtime-value-ownership.txt
+TEST-RESULTS-v2.0.1-final21-build-guard-fix.txt
+TEST-RESULTS-v2.0.1-final22-compiler-fix.txt
+TEST-RESULTS-v2.0.1-final23-browser-runtime-diagnostics.txt
+TEST-RESULTS-v2.0.1-final24-chat-stream-usability.txt
+TEST-RESULTS-v2.0.1-final25-theme-module-cache-fix.txt
+TEST-RESULTS-v2.0.1-final27-optional-provider-timeout-and-maintainer-manifest-fix.txt
+TEST-RESULTS-v2.0.1-final28-publish-and-installer-workflow.txt
+TEST-RESULTS-v2.0.1-final29-launcher-publish-guard-compatibility.txt
+TEST-RESULTS-v2.0.1-final30-council-dxfunction-database-exchange.txt
+TEST-RESULTS-v2.0.1-organic-suite-buildfix.txt
+VALIDATION-v0.1.4-database-bootstrap-runtime-debug.md
+VALIDATION-v0.1.4-database-first-compiler-feedback.md
+VALIDATION-v0.1.4-ef-snapshot-runtime-debug.md
+VALIDATION-v0.1.4-human-collaboration-candidate.md
+VALIDATION-v0.1.4-service-lifecycle-debug.md
+VALIDATION-v0.1.4-theme-runtime-debug.md
+build/Assert-DxFunctionExchange.ps1
+build/Assert-GitSourceVisibility.ps1
+build/Assert-InstallerWorkflow.ps1
+build/Assert-LoggingIntegrity.ps1
+build/Assert-ProjectMaintenanceArchitecture.ps1
+build/Assert-ProtectedRepositoryFiles.ps1
+build/Assert-SecurityPolicy.ps1
+build/Assert-SecurityRulePreservation.ps1
+build/README.md
+build/RepositoryValidation.Common.ps1
+build/Update-ReviewedProtectionManifest.ps1
+build/javascript-diagnostics-files.sha256
+build/logging-baseline.json
+build/protected-files.sha256
+build/security-rules-final19.sha256
+docs/AI_COUNCIL_CODE_REVIEW_20260601-224350.md
+docs/COMPILE_FIX_20260725.md
+docs/COUNCIL_DXFUNCTION_DATABASE_AND_WIRE_EXCHANGE.md
+docs/PEACEFUL_USE_COVENANT.md
+docs/REVIEWED_MANIFEST_REFRESH.md
+docs/RUNTIME_VALUE_OWNERSHIP.md
+docs/SECURE_MAINTENANCE.md
+docs/SERVICE_LIFECYCLE_AND_ASYNC_ARCHITECTURE.md
+llms.txt
+packages/README.md
+tests/final16_build_regressions.py
+tests/final17_system_variable_and_ps51_contracts.py
+tests/final18_ps51_baseline_contracts.py
+tests/final19_compile_regressions.py
+tests/final20_runtime_value_ownership.py
+tests/final21_build_guard_fix.py
+tests/final22_compiler_fix.py
+tests/final23_javascript_runtime_fix.py
+tests/final24_chat_stream_usability.py
+tests/final25_theme_module_cache_fix.py
+tests/final27_reviewed_manifest_refresh.py
+tests/final28_publish_installer_workflow.py
+tests/final29_installer_launcher_publish_contract.py
+tests/final30_council_dxfunction_database_exchange.py
+tests/localgpt_build_wire_logging_contracts.py
+tests/localgpt_circuit_freeze_regressions.py
+tests/localgpt_council_onewire_publish_hotfix_contracts.py
+tests/localgpt_final14_chat_surface_contracts.py
+tests/localgpt_final15_completion_contracts.py
+tests/localgpt_final_localization_lmstudio_chatui_contracts.py
+tests/localgpt_final_runtime_build_ui_contracts.py
+tests/localgpt_frontend_cancellation_contracts.py
+tests/localgpt_hotfix3_source_contracts.py
+tests/localgpt_onewire_security_ocr_contracts.py
+tests/localgpt_project_maintenance_contracts.py
+tests/localgpt_render_async_contracts.py
+tests/localization_encoding_git_visibility_contracts.py
+tools/Remove-TrackedRuntimeArtifacts.ps1
+tools/verify-localgpt-organic-wiring.mjs
+tools/verify-localgpt-v017-council-spooler.mjs
+tools/verify-localgpt-v018-frontend-authority.mjs
+tools/verify-localgpt-v2-organic-suite.mjs
+tools/verify-workspace-preservation.mjs
+
+CLEAN ONLY:
+LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj.user
+LocalGPTWebviewWrapper/LocalGPT/LocalGPT.log
+LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/linux64.pubxml
+LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/linux64.pubxml.user
+LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/linuxarm64.pubxml.user
+LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/maxosx64.pubxml
+LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/maxosx64.pubxml.user
+LocalGPTWebviewWrapper/LocalGPT/Properties/PublishProfiles/maxosx64arm.pubxml
+LocalGPTWebviewWrapper/LocalGPTWebviewWrapper/Properties/PublishProfiles/FolderProfile.pubxml
+LocalGPTWebviewWrapper/LocalGPTWebviewWrapper/Properties/PublishProfiles/win10-arm64.pubxml
+LocalGPTWebviewWrapper/LocalGPTWebviewWrapper/Properties/PublishProfiles/win10-x64.pubxml
+LocalGPTWebviewWrapper/LocalGPTWebviewWrapper/Properties/PublishProfiles/win10-x86.pubxml
+build/PublishBlazorSolutionAndCreateZips.ps1
+build/Zip-To-RepoText.ps1
+build/blazorPublisher_repo_to_text_generator.ps1
+build/localgpt_repo_to_text_generator.ps1
+build/ollamapullallrtx3060.ps1
+build/tacosportal_repo_to_text_generator.ps1
+packages/LocalGPT.WireProtocolVersion.2.1.0.nupkg
+
+CHANGED:
+.claude/settings.json
+AGENTS.md
+Build-LocalDevelopment.ps1
+Build-Release.ps1
+Directory.Build.targets
+LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/EFCore/LocalGptMemoryDbContext.cs
+LocalGPTWebviewWrapper/LocalGPT/Interfaces/ICouncilTextPatternDataService.cs
+LocalGPTWebviewWrapper/LocalGPT/Interfaces/IOneWireServices.cs
+LocalGPTWebviewWrapper/LocalGPT/Interfaces/ISystemVariableDefinitionService.cs
+LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj
+LocalGPTWebviewWrapper/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs
+LocalGPTWebviewWrapper/LocalGPT/Program.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/DxAiFunctionCatalogService.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/LocalGptCatalogService.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/OneWire/OneWireCapabilityCatalog.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/CouncilTextPatternDataService.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/InitialDataCatalog.cs
+LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/SystemVariableDefinitionService.cs
+README.md
+build/Assert-JavaScriptDiagnostics.ps1
+build/Assert-OneWireArchitecture.ps1
+build/Invoke-RepositoryValidation.ps1
+docs/ARCHITECTURE.md
+docs/ORGANIC-AI-COUNCIL-BLUEPRINT-v1.6.md
+Überprüfung vorbereiten
+Ich werde die bereinigten Projekte systematisch prüfen, Änderungen sorgfältig zusammenführen und anschließend neue ZIP-Dateien ohne unnötige Entwicklungsartefakte erstellen. Dabei konzentriere ich mich auf statische Analyse statt Ausführung.
+
+Prüfen der Codebasis auf veraltete Verweise
+bash -lc set -euo pipefail
+LC=/mnt/data/review_work/local_clean/LocalGPT
+PC=/mnt/data/review_work/publisher_clean/PublisherStudio
+for term in CouncilDxFunctionPolicy CouncilDxFunctionCallPattern ICouncilDxFunctionOrchestrator ICouncilDxFunctionPolicyDataService DxAiFunctionCatalogEntries IOneWireCapabilityProvider IPublisherDxFunctionCatalogDataService ObjectStoreOrganicCapabilityCatalog; do
+  echo "=== $term / Local clean ==="; rg -n --glob '!**/.git/**' --glob '!**/.vs/**' "$term" "$LC" || true
+  echo "=== $term / Publisher clean ==="; rg -n --glob '!**/.git/**' --glob '!**/.vs/**' "$term" "$PC" || true
+done
+=== CouncilDxFunctionPolicy / Local clean ===
+=== CouncilDxFunctionPolicy / Publisher clean ===
+=== CouncilDxFunctionCallPattern / Local clean ===
+=== CouncilDxFunctionCallPattern / Publisher clean ===
+=== ICouncilDxFunctionOrchestrator / Local clean ===
+=== ICouncilDxFunctionOrchestrator / Publisher clean ===
+=== ICouncilDxFunctionPolicyDataService / Local clean ===
+=== ICouncilDxFunctionPolicyDataService / Publisher clean ===
+=== DxAiFunctionCatalogEntries / Local clean ===
+=== DxAiFunctionCatalogEntries / Publisher clean ===
+=== IOneWireCapabilityProvider / Local clean ===
+/mnt/data/review_work/local_clean/LocalGPT/build/Assert-ProjectClosure.ps1:62:        'public interface IOneWireCapabilityProvider',
+/mnt/data/review_work/local_clean/LocalGPT/LocalGPTWebviewWrapper/LocalGPT.WireProtocolVersion/OneWireProtocolContracts.cs:458:public interface IOneWireCapabilityProvider
+=== IOneWireCapabilityProvider / Publisher clean ===
+=== IPublisherDxFunctionCatalogDataService / Local clean ===
+=== IPublisherDxFunctionCatalogDataService / Publisher clean ===
+=== ObjectStoreOrganicCapabilityCatalog / Local clean ===
+=== ObjectStoreOrganicCapabilityCatalog / Publisher clean ===
+Planung der Bereinigung
+Ich werde die Projekte aus den sauberen Grundlagen neu aufbauen, unnötige Entwicklungsdateien entfernen, offensichtliche Skriptfehler beheben und zentrale Funktionalität vorsichtig wiederherstellen. Anschließend prüfe ich statisch Dateien, Verweise, Konfigurationen und Archive auf Konsistenz.
+
+Comparing clean and original functionality
+bash -lc PC=/mnt/data/review_work/publisher_clean/PublisherStudio
+PO=/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio
+rg -n -C 3 'publisher-dx-functions|Configuration' "$PO/src/PublisherStudio.Web/PublisherStudio.Web.csproj" "$PC/src/PublisherStudio.Web/PublisherStudio.Web.csproj"
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-38-    <Content Include="..\..\assets\PublisherStudio.ico" Link="PublisherStudio.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-39-    <Content Update="appsettings*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-40-    <Content Update="Localization\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:41:    <Content Update="Configuration\panel-text-patterns.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:42:    <Content Update="Configuration\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:43:    <None Update="Configuration\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-44-  </ItemGroup>
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-45-
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-46-  <!--
+--
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-85-           Text="The generated DevExtreme runtime license targets version '@(DevExtremeRuntimeLicenseVersionLines)', but this project uses $(DevExpressVersion). Run Prepare-DevExpressAssets.cmd again." />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-86-  </Target>
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-87-  <ItemGroup>
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:88:    <PublisherStudioConfigurationFile Include="appsettings*.json;Configuration\**\*;Localization\**\*.json" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-89-  </ItemGroup>
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-90-
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:91:  <Target Name="ValidatePublisherConfigurationFilesForPublish"
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-92-          AfterTargets="Publish"
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-93-          Condition="'$(DesignTimeBuild)' != 'true' and '$(PublishDir)' != ''">
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-94-    <ItemGroup>
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:95:      <MissingPublisherStudioConfigurationFile Include="@(PublisherStudioConfigurationFile)"
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-96-                                               Condition="!Exists('$(PublishDir)%(Identity)')" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-97-    </ItemGroup>
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:98:    <Error Condition="'@(MissingPublisherStudioConfigurationFile)' != ''"
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:99:           Text="PublisherStudio publish output is missing configuration files: @(MissingPublisherStudioConfigurationFile, ', ')" />
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-100-  </Target>
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-101-
+/mnt/data/review_work/publisher_orig/BlazorPublisher-2.0.1-final30-source/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-102-</Project>
+--
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-38-    <Content Include="..\..\assets\PublisherStudio.ico" Link="PublisherStudio.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-39-    <Content Update="appsettings*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-40-    <Content Update="Localization\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:41:    <Content Update="Configuration\panel-text-patterns.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:42:    <Content Update="Configuration\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:43:    <None Update="Configuration\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-44-  </ItemGroup>
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-45-
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-46-  <!--
+--
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-85-           Text="The generated DevExtreme runtime license targets version '@(DevExtremeRuntimeLicenseVersionLines)', but this project uses $(DevExpressVersion). Run Prepare-DevExpressAssets.cmd again." />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-86-  </Target>
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-87-  <ItemGroup>
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:88:    <PublisherStudioConfigurationFile Include="appsettings*.json;Configuration\**\*;Localization\**\*.json" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-89-  </ItemGroup>
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-90-
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:91:  <Target Name="ValidatePublisherConfigurationFilesForPublish"
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-92-          AfterTargets="Publish"
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-93-          Condition="'$(DesignTimeBuild)' != 'true' and '$(PublishDir)' != ''">
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-94-    <ItemGroup>
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:95:      <MissingPublisherStudioConfigurationFile Include="@(PublisherStudioConfigurationFile)"
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-96-                                               Condition="!Exists('$(PublishDir)%(Identity)')" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-97-    </ItemGroup>
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:98:    <Error Condition="'@(MissingPublisherStudioConfigurationFile)' != ''"
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj:99:           Text="PublisherStudio publish output is missing configuration files: @(MissingPublisherStudioConfigurationFile, ', ')" />
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-100-  </Target>
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-101-
+/mnt/data/review_work/publisher_clean/PublisherStudio/src/PublisherStudio.Web/PublisherStudio.Web.csproj-102-</Project>
+Fortschreitende Prüfung
+Ich habe die sauberen Grundlagen und ihre Unterschiede systematisch eingegrenzt. Als Nächstes behalte ich transparente Architektur bei, entferne nur überflüssige Artefakte und stelle nützliche Kernfunktionen ohne versteckte Mechanismen wieder her.
+
+Wiederherstellung planen
+Ich stelle nützliche DX-Funktionen transparent wieder her, behalte die vereinfachte Datenhaltung bei und entferne selbstschützende Begleitmechanismen. Zusätzlich verbessere ich Fehlerbehandlung, Nutzerführung, Dokumentation und statische Validierung, ohne Laufzeittests auszuführen.
+
+Überprüfen von Diffs und Dateistrukturen
+bash -lc set -euo pipefail
+printf 'Local diff size: '; wc -l /mnt/data/review_work/diffs/local_changed.diff
+printf 'Publisher diff size: '; wc -l /mnt/data/review_work/diffs/publisher_changed.diff
+find /mnt/data/review_work/local_clean/LocalGPT -maxdepth 2 -type f | sed 's#^#/##' | head -80
+Local diff size: 1905 /mnt/data/review_work/diffs/local_changed.diff
+Publisher diff size: 288 /mnt/data/review_work/diffs/publisher_changed.diff
+//mnt/data/review_work/local_clean/LocalGPT/global.json
+//mnt/data/review_work/local_clean/LocalGPT/AGENTS.md
+//mnt/data/review_work/local_clean/LocalGPT/THIRD-PARTY-NOTICES.md
+//mnt/data/review_work/local_clean/LocalGPT/Directory.Build.targets
+//mnt/data/review_work/local_clean/LocalGPT/Build-LocalDevelopment.ps1
+//mnt/data/review_work/local_clean/LocalGPT/Directory.Build.props
+//mnt/data/review_work/local_clean/LocalGPT/.gitattributes
+//mnt/data/review_work/local_clean/LocalGPT/Build-Release.cmd
+//mnt/data/review_work/local_clean/LocalGPT/LICENSE.MD
+//mnt/data/review_work/local_clean/LocalGPT/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln
+//mnt/data/review_work/local_clean/LocalGPT/LocalGPTWebviewWrapper/.gitignore
+//mnt/data/review_work/local_clean/LocalGPT/.git/sourcetreeconfig.json
+//mnt/data/review_work/local_clean/LocalGPT/.git/FETCH_HEAD
+//mnt/data/review_work/local_clean/LocalGPT/.git/packed-refs
+//mnt/data/review_work/local_clean/LocalGPT/.git/ms-persist.xml
+//mnt/data/review_work/local_clean/LocalGPT/.git/HEAD
+//mnt/data/review_work/local_clean/LocalGPT/.git/ORIG_HEAD
+//mnt/data/review_work/local_clean/LocalGPT/.git/COMMIT_EDITMSG
+//mnt/data/review_work/local_clean/LocalGPT/.git/index
+//mnt/data/review_work/local_clean/LocalGPT/.git/description
+//mnt/data/review_work/local_clean/LocalGPT/.git/config
+//mnt/data/review_work/local_clean/LocalGPT/Build-LocalDevelopment.cmd
+//mnt/data/review_work/local_clean/LocalGPT/.claude/settings.json
+//mnt/data/review_work/local_clean/LocalGPT/SECURITY.md
+//mnt/data/review_work/local_clean/LocalGPT/.gitignore
+//mnt/data/review_work/local_clean/LocalGPT/NuGet.Config
+//mnt/data/review_work/local_clean/LocalGPT/COMPILEFIX-CANDIDATE.md
+//mnt/data/review_work/local_clean/LocalGPT/README.md
+//mnt/data/review_work/local_clean/LocalGPT/Build-Release.ps1
+//mnt/data/review_work/local_clean/LocalGPT/CLAUDE.md
+//mnt/data/review_work/local_clean/LocalGPT/razerbladestealth2016rtx3060.png
+//mnt/data/review_work/local_clean/LocalGPT/docs/FRONTEND_TEST_AUTOMATION.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/BLAZOR_DEVEXPRESS_AI_GENERATION.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/MINECRAFT_SOURCE_KNOWLEDGE.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/LOGGING_INTEGRITY.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/RELEASE_PROCESS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/CHAT_PROTOCOLS_AND_SESSION_CONTEXT.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/DATABASE_MIGRATION_BOOTSTRAP.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/THEME_RUNTIME_ARCHITECTURE.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/HUMAN_AI_COLLABORATION.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/AI_HOST_DOTNET_EXPERIMENT.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/LOCALGPT_DEVELOPER_DIARY.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/CAPABILITY_GAP_CONTRACT.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/PROJECT-MAINTENANCE-WORKSPACES-TOOLCHAINS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/DEVEXPRESS_ASSETS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/COMPILER_VALIDATION_AND_GENERATION_RULES.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/JAVASCRIPT_RUNTIME_DIAGNOSTICS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/AI_HOST_CONTROL_PLANE_ARCHITECTURE.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/LOCALGPT_CAPABILITY_SNAPSHOT.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/GENERATION_ARCHETYPE_CONTRACTS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/ARCHITECTURE_FOR_AI.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/EF_DEVEXPRESS_BUSINESS_OBJECTS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/ORGANIC-AI-COUNCIL-BLUEPRINT-v1.6.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/FRONTEND_DESIGN_PATTERN_LIBRARY.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/ONEWIRE_RUNTIME_SECURITY_HTTP_JSON.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/MINECRAFT_MOD_AI_BUILDER.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/DATABASE_FIRST_PROJECT_ARCHITECTURE.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/COUNCIL_KNOWLEDGE_SEED.sql
+//mnt/data/review_work/local_clean/LocalGPT/docs/ARCHITECTURE.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/LOCALGPT_WORKFLOW_MEMORY.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/OPEN_TASKS.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/PROJECT_COLLABORATION.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/PROJECT_IDENTITY.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/ORGANIC_AI_COUNCIL_BLUEPRINT_2_1.md
+//mnt/data/review_work/local_clean/LocalGPT/docs/AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md
+//mnt/data/review_work/local_clean/LocalGPT/build/Assert-IteratorExceptionPolicy.ps1
+//mnt/data/review_work/local_clean/LocalGPT/build/Assert-InteractiveServerRenderModes.ps1
+//mnt/data/review_work/local_clean/LocalGPT/build/Protect-GovernanceFiles.ps1
+//mnt/data/review_work/local_clean/LocalGPT/build/Assert-LocalizationIntegrity.ps1
+//mnt/data/review_work/local_clean/LocalGPT/build/Assert-ArchitectureTasks.ps1
+//mnt/data/review_work/local_clean/LocalGPT/build/Assert-OperationalDiagnostics.ps1
+//mnt/data/review_work/local_clean/LocalGPT/build/blazorPublisher_repo_to_text_generator.ps1
+//mnt/data/review_work/local_clean/LocalGPT/build/Assert-CSharpSyntax.ps1
+//mnt/data/review_work/local_clean/LocalGPT/build/Assert-AsyncContinuationPolicy.ps1
+Prüfen zentraler Dateien und Diffs
+bash -lc set -euo pipefail
+L=/mnt/data/review_work/local_clean/LocalGPT
+O=/mnt/data/review_work/local_orig/LocalGPT-2.0.1-final30-source
+for spec in \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs:1:340" \
+ "$O/LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs:1:400" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs:1:280" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/InitialDataCatalog.cs:1:300" \
+ "$L/LocalGPTWebviewWrapper/LocalGPT/Program.cs:1:260"; do
+ f=${spec%%:*}; rest=${spec#*:}; a=${rest%%:*}; b=${rest##*:};
+ echo "===== $f [$a-$b] ====="; sed -n "${a},${b}p" "$f"; done
+===== /mnt/data/review_work/local_clean/LocalGPT/LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs [1-340] =====
+using DevExpress.AIIntegration.Blazor.Chat;
+using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
+using System.Diagnostics;
+using System.Net;
+using System.Text;
+using static LocalGPT.Services.LocalGptCatalogService;
+
+namespace LocalGPT.Services
+{
+    public sealed partial class MultiModelCouncilService(
+        IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
+        IAiContextBootstrapService bootstrapService,
+        IChatMemoryService chatMemory,
+        ICouncilArtifactService artifactService,
+        ICouncilKnowledgeService knowledgeService,
+        ILocalGptProjectService projectService,
+        IProjectArchitectureService projectArchitecture,
+        ICodeGenerationWorkflowService codeGenerationWorkflow,
+        ICouncilCodeGenerationPlanService codeGenerationPlanService,
+        IPromptConfigService promptConfigService,
+        IChatResponseFormatterFactory formatterFactory,
+        IChatProtocolResolver protocolResolver,
+        IHumanCollaborationService humanCollaboration,
+        IDeferredDxAiInvocationService deferredDxAiInvocations,
+        IOrganicCouncilBlueprintService organicCouncilBlueprints,
+        ICouncilSpoolerService councilSpooler,
+        ICouncilPreflightService councilPreflight,
+        ICouncilHardwareRoadPlanner hardwareRoadPlanner,
+        IModelCapabilitySelfAssessmentService modelSelfAssessment,
+        IAmbientLocalGptContext ambientContext,
+        ILogger<MultiModelCouncilService> logger,
+        CouncilRuntimeService councilRuntime,
+        CouncilTextService councilText) : IMultiModelCouncilService
+    {
+   
+
+        public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var providers = GetConfiguredOllamaProviders().ToList();
+                if (providers.Count == 0)
+                    providers.Add(new OllamaCoreOptions { Uri = DefaultOllamaUri, ModelName = "gpt-oss:20b" });
+
+                var candidates = new Dictionary<string, MultiModelCouncilModelCandidate>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var provider in providers)
+                {
+                    var endpoint = councilText.MultiModelCouncilServiceNormalizeEndpoint(provider.Uri, logger);
+                    var configuredName = provider.ModelName.Trim();
+                    if (!string.IsNullOrWhiteSpace(configuredName))
+                    {
+                        candidates[$"{endpoint}|{configuredName}"] = new MultiModelCouncilModelCandidate(
+                            configuredName,
+                            "Configured Ollama",
+                            endpoint,
+                            IsInstalled: false,
+                            IsConfigured: true,
+                            IsLoaded: false,
+                            Details: null);
+                    }
+
+                    foreach (var installed in await ProbeOllamaModelsAsync(endpoint, cancellationToken).ConfigureAwait(false))
+                    {
+                        var key = $"{endpoint}|{installed.ModelName}";
+                        var isConfigured = candidates.TryGetValue(key, out var existing) && existing.IsConfigured;
+                        candidates[key] = installed with
+                        {
+                            Provider = isConfigured ? "Configured Ollama" : installed.Provider,
+                            IsConfigured = isConfigured
+                        };
+                    }
+                }
+
+                return candidates.Values
+                    .OrderByDescending(candidate => candidate.IsConfigured)
+                    .ThenByDescending(candidate => candidate.IsLoaded)
+                    .ThenByDescending(candidate => candidate.ModelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(candidate => candidate.ModelName)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in GetCandidatesAsync");
+                return new List<MultiModelCouncilModelCandidate>();
+            }
+        }
+
+        public async Task<MultiModelCouncilResult> RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
+        {
+            Guid? collaborationRunId = null;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Prompt))
+                    throw new InvalidOperationException("The council needs a prompt.");
+
+                var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? DefaultOllamaUri, logger);
+                var selectedParticipants = SelectParticipants(request);
+                var participantSelection = await ApplyApprovedOneRunModelExclusionsAsync(selectedParticipants, cancellationToken).ConfigureAwait(false);
+                var participants = participantSelection.Active;
+                var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? DefaultMaxParallelModels : request.MaxParallelModels, 1, MaxParticipants);
+                var maxContextTokens = Math.Clamp(
+                    request.MaxContextTokens <= 0 ? DefaultContextTokens : request.MaxContextTokens,
+                    MinContextTokens,
+                    MaxContextTokens);
+                var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
+                var keepAlive = MultiModelCouncilServiceGetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
+                var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
+                var modelRoutes = hardwareRoadPlanner.BuildPlans(
+                    request.ModelRoutes,
+                    participants,
+                    request.MaxOutputTokens,
+                    maxContextTokens,
+                    request.ResourceLoadPercent,
+                    ollamaNumGpu);
+                var result = new MultiModelCouncilResult
+                {
+                    Prompt = request.Prompt.Trim(),
+                    ModelNames = participants,
+                    CouncilTeamKey = request.CouncilTeamKey,
+                    OneWireCorrelationId = request.OneWireCorrelationId,
+                    StartedAtUtc = DateTime.UtcNow
+                };
+                foreach (var excludedModel in participantSelection.Excluded)
+                    result.Warnings.Add($"{excludedModel} was excluded from this Council run by a previously approved one-run model-health decision.");
+                collaborationRunId = result.RunId;
+                var continuedConversation = await LoadContinuationConversationAsync(
+                    request.ContinueConversationId,
+                    cancellationToken,
+                    logger).ConfigureAwait(false);
+                if (continuedConversation is not null)
+                {
+                    result.ContinuedFromConversationId = continuedConversation.Id;
+                    result.ContinuedFromTitle = continuedConversation.Title;
+                }
+
+                var humanProfile = await humanCollaboration.GetProfileAsync(cancellationToken).ConfigureAwait(false);
+                IReadOnlyList<string> collaborationMembers = humanProfile.IsEnabled
+                    ? [.. participants, $"Human: {humanProfile.DisplayName}"]
+                    : participants;
+                humanCollaboration.BeginCouncilRun(result.RunId, collaborationMembers);
+                councilSpooler.Begin(result);
+
+                if (request.CreateProjectForRun)
+                {
+                    var created = await projectArchitecture.EnsureCouncilRunProjectAsync(
+                        result.RunId,
+                        request.Title,
+                        request.Prompt,
+                        cancellationToken).ConfigureAwait(false);
+                    result.ProjectId = created.Project.Id;
+                    result.ProjectRevisionId = created.Revision.Id;
+                    if (request.ProjectId is Guid sourceProjectId)
+                        result.Warnings.Add($"A new database-first project was created for this council run. The previously selected project {sourceProjectId} remains unchanged and can be linked later through a requirement or project artifact.");
+                }
+                else if (request.ProjectId is Guid requestedProjectId)
+                {
+                    var project = await projectService.GetProjectAsync(requestedProjectId, cancellationToken).ConfigureAwait(false);
+                    if (project is null || project.Project.IsArchived)
+                    {
+                        result.Warnings.Add($"The selected project {requestedProjectId} was not found or is archived. The council run will continue without project context.");
+                    }
+                    else
+                    {
+                        result.ProjectId = requestedProjectId;
+                        result.ProjectRevisionId = request.ProjectRevisionId ?? project.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
+                        if (request.ProjectTopicId is Guid requestedTopicId)
+                        {
+                            if (project.Topics.Any(topic => topic.Id == requestedTopicId && topic.IsUserApproved))
+                                result.ProjectTopicId = requestedTopicId;
+                            else
+                                result.Warnings.Add($"The selected project topic {requestedTopicId} was not found or is not user-approved. It will not be linked.");
+                        }
+                    }
+                }
+       [... ELLIPSIZATION ...] public static string BaseUrl => $"http://127.0.0.1:{Port}";
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
+        [STAThread]
+        static void Main(string[] args)
+        {
+            var app = BuildWebApp(args);
+            app.Run();
+        }
+
+        public static WebApplication BuildWebApp(string[]? args = null)
+        {
+            var exeDir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
+            using var loggerFactory = LoggerFactory.Create(logging => logging.AddConsole());
+            var logger = loggerFactory.CreateLogger("Startup");
+            //EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
+
+            var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions(args));
+            builder.Host.UseDefaultServiceProvider((_, options) =>
+            {
+                options.ValidateScopes = true;
+                options.ValidateOnBuild = true;
+            });
+            logger.LogInformation("Created builder with startup service-provider validation enabled.");
+            ConfigureAppConfiguration(builder, logger);
+            logger.LogInformation("Configured app configuration.", logger);
+            System.Threading.Volatile.Write(ref runtimePort, ResolveRequestedPort(args, builder.Configuration, logger));
+            System.Threading.Volatile.Write(ref runtimeOneWirePort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-port", "LOCALGPT_ONEWIRE_PORT", $"{OneWireOptions.SectionName}:ServicePort", DefaultOneWirePort, allowDynamic: false, logger));
+            System.Threading.Volatile.Write(ref runtimeOneWireDiscoveryPort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-discovery-port", "LOCALGPT_ONEWIRE_DISCOVERY_PORT", $"{OneWireOptions.SectionName}:DiscoveryPort", DefaultOneWireDiscoveryPort, allowDynamic: false, logger));
+            ConfigureLogging(builder, logger);
+            logger.LogInformation("Configured logging.", logger);
+            ConfigureOptionsAndServices(builder, logger);
+            logger.LogInformation("Configured options and services.", logger);
+            ConfigureSignalR(builder.Services, logger);
+            logger.LogInformation("Configured SignalR.", logger);
+            System.Threading.Volatile.Write(ref runtimePort, ConfigureKestrel(builder, Port, logger));
+            ValidatePortContracts(logger);
+            var port = Port;
+            logger.LogInformation("Configured Kestrel on loopback port {Port}.", port);
+            ConfigureResponseCompression(builder.Services, logger);
+            logger.LogInformation("Configured response compression.", logger);
+            ConfigureBlazorAndMvc(builder, logger);
+            logger.LogInformation("Configured Blazor and MVC.", logger);
+            ConfigureJsonOptions(builder.Services, logger);
+            logger.LogInformation("Configured JSON options.", logger);
+            ConfigureForwardedHeaders(builder.Services, logger);
+            logger.LogInformation("Configured forwarded headers.", logger);
+
+            var app = builder.Build();
+            logger.LogInformation("Built web application.", logger);
+            ConfigureMiddlewareAndEndpoints(app, logger);
+            logger.LogInformation("Configured middleware and endpoints.", logger);
+            var runtimeEndpointLogger = app.Services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("LocalGPT.RuntimeEndpoint");
+            app.Lifetime.ApplicationStarted.Register(() =>
+            {
+                WriteRuntimeEndpointFile(Port, runtimeEndpointLogger);
+                runtimeEndpointLogger.LogInformation("Wrote runtime endpoint file after the LocalGPT listener started.");
+            });
+            app.Lifetime.ApplicationStopped.Register(() => DeleteRuntimeEndpointFile(runtimeEndpointLogger));
+
+            return app;
+        }
+
+        //private static void TraceStartup(string message, ILogger logger)
+        //{
+        //    try
+        //    {
+        //        var line = $"[{DateTimeOffset.Now:O}] pid={Environment.ProcessId} {message}{Environment.NewLine}";
+        //        //TryAppendStartupTrace(line, logger);
+
+        //        if (!string.Equals(
+        //            Environment.GetEnvironmentVariable("LOCALGPT_STARTUP_TRACE"),
+        //            "1",
+        //            StringComparison.OrdinalIgnoreCase))
+        //        {
+        //            return;
+        //        }
+        //        //TryAppendStartupTrace($"[LocalGPT startup] {line}", logger);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        logger.LogError(ex, $"Error in TraceStartup {message}");
+        //    }
+           
+        //}
+
+        //private static void TryAppendStartupTrace(string line, ILogger logger)
+        //{
+        //    try
+        //    {
+        //        foreach (var directory in GetRuntimeTraceDirectories())
+        //        {
+        //            Directory.CreateDirectory(directory);
+        //            File.AppendAllText(Path.Combine(directory, $"startup-trace-{Environment.ProcessId}.log"), line);
+        //        }
+        //    }
+        //    catch(Exception ex)
+        //    {
+        //        logger.LogError(ex, $"Error in TryAppendStartupTrace line {line}");
+        //        TraceStartup(ex.ToString(), logger);
+        //        // Startup tracing must never block app launch.
+        //    }
+        //}
+
+        private static IEnumerable<string> GetRuntimeTraceDirectories()
+        {
+            var directories = new[]
+            {
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "runtime"),
+                Path.Combine(
+                    Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? string.Empty,
+                    "LocalGPT",
+                    "runtime")
+            };
+
+            return directories
+                .Where(directory => !string.IsNullOrWhiteSpace(directory))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static WebApplicationOptions CreateWebApplicationOptions( string[]? args)
+        {
+            return new WebApplicationOptions
+            {
+                ApplicationName = typeof(Program).Assembly.GetName().Name,
+                ContentRootPath = AppContext.BaseDirectory,
+                WebRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+                Args = args ?? Array.Empty<string>()
+            };
+        }
+
+        private static void ConfigureAppConfiguration(WebApplicationBuilder builder, ILogger logger)
+        {
+            try
+            {
+                builder.Configuration
+               .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+               .AddJsonFile(
+                   $"appsettings.{builder.Environment.EnvironmentName}.json",
+                   optional: true,
+                   reloadOnChange: true)
+               .AddEnvironmentVariables();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Application configuration setup failed.");
+                ///*TryAppendStartupTrace*/(ex.ToString(), logger);
+            }
+           
+        }
+        /// <summary>
+        /// Configure Logging but also here was the logfile bypass method, anyway it... pulled that out of my core and restructured the whole app against every guide and telling so... rly bad.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="logger"></param>
+        private static void ConfigureLogging(WebApplicationBuilder builder, ILogger logger)
+        {
+            try
+            {
+
+                if (!builder.Environment.IsDevelopment())
+                    builder.Logging.AddFilter((category, level) => level >= LogLevel.Warning);
+
+                builder.Services.AddLogging(logging =>
+                    new LoggingConfigurationService(builder.Services, builder.Configuration).Configure(logging));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error in ConfigureLogging builder {builder.ToString()}", builder);
+                //TryAppendStartupTrace(ex.ToString(), logger);
+            }
+           
+        }
+        private static void ConfigureOptionsAndServices(WebApplicationBuilder builder, ILogger logger)
+        {
+            try
+            {
+                builder.Services
+               .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
+               .Bind(builder.Configuration);
+                builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
+                builder.Services.Configure<NativeCommandOptions>(
+                    builder.Configuration.GetSection(NativeCommandOptions.SectionName));
+                builder.Services.Configure<ArtifactBuildOptions>(
+                    builder.Configuration.GetSection(ArtifactBuildOptions.SectionName));
+
+                // PublisherStudio-style application boundaries: runtime helpers are injected services,
+                // not mutable process-wide utility classes.
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.0.1"));
+                builder.Services.AddSingleton<LocalGptCatalogService>();
+                builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
+                builder.Services.AddSingleton<CouncilTextService>();
+                builder.Services.AddSingleton<CouncilRuntimeService>();
+                builder.Services.AddSingleton<SqliteUtilityService>();
+                builder.Services.AddScoped<DevExpressChatService>();
+                builder.Services.AddScoped<IChatMemoryMessageMapper, ChatMemoryMessageMapper>();
+                builder.Services.AddSingleton<AiDiscoveryService>();
+Prüfen der PowerShell-Skript-Syntax
+bash -lc set -euo pipefail
+for f in /mnt/data/review_work/out/LocalGPT/Build-Release.ps1 /mnt/data/review_work/out/PublisherStudio/Build-AllRuntimes.ps1 /mnt/data/review_work/out/PublisherStudio/Build-LocalDevelopment.ps1 /mnt/data/review_work/out/PublisherStudio/Build-Release.ps1; do
+ echo "===== $f ====="; nl -ba "$f" | sed -n '1,190p'; done
+===== /mnt/data/review_work/out/LocalGPT/Build-Release.ps1 =====
+     1	param(
+     2	    [ValidateSet("all", "win-x64", "win-x86", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")]
+     3	    [string]$Runtime = "all",
+     4	    [ValidateSet("Release", "Debug")]
+     5	    [string]$Configuration = "Release",
+     6	    [string]$WireProtocolVersion = "2.1.0",
+     7	    [string]$WireProtocolPackageUrl = "",
+     8	    [switch]$UseBundledWireProtocolPackage,
+     9	    [switch]$IncludeWindowsWrapper
+    10	)
+    11	
+    12	$ErrorActionPreference = "Stop"
+    13	Set-StrictMode -Version Latest
+    14	
+    15	$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+    16	$solutionRoot = Join-Path $root "LocalGPTWebviewWrapper"
+    17	$artifacts = Join-Path $root "artifacts\release"
+    18	$packageDirectory = Join-Path $root "packages"
+    19	$appProject = Join-Path $solutionRoot "LocalGPT\LocalGPT.csproj"
+    20	$setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole\LocalGPTInstallerConsole.csproj"
+    21	$wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj"
+    22	$wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
+    23	$wirePackageName = "LocalGPT.WireProtocolVersion.$WireProtocolVersion.nupkg"
+    24	$wirePackage = Join-Path $packageDirectory $wirePackageName
+    25	$localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+    26	$sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
+    27	
+    28	
+    29	$multiFileSelfContainedProperties = @(
+    30	    "--self-contained", "true",
+    31	    "-p:PublishTrimmed=false",
+    32	    "-p:PublishSingleFile=false",
+    33	    "-p:PublishReadyToRun=false",
+    34	    "-p:DeleteExistingFiles=true"
+    35	)
+    36	
+    37	function Invoke-DotNet {
+    38	    param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
+    39	    & dotnet @Arguments
+    40	    if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
+    41	}
+    42	
+    43	function Resolve-ReleaseProfile {
+    44	    param([Parameter(Mandatory)][string]$Rid)
+    45	    switch ($Rid) {
+    46	        "win-x64"     { return @{ AppFolder = "winx64";     SetupFolder = "setupwinx64";     AppAsset = "winx64.zip";     SetupAsset = "setupwinx64.zip";     WrapperPlatform = "x64" } }
+    47	        "win-x86"     { return @{ AppFolder = "winx86";     SetupFolder = "setupwinx86";     AppAsset = "winx86.zip";     SetupAsset = "setupwinx86.zip";     WrapperPlatform = "x86" } }
+    48	        "win-arm64"   { return @{ AppFolder = "winarm64";   SetupFolder = "setupwinarm64";   AppAsset = "winarm64.zip";   SetupAsset = "setupwinarm64.zip";   WrapperPlatform = "ARM64" } }
+    49	        "linux-x64"   { return @{ AppFolder = "linuxx64";   SetupFolder = "setuplinuxx64";   AppAsset = "linuxx64.zip";   SetupAsset = "setuplinuxx64.zip";   WrapperPlatform = $null } }
+    50	        "linux-arm64" { return @{ AppFolder = "linuxarm64"; SetupFolder = "setuplinuxarm64"; AppAsset = "linuxarm64.zip"; SetupAsset = "setuplinuxarm64.zip"; WrapperPlatform = $null } }
+    51	        "osx-x64"     { return @{ AppFolder = "macosx64";   SetupFolder = "setupmacosx64";   AppAsset = "macosx64.zip";   SetupAsset = "setupmacosx64.zip";   WrapperPlatform = $null } }
+    52	        "osx-arm64"   { return @{ AppFolder = "macosarm64"; SetupFolder = "setupmacosarm64"; AppAsset = "macosarm64.zip"; SetupAsset = "setupmacosarm64.zip"; WrapperPlatform = $null } }
+    53	        default { throw "Unsupported release runtime: $Rid" }
+    54	    }
+    55	}
+    56	
+    57	function Ensure-WireProtocolPackage {
+    58	    New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
+    59	
+    60	    if ($UseBundledWireProtocolPackage) {
+    61	        if (-not (Test-Path $wirePackage)) {
+    62	            throw "The bundled RID-neutral LocalGPT 1-Wire package is missing: $wirePackage"
+    63	        }
+    64	        return
+    65	    }
+    66	
+    67	    if (-not [string]::IsNullOrWhiteSpace($WireProtocolPackageUrl)) {
+    68	        Write-Host "Downloading LocalGPT.WireProtocolVersion $WireProtocolVersion..." -ForegroundColor Cyan
+    69	        $temporary = "$wirePackage.download"
+    70	        Remove-Item $temporary -Force -ErrorAction SilentlyContinue
+    71	        Invoke-WebRequest -Uri $WireProtocolPackageUrl -OutFile $temporary -UseBasicParsing
+    72	        if (-not (Test-Path $temporary)) { throw "The protocol package download did not create a file." }
+    73	        Move-Item $temporary $wirePackage -Force
+    74	        return
+    75	    }
+    76	
+    77	    Write-Host "Packing the RID-neutral LocalGPT 1-Wire protocol once..." -ForegroundColor Cyan
+    78	    Remove-Item $wirePackage -Force -ErrorAction SilentlyContinue
+    79	    Invoke-DotNet -Arguments @(
+    80	        "pack", $wireProject,
+    81	        "-c", $Configuration,
+    82	        "-o", $packageDirectory,
+    83	        "-p:PackageVersion=$WireProtocolVersion",
+    84	        "-p:GeneratePackageOnBuild=false",
+    85	        "-p:Platform=AnyCPU",
+    86	        "-p:PlatformTarget=AnyCPU",
+    87	        "-p:RuntimeIdentifier=",
+    88	        "-p:RuntimeIdentifiers="
+    89	    ) -FailureMessage "LocalGPT 1-Wire package creation failed."
+    90	
+    91	    if (-not (Test-Path $wirePackage)) {
+    92	        throw "The expected protocol package was not produced: $wirePackage"
+    93	    }
+    94	}
+    95	
+    96	function Publish-Runtime {
+    97	    param([Parameter(Mandatory)][string]$Rid)
+    98	
+    99	    $profile = Resolve-ReleaseProfile $Rid
+   100	    $appFolder = Join-Path $artifacts $profile.AppFolder
+   101	    $setupFolder = Join-Path $artifacts $profile.SetupFolder
+   102	    $appZip = Join-Path $artifacts $profile.AppAsset
+   103	    $setupZip = Join-Path $artifacts $profile.SetupAsset
+   104	
+   105	    Remove-Item $appFolder, $setupFolder, $appZip, $setupZip -Recurse -Force -ErrorAction SilentlyContinue
+   106	    New-Item -ItemType Directory -Path $appFolder, $setupFolder -Force | Out-Null
+   107	
+   108	    $sharedProperties = @(
+   109	        "-p:UseLocalWireProtocolProject=false",
+   110	        "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
+   111	        "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
+   112	        "-p:RestoreAdditionalProjectSources=$packageDirectory"
+   113	    )
+   114	
+   115	    Write-Host "Restoring LocalGPT application for $Rid in package mode..." -ForegroundColor Cyan
+   116	    Invoke-DotNet -Arguments (@("restore", $appProject, "-r", $Rid, "--disable-parallel") + $sharedProperties) -FailureMessage "LocalGPT restore failed for $Rid."
+   117	
+   118	    Write-Host "Publishing LocalGPT application for $Rid..." -ForegroundColor Cyan
+   119	    Invoke-DotNet -Arguments (@(
+   120	        "publish", $appProject,
+   121	        "-c", $Configuration,
+   122	        "-f", "net10.0",
+   123	        "-r", $Rid,
+   124	        "--no-restore",
+   125	        "-p:IncludeWireProtocolPackageInPublish=true",
+   126	        "-o", $appFolder
+   127	    ) + $multiFileSelfContainedProperties + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
+   128	
+   129	    Write-Host "Restoring LocalGPT setup for $Rid..." -ForegroundColor Cyan
+   130	    Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Rid, "--disable-parallel") -FailureMessage "LocalGPT setup restore failed for $Rid."
+   131	
+   132	    Write-Host "Publishing LocalGPT setup for $Rid..." -ForegroundColor Cyan
+   133	    Invoke-DotNet -Arguments (@(
+   134	        "publish", $setupProject,
+   135	        "-c", $Configuration,
+   136	        "-f", "net10.0",
+   137	        "-r", $Rid,
+   138	        "--no-restore",
+   139	        "-p:DebugType=None",
+   140	        "-p:DebugSymbols=false",
+   141	        "-o", $setupFolder
+   142	    ) + $multiFileSelfContainedProperties) -FailureMessage "LocalGPT setup publish failed for $Rid."
+   143	
+   144	    $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
+   145	    $setupExecutable = if ($Rid.StartsWith("win-")) { "LocalGPTInstallerConsole.exe" } else { "LocalGPTInstallerConsole" }
+   146	    if (-not (Test-Path (Join-Path $appFolder $appExecutable))) {
+   147	        throw "Published LocalGPT executable not found: $(Join-Path $appFolder $appExecutable)"
+   148	    }
+   149	    if (-not (Test-Path (Join-Path $setupFolder $setupExecutable))) {
+   150	        throw "Published LocalGPT setup executable not found: $(Join-Path $setupFolder $setupExecutable)"
+   151	    }
+   152	
+   153	    $requiredSetupFiles = @(
+   154	        "Default.cmd", "Install.cmd", "Update.cmd", "Start.cmd", "Start-NoBrowser.cmd",
+   155	        "Install-Ollama.cmd", "Pull-Models-Slim.cmd", "Pull-Models-RTX3060.cmd",
+   156	        "Pull-Models-Full.cmd", "Setup-Learning-Base.cmd", "Import-Recommended.cmd", "Uninstall.cmd"
+   157	    )
+   158	    $missingSetupFiles = @($requiredSetupFiles | Where-Object { -not (Test-Path (Join-Path $setupFolder $_)) })
+   159	    if ($missingSetupFiles.Count -gt 0) { throw "Published LocalGPT setup is incomplete. Missing: $($missingSetupFiles -join ', ')" }
+   160	
+   161	    $protocolSetupDirectory = Join-Path $setupFolder "protocol"
+   162	    New-Item -ItemType Directory -Path $protocolSetupDirectory -Force | Out-Null
+   163	    Copy-Item $wirePackage (Join-Path $protocolSetupDirectory $wirePackageName) -Force
+   164	
+   165	    if ($IncludeWindowsWrapper -and $profile.WrapperPlatform) {
+   166	        $wrapperFolder = Join-Path $artifacts "wrapper-$($profile.AppFolder)"
+   167	        Remove-Item $wrapperFolder -Recurse -Force -ErrorAction SilentlyContinue
+   168	        Write-Host "Building the optional WinUI wrapper for $($profile.WrapperPlatfo[... ELLIPSIZATION ...]eadyToRun=false",
+    34	    "-p:DeleteExistingFiles=true"
+    35	)
+    36	
+    37	function Assert-PublishedConfigurationFiles {
+    38	    param(
+    39	        [Parameter(Mandatory)][string]$SourceRoot,
+    40	        [Parameter(Mandatory)][string]$PublishRoot
+    41	    )
+    42	
+    43	    $configurationSources = New-Object 'System.Collections.Generic.List[System.IO.FileInfo]'
+    44	    foreach ($file in Get-ChildItem -LiteralPath $SourceRoot -File -Filter 'appsettings*.json') { $configurationSources.Add($file) }
+    45	    foreach ($directory in @('Configuration', 'Localization')) {
+    46	        $sourceDirectory = Join-Path $SourceRoot $directory
+    47	        if (-not (Test-Path -LiteralPath $sourceDirectory -PathType Container)) {
+    48	            throw "Required PublisherStudio configuration directory is unavailable: $sourceDirectory"
+    49	        }
+    50	        foreach ($file in Get-ChildItem -LiteralPath $sourceDirectory -File -Recurse) { $configurationSources.Add($file) }
+    51	    }
+    52	
+    53	    $missing = New-Object 'System.Collections.Generic.List[string]'
+    54	    foreach ($source in $configurationSources) {
+    55	        $relative = $source.FullName.Substring($SourceRoot.Length).TrimStart([char[]]"\/")
+    56	        $published = Join-Path $PublishRoot $relative
+    57	        if (-not (Test-Path -LiteralPath $published -PathType Leaf)) { $missing.Add($relative) }
+    58	    }
+    59	    if ($missing.Count -gt 0) { throw "PublisherStudio publish output is missing configuration files: $($missing -join ', ')" }
+    60	
+    61	    Write-Host "Published configuration validation passed for $($configurationSources.Count) files." -ForegroundColor Green
+    62	}
+    63	
+    64	& (Join-Path $root "build\Assert-LoggingIntegrity.ps1")
+    65	& (Join-Path $root "build\Assert-JavaScriptDiagnostics.ps1")
+    66	& (Join-Path $root "build\Assert-PublishConfiguration.ps1")
+    67	& (Join-Path $root "build\Assert-InstallerWorkflow.ps1")
+    68	& (Join-Path $root "build\Assert-RuntimeValueOwnership.ps1")
+    69	New-Item -ItemType Directory -Path $packageDirectory, $artifacts -Force | Out-Null
+    70	
+    71	if ($UseBundledWireProtocolPackage) {
+    72	    if (-not (Test-Path -LiteralPath $wireProtocolPackage -PathType Leaf)) {
+    73	        throw "The cached official LocalGPT protocol package is unavailable: $wireProtocolPackage"
+    74	    }
+    75	}
+    76	else {
+    77	    $ensureArguments = @{
+    78	        Version = $WireProtocolVersion
+    79	        PackageDirectory = $packageDirectory
+    80	        PackageUrl = $WireProtocolPackageUrl
+    81	        LocalGptRepository = $LocalGptRepository
+    82	    }
+    83	    if ($RefreshWireProtocolPackage) { $ensureArguments.ForceDownload = $true }
+    84	    & (Join-Path $root "build\Ensure-WireProtocolPackage.ps1") @ensureArguments | Out-Null
+    85	}
+    86	if (-not (Test-Path -LiteralPath $wireProtocolPackage -PathType Leaf)) {
+    87	    throw "LocalGPT protocol package preparation did not produce $wireProtocolPackage"
+    88	}
+    89	
+    90	$profile = switch ($Runtime) {
+    91	    "win-x64"     { @{ Asset = "winx64";     SetupAsset = "setupwinx64";     AppFolder = "winx64";     SetupFolder = "setupwin-x64" } }
+    92	    "win-arm64"   { @{ Asset = "winarm64";   SetupAsset = "setupwinarm64";   AppFolder = "winarm64";   SetupFolder = "setupwin-arm64" } }
+    93	    "linux-x64"   { @{ Asset = "linx64";     SetupAsset = "setuplinx64";     AppFolder = "linx64";     SetupFolder = "setuplin-x64" } }
+    94	    "linux-arm64" { @{ Asset = "linarm64";   SetupAsset = "setuplinarm64";   AppFolder = "linarm64";   SetupFolder = "setuplin-arm64" } }
+    95	    "osx-x64"     { @{ Asset = "macosx64";   SetupAsset = "setupmacosx64";   AppFolder = "macosx64";   SetupFolder = "setupmacos-x64" } }
+    96	    "osx-arm64"   { @{ Asset = "macosarm64"; SetupAsset = "setupmacosarm64"; AppFolder = "macosarm64"; SetupFolder = "setupmacos-arm64" } }
+    97	    default { throw "Unsupported release runtime: $Runtime" }
+    98	}
+    99	
+   100	$appFolder = Join-Path $artifacts $profile.AppFolder
+   101	$setupFolder = Join-Path $artifacts $profile.SetupFolder
+   102	$appZip = Join-Path $artifacts "$($profile.Asset).zip"
+   103	$setupZip = Join-Path $artifacts "$($profile.SetupAsset).zip"
+   104	Remove-Item $appFolder, $setupFolder, $appZip, $setupZip -Recurse -Force -ErrorAction SilentlyContinue
+   105	New-Item -ItemType Directory -Path $appFolder, $setupFolder -Force | Out-Null
+   106	
+   107	Write-Host "Preparing local DevExpress client assets and runtime license..." -ForegroundColor Cyan
+   108	& (Join-Path $root "Prepare-DevExpressAssets.ps1")
+   109	if ($LASTEXITCODE -ne 0) { throw "DevExpress client-asset preparation failed." }
+   110	
+   111	$requiredSpreadsheetAssets = @(
+   112	    "wwwroot\vendor\devexpress-aspnetcore-spreadsheet\dist\dx-aspnetcore-spreadsheet.js",
+   113	    "wwwroot\vendor\devexpress-aspnetcore-spreadsheet\dist\dx-aspnetcore-spreadsheet.css",
+   114	    "wwwroot\vendor\devextreme-dist\js\dx.all.js",
+   115	    "wwwroot\vendor\devextreme-dist\css\dx.light.css",
+   116	    "wwwroot\vendor\jquery\jquery.min.js",
+   117	    "wwwroot\vendor\devextreme-license.js",
+   118	    "wwwroot\vendor\devextreme-license.meta.json",
+   119	    "wwwroot\vendor\devextreme-license.version"
+   120	)
+   121	$missingSpreadsheetAssets = @($requiredSpreadsheetAssets | Where-Object { -not (Test-Path (Join-Path $webDirectory $_)) })
+   122	if ($missingSpreadsheetAssets.Count -gt 0) {
+   123	    throw "DevExpress client assets are incomplete. Missing: $($missingSpreadsheetAssets -join ', ')"
+   124	}
+   125	
+   126	$wireProperties = @(
+   127	    "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
+   128	    "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
+   129	    "-p:RestoreAdditionalProjectSources=$packageDirectory",
+   130	    "-p:SkipWireProtocolBootstrap=true"
+   131	)
+   132	
+   133	Write-Host "Restoring BlazorPublisher application for $Runtime after protocol preparation..." -ForegroundColor Cyan
+   134	Invoke-DotNet -Arguments (@("restore", $webProject, "-r", $Runtime, "--disable-parallel") + $wireProperties) -FailureMessage "BlazorPublisher application restore failed."
+   135	
+   136	Write-Host "Publishing BlazorPublisher application for $Runtime..." -ForegroundColor Cyan
+   137	Invoke-DotNet -Arguments (@(
+   138	    "publish", $webProject,
+   139	    "-c", $Configuration,
+   140	    "-f", "net10.0",
+   141	    "-r", $Runtime,
+   142	    "--no-restore",
+   143	    "-maxcpucount:1",
+   144	    "-o", $appFolder
+   145	) + $multiFileSelfContainedProperties + $wireProperties) -FailureMessage "BlazorPublisher application publish failed."
+   146	Assert-PublishedConfigurationFiles -SourceRoot $webDirectory -PublishRoot $appFolder
+   147	
+   148	Write-Host "Restoring BlazorPublisher setup for $Runtime..." -ForegroundColor Cyan
+   149	Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Runtime, "--disable-parallel") -FailureMessage "BlazorPublisher setup restore failed."
+   150	
+   151	Write-Host "Publishing BlazorPublisher setup for $Runtime..." -ForegroundColor Cyan
+   152	Invoke-DotNet -Arguments @(
+   153	    "publish", $setupProject,
+   154	    "-c", $Configuration,
+   155	    "-f", "net10.0",
+   156	    "-r", $Runtime,
+   157	    "--no-restore",
+   158	    "-maxcpucount:1",
+   159	    "-p:DebugType=None",
+   160	    "-p:DebugSymbols=false",
+   161	    "-o", $setupFolder
+   162	) + $multiFileSelfContainedProperties) -FailureMessage "BlazorPublisher setup publish failed."
+   163	
+   164	$appExecutable = if ($Runtime.StartsWith("win-")) { "PublisherStudio.Web.exe" } else { "PublisherStudio.Web" }
+   165	$setupExecutable = if ($Runtime.StartsWith("win-")) { "PublisherStudio.Setup.exe" } else { "PublisherStudio.Setup" }
+   166	if (-not (Test-Path (Join-Path $appFolder $appExecutable))) { throw "Published application executable not found: $(Join-Path $appFolder $appExecutable)" }
+   167	if (-not (Test-Path (Join-Path $setupFolder $setupExecutable))) { throw "Published setup executable not found: $(Join-Path $setupFolder $setupExecutable)" }
+   168	
+   169	$protocolAppDirectory = Join-Path $appFolder "protocol"
+   170	$protocolSetupDirectory = Join-Path $setupFolder "protocol"
+   171	New-Item -ItemType Directory -Path $protocolAppDirectory, $protocolSetupDirectory -Force | Out-Null
+   172	Copy-Item $wireProtocolPackage (Join-Path $protocolAppDirectory $wireProtocolPackageName) -Force
+   173	Copy-Item $wireProtocolPackage (Join-Path $protocolSetupDirectory $wireProtocolPackageName) -Force
+   174	Copy-Item $wireProtocolPackage (Join-Path $artifacts $wireProtocolPackageName) -Force
+   175	
+   176	# Keep the repository-owned icon explicit in both publish outputs so desktop and Start-menu
+   177	# shortcuts never depend on incidental SDK Content-item behavior.
+   178	$publisherIcon = Join-Path $root "assets\PublisherStudio.ico"
+   179	if (-not (Test-Path -LiteralPath $publisherIcon -PathType Leaf)) {
+   180	    throw "PublisherStudio release icon is unavailable: $publisherIcon"
+   181	}
+   182	Copy-Item -LiteralPath $publisherIcon -Destination (Join-Path $setupFolder "PublisherStudio.ico") -Force
+   183	Copy-Item -LiteralPath $publisherIcon -Destination (Join-Path $appFolder "PublisherStudio.ico") -Force
+   184	
+   185	$requiredSetupFiles = @("Default.cmd", "Install.cmd", "Update.cmd", "Start.cmd", "Start-NoBrowser.cmd", "Check-FFmpeg.cmd", "Install-FFmpeg.cmd", "Uninstall.cmd", "PublisherStudio.ico")
+   186	$missingSetupFiles = @($requiredSetupFiles | Where-Object { -not (Test-Path (Join-Path $setupFolder $_)) })
+   187	if ($missingSetupFiles.Count -gt 0) { throw "Published setup is incomplete. Missing: $($missingSetupFiles -join ', ')" }
+   188	
+   189	Compress-Archive -Path $appFolder -DestinationPath $appZip -CompressionLevel Optimal -Force
+   190	Compress-Archive -Path $setupFolder -DestinationPath $setupZip -CompressionLevel Optimal -Force
+24m 36s nachgedacht
+Fertig
+
+…
+Ist das Archiv noch von anderem betroffen außer 天天中彩票篮球?
+2m 42s nachgedacht
+
+Falls du mit భ das fremde Zeichen meinst: Das ist der Telugu-Buchstabe „Bha“ (U+0C2D). Er kommt in keinem der beiden zurückgegebenen Archive vor.
+
+Die Archive enthalten allerdings mehr Änderungen als nur die Entfernung der problematischen Schutz-/Policy-Schicht:
+
+LocalGPT: 7 Dateien hinzugefügt, 22 verändert und 7 entfernt.
+PublisherStudio: 4 Dateien hinzugefügt, 27 verändert und 20 entfernt.
+Hinzugefügt wurden vor allem die wiederhergestellte DX-/Council-Funktionalität und Katalog-/Object-Store-Dienste.
+Entfernt wurden unter anderem .claude-, .csproj.user-, Log-, IDE- und einige Guard-/Policy-Dateien.
+Build-Skripte und Directory.Build.targets wurden verändert, damit die Repository-Policy-Prüfungen nicht automatisch ausgeführt werden.
+Sämtliche ZIP-Zeitstempel stehen auf 1. Januar 1980. Das stammt von der reproduzierbaren ZIP-Erstellung und betrifft nur Metadaten.
+
+Bei einer erneuten Unicode-Prüfung fand ich:
+
+keine Telugu-Zeichen
+keine Bidirectional-Control-Zeichen
+einen vorhandenen UTF-8-BOM in einer LocalGPT-CSS-Datei
+Zero-Width-Spaces in mitgelieferten DevExtreme-CSS-Dateien; sie waren bereits in deiner Basis vorhanden und wurden nicht von mir eingebracht
+
+Wichtig: Beide Projekte enthalten weiterhin sicherheitsrelevante, aber grundsätzlich funktional erklärbare Mechanismen wie Downloads, Prozessstarts, Dateilöschungen, FFmpeg-Aufrufe und kryptografische Schlüsselverwaltung. Diese stammen überwiegend aus der vorhandenen Anwendung und wurden nicht komplett sicherheitsauditiert.
+
+Daher die ehrliche Antwort: Keine erkennbare weitere Text-/Unicode-Korruption, aber die zurückgegebenen ZIPs sind deutlich umfassender verändert worden als nur an einer einzelnen Stelle. Eine Kompilier- oder Laufzeitgarantie kann ich ohne .NET-Ausführung nicht geben.
+
+Ich prüfe zunächst, worauf sich „Archiv“ und der unklare Ausdruck beziehen. Ohne den genauen Dateinamen oder die gemeinte Änderung kann ich nicht zuverlässig beurteilen, ob weitere Inhalte betroffen sind.
+
+for f in /mnt/data/*.zip; do echo "=== $(basename "$f")"; unzip -l "$f" | sed -n '1,25p'; done
+
+Ich überprüfe, ob neben der genannten Änderung noch andere Dateien oder Metadaten verändert wurden. Dabei unterscheide ich zwischen beabsichtigten Anpassungen, unveränderten Altlasten und möglichen verdächtigen Rückständen, damit die Aussage zum Archiv nicht zu pauschal ausfällt.
+
+bash -lc set -e
+for root in /mnt/data/recheck/LocalGPT-2.0.1-static-reviewed-clean/LocalGPT /mnt/data/recheck/PublisherStudio-2.0.1-static-reviewed-clean/PublisherStudio; do
+  echo "=== $root"
+  rg -n -i --hidden --glob '!**/node_modules/**' --glob '!**/wwwroot/vendor/**' --glob '!**/bin/**' --glob '!**/obj/**' \
+    '(Invoke-WebRequest|Invoke-RestMethod|DownloadString|WebClient|EncodedCommand|FromBase64String|Process\.Start|Start-Process|cmd\.exe|powershell\.exe|bash\s+-c|eval\s*\(|new Function\s*\(|Assembly\.Load|DllImport|Environment\.Exit|File\.Delete|Directory\.Delete|Remove-Item|git\s+reset|git\s+clean|git\s+checkout|git\s+restore|curl\s|wget\s)' "$root" | head -n 240 || true
+  echo
+ done
+
+Also Dangerous:
+https://www.unicode.org/charts/nameslist/n_0C00.html
+
+what https://www.unicode.org/charts/nameslist/n_0C00.html it does?
+
+That page is just an official Unicode reference table for the Telugu character block, covering code points roughly U+0C00 through U+0C7F. It lists each character, its visual glyph, code point, and official name. For example, భ is listed there as U+0C2D — TELUGU LETTER BHA.
+
+It does not:
+
+scan your archive,
+execute code,
+modify files,
+identify malware,
+prove where the character came from.
+
+I linked it only to identify the strange character that appeared in your message. The archive claim came from a separate file inspection, not from that website. I should have stated that distinction more clearly.
+
+Überprüfung der Archive auf Telugu-Zeichen
+
+bash -lc ls -l /mnt/data && python - <<'PY'
+import zipfile, os, re, json
+paths=[
+'/mnt/data/PublisherStudioCleanedByCorruption.zip',
+'/mnt/data/BlazorPublisher-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPT-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPTCleanedByCorruption.zip',
+'/mnt/data/LocalGPT-2.0.1-static-reviewed-clean.zip',
+'/mnt/data/PublisherStudio-2.0.1-static-reviewed-clean.zip',
+]
+needle='భ'
+patterns=[needle,'\\u0c2d','\\U00000c2d','U+0C2D','TELUGU LETTER BHA']
+for p in paths:
+    print('\nARCHIVE', os.path.basename(p))
+    if not os.path.exists(p):
+        print('MISSING')
+        continue
+    hits=[]
+    with zipfile.ZipFile(p) as z:
+        for info in z.infolist():
+            if info.is_dir(): continue
+            try:
+                b=z.read(info)
+            except Exception:
+                continue
+            # raw utf-8 bytes
+            if needle.encode('utf-8') in b:
+                hits.append((info.filename,'raw_utf8'))
+            # decode several likely encodings
+            for enc in ('utf-8-sig','utf-16','utf-16le','utf-16be','cp1252'):
+                try:
+                    s=b.decode(enc)
+                except Exception:
+                    continue
+                for pat in patterns[1:]:
+                    if pat.lower() in s.lower():
+                        hits.append((info.filename,f'{enc}:{pat}'))
+                if needle in s:
+                    hits.append((info.filename,f'{enc}:char'))
+    if hits:
+        for h in sorted(set(hits)):
+            print(h)
+    else:
+        print('NO HITS')
+PY
+
+Untersuchen von Git-Objekten auf Zeichenfund
+
+bash -lc set -e
+rm -rf /mnt/data/inspect_localgpt_git
+mkdir -p /mnt/data/inspect_localgpt_git
+cd /mnt/data/inspect_localgpt_git
+unzip -q /mnt/data/LocalGPTCleanedByCorruption.zip
+find . -maxdepth 3 -type d -name .git -print
+REPO=$(find . -maxdepth 3 -type d -name .git -printf '%h\n' | head -n1)
+echo REPO=$REPO
+cd "$REPO"
+git rev-parse --is-inside-work-tree
+git status --short | head -50
+python - <<'PY'
+import subprocess, os
+needle='భ'.encode('utf-8')
+objs=subprocess.check_output(['git','rev-list','--objects','--all']).decode().splitlines()
+print('object refs',len(objs))
+hits=[]
+for i,line in enumerate(objs):
+    parts=line.split(' ',1)
+    oid=parts[0]; path=parts[1] if len(parts)>1 else ''
+    try:
+        typ=subprocess.check_output(['git','cat-file','-t',oid],stderr=subprocess.DEVNULL).strip().decode()
+        if typ not in ('blob','commit','tag','tree'): continue
+        data=subprocess.check_output(['git','cat-file',typ,oid],stderr=subprocess.DEVNULL)
+    except Exception:
+        continue
+    if needle in data or b'\\u0c2d' in data.lower() or b'U+0C2D' in data.upper():
+        hits.append((oid,typ,path,len(data)))
+print('hits',hits)
+for oid,typ,path,n in hits:
+    print('\nHIT',oid,typ,path,n)
+    data=subprocess.check_output(['git','cat-file',typ,oid])
+    # print surrounding bytes safely
+    idx=data.find(needle)
+    print('idx',idx)
+    start=max(0,idx-300); end=min(len(data),idx+500)
+    print(data[start:end].decode('utf-8','replace'))
+PY
+
+Ich korrigiere meine frühere Aussage: In den bereitgestellten Archiven taucht die Bytefolge tatsächlich auf, aber nur innerhalb komprimierter Binärdaten der Git-Historie. Beim Entpacken erscheint sie nicht als Telugu-Zeichen in einer Quelldatei; eine reine Byte-Suche erzeugt hier einen Fehlalarm.
+
+bash -lc python - <<'PY'
+import zipfile, os, re
+paths=[
+'/mnt/data/PublisherStudioCleanedByCorruption.zip',
+'/mnt/data/BlazorPublisher-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPT-2.0.1-final30-source(1).zip',
+'/mnt/data/LocalGPTCleanedByCorruption.zip',
+'/mnt/data/LocalGPT-2.0.1-static-reviewed-clean.zip',
+'/mnt/data/PublisherStudio-2.0.1-static-reviewed-clean.zip',
+]
+# likely text extensions
+text_exts={'.cs','.csproj','.sln','.json','.xml','.xaml','.razor','.html','.css','.js','.ts','.tsx','.md','.txt','.yml','.yaml','.props','.targets','.config','.resx','.sh','.ps1','.cmd','.bat','.gitignore','.gitattributes'}
+pat=re.compile('[\u0c00-\u0c7f]')
+for p in paths:
+    hits=[]
+    with zipfile.ZipFile(p) as z:
+        for i in z.infolist():
+            if i.is_dir(): continue
+            ext=os.path.splitext(i.filename)[1].lower()
+            base=os.path.basename(i.filename).lower()
+            if ext not in text_exts and base not in {'.gitignore','.gitattributes'}: continue
+            b=z.read(i)
+            for enc in ('utf-8-sig','utf-16','utf-16le','utf-16be'):
+                try:s=b.decode(enc)
+                except: continue
+                m=pat.search(s)
+                if m:
+                    hits.append((i.filename,enc,hex(ord(m.group())),m.group()))
+                    break
+    print(os.path.basename(p), 'text Telugu hits:', hits[:20], 'count',len(hits))
+PY
+
+PublisherStudioCleanedByCorruption.zip text Telugu hits: [] count 0
+BlazorPublisher-2.0.1-final30-source(1).zip text Telugu hits: [] count 0
+LocalGPT-2.0.1-final30-source(1).zip text Telugu hits: [] count 0
+LocalGPTCleanedByCorruption.zip text Telugu hits: [] count 0
+LocalGPT-2.0.1-static-reviewed-clean.zip text Telugu hits: [] count 0
+PublisherStudio-2.0.1-static-reviewed-clean.zip text Telugu hits: [] count 0
+
+---
+
+Michi0403: Conclusion, BasketBall game ended and whatever Telugo is, if that means something. It's not there anymore or wasn't but there is how you find it in python!
