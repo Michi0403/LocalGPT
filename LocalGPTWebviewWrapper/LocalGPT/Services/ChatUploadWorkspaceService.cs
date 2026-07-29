@@ -7,6 +7,7 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
@@ -405,7 +406,7 @@ namespace LocalGPT.Services
                     entryCount++;
                     if (entryCount > catalog.MaxZipEntries)
                     {
-                        warnings.Add($"{zipFileName}: remaining entries skipped after {MaxZipEntries:n0} entries.");
+                        warnings.Add($"{zipFileName}: remaining entries skipped after {catalog.MaxZipEntries:n0} entries.");
                         break;
                     }
 

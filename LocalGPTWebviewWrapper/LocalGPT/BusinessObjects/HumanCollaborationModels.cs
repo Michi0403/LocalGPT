@@ -89,7 +89,7 @@ public sealed record HumanApprovalRequestSpec(
     int EarliestCouncilRound = 0,
     bool RequiredBeforeCompletion = false,
     bool IsSensitive = true,
-    string RequestKind = string.Empty,
+    string RequestKind = "",
     string SuggestedResponsesText = "",
     string ResponsePrompt = "",
     string PrefillText = "",

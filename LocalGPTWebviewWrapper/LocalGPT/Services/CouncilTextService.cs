@@ -22,20 +22,13 @@ using System.Reactive;
 using System.Security.AccessControl;
 using System.ServiceModel.Channels;
 using System.Text;
+using static LocalGPT.Services.LocalGptCatalogService;
 namespace LocalGPT.Services
 {
     
-    public sealed partial class CouncilTextService
+    public sealed partial class CouncilTextService(ICouncilTextPatternDataService patterns, LocalGptCatalogService catalog)
     {
-        private readonly ICouncilTextPatternDataService _patterns;
-        private readonly LocalGptCatalogService _catalog;
-
-        public CouncilTextService(ICouncilTextPatternDataService patterns, LocalGptCatalogService catalog)
-        {
-            _patterns = patterns ?? throw new ArgumentNullException(nameof(patterns));
-            _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        }
-
+   
 
         public string NormalizeFormerThought(string? value, ILogger logger)
         {
@@ -49,13 +42,13 @@ namespace LocalGPT.Services
 
                 var text = value.Trim();
                 text = WebUtility.HtmlDecode(WebUtility.HtmlDecode(text));
-                text = _patterns.FormerThoughtBreakPattern.Replace(text, Environment.NewLine);
-                text = _patterns.FormerThoughtCodeWrapperPattern.Replace(text, string.Empty);
-                text = _patterns.FormerThoughtOpeningFencePattern.Replace(text, string.Empty);
-                text = _patterns.FormerThoughtClosingFencePattern.Replace(text, string.Empty);
-                text = _patterns.FormerThoughtPresentationWrapperPattern.Replace(text, match =>
+                text = patterns.FormerThoughtBreakPattern.Replace(text, Environment.NewLine);
+                text = patterns.FormerThoughtCodeWrapperPattern.Replace(text, string.Empty);
+                text = patterns.FormerThoughtOpeningFencePattern.Replace(text, string.Empty);
+                text = patterns.FormerThoughtClosingFencePattern.Replace(text, string.Empty);
+                text = patterns.FormerThoughtPresentationWrapperPattern.Replace(text, match =>
                     match.Value.StartsWith("</", StringComparison.Ordinal) ? Environment.NewLine : string.Empty);
-                var normalized = _patterns.FormerThoughtExcessLineBreakPattern.Replace(
+                var normalized = patterns.FormerThoughtExcessLineBreakPattern.Replace(
                     text,
                     Environment.NewLine + Environment.NewLine).Trim();
                 logger.LogDebug($"{nameof(NormalizeFormerThought)} normalized former-thought presentation markup.");
@@ -72,7 +65,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var singleLine = _patterns.WhitespacePattern.Replace(content ?? string.Empty, " ").Trim();
+                var singleLine = patterns.WhitespacePattern.Replace(content ?? string.Empty, " ").Trim();
                 var preview = singleLine.Length <= 180 ? singleLine : singleLine[..177] + "...";
                 logger.LogDebug($"{nameof(BuildFeedbackPreview)} prepared a feedback preview without logging its content.");
                 return preview;
@@ -147,20 +140,20 @@ namespace LocalGPT.Services
 
         public string NormalizeName(string value, string fallback)
         {
-            var normalized = _patterns.NameCleanerPattern.Replace(value.Trim(), string.Empty);
+            var normalized = patterns.NameCleanerPattern.Replace(value.Trim(), string.Empty);
             return string.IsNullOrWhiteSpace(normalized) ? fallback : normalized;
         }
 
         public string NormalizeModId(string value, string fallback)
         {
-            var normalized = _patterns.ModIdCleanerPattern.Replace(value.Trim().ToLowerInvariant().Replace('-', '_'), string.Empty);
+            var normalized = patterns.ModIdCleanerPattern.Replace(value.Trim().ToLowerInvariant().Replace('-', '_'), string.Empty);
             return string.IsNullOrWhiteSpace(normalized) ? fallback : normalized;
         }
 
         public string NormalizePackageName(string value)
         {
             var parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(part => _patterns.PackagePartCleanerPattern.Replace(part.ToLowerInvariant(), string.Empty))
+                .Select(part => patterns.PackagePartCleanerPattern.Replace(part.ToLowerInvariant(), string.Empty))
                 .Where(part => !string.IsNullOrWhiteSpace(part))
                 .ToArray();
 
@@ -1255,7 +1248,7 @@ namespace LocalGPT.Services
             ## Toolchain
 
             - Java: JDK {{request.JavaVersion}}
-            - Gradle: {{(string.IsNullOrWhiteSpace(request.GradleVersion) ? _catalog.DefaultGradleVersion : request.GradleVersion)}}
+            - Gradle: {{(string.IsNullOrWhiteSpace(request.GradleVersion) ? catalog.DefaultGradleVersion : request.GradleVersion)}}
             - Minecraft: {{request.MinecraftVersion}}
             - Loader: {{loader}}
             - Recommended IDE: {{request.Ide}}
@@ -1335,7 +1328,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return _patterns.MissingFeaturePattern.IsMatch(text);
+                return patterns.MissingFeaturePattern.IsMatch(text);
             }
             catch (Exception ex)
             {
@@ -1373,7 +1366,7 @@ namespace LocalGPT.Services
                         yield break;
 
                     var directoryName = Path.GetFileName(directory);
-                    if (_catalog.ExcludedDirectoryNames.Contains(directoryName) || !emitted.Add(directory))
+                    if (catalog.ExcludedDirectoryNames.Contains(directoryName) || !emitted.Add(directory))
                         continue;
 
                     yield return directory;
@@ -1406,7 +1399,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return _patterns.TargetFrameworkPattern.Matches(text)
+                return patterns.TargetFrameworkPattern.Matches(text)
                     .Select(match => match.Groups["value"].Value.Trim())
                     .Where(value => !string.IsNullOrWhiteSpace(value))
                     .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -1422,7 +1415,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return _patterns.PackageReferencePattern.Matches(text)
+                return patterns.PackageReferencePattern.Matches(text)
                     .Select(match => match.Groups["value"].Value.Trim())
                     .Where(value => !string.IsNullOrWhiteSpace(value))
                     .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -1495,7 +1488,7 @@ namespace LocalGPT.Services
             try
             {
 
-                return _patterns.SensitiveNamePattern.Replace(value, "[redacted-name]");
+                return patterns.SensitiveNamePattern.Replace(value, "[redacted-name]");
             }
             catch (Exception ex)
             {
@@ -1508,9 +1501,9 @@ namespace LocalGPT.Services
         {
             try
             {
-                var sourceExtensions = string.Join(", ", _catalog.SourceExtensions.Order(StringComparer.OrdinalIgnoreCase));
-                var binaryExtensions = string.Join(", ", _catalog.BinaryExtensions.Order(StringComparer.OrdinalIgnoreCase));
-                var excludedDirectories = string.Join(", ", _catalog.ExcludedDirectoryNames.Order(StringComparer.OrdinalIgnoreCase));
+                var sourceExtensions = string.Join(", ", catalog.SourceExtensions.Order(StringComparer.OrdinalIgnoreCase));
+                var binaryExtensions = string.Join(", ", catalog.BinaryExtensions.Order(StringComparer.OrdinalIgnoreCase));
+                var excludedDirectories = string.Join(", ", catalog.ExcludedDirectoryNames.Order(StringComparer.OrdinalIgnoreCase));
                 return "Reads source/documentation-like files: " + sourceExtensions +
                     ". Counts but does not store binary/package files: " + binaryExtensions +
                     ". Skips noisy build/cache directories: " + excludedDirectories + ".";
@@ -1722,7 +1715,7 @@ namespace LocalGPT.Services
                     return false;
                 }
 
-                return _patterns.TruncatedTailPattern.IsMatch(trimmed) ||
+                return patterns.TruncatedTailPattern.IsMatch(trimmed) ||
                     !char.IsPunctuation(trimmed[^1]);
             }
             catch (Exception ex)
@@ -1791,7 +1784,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var match = _patterns.ThinkingBlockPattern.Match(content);
+                var match = patterns.ThinkingBlockPattern.Match(content);
                 if (!match.Success)
                     return null;
 
@@ -1808,7 +1801,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return _patterns.ThinkingBlockPattern.Replace(content, string.Empty);
+                return patterns.ThinkingBlockPattern.Replace(content, string.Empty);
             }
             catch (Exception ex)
             {
@@ -1904,7 +1897,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var match = _patterns.CapabilityGapBlockPattern.Match(text);
+                var match = patterns.CapabilityGapBlockPattern.Match(text);
                 if (!match.Success)
                 {
                     return "- No structured <localgpt-capability-gap> block was provided. Ask the model to include requested language, framework, version, local sources, external sources, missing LocalGPT functions, safe workflow, and artifact plan.";
@@ -1954,7 +1947,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var matches = _patterns.HelpfulSourceLinePattern
+                var matches = patterns.HelpfulSourceLinePattern
                 .Matches(text)
                 .Select(match => match.Groups["line"].Value.Trim())
                 .Where(line => !string.IsNullOrWhiteSpace(line))
@@ -1983,7 +1976,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return _patterns.ExtractStructuredField(body, name) ?? string.Empty;
+                return patterns.ExtractStructuredField(body, name) ?? string.Empty;
             }
             catch (Exception ex)
             {
@@ -2371,7 +2364,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var match = _patterns.ThinkingBlockPattern.Match(content);
+                var match = patterns.ThinkingBlockPattern.Match(content);
                 if (!match.Success)
                     return string.Empty;
 
@@ -2390,8 +2383,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                var stripped = _patterns.ThinkingBlockPattern.Replace(content, string.Empty);
-                stripped = _patterns.StreamStatusPattern.Replace(stripped, string.Empty);
+                var stripped = patterns.ThinkingBlockPattern.Replace(content, string.Empty);
+                stripped = patterns.StreamStatusPattern.Replace(stripped, string.Empty);
                 return stripped.Trim();
             }
             catch (Exception ex)
@@ -2406,7 +2399,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var normalized = _patterns.WhitespacePattern.Replace(content, " ").Trim();
+                var normalized = patterns.WhitespacePattern.Replace(content, " ").Trim();
                 return normalized.Length <= maxLength
                     ? normalized
                     : $"{normalized[..maxLength].TrimEnd()}...";
@@ -2424,7 +2417,7 @@ namespace LocalGPT.Services
             try
             {
                 return string.IsNullOrWhiteSpace(endpoint)
-                ? _catalog.DefaultOllamaUri
+                ? catalog.DefaultOllamaUri
                 : endpoint.Trim().TrimEnd('/');
             }
             catch (Exception ex)
@@ -2441,7 +2434,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(content))
                     return string.Empty;
 
-                var match = _patterns.ThinkingBlockPattern.Match(content);
+                var match = patterns.ThinkingBlockPattern.Match(content);
 
                 return match.Success
                     ? WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim()
@@ -2461,7 +2454,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(content))
                     return string.Empty;
 
-                return _patterns.ThinkingBlockPattern.Replace(content, string.Empty).Trim();
+                return patterns.ThinkingBlockPattern.Replace(content, string.Empty).Trim();
             }
             catch (Exception ex)
             {
@@ -2549,7 +2542,7 @@ namespace LocalGPT.Services
                     return string.Empty;
 
                 var normalized = collapseWhitespace
-                    ? _patterns.WhitespacePattern.Replace(text, " ").Trim()
+                    ? patterns.WhitespacePattern.Replace(text, " ").Trim()
                     : text.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
 
                 if (string.IsNullOrWhiteSpace(normalized))
@@ -2566,22 +2559,22 @@ namespace LocalGPT.Services
 
                
 
-                if (maxCharacters <= _catalog.omission.Length + 40)
+                if (maxCharacters <= catalog.omission.Length + 40)
                 {
                     return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
                 }
 
                 if (!keepBothEnds)
                 {
-                    var available = maxCharacters - _catalog.shortOmission.Length;
+                    var available = maxCharacters - catalog.shortOmission.Length;
 
                     if (available <= 0)
                         return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
 
-                    return $"{normalized[..available].TrimEnd()}{_catalog.shortOmission}";
+                    return $"{normalized[..available].TrimEnd()}{catalog.shortOmission}";
                 }
 
-                var remaining = maxCharacters - _catalog.omission.Length;
+                var remaining = maxCharacters - catalog.omission.Length;
 
                 if (remaining <= 0)
                     return normalized[..Math.Min(normalized.Length, maxCharacters)].Trim();
@@ -2589,7 +2582,7 @@ namespace LocalGPT.Services
                 var head = Math.Max(remaining / 2, 1);
                 var tail = Math.Max(remaining - head, 1);
 
-                return $"{normalized[..head].TrimEnd()}{_catalog.omission}{normalized[^tail..].TrimStart()}";
+                return $"{normalized[..head].TrimEnd()}{catalog.omission}{normalized[^tail..].TrimStart()}";
             }
             catch (Exception ex)
             {
@@ -4494,7 +4487,7 @@ namespace LocalGPT.Services
 
             - `{{projectName}}.sln`
             - `src/{{projectName}}/{{projectName}}.csproj`
-            - Blazor Web App `Program.cs`, `App.razor`, `_catalog.Routes.razor`
+            - Blazor Web App `Program.cs`, `App.razor`, `catalog.Routes.razor`
             - Routable Razor pages under `Components/Pages`
             - Service/model code under `Services` and `Models`
             - `wwwroot/app.css`
@@ -4619,7 +4612,7 @@ namespace LocalGPT.Services
 
             - `src/{{projectName}}/Program.cs` - ASP.NET Core service registration, DevExpress setup, and app pipeline.
             - `src/{{projectName}}/Components/App.razor` - document shell and static asset links.
-            - `src/{{projectName}}/Components/_catalog.Routes.razor` - Blazor route discovery.
+            - `src/{{projectName}}/Components/catalog.Routes.razor` - Blazor route discovery.
             - `src/{{projectName}}/Components/GeneratedNavigation.razor` - generated app navigation.
             - `src/{{projectName}}/Components/Pages/Index.razor` - first viewport and page hub.
             - `src/{{projectName}}/Components/Pages/GeneratedDashboard.razor` - health/status grid.
@@ -5392,7 +5385,7 @@ namespace LocalGPT.Services
             try
             {
                 var text = prompt;
-                return _patterns.MinecraftPattern.IsMatch(text) && _patterns.DatapackPattern.IsMatch(text);
+                return patterns.MinecraftPattern.IsMatch(text) && patterns.DatapackPattern.IsMatch(text);
             }
             catch (Exception ex)
             {
@@ -5406,7 +5399,7 @@ namespace LocalGPT.Services
             try
             {
                 var text = prompt;
-                return _patterns.MinecraftPattern.IsMatch(text) && _patterns.MinecraftSkeletonMatrixPattern.IsMatch(text);
+                return patterns.MinecraftPattern.IsMatch(text) && patterns.MinecraftSkeletonMatrixPattern.IsMatch(text);
             }
             catch (Exception ex)
             {
@@ -5419,10 +5412,10 @@ namespace LocalGPT.Services
         {
             try
             {
-                var match = _patterns.MinecraftVersionPattern.Match(text);
+                var match = patterns.MinecraftVersionPattern.Match(text);
                 return match.Success
                     ? match.Groups["version"].Value
-                    : _catalog.DefaultMinecraftVersion;
+                    : catalog.DefaultMinecraftVersion;
             }
             catch (Exception ex)
             {
@@ -5460,19 +5453,19 @@ namespace LocalGPT.Services
             try
             {
                 harmonyModel=harmonyModel ?? false;
-                var quoted = _patterns.MinecraftQuotedProjectNamePattern.Match(text);
+                var quoted = patterns.MinecraftQuotedProjectNamePattern.Match(text);
                 if (quoted.Success)
                     return CleanMinecraftProjectDisplayName(quoted.Groups["name"].Value, logger);
 
-                var explicitlyNamed = _patterns.MinecraftExplicitProjectNamePattern.Match(text);
+                var explicitlyNamed = patterns.MinecraftExplicitProjectNamePattern.Match(text);
                 if (explicitlyNamed.Success)
                     return CleanMinecraftProjectDisplayName(explicitlyNamed.Groups["name"].Value, logger);
 
-                var named = _patterns.MinecraftNamedProjectPattern.Match(text);
+                var named = patterns.MinecraftNamedProjectPattern.Match(text);
                 if (named.Success)
                     return CleanMinecraftProjectDisplayName(named.Groups["name"].Value, logger);
 
-                var heading = _patterns.MarkdownHeadingProjectNamePattern.Match(text);
+                var heading = patterns.MarkdownHeadingProjectNamePattern.Match(text);
                 if (heading.Success)
                     return CleanMinecraftProjectDisplayName(heading.Groups["name"].Value, logger);
 
@@ -5510,7 +5503,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var normalized = _patterns.IdentifierSeparatorPattern.Replace(value.ToLowerInvariant(), "_").Trim('_');
+                var normalized = patterns.IdentifierSeparatorPattern.Replace(value.ToLowerInvariant(), "_").Trim('_');
                 return string.IsNullOrWhiteSpace(normalized) ? "prompted_datapack" : normalized;
             }
             catch (Exception ex)
@@ -5524,7 +5517,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var words = _patterns.AlphaNumericWordPattern.Matches(value)
+                var words = patterns.AlphaNumericWordPattern.Matches(value)
                 .Select(match => match.Value)
                 .Where(word => !string.IsNullOrWhiteSpace(word))
                 .Take(5);
@@ -5541,7 +5534,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var normalized = _patterns.IdentifierSeparatorPattern.Replace(value.ToLowerInvariant(), "-").Trim('-');
+                var normalized = patterns.IdentifierSeparatorPattern.Replace(value.ToLowerInvariant(), "-").Trim('-');
                 return string.IsNullOrWhiteSpace(normalized) ? "promise-module" : normalized;
             }
             catch (Exception ex)
@@ -6439,7 +6432,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return int.TryParse(_patterns.IntegerPattern.Match(value ?? string.Empty).Value, out var confidence)
+                return int.TryParse(patterns.IntegerPattern.Match(value ?? string.Empty).Value, out var confidence)
       ? Math.Clamp(confidence, 0, 100)
       : 40;
             }
@@ -6529,7 +6522,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                foreach (System.Text.RegularExpressions.Match match in _patterns.KnowledgeBlockPattern.Matches(responseText))
+                foreach (System.Text.RegularExpressions.Match match in patterns.KnowledgeBlockPattern.Matches(responseText))
                 {
                     var body = match.Groups["body"].Value.Trim();
                     if (string.IsNullOrWhiteSpace(body))
@@ -6557,7 +6550,7 @@ namespace LocalGPT.Services
                     };
                 }
 
-                foreach (System.Text.RegularExpressions.Match match in _patterns.CapabilityGapBlockPattern.Matches(responseText))
+                foreach (System.Text.RegularExpressions.Match match in patterns.CapabilityGapBlockPattern.Matches(responseText))
                 {
                     var body = match.Groups["body"].Value.Trim();
                     if (string.IsNullOrWhiteSpace(body))
@@ -6597,7 +6590,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return _patterns.ExtractStructuredField(body, name) ?? fallback;
+                return patterns.ExtractStructuredField(body, name) ?? fallback;
             }
             catch (Exception ex)
             {
@@ -6705,17 +6698,17 @@ namespace LocalGPT.Services
             try
             {
                 var text = $"{prompt} {finalAnswer}";
-                if (_patterns.DevExpressDocumentPattern.IsMatch(text))
+                if (patterns.DevExpressDocumentPattern.IsMatch(text))
                     return "DevExpress document/report backend";
-                if (_patterns.BlazorFrontendPattern.IsMatch(text))
+                if (patterns.BlazorFrontendPattern.IsMatch(text))
                     return "Blazor/DevExpress frontend";
-                if (_patterns.DotNetPattern.IsMatch(text))
+                if (patterns.DotNetPattern.IsMatch(text))
                     return ".NET/Blazor/ASP.NET Core";
-                if (_patterns.MinecraftPattern.IsMatch(text))
+                if (patterns.MinecraftPattern.IsMatch(text))
                     return "Minecraft builder";
-                if (_patterns.FrontendPattern.IsMatch(text))
+                if (patterns.FrontendPattern.IsMatch(text))
                     return "Blazor frontend";
-                if (_patterns.LoggingPattern.IsMatch(text))
+                if (patterns.LoggingPattern.IsMatch(text))
                     return "diagnostics and logging";
 
                 return "LocalGPT feature";
@@ -6732,7 +6725,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var normalized = _patterns.WhitespacePattern.Replace(text, " ").Trim();
+                var normalized = patterns.WhitespacePattern.Replace(text, " ").Trim();
                 return normalized.Length <= maxLength
                     ? normalized
                     : $"{normalized[..maxLength].TrimEnd()}...";
@@ -6812,7 +6805,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var normalized = _patterns.WhitespacePattern.Replace(text ?? string.Empty, " ").Trim();
+                var normalized = patterns.WhitespacePattern.Replace(text ?? string.Empty, " ").Trim();
                 return normalized.Length <= maxLength
                     ? normalized
                     : $"{normalized[..maxLength].TrimEnd()}...";
@@ -6857,7 +6850,7 @@ namespace LocalGPT.Services
             try
             {
                 var requested = string.IsNullOrWhiteSpace(minecraftVersion)
-                ? _catalog.DefaultMinecraftVersion
+                ? catalog.DefaultMinecraftVersion
                 : minecraftVersion.Trim();
                 var knownVersions = MinecraftDatapackVersionKnownVersions(logger);
                 var exact = knownVersions.FirstOrDefault(item =>
@@ -6873,10 +6866,10 @@ namespace LocalGPT.Services
                     return prefix with { RequestedVersion = requested, IsExactMatch = false, NeedsVerification = true, Notes = $"{prefix.Notes} Version matched by prefix; verify against the official Minecraft version manifest before friend testing." };
 
                 var fallback = requested.StartsWith("26.", StringComparison.OrdinalIgnoreCase)
-                    ? knownVersions.First(item => item.MatchedVersion == _catalog.DefaultMinecraftVersion)
+                    ? knownVersions.First(item => item.MatchedVersion == catalog.DefaultMinecraftVersion)
                     : requested.StartsWith("1.21", StringComparison.OrdinalIgnoreCase)
                     ? knownVersions.First(item => item.MatchedVersion == "1.21.4")
-                    : knownVersions.First(item => item.MatchedVersion == _catalog.DefaultMinecraftVersion);
+                    : knownVersions.First(item => item.MatchedVersion == catalog.DefaultMinecraftVersion);
 
                 return fallback with
                 {
@@ -6889,10 +6882,10 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not resolve datapack metadata for Minecraft version {MinecraftVersion}.", minecraftVersion);
-                var requested = string.IsNullOrWhiteSpace(minecraftVersion) ? _catalog.DefaultMinecraftVersion : minecraftVersion.Trim();
+                var requested = string.IsNullOrWhiteSpace(minecraftVersion) ? catalog.DefaultMinecraftVersion : minecraftVersion.Trim();
                 return new MinecraftDatapackVersionInfo(
                     RequestedVersion: requested,
-                    MatchedVersion: _catalog.DefaultMinecraftVersion,
+                    MatchedVersion: catalog.DefaultMinecraftVersion,
                     PackFormat: "101.1",
                     FunctionRegistryFolder: "function",
                     IsExactMatch: false,
@@ -6963,7 +6956,7 @@ namespace LocalGPT.Services
                 while (stack.Count > 0)
                 {
                     var current = stack.Pop();
-                    if (_catalog.ExcludedDirectoryNames.Contains(current.Name))
+                    if (catalog.ExcludedDirectoryNames.Contains(current.Name))
                         continue;
 
                     if (LooksLikeArchitectureRoot(current.FullName, logger))
@@ -6998,7 +6991,7 @@ namespace LocalGPT.Services
             {
                 return new DirectoryInfo(rootPath)
                     .EnumerateDirectories()
-                    .Where(directory => !_catalog.ExcludedDirectoryNames.Contains(directory.Name))
+                    .Where(directory => !catalog.ExcludedDirectoryNames.Contains(directory.Name))
                     .OrderBy(directory => directory.FullName, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
             }

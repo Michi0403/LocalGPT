@@ -2,6 +2,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Text;
 using System.Text.RegularExpressions;
+using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {

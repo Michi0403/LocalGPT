@@ -118,52 +118,52 @@ public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolic
                     new(LocalGptRuntimeValue.BootstrapDarkModePostfix, nameof(LocalGptRuntimeValue.BootstrapDarkModePostfix), "-dark", "System.String"),
                     new(LocalGptRuntimeValue.ProjectMaintenanceToastName, nameof(LocalGptRuntimeValue.ProjectMaintenanceToastName), "ProjectMaintenanceToasts", "System.String"),
                     new(LocalGptRuntimeValue.ProjectToastName, nameof(LocalGptRuntimeValue.ProjectToastName), "ProjectToasts", "System.String"),
-                    new(LocalGptRuntimeValue.DatabaseMigrationOrganicSkillTableRepairSql, nameof(LocalGptRuntimeValue.DatabaseMigrationOrganicSkillTableRepairSql), """
-    CREATE TABLE IF NOT EXISTS "OrganicSkills" (
-        "Id" TEXT NOT NULL CONSTRAINT "PK_OrganicSkills" PRIMARY KEY, "Key" TEXT NOT NULL DEFAULT '',
-        "DisplayName" TEXT NOT NULL DEFAULT '', "Description" TEXT NOT NULL DEFAULT '', "SourcePeerId" TEXT NOT NULL DEFAULT 'localgpt',
-        "OrgansJson" TEXT NOT NULL DEFAULT '[]', "CapabilityKeysJson" TEXT NOT NULL DEFAULT '[]', "UiActivationKeysJson" TEXT NOT NULL DEFAULT '[]',
-        "IsOnline" INTEGER NOT NULL DEFAULT 1, "IsEnabled" INTEGER NOT NULL DEFAULT 1, "IsUserApproved" INTEGER NOT NULL DEFAULT 0,
-        "CreatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00', "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00');
-    CREATE TABLE IF NOT EXISTS "ProjectOrganicSkillLinks" (
-        "Id" TEXT NOT NULL CONSTRAINT "PK_ProjectOrganicSkillLinks" PRIMARY KEY, "ProjectId" TEXT NOT NULL DEFAULT '',
-        "SkillId" TEXT NOT NULL DEFAULT '', "IsRequired" INTEGER NOT NULL DEFAULT 1, "IsEnabled" INTEGER NOT NULL DEFAULT 1,
-        "Notes" TEXT NOT NULL DEFAULT '', "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00',
-        CONSTRAINT "FK_ProjectOrganicSkillLinks_LocalGptProjects_ProjectId" FOREIGN KEY ("ProjectId") REFERENCES "LocalGptProjects" ("Id") ON DELETE CASCADE,
-        CONSTRAINT "FK_ProjectOrganicSkillLinks_OrganicSkills_SkillId" FOREIGN KEY ("SkillId") REFERENCES "OrganicSkills" ("Id") ON DELETE CASCADE);
-    CREATE TABLE IF NOT EXISTS "CouncilMemberOrganicSkillLinks" (
-        "Id" TEXT NOT NULL CONSTRAINT "PK_CouncilMemberOrganicSkillLinks" PRIMARY KEY, "MemberKey" TEXT NOT NULL DEFAULT '',
-        "SkillId" TEXT NOT NULL DEFAULT '', "Proficiency" INTEGER NOT NULL DEFAULT 50, "IsSelfRevealed" INTEGER NOT NULL DEFAULT 0,
-        "IsEnabled" INTEGER NOT NULL DEFAULT 0, "Evidence" TEXT NOT NULL DEFAULT '', "DxFunctionsJson" TEXT NOT NULL DEFAULT '[]',
-        "ControllerMethodsJson" TEXT NOT NULL DEFAULT '[]', "OrganicCapabilitiesJson" TEXT NOT NULL DEFAULT '[]',
-        "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00',
-        CONSTRAINT "FK_CouncilMemberOrganicSkillLinks_OrganicSkills_SkillId" FOREIGN KEY ("SkillId") REFERENCES "OrganicSkills" ("Id") ON DELETE CASCADE);
-                    """, "System.String"),
-                    new(LocalGptRuntimeValue.DatabaseMigrationOrganicSkillIndexRepairSql, nameof(LocalGptRuntimeValue.DatabaseMigrationOrganicSkillIndexRepairSql), """
-    CREATE UNIQUE INDEX IF NOT EXISTS "IX_OrganicSkills_Key" ON "OrganicSkills" ("Key");
-    CREATE INDEX IF NOT EXISTS "IX_OrganicSkills_IsEnabled_IsOnline_UpdatedAtUtc" ON "OrganicSkills" ("IsEnabled", "IsOnline", "UpdatedAtUtc");
-    CREATE UNIQUE INDEX IF NOT EXISTS "IX_ProjectOrganicSkillLinks_ProjectId_SkillId" ON "ProjectOrganicSkillLinks" ("ProjectId", "SkillId");
-    CREATE INDEX IF NOT EXISTS "IX_ProjectOrganicSkillLinks_ProjectId_IsEnabled_IsRequired" ON "ProjectOrganicSkillLinks" ("ProjectId", "IsEnabled", "IsRequired");
-    CREATE INDEX IF NOT EXISTS "IX_ProjectOrganicSkillLinks_SkillId" ON "ProjectOrganicSkillLinks" ("SkillId");
-    CREATE UNIQUE INDEX IF NOT EXISTS "IX_CouncilMemberOrganicSkillLinks_MemberKey_SkillId" ON "CouncilMemberOrganicSkillLinks" ("MemberKey", "SkillId");
-    CREATE INDEX IF NOT EXISTS "IX_CouncilMemberOrganicSkillLinks_MemberKey_IsEnabled_Proficiency" ON "CouncilMemberOrganicSkillLinks" ("MemberKey", "IsEnabled", "Proficiency");
-    CREATE INDEX IF NOT EXISTS "IX_CouncilMemberOrganicSkillLinks_SkillId" ON "CouncilMemberOrganicSkillLinks" ("SkillId");
-                    """, "System.String"),
-                    new(LocalGptRuntimeValue.DatabaseMigrationCouncilTeamTableRepairSql, nameof(LocalGptRuntimeValue.DatabaseMigrationCouncilTeamTableRepairSql), """
-    CREATE TABLE IF NOT EXISTS "CouncilTeamConfigurations" (
-        "Id" TEXT NOT NULL CONSTRAINT "PK_CouncilTeamConfigurations" PRIMARY KEY, "Key" TEXT NOT NULL DEFAULT '',
-        "DisplayName" TEXT NOT NULL DEFAULT '', "Purpose" TEXT NOT NULL DEFAULT '', "RolesJson" TEXT NOT NULL DEFAULT '[]',
-        "PreferredCapabilitiesJson" TEXT NOT NULL DEFAULT '[]', "ArchitectureContractsJson" TEXT NOT NULL DEFAULT '[]',
-        "WorkflowStepsJson" TEXT NOT NULL DEFAULT '[]', "ExpertPreparationPromptTemplate" TEXT NOT NULL DEFAULT '',
-        "LeaderSynthesisPromptTemplate" TEXT NOT NULL DEFAULT '', "MainRoundInstructionTemplate" TEXT NOT NULL DEFAULT '',
-        "SeedVersion" INTEGER NOT NULL DEFAULT 1, "IsSystemSeed" INTEGER NOT NULL DEFAULT 1,
-        "IsUserModified" INTEGER NOT NULL DEFAULT 0, "IsEnabled" INTEGER NOT NULL DEFAULT 1,
-        "CreatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00', "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00');
-                    """, "System.String"),
-                    new(LocalGptRuntimeValue.DatabaseMigrationCouncilTeamIndexRepairSql, nameof(LocalGptRuntimeValue.DatabaseMigrationCouncilTeamIndexRepairSql), """
-    CREATE UNIQUE INDEX IF NOT EXISTS "IX_CouncilTeamConfigurations_Key" ON "CouncilTeamConfigurations" ("Key");
-    CREATE INDEX IF NOT EXISTS "IX_CouncilTeamConfigurations_IsEnabled_UpdatedAtUtc" ON "CouncilTeamConfigurations" ("IsEnabled", "UpdatedAtUtc");
-                    """, "System.String"),
+ //                   new(LocalGptRuntimeValue.DatabaseMigrationOrganicSkillTableRepairSql, nameof(LocalGptRuntimeValue.DatabaseMigrationOrganicSkillTableRepairSql), """
+ //CREATE TABLE IF NOT EXISTS "OrganicSkills" (
+ //       "Id" TEXT NOT NULL CONSTRAINT "PK_OrganicSkills" PRIMARY KEY, "Key" TEXT NOT NULL DEFAULT '',
+ //       "DisplayName" TEXT NOT NULL DEFAULT '', "Description" TEXT NOT NULL DEFAULT '', "SourcePeerId" TEXT NOT NULL DEFAULT 'localgpt',
+ //       "OrgansJson" TEXT NOT NULL DEFAULT '[]', "CapabilityKeysJson" TEXT NOT NULL DEFAULT '[]', "UiActivationKeysJson" TEXT NOT NULL DEFAULT '[]',
+ //       "IsOnline" INTEGER NOT NULL DEFAULT 1, "IsEnabled" INTEGER NOT NULL DEFAULT 1, "IsUserApproved" INTEGER NOT NULL DEFAULT 0,
+ //       "CreatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00', "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00');
+ //CREATE TABLE IF NOT EXISTS "ProjectOrganicSkillLinks" (
+ //       "Id" TEXT NOT NULL CONSTRAINT "PK_ProjectOrganicSkillLinks" PRIMARY KEY, "ProjectId" TEXT NOT NULL DEFAULT '',
+ //       "SkillId" TEXT NOT NULL DEFAULT '', "IsRequired" INTEGER NOT NULL DEFAULT 1, "IsEnabled" INTEGER NOT NULL DEFAULT 1,
+ //       "Notes" TEXT NOT NULL DEFAULT '', "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00',
+ //       CONSTRAINT "FK_ProjectOrganicSkillLinks_LocalGptProjects_ProjectId" FOREIGN KEY ("ProjectId") REFERENCES "LocalGptProjects" ("Id") ON DELETE CASCADE,
+ //       CONSTRAINT "FK_ProjectOrganicSkillLinks_OrganicSkills_SkillId" FOREIGN KEY ("SkillId") REFERENCES "OrganicSkills" ("Id") ON DELETE CASCADE);
+ //CREATE TABLE IF NOT EXISTS "CouncilMemberOrganicSkillLinks" (
+ //       "Id" TEXT NOT NULL CONSTRAINT "PK_CouncilMemberOrganicSkillLinks" PRIMARY KEY, "MemberKey" TEXT NOT NULL DEFAULT '',
+ //       "SkillId" TEXT NOT NULL DEFAULT '', "Proficiency" INTEGER NOT NULL DEFAULT 50, "IsSelfRevealed" INTEGER NOT NULL DEFAULT 0,
+ //       "IsEnabled" INTEGER NOT NULL DEFAULT 0, "Evidence" TEXT NOT NULL DEFAULT '', "DxFunctionsJson" TEXT NOT NULL DEFAULT '[]',
+ //       "ControllerMethodsJson" TEXT NOT NULL DEFAULT '[]', "OrganicCapabilitiesJson" TEXT NOT NULL DEFAULT '[]',
+ //       "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00',
+ //       CONSTRAINT "FK_CouncilMemberOrganicSkillLinks_OrganicSkills_SkillId" FOREIGN KEY ("SkillId") REFERENCES "OrganicSkills" ("Id") ON DELETE CASCADE);
+ //                   """, "System.String"),
+ //                   new(LocalGptRuntimeValue.DatabaseMigrationOrganicSkillIndexRepairSql, nameof(LocalGptRuntimeValue.DatabaseMigrationOrganicSkillIndexRepairSql), """
+ //   CREATE UNIQUE INDEX IF NOT EXISTS "IX_OrganicSkills_Key" ON "OrganicSkills" ("Key");
+ //   CREATE INDEX IF NOT EXISTS "IX_OrganicSkills_IsEnabled_IsOnline_UpdatedAtUtc" ON "OrganicSkills" ("IsEnabled", "IsOnline", "UpdatedAtUtc");
+ //   CREATE UNIQUE INDEX IF NOT EXISTS "IX_ProjectOrganicSkillLinks_ProjectId_SkillId" ON "ProjectOrganicSkillLinks" ("ProjectId", "SkillId");
+ //   CREATE INDEX IF NOT EXISTS "IX_ProjectOrganicSkillLinks_ProjectId_IsEnabled_IsRequired" ON "ProjectOrganicSkillLinks" ("ProjectId", "IsEnabled", "IsRequired");
+ //   CREATE INDEX IF NOT EXISTS "IX_ProjectOrganicSkillLinks_SkillId" ON "ProjectOrganicSkillLinks" ("SkillId");
+ //   CREATE UNIQUE INDEX IF NOT EXISTS "IX_CouncilMemberOrganicSkillLinks_MemberKey_SkillId" ON "CouncilMemberOrganicSkillLinks" ("MemberKey", "SkillId");
+ //   CREATE INDEX IF NOT EXISTS "IX_CouncilMemberOrganicSkillLinks_MemberKey_IsEnabled_Proficiency" ON "CouncilMemberOrganicSkillLinks" ("MemberKey", "IsEnabled", "Proficiency");
+ //   CREATE INDEX IF NOT EXISTS "IX_CouncilMemberOrganicSkillLinks_SkillId" ON "CouncilMemberOrganicSkillLinks" ("SkillId");
+ //                   """, "System.String"),
+ //                   new(LocalGptRuntimeValue.DatabaseMigrationCouncilTeamTableRepairSql, nameof(LocalGptRuntimeValue.DatabaseMigrationCouncilTeamTableRepairSql), """
+ //   CREATE TABLE IF NOT EXISTS "CouncilTeamConfigurations" (
+ //       "Id" TEXT NOT NULL CONSTRAINT "PK_CouncilTeamConfigurations" PRIMARY KEY, "Key" TEXT NOT NULL DEFAULT '',
+ //       "DisplayName" TEXT NOT NULL DEFAULT '', "Purpose" TEXT NOT NULL DEFAULT '', "RolesJson" TEXT NOT NULL DEFAULT '[]',
+ //       "PreferredCapabilitiesJson" TEXT NOT NULL DEFAULT '[]', "ArchitectureContractsJson" TEXT NOT NULL DEFAULT '[]',
+ //       "WorkflowStepsJson" TEXT NOT NULL DEFAULT '[]', "ExpertPreparationPromptTemplate" TEXT NOT NULL DEFAULT '',
+ //       "LeaderSynthesisPromptTemplate" TEXT NOT NULL DEFAULT '', "MainRoundInstructionTemplate" TEXT NOT NULL DEFAULT '',
+ //       "SeedVersion" INTEGER NOT NULL DEFAULT 1, "IsSystemSeed" INTEGER NOT NULL DEFAULT 1,
+ //       "IsUserModified" INTEGER NOT NULL DEFAULT 0, "IsEnabled" INTEGER NOT NULL DEFAULT 1,
+ //       "CreatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00', "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00');
+ //                   """, "System.String"),
+    //                new(LocalGptRuntimeValue.DatabaseMigrationCouncilTeamIndexRepairSql, nameof(LocalGptRuntimeValue.DatabaseMigrationCouncilTeamIndexRepairSql), """
+    //CREATE UNIQUE INDEX IF NOT EXISTS "IX_CouncilTeamConfigurations_Key" ON "CouncilTeamConfigurations" ("Key");
+    //CREATE INDEX IF NOT EXISTS "IX_CouncilTeamConfigurations_IsEnabled_UpdatedAtUtc" ON "CouncilTeamConfigurations" ("IsEnabled", "UpdatedAtUtc");
+    //                """, "System.String"),
                     new(LocalGptRuntimeValue.SqliteGuidExpression, nameof(LocalGptRuntimeValue.SqliteGuidExpression), "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)),2) || '-' || substr('89ab',abs(random()) % 4 + 1,1) || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6)))", "System.String"),
                     new(LocalGptRuntimeValue.LearnBasePresetsJson, nameof(LocalGptRuntimeValue.LearnBasePresetsJson), "[{\"Label\": \"All selected local learn-base\", \"RootPath\": \"C:\\\\\\\\learnbaseforlocalgpt\", \"Description\": \"Scans the curated local learn-base root and auto-detects known docs corpora plus project architecture roots.\", \"RecommendedMaxProjects\": 80}, {\"Label\": \"Microsoft .NET docs + C# compiler\", \"RootPath\": \"C:\\\\\\\\learnbaseforlocalgpt\\\\\\\\docs-main\\\\\\\\docs-main\", \"Description\": \"Teaches source maps for .NET architecture, C# language/compiler diagnostics, ASP.NET Core, Blazor, data, and Microsoft Learn authoring.\", \"RecommendedMaxProjects\": 30}, {\"Label\": \"Windows developer docs\", \"RootPath\": \"C:\\\\\\\\learnbaseforlocalgpt\\\\\\\\windows-dev-docs-docs\", \"Description\": \"Teaches Windows App SDK, WinUI, WebView2, MSIX, setup, support, design, and accessibility.\", \"RecommendedMaxProjects\": 24}, {\"Label\": \"DevExpress Blazor 25.2 samples\", \"RootPath\": \"C:\\\\\\\\learnbaseforlocalgpt\\\\\\\\Blazor-25.2\\\\\\\\Blazor-25.2\", \"Description\": \"Scans DevExpress Blazor demos and examples.\", \"RecommendedMaxProjects\": 60}, {\"Label\": \"DevExpress examples\", \"RootPath\": \"C:\\\\\\\\learnbaseforlocalgpt\\\\\\\\DevExpress-Examples\", \"Description\": \"Scans local DevExpress example repositories.\", \"RecommendedMaxProjects\": 60}, {\"Label\": \"Custom path\", \"RootPath\": \"C:\\\\\\\\learnbaseforlocalgpt\", \"Description\": \"Use a specific local source or documentation folder.\", \"RecommendedMaxProjects\": 40}]", "System.String"),
                     new(LocalGptRuntimeValue.LearnBaseScanProfilesJson, nameof(LocalGptRuntimeValue.LearnBaseScanProfilesJson), "[{\"Label\": \"Focused scan\", \"MaxProjects\": 12, \"Description\": \"Best for one documentation corpus or one repository.\"}, {\"Label\": \"Balanced scan\", \"MaxProjects\": 40, \"Description\": \"Best default for useful breadth without excessive noise.\"}, {\"Label\": \"Broad scan\", \"MaxProjects\": 100, \"Description\": \"Best after adding many repositories or documentation corpora.\"}, {\"Label\": \"Custom limit\", \"MaxProjects\": 40, \"Description\": \"Use the advanced import limit.\"}]", "System.String"),
