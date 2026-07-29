@@ -31,7 +31,7 @@ public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logge
             ["LocalGptApprovalRequestId"] = snapshot.ApprovalRequestId,
             ["LocalGptContextSource"] = snapshot.Source
         });
-        return new PopScope(prior, loggingScope);
+        return new PopScope(this, prior, loggingScope);
     }
 
     public IDisposable PushSystem(string source, string? correlationId = null) => Push(new AmbientLocalGptContextSnapshot(
@@ -107,8 +107,9 @@ public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logge
         public AmbientLocalGptContextSnapshot Snapshot { get; } = snapshot;
     }
 
-    private sealed class PopScope(ContextHolder? prior, IDisposable? loggingScope) : IDisposable
+    private sealed class PopScope(AmbientLocalGptContext owner, ContextHolder? prior, IDisposable? loggingScope) : IDisposable
     {
+        private readonly AmbientLocalGptContext context = owner;
         private ContextHolder? priorHolder = prior;
         private IDisposable? activeLoggingScope = loggingScope;
         private bool disposed;
@@ -120,7 +121,7 @@ public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logge
             disposed = true;
             activeLoggingScope?.Dispose();
             activeLoggingScope = null;
-            CurrentHolder.Value = priorHolder;
+            context.CurrentHolder.Value = priorHolder;
             priorHolder = null;
         }
     }

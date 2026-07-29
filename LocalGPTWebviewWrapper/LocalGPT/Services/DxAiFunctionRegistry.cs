@@ -7,20 +7,38 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
-public sealed class DxAiFunctionRegistry(
-    IServiceProvider serviceProvider,
-    IHumanCollaborationService humanCollaboration,
-    IDeferredDxAiInvocationService deferredInvocations,
-    IAmbientLocalGptContext ambientContext,
-    IHumanApprovalExecutionContext approvalExecutionContext,
-    ILogger<DxAiFunctionRegistry> logger) : IDxAiFunctionRegistry
+public sealed class DxAiFunctionRegistry : IDxAiFunctionRegistry
 {
+    private readonly IServiceProvider serviceProvider;
+    private readonly IHumanCollaborationService humanCollaboration;
+    private readonly IDeferredDxAiInvocationService deferredInvocations;
+    private readonly IAmbientLocalGptContext ambientContext;
+    private readonly IHumanApprovalExecutionContext approvalExecutionContext;
+    private readonly ILogger<DxAiFunctionRegistry> logger;
+
     // Resolve handlers only after the scoped registry has been constructed. One handler intentionally
     // references this registry to publish the complete function directory; eager IEnumerable resolution
     // would therefore create a constructor cycle during service-provider validation.
-    private readonly Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>> handlersByName = new(
-        () => BuildHandlerMap(serviceProvider.GetServices<IDxAiFunctionHandler>()),
-        System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
+    private readonly Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>> handlersByName;
+
+    public DxAiFunctionRegistry(
+        IServiceProvider serviceProvider,
+        IHumanCollaborationService humanCollaboration,
+        IDeferredDxAiInvocationService deferredInvocations,
+        IAmbientLocalGptContext ambientContext,
+        IHumanApprovalExecutionContext approvalExecutionContext,
+        ILogger<DxAiFunctionRegistry> logger)
+    {
+        this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        this.humanCollaboration = humanCollaboration ?? throw new ArgumentNullException(nameof(humanCollaboration));
+        this.deferredInvocations = deferredInvocations ?? throw new ArgumentNullException(nameof(deferredInvocations));
+        this.ambientContext = ambientContext ?? throw new ArgumentNullException(nameof(ambientContext));
+        this.approvalExecutionContext = approvalExecutionContext ?? throw new ArgumentNullException(nameof(approvalExecutionContext));
+        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        handlersByName = new Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>>(
+            () => BuildHandlerMap(this.serviceProvider.GetServices<IDxAiFunctionHandler>()),
+            System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 
     private IReadOnlyDictionary<string, IDxAiFunctionHandler> BuildHandlerMap(IEnumerable<IDxAiFunctionHandler> handlers)
     {
