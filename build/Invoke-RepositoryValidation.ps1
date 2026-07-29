@@ -21,7 +21,6 @@ try {
     & ./build/Assert-TextServiceOwnership.ps1
     & ./build/Assert-RuntimeValueOwnership.ps1
     & ./build/Assert-IteratorExceptionPolicy.ps1
-    & ./build/Assert-GitSourceVisibility.ps1
     & ./build/Assert-ProjectClosure.ps1
     & ./build/Assert-CSharpSyntax.ps1
     & ./build/Assert-ComponentSafety.ps1

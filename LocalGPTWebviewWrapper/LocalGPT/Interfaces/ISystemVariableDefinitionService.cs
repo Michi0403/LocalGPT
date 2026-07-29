@@ -21,6 +21,9 @@ public interface ISystemVariableDefinitionService
     SystemVariableDefinition<int> RepositoryKnowledgeSeedVersion { get; }
     SystemVariableDefinition<int> CouncilDefaultsVersion { get; }
     SystemVariableDefinition<int> RegexMatchTimeoutMilliseconds { get; }
+    SystemVariableDefinition<int> CouncilDxMaximumCallsPerStep { get; }
+    SystemVariableDefinition<int> CouncilDxMaximumParameterCharacters { get; }
+    SystemVariableDefinition<int> CouncilDxMaximumResultCharacters { get; }
     int LegacyCouncilResourceLoadPercent { get; }
     IReadOnlyList<InitialVariable> InitialValues { get; }
 }

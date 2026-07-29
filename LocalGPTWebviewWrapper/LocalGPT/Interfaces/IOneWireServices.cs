@@ -31,7 +31,7 @@ public interface ILocalVisionOcrService
     Task<LocalVisionOcrResult> RecognizeAsync(LocalVisionOcrRequest request, CancellationToken cancellationToken = default);
 }
 
-public interface IOneWireCapabilityCatalog
+public interface IOneWireCapabilityCatalog : IOneWireCapabilityProvider
 {
     Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesForPeerAsync(string peerId, CancellationToken cancellationToken = default);
