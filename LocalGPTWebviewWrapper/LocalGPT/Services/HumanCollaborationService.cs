@@ -594,7 +594,7 @@ public sealed class HumanCollaborationService(
         }
     }
 
-    private static string DetermineEvaluationVerdict(string evaluation)
+    private string DetermineEvaluationVerdict(string evaluation)
     {
         if (evaluation.Contains("Human peer assessment: Supported", StringComparison.OrdinalIgnoreCase))
             return HumanContributionEvaluationVerdicts.Supported;
@@ -605,7 +605,7 @@ public sealed class HumanCollaborationService(
         return HumanContributionEvaluationVerdicts.NotReviewed;
     }
 
-    private static string NormalizeRequestKind(string? value)
+    private string NormalizeRequestKind(string? value)
     {
         if (string.Equals(value, HumanCollaborationRequestKinds.Feedback, StringComparison.OrdinalIgnoreCase))
             return HumanCollaborationRequestKinds.Feedback;
@@ -614,7 +614,7 @@ public sealed class HumanCollaborationService(
         return HumanCollaborationRequestKinds.Approval;
     }
 
-    private static string Normalize(string? value, int maxLength, string fallback = "")
+    private string Normalize(string? value, int maxLength, string fallback = "")
     {
         var normalized = string.IsNullOrWhiteSpace(value)
             ? fallback
@@ -622,7 +622,7 @@ public sealed class HumanCollaborationService(
         return normalized[..Math.Min(normalized.Length, maxLength)];
     }
 
-    private static string NormalizeMultiline(string? value, int maxLength)
+    private string NormalizeMultiline(string? value, int maxLength)
     {
         var normalized = string.IsNullOrWhiteSpace(value)
             ? string.Empty

@@ -39,7 +39,7 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
 
 public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService learning) : IDxAiFunctionHandler
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.maintain",

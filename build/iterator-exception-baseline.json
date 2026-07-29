@@ -1,11 +1,11 @@
 [
   "LocalGPTWebviewWrapper/LocalGPT/Services/CompositeChatClient.cs|private async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAndReportAsync( ChatClientSession session, IEnumerable<ChatMessage> messages, ChatOptions? options, [EnumeratorCancellation] CancellationToken cancellationToken)|iterator contains catch",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/CompositeChatClient.cs|private static async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)|iterator requires logging",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/CompositeChatClient.cs|private static async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)|iterator requires try/finally",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/CompositeChatClient.cs|private async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)|iterator requires logging",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/CompositeChatClient.cs|private async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)|iterator requires try/finally",
   "LocalGPTWebviewWrapper/LocalGPT/Services/CouncilChatClient.cs|public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync( IEnumerable<ChatMessage> messages, ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)|iterator contains catch",
   "LocalGPTWebviewWrapper/LocalGPT/Services/CouncilRuntimeService.cs|public IEnumerable<FileInfo> EnumerateUsefulFiles(string directory, ILogger logger)|iterator contains catch",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/DxAiFunctionCatalogService.cs|private static IEnumerable<DxAiFunctionCatalogEntry> DiscoverPublicServiceMethods()|iterator requires logging",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/DxAiFunctionCatalogService.cs|private static IEnumerable<DxAiFunctionCatalogEntry> DiscoverPublicServiceMethods()|iterator requires try/finally",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/DxAiFunctionCatalogService.cs|private IEnumerable<DxAiFunctionCatalogEntry> DiscoverPublicServiceMethods()|iterator requires logging",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/DxAiFunctionCatalogService.cs|private IEnumerable<DxAiFunctionCatalogEntry> DiscoverPublicServiceMethods()|iterator requires try/finally",
   "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatResponseFormatter.cs|private IEnumerable<string> AppendHarmonyContent(string text)|iterator requires logging",
   "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatResponseFormatter.cs|private IEnumerable<string> AppendHarmonyContent(string text)|iterator requires try/finally",
   "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatResponseFormatter.cs|private IEnumerable<string> AppendTaggedContent(string text)|iterator requires logging",
@@ -28,10 +28,10 @@
   "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatResponseFormatter.cs|public IEnumerable<string> Complete()|iterator requires logging",
   "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatResponseFormatter.cs|public IEnumerable<string> Complete()|iterator requires try/finally",
   "LocalGPTWebviewWrapper/LocalGPT/Services/OllamaThinkingChatClient.cs|public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync( IEnumerable<ChatMessage> messages, ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)|iterator contains catch",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private static IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)|iterator contains catch",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private static IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)|iterator requires logging",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private static IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)|iterator requires try/finally",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private static IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)|iterator contains catch",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private static IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)|iterator requires logging",
-  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private static IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)|iterator requires try/finally"
+  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)|iterator contains catch",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)|iterator requires logging",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)|iterator requires try/finally",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)|iterator contains catch",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)|iterator requires logging",
+  "LocalGPTWebviewWrapper/LocalGPT/Services/ProjectMaintenanceService.cs|private IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)|iterator requires try/finally"
 ]

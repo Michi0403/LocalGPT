@@ -16,14 +16,14 @@ public sealed class RuntimeCapabilityDirectoryService(
     IDxAiFunctionRegistry dxFunctions,
     IDxAiFunctionCatalogService functionCatalog,
     IOrganicSkillRegistryService organicSkills,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RuntimeCapabilityDirectoryService> logger) : IRuntimeCapabilityDirectoryService
 {
-    private static readonly Guid LocalGptCoreProjectId = Guid.Parse("7f4d7b4a-b622-4d15-8e44-9dfae2aa6101");
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     // The service itself is scoped because its function/catalog dependencies are scoped. Boot synchronization
     // and Council preflight may nevertheless overlap, so their derived database writes need one process-wide gate.
-    private static readonly SemaphoreSlim SynchronizationGate = new(1, 1);
+    private readonly SemaphoreSlim SynchronizationGate = new(1, 1);
 
     public async Task<RuntimeCapabilityDirectorySnapshot> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
@@ -110,7 +110,7 @@ public sealed class RuntimeCapabilityDirectoryService(
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         if (!await db.LocalGptProjects.AsNoTracking()
-                .AnyAsync(item => item.Id == LocalGptCoreProjectId, cancellationToken)
+                .AnyAsync(item => item.Id == runtimePolicy.LocalGptCoreProjectId, cancellationToken)
                 .ConfigureAwait(false))
         {
             snapshot.Warnings.Add("The LocalGPT Core project is missing; the runtime function directory could not be persisted.");
@@ -141,7 +141,7 @@ public sealed class RuntimeCapabilityDirectoryService(
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await db.LocalGptProjects
-            .Where(item => item.Id == LocalGptCoreProjectId)
+            .Where(item => item.Id == runtimePolicy.LocalGptCoreProjectId)
             .ExecuteUpdateAsync(
                 setters => setters.SetProperty(item => item.UpdatedAtUtc, DateTime.UtcNow),
                 cancellationToken)
@@ -149,7 +149,7 @@ public sealed class RuntimeCapabilityDirectoryService(
         return true;
     }
 
-    private static async Task UpsertArtifactAsync(
+    private async Task UpsertArtifactAsync(
         LocalGptMemoryDbContext db,
         string name,
         string kind,
@@ -158,14 +158,14 @@ public sealed class RuntimeCapabilityDirectoryService(
         CancellationToken cancellationToken)
     {
         var artifact = await db.LocalGptProjectArtifacts.SingleOrDefaultAsync(
-                item => item.ProjectId == LocalGptCoreProjectId && item.ArtifactKind == kind && item.Name == name,
+                item => item.ProjectId == runtimePolicy.LocalGptCoreProjectId && item.ArtifactKind == kind && item.Name == name,
                 cancellationToken)
             .ConfigureAwait(false);
         if (artifact is null)
         {
             artifact = new LocalGptProjectArtifact
             {
-                ProjectId = LocalGptCoreProjectId,
+                ProjectId = runtimePolicy.LocalGptCoreProjectId,
                 Name = name,
                 ArtifactKind = kind,
                 DataType = "application/json",

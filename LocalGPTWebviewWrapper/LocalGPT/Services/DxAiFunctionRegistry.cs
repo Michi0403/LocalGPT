@@ -22,7 +22,7 @@ public sealed class DxAiFunctionRegistry(
         () => BuildHandlerMap(serviceProvider.GetServices<IDxAiFunctionHandler>()),
         System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
 
-    private static IReadOnlyDictionary<string, IDxAiFunctionHandler> BuildHandlerMap(IEnumerable<IDxAiFunctionHandler> handlers)
+    private IReadOnlyDictionary<string, IDxAiFunctionHandler> BuildHandlerMap(IEnumerable<IDxAiFunctionHandler> handlers)
     {
         ArgumentNullException.ThrowIfNull(handlers);
         var result = new Dictionary<string, IDxAiFunctionHandler>(StringComparer.OrdinalIgnoreCase);
@@ -249,7 +249,7 @@ public sealed class DxAiFunctionRegistry(
         }
     }
 
-    private static string BuildApprovalDescription(DxaichatFunctionInfo descriptor, DxAiFunctionInvocationRequest request)
+    private string BuildApprovalDescription(DxaichatFunctionInfo descriptor, DxAiFunctionInvocationRequest request)
     {
         var builder = new StringBuilder()
             .Append(descriptor.Purpose)
@@ -276,7 +276,7 @@ public sealed class DxAiFunctionRegistry(
         return text.Length <= 1900 ? text : text[..1900] + "...";
     }
 
-    private static string SummarizeApprovalValue(string name, JsonElement value)
+    private string SummarizeApprovalValue(string name, JsonElement value)
     {
         var sensitiveName = name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
             name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
@@ -300,7 +300,7 @@ public sealed class DxAiFunctionRegistry(
         };
     }
 
-    private static string QuoteAndTrim(string? value, int maxLength)
+    private string QuoteAndTrim(string? value, int maxLength)
     {
         var normalized = (value ?? string.Empty)
             .Replace("\r", " ", StringComparison.Ordinal)
@@ -311,7 +311,7 @@ public sealed class DxAiFunctionRegistry(
         return $"\"{normalized}\"";
     }
 
-    private static string BuildInvocationFingerprint(string functionName, DxAiFunctionInvocationRequest request)
+    private string BuildInvocationFingerprint(string functionName, DxAiFunctionInvocationRequest request)
     {
         var canonical = new StringBuilder()
             .Append(functionName).Append('|')
@@ -374,12 +374,12 @@ public sealed class ListCodeGenerationReviewsFunction(
         public int Take { get; set; } = 20;
     }
 
-    private static T Deserialize<T>(JsonElement element) where T : new() =>
+    private T Deserialize<T>(JsonElement element) where T : new() =>
         element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
             ? new T()
             : element.Deserialize<T>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true }) ?? new T();
 
-    private static DxAiFunctionInvocationResult Success(object value) => new() { Succeeded = true, Status = "Completed", Value = value };
+    private DxAiFunctionInvocationResult Success(object value) => new() { Succeeded = true, Status = "Completed", Value = value };
 }
 
 public sealed class GetCodeGenerationReviewFunction(
@@ -788,7 +788,7 @@ public sealed class ListLocalGptProjectsFunction(
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = values };
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     private sealed class ListParameters { public bool IncludeArchived { get; set; } }
 }
 
@@ -840,7 +840,7 @@ public sealed class GetLocalGptProjectFunction(
         };
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     private sealed class GetParameters { public Guid ProjectId { get; set; } }
 }
 
@@ -908,8 +908,8 @@ public sealed class ListRecentApplicationLogsFunction(
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = safeEntries };
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private static string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "...";
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "...";
     private sealed class ListParameters
     {
         public string MinimumLevel { get; set; } = "Warning";
@@ -976,8 +976,8 @@ public sealed class ListCouncilKnowledgeFunction(
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = summaries };
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private static string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "...";
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "...";
     private sealed class ListParameters
     {
         public bool IncludeArchived { get; set; }
@@ -1026,7 +1026,7 @@ public sealed class ListChatMemoryConversationsFunction(
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = entries };
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     private sealed class ListParameters { public int Take { get; set; } = 12; }
 }
 
@@ -1036,7 +1036,7 @@ public sealed class RequestHumanCollaborationFunction(
     IAmbientLocalGptContext ambientContext,
     ILogger<RequestHumanCollaborationFunction> logger) : IDxAiFunctionHandler
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };

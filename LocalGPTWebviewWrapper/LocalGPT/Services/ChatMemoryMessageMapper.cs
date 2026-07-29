@@ -114,7 +114,7 @@ public sealed class ChatMemoryMessageMapper(
         return null;
     }
 
-    private static bool IsCouncilConversation(
+    private bool IsCouncilConversation(
         ChatMemoryConversation conversation,
         IReadOnlyList<BlazorChatMessage> messages)
     {

@@ -4,11 +4,31 @@ namespace LocalGPT.Interfaces;
 
 public interface IOneWireEnvelopeCodec
 {
+    System.Text.Json.JsonSerializerOptions JsonOptions { get; }
     string Serialize(OneWireEnvelope envelope, bool seal = true);
     OneWireEnvelope DeserializeAndValidate(string json);
     bool Validate(OneWireEnvelope envelope, out string error);
 }
 
+
+
+public interface IOneWireTransportSecurityPolicy
+{
+    bool IsLoopback(System.Net.IPAddress? address);
+    bool IsProtected(OneWireEnvelope envelope);
+    bool RequiresProtectedTransport(OneWireMessageType messageType);
+}
+
+public interface IOneWireDispatchContextFactory
+{
+    OneWireDispatchContext CreateInternal(string transport = "internal");
+    OneWireDispatchContext CreateExternal(string authenticatedPeerId, Guid connectionId, bool isLoopback, string transport);
+}
+
+public interface IOneWireListenAddressResolver
+{
+    System.Net.IPAddress Resolve(OneWireOptions configured);
+}
 
 public interface IOneWireRuntimeSecurityService
 {
@@ -59,6 +79,12 @@ public interface IOneWireConnectionRegistry
     Task<bool> SendAsync(string peerId, OneWireEnvelope envelope, CancellationToken cancellationToken = default);
 }
 
+
+public interface IOneWireReplayPolicyDataService
+{
+    OneWireReplayPolicySnapshot GetSnapshot();
+}
+
 public interface IOneWireReplayGuard
 {
     bool TryAccept(string peerId, Guid messageId, DateTimeOffset createdUtc);
@@ -85,6 +111,36 @@ public interface IOneWirePendingCouncilStore
     void MarkChecked(Guid correlationId);
 }
 
+
+public interface IOneWireTargetApprovalPolicy
+{
+    HumanApprovalRequestSpec Create(OneWireEnvelope envelope);
+    OneWireInteractionEditor ReadEditor(OneWireEnvelope envelope);
+}
+
+public interface IOrganicDxFunctionSupport
+{
+    string GetString(System.Text.Json.JsonElement element, string name, string fallback = "");
+    OneWireCapabilityDescriptor? FindCapability(OneWirePeerAdvertisement peer, string key);
+    OneWireEnvelope CreateInvokeEnvelope(string peerId, OneWireCapabilityDescriptor capability, System.Text.Json.JsonElement payload,
+        OneWireExecutionMode executionMode, string workOrderKey, DateTimeOffset? notBeforeUtc, bool userConfirmed, string interactionValueJson);
+    DxAiFunctionInvocationResult Queued(OneWireWorkItem work, string peerId, string capabilityKey);
+    DxAiFunctionInvocationResult Invalid(string error);
+}
+
+public interface IPublisherInteractionDxSupport
+{
+    Task<DxAiFunctionInvocationResult> QueueAsync<TLogger>(
+        DxAiFunctionInvocationRequest request,
+        string capabilityKey,
+        IOneWireConnectionRegistry connections,
+        IOneWirePeerRegistry peers,
+        IOneWireWorkSpooler spooler,
+        Microsoft.Extensions.Logging.ILogger<TLogger> logger,
+        Func<System.Text.Json.JsonElement, System.Text.Json.JsonElement> createPayload,
+        CancellationToken cancellationToken);
+}
+
 public interface IOneWireOperationExecutor
 {
     Task<string> ExecuteAsync(OneWireWorkItem item, CancellationToken cancellationToken = default);
@@ -92,6 +148,8 @@ public interface IOneWireOperationExecutor
 
 public interface IOneWireMessageDispatcher
 {
+    OneWirePeerAdvertisement GetLocalAdvertisement();
+    void ApplyHumanResponse(OneWireEnvelope envelope, string? userResponse);
     Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default);
     Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, OneWireDispatchContext context, CancellationToken cancellationToken = default);
 }

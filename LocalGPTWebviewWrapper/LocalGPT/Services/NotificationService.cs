@@ -46,7 +46,7 @@ namespace TacosPortal.Services
 
         }
 
-        private static string NormalizeText(string? value, string fallback, int maxLength)
+        private string NormalizeText(string? value, string fallback, int maxLength)
         {
             var normalized = string.IsNullOrWhiteSpace(value)
                 ? fallback

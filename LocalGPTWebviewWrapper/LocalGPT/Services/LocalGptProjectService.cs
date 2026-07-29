@@ -372,7 +372,7 @@ public sealed class LocalGptProjectService(
         return builder.ToString().Trim();
     }
 
-    private static void RequireHumanConfirmation(bool userConfirmed, string operation)
+    private void RequireHumanConfirmation(bool userConfirmed, string operation)
     {
         if (!userConfirmed)
             throw new InvalidOperationException($"Fresh human confirmation is required before {operation}.");
@@ -409,7 +409,7 @@ public sealed class LocalGptProjectService(
 
         return path;
     }
-    private static void ValidateRegex(string? pattern, string parameterName)
+    private void ValidateRegex(string? pattern, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(pattern))
             throw new ArgumentException("A regular expression is required.", parameterName);

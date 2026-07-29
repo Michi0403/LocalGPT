@@ -218,7 +218,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static string? ResolveOpenAiCompatibleModel(string endpoint, string? configuredModel, string? apiKey, ILogger logger)
+        private string? ResolveOpenAiCompatibleModel(string endpoint, string? configuredModel, string? apiKey, ILogger logger)
         {
             try
             {
@@ -248,7 +248,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static string NormalizeProviderIdentity(string value)
+        private string NormalizeProviderIdentity(string value)
         {
             var endpoint = NormalizeOpenAiCompatibleEndpoint(value);
             var uri = new Uri(endpoint, UriKind.Absolute);
@@ -256,7 +256,7 @@ namespace LocalGPT.Services
             return $"{uri.Scheme}://{host}:{uri.Port}";
         }
 
-        private static string NormalizeOpenAiCompatibleEndpoint(string value)
+        private string NormalizeOpenAiCompatibleEndpoint(string value)
         {
             var endpoint = value.Trim().TrimEnd('/');
             if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))

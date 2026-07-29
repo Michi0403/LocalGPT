@@ -1,4 +1,4 @@
-﻿using LocalGPT.Services;
+using LocalGPT.Services;
 
 namespace LocalGPT.Interfaces
 {

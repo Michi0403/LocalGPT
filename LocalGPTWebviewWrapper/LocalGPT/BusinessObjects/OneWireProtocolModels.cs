@@ -50,23 +50,16 @@ public sealed class OneWireDispatchContext
     public bool IsLoopback { get; init; }
     public string Transport { get; init; } = string.Empty;
 
-    public static OneWireDispatchContext Internal(string transport = "internal") => new()
-    {
-        AuthenticatedPeerId = "localgpt",
-        ConnectionId = Guid.Empty,
-        IsInternal = true,
-        IsLoopback = true,
-        Transport = transport
-    };
 
-    public static OneWireDispatchContext External(string authenticatedPeerId, Guid connectionId, bool isLoopback, string transport) => new()
-    {
-        AuthenticatedPeerId = authenticatedPeerId ?? string.Empty,
-        ConnectionId = connectionId,
-        IsInternal = false,
-        IsLoopback = isLoopback,
-        Transport = transport ?? string.Empty
-    };
+}
+
+
+public sealed class OneWireReplayPolicySnapshot
+{
+    public TimeSpan Retention { get; init; }
+    public TimeSpan AllowedFutureSkew { get; init; }
+    public int CleanupInterval { get; init; }
+    public int MaximumTrackedMessages { get; init; }
 }
 
 public sealed class LocalVisionOcrRequest

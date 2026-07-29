@@ -42,7 +42,7 @@ public sealed class Theme
 
     public string GetCssClass(bool isActive) => isActive ? "active" : "text-body";
 
-    private static string InferBootstrapThemeMode(string name, bool isBootstrapNative)
+    private string InferBootstrapThemeMode(string name, bool isBootstrapNative)
     {
         if (name.Equals("blazing-dark", StringComparison.OrdinalIgnoreCase)
             || name.Equals("fluent-dark", StringComparison.OrdinalIgnoreCase)
@@ -54,7 +54,7 @@ public sealed class Theme
         return "light";
     }
 
-    private static string InferThemePath(string name, bool isBootstrapNative)
+    private string InferThemePath(string name, bool isBootstrapNative)
     {
         if (!isBootstrapNative)
             return name;

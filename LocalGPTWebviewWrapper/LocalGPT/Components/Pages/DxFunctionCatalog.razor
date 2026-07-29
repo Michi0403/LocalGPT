@@ -188,7 +188,7 @@
         finally { _busy = false; }
     }
 
-    private static DxAiFunctionCatalogEntry Clone(DxAiFunctionCatalogEntry entry) => new()
+    private DxAiFunctionCatalogEntry Clone(DxAiFunctionCatalogEntry entry) => new()
     {
         CatalogKey = entry.CatalogKey,
         Kind = entry.Kind,

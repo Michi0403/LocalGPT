@@ -23,12 +23,12 @@ public sealed class HumanApprovalActionFilter(
     IHumanApprovalExecutionContext approvalExecutionContext,
     ILogger<HumanApprovalActionFilter> logger) : IAsyncActionFilter
 {
-    private static readonly JsonSerializerOptions FingerprintJsonOptions = new(JsonSerializerDefaults.Web)
+    private readonly JsonSerializerOptions FingerprintJsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = false,
         PropertyNameCaseInsensitive = true
     };
-    private static readonly HashSet<string> ConfirmationMemberNames = new(StringComparer.OrdinalIgnoreCase)
+    private readonly HashSet<string> ConfirmationMemberNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "userConfirmed",
         "UserConfirmedBuild"
@@ -108,7 +108,7 @@ public sealed class HumanApprovalActionFilter(
         await next().ConfigureAwait(false);
     }
 
-    private static string BuildFingerprint(ActionExecutingContext context)
+    private string BuildFingerprint(ActionExecutingContext context)
     {
         var builder = new StringBuilder()
             .Append(context.HttpContext.Request.Method)
@@ -136,7 +136,7 @@ public sealed class HumanApprovalActionFilter(
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))).ToLowerInvariant();
     }
 
-    private static void AppendFingerprintValue(StringBuilder builder, object? value)
+    private void AppendFingerprintValue(StringBuilder builder, object? value)
     {
         try
         {
@@ -152,7 +152,7 @@ public sealed class HumanApprovalActionFilter(
         }
     }
 
-    private static void RemoveConfirmationMembers(JsonNode? node)
+    private void RemoveConfirmationMembers(JsonNode? node)
     {
         if (node is JsonObject jsonObject)
         {
@@ -175,7 +175,7 @@ public sealed class HumanApprovalActionFilter(
         }
     }
 
-    private static void ApplyLegacyConfirmationFlags(IDictionary<string, object?> actionArguments)
+    private void ApplyLegacyConfirmationFlags(IDictionary<string, object?> actionArguments)
     {
         foreach (var argumentName in actionArguments.Keys.ToList())
         {
@@ -195,7 +195,7 @@ public sealed class HumanApprovalActionFilter(
         }
     }
 
-    private static bool GetBooleanProperty(object instance, string propertyName)
+    private bool GetBooleanProperty(object instance, string propertyName)
     {
         var property = instance.GetType().GetProperty(
             propertyName,
@@ -203,7 +203,7 @@ public sealed class HumanApprovalActionFilter(
         return property?.PropertyType == typeof(bool) && property.GetValue(instance) is true;
     }
 
-    private static void SetBooleanProperty(object instance, string propertyName, bool value)
+    private void SetBooleanProperty(object instance, string propertyName, bool value)
     {
         var property = instance.GetType().GetProperty(
             propertyName,

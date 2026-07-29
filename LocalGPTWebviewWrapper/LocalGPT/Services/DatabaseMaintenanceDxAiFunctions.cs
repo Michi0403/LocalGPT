@@ -67,7 +67,7 @@ public sealed class PreviewSqliteTableFunction(
         return DxAiFunctionJsonHelper.Success(snapshot);
     }
 
-    private static bool IsSensitiveColumn(string name) =>
+    private bool IsSensitiveColumn(string name) =>
         name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("token", StringComparison.OrdinalIgnoreCase) ||

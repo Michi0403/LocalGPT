@@ -26,7 +26,7 @@ namespace LocalGPT.Controller
         DevExpressChatService devExpressChat,
         IDxAiFunctionRegistry dxAiFunctionRegistry) : ControllerBase
     {
-        private static IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
+        private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
             userConfirmed
                 ? null
                 : Results.BadRequest(new

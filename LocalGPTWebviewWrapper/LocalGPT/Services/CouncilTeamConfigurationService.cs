@@ -16,7 +16,7 @@ public sealed class CouncilTeamConfigurationService(
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
     private const int CurrentSeedVersion = 5;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<IReadOnlyList<OrganicCouncilTeamDefinition>> GetTeamsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
     {
@@ -123,7 +123,7 @@ public sealed class CouncilTeamConfigurationService(
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static void NormalizeDefaults(OrganicCouncilTeamDefinition team)
+    private void NormalizeDefaults(OrganicCouncilTeamDefinition team)
     {
         team.ExpertPreparationPromptTemplate = string.IsNullOrWhiteSpace(team.ExpertPreparationPromptTemplate)
             ? """
@@ -176,7 +176,7 @@ Original user request:
         team.WorkflowSteps = team.WorkflowSteps.OrderBy(step => step.SortOrder).ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private static bool MergeRequiredIntroductionStep(CouncilTeamConfiguration row, OrganicCouncilTeamDefinition seededDefinition)
+    private bool MergeRequiredIntroductionStep(CouncilTeamConfiguration row, OrganicCouncilTeamDefinition seededDefinition)
     {
         var existing = Deserialize<List<CouncilWorkflowStepDefinition>>(row.WorkflowStepsJson) ?? [];
         if (existing.Any(step => string.Equals(step.Key, "member-readiness-introduction", StringComparison.OrdinalIgnoreCase)))
@@ -187,7 +187,7 @@ Original user request:
         return true;
     }
 
-    private static void ApplyDefinition(CouncilTeamConfiguration row, OrganicCouncilTeamDefinition definition)
+    private void ApplyDefinition(CouncilTeamConfiguration row, OrganicCouncilTeamDefinition definition)
     {
         NormalizeDefaults(definition);
         row.Key = definition.Key.Trim().ToLowerInvariant();
@@ -202,7 +202,7 @@ Original user request:
         row.MainRoundInstructionTemplate = definition.MainRoundInstructionTemplate;
     }
 
-    private static OrganicCouncilTeamDefinition ToDefinition(CouncilTeamConfiguration row) => new()
+    private OrganicCouncilTeamDefinition ToDefinition(CouncilTeamConfiguration row) => new()
     {
         Key = row.Key,
         DisplayName = row.DisplayName,
@@ -217,7 +217,7 @@ Original user request:
         IsEnabled = row.IsEnabled
     };
 
-    private static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
-    private static T? Deserialize<T>(string json) { try { return JsonSerializer.Deserialize<T>(json, JsonOptions); } catch (JsonException) { return default; } }
-    private static bool IsEmptyArray(string value) => string.IsNullOrWhiteSpace(value) || value.Trim() is "[]" or "null";
+    private string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
+    private T? Deserialize<T>(string json) { try { return JsonSerializer.Deserialize<T>(json, JsonOptions); } catch (JsonException) { return default; } }
+    private bool IsEmptyArray(string value) => string.IsNullOrWhiteSpace(value) || value.Trim() is "[]" or "null";
 }

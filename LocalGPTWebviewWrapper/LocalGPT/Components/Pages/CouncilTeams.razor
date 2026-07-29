@@ -67,7 +67,7 @@
 </main>
 
 @code {
-    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
+    private readonly System.Text.Json.JsonSerializerOptions JsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
     private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
     private OrganicCouncilTeamDefinition _editor = new();
     private string _selectedKey = string.Empty;
@@ -176,11 +176,11 @@
         finally { _busy = false; }
     }
 
-    private static OrganicCouncilTeamDefinition Clone(OrganicCouncilTeamDefinition value) =>
+    private OrganicCouncilTeamDefinition Clone(OrganicCouncilTeamDefinition value) =>
         System.Text.Json.JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(Serialize(value), JsonOptions) ?? new();
 
-    private static string Serialize<T>(T value) => System.Text.Json.JsonSerializer.Serialize(value, JsonOptions);
+    private string Serialize<T>(T value) => System.Text.Json.JsonSerializer.Serialize(value, JsonOptions);
 
-    private static T Deserialize<T>(string json) =>
+    private T Deserialize<T>(string json) =>
         System.Text.Json.JsonSerializer.Deserialize<T>(json, JsonOptions) ?? throw new System.Text.Json.JsonException("The JSON value is empty.");
 }

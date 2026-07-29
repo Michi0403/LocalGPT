@@ -15,39 +15,11 @@ public sealed class NativeCommandRunner(
     IMinecraftModWorkspaceService workspaceService,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IOptionsMonitor<NativeCommandOptions> commandOptions,
-        SqliteUtilityService sqliteUtility) : INativeCommandRunner
+    ILocalGptRuntimePolicyDataService runtimePolicy,
+    SqliteUtilityService sqliteUtility) : INativeCommandRunner
 {
     private const int MinimumTimeoutSeconds = 5;
     private const int MaximumTimeoutSeconds = 3600;
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
-
-    private static readonly FrozenSet<string> AllowedExecutables = new[]
-    {
-        "powershell.exe",
-        "pwsh.exe",
-        "gradle",
-        "gradle.bat",
-        "gradlew",
-        "gradlew.bat",
-        "java",
-        "java.exe"
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
-    private static readonly Regex PowerShellInlineCommandPattern = new(
-        @"(^|\s)-EncodedCommand(\s|$)|(^|\s)-Command(\s|$)|(^|\s)-c(\s|$)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
-
-    private static readonly Regex PowerShellFilePattern = new(
-        @"(^|\s)-File\s+(?:""(?<path>[^""]+)""|'(?<path>[^']+)'|(?<path>\S+))",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
-
-    private static readonly Regex SensitiveArgumentPattern = new(
-        @"(?<name>--?(?:api[-_]?key|key|token|secret|password|passwd|pwd))(?<separator>\s+|=)(?<value>""[^""]*""|'[^']*'|\S+)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
-
     public async Task<CommandExecutionResult?> RunAsync(
         string fileName,
         string arguments,
@@ -250,7 +222,7 @@ public sealed class NativeCommandRunner(
         }
 
         var executable = Path.GetFileName(fileName.Trim());
-        if (!AllowedExecutables.Contains(executable))
+        if (!runtimePolicy.AllowedNativeExecutables.Contains(executable))
             return CommandPolicyDecision.Deny($"Executable '{executable}' is not allowlisted.");
 
         if (sqliteUtility.ContainsPathSegment(fileName, logger))
@@ -279,10 +251,10 @@ public sealed class NativeCommandRunner(
 
     private CommandPolicyDecision ValidatePowerShellPolicy(string arguments, string workingDirectory)
     {
-        if (PowerShellInlineCommandPattern.IsMatch(arguments))
+        if (runtimePolicy.PowerShellInlineCommandPattern.IsMatch(arguments))
             return CommandPolicyDecision.Deny("PowerShell inline commands are blocked; use -File with a workspace script.");
 
-        var match = PowerShellFilePattern.Match(arguments);
+        var match = runtimePolicy.PowerShellFilePattern.Match(arguments);
         if (!match.Success)
             return CommandPolicyDecision.Deny("PowerShell commands must use -File with a workspace script.");
 
@@ -385,7 +357,7 @@ public sealed class NativeCommandRunner(
         }
     }
 
-    private static void KillProcessTree(Process process)
+    private void KillProcessTree(Process process)
     {
         try
         {
@@ -398,12 +370,12 @@ public sealed class NativeCommandRunner(
         }
     }
 
-    private static string RedactArguments(string arguments)
+    private string RedactArguments(string arguments)
     {
         if (string.IsNullOrEmpty(arguments))
             return string.Empty;
 
-        return SensitiveArgumentPattern.Replace(arguments, match =>
+        return runtimePolicy.SensitiveArgumentPattern.Replace(arguments, match =>
             $"{match.Groups["name"].Value}{match.Groups["separator"].Value}[REDACTED]");
     }
 }

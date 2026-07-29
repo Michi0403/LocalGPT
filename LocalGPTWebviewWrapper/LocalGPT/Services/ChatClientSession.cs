@@ -22,8 +22,8 @@ public class ChatClientSession
         Messages = [];
     }
 
-    private static string InferProvider(string name) => name.Split('—', 2, StringSplitOptions.TrimEntries)[0];
-    private static string InferModel(string name)
+    private string InferProvider(string name) => name.Split('—', 2, StringSplitOptions.TrimEntries)[0];
+    private string InferModel(string name)
     {
         var parts = name.Split('—', 2, StringSplitOptions.TrimEntries);
         return parts.Length == 2 ? parts[1] : name;

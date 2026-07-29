@@ -100,7 +100,7 @@ public sealed class ControllerRequestLoggingFilter(
         }
     }
 
-    private static string GetRouteValue(
+    private string GetRouteValue(
         IDictionary<string, string?> routeValues,
         string key,
         string fallback)

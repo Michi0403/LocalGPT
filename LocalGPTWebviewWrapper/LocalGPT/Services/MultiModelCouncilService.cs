@@ -726,7 +726,7 @@ namespace LocalGPT.Services
                 : MultiModelCouncilServiceAppendPromptSection(enhancedBootstrap, "Human collaboration boundary", briefing, logger);
         }
 
-        private static string BuildDeferredInvocationBriefing(IReadOnlyList<DeferredDxAiExecutionOutcome> outcomes)
+        private string BuildDeferredInvocationBriefing(IReadOnlyList<DeferredDxAiExecutionOutcome> outcomes)
         {
             if (outcomes.Count == 0)
                 return string.Empty;
@@ -744,7 +744,7 @@ namespace LocalGPT.Services
             return builder.ToString().Trim();
         }
 
-        private static string BuildHumanContributionEvaluation(MultiModelCouncilResult result)
+        private string BuildHumanContributionEvaluation(MultiModelCouncilResult result)
         {
             var humanRounds = result.Steps
                 .Where(step => step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase))
@@ -769,7 +769,7 @@ namespace LocalGPT.Services
                 : peerReview;
         }
 
-        private static string AppendHumanPeerReviewInstruction(string prompt) => string.Concat(
+        private string AppendHumanPeerReviewInstruction(string prompt) => string.Concat(
             prompt,
             Environment.NewLine,
             Environment.NewLine,
@@ -890,7 +890,7 @@ namespace LocalGPT.Services
             return review;
         }
 
-        private static void ApplyHardwarePlan(MultiModelCouncilStep step, CouncilHardwareRoadPlan plan)
+        private void ApplyHardwarePlan(MultiModelCouncilStep step, CouncilHardwareRoadPlan plan)
         {
             step.HardwareLane = plan.LaneKey;
             step.HardwareKind = plan.HardwareKind;
@@ -1347,7 +1347,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static string SelectHealthyParticipant(
+        private string SelectHealthyParticipant(
             MultiModelCouncilResult result,
             IReadOnlyList<string> participants,
             string? preferredModel = null)
@@ -1420,7 +1420,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static HumanApprovalRequestSpec CreateModelHealthExclusionRequest(
+        private HumanApprovalRequestSpec CreateModelHealthExclusionRequest(
             string modelName,
             Guid? councilRunId,
             string failureSummary)
@@ -1446,7 +1446,7 @@ namespace LocalGPT.Services
                 AllowFreeText: true);
         }
 
-        private static IEnumerable<string> OrderParticipantsByObservedHealth(
+        private IEnumerable<string> OrderParticipantsByObservedHealth(
             MultiModelCouncilResult result,
             IEnumerable<string> participants)
         {
@@ -1473,7 +1473,7 @@ namespace LocalGPT.Services
                 .Select(item => item.Model);
         }
 
-        private static void AppendRuntimeBenchmarkSummary(MultiModelCouncilResult result)
+        private void AppendRuntimeBenchmarkSummary(MultiModelCouncilResult result)
         {
             foreach (var group in result.Steps
                 .Where(step => !string.IsNullOrWhiteSpace(step.ModelName))

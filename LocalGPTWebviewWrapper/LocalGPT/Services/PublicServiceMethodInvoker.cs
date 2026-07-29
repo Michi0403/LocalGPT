@@ -14,7 +14,7 @@ public sealed class PublicServiceMethodInvoker(
     IDxAiFunctionCatalogService catalog,
     ILogger<PublicServiceMethodInvoker> logger) : IPublicServiceMethodInvoker
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
     public async Task<object?> InvokeAsync(PublicServiceMethodInvocationRequest request, CancellationToken cancellationToken = default)
     {
@@ -55,7 +55,7 @@ public sealed class PublicServiceMethodInvoker(
         }
     }
 
-    private static object?[] BindArguments(MethodInfo method, JsonElement parameters, CancellationToken cancellationToken)
+    private object?[] BindArguments(MethodInfo method, JsonElement parameters, CancellationToken cancellationToken)
     {
         var properties = parameters.ValueKind == JsonValueKind.Object
             ? parameters.EnumerateObject().ToDictionary(item => item.Name, item => item.Value, StringComparer.OrdinalIgnoreCase)
@@ -71,7 +71,7 @@ public sealed class PublicServiceMethodInvoker(
         }).ToArray();
     }
 
-    private static async Task<object?> AwaitResultAsync(object? value, Type returnType)
+    private async Task<object?> AwaitResultAsync(object? value, Type returnType)
     {
         if (value is Task task)
         {
@@ -93,7 +93,7 @@ public sealed class PublicServiceMethodInvoker(
         return value;
     }
 
-    private static Type? ResolveType(string typeName, Assembly assembly) =>
+    private Type? ResolveType(string typeName, Assembly assembly) =>
         Type.GetType(typeName, throwOnError: false) ?? assembly.GetType(typeName.Split(',')[0].Trim(), throwOnError: false);
 }
 

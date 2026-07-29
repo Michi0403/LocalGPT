@@ -10,12 +10,15 @@ public sealed class ChatResponseFormatterFactory : IChatResponseFormatterFactory
 {
     private readonly ILoggerFactory loggerFactory;
     private readonly IReadOnlyList<IChatProtocolProfile> profiles;
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
 
     public ChatResponseFormatterFactory(
         ILoggerFactory loggerFactory,
+        ILocalGptRuntimePolicyDataService runtimePolicy,
         IEnumerable<IChatProtocolProfile>? profiles = null)
     {
         this.loggerFactory = loggerFactory;
+        this.runtimePolicy = runtimePolicy;
         this.profiles = (profiles ?? ChatProtocolProfileCatalog.CreateDefaults()).ToList();
     }
 
@@ -25,6 +28,7 @@ public sealed class ChatResponseFormatterFactory : IChatResponseFormatterFactory
             ChatProtocolProfileCatalog.ResolveExact(profiles, protocol),
             profiles,
             missingFinalAnswerNotice,
+            runtimePolicy,
             loggerFactory.CreateLogger<ChatResponseFormatter>());
 }
 
@@ -33,6 +37,7 @@ internal sealed class ChatResponseFormatter(
     IChatProtocolProfile protocolProfile,
     IReadOnlyList<IChatProtocolProfile> availableProfiles,
     string? configuredMissingFinalAnswerNotice,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ChatResponseFormatter> logger)
     : IChatResponseFormatter
 {
@@ -42,19 +47,18 @@ internal sealed class ChatResponseFormatter(
     private const string DefaultMissingFinalAnswerNotice =
         "**No final answer was emitted.** The model only sent thinking. Send a short continuation request or increase the answer-token budget.";
 
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
     private readonly Regex HarmonyThinkingRegex = new(
         @"<\|start\|>assistant<\|channel\|>(analysis|commentary)<\|message\|>(?<content>.*?)(?=<\|channel\|>|<\|end\|>|$)|<\|channel\|>(analysis|commentary)<\|message\|>(?<content>.*?)(?=<\|channel\|>|<\|end\|>|$)",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex HarmonyFinalRegex = new(
         @"<\|start\|>assistant<\|channel\|>final<\|message\|>(?<content>.*?)(?=<\|end\|>|$)|<\|channel\|>final<\|message\|>(?<content>.*?)(?=<\|end\|>|<\|start\|>|$)",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex HarmonyMarkerRegex = new(
         @"<\|[^>]+\|>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
 
     private readonly string missingFinalAnswerNotice = string.IsNullOrWhiteSpace(configuredMissingFinalAnswerNotice)
         ? DefaultMissingFinalAnswerNotice

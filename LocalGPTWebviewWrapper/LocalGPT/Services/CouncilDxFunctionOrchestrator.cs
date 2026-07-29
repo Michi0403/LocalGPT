@@ -184,7 +184,7 @@ public sealed class CouncilDxFunctionOrchestrator(
         }
     }
 
-    private static MultiModelCouncilStep CreateGatewayStep(
+    private MultiModelCouncilStep CreateGatewayStep(
         MultiModelCouncilStep sourceStep,
         string title,
         string message,
@@ -207,7 +207,7 @@ public sealed class CouncilDxFunctionOrchestrator(
         };
     }
 
-    private static string Truncate(string value, int maximumCharacters) =>
+    private string Truncate(string value, int maximumCharacters) =>
         value.Length <= maximumCharacters
             ? value
             : value[..maximumCharacters] + "\n[Result truncated by Council DX function policy.]";

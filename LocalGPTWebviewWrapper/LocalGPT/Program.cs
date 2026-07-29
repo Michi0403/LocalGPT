@@ -368,10 +368,18 @@ namespace LocalGPT
                 builder.Services.AddScoped<IOrganicCouncilBlueprintService, OrganicCouncilBlueprintService>();
                 builder.Services.Configure<OneWireOptions>(builder.Configuration.GetSection(OneWireOptions.SectionName));
                 builder.Services.AddSingleton<IOneWireEnvelopeCodec, OneWireEnvelopeCodec>();
+                builder.Services.AddSingleton<IOneWireTransportSecurityPolicy, OneWireTransportSecurityPolicy>();
+                builder.Services.AddSingleton<IOneWireDispatchContextFactory, OneWireDispatchContextFactory>();
+                builder.Services.AddSingleton<IOneWireListenAddressResolver, OneWireListenAddressResolver>();
+                builder.Services.AddSingleton<IOneWireTargetApprovalPolicy, OneWireTargetApprovalPolicy>();
+                builder.Services.AddSingleton<IOrganicDxFunctionSupport, OrganicDxFunctionSupport>();
+                builder.Services.AddSingleton<IPublisherInteractionDxSupport, PublisherInteractionDxSupport>();
                 builder.Services.AddSingleton<IOneWireRuntimeSecurityService, OneWireRuntimeSecurityService>();
                 builder.Services.AddSingleton<ILocalVisionOcrService, LocalVisionOcrService>();
                 builder.Services.AddSingleton<IOneWirePeerRegistry, OneWirePeerRegistry>();
                 builder.Services.AddSingleton<IOneWireConnectionRegistry, OneWireConnectionRegistry>();
+                builder.Services.AddSingleton<IOneWireReplayPolicyDataService, OneWireReplayPolicyDataService>();
+                builder.Services.AddSingleton<ILocalGptRuntimePolicyDataService, LocalGptRuntimePolicyDataService>();
                 builder.Services.AddSingleton<IOneWireReplayGuard, OneWireReplayGuard>();
                 builder.Services.AddSingleton<IOneWireWorkSpooler, OneWireWorkSpooler>();
                 builder.Services.AddSingleton<IOneWirePendingCouncilStore, OneWirePendingCouncilStore>();

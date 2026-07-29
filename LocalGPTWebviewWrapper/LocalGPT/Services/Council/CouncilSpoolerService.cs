@@ -12,7 +12,7 @@ namespace LocalGPT.Services.Council;
 /// </summary>
 public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly ConcurrentDictionary<Guid, CouncilSpoolerSnapshot> runs = new();
     private readonly object mutationGate = new();
     private readonly SemaphoreSlim persistenceGate = new(1, 1);
@@ -192,7 +192,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         catch (Exception ex) { logger.LogWarning(ex, "Could not load the previous Council spooler checkpoint; active database and chat memory remain unchanged."); }
     }
 
-    private static CouncilSpoolerSnapshot CloneSnapshot(CouncilSpoolerSnapshot source) => new()
+    private CouncilSpoolerSnapshot CloneSnapshot(CouncilSpoolerSnapshot source) => new()
     {
         RunId = source.RunId,
         StartedAtUtc = source.StartedAtUtc,
@@ -209,7 +209,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         Warnings = [.. source.Warnings]
     };
 
-    private static MultiModelCouncilStep CloneStep(MultiModelCouncilStep source) => new()
+    private MultiModelCouncilStep CloneStep(MultiModelCouncilStep source) => new()
     {
         SortOrder = source.SortOrder,
         Round = source.Round,

@@ -51,9 +51,9 @@ public sealed class GetPublicArchitectureDirectoryFunction(
         return Task.FromResult(DxAiFunctionJsonHelper.Success(new { Methods = methods, DxFunctions = functions }));
     }
 
-    private static string FriendlyName(Type type) => type.FullName ?? type.Name;
+    private string FriendlyName(Type type) => type.FullName ?? type.Name;
 
-    private static string ResolveRoute(Type type, MethodInfo method)
+    private string ResolveRoute(Type type, MethodInfo method)
     {
         var controllerRoute = type.GetCustomAttribute<RouteAttribute>()?.Template ?? string.Empty;
         var methodRoute = method.GetCustomAttributes()

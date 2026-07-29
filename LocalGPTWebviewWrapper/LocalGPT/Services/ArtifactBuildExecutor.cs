@@ -117,20 +117,20 @@ public sealed class ArtifactBuildExecutor(
         }
     }
 
-    private static string NormalizeDirectory(string path)
+    private string NormalizeDirectory(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("Allowed root is required.", nameof(path));
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
     }
 
-    private static bool IsInsideRoot(string path, string root)
+    private bool IsInsideRoot(string path, string root)
     {
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         return string.Equals(path, root, comparison) || path.StartsWith(root + Path.DirectorySeparatorChar, comparison);
     }
 
-    private static void KillProcessTree(Process process)
+    private void KillProcessTree(Process process)
     {
         try
         {

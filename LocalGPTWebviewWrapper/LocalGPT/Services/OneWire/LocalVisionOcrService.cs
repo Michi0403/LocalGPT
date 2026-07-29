@@ -15,7 +15,7 @@ public sealed class LocalVisionOcrService(
     ILogger<LocalVisionOcrService> logger) : ILocalVisionOcrService
 {
     private const int MaximumImageBytes = 6 * 1024 * 1024;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<LocalVisionOcrResult> RecognizeAsync(LocalVisionOcrRequest request, CancellationToken cancellationToken = default)
     {
@@ -100,7 +100,7 @@ public sealed class LocalVisionOcrService(
             ?? throw new InvalidOperationException("No OCR/vision model is configured. Add DeepSeek OCR or another Ollama-compatible vision model in LocalGPT settings.");
     }
 
-    private static string ReadImageBase64(string dataUrl, out string mediaType)
+    private string ReadImageBase64(string dataUrl, out string mediaType)
     {
         if (string.IsNullOrWhiteSpace(dataUrl)) throw new ArgumentException("imageDataUrl is required.");
         var comma = dataUrl.IndexOf(',');
@@ -114,5 +114,5 @@ public sealed class LocalVisionOcrService(
         return Convert.ToBase64String(bytes);
     }
 
-    private static string Trim(string value, int maximum) => value.Length <= maximum ? value : value[..maximum] + "…";
+    private string Trim(string value, int maximum) => value.Length <= maximum ? value : value[..maximum] + "…";
 }

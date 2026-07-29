@@ -387,8 +387,8 @@
 
     private void MarkProfileDirty() => profileDirty = true;
 
-    private static string FingerprintPrefix(string value) => value[..Math.Min(12, value.Length)];
-    private static string GetRequestCssClass(HumanCollaborationRequest request)
+    private string FingerprintPrefix(string value) => value[..Math.Min(12, value.Length)];
+    private string GetRequestCssClass(HumanCollaborationRequest request)
     {
         var risk = string.IsNullOrWhiteSpace(request.RiskLevel)
             ? "medium"

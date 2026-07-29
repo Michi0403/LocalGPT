@@ -288,7 +288,7 @@ public sealed class ProjectArchitectureService(
         return builder.ToString().Trim();
     }
 
-    private static string BuildProjectName(string? title, string prompt, Guid runId)
+    private string BuildProjectName(string? title, string prompt, Guid runId)
     {
         var source = string.IsNullOrWhiteSpace(title) ? prompt : title;
         var normalized = new string(source.Where(ch => !char.IsControl(ch)).ToArray()).Trim();
@@ -297,7 +297,7 @@ public sealed class ProjectArchitectureService(
         return string.IsNullOrWhiteSpace(normalized) ? $"Council project {runId:N}" : normalized;
     }
 
-    private static void ValidateStructureJson(string? json)
+    private void ValidateStructureJson(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
             return;
@@ -306,7 +306,7 @@ public sealed class ProjectArchitectureService(
             throw new ArgumentException("Project structure JSON must be an object or array.", nameof(json));
     }
 
-    private static void ValidateRegex(string pattern, string? flags)
+    private void ValidateRegex(string pattern, string? flags)
     {
         if (pattern.Length > 16_000)
             throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
@@ -316,13 +316,13 @@ public sealed class ProjectArchitectureService(
         _ = new System.Text.RegularExpressions.Regex(pattern, options, TimeSpan.FromSeconds(2));
     }
 
-    private static void RequireConfirmation(bool confirmed, string operation)
+    private void RequireConfirmation(bool confirmed, string operation)
     {
         if (!confirmed)
             throw new InvalidOperationException($"Fresh human confirmation is required before {operation}.");
     }
 
-    private static string RequireText(string? value, string parameterName, int maxLength)
+    private string RequireText(string? value, string parameterName, int maxLength)
     {
         var result = Trim(value, maxLength);
         if (string.IsNullOrWhiteSpace(result))
@@ -330,13 +330,13 @@ public sealed class ProjectArchitectureService(
         return result;
     }
 
-    private static string Fallback(string? value, int maxLength, string fallback)
+    private string Fallback(string? value, int maxLength, string fallback)
     {
         var result = Trim(value, maxLength);
         return string.IsNullOrWhiteSpace(result) ? fallback : result;
     }
 
-    private static string Trim(string? value, int maxLength)
+    private string Trim(string? value, int maxLength)
     {
         var result = value?.Trim() ?? string.Empty;
         return result.Length <= maxLength ? result : result[..maxLength];

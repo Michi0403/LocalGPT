@@ -66,7 +66,7 @@ public sealed class DeepSeekChatProtocolProfile : IChatProtocolProfile
 
 public sealed class GemmaChatProtocolProfile : IChatProtocolProfile
 {
-    private static readonly string[] ControlTokens =
+    private readonly string[] ControlTokens =
     [
         "<bos>",
         "<eos>",
@@ -87,7 +87,7 @@ public sealed class GemmaChatProtocolProfile : IChatProtocolProfile
 
 public sealed class AppleChatProtocolProfile : IChatProtocolProfile
 {
-    private static readonly string[] ControlTokens =
+    private readonly string[] ControlTokens =
     [
         "<|start_of_role|>assistant<|end_of_role|>",
         "<|start_of_role|>analysis<|end_of_role|>",

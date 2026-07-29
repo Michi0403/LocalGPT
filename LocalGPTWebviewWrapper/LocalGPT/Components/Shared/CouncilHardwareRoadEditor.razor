@@ -95,7 +95,7 @@
         Routes.AddRange(synchronized);
     }
 
-    private static bool SameRoutes(IReadOnlyList<OneWireCouncilModelRoute> left, IReadOnlyList<OneWireCouncilModelRoute> right) =>
+    private bool SameRoutes(IReadOnlyList<OneWireCouncilModelRoute> left, IReadOnlyList<OneWireCouncilModelRoute> right) =>
         left.Count == right.Count && left.Select(route => route.ModelName).SequenceEqual(right.Select(route => route.ModelName), StringComparer.OrdinalIgnoreCase);
 
     private async Task NormalizeAndNotify(OneWireCouncilModelRoute route)

@@ -47,7 +47,7 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
             peers.TryRemove(pair.Key, out _);
     }
 
-    private static OneWirePeerAdvertisement Clone(OneWirePeerAdvertisement peer) => new()
+    private OneWirePeerAdvertisement Clone(OneWirePeerAdvertisement peer) => new()
     {
         PeerId = peer.PeerId,
         DisplayName = peer.DisplayName,
@@ -145,10 +145,10 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
     }
 }
 
-public sealed class OneWireReplayGuard(ILogger<OneWireReplayGuard> logger) : IOneWireReplayGuard
+public sealed class OneWireReplayGuard(
+    IOneWireReplayPolicyDataService policyData,
+    ILogger<OneWireReplayGuard> logger) : IOneWireReplayGuard
 {
-    private static readonly TimeSpan Retention = TimeSpan.FromMinutes(15);
-    private static readonly TimeSpan AllowedFutureSkew = TimeSpan.FromMinutes(2);
     private readonly ConcurrentDictionary<string, DateTimeOffset> accepted = new(StringComparer.OrdinalIgnoreCase);
     private int cleanupCounter;
 
@@ -158,20 +158,21 @@ public sealed class OneWireReplayGuard(ILogger<OneWireReplayGuard> logger) : IOn
         if (messageId == Guid.Empty) return false;
 
         var now = DateTimeOffset.UtcNow;
-        if (createdUtc < now - Retention || createdUtc > now + AllowedFutureSkew)
+        var policy = policyData.GetSnapshot();
+        if (createdUtc < now - policy.Retention || createdUtc > now + policy.AllowedFutureSkew)
         {
             logger.LogWarning("Rejected 1-Wire message {MessageId} from {PeerId} because its timestamp is outside the accepted replay window.", messageId, peerId);
             return false;
         }
 
         var key = $"{peerId}\n{messageId:N}";
-        if (!accepted.TryAdd(key, now.Add(Retention)))
+        if (!accepted.TryAdd(key, now.Add(policy.Retention)))
         {
             logger.LogWarning("Rejected replayed 1-Wire message {MessageId} from {PeerId}.", messageId, peerId);
             return false;
         }
 
-        if (Interlocked.Increment(ref cleanupCounter) % 64 == 0 || accepted.Count > 4096)
+        if (Interlocked.Increment(ref cleanupCounter) % policy.CleanupInterval == 0 || accepted.Count > policy.MaximumTrackedMessages)
         {
             foreach (var stale in accepted.Where(pair => pair.Value <= now).Select(pair => pair.Key).ToArray())
                 accepted.TryRemove(stale, out _);

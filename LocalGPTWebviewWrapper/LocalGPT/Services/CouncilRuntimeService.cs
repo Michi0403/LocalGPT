@@ -117,7 +117,7 @@ namespace LocalGPT.Services
         }
           
 
-        private static MinecraftDependencyVersionInfo CreateFallbackDependencyVersionInfo(
+        private MinecraftDependencyVersionInfo CreateFallbackDependencyVersionInfo(
             MinecraftModBuildRequest request,
             string? loaderOverride,
             string? failureReason)

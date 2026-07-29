@@ -16,6 +16,9 @@ public sealed class OneWireController(
     IOneWireWorkSpooler work,
     IOneWireEnvelopeCodec codec,
     IOneWireMessageDispatcher dispatcher,
+    IOneWireTransportSecurityPolicy transportSecurityPolicy,
+    IOneWireDispatchContextFactory dispatchContextFactory,
+    IOneWireReplayPolicyDataService replayPolicy,
     IOrganicCouncilBlueprintService teams,
     ICouncilTeamConfigurationService teamConfigurations,
     ILogger<OneWireController> logger) : ControllerBase
@@ -31,6 +34,46 @@ public sealed class OneWireController(
         ConnectedPeers = peers.GetPeers().Count(peer => connections.IsConnected(peer.PeerId)),
         PendingWork = work.GetSnapshot().Count(item => item.Status is OneWireWorkStatus.Queued or OneWireWorkStatus.Running or OneWireWorkStatus.PendingApproval)
     });
+
+
+    [HttpGet("transport-policy")]
+    public IActionResult TransportPolicy()
+    {
+        try
+        {
+            var remoteAddress = HttpContext.Connection.RemoteIpAddress;
+            var loopback = transportSecurityPolicy.IsLoopback(remoteAddress);
+            logger.LogDebug($"Returned 1-Wire transport policy for remote address {remoteAddress}.");
+            return Ok(new
+            {
+                IsLoopback = loopback,
+                RequiresProtectionForInvoke = transportSecurityPolicy.RequiresProtectedTransport(OneWireMessageType.Invoke),
+                RequiresProtectionForCouncil = transportSecurityPolicy.RequiresProtectedTransport(OneWireMessageType.CouncilRequest)
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Could not return the 1-Wire transport policy.");
+            return Problem(ex.Message);
+        }
+    }
+
+
+    [HttpGet("replay-policy")]
+    public ActionResult<OneWireReplayPolicySnapshot> ReplayPolicy()
+    {
+        try
+        {
+            var snapshot = replayPolicy.GetSnapshot();
+            logger.LogDebug($"Returned the configured 1-Wire replay policy.");
+            return Ok(snapshot);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Could not return the configured 1-Wire replay policy.");
+            return Problem(ex.Message);
+        }
+    }
 
     [HttpGet("capabilities")]
     public async Task<ActionResult<IReadOnlyList<OneWireCapabilityDescriptor>>> Capabilities(CancellationToken cancellationToken) =>
@@ -76,11 +119,11 @@ public sealed class OneWireController(
     [HttpPost("dispatch")]
     public async Task<IActionResult> Dispatch([FromBody] OneWireEnvelope envelope, CancellationToken cancellationToken)
     {
-        if (!OneWireTransportSecurityPolicy.IsLoopback(HttpContext.Connection.RemoteIpAddress))
+        if (!transportSecurityPolicy.IsLoopback(HttpContext.Connection.RemoteIpAddress))
             return NotFound();
 
         envelope.SourcePeerId = "localgpt";
-        var response = await dispatcher.DispatchAsync(envelope, OneWireDispatchContext.Internal("local-http-ui"), cancellationToken).ConfigureAwait(false);
+        var response = await dispatcher.DispatchAsync(envelope, dispatchContextFactory.CreateInternal("local-http-ui"), cancellationToken).ConfigureAwait(false);
         return response is null ? Accepted() : Ok(response);
     }
 

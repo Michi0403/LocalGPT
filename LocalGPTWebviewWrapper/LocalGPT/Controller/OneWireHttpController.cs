@@ -17,6 +17,8 @@ public sealed class OneWireHttpController(
     IOneWireEnvelopeCodec codec,
     IOneWireRuntimeSecurityService security,
     IOneWireMessageDispatcher dispatcher,
+    IOneWireTransportSecurityPolicy transportSecurityPolicy,
+    IOneWireDispatchContextFactory dispatchContextFactory,
     IOneWireWorkSpooler spooler,
     ILogger<OneWireHttpController> logger) : ControllerBase
 {
@@ -34,7 +36,7 @@ public sealed class OneWireHttpController(
                 PollWork = "/api/onewire/http-json/work/{correlationId}",
                 MaximumMessageBytes = OneWireProtocol.MaximumMessageBytes,
                 Security = await security.GetPublicDescriptorAsync(cancellationToken).ConfigureAwait(false),
-                Peer = OneWireMessageDispatcher.LocalAdvertisement()
+                Peer = dispatcher.GetLocalAdvertisement()
             });
         }
         catch (Exception ex)
@@ -56,16 +58,16 @@ public sealed class OneWireHttpController(
             var envelope = codec.DeserializeAndValidate(json);
             await security.UnprotectIncomingAsync(envelope, cancellationToken).ConfigureAwait(false);
             var remoteAddress = HttpContext.Connection.RemoteIpAddress;
-            var context = OneWireDispatchContext.External(
+            var context = dispatchContextFactory.CreateExternal(
                 envelope.SourcePeerId,
                 Guid.NewGuid(),
-                OneWireTransportSecurityPolicy.IsLoopback(remoteAddress),
+                transportSecurityPolicy.IsLoopback(remoteAddress),
                 "http-json");
             var response = await dispatcher.DispatchAsync(envelope, context, cancellationToken).ConfigureAwait(false);
             if (response is null) return Accepted(new { envelope.CorrelationId, Status = "AcceptedWithoutImmediateResponse" });
             await security.ProtectOutgoingAsync(response, cancellationToken).ConfigureAwait(false);
-            if (OneWireTransportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
-                !OneWireTransportSecurityPolicy.IsProtected(response))
+            if (transportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
+                !transportSecurityPolicy.IsProtected(response))
             {
                 throw new CryptographicException("The HTTP/JSON response requires an MFA-verified peer before application data can be returned.");
             }
@@ -116,8 +118,8 @@ public sealed class OneWireHttpController(
                 }
             };
             await security.ProtectOutgoingAsync(response, cancellationToken).ConfigureAwait(false);
-            if (OneWireTransportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
-                !OneWireTransportSecurityPolicy.IsProtected(response))
+            if (transportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
+                !transportSecurityPolicy.IsProtected(response))
             {
                 throw new CryptographicException("The HTTP/JSON work response requires an MFA-verified peer before application data can be returned.");
             }

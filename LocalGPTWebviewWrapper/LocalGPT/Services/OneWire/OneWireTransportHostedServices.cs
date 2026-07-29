@@ -15,6 +15,9 @@ public sealed class OneWireTcpHostedService(
     IOneWireMessageDispatcher dispatcher,
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
+    IOneWireTransportSecurityPolicy transportSecurityPolicy,
+    IOneWireDispatchContextFactory dispatchContextFactory,
+    IOneWireListenAddressResolver listenAddressResolver,
     ISupervisedTaskRunner taskRunner,
     ILogger<OneWireTcpHostedService> logger) : BackgroundService
 {
@@ -25,7 +28,7 @@ public sealed class OneWireTcpHostedService(
         TcpListener? listener = null;
         try
         {
-            var listenAddress = ResolveListenAddress(options.Value);
+            var listenAddress = listenAddressResolver.Resolve(options.Value);
             listener = new TcpListener(listenAddress, Program.OneWirePort);
             listener.Start();
             logger.LogInformation("LocalGPT 1-Wire service listening on {Address}:{Port}. LAN transport is {LanState}.",
@@ -54,7 +57,7 @@ public sealed class OneWireTcpHostedService(
         var registrationId = Guid.Empty;
         var transportConnectionId = Guid.NewGuid();
         var remoteAddress = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
-        var isLoopback = OneWireTransportSecurityPolicy.IsLoopback(remoteAddress);
+        var isLoopback = transportSecurityPolicy.IsLoopback(remoteAddress);
         var writeGate = new SemaphoreSlim(1, 1);
         try
         {
@@ -66,8 +69,8 @@ public sealed class OneWireTcpHostedService(
                 async Task Sender(OneWireEnvelope message, CancellationToken token)
                 {
                     await security.ProtectOutgoingAsync(message, token).ConfigureAwait(false);
-                    if (!isLoopback && OneWireTransportSecurityPolicy.RequiresProtectedTransport(message.MessageType) &&
-                        !OneWireTransportSecurityPolicy.IsProtected(message))
+                    if (!isLoopback && transportSecurityPolicy.RequiresProtectedTransport(message.MessageType) &&
+                        !transportSecurityPolicy.IsProtected(message))
                     {
                         throw new System.Security.Cryptography.CryptographicException(
                             "A non-loopback 1-Wire connection requires MFA-verified message protection before application data can be sent.");
@@ -101,7 +104,7 @@ public sealed class OneWireTcpHostedService(
                         throw new InvalidDataException("The 1-Wire SourcePeerId changed after the transport identity was established.");
                     }
 
-                    var context = OneWireDispatchContext.External(peerId, transportConnectionId, isLoopback, "tcp");
+                    var context = dispatchContextFactory.CreateExternal(peerId, transportConnectionId, isLoopback, "tcp");
                     var response = await dispatcher.DispatchAsync(envelope, context, cancellationToken).ConfigureAwait(false);
                     if (response is not null)
                         await Sender(response, cancellationToken).ConfigureAwait(false);
@@ -121,18 +124,13 @@ public sealed class OneWireTcpHostedService(
         }
     }
 
-    private static IPAddress ResolveListenAddress(OneWireOptions configured)
-    {
-        if (!configured.EnableLanTransport)
-            return IPAddress.Loopback;
-        return IPAddress.TryParse(configured.ListenAddress, out var parsed) ? parsed : IPAddress.Any;
-    }
 
 }
 
 public sealed class OneWireDiscoveryHostedService(
     IOptions<OneWireOptions> options,
     IOneWireRuntimeSecurityService security,
+    IOneWireEnvelopeCodec codec,
     ILogger<OneWireDiscoveryHostedService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -168,7 +166,7 @@ public sealed class OneWireDiscoveryHostedService(
                 };
                 // UDP is only the small discovery beacon. The full DXFunction/skill/hardware directory is
                 // requested over the established TCP link after both frontends approve the connection.
-                var bytes = JsonSerializer.SerializeToUtf8Bytes(advertisement, OneWireEnvelopeCodec.CreateOptions());
+                var bytes = JsonSerializer.SerializeToUtf8Bytes(advertisement, codec.JsonOptions);
                 if (bytes.Length > OneWireProtocol.MaximumDiscoveryBytes)
                     throw new InvalidDataException($"The compact 1-Wire discovery advertisement is unexpectedly large ({bytes.Length} bytes).");
                 await udp.SendAsync(bytes, bytes.Length, new IPEndPoint(address, Program.OneWireDiscoveryPort)).ConfigureAwait(false);

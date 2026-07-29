@@ -24,7 +24,7 @@ public sealed class CodeGenerationWorkflowService(
     private const int MaxFileCount = 512;
     private const int MaxReviewTake = 100;
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = false
@@ -394,7 +394,7 @@ public sealed class CodeGenerationWorkflowService(
             ["ReviewId"] = reviewId
         });
 
-    private static void ValidateReviewRequest(CreateCodeGenerationReviewRequest request)
+    private void ValidateReviewRequest(CreateCodeGenerationReviewRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Goal))
             throw new ArgumentException("A concrete generation goal is required.", nameof(request));
@@ -410,7 +410,7 @@ public sealed class CodeGenerationWorkflowService(
             _ = NormalizeRelativePath(string.IsNullOrWhiteSpace(output.RelativeDirectory) ? "." : output.RelativeDirectory);
     }
 
-    private static async Task ValidateProjectReferencesAsync(
+    private async Task ValidateProjectReferencesAsync(
         LocalGptMemoryDbContext db,
         Guid? projectId,
         Guid? projectRevisionId,
@@ -448,14 +448,14 @@ public sealed class CodeGenerationWorkflowService(
         }
     }
 
-    private static CodeGenerationFileSpec NormalizeFile(CodeGenerationFileSpec file) => new()
+    private CodeGenerationFileSpec NormalizeFile(CodeGenerationFileSpec file) => new()
     {
         RelativePath = NormalizeRelativePath(file.RelativePath),
         Content = file.Content ?? string.Empty,
         Purpose = Limit(file.Purpose, 1_000, "Reviewed source file")
     };
 
-    private static CodeDomTypeSpec NormalizeCodeDomType(CodeDomTypeSpec type) => new()
+    private CodeDomTypeSpec NormalizeCodeDomType(CodeDomTypeSpec type) => new()
     {
         RelativePath = NormalizeRelativePath(type.RelativePath),
         Namespace = NormalizeIdentifierPath(type.Namespace, "LocalGPT.Generated"),
@@ -465,7 +465,7 @@ public sealed class CodeGenerationWorkflowService(
         Summary = Limit(type.Summary, 2_000, "Reviewed CodeDOM source type")
     };
 
-    private static CodeGenerationOutputSpec NormalizeOutput(CodeGenerationOutputSpec output) => new()
+    private CodeGenerationOutputSpec NormalizeOutput(CodeGenerationOutputSpec output) => new()
     {
         Kind = NormalizeOutputKind(output.Kind),
         Name = NormalizeIdentifier(output.Name, "LocalGptGeneratedFeature"),
@@ -475,7 +475,7 @@ public sealed class CodeGenerationWorkflowService(
         Description = Limit(output.Description, 2_000, "Reviewed LocalGPT output")
     };
 
-    private static string NormalizeOutputKind(string? kind)
+    private string NormalizeOutputKind(string? kind)
     {
         var value = kind?.Trim();
         if (string.IsNullOrWhiteSpace(value))
@@ -494,7 +494,7 @@ public sealed class CodeGenerationWorkflowService(
         };
     }
 
-    private static string NormalizeTargetFramework(string? value)
+    private string NormalizeTargetFramework(string? value)
     {
         var framework = string.IsNullOrWhiteSpace(value) ? "net10.0" : value.Trim();
         if (!framework.StartsWith("net", StringComparison.OrdinalIgnoreCase) || framework.Any(character => !(char.IsLetterOrDigit(character) || character is '.' or '-')))
@@ -502,10 +502,10 @@ public sealed class CodeGenerationWorkflowService(
         return framework;
     }
 
-    private static string BuildDefaultChangeSummary(CodeGenerationReviewPayload payload) =>
+    private string BuildDefaultChangeSummary(CodeGenerationReviewPayload payload) =>
         $"Create {payload.Files.Count} explicit source file(s), {payload.CodeDomTypes.Count} CodeDOM-generated type(s), and {payload.Outputs.Count} output target(s) in an isolated LocalGPT workspace; when a project revision is linked, preserve every unchanged approved tracked file byte-for-byte.";
 
-    private static string ComputeReviewHash(CodeGenerationChangeReview entity)
+    private string ComputeReviewHash(CodeGenerationChangeReview entity)
     {
         var canonical = string.Join("\n",
             entity.ProjectId?.ToString("D") ?? string.Empty,
@@ -522,7 +522,7 @@ public sealed class CodeGenerationWorkflowService(
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
-    private static CodeGenerationReviewPayload DeserializePayload(string payloadJson)
+    private CodeGenerationReviewPayload DeserializePayload(string payloadJson)
     {
         var payload = JsonSerializer.Deserialize<CodeGenerationReviewPayload>(payloadJson, JsonOptions) ?? new CodeGenerationReviewPayload();
         payload.Files ??= [];
@@ -531,7 +531,7 @@ public sealed class CodeGenerationWorkflowService(
         return payload;
     }
 
-    private static CodeGenerationReviewSnapshot ToSnapshot(
+    private CodeGenerationReviewSnapshot ToSnapshot(
         CodeGenerationChangeReview entity,
         CodeGenerationReviewPayload payload) => new()
     {
@@ -665,13 +665,13 @@ public sealed class CodeGenerationWorkflowService(
     }
 
 
-    private static async Task<string> ComputeFileHashAsync(string path, CancellationToken cancellationToken)
+    private async Task<string> ComputeFileHashAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
         return Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
     }
 
-    private static string FindPreferredSolutionPath(string workspaceRoot, string clonedSolutionPath)
+    private string FindPreferredSolutionPath(string workspaceRoot, string clonedSolutionPath)
     {
         if (!string.IsNullOrWhiteSpace(clonedSolutionPath) && File.Exists(clonedSolutionPath))
             return clonedSolutionPath;
@@ -689,7 +689,7 @@ public sealed class CodeGenerationWorkflowService(
         }
     }
 
-    private static string GenerateCodeDomSource(CodeDomTypeSpec spec)
+    private string GenerateCodeDomSource(CodeDomTypeSpec spec)
     {
         var unit = new CodeCompileUnit();
         var ns = new CodeNamespace(spec.Namespace);
@@ -917,7 +917,7 @@ public sealed class CodeGenerationWorkflowService(
 
     private sealed record ReviewedSourceArtifact(string RelativePath, string FullPath);
 
-    private static string BuildLibrarySource(CodeGenerationOutputSpec output) => $$"""
+    private string BuildLibrarySource(CodeGenerationOutputSpec output) => $$"""
     namespace {{output.RootNamespace}};
 
     public sealed class GeneratedFeature
@@ -926,7 +926,7 @@ public sealed class CodeGenerationWorkflowService(
     }
     """;
 
-    private static string BuildAddonSource(CodeGenerationOutputSpec output) => $$"""
+    private string BuildAddonSource(CodeGenerationOutputSpec output) => $$"""
     namespace {{output.RootNamespace}};
 
     public interface ILocalGptAddon
@@ -942,7 +942,7 @@ public sealed class CodeGenerationWorkflowService(
     }
     """;
 
-    private static string BuildSolutionFile(string name, string relativeProjectPath)
+    private string BuildSolutionFile(string name, string relativeProjectPath)
     {
         var projectGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
         var solutionGuid = Guid.NewGuid().ToString("B").ToUpperInvariant();
@@ -973,13 +973,13 @@ public sealed class CodeGenerationWorkflowService(
         return builder.ToString();
     }
 
-    private static bool BuildCompletedSuccessfully(string buildStatus)
+    private bool BuildCompletedSuccessfully(string buildStatus)
     {
         var statuses = buildStatus.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return statuses.Length > 0 && statuses.All(status => status.EndsWith(":BuildPassed", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool IsInsideDirectory(string path, string directory)
+    private bool IsInsideDirectory(string path, string directory)
     {
         var normalizedDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
         var normalizedPath = Path.GetFullPath(path);
@@ -988,7 +988,7 @@ public sealed class CodeGenerationWorkflowService(
                normalizedPath.StartsWith(normalizedDirectory + Path.DirectorySeparatorChar, comparison);
     }
 
-    private static string ResolveInsideRoot(string root, string relativePath)
+    private string ResolveInsideRoot(string root, string relativePath)
     {
         var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         var candidate = Path.GetFullPath(Path.Combine(normalizedRoot, relativePath));
@@ -1001,7 +1001,7 @@ public sealed class CodeGenerationWorkflowService(
         return candidate;
     }
 
-    private static string NormalizeRelativePath(string? value)
+    private string NormalizeRelativePath(string? value)
     {
         var path = string.IsNullOrWhiteSpace(value) ? "." : value.Trim().Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
         if (Path.IsPathRooted(path))
@@ -1026,7 +1026,7 @@ public sealed class CodeGenerationWorkflowService(
         return parts.Length == 0 ? "." : Path.Combine(parts);
     }
 
-    private static bool IsWindowsReservedName(string name)
+    private bool IsWindowsReservedName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
             return false;
@@ -1038,7 +1038,7 @@ public sealed class CodeGenerationWorkflowService(
                Regex.IsMatch(name, "^(COM|LPT)[1-9]$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
-    private static string NormalizeIdentifier(string? value, string fallback)
+    private string NormalizeIdentifier(string? value, string fallback)
     {
         var source = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
         var builder = new StringBuilder();
@@ -1054,19 +1054,19 @@ public sealed class CodeGenerationWorkflowService(
         return builder.ToString();
     }
 
-    private static string NormalizeIdentifierPath(string? value, string fallback) =>
+    private string NormalizeIdentifierPath(string? value, string fallback) =>
         string.Join('.', (string.IsNullOrWhiteSpace(value) ? fallback : value)
             .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(part => NormalizeIdentifier(part, "Generated")));
 
-    private static string EscapeCSharp(string? value) =>
+    private string EscapeCSharp(string? value) =>
         (value ?? string.Empty).Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal).Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal);
 
-    private static string Limit(string? value, int maxLength, string fallback)
+    private string Limit(string? value, int maxLength, string fallback)
     {
         var text = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
         return text.Length <= maxLength ? text : text[..maxLength];
     }
 
-    private static string HashPrefix(string hash) => hash.Length <= 12 ? hash : hash[..12];
+    private string HashPrefix(string hash) => hash.Length <= 12 ? hash : hash[..12];
 }

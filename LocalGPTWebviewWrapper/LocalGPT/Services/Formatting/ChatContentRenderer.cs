@@ -9,49 +9,48 @@ namespace LocalGPT.Services.Formatting;
 /// update. It deliberately does not decode HTML entities: thinking text is
 /// encoded by <see cref="IChatResponseFormatter"/> and must stay text.
 /// </summary>
-public sealed class ChatContentRenderer : IChatContentRenderer
+public sealed class ChatContentRenderer(ILocalGptRuntimePolicyDataService runtimePolicy) : IChatContentRenderer
 {
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
     private readonly Regex HarmonyMarkerRegex = new(
         @"<\|[^>]+\|>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex ThinkingDetailsStartRegex = new(
         "<details\\s+class=\"model-thinking(?:\\s+open)?\"(?:\\s+open)?\\s*>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex CouncilCompletionMarkerRegex = new(
         @"<!--localgpt-council-stream-complete:(?<id>[a-f0-9]{32})-->",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex ListAfterHtmlRegex = new(
         @"(</(?:p|details|pre|div)>)\s*((?:[-*]|\d+\.)\s+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex ControlledDetailsStartRegex = new(
         "<details\\s+class=\"(?:model-thinking(?:\\s+open)?|council-step(?:\\s+council-live)?|council-prompt)\"[^>]*>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex DetailsEndRegex = new(
         @"</details>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex StablePanelStartRegex = new(
         "<details\\s+class=\"(?<class>model-thinking(?:\\s+open)?|council-step(?:\\s+council-live)?|council-prompt)\"(?<attributes>[^>]*)>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex StreamIdAttributeRegex = new(
         "data-localgpt-stream-id=\"(?<id>[a-f0-9]{32})\"",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex PreStartRegex = new(
         @"<pre(?:\s[^>]*)?>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
     private readonly Regex PreEndRegex = new(
         @"</pre>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        RegexTimeout);
+        runtimePolicy.RegexTimeout);
 
     private readonly MarkdownPipeline markdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()

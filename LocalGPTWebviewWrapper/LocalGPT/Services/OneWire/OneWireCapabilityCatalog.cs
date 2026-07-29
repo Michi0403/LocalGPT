@@ -206,7 +206,7 @@ public sealed class OneWireCapabilityCatalog(
         ];
     }
 
-    private static OneWireUiFeatureDescriptor CreateFeature(string key, string name, bool enabled, string disabledReason) => new()
+    private OneWireUiFeatureDescriptor CreateFeature(string key, string name, bool enabled, string disabledReason) => new()
     {
         Key = key,
         DisplayName = name,
@@ -214,7 +214,7 @@ public sealed class OneWireCapabilityCatalog(
         Reason = enabled ? string.Empty : disabledReason
     };
 
-    private static OneWireUiFeatureDescriptor CreateCapabilityFeature(
+    private OneWireUiFeatureDescriptor CreateCapabilityFeature(
         string key,
         string name,
         IReadOnlyList<OneWirePeerAdvertisement> connectedPeers,
@@ -238,7 +238,7 @@ public sealed class OneWireCapabilityCatalog(
         };
     }
 
-    private static IReadOnlyList<OneWireSkillDescriptor> BuiltInSkills() =>
+    private IReadOnlyList<OneWireSkillDescriptor> BuiltInSkills() =>
     [
         new() { Key = "council", DisplayName = "AI Council", Description = "Council heartbeat planning and participation.", SourcePeerId = "localgpt", Organs = ["brain"], CapabilityKeys = ["council.run"], UiActivationKeys = ["localgpt.council.run"], IsOnline = true, IsEnabled = true },
         new() { Key = "spreadsheet", DisplayName = "Spreadsheet", Description = "Spreadsheet analysis and guided editing through an organic plugin.", SourcePeerId = "localgpt", Organs = ["brain", "eyes", "hands"], CapabilityKeys = ["publisher.spreadsheet.inspect"], UiActivationKeys = ["localgpt.publisher.spreadsheet.request"], IsOnline = true, IsEnabled = true },
@@ -248,13 +248,13 @@ public sealed class OneWireCapabilityCatalog(
         new() { Key = "learning", DisplayName = "Learning Round", Description = "Studies bounded chat memory, logs, knowledge and database regexes and stores untrusted reusable evidence.", SourcePeerId = "localgpt", Organs = ["brain"], CapabilityKeys = ["localgpt.learning.snapshot", "localgpt.learning.maintain", "localgpt.regex.list", "localgpt.regex.test", "localgpt.regex.upsert"], UiActivationKeys = ["localgpt.learning.round"], IsOnline = true, IsEnabled = true }
     ];
 
-    private static List<string> ParseList(string? json)
+    private List<string> ParseList(string? json)
     {
         try { return JsonSerializer.Deserialize<List<string>>(json ?? "[]") ?? []; }
         catch (JsonException) { return []; }
     }
 
-    private static List<string> InferOrgans(string name, string purpose)
+    private List<string> InferOrgans(string name, string purpose)
     {
         var text = $"{name} {purpose}";
         var result = new List<string> { "brain" };
@@ -263,13 +263,13 @@ public sealed class OneWireCapabilityCatalog(
         return result.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private static List<string> InferSkills(string name, string purpose)
+    private List<string> InferSkills(string name, string purpose)
     {
         var tokens = $"{name} {purpose}".Split([' ', '.', '-', '_', '/', ':'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return tokens.Where(token => token.Length >= 4).Select(token => token.ToLowerInvariant()).Distinct().Take(12).ToList();
     }
 
-    private static void PopulateTeaching(OneWireCapabilityDescriptor capability)
+    private void PopulateTeaching(OneWireCapabilityDescriptor capability)
     {
         capability.InputContract = string.IsNullOrWhiteSpace(capability.InputContract)
             ? $"Parameters matching this JSON schema: {capability.ParameterSchemaJson}"

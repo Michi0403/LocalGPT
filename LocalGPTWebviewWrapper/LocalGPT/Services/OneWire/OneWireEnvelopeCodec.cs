@@ -9,7 +9,16 @@ namespace LocalGPT.Services.OneWire;
 
 public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 {
-    private static readonly JsonSerializerOptions SerializerOptions = CreateOptions();
+    private readonly ILogger<OneWireEnvelopeCodec> logger;
+    private readonly JsonSerializerOptions serializerOptions;
+
+    public OneWireEnvelopeCodec(ILogger<OneWireEnvelopeCodec> logger)
+    {
+        this.logger = logger;
+        serializerOptions = CreateOptions();
+    }
+
+    public JsonSerializerOptions JsonOptions => serializerOptions;
 
     public string Serialize(OneWireEnvelope envelope, bool seal = true)
     {
@@ -22,7 +31,7 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
             envelope.Hash = Convert.ToHexString(SHA256.HashData(integrity));
             envelope.ErrorCheck = ComputeCrc32(integrity).ToString("X8", System.Globalization.CultureInfo.InvariantCulture);
         }
-        return JsonSerializer.Serialize(envelope, SerializerOptions);
+        return JsonSerializer.Serialize(envelope, serializerOptions);
     }
 
     public OneWireEnvelope DeserializeAndValidate(string json)
@@ -30,7 +39,7 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
         if (Encoding.UTF8.GetByteCount(json) > OneWireProtocol.MaximumMessageBytes)
             throw new InvalidDataException("The 1-Wire message exceeds the supported size limit.");
-        var envelope = JsonSerializer.Deserialize<OneWireEnvelope>(json, SerializerOptions)
+        var envelope = JsonSerializer.Deserialize<OneWireEnvelope>(json, serializerOptions)
             ?? throw new JsonException("The 1-Wire envelope is empty.");
         if (!Validate(envelope, out var error))
             throw new InvalidDataException(error);
@@ -69,7 +78,7 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
         }
     }
 
-    private static void ValidatePayloadShape(OneWireEnvelope envelope)
+    private void ValidatePayloadShape(OneWireEnvelope envelope)
     {
         if (!string.IsNullOrWhiteSpace(envelope.EncryptedPayload) && envelope.Properties is not null)
             throw new InvalidDataException("EncryptedPayload and public Properties are mutually exclusive.");
@@ -77,7 +86,7 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
             throw new InvalidDataException("The 1-Wire property count exceeds the supported limit.");
     }
 
-    private static byte[] BuildIntegrityBytes(OneWireEnvelope envelope)
+    private byte[] BuildIntegrityBytes(OneWireEnvelope envelope)
     {
         var orderedProperties = envelope.Properties is null
             ? null
@@ -120,10 +129,10 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
             envelope.InteractionValueJson,
             envelope.InteractionValueContentType
         };
-        return JsonSerializer.SerializeToUtf8Bytes(integrityView, SerializerOptions);
+        return JsonSerializer.SerializeToUtf8Bytes(integrityView, serializerOptions);
     }
 
-    private static uint ComputeCrc32(ReadOnlySpan<byte> data)
+    private uint ComputeCrc32(ReadOnlySpan<byte> data)
     {
         var crc = 0xFFFFFFFFu;
         foreach (var value in data)
@@ -135,10 +144,23 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
         return ~crc;
     }
 
-    internal static JsonSerializerOptions CreateOptions() => new()
+    private JsonSerializerOptions CreateOptions()
     {
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter() }
-    };
+        try
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                Converters = { new JsonStringEnumConverter() }
+            };
+            logger.LogTrace($"Created the LocalGPT 1-Wire JSON serializer options.");
+            return options;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Could not create the LocalGPT 1-Wire JSON serializer options.");
+            throw;
+        }
+    }
 }

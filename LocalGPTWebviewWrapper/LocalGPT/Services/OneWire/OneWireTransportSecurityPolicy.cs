@@ -1,11 +1,12 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 using System.Net;
 
 namespace LocalGPT.Services.OneWire;
 
-internal static class OneWireTransportSecurityPolicy
+public sealed class OneWireTransportSecurityPolicy(ILogger<OneWireTransportSecurityPolicy> logger) : IOneWireTransportSecurityPolicy
 {
-    public static bool RequiresProtectedTransport(OneWireMessageType messageType) => messageType is not (
+    public bool RequiresProtectedTransport(OneWireMessageType messageType) => messageType is not (
         OneWireMessageType.Hello or
         OneWireMessageType.HelloAck or
         OneWireMessageType.LinkRequest or
@@ -20,8 +21,8 @@ internal static class OneWireTransportSecurityPolicy
         OneWireMessageType.Pong or
         OneWireMessageType.Error);
 
-    public static bool IsProtected(OneWireEnvelope envelope) =>
+    public bool IsProtected(OneWireEnvelope envelope) =>
         envelope.SecurityMode is OneWireSecurityMode.Signed or OneWireSecurityMode.EncryptedAndSigned;
 
-    public static bool IsLoopback(IPAddress? address) => address is not null && IPAddress.IsLoopback(address);
+    public bool IsLoopback(IPAddress? address) => address is not null && IPAddress.IsLoopback(address);
 }

@@ -450,7 +450,7 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
             cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task ExecuteSqlAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
+    private async Task ExecuteSqlAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = sql;

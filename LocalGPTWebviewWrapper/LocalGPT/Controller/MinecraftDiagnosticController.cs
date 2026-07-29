@@ -15,7 +15,7 @@ namespace LocalGPT.Endpoints
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText) : ControllerBase
     {
-        private static IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
+        private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
             userConfirmed
                 ? null
                 : Results.BadRequest(new

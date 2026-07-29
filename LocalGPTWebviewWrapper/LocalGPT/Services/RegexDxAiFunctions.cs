@@ -52,11 +52,11 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
     }
 
     private sealed class ListParameters { public int Take { get; set; } = 5000; public string Prefix { get; set; } = string.Empty; }
-    private static T Deserialize<T>(JsonElement element) where T : new() => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+    private T Deserialize<T>(JsonElement element) where T : new() => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
         ? new T()
         : element.Deserialize<T>(JsonOptions) ?? new T();
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private static DxAiFunctionInvocationResult Completed(object value) => new() { Succeeded = true, Status = "Completed", Value = value };
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private DxAiFunctionInvocationResult Completed(object value) => new() { Succeeded = true, Status = "Completed", Value = value };
 }
 
 public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler

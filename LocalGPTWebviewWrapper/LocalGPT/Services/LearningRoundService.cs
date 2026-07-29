@@ -204,17 +204,17 @@ public sealed class LearningRoundService(
         return new LearningMaintenanceResult(knowledgeIds.Count, regexNames.Count, knowledgeIds, regexNames);
     }
 
-    private static string Truncate(string? value, int maximumCharacters)
+    private string Truncate(string? value, int maximumCharacters)
     {
         if (string.IsNullOrEmpty(value))
             return string.Empty;
         return value.Length <= maximumCharacters ? value : value[..maximumCharacters] + "…";
     }
 
-    private static string? TruncateNullable(string? value, int maximumCharacters) =>
+    private string? TruncateNullable(string? value, int maximumCharacters) =>
         value is null ? null : Truncate(value, maximumCharacters);
 
-    private static Guid CreateDeterministicGuid(string value)
+    private Guid CreateDeterministicGuid(string value)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("LocalGPT.Learning:" + value));
         return new Guid(bytes[..16]);

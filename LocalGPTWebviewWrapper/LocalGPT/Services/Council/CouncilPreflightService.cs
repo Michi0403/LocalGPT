@@ -230,7 +230,7 @@ public sealed class CouncilPreflightService(
         return string.Join(Environment.NewLine, lines);
     }
 
-    private static string RenderIntroductionTemplate(string template, string modelName, IReadOnlyList<string> participants, CouncilPreflightReport report)
+    private string RenderIntroductionTemplate(string template, string modelName, IReadOnlyList<string> participants, CouncilPreflightReport report)
     {
         var effective = string.IsNullOrWhiteSpace(template)
             ? "Introduce yourself, confirm readiness, and identify exact missing requirements before substantive work."
@@ -242,7 +242,7 @@ public sealed class CouncilPreflightService(
             .Replace("{{TeamKey}}", report.TeamKey, StringComparison.Ordinal);
     }
 
-    private static string BuildPromptContext(CouncilPreflightReport report, MultiModelCouncilRequest request)
+    private string BuildPromptContext(CouncilPreflightReport report, MultiModelCouncilRequest request)
     {
         var builder = new StringBuilder()
             .AppendLine("Mandatory LocalGPT council preflight")
@@ -263,7 +263,7 @@ public sealed class CouncilPreflightService(
         return builder.ToString().Trim();
     }
 
-    private static IReadOnlyList<string> SelectRelevantRegexes(IReadOnlyList<string> names, string prompt)
+    private IReadOnlyList<string> SelectRelevantRegexes(IReadOnlyList<string> names, string prompt)
     {
         var words = (prompt ?? string.Empty)
             .Split([' ', '\t', '\r', '\n', '.', ',', ':', ';', '/', '\\', '-', '_'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -279,7 +279,7 @@ public sealed class CouncilPreflightService(
         return selected;
     }
 
-    private static IReadOnlyList<string> ParseStringArray(string? json)
+    private IReadOnlyList<string> ParseStringArray(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
             return [];

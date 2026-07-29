@@ -1,4 +1,4 @@
-﻿
+
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using Microsoft.AspNetCore.Mvc;

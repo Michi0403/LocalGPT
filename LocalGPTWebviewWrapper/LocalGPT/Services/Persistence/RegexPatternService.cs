@@ -69,7 +69,7 @@ public sealed class RegexPatternService(
         await db.SaveChangesAsync().ConfigureAwait(false);
     }
 
-    private static void ValidatePattern(string pattern, string? flags)
+    private void ValidatePattern(string pattern, string? flags)
     {
         ArgumentNullException.ThrowIfNull(pattern);
         if (pattern.Length > 16_000)
@@ -77,7 +77,7 @@ public sealed class RegexPatternService(
         _ = new Regex(pattern, ParseFlags(flags), TimeSpan.FromSeconds(2));
     }
 
-    private static RegexOptions ParseFlags(string? flags)
+    private RegexOptions ParseFlags(string? flags)
     {
         if (string.IsNullOrWhiteSpace(flags))
             return RegexOptions.CultureInvariant;

@@ -145,7 +145,7 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
         }
     }
 
-    private static string InferVendor(string name)
+    private string InferVendor(string name)
     {
         if (name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)) return "NVIDIA";
         if (name.Contains("AMD", StringComparison.OrdinalIgnoreCase) || name.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) return "AMD";
@@ -153,7 +153,7 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
         return string.Empty;
     }
 
-    private static OneWireHardwareDescriptor Clone(OneWireHardwareDescriptor item) => new()
+    private OneWireHardwareDescriptor Clone(OneWireHardwareDescriptor item) => new()
     {
         Kind = item.Kind,
         Index = item.Index,

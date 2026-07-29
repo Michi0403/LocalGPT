@@ -184,6 +184,6 @@ public sealed class OrganicSkillRegistryService(
         }).ToList();
     }
 
-    private static string SerializeDistinct(IEnumerable<string>? values) => JsonSerializer.Serialize((values ?? []).Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(128));
-    private static List<string> Deserialize(string json) { try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; } catch (JsonException) { return []; } }
+    private string SerializeDistinct(IEnumerable<string>? values) => JsonSerializer.Serialize((values ?? []).Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(128));
+    private List<string> Deserialize(string json) { try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; } catch (JsonException) { return []; } }
 }

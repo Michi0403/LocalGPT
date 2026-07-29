@@ -14,11 +14,11 @@ namespace LocalGPT.Services;
 public sealed class ProjectMaintenanceService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ProjectMaintenanceService> logger) : IProjectMaintenanceService
 {
     private const int MaxCompilerCandidates = 200;
     private const int MaxCapturedCharacters = 2_000_000;
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
 
     public async Task<IReadOnlyList<ProjectWorkspaceRoot>> GetWorkspaceRootsAsync(Guid? projectId = null, CancellationToken cancellationToken = default)
     {
@@ -557,7 +557,7 @@ public sealed class ProjectMaintenanceService(
         return verification;
     }
 
-    private static IEnumerable<(string Name, string Language, string Path, string Source)> DiscoverCompilerCandidates(IEnumerable<string> customRoots)
+    private IEnumerable<(string Name, string Language, string Path, string Source)> DiscoverCompilerCandidates(IEnumerable<string> customRoots)
     {
         var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var specs = new[]
@@ -620,7 +620,7 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
-    private static IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)
+    private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)
     {
         var pending = new Queue<(string Path, int Depth)>();
         pending.Enqueue((root, 0));
@@ -637,7 +637,7 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
-    private static IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)
+    private IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)
     {
         var pending = new Stack<string>();
         pending.Push(root);
@@ -653,7 +653,7 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
-    private static async Task<(int ExitCode, string Output)> RunProcessAsync(string executable, string arguments, string? workingDirectory, string? environmentVariablesJson, int timeoutSeconds, CancellationToken cancellationToken)
+    private async Task<(int ExitCode, string Output)> RunProcessAsync(string executable, string arguments, string? workingDirectory, string? environmentVariablesJson, int timeoutSeconds, CancellationToken cancellationToken)
     {
         if (!File.Exists(executable)) throw new FileNotFoundException("The configured compiler executable does not exist.", executable);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -697,7 +697,7 @@ public sealed class ProjectMaintenanceService(
         return (process.ExitCode, output);
     }
 
-    private static string DefaultBuildArguments(string language, string target, string configuration) => language.ToLowerInvariant() switch
+    private string DefaultBuildArguments(string language, string target, string configuration) => language.ToLowerInvariant() switch
     {
         "dotnet" => $"build \"{target}\" --configuration \"{configuration}\" --nologo",
         "java" => $"\"{target}\"",
@@ -706,7 +706,7 @@ public sealed class ProjectMaintenanceService(
         _ => throw new InvalidOperationException("No safe default build arguments exist for this compiler. Enter explicit reviewed arguments.")
     };
 
-    private static string DefaultValidationArguments(string language, string executable) => language.ToLowerInvariant() switch
+    private string DefaultValidationArguments(string language, string executable) => language.ToLowerInvariant() switch
     {
         "powershell" when Path.GetFileName(executable).StartsWith("powershell", StringComparison.OrdinalIgnoreCase) => "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"",
         "powershell" => "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"",
@@ -715,7 +715,7 @@ public sealed class ProjectMaintenanceService(
         _ => "--version"
     };
 
-    private static (string Role, string Structure, string Content) DefaultPatternsFor(string extension) => extension.ToLowerInvariant() switch
+    private (string Role, string Structure, string Content) DefaultPatternsFor(string extension) => extension.ToLowerInvariant() switch
     {
         ".cs" => ("CSharpSource", @"(?m)^\s*(?:public|internal|private|protected)?\s*(?:sealed\s+|abstract\s+|static\s+|partial\s+)*(?:class|record|interface|enum|struct)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", @"(?s).*"),
         ".razor" => ("RazorComponent", @"(?m)^\s*@(?:page|code|functions|inject|using)\b|<(?<component>[A-Z][A-Za-z0-9.]*)\b", @"(?s).*"),
@@ -729,14 +729,14 @@ public sealed class ProjectMaintenanceService(
         _ => ("Document", string.Empty, @"(?s).*")
     };
 
-    private static string ContentTypeFor(string extension) => extension.ToLowerInvariant() switch
+    private string ContentTypeFor(string extension) => extension.ToLowerInvariant() switch
     {
         ".json" => "application/json", ".xml" or ".csproj" or ".props" or ".targets" or ".slnx" => "application/xml",
         ".md" => "text/markdown", ".yml" or ".yaml" => "application/yaml", _ => IsTextExtension(extension) ? "text/plain" : "application/octet-stream"
     };
-    private static bool IsTextExtension(string extension) => new[] { ".cs", ".razor", ".csproj", ".sln", ".slnx", ".json", ".xml", ".props", ".targets", ".ps1", ".cmd", ".md", ".yml", ".yaml", ".java", ".py", ".cpp", ".c", ".h", ".hpp", ".txt", ".css", ".js", ".ts", ".html" }.Contains(extension.ToLowerInvariant());
-    private static bool IsGeneratedPath(string relative) => Regex.IsMatch(relative, @"(?i)(^|/)(bin|obj|node_modules|artifacts|\.vs)(/|$)", RegexOptions.CultureInvariant, RegexTimeout);
-    private static string FindNearestProjectFile(string root, string file)
+    private bool IsTextExtension(string extension) => new[] { ".cs", ".razor", ".csproj", ".sln", ".slnx", ".json", ".xml", ".props", ".targets", ".ps1", ".cmd", ".md", ".yml", ".yaml", ".java", ".py", ".cpp", ".c", ".h", ".hpp", ".txt", ".css", ".js", ".ts", ".html" }.Contains(extension.ToLowerInvariant());
+    private bool IsGeneratedPath(string relative) => Regex.IsMatch(relative, @"(?i)(^|/)(bin|obj|node_modules|artifacts|\.vs)(/|$)", RegexOptions.CultureInvariant, runtimePolicy.RegexTimeout);
+    private string FindNearestProjectFile(string root, string file)
     {
         var directory = Path.GetDirectoryName(file);
         while (!string.IsNullOrWhiteSpace(directory) && directory.StartsWith(root, StringComparison.OrdinalIgnoreCase))
@@ -754,13 +754,13 @@ public sealed class ProjectMaintenanceService(
         }
         return string.Empty;
     }
-    private static async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
+    private async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(path);
         var hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
         return Convert.ToHexString(hash);
     }
-    private static async Task<TrackedSourceState> CaptureTrackedSourceStateAsync(IReadOnlyList<LocalGptProjectTrackedFile> files, bool requireStoredHashMatch, CancellationToken cancellationToken)
+    private async Task<TrackedSourceState> CaptureTrackedSourceStateAsync(IReadOnlyList<LocalGptProjectTrackedFile> files, bool requireStoredHashMatch, CancellationToken cancellationToken)
     {
         var entries = new List<SourceManifestEntry>(files.Count);
         foreach (var file in files.OrderBy(item => item.ProjectRelativePath, StringComparer.Ordinal))
@@ -779,7 +779,7 @@ public sealed class ProjectMaintenanceService(
         return new TrackedSourceState(hashValue, manifestJson, entries);
     }
 
-    private static bool IsPathInside(string root, string path)
+    private bool IsPathInside(string root, string path)
     {
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
@@ -790,36 +790,36 @@ public sealed class ProjectMaintenanceService(
     private sealed record SourceManifestEntry(string RelativePath, string ContentHash, long SizeBytes);
     private sealed record TrackedSourceState(string Hash, string ManifestJson, IReadOnlyList<SourceManifestEntry> Entries);
 
-    private static bool RegexMatches(string pattern, string input) => !string.IsNullOrWhiteSpace(pattern) && CompileRegex(pattern, nameof(pattern), @"(?!)").IsMatch(input ?? string.Empty);
-    private static Regex CompileRegex(string? pattern, string parameter, string fallback)
+    private bool RegexMatches(string pattern, string input) => !string.IsNullOrWhiteSpace(pattern) && CompileRegex(pattern, nameof(pattern), @"(?!)").IsMatch(input ?? string.Empty);
+    private Regex CompileRegex(string? pattern, string parameter, string fallback)
     {
-        try { return new Regex(string.IsNullOrWhiteSpace(pattern) ? fallback : pattern, RegexOptions.CultureInvariant, RegexTimeout); }
+        try { return new Regex(string.IsNullOrWhiteSpace(pattern) ? fallback : pattern, RegexOptions.CultureInvariant, runtimePolicy.RegexTimeout); }
         catch (ArgumentException ex) { throw new ArgumentException("The regular expression is invalid.", parameter, ex); }
     }
-    private static void ValidateRegex(string? pattern, string parameter, bool allowEmpty)
+    private void ValidateRegex(string? pattern, string parameter, bool allowEmpty)
     {
         if (string.IsNullOrWhiteSpace(pattern)) { if (allowEmpty) return; throw new ArgumentException("A regular expression is required.", parameter); }
         _ = CompileRegex(pattern, parameter, pattern);
     }
-    private static void ValidateJsonObject(string? json, string parameter)
+    private void ValidateJsonObject(string? json, string parameter)
     {
         if (string.IsNullOrWhiteSpace(json)) return;
         try { using var doc = JsonDocument.Parse(json); if (doc.RootElement.ValueKind != JsonValueKind.Object) throw new ArgumentException("A JSON object is required.", parameter); }
         catch (JsonException ex) { throw new ArgumentException("The JSON object is invalid.", parameter, ex); }
     }
-    private static string NormalizeScope(string? scope) => (scope ?? string.Empty).Trim() switch { "Project" => "Project", "ProjectType" => "ProjectType", "Global" => "Global", _ => throw new ArgumentException("ScopeKind must be Project, ProjectType, or Global.", nameof(scope)) };
-    private static string NormalizeAbsolutePath(string? value, string parameter)
+    private string NormalizeScope(string? scope) => (scope ?? string.Empty).Trim() switch { "Project" => "Project", "ProjectType" => "ProjectType", "Global" => "Global", _ => throw new ArgumentException("ScopeKind must be Project, ProjectType, or Global.", nameof(scope)) };
+    private string NormalizeAbsolutePath(string? value, string parameter)
     {
         if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("A path is required.", parameter);
         try { return Path.GetFullPath(Environment.ExpandEnvironmentVariables(value.Trim())); }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { throw new ArgumentException("The path is invalid.", parameter, ex); }
     }
-    private static string NormalizeOptionalPath(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : NormalizeAbsolutePath(value, nameof(value));
-    private static void RequireConfirmation(bool confirmed, string operation) { if (!confirmed) throw new InvalidOperationException($"Fresh human confirmation is required before {operation}."); }
-    private static string RequireText(string? value, string parameter, int max) { var result = Trim(value, max); return string.IsNullOrWhiteSpace(result) ? throw new ArgumentException("A value is required.", parameter) : result; }
-    private static string TrimOrFallback(string? value, int max, string fallback) { var result = Trim(value, max); return string.IsNullOrWhiteSpace(result) ? fallback : result; }
-    private static string Trim(string? value, int max) { var result = value?.Trim() ?? string.Empty; return result.Length <= max ? result : result[..max]; }
-    private static string Limit(string value, int max) => value.Length <= max ? value : value[..max];
-    private static string FirstNonEmptyLine(string value, int max) => Trim(value.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(), max);
-    private static string SafeFileName(string value) => string.Concat(value.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
+    private string NormalizeOptionalPath(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : NormalizeAbsolutePath(value, nameof(value));
+    private void RequireConfirmation(bool confirmed, string operation) { if (!confirmed) throw new InvalidOperationException($"Fresh human confirmation is required before {operation}."); }
+    private string RequireText(string? value, string parameter, int max) { var result = Trim(value, max); return string.IsNullOrWhiteSpace(result) ? throw new ArgumentException("A value is required.", parameter) : result; }
+    private string TrimOrFallback(string? value, int max, string fallback) { var result = Trim(value, max); return string.IsNullOrWhiteSpace(result) ? fallback : result; }
+    private string Trim(string? value, int max) { var result = value?.Trim() ?? string.Empty; return result.Length <= max ? result : result[..max]; }
+    private string Limit(string value, int max) => value.Length <= max ? value : value[..max];
+    private string FirstNonEmptyLine(string value, int max) => Trim(value.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(), max);
+    private string SafeFileName(string value) => string.Concat(value.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
 }

@@ -6,8 +6,8 @@ namespace LocalGPT.Services;
 public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logger)
     : IAmbientLocalGptContext, ILocalHumanInteractionContext, IHumanApprovalExecutionContext
 {
-    private static readonly AsyncLocal<ContextHolder?> CurrentHolder = new();
-    private static readonly AmbientLocalGptContextSnapshot Fallback = new(
+    private readonly AsyncLocal<ContextHolder?> CurrentHolder = new();
+    private readonly AmbientLocalGptContextSnapshot Fallback = new(
         "ambient-unset",
         AmbientActorKinds.System,
         "LocalGPT",
@@ -91,10 +91,10 @@ public sealed class AmbientLocalGptContext(ILogger<AmbientLocalGptContext> logge
             Phase: Normalize(phase, 120),
             Source: "MultiModelCouncilService"));
 
-    private static string NormalizeCorrelationId(string? value) =>
+    private string NormalizeCorrelationId(string? value) =>
         Normalize(value, 180, Guid.NewGuid().ToString("N"));
 
-    private static string Normalize(string? value, int maxLength, string fallback = "")
+    private string Normalize(string? value, int maxLength, string fallback = "")
     {
         var normalized = string.IsNullOrWhiteSpace(value)
             ? fallback

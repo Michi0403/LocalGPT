@@ -246,7 +246,7 @@ public sealed class DeferredDxAiInvocationService(
         }
     }
 
-    private static string BuildResultSummary(DxAiFunctionInvocationResult result)
+    private string BuildResultSummary(DxAiFunctionInvocationResult result)
     {
         try
         {
@@ -273,7 +273,7 @@ public sealed class DeferredDxAiInvocationService(
         }
     }
 
-    private static DeferredDxAiInvocation Clone(DeferredDxAiInvocation value) => new()
+    private DeferredDxAiInvocation Clone(DeferredDxAiInvocation value) => new()
     {
         Id = value.Id,
         ApprovalRequestId = value.ApprovalRequestId,
@@ -295,7 +295,7 @@ public sealed class DeferredDxAiInvocationService(
         LastAttemptAtUtc = value.LastAttemptAtUtc
     };
 
-    private static string Limit(string? value, int maxLength)
+    private string Limit(string? value, int maxLength)
     {
         var normalized = value?.Trim() ?? string.Empty;
         return normalized[..Math.Min(normalized.Length, maxLength)];

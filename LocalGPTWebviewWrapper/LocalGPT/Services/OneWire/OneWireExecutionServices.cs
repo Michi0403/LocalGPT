@@ -7,9 +7,9 @@ namespace LocalGPT.Services.OneWire;
 
 public sealed class OneWireOperationExecutor(
     IServiceScopeFactory scopeFactory,
+    IOneWireEnvelopeCodec codec,
     ILogger<OneWireOperationExecutor> logger) : IOneWireOperationExecutor
 {
-    private static readonly JsonSerializerOptions JsonOptions = OneWireEnvelopeCodec.CreateOptions();
 
     public async Task<string> ExecuteAsync(OneWireWorkItem item, CancellationToken cancellationToken = default)
     {
@@ -45,14 +45,14 @@ public sealed class OneWireOperationExecutor(
                 UserConfirmedArtifactBuild = wireRequest.UserConfirmedArtifactBuild
             };
             var result = await council.RunAsync(request, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Serialize(result, JsonOptions);
+            return JsonSerializer.Serialize(result, codec.JsonOptions);
         }
 
         if (string.Equals(item.CapabilityKey, "localgpt.screenreader.help", StringComparison.OrdinalIgnoreCase))
         {
             var parametersInner = item.Request.Properties is not null && item.Request.Properties.TryGetValue("Parameters", out var parameterElementOuter)
                 ? parameterElementOuter.Clone()
-                : JsonSerializer.SerializeToElement(new { }, JsonOptions);
+                : JsonSerializer.SerializeToElement(new { }, codec.JsonOptions);
             var userPrompt = GetString(parametersInner, "prompt", "Describe meaningful screen changes and suggest the next safe action.");
             var selector = GetString(parametersInner, "selector", "body");
             var dataIncluded = GetBoolean(parametersInner, "dataIncluded") || GetBoolean(parametersInner, "DataIncluded");
@@ -90,12 +90,12 @@ Analyze only the supplied evidence. Report meaningful changes, uncertainties, an
                 result.CompletedAtUtc,
                 item.CorrelationId,
                 Evidence = new { selector, width, height, dataIncluded }
-            }, JsonOptions);
+            }, codec.JsonOptions);
         }
 
         var parameters = item.Request.Properties is not null && item.Request.Properties.TryGetValue("Parameters", out var parameterElement)
             ? parameterElement.Clone()
-            : JsonSerializer.SerializeToElement(new { }, JsonOptions);
+            : JsonSerializer.SerializeToElement(new { }, codec.JsonOptions);
         if (string.Equals(item.CapabilityKey, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase))
         {
             var ocr = scope.ServiceProvider.GetRequiredService<ILocalVisionOcrService>();
@@ -107,7 +107,7 @@ Analyze only the supplied evidence. Report meaningful changes, uncertainties, an
                 MaximumOutputTokens = GetInt(parameters, "maximumOutputTokens", 1600)
             };
             var ocrResult = await ocr.RecognizeAsync(request, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Serialize(ocrResult, JsonOptions);
+            return JsonSerializer.Serialize(ocrResult, codec.JsonOptions);
         }
 
         var functionName = string.IsNullOrWhiteSpace(item.CapabilityKey) ? item.Request.Route : item.CapabilityKey;
@@ -123,7 +123,7 @@ Analyze only the supplied evidence. Report meaningful changes, uncertainties, an
                 RequestedBy = string.IsNullOrWhiteSpace(item.SourcePeerId) ? "1-Wire peer" : item.SourcePeerId
             }, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Executed configured 1-Wire service method {CatalogKey} for peer {PeerId}.", catalogEntry.CatalogKey, item.SourcePeerId);
-            return JsonSerializer.Serialize(new { Succeeded = true, Status = "Completed", Value = serviceResult }, JsonOptions);
+            return JsonSerializer.Serialize(new { Succeeded = true, Status = "Completed", Value = serviceResult }, codec.JsonOptions);
         }
 
         var registry = scope.ServiceProvider.GetRequiredService<IDxAiFunctionRegistry>();
@@ -139,25 +139,25 @@ Analyze only the supplied evidence. Report meaningful changes, uncertainties, an
         };
         var resultValue = await registry.InvokeAsync(functionName, invocation, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Executed 1-Wire DX function {FunctionName} with status {Status}.", functionName, resultValue.Status);
-        return JsonSerializer.Serialize(resultValue, JsonOptions);
+        return JsonSerializer.Serialize(resultValue, codec.JsonOptions);
     }
 
-    private static string GetString(JsonElement element, string name, string fallback) =>
+    private string GetString(JsonElement element, string name, string fallback) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString() ?? fallback
             : fallback;
 
-    private static bool GetBoolean(JsonElement element, string name) =>
+    private bool GetBoolean(JsonElement element, string name) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False && value.GetBoolean();
 
-    private static int GetInt(JsonElement element, string name, int fallback) =>
+    private int GetInt(JsonElement element, string name, int fallback) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.TryGetInt32(out var result) ? result : fallback;
 
-    private static T ReadPayload<T>(OneWireEnvelope envelope, string propertyName)
+    private T ReadPayload<T>(OneWireEnvelope envelope, string propertyName)
     {
         if (envelope.Properties is null || !envelope.Properties.TryGetValue(propertyName, out var element))
             throw new InvalidDataException($"The 1-Wire message is missing {propertyName}.");
-        return element.Deserialize<T>(JsonOptions) ?? throw new InvalidDataException($"The 1-Wire {propertyName} payload is empty.");
+        return element.Deserialize<T>(codec.JsonOptions) ?? throw new InvalidDataException($"The 1-Wire {propertyName} payload is empty.");
     }
 }
 
@@ -170,12 +170,13 @@ public sealed class OneWireMessageDispatcher(
     IHumanCollaborationService humanCollaboration,
     IOneWireRuntimeSecurityService security,
     IOneWireReplayGuard replayGuard,
+    IOneWireTransportSecurityPolicy transportSecurityPolicy,
+    IOneWireDispatchContextFactory dispatchContextFactory,
+    IOneWireTargetApprovalPolicy targetApprovalPolicy,
     ILogger<OneWireMessageDispatcher> logger) : IOneWireMessageDispatcher
 {
-    private static readonly JsonSerializerOptions JsonOptions = OneWireEnvelopeCodec.CreateOptions();
-
     public Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default) =>
-        DispatchAsync(envelope, OneWireDispatchContext.Internal(), cancellationToken);
+        DispatchAsync(envelope, dispatchContextFactory.CreateInternal(), cancellationToken);
 
     public async Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, OneWireDispatchContext context, CancellationToken cancellationToken = default)
     {
@@ -203,8 +204,8 @@ public sealed class OneWireMessageDispatcher(
 
             var protectedTransportRequired = !context.IsLoopback ||
                 string.Equals(context.Transport, "http-json", StringComparison.OrdinalIgnoreCase);
-            if (protectedTransportRequired && OneWireTransportSecurityPolicy.RequiresProtectedTransport(envelope.MessageType) &&
-                !OneWireTransportSecurityPolicy.IsProtected(envelope))
+            if (protectedTransportRequired && transportSecurityPolicy.RequiresProtectedTransport(envelope.MessageType) &&
+                !transportSecurityPolicy.IsProtected(envelope))
             {
                 return Error(envelope, "This transport requires MFA-verified signing and encryption before application data can be exchanged.");
             }
@@ -230,7 +231,7 @@ public sealed class OneWireMessageDispatcher(
                     peers.Upsert(peer);
                 }
                 var linkGate = await humanCollaboration.AuthorizeOrEnqueueAsync(
-                    OneWireTargetApprovalPolicy.Create(envelope),
+                    targetApprovalPolicy.Create(envelope),
                     directHumanConfirmation: false,
                     cancellationToken).ConfigureAwait(false);
                 if (linkGate.IsDeclined)
@@ -250,7 +251,7 @@ public sealed class OneWireMessageDispatcher(
                 peers.SetConnected(envelope.SourcePeerId, true);
                 return Reply(envelope, OneWireMessageType.HelloAck, new Dictionary<string, object?>
                 {
-                    ["Peer"] = LocalAdvertisement(),
+                    ["Peer"] = GetLocalAdvertisement(),
                     ["Security"] = await security.GetPublicDescriptorAsync(cancellationToken).ConfigureAwait(false),
                     ["LinkedByLocalFrontend"] = true,
                     ["CapabilityDirectoryTransport"] = "tcp-request"
@@ -296,8 +297,8 @@ public sealed class OneWireMessageDispatcher(
                     ? (envelope.RequiresHumanInteractionOnTargetSystem ? OneWireInteractionKind.HumanAndAutomated : OneWireInteractionKind.Automated)
                     : (envelope.RequiresHumanInteractionOnTargetSystem ? OneWireInteractionKind.Human : OneWireInteractionKind.None);
                 envelope.Properties ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-                envelope.Properties["InteractionEditor"] = JsonSerializer.SerializeToElement(selected.InteractionEditor.ToString(), JsonOptions);
-                envelope.Properties["ConfigurationKey"] = JsonSerializer.SerializeToElement(selected.ConfigurationKey, JsonOptions);
+                envelope.Properties["InteractionEditor"] = JsonSerializer.SerializeToElement(selected.InteractionEditor.ToString(), codec.JsonOptions);
+                envelope.Properties["ConfigurationKey"] = JsonSerializer.SerializeToElement(selected.ConfigurationKey, codec.JsonOptions);
                 return await AuthorizeTargetAndQueueAsync(
                     envelope,
                     alwaysRequireHuman: envelope.RequiresHumanInteractionOnTargetSystem,
@@ -312,7 +313,7 @@ public sealed class OneWireMessageDispatcher(
                 return Error(envelope, "WorkItemId is required.");
 
             case OneWireMessageType.ApprovalRequired:
-                var approvalJson = envelope.Properties is null ? string.Empty : JsonSerializer.Serialize(envelope.Properties, JsonOptions);
+                var approvalJson = envelope.Properties is null ? string.Empty : JsonSerializer.Serialize(envelope.Properties, codec.JsonOptions);
                 spooler.MarkPendingApproval(envelope.CorrelationId, approvalJson);
                 return null;
 
@@ -342,7 +343,7 @@ public sealed class OneWireMessageDispatcher(
             return Accepted(envelope, spooler.Enqueue(envelope));
 
         var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
-            OneWireTargetApprovalPolicy.Create(envelope),
+            targetApprovalPolicy.Create(envelope),
             directHumanConfirmation: false,
             cancellationToken).ConfigureAwait(false);
         if (gate.IsDeclined)
@@ -363,21 +364,21 @@ public sealed class OneWireMessageDispatcher(
         return Accepted(envelope, spooler.Enqueue(envelope));
     }
 
-    internal static void ApplyHumanResponse(OneWireEnvelope envelope, string? userResponse)
+    public void ApplyHumanResponse(OneWireEnvelope envelope, string? userResponse)
     {
         if (string.IsNullOrWhiteSpace(userResponse))
             return;
 
         envelope.InteractionValueJson = userResponse;
-        var editor = OneWireTargetApprovalPolicy.ReadEditor(envelope);
+        var editor = targetApprovalPolicy.ReadEditor(envelope);
         envelope.InteractionValueContentType = editor == OneWireInteractionEditor.Json
             ? "application/json"
             : "text/plain; charset=utf-8";
     }
 
-    private static OneWireEnvelope Accepted(OneWireEnvelope request, OneWireWorkItem item) => Reply(request, OneWireMessageType.WorkAccepted, new Dictionary<string, object?> { ["WorkItem"] = item });
+    private OneWireEnvelope Accepted(OneWireEnvelope request, OneWireWorkItem item) => Reply(request, OneWireMessageType.WorkAccepted, new Dictionary<string, object?> { ["WorkItem"] = item });
 
-    private static OneWireEnvelope Error(OneWireEnvelope request, string error) => new()
+    private OneWireEnvelope Error(OneWireEnvelope request, string error) => new()
     {
         MessageType = OneWireMessageType.Error,
         CorrelationId = request.CorrelationId,
@@ -387,9 +388,9 @@ public sealed class OneWireMessageDispatcher(
         Error = error
     };
 
-    private static OneWireEnvelope Reply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values)
+    private OneWireEnvelope Reply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values)
     {
-        var properties = values.ToDictionary(pair => pair.Key, pair => JsonSerializer.SerializeToElement(pair.Value, JsonOptions), StringComparer.Ordinal);
+        var properties = values.ToDictionary(pair => pair.Key, pair => JsonSerializer.SerializeToElement(pair.Value, codec.JsonOptions), StringComparer.Ordinal);
         return new OneWireEnvelope
         {
             MessageType = type,
@@ -401,14 +402,14 @@ public sealed class OneWireMessageDispatcher(
         };
     }
 
-    private static bool TryRead<T>(OneWireEnvelope envelope, string propertyName, out T? value)
+    private bool TryRead<T>(OneWireEnvelope envelope, string propertyName, out T? value)
     {
         value = default;
         if (envelope.Properties is null || !envelope.Properties.TryGetValue(propertyName, out var element))
             return false;
         try
         {
-            value = element.Deserialize<T>(JsonOptions);
+            value = element.Deserialize<T>(codec.JsonOptions);
             return true;
         }
         catch (JsonException)
@@ -417,7 +418,7 @@ public sealed class OneWireMessageDispatcher(
         }
     }
 
-    internal static OneWirePeerAdvertisement LocalAdvertisement() => new()
+    public OneWirePeerAdvertisement GetLocalAdvertisement() => new()
     {
         PeerId = "localgpt",
         DisplayName = "LocalGPT",
@@ -434,9 +435,9 @@ public sealed class OneWireMessageDispatcher(
     };
 }
 
-internal static class OneWireTargetApprovalPolicy
+public sealed class OneWireTargetApprovalPolicy : IOneWireTargetApprovalPolicy
 {
-    public static HumanApprovalRequestSpec Create(OneWireEnvelope envelope)
+    public HumanApprovalRequestSpec Create(OneWireEnvelope envelope)
     {
         if (envelope.MessageType == OneWireMessageType.Hello)
         {
@@ -487,7 +488,7 @@ internal static class OneWireTargetApprovalPolicy
             ParameterFingerprint: envelope.Hash ?? string.Empty);
     }
 
-    public static OneWireInteractionEditor ReadEditor(OneWireEnvelope envelope)
+    public OneWireInteractionEditor ReadEditor(OneWireEnvelope envelope)
     {
         if (envelope.Properties is not null && envelope.Properties.TryGetValue("InteractionEditor", out var value))
         {
@@ -509,6 +510,9 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
     IOneWireRuntimeSecurityService security,
+    IOneWireTargetApprovalPolicy targetApprovalPolicy,
+    IOneWireMessageDispatcher dispatcher,
+    IOneWireEnvelopeCodec codec,
     ILogger<OneWireCouncilApprovalProcessorHostedService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -532,7 +536,7 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
                 try
                 {
                     var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
-                        OneWireTargetApprovalPolicy.Create(pending.Envelope),
+                        targetApprovalPolicy.Create(pending.Envelope),
                         directHumanConfirmation: false,
                         stoppingToken).ConfigureAwait(false);
                     if (gate.IsDeclined)
@@ -557,7 +561,7 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
                             pending.Envelope.SourcePeerId,
                             CreateReply(pending.Envelope, OneWireMessageType.HelloAck, new Dictionary<string, object?>
                             {
-                                ["Peer"] = OneWireMessageDispatcher.LocalAdvertisement(),
+                                ["Peer"] = dispatcher.GetLocalAdvertisement(),
                                 ["Security"] = await security.GetPublicDescriptorAsync(stoppingToken).ConfigureAwait(false),
                                 ["LinkedByLocalFrontend"] = true,
                                 ["CapabilityDirectoryTransport"] = "tcp-request"
@@ -569,7 +573,7 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
                         continue;
                     }
 
-                    OneWireMessageDispatcher.ApplyHumanResponse(pending.Envelope, gate.UserResponse);
+                    dispatcher.ApplyHumanResponse(pending.Envelope, gate.UserResponse);
                     var item = spooler.Enqueue(pending.Envelope);
                     await connections.SendAsync(
                         pending.Envelope.SourcePeerId,
@@ -602,7 +606,7 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
             Error = error
         }, cancellationToken);
 
-    private static OneWireEnvelope CreateReply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values) => new()
+    private OneWireEnvelope CreateReply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values) => new()
     {
         MessageType = type,
         CorrelationId = request.CorrelationId,
@@ -611,7 +615,7 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
         TargetPeerId = request.SourcePeerId,
         Properties = values.ToDictionary(
             pair => pair.Key,
-            pair => JsonSerializer.SerializeToElement(pair.Value, OneWireEnvelopeCodec.CreateOptions()),
+            pair => JsonSerializer.SerializeToElement(pair.Value, codec.JsonOptions),
             StringComparer.Ordinal)
     };
 }

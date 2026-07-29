@@ -11,7 +11,7 @@ public sealed class ProjectOrganicContextService(
 {
     private const string ArtifactKind = "OrganicProjectContext";
     private const string ArtifactName = "LocalGPT organic project wiring";
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
     public async Task<ProjectOrganicContext> GetAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default)
     {
@@ -88,11 +88,11 @@ public sealed class ProjectOrganicContextService(
         return builder.ToString().Trim();
     }
 
-    private static string Join(IEnumerable<string> values)
+    private string Join(IEnumerable<string> values)
     {
         var normalized = values.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).Take(40).ToList();
         return normalized.Count == 0 ? "none recorded" : string.Join(", ", normalized);
     }
 
-    private static string ValueOrUnknown(string value) => string.IsNullOrWhiteSpace(value) ? "unknown" : value;
+    private string ValueOrUnknown(string value) => string.IsNullOrWhiteSpace(value) ? "unknown" : value;
 }

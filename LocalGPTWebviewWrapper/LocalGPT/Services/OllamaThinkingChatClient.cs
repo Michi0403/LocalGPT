@@ -262,7 +262,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
-    private static ChatResponse CreateFailureResponse(string message) =>
+    private ChatResponse CreateFailureResponse(string message) =>
         new(new ChatMessage(ChatRole.Assistant, [new TextContent(message)]));
 
     public object? GetService(Type serviceType, object? serviceKey = null) =>
@@ -408,7 +408,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
         .ToList() ?? [];
 
-    private static List<OllamaToolCall> DeduplicateToolCalls(IEnumerable<OllamaToolCall> toolCalls)
+    private List<OllamaToolCall> DeduplicateToolCalls(IEnumerable<OllamaToolCall> toolCalls)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<OllamaToolCall>();
@@ -469,7 +469,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         .FirstOrDefault(function => ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase))
         ?.Name;
 
-    private static string ToOllamaToolName(string registryName)
+    private string ToOllamaToolName(string registryName)
     {
         var builder = new StringBuilder(registryName.Length);
         foreach (var character in registryName)
@@ -494,7 +494,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
-    private static JsonElement NormalizeArguments(JsonElement arguments) => arguments.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+    private JsonElement NormalizeArguments(JsonElement arguments) => arguments.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
         ? JsonSerializer.SerializeToElement(new { })
         : arguments.Clone();
 
@@ -540,7 +540,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         return await promptConfigService.GetPromptAsync(key, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
-    private static OllamaChatMessage CloneMessage(OllamaChatMessage message) => new()
+    private OllamaChatMessage CloneMessage(OllamaChatMessage message) => new()
     {
         Role = message.Role,
         Content = message.Content,
@@ -556,7 +556,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }).ToList()
     };
 
-    private static OllamaChatMessage ToOllamaMessage(ChatMessage message) => new()
+    private OllamaChatMessage ToOllamaMessage(ChatMessage message) => new()
     {
         Role = message.Role == ChatRole.System
             ? "system"
@@ -566,7 +566,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         Content = message.Text ?? string.Empty
     };
 
-    private static void AddSystemPrompt(List<OllamaChatMessage> messages, string prompt)
+    private void AddSystemPrompt(List<OllamaChatMessage> messages, string prompt)
     {
         if (messages.Count > 0 && messages[0].Role.Equals("system", StringComparison.OrdinalIgnoreCase))
         {

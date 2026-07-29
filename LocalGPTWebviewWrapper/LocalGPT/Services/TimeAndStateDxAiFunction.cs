@@ -119,5 +119,5 @@ public sealed class GetTimeAndStateNowFunction(
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = value };
     }
 
-    private static string Limit(string value, int maximum) => value.Length <= maximum ? value : value[..maximum] + "…";
+    private string Limit(string value, int maximum) => value.Length <= maximum ? value : value[..maximum] + "…";
 }

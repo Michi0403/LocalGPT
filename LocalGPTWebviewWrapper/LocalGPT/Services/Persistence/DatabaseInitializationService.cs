@@ -353,7 +353,7 @@ public sealed class DatabaseInitializationService(
             db.CouncilModelPresets.Add(preset);
     }
 
-    private static CouncilModelPreset BuildPreset(
+    private CouncilModelPreset BuildPreset(
         string name,
         string description,
         string[] models,
@@ -378,7 +378,7 @@ public sealed class DatabaseInitializationService(
         UpdatedAtUtc = DateTime.UtcNow
     };
 
-    private static OneWireCouncilModelRoute Route(
+    private OneWireCouncilModelRoute Route(
         string model,
         OneWireHardwareKind kind,
         int index,
@@ -402,7 +402,7 @@ public sealed class DatabaseInitializationService(
         IsEnabled = true
     };
 
-    private static void EnsureTopic(LocalGptProject project, string name, string description)
+    private void EnsureTopic(LocalGptProject project, string name, string description)
     {
         if (project.Topics.Any(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))) return;
         project.Topics.Add(new LocalGptProjectTopic
@@ -417,7 +417,7 @@ public sealed class DatabaseInitializationService(
         });
     }
 
-    private static void EnsureVersion(LocalGptProject project, string version, string path, string notes)
+    private void EnsureVersion(LocalGptProject project, string version, string path, string notes)
     {
         if (project.Versions.Any(item => string.Equals(item.Version, version, StringComparison.OrdinalIgnoreCase))) return;
         foreach (var existing in project.Versions) existing.IsCurrent = false;
@@ -433,7 +433,7 @@ public sealed class DatabaseInitializationService(
         });
     }
 
-    private static void EnsureRevision(LocalGptProject project, string branch, string revision, string root, string summary)
+    private void EnsureRevision(LocalGptProject project, string branch, string revision, string root, string summary)
     {
         if (project.Revisions.Any(item => string.Equals(item.BranchName, branch, StringComparison.OrdinalIgnoreCase) && string.Equals(item.RevisionName, revision, StringComparison.OrdinalIgnoreCase))) return;
         foreach (var existing in project.Revisions) existing.IsCurrent = false;
@@ -452,7 +452,7 @@ public sealed class DatabaseInitializationService(
         });
     }
 
-    private static void EnsureRequirement(LocalGptProject project, string name, string description, string capability, string priority)
+    private void EnsureRequirement(LocalGptProject project, string name, string description, string capability, string priority)
     {
         if (project.Requirements.Any(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))) return;
         project.Requirements.Add(new LocalGptProjectRequirement
@@ -472,7 +472,7 @@ public sealed class DatabaseInitializationService(
         });
     }
 
-    private static void EnsureArtifact(LocalGptProject project, string name, string kind, string value, string dataType, string description)
+    private void EnsureArtifact(LocalGptProject project, string name, string kind, string value, string dataType, string description)
     {
         if (project.Artifacts.Any(item => string.Equals(item.ArtifactKind, kind, StringComparison.OrdinalIgnoreCase) && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))) return;
         project.Artifacts.Add(new LocalGptProjectArtifact
@@ -490,7 +490,7 @@ public sealed class DatabaseInitializationService(
         });
     }
 
-    private static string ResolveRepositoryRoot(string contentRoot)
+    private string ResolveRepositoryRoot(string contentRoot)
     {
         var current = new DirectoryInfo(Path.GetFullPath(contentRoot));
         while (current is not null)

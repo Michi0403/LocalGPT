@@ -167,7 +167,7 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
             entry.Status);
     }
 
-    private static string Normalize(string? value, string fallback)
+    private string Normalize(string? value, string fallback)
     {
         var normalized = string.IsNullOrWhiteSpace(value)
             ? fallback
@@ -175,7 +175,7 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
         return normalized[..Math.Min(normalized.Length, MaxSummaryCharacters)];
     }
 
-    private static string? NormalizeRoute(string? route)
+    private string? NormalizeRoute(string? route)
     {
         if (string.IsNullOrWhiteSpace(route))
             return null;

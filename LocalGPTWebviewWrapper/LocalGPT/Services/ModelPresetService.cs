@@ -91,7 +91,7 @@ public sealed class ModelPresetService(
         return entity;
     }
 
-    private static OneWireCouncilModelRoute NormalizeRoute(OneWireCouncilModelRoute route)
+    private OneWireCouncilModelRoute NormalizeRoute(OneWireCouncilModelRoute route)
     {
         route.ModelName = route.ModelName.Trim();
         route.HardwareName = route.HardwareName?.Trim() ?? string.Empty;
@@ -108,7 +108,7 @@ public sealed class ModelPresetService(
         return route;
     }
 
-    private static List<string> NormalizeValues(IEnumerable<string>? values) => (values ?? [])
+    private List<string> NormalizeValues(IEnumerable<string>? values) => (values ?? [])
         .Where(value => !string.IsNullOrWhiteSpace(value))
         .Select(value => value.Trim())
         .Distinct(StringComparer.OrdinalIgnoreCase)

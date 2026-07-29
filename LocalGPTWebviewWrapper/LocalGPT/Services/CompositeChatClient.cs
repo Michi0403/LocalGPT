@@ -98,16 +98,16 @@ public class CompositeChatClient : IChatClient
         }
     }
 
-    private static ChatResponse CreateFailureResponse(string message) =>
+    private ChatResponse CreateFailureResponse(string message) =>
         new(new ChatMessage(ChatRole.Assistant, [new TextContent(message)]));
 
-    private static async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)
+    private async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)
     {
         yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(message)]);
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    private static bool IsConnectionRefused(Exception exception)
+    private bool IsConnectionRefused(Exception exception)
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
         {

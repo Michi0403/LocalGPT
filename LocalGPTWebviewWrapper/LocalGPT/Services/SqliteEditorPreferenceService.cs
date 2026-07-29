@@ -11,7 +11,7 @@ public sealed class SqliteEditorPreferenceService(
     IDatabaseInitializationService databaseInitializer,
     ILogger<SqliteEditorPreferenceService> logger) : ISqliteEditorPreferenceService
 {
-    private static FrozenSet<string> AllowedKinds { get; } = new[]
+    private FrozenSet<string> AllowedKinds { get; } = new[]
     {
         "Automatic", "Text", "LongText", "Number", "Boolean", "DateTime", "Guid", "Json", "Secret"
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);

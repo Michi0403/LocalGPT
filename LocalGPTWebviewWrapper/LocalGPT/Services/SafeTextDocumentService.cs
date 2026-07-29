@@ -14,7 +14,7 @@ public sealed class SafeTextDocumentService(
     ILogger<SafeTextDocumentService> logger) : ISafeTextDocumentService
 {
     private const int MaxBytes = 8 * 1024 * 1024;
-    private static FrozenSet<string> AllowedExtensions { get; } = new[]
+    private FrozenSet<string> AllowedExtensions { get; } = new[]
     {
         ".txt", ".md", ".markdown", ".rst", ".csv", ".tsv", ".json", ".jsonl", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".config",
         ".cs", ".csproj", ".sln", ".slnx", ".razor", ".css", ".js", ".ts", ".tsx", ".jsx", ".html", ".htm", ".sql", ".ps1", ".sh",
@@ -98,7 +98,7 @@ public sealed class SafeTextDocumentService(
         return entity;
     }
 
-    private static bool LooksBinary(byte[] bytes)
+    private bool LooksBinary(byte[] bytes)
     {
         if (bytes.Length == 0)
             return false;
@@ -115,7 +115,7 @@ public sealed class SafeTextDocumentService(
         return suspicious > sample / 50;
     }
 
-    private static (Encoding Encoding, int BomLength) DetectEncoding(byte[] bytes)
+    private (Encoding Encoding, int BomLength) DetectEncoding(byte[] bytes)
     {
         if (bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }))
             return (new UTF8Encoding(false, true), 3);
@@ -134,7 +134,7 @@ public sealed class SafeTextDocumentService(
         }
     }
 
-    private static string NormalizeText(string input, int maxCharacters, out bool truncated, out int removedControls)
+    private string NormalizeText(string input, int maxCharacters, out bool truncated, out int removedControls)
     {
         var builder = new StringBuilder(Math.Min(input.Length, maxCharacters));
         removedControls = 0;
@@ -151,7 +151,7 @@ public sealed class SafeTextDocumentService(
         return builder.ToString().Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
     }
 
-    private static string GuessContentType(string extension) => extension.ToLowerInvariant() switch
+    private string GuessContentType(string extension) => extension.ToLowerInvariant() switch
     {
         ".json" or ".jsonl" => "application/json",
         ".xml" or ".csproj" => "application/xml",

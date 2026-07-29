@@ -22,11 +22,11 @@ public sealed class DxAiFunctionCatalogService(
     ILogger<DxAiFunctionCatalogService> logger) : IDxAiFunctionCatalogService
 {
     private const string DataType = "DxAiFunctionCatalogEntry";
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     // The catalog service is scoped, but boot synchronization, Council preflight, and UI policy edits
     // can run in different scopes against the same SQLite rows. One process-wide gate prevents stale
     // tracked SystemVariable instances from racing each other.
-    private static readonly SemaphoreSlim Gate = new(1, 1);
+    private readonly SemaphoreSlim Gate = new(1, 1);
 
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
@@ -165,7 +165,7 @@ public sealed class DxAiFunctionCatalogService(
         return entries.OrderBy(item => item.Kind).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private static DxAiFunctionCatalogEntry CreateDxEntry(DxaichatFunctionInfo function)
+    private DxAiFunctionCatalogEntry CreateDxEntry(DxaichatFunctionInfo function)
     {
         var entry = new DxAiFunctionCatalogEntry
         {
@@ -192,7 +192,7 @@ public sealed class DxAiFunctionCatalogService(
         return entry;
     }
 
-    private static IEnumerable<DxAiFunctionCatalogEntry> DiscoverPublicServiceMethods()
+    private IEnumerable<DxAiFunctionCatalogEntry> DiscoverPublicServiceMethods()
     {
         var assembly = typeof(Program).Assembly;
         foreach (var implementation in assembly.DefinedTypes
@@ -237,12 +237,12 @@ public sealed class DxAiFunctionCatalogService(
         }
     }
 
-    private static bool IsSupportedPublicMethod(MethodInfo method) =>
+    private bool IsSupportedPublicMethod(MethodInfo method) =>
         method.IsPublic && !method.IsStatic && !method.IsSpecialName && !method.IsGenericMethodDefinition &&
         method.GetParameters().Length <= 16 &&
         method.GetParameters().All(parameter => !parameter.ParameterType.IsByRef && !parameter.ParameterType.IsPointer);
 
-    private static Type ResolveContract(Type implementation, MethodInfo method)
+    private Type ResolveContract(Type implementation, MethodInfo method)
     {
         foreach (var contract in implementation.GetInterfaces())
         {
@@ -252,7 +252,7 @@ public sealed class DxAiFunctionCatalogService(
         return implementation;
     }
 
-    private static bool SameSignature(MethodInfo left, MethodInfo right)
+    private bool SameSignature(MethodInfo left, MethodInfo right)
     {
         if (!string.Equals(left.Name, right.Name, StringComparison.Ordinal)) return false;
         var leftParameters = left.GetParameters();
@@ -260,7 +260,7 @@ public sealed class DxAiFunctionCatalogService(
         return leftParameters.Length == rightParameters.Length && leftParameters.Select(item => item.ParameterType).SequenceEqual(rightParameters.Select(item => item.ParameterType));
     }
 
-    private static string BuildParameterSchema(MethodInfo method)
+    private string BuildParameterSchema(MethodInfo method)
     {
         var properties = new Dictionary<string, object?>();
         var required = new List<string>();
@@ -279,7 +279,7 @@ public sealed class DxAiFunctionCatalogService(
         return JsonSerializer.Serialize(new { type = "object", properties, required, additionalProperties = false }, JsonOptions);
     }
 
-    private static string JsonType(Type type)
+    private string JsonType(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
         if (type == typeof(bool)) return "boolean";
@@ -288,7 +288,7 @@ public sealed class DxAiFunctionCatalogService(
         return type == typeof(string) || type == typeof(Guid) || type == typeof(DateTime) || type == typeof(DateTimeOffset) ? "string" : "object";
     }
 
-    private static bool InferReadOnly(MethodInfo method)
+    private bool InferReadOnly(MethodInfo method)
     {
         var name = method.Name;
         return name.StartsWith("Get", StringComparison.Ordinal) || name.StartsWith("List", StringComparison.Ordinal) ||
@@ -298,14 +298,14 @@ public sealed class DxAiFunctionCatalogService(
             name.StartsWith("Has", StringComparison.Ordinal) || name.StartsWith("Is", StringComparison.Ordinal);
     }
 
-    private static OneWireInteractionEditor InferEditor(string name, string schema, bool requiresConfirmation)
+    private OneWireInteractionEditor InferEditor(string name, string schema, bool requiresConfirmation)
     {
         if (name.Contains("text", StringComparison.OrdinalIgnoreCase) || schema.Contains("content", StringComparison.OrdinalIgnoreCase))
             return OneWireInteractionEditor.RichText;
         return requiresConfirmation ? OneWireInteractionEditor.Json : OneWireInteractionEditor.None;
     }
 
-    private static void PreservePolicyAndRefreshDescriptor(DxAiFunctionCatalogEntry stored, DxAiFunctionCatalogEntry current)
+    private void PreservePolicyAndRefreshDescriptor(DxAiFunctionCatalogEntry stored, DxAiFunctionCatalogEntry current)
     {
         var policy = new
         {
@@ -348,7 +348,7 @@ public sealed class DxAiFunctionCatalogService(
         stored.UpdatedBy = policy.UpdatedBy;
     }
 
-    private static async Task<List<DxAiFunctionCatalogEntry>> ReadEntriesAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
+    private async Task<List<DxAiFunctionCatalogEntry>> ReadEntriesAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
     {
         var values = await db.SystemVariables.AsNoTracking()
             .Where(item => item.DataType == DataType)
@@ -360,13 +360,13 @@ public sealed class DxAiFunctionCatalogService(
             .OrderBy(item => item.Kind).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private static DxAiFunctionCatalogEntry? Deserialize(string value)
+    private DxAiFunctionCatalogEntry? Deserialize(string value)
     {
         try { return JsonSerializer.Deserialize<DxAiFunctionCatalogEntry>(value, JsonOptions); }
         catch (JsonException) { return null; }
     }
 
-    private static string NormalizePeersJson(string json)
+    private string NormalizePeersJson(string json)
     {
         var peers = (JsonSerializer.Deserialize<List<string>>(json) ?? [])
             .Where(item => !string.IsNullOrWhiteSpace(item))
@@ -377,13 +377,13 @@ public sealed class DxAiFunctionCatalogService(
         return JsonSerializer.Serialize(peers);
     }
 
-    private static string BuildStorageName(string catalogKey)
+    private string BuildStorageName(string catalogKey)
     {
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(catalogKey))).ToLowerInvariant();
         return $"DxFunctionCatalog.{hash[..32]}";
     }
 
-    private static string ComputeDescriptorHash(DxAiFunctionCatalogEntry entry)
+    private string ComputeDescriptorHash(DxAiFunctionCatalogEntry entry)
     {
         var source = string.Join('|', entry.Kind, entry.FunctionName, entry.Method, entry.Route, entry.ParameterSchemaJson,
             entry.ServiceContractTypeName, entry.ImplementationTypeName, entry.ServiceMethodName, entry.ParameterTypeNamesJson);

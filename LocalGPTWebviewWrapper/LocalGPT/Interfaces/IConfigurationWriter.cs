@@ -1,4 +1,4 @@
-﻿namespace LocalGPT.Interfaces
+namespace LocalGPT.Interfaces
 {
     public interface IConfigurationWriter
     {

@@ -12,7 +12,7 @@ public sealed class DatabaseFileHealthService(
     LocalGptDatabaseOptions options,
     ILogger<DatabaseFileHealthService> logger) : IDatabaseFileHealthService
 {
-    private static readonly string[] DatabaseSuffixes = [string.Empty, "-wal", "-shm"];
+    private readonly string[] DatabaseSuffixes = [string.Empty, "-wal", "-shm"];
 
     public string DatabasePath => options.DatabasePath;
 
@@ -188,7 +188,7 @@ public sealed class DatabaseFileHealthService(
         }
     }
 
-    private static bool ContainsCorruptionText(string? message) =>
+    private bool ContainsCorruptionText(string? message) =>
         !string.IsNullOrWhiteSpace(message) &&
         (message.Contains("database disk image is malformed", StringComparison.OrdinalIgnoreCase) ||
          message.Contains("file is not a database", StringComparison.OrdinalIgnoreCase));
