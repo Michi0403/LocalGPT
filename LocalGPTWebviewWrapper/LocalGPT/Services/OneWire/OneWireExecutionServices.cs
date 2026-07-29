@@ -8,6 +8,7 @@ namespace LocalGPT.Services.OneWire;
 public sealed class OneWireOperationExecutor(
     IServiceScopeFactory scopeFactory,
     IOneWireEnvelopeCodec codec,
+    ILocalGptVocabularyService vocabulary,
     ILogger<OneWireOperationExecutor> logger) : IOneWireOperationExecutor
 {
 

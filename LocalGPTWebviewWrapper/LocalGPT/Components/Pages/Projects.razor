@@ -2,6 +2,7 @@
 @page "/projects"
 @inject ILocalGptProjectService ProjectService
 @inject IProjectArchitectureService ProjectArchitecture
+@inject ILocalGptRequestFactoryService RequestFactory
 @inject ILogger<Projects> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -421,19 +422,19 @@
 
     LocalGptProjectDetails? SelectedProject { get; set; }
 
-    SaveLocalGptProjectRequest ProjectEdit { get; set; } = NewProjectRequest();
+    SaveLocalGptProjectRequest ProjectEdit { get; set; } = null!;
 
-    AddLocalGptProjectTopicRequest TopicEdit { get; set; } = NewTopicRequest();
+    AddLocalGptProjectTopicRequest TopicEdit { get; set; } = null!;
 
-    AddLocalGptProjectVersionRequest VersionEdit { get; set; } = NewVersionRequest();
+    AddLocalGptProjectVersionRequest VersionEdit { get; set; } = null!;
 
-    SaveProjectRevisionRequest RevisionEdit { get; set; } = NewRevisionRequest();
+    SaveProjectRevisionRequest RevisionEdit { get; set; } = null!;
 
-    SaveProjectRequirementRequest RequirementEdit { get; set; } = NewRequirementRequest();
+    SaveProjectRequirementRequest RequirementEdit { get; set; } = null!;
 
-    SaveProjectRequirementLinkRequest RequirementLinkEdit { get; set; } = NewRequirementLinkRequest();
+    SaveProjectRequirementLinkRequest RequirementLinkEdit { get; set; } = null!;
 
-    SaveProjectArtifactRequest ArtifactEdit { get; set; } = NewArtifactRequest();
+    SaveProjectArtifactRequest ArtifactEdit { get; set; } = null!;
 
     string RevisionParentValue
     {
@@ -469,6 +470,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ResetRequestEditors();
         await LoadProjectsAsync().ConfigureAwait(true);
     }
 
@@ -486,13 +488,18 @@
     void NewProject()
     {
         SelectedProject = null;
-        ProjectEdit = NewProjectRequest();
-        TopicEdit = NewTopicRequest();
-        VersionEdit = NewVersionRequest();
-        RevisionEdit = NewRevisionRequest();
-        RequirementEdit = NewRequirementRequest();
-        RequirementLinkEdit = NewRequirementLinkRequest();
-        ArtifactEdit = NewArtifactRequest();
+        ResetRequestEditors();
+    }
+
+    void ResetRequestEditors(string versionPath = "")
+    {
+        ProjectEdit = RequestFactory.CreateProjectRequest();
+        TopicEdit = RequestFactory.CreateTopicRequest();
+        VersionEdit = RequestFactory.CreateVersionRequest(versionPath);
+        RevisionEdit = RequestFactory.CreateRevisionRequest();
+        RequirementEdit = RequestFactory.CreateRequirementRequest();
+        RequirementLinkEdit = RequestFactory.CreateRequirementLinkRequest();
+        ArtifactEdit = RequestFactory.CreateArtifactRequest();
     }
 
     async Task SelectProjectAsync(Guid projectId)
@@ -521,12 +528,12 @@
                 IsArchived = project.IsArchived,
                 UserConfirmed = false
             };
-            TopicEdit = NewTopicRequest();
-            VersionEdit = NewVersionRequest(project.RootPath);
-            RevisionEdit = NewRevisionRequest();
-            RequirementEdit = NewRequirementRequest();
-            RequirementLinkEdit = NewRequirementLinkRequest();
-            ArtifactEdit = NewArtifactRequest();
+            TopicEdit = RequestFactory.CreateTopicRequest();
+            VersionEdit = RequestFactory.CreateVersionRequest(project.RootPath);
+            RevisionEdit = RequestFactory.CreateRevisionRequest();
+            RequirementEdit = RequestFactory.CreateRequirementRequest();
+            RequirementLinkEdit = RequestFactory.CreateRequirementLinkRequest();
+            ArtifactEdit = RequestFactory.CreateArtifactRequest();
         }, "Select project").ConfigureAwait(true);
     }
 
@@ -559,7 +566,7 @@
             try
             {
                 await ProjectService.AddTopicAsync(SelectedProject.Project.Id, TopicEdit).ConfigureAwait(true);
-                TopicEdit = NewTopicRequest();
+                TopicEdit = RequestFactory.CreateTopicRequest();
                 await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(true);
                 Notifier.ShowSuccess(toastName, "Project topic added.", "Topic saved");
             }
@@ -581,7 +588,7 @@
             try
             {
                 await ProjectService.AddVersionAsync(SelectedProject.Project.Id, VersionEdit).ConfigureAwait(true);
-                VersionEdit = NewVersionRequest(SelectedProject.Project.RootPath);
+                VersionEdit = RequestFactory.CreateVersionRequest(SelectedProject.Project.RootPath);
                 await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(true);
                 Notifier.ShowSuccess(toastName, "Project version added.", "Version saved");
             }
@@ -602,7 +609,7 @@
             try
             {
                 await ProjectArchitecture.SaveRevisionAsync(SelectedProject.Project.Id, RevisionEdit).ConfigureAwait(true);
-                RevisionEdit = NewRevisionRequest();
+                RevisionEdit = RequestFactory.CreateRevisionRequest();
                 await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(true);
                 Notifier.ShowSuccess(toastName, "Database project revision saved.", "Revision saved");
             }
@@ -624,7 +631,7 @@
             {
                 RequirementEdit.RevisionId = SelectedProject.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
                 await ProjectArchitecture.SaveRequirementAsync(SelectedProject.Project.Id, RequirementEdit).ConfigureAwait(true);
-                RequirementEdit = NewRequirementRequest();
+                RequirementEdit = RequestFactory.CreateRequirementRequest();
                 await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(true);
                 Notifier.ShowSuccess(toastName, "Project requirement saved.", "Requirement saved");
             }
@@ -645,7 +652,7 @@
             try
             {
                 await ProjectArchitecture.SaveRequirementLinkAsync(SelectedProject.Project.Id, RequirementLinkEdit).ConfigureAwait(true);
-                RequirementLinkEdit = NewRequirementLinkRequest();
+                RequirementLinkEdit = RequestFactory.CreateRequirementLinkRequest();
                 await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(true);
                 Notifier.ShowSuccess(toastName, "Requirement capability link saved.", "Requirement linked");
             }
@@ -667,7 +674,7 @@
             {
                 ArtifactEdit.RevisionId = SelectedProject.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
                 await ProjectArchitecture.SaveArtifactAsync(SelectedProject.Project.Id, ArtifactEdit).ConfigureAwait(true);
-                ArtifactEdit = NewArtifactRequest();
+                ArtifactEdit = RequestFactory.CreateArtifactRequest();
                 await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(true);
                 Notifier.ShowSuccess(toastName, "Project-linked artifact saved.", "Artifact saved");
             }
@@ -729,52 +736,4 @@
             await InvokeAsync(StateHasChanged);
         }
     }
-
-    SaveLocalGptProjectRequest NewProjectRequest() => new()
-    {
-        ProjectType = "DotNetSolution",
-        SolutionSearchPattern = @"(?i)\.(sln|slnx)$",
-        FileIncludePattern = @"(?s).*",
-        FileExcludePattern = @"(?i)(^|[\\/])(bin|obj|node_modules|\.git|\.vs|artifacts|security|secrets?)([\\/]|$)|(^|[\\/])(\.env(?:\..*)?|[^\\/]+\.(?:pfx|p12|key|pem))$",
-        CurrentVersion = "0.1.0",
-        Status = "Active",
-        RecommendGit = true
-    };
-
-    AddLocalGptProjectTopicRequest NewTopicRequest() => new()
-    {
-        Status = "Planned"
-    };
-
-    AddLocalGptProjectVersionRequest NewVersionRequest(string path = "") => new()
-    {
-        PathSnapshot = path,
-        IsCurrent = true
-    };
-
-    SaveProjectRevisionRequest NewRevisionRequest() => new()
-    {
-        BranchName = "main",
-        RevisionName = $"revision-{DateTime.UtcNow:yyyyMMdd-HHmmss}",
-        ProjectStructureJson = "{}",
-        IsCurrent = true
-    };
-
-    SaveProjectRequirementRequest NewRequirementRequest() => new()
-    {
-        RequirementType = "Functional",
-        Status = "Planned",
-        Priority = "Normal"
-    };
-
-    SaveProjectRequirementLinkRequest NewRequirementLinkRequest() => new()
-    {
-        TargetKind = "DXFunction"
-    };
-
-    SaveProjectArtifactRequest NewArtifactRequest() => new()
-    {
-        ArtifactKind = "Configuration",
-        DataType = "string"
-    };
 }

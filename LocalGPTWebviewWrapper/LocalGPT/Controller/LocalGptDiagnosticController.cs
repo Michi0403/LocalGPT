@@ -117,7 +117,7 @@ namespace LocalGPT.Controller
                ],
                new ChatOptions
                {
-                   catalog.MaxOutputTokens = 2048
+                   MaxOutputTokens = 2048
                },
                ct).ConfigureAwait(false);
 
@@ -177,7 +177,7 @@ namespace LocalGPT.Controller
                     ],
                     new ChatOptions
                     {
-                        catalog.MaxOutputTokens = Math.Clamp(maxOutputTokens ?? 128, 64, 4096),
+                        MaxOutputTokens = Math.Clamp(maxOutputTokens ?? 128, 64, 4096),
                         Temperature = 0.1f
                     },
                     ct).ConfigureAwait(false);
@@ -235,7 +235,7 @@ namespace LocalGPT.Controller
                     messages,
                     new ChatOptions
                     {
-                        catalog.MaxOutputTokens = Math.Clamp(request.MaxOutputTokens, 256, 4096),
+                        MaxOutputTokens = Math.Clamp(request.MaxOutputTokens, 256, 4096),
                         Temperature = 0.2f
                     },
                     ct).ConfigureAwait(false);
@@ -523,7 +523,7 @@ namespace LocalGPT.Controller
                     Count = workspaces.Count,
                     LatestWorkspace = workspaces.FirstOrDefault(),
                     Workspaces = workspaces,
-                    catalog.Routes = new
+                    Routes = new
                     {
                         List = "/__diag/artifact-workspaces",
                         Files = "/__diag/artifact-workspace/{workspaceName}/files",
@@ -716,7 +716,7 @@ namespace LocalGPT.Controller
                     Count = workspaces.Count,
                     LatestWorkspace = workspaces.FirstOrDefault(),
                     Workspaces = workspaces,
-                    catalog.Routes = new
+                    Routes = new
                     {
                         List = "/__diag/chat-upload-workspaces",
                         Files = "/__diag/chat-upload-workspace/{workspaceName}/files",
@@ -864,7 +864,7 @@ namespace LocalGPT.Controller
                     ContextPreview = result.ContextMarkdown.Length > 4000
                         ? result.ContextMarkdown[..4000]
                         : result.ContextMarkdown,
-                    catalog.Routes = new
+                    Routes = new
                     {
                         Files = $"/__diag/chat-upload-workspace/{Uri.EscapeDataString(result.WorkspaceName)}/files",
                         Context = $"/__diag/chat-upload-workspace/{Uri.EscapeDataString(result.WorkspaceName)}/context",
@@ -908,7 +908,7 @@ namespace LocalGPT.Controller
                     ],
                     new ChatOptions
                     {
-                        catalog.MaxOutputTokens = 1024
+                        MaxOutputTokens = 1024
                     },
                     ct).ConfigureAwait(false);
 
@@ -993,7 +993,7 @@ namespace LocalGPT.Controller
                     ],
                     new ChatOptions
                     {
-                        catalog.MaxOutputTokens = Math.Clamp(request.MaxOutputTokens, 256, 4096)
+                        MaxOutputTokens = Math.Clamp(request.MaxOutputTokens, 256, 4096)
                     },
                     ct).ConfigureAwait(false);
 
@@ -1070,8 +1070,8 @@ namespace LocalGPT.Controller
                         Members = preferredGptOss is null ? Array.Empty<string>() : new[] { preferredGptOss.ModelName },
                         MaxParallelModels = 1,
                         OllamaNumGpu = (int?)null,
-                        catalog.MaxContextTokens = 32768,
-                        catalog.MaxOutputTokens = 8192,
+                        MaxContextTokens = 32768,
+                        MaxOutputTokens = 8192,
                         Purpose = "Verify Harmony formatting, streaming, artifact links, and normal DXAiChat usability with a compact but realistic local context."
                     },
                     new
@@ -1080,8 +1080,8 @@ namespace LocalGPT.Controller
                         Members = preferredDeepseek is null ? Array.Empty<string>() : new[] { preferredDeepseek.ModelName },
                         MaxParallelModels = 1,
                         OllamaNumGpu = (int?)0,
-                        catalog.MaxContextTokens = 32768,
-                        catalog.MaxOutputTokens = 4096,
+                        MaxContextTokens = 32768,
+                        MaxOutputTokens = 4096,
                         Purpose = "Slow but GPU-safe review of generated .NET/DevExpress or Minecraft datapack output."
                     },
                     new
@@ -1093,8 +1093,8 @@ namespace LocalGPT.Controller
                             .ToArray(),
                         MaxParallelModels = 1,
                         OllamaNumGpu = (int?)0,
-                        catalog.MaxContextTokens = 32768,
-                        catalog.MaxOutputTokens = 8192,
+                        MaxContextTokens = 32768,
+                        MaxOutputTokens = 8192,
                         Purpose = "Best default cross-check without concurrent VRAM pressure; use keep_alive=0s."
                     },
                     new
@@ -1103,8 +1103,8 @@ namespace LocalGPT.Controller
                         Members = preferredQwen is null ? Array.Empty<string>() : new[] { preferredQwen.ModelName },
                         MaxParallelModels = 1,
                         OllamaNumGpu = (int?)12,
-                        catalog.MaxContextTokens = 65536,
-                        catalog.MaxOutputTokens = 32768,
+                        MaxContextTokens = 65536,
+                        MaxOutputTokens = 32768,
                         Purpose = "Optional qwen/gwen solo code-generation check after Ollama/GPU stability is confirmed. Do not combine with other heavy models."
                     }
                 },
@@ -1507,8 +1507,8 @@ namespace LocalGPT.Controller
                     - Keep the answer compact enough for DXAiChat/Test Lab.
                 """,
                     ModelNames = requestedModels,
-                    catalog.MaxOutputTokens = Math.Clamp(maxOutputTokens ?? 2048, 128, 262144),
-                    catalog.MaxContextTokens = Math.Clamp(maxContextTokens ?? 32768, 2048, 262144),
+                    MaxOutputTokens = Math.Clamp(maxOutputTokens ?? 2048, 128, 262144),
+                    MaxContextTokens = Math.Clamp(maxContextTokens ?? 32768, 2048, 262144),
                     MaxRounds = Math.Clamp(maxRounds ?? 0, 0, 1),
                     MaxParallelModels = 1,
                     OllamaKeepAlive = "0s",

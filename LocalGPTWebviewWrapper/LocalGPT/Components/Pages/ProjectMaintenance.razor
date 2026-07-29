@@ -3,6 +3,7 @@
 @using LocalGPT.Services.Localization
 @inject ILocalGptProjectService Projects
 @inject IProjectMaintenanceService Maintenance
+@inject ILocalGptRequestFactoryService RequestFactory
 @inject ILocalGptLocalizationService Localization
 @inject ILogger<ProjectMaintenance> Logger
 @inject INotificationService Notifier
@@ -224,8 +225,8 @@
     List<ProjectCompilerInstallation> compilers = [];
     List<LocalGptProjectTrackedFile> trackedFiles = [];
     LocalGptProjectTrackedFile? selectedTrackedFile;
-    SaveProjectWorkspaceRootRequest workspaceEdit = NewWorkspace();
-    SaveProjectCompilerInstallationRequest compilerEdit = NewCompiler();
+    SaveProjectWorkspaceRootRequest workspaceEdit = null!;
+    SaveProjectCompilerInstallationRequest compilerEdit = null!;
     RunProjectBuildVerificationRequest buildEdit = new() { Configuration = "Debug", TimeoutSeconds = 1200 };
     RecordCouncilBuildReviewRequest councilReviewEdit = new();
     SaveTrackedFilePatternRequest filePatternEdit = new();
@@ -248,7 +249,12 @@
     string SelectedTrackedFileValue { get => selectedTrackedFileId?.ToString() ?? string.Empty; set { selectedTrackedFileId = Guid.TryParse(value, out var id) ? id : null; SelectTrackedFile(); } }
     bool CanVerifyBuild => !busy && selectedProjectId is not null && selectedRevisionId is not null && selectedCompilerId is not null;
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override Task OnInitializedAsync()
+    {
+        workspaceEdit = RequestFactory.CreateWorkspaceRootRequest();
+        compilerEdit = RequestFactory.CreateCompilerInstallationRequest();
+        return LoadAsync();
+    }
 
     async Task LoadAsync() => await RunAsync(async () =>
     {
@@ -322,7 +328,7 @@
     {
         workspaceEdit.ProjectId = workspaceEdit.ScopeKind == "Project" ? selectedProjectId : null;
         workspaceEdit.UserConfirmed = true;
-        try { await Maintenance.SaveWorkspaceRootAsync(workspaceEdit).ConfigureAwait(true); workspaceEdit = NewWorkspace(); workspaceEdit.ProjectId = selectedProjectId; workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(true)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.WorkspaceSaved", "Workspace root saved."), T("Common.Saved", "Saved")); }
+        try { await Maintenance.SaveWorkspaceRootAsync(workspaceEdit).ConfigureAwait(true); workspaceEdit = RequestFactory.CreateWorkspaceRootRequest(); workspaceEdit.ProjectId = selectedProjectId; workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(true)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.WorkspaceSaved", "Workspace root saved."), T("Common.Saved", "Saved")); }
         finally { workspaceEdit.UserConfirmed = false; }
     }, T("ProjectMaintenance.WorkspaceSaveFailed", "Could not save the workspace root.")).ConfigureAwait(true);
 
@@ -337,7 +343,7 @@
     async Task SaveCompilerAsync() => await RunAsync(async () =>
     {
         compilerEdit.UserConfirmed = true;
-        try { await Maintenance.SaveCompilerInstallationAsync(compilerEdit).ConfigureAwait(true); compilerEdit = NewCompiler(); compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(true)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerSaved", "Compiler installation saved."), T("Common.Saved", "Saved")); }
+        try { await Maintenance.SaveCompilerInstallationAsync(compilerEdit).ConfigureAwait(true); compilerEdit = RequestFactory.CreateCompilerInstallationRequest(); compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(true)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerSaved", "Compiler installation saved."), T("Common.Saved", "Saved")); }
         finally { compilerEdit.UserConfirmed = false; }
     }, T("ProjectMaintenance.CompilerSaveFailed", "Could not save the compiler installation.")).ConfigureAwait(true);
 
@@ -442,6 +448,4 @@
     }
 
     string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
-    SaveProjectWorkspaceRootRequest NewWorkspace() => new() { ScopeKind = "Global", SolutionPattern = @"(?i)\.(sln|slnx)$", Priority = 100, IsEnabled = true };
-    SaveProjectCompilerInstallationRequest NewCompiler() => new() { Language = "DotNet", ValidationArguments = "--version", IsEnabled = true };
 }

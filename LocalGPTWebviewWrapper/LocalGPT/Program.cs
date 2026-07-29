@@ -252,6 +252,7 @@ namespace LocalGPT
                 // not mutable process-wide utility classes.
                 builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.0.1"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
+                builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
                 builder.Services.AddScoped<ICouncilDxFunctionPolicyDataService, CouncilDxFunctionPolicyDataService>();
                 builder.Services.AddSingleton<CouncilTextService>();

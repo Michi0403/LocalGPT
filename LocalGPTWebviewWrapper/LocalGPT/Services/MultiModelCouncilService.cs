@@ -195,7 +195,7 @@ namespace LocalGPT.Services
                 if (ollamaNumGpu == 0)
                     result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
                 if (ollamaNumGpu is null && participants.Any(filter => MultiModelCouncilServiceIsHeavyGpuRiskModel(filter,logger)))
-                    result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
+                    result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={catalog.DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
 
                 var preflight = await councilPreflight.PrepareAsync(request, participants, modelRoutes, cancellationToken).ConfigureAwait(false);
                 result.PreflightSummary = preflight.PromptContext;
@@ -1149,7 +1149,7 @@ namespace LocalGPT.Services
                             (List<ChatMessage>) messages,
                             new ChatOptions
                             {
-                                catalog.MaxOutputTokens = Math.Clamp(maxOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens),
+                                MaxOutputTokens = Math.Clamp(maxOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens),
                                 Temperature = 0.2f
                             },
                             participantCts.Token).WithCancellation(participantCts.Token).ConfigureAwait(true))
@@ -1619,7 +1619,7 @@ namespace LocalGPT.Services
                         messages,
                         new ChatOptions
                         {
-                            catalog.MaxOutputTokens = maxOutputTokens,
+                            MaxOutputTokens = maxOutputTokens,
                             Temperature = 0.1f
                         },
                         cancellationToken).WithCancellation(cancellationToken))
