@@ -100,8 +100,15 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
         string operation,
         Stopwatch stopwatch)
     {
-        var method = GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(candidate => candidate.Name == methodName && candidate.IsGenericMethodDefinition);
+        // DispatchProxy creates a generated subclass at runtime. GetType() therefore points to
+        // generatedProxy_N, whose reflection surface does not include private methods declared
+        // on this base type. Resolve observers from their actual declaring type instead.
+        var method = typeof(ServiceMethodLoggingDispatchProxy)
+            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+            .Single(candidate =>
+                candidate.Name == methodName
+                && candidate.IsGenericMethodDefinition
+                && candidate.GetGenericArguments().Length == 1);
         return method.MakeGenericMethod(resultType)
             .Invoke(this, [result, currentLogger, operation, stopwatch])!;
     }
@@ -202,18 +209,77 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
         string operation,
         Stopwatch stopwatch)
     {
+        var terminalEventLogged = false;
+        var enumerator = source.GetAsyncEnumerator();
+
         try
         {
-            await foreach (var item in source.ConfigureAwait(false))
-                yield return item;
-           
+            while (true)
+            {
+                bool hasNext;
+                try
+                {
+                    hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException exception)
+                {
+                    stopwatch.Stop();
+                    LogCancellation(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
+                    terminalEventLogged = true;
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    stopwatch.Stop();
+                    LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
+                    terminalEventLogged = true;
+                    throw;
+                }
+
+                if (!hasNext)
+                    yield break;
+
+                yield return enumerator.Current;
+            }
         }
         finally
         {
-            stopwatch.Stop();
-            LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
+            try
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException exception)
+            {
+                if (!terminalEventLogged)
+                {
+                    stopwatch.Stop();
+                    LogCancellation(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
+                    terminalEventLogged = true;
+                    throw;
+                }
+            }
+            catch (Exception exception)
+            {
+                if (!terminalEventLogged)
+                {
+                    stopwatch.Stop();
+                    LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
+                    terminalEventLogged = true;
+                    throw;
+                }
+
+                currentLogger.LogWarning(
+                    exception,
+                    "Service operation {Operation} also failed while disposing its asynchronous enumerator.",
+                    operation);
+            }
+
+            if (!terminalEventLogged)
+            {
+                stopwatch.Stop();
+                LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
+            }
         }
-      
     }
 
     private void LogStarted(ILogger currentLogger, string operation)
