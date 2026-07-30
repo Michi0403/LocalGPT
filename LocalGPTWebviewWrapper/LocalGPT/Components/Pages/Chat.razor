@@ -1,6 +1,7 @@
 @rendermode InteractiveServer
 @page "/Chat"
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.JSInterop
 @using System.Text.Json
 @inject CouncilRuntimeService CouncilRuntime
 @inject ILocalGptRuntimePolicyDataService RuntimePolicy
@@ -37,7 +38,7 @@
         <ToastWrapper Name="@toastName" />
         <div class="chat-primary-actions" data-testid="chat-primary-actions">
             <DxButton Text="Start new chat"
-                      CssClass="chat-new-session-button"
+                      CssClass="chat-new-session-button localgpt-rounded-action"
                       RenderStyle="ButtonRenderStyle.Primary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       IconCssClass="oi oi-plus"
@@ -107,7 +108,7 @@
             </summary>
         <div class="model-toolbar" aria-label="DXAiChat model and council controls" data-testid="chat-model-toolbar">
             <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
-                <DxButton Text="Refresh Ollama Models"
+                <DxButton CssClass="localgpt-rounded-action" Text="Refresh Ollama Models"
                           RenderStyle="ButtonRenderStyle.Secondary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Enabled="@(!isModelRefreshBusy)"
@@ -223,12 +224,12 @@
                 <DxCheckBox @bind-Checked="CreateProjectPerCouncilRun" />
                 <span>New project per council run</span>
             </label>
-            <DxButton Text="Save Preset"
+            <DxButton CssClass="localgpt-rounded-action" Text="Save Preset"
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       Enabled="@(!isModelPresetBusy && SelectedCouncilModelNames.Count > 0 && !string.IsNullOrWhiteSpace(ModelPresetName))"
                       Click="SaveModelPresetAsync" />
-            <DxButton Text="Archive Preset"
+            <DxButton CssClass="localgpt-rounded-action" Text="Archive Preset"
                       RenderStyle="ButtonRenderStyle.Danger"
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       Enabled="@(!isModelPresetBusy && SelectedModelPreset is not null)"
@@ -255,14 +256,14 @@
             </summary>
         <div class="memory-toolbar" aria-label="Chat memory controls">
             <span title="Writes the current DXAiChat messages into the local SQLite memory database.">
-                <DxButton Text="Save Memory"
+                <DxButton CssClass="localgpt-rounded-action" Text="Save Memory"
                           RenderStyle="ButtonRenderStyle.Secondary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Enabled="@(!isMemoryBusy)"
                           Click="SaveCurrentConversationAsync" />
             </span>
             <span title="Loads the most recently saved conversation and its former model thoughts.">
-                <DxButton Text="Recall Latest"
+                <DxButton CssClass="localgpt-rounded-action" Text="Recall Latest"
                           RenderStyle="ButtonRenderStyle.Secondary"
                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                           Enabled="@(!isMemoryBusy && SavedConversations.Count > 0)"
@@ -376,11 +377,11 @@
                            @bind="ArchitecturePollNotes"
                            placeholder="Example: ask me first if target platform, framework, data model, or deployment are unclear." />
                 </label>
-                <DxButton Text="Add Decision To Chat"
+                <DxButton CssClass="localgpt-rounded-action" Text="Add Decision To Chat"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="AddArchitecturePollToChatAsync" />
-                <DxButton Text="Reset"
+                <DxButton CssClass="localgpt-rounded-action" Text="Reset"
                           RenderStyle="ButtonRenderStyle.Secondary"
                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                           Click="ResetArchitecturePoll" />
@@ -447,13 +448,13 @@
                     }
                 </select>
             </label>
-            <DxButton Text="Refresh running sessions"
+            <DxButton CssClass="localgpt-rounded-action" Text="Refresh running sessions"
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       Click="RefreshHumanCollaborationAsync" />
             @if (!collaborationSnapshot.Profile.IsEnabled)
             {
-                <DxButton Text="Enable human participation"
+                <DxButton CssClass="localgpt-rounded-action" Text="Enable human participation"
                           RenderStyle="ButtonRenderStyle.Success"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="EnableHumanParticipationAsync" />
@@ -469,7 +470,7 @@
                        disabled="@(ActiveCouncilRun is null)"
                        placeholder="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
             </label>
-            <DxButton Text="Share without stopping generation"
+            <DxButton CssClass="localgpt-rounded-action" Text="Share without stopping generation"
                       RenderStyle="ButtonRenderStyle.Primary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       Enabled="@(collaborationSnapshot.Profile.IsEnabled && ActiveCouncilRun is not null && !string.IsNullOrWhiteSpace(RunningCouncilContribution))"
@@ -499,15 +500,15 @@
                     <span>Comment</span>
                     <input type="text" maxlength="4000" @bind="FeedbackComment" placeholder="What was useful or wrong?" />
                 </label>
-                <DxButton Text="Helpful"
+                <DxButton CssClass="localgpt-rounded-action" Text="Helpful"
                           RenderStyle="ButtonRenderStyle.Success"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="@(() => RecordSelectedFeedbackAsync(true))" />
-                <DxButton Text="Not helpful"
+                <DxButton CssClass="localgpt-rounded-action" Text="Not helpful"
                           RenderStyle="ButtonRenderStyle.Danger"
                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                           Click="@(() => RecordSelectedFeedbackAsync(false))" />
-                <DxButton Text="Clear rating"
+                <DxButton CssClass="localgpt-rounded-action" Text="Clear rating"
                           RenderStyle="ButtonRenderStyle.Secondary"
                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                           Click="ClearSelectedFeedbackAsync" />
@@ -610,6 +611,7 @@
     bool initialModelRefreshStarted;
     bool hasUserSelectedSession;
     string lastSavedSignature = string.Empty;
+    DotNetObjectReference<Chat>? chatInteropReference;
 
 
 
@@ -811,25 +813,41 @@
         }
     }
 
-    protected override Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || isDisposed)
-            return Task.CompletedTask;
+        if (isDisposed)
+            return;
 
         try
         {
-            interactiveAttached = true;
-            Logger.LogInformation($"Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
-            ComponentActivity.RecordInformation(nameof(Chat), "InteractiveAttach", "The Chat page attached to the interactive circuit and is waiting for its chat control.");
-            ScheduleChatRuntimeActivation();
+            if (firstRender)
+            {
+                interactiveAttached = true;
+                chatInteropReference ??= DotNetObjectReference.Create(this);
+                Logger.LogInformation($"Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
+                ComponentActivity.RecordInformation(nameof(Chat), "InteractiveAttach", "The Chat page attached to the interactive circuit and is waiting for its chat control.");
+                ScheduleChatRuntimeActivation();
+            }
+
+            if (chatInteropReference is not null)
+            {
+                await JS.InvokeVoidAsync(
+                    "localGptChatUi.registerCouncilComposer",
+                    chatInteropReference,
+                    ActiveCouncilRun is not null).ConfigureAwait(true);
+            }
+        }
+        catch (JSDisconnectedException) when (isDisposed)
+        {
+            // The browser circuit disconnected while the Chat page was being disposed.
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Could not finish the Chat interactive attach sequence.");
+            Logger.LogError(ex, "Could not finish the Chat interactive attach or live Council composer sequence.");
             ComponentActivity.RecordFailure(nameof(Chat), "InteractiveAttach", ex);
-            Notifier.ShowError(toastName, "Chat could not finish attaching to the interactive UI. See local logs for details.", "Chat attach error");
+            if (firstRender)
+                Notifier.ShowError(toastName, "Chat could not finish attaching to the interactive UI. See local logs for details.", "Chat attach error");
         }
-        return Task.CompletedTask;
     }
 
     private Task ChatInitialized()
@@ -928,6 +946,7 @@
             lastSavedSignature = string.Empty;
             memoryStatus = "New empty chat started.";
             DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
+            await JS.InvokeVoidAsync("localGptChatUi.clearLiveUserMessages").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -2525,6 +2544,53 @@
     }
 
 
+    [JSInvokable]
+    public async Task<bool> QueueLiveCouncilUserMessageAsync(string content)
+    {
+        var activeRun = ActiveCouncilRun;
+        if (activeRun is null || string.IsNullOrWhiteSpace(content) || isDisposed)
+            return false;
+
+        try
+        {
+            using var humanScope = HumanAmbientContext.PushHumanInteraction(
+                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                string.IsNullOrWhiteSpace(collaborationSnapshot.Profile.DisplayName)
+                    ? "Human User"
+                    : collaborationSnapshot.Profile.DisplayName,
+                nameof(Chat),
+                councilRunId: activeRun.RunId,
+                councilRound: activeRun.CurrentRound,
+                phase: activeRun.Phase);
+
+            await HumanCollaboration.QueueUserMessageAsync(
+                activeRun.RunId,
+                content.Trim(),
+                componentLifetimeCts.Token).ConfigureAwait(true);
+
+            ComponentActivity.RecordInformation(
+                nameof(Chat),
+                "QueueLiveCouncilUserMessage",
+                "A direct user message was queued for the next active Council heartbeat without cancelling generation.");
+            await RefreshHumanCollaborationAsync().ConfigureAwait(true);
+            return true;
+        }
+        catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested || isDisposed)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not queue a direct user message from the active Chat composer; content was omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(Chat), "QueueLiveCouncilUserMessage", ex);
+            Notifier.ShowError(
+                toastName,
+                ex is InvalidOperationException ? ex.Message : "The message could not be added to the running Council. Review LocalGPT logs.",
+                "Council user message");
+            return false;
+        }
+    }
+
     private async Task RunUiActionAsync(Func<Task> action, string operation)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -2593,6 +2659,8 @@
                     Logger.LogDebug(ex, $"{nameof(Dispose)} skipped final message capture because the renderer was already shutting down.");
                 }
             }
+            chatInteropReference?.Dispose();
+            chatInteropReference = null;
             componentLifetimeCts.Dispose();
             Logger.LogDebug($"{nameof(Dispose)} completed Chat component disposal.");
         }

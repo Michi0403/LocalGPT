@@ -368,18 +368,44 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         }
     }
 
-    public async Task<HumanCouncilContribution> QueueContributionAsync(
+    public Task<HumanCouncilContribution> QueueContributionAsync(
         Guid councilRunId,
         string content,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        QueueContributionCoreAsync(
+            councilRunId,
+            content,
+            requireEnabledProfile: true,
+            directUserMessage: false,
+            cancellationToken: cancellationToken);
+
+    public Task<HumanCouncilContribution> QueueUserMessageAsync(
+        Guid councilRunId,
+        string content,
+        CancellationToken cancellationToken = default) =>
+        QueueContributionCoreAsync(
+            councilRunId,
+            content,
+            requireEnabledProfile: false,
+            directUserMessage: true,
+            cancellationToken: cancellationToken);
+
+    private async Task<HumanCouncilContribution> QueueContributionCoreAsync(
+        Guid councilRunId,
+        string content,
+        bool requireEnabledProfile,
+        bool directUserMessage,
+        CancellationToken cancellationToken)
     {
-        EnsureTrustedHumanInteraction("submit a human council contribution");
+        EnsureTrustedHumanInteraction(directUserMessage
+            ? "add a direct user message to a running council"
+            : "submit a human council contribution");
         var normalized = NormalizeMultiline(content, MaxTextLength);
         if (string.IsNullOrWhiteSpace(normalized))
-            throw new InvalidOperationException("A human council contribution cannot be empty.");
+            throw new InvalidOperationException("A Council user message cannot be empty.");
 
         var profile = await GetProfileAsync(cancellationToken).ConfigureAwait(false);
-        if (!profile.IsEnabled)
+        if (requireEnabledProfile && !profile.IsEnabled)
             throw new InvalidOperationException("Enable the Human Council Participant profile before joining a run.");
         if (!activeRuns.TryGetValue(councilRunId, out var active))
             throw new InvalidOperationException("The selected council run is no longer active.");
@@ -387,8 +413,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         var contribution = new HumanCouncilContribution
         {
             CouncilRunId = councilRunId,
-            HumanDisplayName = profile.DisplayName,
-            HumanRole = profile.RoleName,
+            HumanDisplayName = string.IsNullOrWhiteSpace(profile.DisplayName) ? "Human User" : profile.DisplayName,
+            HumanRole = directUserMessage
+                ? "Direct user message"
+                : profile.RoleName,
             Content = normalized,
             EarliestCouncilRound = Math.Max(1, active.CurrentRound + 1),
             Status = vocabulary.Get().ContributionQueued,
@@ -402,10 +430,14 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         NotifyChanged();
         componentActivity.RecordInformation(
             "HumanCollaboration",
-            "ContributionQueued",
-            "A human contribution was queued for the next council heartbeat.");
+            directUserMessage ? "CouncilUserMessageQueued" : "ContributionQueued",
+            directUserMessage
+                ? "A direct user message was queued for the next Council heartbeat without cancelling the active model."
+                : "A human contribution was queued for the next council heartbeat.");
         logger.LogInformation(
-            "Queued human contribution {ContributionId} for council run {CouncilRunId} at earliest round {EarliestRound}; content was omitted from logs.",
+            directUserMessage
+                ? "Queued direct user message {ContributionId} for council run {CouncilRunId} at earliest round {EarliestRound}; content was omitted from logs."
+                : "Queued human contribution {ContributionId} for council run {CouncilRunId} at earliest round {EarliestRound}; content was omitted from logs.",
             contribution.Id,
             contribution.CouncilRunId,
             contribution.EarliestCouncilRound);

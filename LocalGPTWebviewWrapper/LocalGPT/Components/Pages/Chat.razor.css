@@ -1153,3 +1153,69 @@
     padding: .25rem .6rem .65rem;
     scrollbar-gutter: stable;
 }
+
+
+/* final17: one touch-friendly visual language for Chat actions. */
+.main-container ::deep .localgpt-rounded-action {
+    min-height: 2.9rem !important;
+    padding: .58rem 1rem !important;
+    border-radius: .75rem !important;
+    font-weight: 750 !important;
+    touch-action: manipulation;
+}
+
+.main-container ::deep .localgpt-rounded-action:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--bs-primary, #ff6b00) 38%, transparent) !important;
+    outline-offset: 2px;
+}
+
+.demo-chat ::deep .localgpt-live-send-button {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border: 0 !important;
+    background: var(--bs-primary, #ff6b00) !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    cursor: pointer;
+}
+
+.demo-chat ::deep .localgpt-live-send-button.localgpt-live-send-visible {
+    display: inline-flex !important;
+}
+
+.demo-chat ::deep .localgpt-live-send-button[disabled] {
+    cursor: wait;
+    opacity: .72;
+}
+
+.demo-chat ::deep .localgpt-council-stop-hidden {
+    display: none !important;
+}
+
+.demo-chat ::deep .localgpt-live-user-message-row {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    padding: .35rem .75rem;
+    box-sizing: border-box;
+}
+
+.demo-chat ::deep .localgpt-live-user-message {
+    max-width: min(82%, 64rem);
+    padding: .72rem .9rem;
+    border-radius: .8rem .8rem .18rem .8rem;
+    background: color-mix(in srgb, var(--bs-primary, #ff6b00) 16%, var(--localgpt-surface-bg, #fff));
+    border: 1px solid color-mix(in srgb, var(--bs-primary, #ff6b00) 30%, transparent);
+    color: var(--bs-body-color, #20242a);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+@media (pointer: coarse), (max-width: 680px) {
+    .main-container ::deep .localgpt-rounded-action {
+        min-height: 3.2rem !important;
+        padding-inline: 1.1rem !important;
+        border-radius: .82rem !important;
+    }
+}

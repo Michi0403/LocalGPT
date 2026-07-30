@@ -11,6 +11,11 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     const diagnostics = window.localGptJavaScriptDiagnostics;
     const hostSelector = '[data-testid="dxaichat-host"]';
     let scheduled = false;
+    let councilComposerDotNet = null;
+    let councilComposerActive = false;
+    let councilComposerSubmitting = false;
+    let liveUserMessageSequence = 0;
+    const liveUserMessages = new WeakMap();
 
     function visible(element) {
         try {
@@ -222,6 +227,145 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
+
+    function editorText(editor) {
+        try {
+            if (editor instanceof HTMLTextAreaElement || editor instanceof HTMLInputElement) return editor.value || '';
+            return editor instanceof HTMLElement ? (editor.innerText || editor.textContent || '') : '';
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.editorText', error);
+            throw error;
+        }
+    }
+
+    function clearEditor(editor) {
+        try {
+            if (editor instanceof HTMLTextAreaElement || editor instanceof HTMLInputElement) editor.value = '';
+            else if (editor instanceof HTMLElement) editor.textContent = '';
+            editor?.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
+            editor?.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.clearEditor', error);
+            throw error;
+        }
+    }
+
+    function renderLiveUserMessages(host, region) {
+        try {
+            if (!(host instanceof HTMLElement) || !(region instanceof HTMLElement)) return;
+            const messages = liveUserMessages.get(host) || [];
+            const existing = new Set(
+                [...region.querySelectorAll('[data-localgpt-live-user-message-id]')]
+                    .map(element => element.getAttribute('data-localgpt-live-user-message-id'))
+                    .filter(Boolean));
+            for (const message of messages) {
+                if (existing.has(message.id)) continue;
+                const row = document.createElement('div');
+                row.className = 'localgpt-live-user-message-row';
+                row.dataset.localgptLiveUserMessage = 'true';
+                row.dataset.localgptLiveUserMessageId = message.id;
+                const bubble = document.createElement('div');
+                bubble.className = 'localgpt-live-user-message';
+                bubble.textContent = message.content;
+                row.appendChild(bubble);
+                region.appendChild(row);
+            }
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.renderLiveUserMessages', error);
+            throw error;
+        }
+    }
+
+    function appendLiveUserMessage(host, content) {
+        try {
+            const messages = liveUserMessages.get(host) || [];
+            messages.push({ id: `live-user-${++liveUserMessageSequence}`, content });
+            liveUserMessages.set(host, messages);
+            const composer = host.querySelector('.localgpt-chat-composer');
+            const region = findScrollRegion(host, composer);
+            if (!(region instanceof HTMLElement)) return;
+            renderLiveUserMessages(host, region);
+            const state = bindSlowScroll(host, region);
+            state.follow = true;
+            state.userInteracting = false;
+            scheduleSlowFollow(host, region);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.appendLiveUserMessage', error);
+            throw error;
+        }
+    }
+
+    function ensureLiveSendButton(host, composer, editor) {
+        try {
+            if (!(composer instanceof HTMLElement)) return null;
+            let button = composer.querySelector('.localgpt-live-send-button');
+            if (!(button instanceof HTMLButtonElement)) {
+                button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'localgpt-live-send-button localgpt-send-button';
+                button.setAttribute('aria-label', 'Send message to running AI Council');
+                button.setAttribute('title', 'Add this user message to the running Council without stopping generation');
+                button.textContent = '➤';
+                button.addEventListener('click', diagnostics.guard('localgpt-chat-ui.liveCouncilSend.click', async event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const content = editorText(editor).trim();
+                    if (!content || !councilComposerActive || !councilComposerDotNet || councilComposerSubmitting) return;
+                    councilComposerSubmitting = true;
+                    button.disabled = true;
+                    try {
+                        const accepted = await councilComposerDotNet.invokeMethodAsync('QueueLiveCouncilUserMessageAsync', content);
+                        if (accepted) {
+                            appendLiveUserMessage(host, content);
+                            clearEditor(editor);
+                        }
+                    } finally {
+                        councilComposerSubmitting = false;
+                        button.disabled = false;
+                        updateCouncilComposer(host, editor, composer);
+                    }
+                }));
+                composer.appendChild(button);
+            }
+            return button;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.ensureLiveSendButton', error);
+            throw error;
+        }
+    }
+
+    function updateCouncilComposer(host, editor, composer) {
+        try {
+            if (!(host instanceof HTMLElement) || !(editor instanceof HTMLElement) || !(composer instanceof HTMLElement)) return;
+            const hasText = editorText(editor).trim().length > 0;
+            const showLiveSend = councilComposerActive && hasText;
+            const liveSend = ensureLiveSendButton(host, composer, editor);
+            liveSend?.classList.toggle('localgpt-live-send-visible', showLiveSend);
+            if (liveSend instanceof HTMLButtonElement) liveSend.disabled = councilComposerSubmitting;
+
+            const actionButtons = [...composer.querySelectorAll('button,[role="button"]')];
+            const isUploadAction = button => /attach|upload|file|paperclip|clip/i.test(marker(button));
+            const explicitStop = actionButtons.find(button => {
+                if (button === liveSend) return false;
+                return /stop|cancel generation|abort|square/i.test(marker(button));
+            }) || null;
+            const composerRect = composer.getBoundingClientRect();
+            const fallbackStop = actionButtons.find(button => {
+                if (button === liveSend || isUploadAction(button)) return false;
+                const rect = button.getBoundingClientRect();
+                return rect.width > 0
+                    && rect.width <= 96
+                    && rect.height > 0
+                    && rect.height <= 96
+                    && rect.right >= composerRect.right - 120;
+            }) || null;
+            (explicitStop || fallbackStop)?.classList.toggle('localgpt-council-stop-hidden', showLiveSend);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.updateCouncilComposer', error);
+            throw error;
+        }
+    }
+
     function enhance(host) {
         try {
             if (!(host instanceof HTMLElement)) return;
@@ -233,7 +377,8 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             if (editor instanceof HTMLElement) editor.dataset.localgptChatInput = 'true';
 
             const buttons = [...host.querySelectorAll('button,[role="button"]')].filter(visible);
-            const send = buttons.find(button => { try { return (/send|submit|paper-plane|arrow-right/i.test(marker(button))
+            const send = buttons.find(button => { try { return (!button.classList.contains('localgpt-live-send-button')
+                && /send|submit|paper-plane|arrow-right/i.test(marker(button))
                 && !/attach|upload|file|paperclip|clip/i.test(marker(button))); } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:buttons.find@107', __javascriptError); throw __javascriptError; } }) || null;
             if (send) {
                 addClass(send, 'localgpt-send-button');
@@ -251,6 +396,14 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             const composer = findComposer(host, editor, send);
             addClass(composer, 'localgpt-chat-composer');
             if (composer instanceof HTMLElement) composer.dataset.localgptComposer = 'true';
+            if (editor instanceof HTMLElement && composer instanceof HTMLElement) {
+                if (editor.dataset.localgptCouncilInputBound !== 'true') {
+                    editor.dataset.localgptCouncilInputBound = 'true';
+                    editor.addEventListener('input', diagnostics.guard('localgpt-chat-ui.liveCouncilInput', () =>
+                        updateCouncilComposer(host, editor, composer)));
+                }
+                updateCouncilComposer(host, editor, composer);
+            }
 
             for (const button of buttons) {
                 if (button === send || button === upload) continue;
@@ -263,6 +416,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             const scrollRegion = findScrollRegion(host, composer);
             if (scrollRegion) {
                 addClass(scrollRegion, 'localgpt-chat-scroll-region');
+                renderLiveUserMessages(host, scrollRegion);
                 scheduleSlowFollow(host, scrollRegion);
             }
             host.dataset.localgptChatEnhanced = 'true';
@@ -300,7 +454,39 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     function start() {
         try {
             scheduleApply();
-            observer.observe(document.body, { childList: true, subtree: true });
+            observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            window.localGptChatUi = {
+                registerCouncilComposer(dotNetReference, isActive) {
+                    try {
+                        councilComposerDotNet = dotNetReference || councilComposerDotNet;
+                        councilComposerActive = Boolean(isActive);
+                        scheduleApply();
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.registerCouncilComposer', error);
+                        throw error;
+                    }
+                },
+                refreshCouncilComposer(isActive) {
+                    try {
+                        councilComposerActive = Boolean(isActive);
+                        scheduleApply();
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.refreshCouncilComposer', error);
+                        throw error;
+                    }
+                },
+                clearLiveUserMessages() {
+                    try {
+                        document.querySelectorAll(hostSelector).forEach(host => {
+                            liveUserMessages.delete(host);
+                            host.querySelectorAll('[data-localgpt-live-user-message-id]').forEach(element => element.remove());
+                        });
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.clearLiveUserMessages', error);
+                        throw error;
+                    }
+                }
+            };
             window.localGptSlowScrollToBottom = diagnostics.guard('localgpt-chat-ui.externalSlowScroll', elementId => {
                 const host = document.getElementById(elementId) || document.querySelector(hostSelector);
                 if (!(host instanceof HTMLElement)) return;

@@ -28,6 +28,20 @@ internal static class Program
         WriteIndented = true
     };
 
+    private sealed record GitHubReleaseAsset(
+        string Name,
+        string DownloadUrl,
+        long Size);
+
+    private sealed record GitHubReleaseSelection(
+        string Repository,
+        string TagName,
+        DateTimeOffset PublishedAt,
+        DateTimeOffset CreatedAt,
+        long TagRank,
+        string ResolutionSource,
+        IReadOnlyList<GitHubReleaseAsset> Assets);
+
     private static readonly string[] SlimModels =
     [
         "gpt-oss:20b",
@@ -387,10 +401,11 @@ internal static class Program
     {
         try
         {
+            var release = await ResolveNewestCompatibleReleaseAsync(LocalGptRepo, logger).ConfigureAwait(false);
             var zipPath = options.LocalGptZipPath ?? Path.Combine(Environment.CurrentDirectory, LocalGptZipName);
 
-            await DownloadLatestReleaseAssetAsync(
-                LocalGptRepo,
+            await DownloadReleaseAssetAsync(
+                release,
                 zipPath,
                 logger,
                 options,
@@ -408,8 +423,8 @@ internal static class Program
 
             var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
 
-            await DownloadLatestReleaseAssetAsync(
-                LocalGptRepo,
+            await DownloadReleaseAssetAsync(
+                release,
                 setupZipPath,
                 logger,
                 options,
@@ -419,7 +434,8 @@ internal static class Program
             ExtractZipSafely(setupZipPath, targetPath, logger);
 
             logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
-            logger.LogInformation($"LocalGPT app and setup/bootstrap files now reside in '{targetPath}'.");
+            logger.LogInformation(
+                $"LocalGPT release {release.TagName} app and setup/bootstrap files now reside in '{targetPath}'.");
         }
         catch (Exception ex)
         {
@@ -1347,84 +1363,249 @@ internal static class Program
         }
     }
 
-    private static async Task DownloadLatestReleaseAssetAsync(
-    string repo,
-    string outFile,
-    ILogger logger,
-    CliOptions options,
-    bool setupAsset)
+    private static async Task<GitHubReleaseSelection> ResolveNewestCompatibleReleaseAsync(
+        string repo,
+        ILogger logger)
     {
         try
         {
             ValidateRepo(repo, logger);
-            var latestUrl = $"https://api.github.com/repos/{repo}/releases/latest";
-            using var stream = await Http.GetStreamAsync(latestUrl).ConfigureAwait(false);
-            using var json = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
-
-            var root = json.RootElement;
-            var tagName = root.TryGetProperty("tag_name", out var tag) ? tag.GetString() : "unknown";
-            logger.LogInformation($"Latest {repo} release: {tagName}");
-
-            if (!root.TryGetProperty("assets", out var assets) || assets.GetArrayLength() == 0)
-                throw new InvalidOperationException($"No downloadable release assets found for {repo}.");
 
             var platform = GetPlatformToken();
             var arch = GetArchitectureToken();
+            if (string.IsNullOrWhiteSpace(platform) || string.IsNullOrWhiteSpace(arch))
+                throw new PlatformNotSupportedException(
+                    $"No LocalGPT release asset naming rule exists for platform '{platform}' and architecture '{arch}'.");
 
-            JsonElement? selected = null;
+            var appAssetName = $"{platform}{arch}.zip";
+            var setupAssetName = $"setup{platform}{arch}.zip";
+            var candidates = new List<GitHubReleaseSelection>();
+            const int perPage = 100;
+            const int maximumPages = 10;
 
-            foreach (var asset in assets.EnumerateArray())
+            for (var page = 1; page <= maximumPages; page++)
             {
-                var name = asset.GetProperty("name").GetString() ?? string.Empty;
+                var releasesUrl =
+                    $"https://api.github.com/repos/{repo}/releases?per_page={perPage}&page={page}";
+                using var request = CreateGitHubApiRequest(releasesUrl);
+                using var response = await Http.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
 
-                var isPlatformMatch =
-                    name.Contains(platform, StringComparison.OrdinalIgnoreCase)
-                    && name.Contains(arch, StringComparison.OrdinalIgnoreCase);
+                using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                using var json = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
+                var root = json.RootElement;
+                if (root.ValueKind != JsonValueKind.Array)
+                    throw new InvalidDataException($"GitHub returned a non-array release response for {repo}.");
 
-                var isSetupAsset =
-                    name.Contains("setup", StringComparison.OrdinalIgnoreCase)
-                    || name.Contains("installer", StringComparison.OrdinalIgnoreCase)
-                    || name.Contains("bootstrap", StringComparison.OrdinalIgnoreCase);
-
-                logger.LogInformation(
-                    $"Checking asset '{name}'. PlatformMatch={isPlatformMatch}, SetupAsset={isSetupAsset}, WantedSetupAsset={setupAsset}");
-
-                if (isPlatformMatch && isSetupAsset == setupAsset)
+                foreach (var release in root.EnumerateArray())
                 {
-                    selected = asset;
-                    break;
+                    if (IsTrue(release, "draft") || IsTrue(release, "prerelease"))
+                        continue;
+
+                    var candidate = TryCreateReleaseSelection(
+                        repo,
+                        release,
+                        appAssetName,
+                        setupAssetName,
+                        "release-list");
+                    if (candidate is not null)
+                        candidates.Add(candidate);
                 }
+
+                if (root.GetArrayLength() < perPage)
+                    break;
             }
+
+            var selected = candidates
+                .OrderByDescending(candidate => candidate.PublishedAt)
+                .ThenByDescending(candidate => candidate.TagRank)
+                .ThenByDescending(candidate => candidate.CreatedAt)
+                .FirstOrDefault();
 
             if (selected is null)
             {
-                throw new InvalidOperationException(
-                    $"No safe release asset matched setupAsset={setupAsset}, platform={platform}, arch={arch}. Refusing to download an arbitrary asset.");
+                logger.LogWarning(
+                    $"No complete published {repo} release containing both {appAssetName} and {setupAssetName} " +
+                    "was found in the release list. Falling back to GitHub's latest-release endpoint.");
+                selected = await ResolveLatestEndpointReleaseAsync(
+                    repo,
+                    appAssetName,
+                    setupAssetName).ConfigureAwait(false);
             }
 
-            var downloadUrl = selected.Value.GetProperty("browser_download_url").GetString();
-            var assetName = selected.Value.GetProperty("name").GetString();
-
-            if (string.IsNullOrWhiteSpace(downloadUrl))
-                throw new InvalidOperationException($"Selected release asset for {repo} has no download URL.");
-
-            if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var releaseUri) ||
-                releaseUri.Scheme != Uri.UriSchemeHttps ||
-                !releaseUri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException($"Selected release asset for {repo} did not use an approved GitHub HTTPS URL.");
-            }
-
-            logger.LogInformation($"Selected asset: {assetName}");
-            logger.LogInformation($"Downloading {assetName} to {outFile}");
-
-            await DownloadFileAsync(downloadUrl, outFile, logger, options).ConfigureAwait(false);
+            logger.LogInformation(
+                $"Resolved newest compatible {repo} release {selected.TagName} from {selected.ResolutionSource}. " +
+                $"Published {selected.PublishedAt:O}; normalized tag rank {selected.TagRank}.");
+            return selected;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in DownloadLatestReleaseAssetAsync. repo {repo} outFile {outFile} setupAsset={setupAsset}");
+            logger.LogError(ex, $"Could not resolve the newest compatible GitHub release for {repo}.");
             throw;
         }
+    }
+
+    private static async Task<GitHubReleaseSelection> ResolveLatestEndpointReleaseAsync(
+        string repo,
+        string appAssetName,
+        string setupAssetName)
+    {
+        var latestUrl = $"https://api.github.com/repos/{repo}/releases/latest";
+        using var request = CreateGitHubApiRequest(latestUrl);
+        using var response = await Http.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        using var json = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
+        var selected = TryCreateReleaseSelection(
+            repo,
+            json.RootElement,
+            appAssetName,
+            setupAssetName,
+            "latest-endpoint-fallback");
+
+        return selected
+            ?? throw new InvalidOperationException(
+                $"GitHub's latest {repo} release does not contain both {appAssetName} and {setupAssetName}.");
+    }
+
+    private static GitHubReleaseSelection? TryCreateReleaseSelection(
+        string repo,
+        JsonElement release,
+        string appAssetName,
+        string setupAssetName,
+        string resolutionSource)
+    {
+        if (!release.TryGetProperty("tag_name", out var tagElement))
+            return null;
+
+        var tagName = tagElement.GetString();
+        if (string.IsNullOrWhiteSpace(tagName)
+            || !release.TryGetProperty("assets", out var assetsElement)
+            || assetsElement.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var assets = new List<GitHubReleaseAsset>(2);
+        foreach (var asset in assetsElement.EnumerateArray())
+        {
+            var name = asset.TryGetProperty("name", out var nameElement)
+                ? nameElement.GetString()
+                : null;
+            if (!string.Equals(name, appAssetName, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(name, setupAssetName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var downloadUrl = asset.TryGetProperty("browser_download_url", out var urlElement)
+                ? urlElement.GetString()
+                : null;
+            if (string.IsNullOrWhiteSpace(downloadUrl))
+                continue;
+
+            var size = asset.TryGetProperty("size", out var sizeElement)
+                       && sizeElement.TryGetInt64(out var parsedSize)
+                ? parsedSize
+                : 0L;
+            assets.Add(new GitHubReleaseAsset(name!, downloadUrl, size));
+        }
+
+        if (!assets.Any(asset => string.Equals(asset.Name, appAssetName, StringComparison.OrdinalIgnoreCase))
+            || !assets.Any(asset => string.Equals(asset.Name, setupAssetName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        var createdAt = ReadGitHubTimestamp(release, "created_at");
+        var publishedAt = ReadGitHubTimestamp(release, "published_at");
+        if (publishedAt == DateTimeOffset.MinValue)
+            publishedAt = createdAt;
+
+        return new GitHubReleaseSelection(
+            repo,
+            tagName,
+            publishedAt,
+            createdAt,
+            GetNormalizedTagRank(tagName),
+            resolutionSource,
+            assets);
+    }
+
+    private static async Task DownloadReleaseAssetAsync(
+        GitHubReleaseSelection release,
+        string outFile,
+        ILogger logger,
+        CliOptions options,
+        bool setupAsset)
+    {
+        try
+        {
+            var expectedAssetName =
+                $"{(setupAsset ? "setup" : string.Empty)}{GetPlatformToken()}{GetArchitectureToken()}.zip";
+            var selected = release.Assets.FirstOrDefault(asset =>
+                string.Equals(asset.Name, expectedAssetName, StringComparison.OrdinalIgnoreCase));
+            if (selected is null)
+                throw new InvalidOperationException(
+                    $"Release {release.TagName} does not contain required asset {expectedAssetName}.");
+
+            if (!Uri.TryCreate(selected.DownloadUrl, UriKind.Absolute, out var releaseUri)
+                || releaseUri.Scheme != Uri.UriSchemeHttps
+                || !releaseUri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Selected release asset {selected.Name} did not use an approved GitHub HTTPS URL.");
+            }
+
+            logger.LogInformation($"Selected release: {release.TagName}");
+            logger.LogInformation($"Selected asset: {selected.Name}");
+            logger.LogInformation($"Downloading {selected.Name} to {outFile}");
+            await DownloadFileAsync(selected.DownloadUrl, outFile, logger, options).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                $"Could not download release {release.TagName} asset. outFile={outFile}, setupAsset={setupAsset}");
+            throw;
+        }
+    }
+
+    private static HttpRequestMessage CreateGitHubApiRequest(string url)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28");
+        request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache, no-store");
+        request.Headers.TryAddWithoutValidation("Pragma", "no-cache");
+        return request;
+    }
+
+    private static DateTimeOffset ReadGitHubTimestamp(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+            return DateTimeOffset.MinValue;
+
+        return DateTimeOffset.TryParse(property.GetString(), out var timestamp)
+            ? timestamp
+            : DateTimeOffset.MinValue;
+    }
+
+    private static bool IsTrue(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property)
+               && property.ValueKind == JsonValueKind.True;
+    }
+
+    private static long GetNormalizedTagRank(string tagName)
+    {
+        var digits = new string(tagName.Where(char.IsDigit).ToArray());
+        return long.TryParse(digits, out var rank) ? rank : -1L;
     }
 
     private static async Task DownloadGitHubSourceZipAsync(string repo, string outFile, ILogger logger, CliOptions options)
