@@ -1169,7 +1169,7 @@
     outline-offset: 2px;
 }
 
-.demo-chat ::deep .localgpt-live-send-button {
+::deep .localgpt-live-send-button {
     display: none;
     align-items: center;
     justify-content: center;
@@ -1180,20 +1180,20 @@
     cursor: pointer;
 }
 
-.demo-chat ::deep .localgpt-live-send-button.localgpt-live-send-visible {
+::deep .localgpt-live-send-button.localgpt-live-send-visible {
     display: inline-flex !important;
 }
 
-.demo-chat ::deep .localgpt-live-send-button[disabled] {
+::deep .localgpt-live-send-button[disabled] {
     cursor: wait;
     opacity: .72;
 }
 
-.demo-chat ::deep .localgpt-council-stop-hidden {
+::deep .localgpt-council-stop-hidden {
     display: none !important;
 }
 
-.demo-chat ::deep .localgpt-live-user-message-row {
+::deep .localgpt-live-user-message-row {
     display: flex;
     justify-content: flex-end;
     width: 100%;
@@ -1201,7 +1201,7 @@
     box-sizing: border-box;
 }
 
-.demo-chat ::deep .localgpt-live-user-message {
+::deep .localgpt-live-user-message {
     max-width: min(82%, 64rem);
     padding: .72rem .9rem;
     border-radius: .8rem .8rem .18rem .8rem;

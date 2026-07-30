@@ -108,9 +108,12 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
 
     function findScrollRegion(host, composer) {
         try {
-            const candidates = [...host.querySelectorAll('*')]
+            const chatRoot = host.querySelector('.demo-chat') || host;
+            const candidates = [...chatRoot.querySelectorAll('*')]
                 .filter(element => {
-                    if (!(element instanceof HTMLElement) || composer?.contains(element)) return false;
+                    if (!(element instanceof HTMLElement)
+                        || composer?.contains(element)
+                        || (composer instanceof HTMLElement && element.contains(composer))) return false;
                     const style = getComputedStyle(element);
                     return /(auto|scroll)/i.test(style.overflowY)
                         && element.clientHeight >= 120

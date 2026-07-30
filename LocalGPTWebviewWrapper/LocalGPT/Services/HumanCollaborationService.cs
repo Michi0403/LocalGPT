@@ -418,7 +418,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                 ? "Direct user message"
                 : profile.RoleName,
             Content = normalized,
-            EarliestCouncilRound = Math.Max(1, active.CurrentRound + 1),
+            EarliestCouncilRound = directUserMessage
+                ? Math.Max(0, active.CurrentRound)
+                : Math.Max(1, active.CurrentRound + 1),
             Status = vocabulary.Get().ContributionQueued,
             EvaluationVerdict = vocabulary.Get().VerdictPending,
             SubmittedAtUtc = DateTime.UtcNow
