@@ -773,7 +773,7 @@ namespace LocalGPT.Services
                 stepCompleted?.Invoke(humanStep);
                 progressMessage?.Invoke(
                     $"Received a live {contribution.HumanRole} from {contribution.HumanDisplayName}. " +
-                    "It is included in the next model request without cancelling the model that is already streaming.");
+                    "It is included in active and subsequent model context; a currently streaming model is transparently restarted when required.");
             }
 
             return MultiModelCouncilServiceAppendPromptSection(
@@ -1216,46 +1216,129 @@ namespace LocalGPT.Services
                     promptConfigService,
                     functionRegistry);
 
-
                     using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
 
                     var messages = new List<ChatMessage>();
                     if (!string.IsNullOrWhiteSpace(bootstrap))
                         messages.Add(new ChatMessage(ChatRole.System, bootstrap));
-                    messages.Add(new ChatMessage(ChatRole.System, councilText.MultiModelCouncilServiceCreateCouncilSystemPrompt(modelName, councilMembers,logger)));
+                    messages.Add(new ChatMessage(ChatRole.System, councilText.MultiModelCouncilServiceCreateCouncilSystemPrompt(modelName, councilMembers, logger)));
                     messages.Add(new ChatMessage(ChatRole.User, prompt));
 
-                    var streamId = Guid.NewGuid().ToString("N");
-                    var streamPanelOpened = streamUpdate is not null;
-                    streamUpdate?.Invoke($"<details class=\"council-step council-live\" data-localgpt-stream-id=\"{streamId}\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} live output")}</summary>\n\n");
-                    var builder = new StringBuilder();
+                    var allContent = new StringBuilder();
+                    var finalAttemptContent = string.Empty;
+                    var observedContributionIds = new HashSet<Guid>();
+                    var liveInputRestarts = 0;
+                    const int maximumLiveInputRestarts = 12;
+                    var councilRunId = ambientContext.Current.CouncilRunId;
+
                     ArgumentNullException.ThrowIfNull(client);
                     ArgumentNullException.ThrowIfNull(messages);
-                    try
+
+                    while (true)
                     {
-                        await foreach (var update in client.GetStreamingResponseAsync(
-                            (List<ChatMessage>) messages,
-                            new ChatOptions
-                            {
-                                MaxOutputTokens = Math.Clamp(maxOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens),
-                                Temperature = 0.2f
-                            },
-                            participantCts.Token).WithCancellation(participantCts.Token).ConfigureAwait(true))
+                        var streamId = Guid.NewGuid().ToString("N");
+                        var streamPanelOpened = streamUpdate is not null;
+                        var continuationLabel = liveInputRestarts == 0 ? "live output" : $"live continuation {liveInputRestarts}";
+                        streamUpdate?.Invoke($"<details class=\"council-step council-live\" data-localgpt-stream-id=\"{streamId}\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} {continuationLabel}")}</summary>\n\n");
+
+                        var attemptBuilder = new StringBuilder();
+                        using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
+                        using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
+                        var liveInputSignal = new TaskCompletionSource<IReadOnlyList<HumanCouncilContribution>>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        var monitorTask = councilRunId is Guid activeRunId
+                            ? MonitorLiveCouncilInputAsync(
+                                activeRunId,
+                                round,
+                                observedContributionIds,
+                                liveInputSignal,
+                                streamCts,
+                                monitorCts.Token)
+                            : Task.CompletedTask;
+
+                        try
                         {
-                            builder.Append(update.Text);
-                            streamUpdate?.Invoke(update.Text);
+                            await foreach (var update in client.GetStreamingResponseAsync(
+                                messages,
+                                new ChatOptions
+                                {
+                                    MaxOutputTokens = Math.Clamp(maxOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens),
+                                    Temperature = 0.2f
+                                },
+                                streamCts.Token).WithCancellation(streamCts.Token).ConfigureAwait(true))
+                            {
+                                attemptBuilder.Append(update.Text);
+                                allContent.Append(update.Text);
+                                streamUpdate?.Invoke(update.Text);
+                            }
+
+                            finalAttemptContent = attemptBuilder.ToString();
+                            break;
+                        }
+                        catch (OperationCanceledException) when (
+                            liveInputSignal.Task.IsCompletedSuccessfully &&
+                            !participantCts.IsCancellationRequested &&
+                            !cancellationToken.IsCancellationRequested)
+                        {
+                            var contributions = await liveInputSignal.Task.ConfigureAwait(false);
+                            foreach (var contribution in contributions)
+                                observedContributionIds.Add(contribution.Id);
+
+                            liveInputRestarts++;
+                            if (liveInputRestarts > maximumLiveInputRestarts)
+                            {
+                                logger.LogWarning(
+                                    "Stopped live-input restarts for Council model {ModelName} after {RestartCount} interruptions in {Phase}.",
+                                    modelName,
+                                    maximumLiveInputRestarts,
+                                    phase);
+                                finalAttemptContent = attemptBuilder.ToString();
+                                break;
+                            }
+
+                            var partial = attemptBuilder.ToString();
+                            if (!string.IsNullOrWhiteSpace(partial))
+                            {
+                                messages.Add(new ChatMessage(
+                                    ChatRole.Assistant,
+                                    "Partial response produced before the user interrupted this model:\n\n" +
+                                    LimitLiveCouncilContext(partial, 24_000)));
+                            }
+
+                            messages.Add(new ChatMessage(
+                                ChatRole.User,
+                                BuildLiveCouncilInterruptionPrompt(contributions)));
+
+                            streamUpdate?.Invoke(
+                                $"\n\n> **New user message received.** LocalGPT interrupted only {WebUtility.HtmlEncode(modelName)}'s open Ollama stream and is resuming the same model with the new message in its prompt.\n\n");
+                            logger.LogInformation(
+                                "Restarting Council model {ModelName} in phase {Phase} after receiving {ContributionCount} live user message(s).",
+                                modelName,
+                                phase,
+                                contributions.Count);
+                        }
+                        finally
+                        {
+                            monitorCts.Cancel();
+                            try
+                            {
+                                await monitorTask.ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException) when (monitorCts.IsCancellationRequested || participantCts.IsCancellationRequested)
+                            {
+                            }
+
+                            if (streamPanelOpened)
+                                streamUpdate?.Invoke($"\n\n</details><!--localgpt-council-stream-complete:{streamId}-->\n\n");
                         }
                     }
-                    finally
-                    {
-                        if (streamPanelOpened)
-                            streamUpdate?.Invoke($"\n\n</details><!--localgpt-council-stream-complete:{streamId}-->\n\n");
-                    }
 
-                    var content = builder.ToString();
-                    var thinking = councilText.MultiModelCouncilServiceExtractThinking(content,logger);
-                    var visibleContent = councilText.MultiModelCouncilServiceStripThinking(content, logger);
+                    var content = allContent.ToString();
+                    var thinking = councilText.MultiModelCouncilServiceExtractThinking(content, logger);
+                    var visibleContent = councilText.MultiModelCouncilServiceStripThinking(
+                        string.IsNullOrWhiteSpace(finalAttemptContent) ? content : finalAttemptContent,
+                        logger);
                     if (string.IsNullOrWhiteSpace(visibleContent) && !string.IsNullOrWhiteSpace(thinking))
                         visibleContent = $"_{modelName} returned thinking during {phase}, but no final visible answer. Increase max output tokens or ask for a shorter final answer._";
 
@@ -1272,7 +1355,8 @@ namespace LocalGPT.Services
                             messages,
                             Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 2048), 8192), catalog.MinOutputTokens, catalog.MaxOutputTokens),
                             streamUpdate,
-                            participantCts.Token,logger).ConfigureAwait(false);
+                            participantCts.Token,
+                            logger).ConfigureAwait(false);
 
                         if (!string.IsNullOrWhiteSpace(recovery.Content))
                             content = $"{content}{Environment.NewLine}{Environment.NewLine}{recovery.Content}";
@@ -1298,7 +1382,7 @@ namespace LocalGPT.Services
                         DurationSeconds = stopwatch.Elapsed.TotalSeconds
                     };
                 }
-                catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     stopwatch.Stop();
                     var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
@@ -1366,6 +1450,66 @@ namespace LocalGPT.Services
                 logger.LogError(ex, "Council participant failed for model {ModelName}, round {Round}, phase {Phase}, role {Role}, max output {MaxOutputTokens}, max context {MaxContextTokens}, timeout {TimeoutSeconds}s.", modelName, round, phase, role, maxOutputTokens, maxContextTokens, modelTimeoutSeconds);
                 return null;
             }
+        }
+
+        private async Task MonitorLiveCouncilInputAsync(
+            Guid councilRunId,
+            int currentRound,
+            IReadOnlySet<Guid> observedContributionIds,
+            TaskCompletionSource<IReadOnlyList<HumanCouncilContribution>> signal,
+            CancellationTokenSource streamCancellation,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    var queued = await humanCollaboration
+                        .ReadQueuedContributionsAsync(councilRunId, currentRound, cancellationToken)
+                        .ConfigureAwait(false);
+                    var unseen = queued
+                        .Where(item => !observedContributionIds.Contains(item.Id))
+                        .ToList();
+                    if (unseen.Count > 0)
+                    {
+                        signal.TrySetResult(unseen);
+                        streamCancellation.Cancel();
+                        return;
+                    }
+
+                    await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not monitor live Council user messages for run {CouncilRunId}; the active model stream will continue.", councilRunId);
+            }
+        }
+
+        private static string BuildLiveCouncilInterruptionPrompt(IReadOnlyList<HumanCouncilContribution> contributions)
+        {
+            var builder = new StringBuilder()
+                .AppendLine("The local user added new conversation input while your previous response was still generating.")
+                .AppendLine("This is current user context. React to it now, revise any incompatible assumptions, and explicitly answer or acknowledge it.")
+                .AppendLine("Do not claim that you cannot see the message. Do not continue the old draft unchanged.");
+            foreach (var contribution in contributions)
+            {
+                builder.AppendLine()
+                    .AppendLine("--- live user message ---")
+                    .AppendLine(contribution.Content)
+                    .AppendLine("--- end live user message ---");
+            }
+            return builder.ToString().Trim();
+        }
+
+        private static string LimitLiveCouncilContext(string value, int maximumCharacters)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maximumCharacters)
+                return value;
+            return value[^maximumCharacters..];
         }
 
         private async Task<MultiModelCouncilStep?> RetryParticipantWithSafeLimitsAsync(

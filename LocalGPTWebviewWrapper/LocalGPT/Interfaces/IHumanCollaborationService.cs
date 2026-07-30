@@ -37,6 +37,11 @@ public interface IHumanCollaborationService
         string content,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<HumanCouncilContribution>> ReadQueuedContributionsAsync(
+        Guid councilRunId,
+        int currentRound,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<HumanCouncilContribution>> DrainContributionsAsync(
         Guid councilRunId,
         int currentRound,

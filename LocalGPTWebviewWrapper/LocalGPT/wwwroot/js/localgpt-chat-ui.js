@@ -241,6 +241,28 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
+    function findMessageList(region, composer) {
+        try {
+            if (!(region instanceof HTMLElement)) return null;
+            const candidates = [...region.querySelectorAll(
+                '[role="log"],[role="list"],[class*="message-list" i],[class*="messages" i],[class*="chat-history" i],[class*="conversation" i]')]
+                .filter(element => element instanceof HTMLElement
+                    && !composer?.contains(element)
+                    && !(composer instanceof HTMLElement && element.contains(composer)));
+            const scored = candidates.map(element => ({
+                element,
+                score: element.querySelectorAll(
+                    '[role="listitem"],[class*="message" i],[data-message-role],[data-role]').length * 100
+                    + element.children.length * 10
+                    + (element.parentElement?.querySelectorAll('[class*="message" i]').length ?? 0)
+            })).sort((left, right) => right.score - left.score);
+            return scored[0]?.element || region;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.findMessageList', error);
+            throw error;
+        }
+    }
+
     function clearEditor(editor) {
         try {
             if (editor instanceof HTMLTextAreaElement || editor instanceof HTMLInputElement) editor.value = '';
@@ -257,21 +279,34 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         try {
             if (!(host instanceof HTMLElement) || !(region instanceof HTMLElement)) return;
             const messages = liveUserMessages.get(host) || [];
+            const composer = host.querySelector('.localgpt-chat-composer');
+            const messageList = findMessageList(region, composer);
+            if (!(messageList instanceof HTMLElement)) return;
             const existing = new Set(
-                [...region.querySelectorAll('[data-localgpt-live-user-message-id]')]
+                [...messageList.querySelectorAll('[data-localgpt-live-user-message-id]')]
                     .map(element => element.getAttribute('data-localgpt-live-user-message-id'))
                     .filter(Boolean));
             for (const message of messages) {
+                const actualMessageExists = [...messageList.querySelectorAll('[role="listitem"],[class*="message" i],[data-message-role],[data-role]')]
+                    .some(element => !element.hasAttribute('data-localgpt-live-user-message-id')
+                        && (element.textContent || '').trim() === message.content.trim());
+                if (actualMessageExists) {
+                    messageList.querySelector(`[data-localgpt-live-user-message-id="${CSS.escape(message.id)}"]`)?.remove();
+                    continue;
+                }
                 if (existing.has(message.id)) continue;
                 const row = document.createElement('div');
                 row.className = 'localgpt-live-user-message-row';
                 row.dataset.localgptLiveUserMessage = 'true';
                 row.dataset.localgptLiveUserMessageId = message.id;
+                row.dataset.messageRole = 'user';
+                row.setAttribute('role', 'listitem');
+                row.setAttribute('aria-label', 'User message');
                 const bubble = document.createElement('div');
                 bubble.className = 'localgpt-live-user-message';
                 bubble.textContent = message.content;
                 row.appendChild(bubble);
-                region.appendChild(row);
+                messageList.appendChild(row);
             }
         } catch (error) {
             diagnostics.report('localgpt-chat-ui.renderLiveUserMessages', error);

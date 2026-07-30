@@ -602,6 +602,7 @@
     string SelectedCouncilRunValue => SelectedCouncilRunId?.ToString() ?? string.Empty;
     string ActiveCouncilRunShortId => ActiveCouncilRun?.RunId.ToString("N")[..8] ?? string.Empty;
     string RunningCouncilContribution { get; set; } = string.Empty;
+    List<BlazorChatMessage> PendingLiveCouncilUserMessages { get; } = [];
     HumanCouncilRunSnapshot? ActiveCouncilRun =>
         (SelectedCouncilRunId is Guid selected
             ? collaborationSnapshot.ActiveRuns.FirstOrDefault(run => run.RunId == selected)
@@ -1590,6 +1591,7 @@
                 return;
 
             ChatClientProvider.SelectedSession.Messages.Clear();
+            PendingLiveCouncilUserMessages.Clear();
             ActiveConversationId = null;
             SessionContext.SetConversation(null);
             SelectedConversation = null;
@@ -1914,8 +1916,19 @@
         {
             if (ChatClientProvider?.SelectedSession != null)
             {
+                var mergedMessages = saveMessages.ToList();
+                foreach (var pending in PendingLiveCouncilUserMessages)
+                {
+                    if (!mergedMessages.Any(message =>
+                        message.Role == pending.Role &&
+                        string.Equals(message.Content, pending.Content, StringComparison.Ordinal)))
+                    {
+                        mergedMessages.Add(pending);
+                    }
+                }
+
                 ChatClientProvider.SelectedSession.Messages.Clear();
-                ChatClientProvider.SelectedSession.Messages.AddRange(saveMessages);
+                ChatClientProvider.SelectedSession.Messages.AddRange(mergedMessages);
             }
         }
         catch (Exception ex)
@@ -2563,15 +2576,24 @@
                 councilRound: activeRun.CurrentRound,
                 phase: activeRun.Phase);
 
+            var normalizedContent = content.Trim();
             await HumanCollaboration.QueueUserMessageAsync(
                 activeRun.RunId,
-                content.Trim(),
+                normalizedContent,
                 componentLifetimeCts.Token).ConfigureAwait(true);
+
+            var chatMessage = new BlazorChatMessage(
+                ChatRole.User,
+                normalizedContent,
+                new List<AIChatUploadFileInfo>());
+            PendingLiveCouncilUserMessages.Add(chatMessage);
+            if (ChatClientProvider?.SelectedSession is not null)
+                ChatClientProvider.SelectedSession.Messages.Add(chatMessage);
 
             ComponentActivity.RecordInformation(
                 nameof(Chat),
                 "QueueLiveCouncilUserMessage",
-                "A direct user message was queued for the next active Council heartbeat without cancelling generation.");
+                "A direct user message was accepted for immediate model interruption/resume and subsequent Council context.");
             await RefreshHumanCollaborationAsync().ConfigureAwait(true);
             return true;
         }

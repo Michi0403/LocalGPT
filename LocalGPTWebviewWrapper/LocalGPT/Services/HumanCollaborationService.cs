@@ -434,7 +434,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             "HumanCollaboration",
             directUserMessage ? "CouncilUserMessageQueued" : "ContributionQueued",
             directUserMessage
-                ? "A direct user message was queued for the next Council heartbeat without cancelling the active model."
+                ? "A direct user message was queued for immediate active-model interruption/resume and subsequent Council heartbeats."
                 : "A human contribution was queued for the next council heartbeat.");
         logger.LogInformation(
             directUserMessage
@@ -444,6 +444,29 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             contribution.CouncilRunId,
             contribution.EarliestCouncilRound);
         return contribution;
+    }
+
+    public async Task<IReadOnlyList<HumanCouncilContribution>> ReadQueuedContributionsAsync(
+        Guid councilRunId,
+        int currentRound,
+        CancellationToken cancellationToken = default)
+    {
+        await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            return await db.HumanCouncilContributions.AsNoTracking()
+                .Where(item => item.CouncilRunId == councilRunId &&
+                    item.Status == vocabulary.Get().ContributionQueued &&
+                    item.EarliestCouncilRound <= currentRound)
+                .OrderBy(item => item.SubmittedAtUtc)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            databaseGate.Release();
+        }
     }
 
     public async Task<IReadOnlyList<HumanCouncilContribution>> DrainContributionsAsync(
