@@ -199,12 +199,19 @@ namespace LocalGPT
         {
             try
             {
+                var userSettingsFile = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT",
+                    "appsettings.user.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(userSettingsFile)!);
+
                 builder.Configuration
                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                .AddJsonFile(
                    $"appsettings.{builder.Environment.EnvironmentName}.json",
                    optional: true,
                    reloadOnChange: true)
+               .AddJsonFile(userSettingsFile, optional: true, reloadOnChange: true)
                .AddEnvironmentVariables();
             }
             catch (Exception ex)

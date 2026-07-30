@@ -31,17 +31,30 @@
 
 <PageTitle>AI Chat</PageTitle>
 
-<div class="main-container" data-testid="chat-page">
+<div class="main-container @(ActiveCouncilRun is not null ? "chat-session-active" : string.Empty)" data-testid="chat-page">
     @if (ChatClientProvider is not null)
     {
         <ToastWrapper Name="@toastName" />
+        <div class="chat-primary-actions" data-testid="chat-primary-actions">
+            <DxButton Text="Start new chat"
+                      CssClass="chat-new-session-button"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                      IconCssClass="oi oi-plus"
+                      Click="ClearHistoryAsync" />
+        </div>
+        <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
+            <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation.">
+                <span>Chat configuration</span>
+                <small>@(ChatClientProvider.SelectedSession?.Name ?? "No provider") · @SelectedCouncilModelNames.Count council model@(SelectedCouncilModelNames.Count == 1 ? string.Empty : "s")</small>
+            </summary>
+            <div class="chat-configuration-content">
         <div class="chat-session-toolbar" data-testid="chat-session-actions">
             <DxToolbar Title="Chat actions"
                        CssClass="localgpt-chat-toolbar"
                        AdaptivityAutoCollapseItemsToIcons="true"
                        ItemClick="OnChatToolbarItemClick">
                 <Items>
-                    <DxToolbarItem Name="new-chat" Text="Start new chat" CssClass="localgpt-command-new-chat" IconCssClass="oi oi-plus" RenderStyle="ButtonRenderStyle.Primary" />
                     <DxToolbarItem Name="provider-setup" Text="Provider setup" IconCssClass="oi oi-cog" />
                     <DxToolbarItem Name="refresh-models" Text="Refresh local models" CssClass="localgpt-command-refresh-models" IconCssClass="oi oi-reload" Enabled="@(!isModelRefreshBusy)" />
                     <DxToolbarItem Name="onewire-security" Text="1-Wire Security" IconCssClass="oi oi-lock-locked" />
@@ -298,11 +311,11 @@
         </details>
         @if (RecentThoughts.Count > 0)
         {
-            <div class="memory-thoughts">
+            <div class="memory-thoughts" data-localgpt-details-host>
                 <div class="memory-thoughts-title">Former model thoughts</div>
                 @foreach (var thought in RecentThoughts.Take(3))
                 {
-                    <details>
+                    <details data-localgpt-panel-key="@($"former-thought-{thought.ConversationId:N}")">
                         <summary>@thought.ConversationTitle</summary>
                         <div class="former-thought-content" data-localgpt-copyable="true">@CouncilText.NormalizeFormerThought(thought.Thinking, Logger)</div>
                     </details>
@@ -377,6 +390,8 @@
                 <p class="memory-status">@ArchitecturePollStatus</p>
             }
         </details>
+            </div>
+        </details>
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
@@ -407,6 +422,12 @@
 
             </DxAIChat>
         </div>
+        <details class="chat-session-tools-ribbon" data-testid="chat-session-tools-ribbon">
+            <summary>
+                <span>Running session tools</span>
+                <small>@(ActiveCouncilRun is null ? "No Council heartbeat is running" : $"Round {ActiveCouncilRun.CurrentRound} · {ActiveCouncilRun.Phase}")</small>
+            </summary>
+            <div class="chat-session-tools-content">
         <div class="memory-toolbar human-live-contribution" aria-label="Join and add information to a running AI Council" data-testid="live-council-participation">
             <label title="Join any council heartbeat that is still running in this LocalGPT process.">
                 <span>Running Council session</span>
@@ -496,6 +517,8 @@
                 }
             </div>
         }
+            </div>
+        </details>
     }
     else
     {
@@ -585,6 +608,7 @@
         ?? collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault();
     bool autoSaveFailureNotified;
     bool initialModelRefreshStarted;
+    bool hasUserSelectedSession;
     string lastSavedSignature = string.Empty;
 
 
@@ -987,6 +1011,8 @@
             if (ChatClientProvider is null || DxAiChat is null || value is null)
                 return;
 
+            hasUserSelectedSession = true;
+
             if (!string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName) &&
                 ! (MatchesRequestedDiagnosticSession(value, DiagnosticRequestedSessionName) ?? false))
             {
@@ -1096,7 +1122,21 @@
         }
 
         modelSelectionNotice = string.Empty;
+        var preferCouncilByDefault = !hasUserSelectedSession
+            && DiagnosticCouncilModelNames.Count == 0
+            && OllamaCandidates.Count(candidate => candidate.IsInstalled) >= 2;
         RebuildDynamicSessions();
+        if (preferCouncilByDefault && ChatClientProvider is not null)
+        {
+            var councilSession = ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
+                session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase));
+            if (councilSession is not null)
+            {
+                ChatClientProvider.SelectedSession = councilSession;
+                if (DxAiChat is not null)
+                    DxAiChat.LoadMessages(councilSession.Messages);
+            }
+        }
         modelStatus = OllamaCandidates.Count == 0
             ? "No installed Ollama models detected."
             : $"Detected {OllamaCandidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s) and {OllamaCandidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured offline model(s). Only reachable models were added to DXAiChat and AI Council.";
@@ -2282,12 +2322,6 @@
                 return;
 
             initialModelRefreshStarted = true;
-            if (ChatClientProvider?.AvailableChatClients.Count > 0)
-            {
-                Logger.LogInformation("Skipping automatic model discovery because {SessionCount} configured chat session(s) are already available; manual refresh remains available.", ChatClientProvider.AvailableChatClients.Count);
-                return;
-            }
-
             TaskRunner.Run(
                 nameof(Chat),
                 "InitialModelRefresh",

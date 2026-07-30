@@ -1,0 +1,36 @@
+
+.main-container {
+    min-height: calc(100dvh - 4.5rem);
+}
+
+.top-container:first-child {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: .65rem;
+    margin: -.65rem -.65rem .5rem;
+    background: color-mix(in srgb, var(--bs-body-bg, Canvas) 94%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--bs-border-color, #d0d5dd);
+}
+
+::deep .provider-save-button {
+    min-width: 14rem !important;
+    min-height: 3.75rem !important;
+    padding-inline: 1.2rem !important;
+    border-radius: .75rem !important;
+    font-size: 1.08rem !important;
+    font-weight: 850 !important;
+    box-shadow: 0 .35rem 1rem rgba(0, 0, 0, .18) !important;
+    touch-action: manipulation;
+}
+
+::deep .provider-save-button:focus-visible {
+    outline: .22rem solid color-mix(in srgb, var(--bs-primary, Highlight) 55%, transparent) !important;
+    outline-offset: .18rem;
+}
+
+@media (max-width: 680px) {
+    .top-container:first-child { display: grid; grid-template-columns: 1fr; }
+    ::deep .provider-save-button { width: 100% !important; min-width: 0 !important; min-height: 4.1rem !important; }
+}

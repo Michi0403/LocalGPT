@@ -17,7 +17,9 @@
 
     <div class="p-4 space-y-6">
         <div class="top-container">
-            <DxButton Text="Save"
+            <DxButton Text="@(IsSaving ? "Saving and refreshing..." : "Save provider settings")"
+                      CssClass="provider-save-button"
+                      Enabled="@(!IsSaving)"
                       RenderStyle="ButtonRenderStyle.Primary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       IconCssClass="save"
@@ -221,6 +223,7 @@
     private string toastName = "InstallToasts";
     private bool IsDiscovering;
     private bool IsConnectivityChecking;
+    private bool IsSaving;
     private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify Ollama or LM Studio.";
     private DateTimeOffset? LastConnectivityCheck;
     private IReadOnlyList<LocalAiHostDiscoveryResult> DiscoveredHosts = Array.Empty<LocalAiHostDiscoveryResult>();
@@ -630,23 +633,24 @@
     {
         try
         {
+            IsSaving = true;
             NormalizeLocalEndpoint();
 
             var root = Opts.CurrentValue;
-            root.AICore ??= new AICoreOptions();
-            root.AICore.ChatGPTLocalCore = Model.ChatGPTLocalCore;
-            root.AICore.OllamaCore = Model.OllamaCore;
-            root.AICore.OllamaCores = Model.OllamaCores
-                .Where(o => !string.IsNullOrWhiteSpace(o.Uri) || !string.IsNullOrWhiteSpace(o.ModelName))
-                .ToList();
-            root.AICore.OpenAICore = Model.OpenAICore;
-            root.AICore.OpenAIServiceCore = Model.OpenAIServiceCore;
-            root.LoggingCore = LoggingModel;
-            root.LoggingCore.DatabaseCore = DatabaseLoggerModel;
-
+            ApplyModelsToConfiguration(root);
             await Writer.SaveAsync(root).ConfigureAwait(true);
-            await Append("Saved appsettings.json. New chats will use updated providers.").ConfigureAwait(true);
-            Notifier.ShowSuccess(toastName, "Settings saved.", "Saved");
+
+            // Saving provider setup always performs one fresh local-host/model scan.
+            // Any default-port Ollama or LM Studio selection discovered by that scan is
+            // persisted immediately, so the next application boot uses it without a
+            // separate Test Connection + Save cycle.
+            await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(true);
+            NormalizeLocalEndpoint();
+            ApplyModelsToConfiguration(root);
+            await Writer.SaveAsync(root).ConfigureAwait(true);
+
+            await Append("Saved durable provider settings and refreshed local models.").ConfigureAwait(true);
+            Notifier.ShowSuccess(toastName, "Provider settings saved and local models refreshed.", "Saved");
         }
         catch (Exception ex)
         {
@@ -654,6 +658,25 @@
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Save) " + ex.Message).ConfigureAwait(true);
         }
+        finally
+        {
+            IsSaving = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        }
+    }
+
+    private void ApplyModelsToConfiguration(ConfigurationRoot root)
+    {
+        root.AICore ??= new AICoreOptions();
+        root.AICore.ChatGPTLocalCore = Model.ChatGPTLocalCore;
+        root.AICore.OllamaCore = Model.OllamaCore;
+        root.AICore.OllamaCores = Model.OllamaCores
+            .Where(option => !string.IsNullOrWhiteSpace(option.Uri) || !string.IsNullOrWhiteSpace(option.ModelName))
+            .ToList();
+        root.AICore.OpenAICore = Model.OpenAICore;
+        root.AICore.OpenAIServiceCore = Model.OpenAIServiceCore;
+        root.LoggingCore = LoggingModel;
+        root.LoggingCore.DatabaseCore = DatabaseLoggerModel;
     }
 
     private void GoChat()

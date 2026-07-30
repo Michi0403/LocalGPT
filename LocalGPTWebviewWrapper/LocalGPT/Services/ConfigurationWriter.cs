@@ -4,24 +4,17 @@ using System.Text.Json.Nodes;
 
 namespace LocalGPT.Services
 {
-    public class ConfigurationWriter : IConfigurationWriter
+    public sealed class ConfigurationWriter(ILogger<ConfigurationWriter> logger) : IConfigurationWriter
     {
-        private readonly IWebHostEnvironment _env;
-        private readonly IConfiguration _cfg;
-        private readonly ILogger<ConfigurationWriter> _logger;
-
-        public ConfigurationWriter(IWebHostEnvironment env, IConfiguration cfg, ILogger<ConfigurationWriter> logger)
-        {
-            _env = env;
-            _cfg = cfg;
-            _logger = logger;
-        }
-
         public async Task SaveAsync(BusinessObjects.ConfigurationRoot root, CancellationToken ct = default)
         {
             try
             {
-                var file = Path.Combine(_env.ContentRootPath, "appsettings.json");
+                var directory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LocalGPT");
+                Directory.CreateDirectory(directory);
+                var file = Path.Combine(directory, "appsettings.user.json");
                 var serializerOptions = new JsonSerializerOptions { WriteIndented = true };
                 JsonObject settings;
 
@@ -42,17 +35,15 @@ namespace LocalGPT.Services
 
                 var tempFile = file + ".tmp";
                 await File.WriteAllTextAsync(tempFile, settings.ToJsonString(serializerOptions), ct).ConfigureAwait(false);
-                File.Copy(tempFile, file, overwrite: true);
-                File.Delete(tempFile);
+                File.Move(tempFile, file, overwrite: true);
+                logger.LogInformation("Saved durable LocalGPT user configuration to {ConfigurationFile}.", file);
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                _logger.LogError(ex, "Could not save LocalGPT configuration.");
-                
+                logger.LogError(exception, "Could not save LocalGPT user configuration.");
+                throw;
             }
         }
-
-
 
         private void SetSection<T>(
             JsonObject settings,
@@ -60,17 +51,10 @@ namespace LocalGPT.Services
             T? value,
             JsonSerializerOptions serializerOptions)
         {
-            try
-            {
-                if (value is null)
-                    return;
+            if (value is null)
+                return;
 
-                settings[sectionName] = JsonSerializer.SerializeToNode(value, serializerOptions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Could not save the configuration section {SectionName}.", sectionName);
-            }
+            settings[sectionName] = JsonSerializer.SerializeToNode(value, serializerOptions);
         }
     }
 }

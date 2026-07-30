@@ -7,17 +7,13 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
 };
 window.scrollChatToBottom = function (elementId)
 { try {
-    const el = document.getElementById(elementId);
-    //if (el) {
-    //    el.scrollTop = el.scrollHeight;
-    //}
-    if (el) {
-        setTimeout(() => { try {
-            var bottomElement = el.lastElementChild;
-            bottomElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            el.scrollTop = el.scrollHeight;
-         } catch (__javascriptError) { localGptDiagnostics.report('js/scrollChatToBottom.js:callback:setTimeout@9', __javascriptError); throw __javascriptError; }}, 150); // Give layout time to finish
+    if (typeof window.localGptSlowScrollToBottom === 'function') {
+        window.localGptSlowScrollToBottom(elementId);
+        return;
     }
+    const host = document.getElementById(elementId);
+    const region = host?.querySelector('[class*="overflow"], [style*="overflow"]') || host;
+    if (region instanceof HTMLElement) region.scrollTop = region.scrollHeight;
  } catch (__javascriptError) { localGptDiagnostics.report('js/scrollChatToBottom.js:window.scrollChatToBottom@2', __javascriptError); throw __javascriptError; }}
 
 // Guard browser entry points after initialization.
