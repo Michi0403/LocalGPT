@@ -6,25 +6,12 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services.Formatting;
 
-public sealed class ChatResponseFormatterFactory : IChatResponseFormatterFactory
+public sealed class ChatResponseFormatterFactory(
+    ILoggerFactory loggerFactory,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
+    IChatProtocolProfileCatalog catalog,
+    ILogger<ChatResponseFormatterFactory> logger) : IChatResponseFormatterFactory
 {
-        private readonly ILogger<ChatResponseFormatterFactory> logger;
-
-    private readonly ILoggerFactory loggerFactory;
-    private readonly IChatProtocolProfileCatalog catalog;
-    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
-
-    public ChatResponseFormatterFactory(
-        ILoggerFactory loggerFactory,
-        ILocalGptRuntimePolicyDataService runtimePolicy,
-        IChatProtocolProfileCatalog catalog,
-        ILogger<ChatResponseFormatterFactory> logger)
-    {
-        this.logger = logger;
-        this.loggerFactory = loggerFactory;
-        this.runtimePolicy = runtimePolicy;
-        this.catalog = catalog;
-    }
 
     public IChatResponseFormatter Create(ChatResponseProtocol protocol, string? missingFinalAnswerNotice = null)
     {

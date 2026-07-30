@@ -26,7 +26,7 @@ using static LocalGPT.Services.LocalGptCatalogService;
 namespace LocalGPT.Services
 {
     
-    public sealed partial class CouncilTextService(ICouncilTextPatternDataService patterns, LocalGptCatalogService catalog)
+    public sealed partial class CouncilTextService(ICouncilTextPatternDataService patterns, LocalGptCatalogService catalog, ILogger<CouncilTextService> serviceLogger)
     {
    
 
@@ -34,6 +34,7 @@ namespace LocalGPT.Services
         {
             try
             {
+                serviceLogger.LogTrace("Council text operation {Operation} started.", nameof(NormalizeFormerThought));
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     logger.LogDebug($"{nameof(NormalizeFormerThought)} received no former-thought content.");

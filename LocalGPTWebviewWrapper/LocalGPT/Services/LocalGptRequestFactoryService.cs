@@ -3,9 +3,9 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
-public sealed class LocalGptRequestFactoryService : ILocalGptRequestFactoryService
+public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactoryService> logger) : ILocalGptRequestFactoryService
 {
-    public SaveLocalGptProjectRequest CreateProjectRequest() => new()
+    public SaveLocalGptProjectRequest CreateProjectRequest() => Created(new SaveLocalGptProjectRequest
     {
         ProjectType = "DotNetSolution",
         SolutionSearchPattern = @"(?i)\.(sln|slnx)$",
@@ -14,57 +14,63 @@ public sealed class LocalGptRequestFactoryService : ILocalGptRequestFactoryServi
         CurrentVersion = "0.1.0",
         Status = "Active",
         RecommendGit = true
-    };
+    }, nameof(CreateProjectRequest));
 
-    public AddLocalGptProjectTopicRequest CreateTopicRequest() => new()
+    public AddLocalGptProjectTopicRequest CreateTopicRequest() => Created(new AddLocalGptProjectTopicRequest
     {
         Status = "Planned"
-    };
+    }, nameof(CreateTopicRequest));
 
-    public AddLocalGptProjectVersionRequest CreateVersionRequest(string path = "") => new()
+    public AddLocalGptProjectVersionRequest CreateVersionRequest(string path = "") => Created(new AddLocalGptProjectVersionRequest
     {
         PathSnapshot = path,
         IsCurrent = true
-    };
+    }, nameof(CreateVersionRequest));
 
-    public SaveProjectRevisionRequest CreateRevisionRequest() => new()
+    public SaveProjectRevisionRequest CreateRevisionRequest() => Created(new SaveProjectRevisionRequest
     {
         BranchName = "main",
         RevisionName = $"revision-{DateTime.UtcNow:yyyyMMdd-HHmmss}",
         ProjectStructureJson = "{}",
         IsCurrent = true
-    };
+    }, nameof(CreateRevisionRequest));
 
-    public SaveProjectRequirementRequest CreateRequirementRequest() => new()
+    public SaveProjectRequirementRequest CreateRequirementRequest() => Created(new SaveProjectRequirementRequest
     {
         RequirementType = "Functional",
         Status = "Planned",
         Priority = "Normal"
-    };
+    }, nameof(CreateRequirementRequest));
 
-    public SaveProjectRequirementLinkRequest CreateRequirementLinkRequest() => new()
+    public SaveProjectRequirementLinkRequest CreateRequirementLinkRequest() => Created(new SaveProjectRequirementLinkRequest
     {
         TargetKind = "DXFunction"
-    };
+    }, nameof(CreateRequirementLinkRequest));
 
-    public SaveProjectArtifactRequest CreateArtifactRequest() => new()
+    public SaveProjectArtifactRequest CreateArtifactRequest() => Created(new SaveProjectArtifactRequest
     {
         ArtifactKind = "Configuration",
         DataType = "string"
-    };
+    }, nameof(CreateArtifactRequest));
 
-    public SaveProjectWorkspaceRootRequest CreateWorkspaceRootRequest() => new()
+    public SaveProjectWorkspaceRootRequest CreateWorkspaceRootRequest() => Created(new SaveProjectWorkspaceRootRequest
     {
         ScopeKind = "Global",
         SolutionPattern = @"(?i)\.(sln|slnx)$",
         Priority = 100,
         IsEnabled = true
-    };
+    }, nameof(CreateWorkspaceRootRequest));
 
-    public SaveProjectCompilerInstallationRequest CreateCompilerInstallationRequest() => new()
+    public SaveProjectCompilerInstallationRequest CreateCompilerInstallationRequest() => Created(new SaveProjectCompilerInstallationRequest
     {
         Language = "DotNet",
         ValidationArguments = "--version",
         IsEnabled = true
-    };
+    }, nameof(CreateCompilerInstallationRequest));
+
+    private T Created<T>(T request, string operation)
+    {
+        logger.LogTrace("Created default request model for {Operation}.", operation);
+        return request;
+    }
 }

@@ -7,24 +7,16 @@ using System.Net;
 
 namespace LocalGPT.Services
 {
-    public sealed class DevExpressChatService
+    public sealed class DevExpressChatService(
+        CouncilTextService text,
+        IDxAiFunctionRegistry functionRegistry,
+        LocalGptCatalogService catalog,
+        ILogger<DevExpressChatService> logger)
     {
-        private readonly CouncilTextService _text;
-        private readonly IDxAiFunctionRegistry _functionRegistry;
-        private readonly LocalGptCatalogService _catalog;
-        private readonly ILogger<DevExpressChatService> _logger;
-
-        public DevExpressChatService(
-            CouncilTextService text,
-            IDxAiFunctionRegistry functionRegistry,
-            LocalGptCatalogService catalog,
-            ILogger<DevExpressChatService> logger)
-        {
-            _text = text;
-            _functionRegistry = functionRegistry;
-            _catalog = catalog;
-            _logger = logger;
-        }
+        private readonly CouncilTextService _text = text;
+        private readonly IDxAiFunctionRegistry _functionRegistry = functionRegistry;
+        private readonly LocalGptCatalogService _catalog = catalog;
+        private readonly ILogger<DevExpressChatService> _logger = logger;
 
         public readonly DxaichatFunctionInfo[] Functions =
     [

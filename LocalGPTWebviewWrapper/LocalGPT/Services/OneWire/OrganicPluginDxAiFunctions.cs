@@ -240,7 +240,7 @@ public sealed class ProposePublisherTextFunction(
 }
 
 /// <summary>Reads the eventual result of a queued organic operation without reissuing it.</summary>
-public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spooler, IOrganicDxFunctionSupport organicSupport) : IDxAiFunctionHandler
+public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spooler, IOrganicDxFunctionSupport organicSupport, ILogger<ReadOrganicPluginWorkResultFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "organic.plugin.work.read",
@@ -262,6 +262,7 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
 
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Organic work-result read DXFunction started.");
         if (!Guid.TryParse(organicSupport.GetString(request.Parameters, "workItemId"), out var id))
             return Task.FromResult(organicSupport.Invalid("A valid workItemId is required."));
         var item = spooler.Get(id);
@@ -277,12 +278,15 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
     }
 }
 
-public sealed class OrganicDxFunctionSupport : IOrganicDxFunctionSupport
+public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> logger) : IOrganicDxFunctionSupport
 {
-    public string GetString(JsonElement element, string name, string fallback = "") =>
-        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
+    public string GetString(JsonElement element, string name, string fallback = "")
+    {
+        logger.LogTrace("Reading bounded organic DXFunction parameter {ParameterName}.", name);
+        return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString() ?? fallback
             : fallback;
+    }
 
     public OneWireCapabilityDescriptor? FindCapability(OneWirePeerAdvertisement peer, string key) =>
         peer.Capabilities.FirstOrDefault(item => item.IsEnabled && item.IsOnline && string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase));
@@ -466,7 +470,9 @@ public sealed class RequestPublisherWebsiteContentFunction(
             }, cancellationToken);
 }
 
-public sealed class PublisherInteractionDxSupport(IOrganicDxFunctionSupport organicSupport) : IPublisherInteractionDxSupport
+public sealed class PublisherInteractionDxSupport(
+    IOrganicDxFunctionSupport organicSupport,
+    ILogger<PublisherInteractionDxSupport> serviceLogger) : IPublisherInteractionDxSupport
 {
     public async Task<DxAiFunctionInvocationResult> QueueAsync<TLogger>(
         DxAiFunctionInvocationRequest request,
@@ -480,6 +486,7 @@ public sealed class PublisherInteractionDxSupport(IOrganicDxFunctionSupport orga
     {
         try
         {
+            serviceLogger.LogTrace("Queueing a Publisher Studio organic interaction for capability {CapabilityKey}; payload content was omitted.", capabilityKey);
             if (request.Parameters.ValueKind != JsonValueKind.Object)
                 return organicSupport.Invalid("Parameters must be a JSON object.");
             var requestedPeerId = organicSupport.GetString(request.Parameters, "peerId");

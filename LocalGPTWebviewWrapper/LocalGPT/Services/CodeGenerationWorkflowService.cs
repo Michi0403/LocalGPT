@@ -334,14 +334,16 @@ public sealed class CodeGenerationWorkflowService(
                 zipFileName);
             return result;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
             entity.Status = CodeGenerationReviewStatuses.Failed;
             entity.DecisionNote = Limit($"{entity.DecisionNote} Generation was cancelled.", 2_000, "Generation was cancelled.");
             entity.UpdatedAtUtc = DateTime.UtcNow;
             entity.CompletedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
-            logger.LogWarning("Code-generation review {ReviewId} was cancelled after approval was consumed.", reviewId);
+#if DEBUG
+            logger.LogInformation(exception, "Code-generation review {ReviewId} was cancelled after approval was consumed while debugging.", reviewId);
+#endif
             throw;
         }
         catch (Exception ex)

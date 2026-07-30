@@ -384,10 +384,20 @@ public sealed class OllamaThinkingChatClient : IChatClient
 
     private List<OllamaToolDefinition>? BuildAutomaticTools()
     {
+        if (functionRegistry is null)
+        {
+            logger.LogWarning("Ollama model {Model} has no DXFunction registry, so native tool metadata cannot be attached.", model);
+            return null;
+        }
+
         var functions = GetAutomaticFunctions();
         if (functions.Count == 0)
+        {
+            logger.LogWarning("Ollama model {Model} has no policy-approved automatic DXFunctions to attach.", model);
             return null;
+        }
 
+        logger.LogInformation("Attaching {FunctionCount} policy-approved automatic DXFunctions to Ollama model {Model}.", functions.Count, model);
         return functions.Select(function => new OllamaToolDefinition
         {
             Function = new OllamaToolFunctionDefinition

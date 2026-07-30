@@ -9,16 +9,13 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
-    public sealed class SqliteUtilityService
+    public sealed class SqliteUtilityService(
+        CouncilTextService text,
+        LocalGptCatalogService catalog,
+        ILogger<SqliteUtilityService> serviceLogger)
     {
-        private readonly CouncilTextService _text;
-        private readonly LocalGptCatalogService _catalog;
-
-        public SqliteUtilityService(CouncilTextService text, LocalGptCatalogService catalog)
-        {
-            _text = text;
-            _catalog = catalog;
-        }
+        private readonly CouncilTextService _text = text;
+        private readonly LocalGptCatalogService _catalog = catalog;
 
         public T ParseValue<T>(string valueString, string? dataType, ILogger logger)
         {
@@ -158,7 +155,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger?.LogError(ex, "Could not validate SQLite table {TableName}.", tableName);
+                (logger ?? serviceLogger).LogError(ex, "Could not validate SQLite table {TableName}.", tableName);
                 throw;
             }
         }
@@ -194,7 +191,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger?.LogError(ex, "Could not read SQLite schema for table {TableName}.", tableName);
+                (logger ?? serviceLogger).LogError(ex, "Could not read SQLite schema for table {TableName}.", tableName);
                 throw;
             }
         }
@@ -211,7 +208,7 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                logger?.LogError(ex, "Could not count SQLite rows for table {TableName}.", tableName);
+                (logger ?? serviceLogger).LogError(ex, "Could not count SQLite rows for table {TableName}.", tableName);
                 throw;
             }
         }
@@ -226,13 +223,11 @@ namespace LocalGPT.Services
             {
                 if (logger is not null)
                 {
-
-
                     logger.LogError(ex, $"Error in ToSqliteValue value {value?.ToString()}");
                 }
                 else
                 {
-                    Console.WriteLine($"Error in ToSqliteValue value {value?.ToString()} ex {ex.ToString()}");
+                    serviceLogger.LogError(ex, "Could not convert a value to SQLite storage form; value content was omitted.");
                 }
                 return null;
             }
@@ -286,14 +281,11 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                if (logger is not null)
-                {
-                    logger.LogError(ex, $"Error in CreateSqliteEditError operation {operation.ToString()} tableName {tableName.ToString()} exception {exception.ToString()}");
-                }
-                else
-                {
-                    Console.WriteLine($"Error in CreateSqliteEditError operation {operation.ToString()} tableName {tableName.ToString()} exception {exception.ToString()} ex {ex.ToString()}");
-                }
+                (logger ?? serviceLogger).LogError(
+                    ex,
+                    "Could not create the SQLite edit error description for operation {Operation} and table {TableName}.",
+                    operation,
+                    tableName);
                 return string.Empty;
             }
         }
@@ -313,16 +305,9 @@ namespace LocalGPT.Services
             }
             catch (Exception ex)
             {
-                if(logger is not null)
-                {
-
-                    logger.LogError(ex, $"Error in QuoteIdentifier identifier {identifier.ToString()}");
-                }
-                else
-                {
-
-                    Console.WriteLine($"Error in QuoteIdentifier identifier {identifier.ToString()} ex {ex.ToString()}");
-                }
+                (logger ?? serviceLogger).LogError(
+                    ex,
+                    "Could not quote a SQLite identifier; identifier content was omitted.");
                 return string.Empty;
             }
         }

@@ -20,6 +20,7 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDxAiFunctionRegistry registry,
+    IOrganicAddonManifestService addonManifests,
     ILogger<DxAiFunctionCatalogService> logger) : IDxAiFunctionCatalogService
 {
     private const string DataType = "DxAiFunctionCatalogEntry";
@@ -163,6 +164,7 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     {
         var entries = registry.GetFunctions().Select(CreateDxEntry).ToList();
         entries.AddRange(DiscoverPublicServiceMethods());
+        entries.AddRange(addonManifests.GetCatalogEntries());
         return entries.OrderBy(item => item.Kind).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
@@ -334,7 +336,7 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
         stored.ServiceMethodName = current.ServiceMethodName;
         stored.ParameterTypeNamesJson = current.ParameterTypeNamesJson;
         stored.IsReadOnly = current.IsReadOnly;
-        stored.IsAvailable = true;
+        stored.IsAvailable = current.IsAvailable;
         stored.DescriptorHash = current.DescriptorHash;
         stored.IsEnabled = policy.IsEnabled;
         stored.ExposeToAiChat = policy.ExposeToAiChat;

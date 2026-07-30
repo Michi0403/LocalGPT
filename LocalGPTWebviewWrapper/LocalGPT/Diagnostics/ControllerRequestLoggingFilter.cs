@@ -71,16 +71,18 @@ public sealed class ControllerRequestLoggingFilter(
         }
         catch (OperationCanceledException exception) when (context.HttpContext.RequestAborted.IsCancellationRequested)
         {
-            logger.LogDebug(
+#if DEBUG
+            logger.LogInformation(
                 exception,
-                "Controller action {Controller}.{Action} was cancelled because the client disconnected.",
+                "Controller action {Controller}.{Action} was cancelled because the client disconnected in a Debug build.",
                 controller,
                 action);
-            componentActivity.RecordWarning(
+            componentActivity.RecordInformation(
                 nameof(ControllerRequestLoggingFilter),
                 operation,
-                "The controller request was cancelled because the client disconnected.",
+                "The controller request was cancelled because the client disconnected in a Debug build.",
                 routePath);
+#endif
             throw;
         }
         catch (Exception exception)

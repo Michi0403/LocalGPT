@@ -99,7 +99,8 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
 }
 
 public sealed class InvokeConfiguredPublicServiceMethodFunction(
-    IPublicServiceMethodInvoker invoker) : IDxAiFunctionHandler
+    IPublicServiceMethodInvoker invoker,
+    ILogger<InvokeConfiguredPublicServiceMethodFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.public_service.invoke",
@@ -118,6 +119,7 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Configured public-service DXFunction invocation started; parameter content was omitted.");
         var payload = request.Parameters.Deserialize<InvocationParameters>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
             ?? throw new JsonException("catalogKey is required.");
         var result = await invoker.InvokeAsync(new PublicServiceMethodInvocationRequest
@@ -126,6 +128,7 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
             Parameters = payload.Parameters,
             RequestedBy = request.RequestedBy
         }, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Configured public-service DXFunction invocation completed for catalog entry {CatalogKey}.", payload.CatalogKey);
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
     }
 

@@ -301,7 +301,8 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
         item.UpdatedUtc = DateTimeOffset.UtcNow;
     }
 }
-public sealed class OneWirePendingCouncilStore : IOneWirePendingCouncilStore
+public sealed class OneWirePendingCouncilStore(
+    ILogger<OneWirePendingCouncilStore> logger) : IOneWirePendingCouncilStore
 {
     private readonly ConcurrentDictionary<Guid, OneWirePendingCouncilRequest> pending = new();
 
@@ -322,19 +323,32 @@ public sealed class OneWirePendingCouncilStore : IOneWirePendingCouncilStore
                 existing.ApprovalRequestId = approvalRequestId ?? existing.ApprovalRequestId;
                 return existing;
             });
+        logger.LogTrace("Upserted pending 1-Wire council request {CorrelationId}.", envelope.CorrelationId);
     }
 
-    public IReadOnlyList<OneWirePendingCouncilRequest> GetSnapshot() => pending.Values
-        .OrderBy(item => item.QueuedUtc)
-        .ToList();
+    public IReadOnlyList<OneWirePendingCouncilRequest> GetSnapshot()
+    {
+        var snapshot = pending.Values
+            .OrderBy(item => item.QueuedUtc)
+            .ToList();
+        logger.LogTrace("Captured {PendingCount} pending 1-Wire council request(s).", snapshot.Count);
+        return snapshot;
+    }
 
-    public bool Remove(Guid correlationId, out OneWirePendingCouncilRequest? request) =>
-        pending.TryRemove(correlationId, out request);
+    public bool Remove(Guid correlationId, out OneWirePendingCouncilRequest? request)
+    {
+        var removed = pending.TryRemove(correlationId, out request);
+        logger.LogTrace("Removed pending 1-Wire council request {CorrelationId}: {Removed}.", correlationId, removed);
+        return removed;
+    }
 
     public void MarkChecked(Guid correlationId)
     {
         if (pending.TryGetValue(correlationId, out var request))
+        {
             request.LastCheckedUtc = DateTimeOffset.UtcNow;
+            logger.LogTrace("Marked pending 1-Wire council request {CorrelationId} as checked.", correlationId);
+        }
     }
 }
 

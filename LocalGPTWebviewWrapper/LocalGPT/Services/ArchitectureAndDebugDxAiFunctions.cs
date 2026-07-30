@@ -64,7 +64,10 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
     }
 }
 
-public sealed class InspectDebugArtifactFunction(IDxAiFunctionJsonService json, IDebugArtifactInspectionService inspector) : IDxAiFunctionHandler
+public sealed class InspectDebugArtifactFunction(
+    IDxAiFunctionJsonService json,
+    IDebugArtifactInspectionService inspector,
+    ILogger<InspectDebugArtifactFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.debug.inspect",
@@ -83,8 +86,10 @@ public sealed class InspectDebugArtifactFunction(IDxAiFunctionJsonService json, 
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Debug-artifact inspection DXFunction started; file path content was omitted.");
         var parameters = json.Deserialize<Parameters>(request.Parameters);
         var result = await inspector.InspectAsync(parameters.FilePath, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Debug-artifact inspection DXFunction completed.");
         return json.Success(result);
     }
 

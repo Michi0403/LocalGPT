@@ -71,6 +71,8 @@ public sealed class CouncilPreflightService(
             ProjectNames = projectNames,
             FunctionNames = functionDirectory.Select(item => item.Name).ToList(),
             SkillKeys = skillDirectory.Select(item => item.Key).ToList(),
+            OnlineSkillKeys = skillDirectory.Where(item => item.IsEnabled && item.IsOnline).Select(item => item.Key).ToList(),
+            OfflineSkillKeys = skillDirectory.Where(item => !item.IsOnline).Select(item => item.Key).ToList(),
             RegexNames = regexNames
         };
         report.Warnings.AddRange(directory.Warnings);
@@ -206,7 +208,8 @@ public sealed class CouncilPreflightService(
                 ? "No explicit hardware road was found; report this as a configuration gap and continue conservatively on Automatic."
                 : $"Your road is {member.LaneKey} ({member.HardwareKind} {member.HardwareIndex}, {member.HardwareName}) at {member.EffectiveLoadPercent}% with output {member.EffectiveMaxOutputTokens:n0}, context {member.EffectiveMaxContextTokens:n0}, Ollama num_gpu {(member.OllamaNumGpu?.ToString() ?? "auto")}.",
             $"DXFunctions directly available to you in this run: {string.Join(", ", assignedFunctions.Take(200))}.",
-            $"Approved online organic skills/organs directly available to you: {string.Join(", ", assignedSkills.Take(120))}.",
+            $"Approved online organic skills/organs directly available to you: {(assignedSkills.Count == 0 ? "none" : string.Join(", ", assignedSkills.Take(120)))}.",
+            $"Known organic add-ons that are currently offline or discovery-only: {(report.OfflineSkillKeys.Count == 0 ? "none" : string.Join(", ", report.OfflineSkillKeys.Take(120)))}. Do not claim they are callable until their trusted 1-Wire peer connects.",
             report.CapabilityTeachings.Count == 0
                 ? "No connected peer currently exposes a detailed 1-Wire capability contract. Do not invent external organs."
                 : "Connected 1-Wire capability teaching (exact input, output, security, organic use and suggested role):" + Environment.NewLine + string.Join(Environment.NewLine, report.CapabilityTeachings.Select(value => "- " + value)),
@@ -249,7 +252,8 @@ public sealed class CouncilPreflightService(
             .AppendLine($"Checked UTC: {report.CheckedAtUtc:O}")
             .AppendLine($"Team: {report.TeamName} ({report.TeamKey})")
             .AppendLine($"Database: {report.RegexPatternCount} regexes; {report.KnowledgeEntryCount} knowledge entries; {report.ProjectCount} active projects.")
-            .AppendLine($"Runtime directory: {report.DxFunctionCount} DXFunctions; {report.OrganicSkillCount} online/known organic skills; {report.CapabilityTeachings.Count} connected detailed 1-Wire capability contracts.")
+            .AppendLine($"Runtime directory: {report.DxFunctionCount} DXFunctions; {report.OnlineSkillKeys.Count} online organic skills; {report.OfflineSkillKeys.Count} offline/discovery-only organic add-ons; {report.CapabilityTeachings.Count} connected detailed 1-Wire capability contracts.")
+            .AppendLine($"Known offline/discovery-only organic add-ons: {(report.OfflineSkillKeys.Count == 0 ? "none" : string.Join(", ", report.OfflineSkillKeys.Take(120)))}.")
             .AppendLine($"Projects: {string.Join(", ", report.ProjectNames)}")
             .AppendLine($"Relevant reusable regex directory: {string.Join(", ", SelectRelevantRegexes(report.RegexNames, request.Prompt))}")
             .AppendLine("Before answering, inspect the database-grounded project, chat-memory, logs, knowledge, regex, source-file, changelog and function evidence needed for the topic. Fill deterministic seed gaps automatically. Ask the current user for missing volatile facts, versions, files, matching debug symbols or requirements. Never guess current compiler/framework/scientific values.")

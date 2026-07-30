@@ -31,6 +31,7 @@ namespace LocalGPT.Services
         ICouncilPreflightService councilPreflight,
         ICouncilDxFunctionPolicyDataService councilDxPolicy,
         ICouncilDxFunctionOrchestrator councilDxFunctions,
+        IDxAiFunctionRegistry functionRegistry,
         ICouncilHardwareRoadPlanner hardwareRoadPlanner,
         IModelCapabilitySelfAssessmentService modelSelfAssessment,
         IAmbientLocalGptContext ambientContext,
@@ -1125,7 +1126,8 @@ namespace LocalGPT.Services
                     ollamaNumGpu,
                     formatterFactory,
                     protocolResolver,
-                    promptConfigService);
+                    promptConfigService,
+                    functionRegistry);
 
 
                     using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -1213,7 +1215,7 @@ namespace LocalGPT.Services
                 {
                     stopwatch.Stop();
                     var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
-                    logger.LogWarning(ex, "{Message}", message);
+                    logger.LogWarning("{Message}", message);
                     if (allowRecovery)
                     {
                         var recovered = await RetryParticipantWithSafeLimitsAsync(

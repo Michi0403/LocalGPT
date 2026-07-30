@@ -189,9 +189,11 @@ public sealed class DxAiFunctionRegistry(
                 result.Succeeded);
             return result;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning("DXAIFunction {FunctionName} was cancelled.", functionName);
+#if DEBUG
+            logger.LogInformation(exception, "DXAIFunction {FunctionName} was cancelled while debugging.", functionName);
+#endif
             throw;
         }
         catch (JsonException ex)

@@ -9,7 +9,9 @@ namespace LocalGPT.Services.Formatting;
 /// update. It deliberately does not decode HTML entities: thinking text is
 /// encoded by <see cref="IChatResponseFormatter"/> and must stay text.
 /// </summary>
-public sealed class ChatContentRenderer(ILocalGptRuntimePolicyDataService runtimePolicy) : IChatContentRenderer
+public sealed class ChatContentRenderer(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
+    ILogger<ChatContentRenderer> logger) : IChatContentRenderer
 {
     private readonly Regex HarmonyMarkerRegex = new(
         @"<\|[^>]+\|>",
@@ -58,6 +60,7 @@ public sealed class ChatContentRenderer(ILocalGptRuntimePolicyDataService runtim
 
     public string Render(string? content)
     {
+        logger.LogTrace("Rendering a LocalGPT chat-content snapshot; content was omitted.");
         var normalized = NormalizeForRender(content);
         return string.IsNullOrWhiteSpace(normalized)
             ? string.Empty
@@ -66,6 +69,7 @@ public sealed class ChatContentRenderer(ILocalGptRuntimePolicyDataService runtim
 
     public string NormalizeForRender(string? content)
     {
+        logger.LogTrace("Normalizing a LocalGPT chat-content snapshot; content was omitted.");
         if (string.IsNullOrWhiteSpace(content))
             return string.Empty;
 

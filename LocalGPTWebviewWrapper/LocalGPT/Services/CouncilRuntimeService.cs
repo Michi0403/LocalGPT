@@ -19,12 +19,13 @@ using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
-    public sealed class CouncilRuntimeService(CouncilTextService text, LocalGptCatalogService catalog)
+    public sealed class CouncilRuntimeService(CouncilTextService text, LocalGptCatalogService catalog, ILogger<CouncilRuntimeService> serviceLogger)
     {
         public string CreatePaperGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context,ILogger logger)
         {
             try
             {
+                serviceLogger.LogTrace("Council runtime operation {Operation} started.", nameof(CreatePaperGradleProperties));
                 var versions = ResolveDependencyVersions(request, logger, "Paper");
                 return $$"""
             org.gradle.jvmargs=-Xmx2G

@@ -9,7 +9,7 @@ namespace LocalGPT.Services;
 /// Database-backed regular-expression functions used by LocalGPT itself and advertised through the same
 /// DI/DX-function/1-Wire discovery path as every other council capability.
 /// </summary>
-public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns) : IDxAiFunctionHandler
+public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns, ILogger<ListRegexPatternsFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.list",
@@ -37,10 +37,12 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Regex catalog list DXFunction started.");
         var parameters = Deserialize<ListParameters>(request.Parameters);
         var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, 5000)).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(parameters.Prefix))
             rows = rows.Where(item => item.Name.StartsWith(parameters.Prefix.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+        logger.LogInformation("Regex catalog list DXFunction completed with {PatternCount} pattern(s).", rows.Count);
         return Completed(rows.Select(item => new
         {
             item.Name,

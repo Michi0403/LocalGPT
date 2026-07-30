@@ -4,29 +4,31 @@ using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
-    public sealed class AiDiscoveryService
+    public sealed class AiDiscoveryService(
+        CouncilRuntimeService runtime,
+        CouncilTextService text,
+        LocalGptCatalogService catalog,
+        ILogger<AiDiscoveryService> serviceLogger)
     {
-        private readonly CouncilRuntimeService _runtime;
-        private readonly CouncilTextService _text;
-        private readonly LocalGptCatalogService _catalog;
-
-        public AiDiscoveryService(CouncilRuntimeService runtime, CouncilTextService text, LocalGptCatalogService catalog)
-        {
-            _runtime = runtime;
-            _text = text;
-            _catalog = catalog;
-        }
+        private readonly CouncilRuntimeService _runtime = runtime;
+        private readonly CouncilTextService _text = text;
+        private readonly LocalGptCatalogService _catalog = catalog;
 
         public async Task<(bool ok, string msg)> GetAsync(HttpClient http, string path, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             try
             {
+                serviceLogger.LogInformation("AI discovery GET operation started for host {EndpointHost}; request content was omitted.", http.BaseAddress?.Host ?? "invalid-or-unset");
                 using var res = await http.GetAsync(path, ct).ConfigureAwait(false);
                 var body = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                serviceLogger.LogInformation("AI discovery GET operation completed for host {EndpointHost} with status {StatusCode}.", http.BaseAddress?.Host ?? "invalid-or-unset", (int)res.StatusCode);
                 return (res.IsSuccessStatusCode, $"{(int)res.StatusCode} {res.ReasonPhrase}: {body}");
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException exception) when (ct.IsCancellationRequested)
             {
+#if DEBUG
+                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller while debugging.");
+#endif
                 throw;
             }
             catch (OperationCanceledException ex)
@@ -75,6 +77,7 @@ namespace LocalGPT.Services
 
             try
             {
+                serviceLogger.LogInformation("AI provider discovery started for {Provider} at host {EndpointHost}.", provider, GetEndpointHost(endpoint));
                 using var http = CreateDiscoveryClient(endpoint, logger);
                 using var response = await http.GetAsync("/v1/models", ct).ConfigureAwait(false); 
                 var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
@@ -100,8 +103,11 @@ namespace LocalGPT.Services
                     ? $"{provider} is reachable, but returned no models."
                     : $"Found {result.Models.Count} {provider} model(s).";
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException exception) when (ct.IsCancellationRequested)
             {
+#if DEBUG
+                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller while debugging.");
+#endif
                 throw;
             }
             catch (OperationCanceledException ex)
@@ -132,6 +138,7 @@ namespace LocalGPT.Services
                 result.Status = ex.Message;
             }
 
+            serviceLogger.LogInformation("AI provider discovery completed for {Provider}; reachable={IsReachable}; models={ModelCount}.", provider, result.IsReachable, result.Models.Count);
             return result;
 
         }
@@ -146,6 +153,7 @@ namespace LocalGPT.Services
 
             try
             {
+                serviceLogger.LogInformation("Ollama discovery started at host {EndpointHost}.", GetEndpointHost(endpoint));
                 using var http = CreateDiscoveryClient(endpoint, logger);
                 using var tagsResponse = await http.GetAsync("/api/tags", ct).ConfigureAwait(false);
                 var tagsBody = await tagsResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
@@ -203,8 +211,11 @@ namespace LocalGPT.Services
                     ? "Ollama is reachable, but no models are installed yet."
                     : $"Found {result.Models.Count} Ollama model(s).";
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException exception) when (ct.IsCancellationRequested)
             {
+#if DEBUG
+                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller while debugging.");
+#endif
                 throw;
             }
             catch (OperationCanceledException ex)
@@ -233,7 +244,11 @@ namespace LocalGPT.Services
                 result.Status = ex.Message;
             }
 
+            serviceLogger.LogInformation("Ollama discovery completed; reachable={IsReachable}; models={ModelCount}.", result.IsReachable, result.Models.Count);
             return result;
         }
+
+        private string GetEndpointHost(string endpoint) =>
+            Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : "invalid-or-unset";
     }
 }

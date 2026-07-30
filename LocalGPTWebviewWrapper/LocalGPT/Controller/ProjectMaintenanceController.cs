@@ -88,9 +88,11 @@ public sealed class ProjectMaintenanceController(
             logger.LogWarning(ex, "Project maintenance {Operation} was rejected.", operation);
             return Results.BadRequest(new { error = ex.Message });
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
-            logger.LogInformation("Project maintenance {Operation} was cancelled.", operation);
+#if DEBUG
+            logger.LogInformation(exception, "Project maintenance {Operation} was cancelled in a Debug build.", operation);
+#endif
             return Results.Conflict(new { error = "The operation was cancelled." });
         }
         catch (Exception ex)

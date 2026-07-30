@@ -3,7 +3,9 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Council.Scheduling;
 
-public sealed class CouncilHardwareRoadPlanner(ICouncilHardwareRoadConfigurationService configuration) : ICouncilHardwareRoadPlanner
+public sealed class CouncilHardwareRoadPlanner(
+    ICouncilHardwareRoadConfigurationService configuration,
+    ILogger<CouncilHardwareRoadPlanner> logger) : ICouncilHardwareRoadPlanner
 {
     public IReadOnlyDictionary<string, CouncilHardwareRoadPlan> BuildPlans(
         IReadOnlyCollection<OneWireCouncilModelRoute>? configuredRoutes,
@@ -13,6 +15,7 @@ public sealed class CouncilHardwareRoadPlanner(ICouncilHardwareRoadConfiguration
         int resourceLoadPercent,
         int? fallbackOllamaNumGpu)
     {
+        logger.LogInformation("Building council hardware-road plans for {ParticipantCount} participant(s).", participants.Count);
         var routes = (configuredRoutes ?? [])
             .Where(route => route.IsEnabled && !string.IsNullOrWhiteSpace(route.ModelName))
             .GroupBy(route => route.ModelName.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -65,6 +68,7 @@ public sealed class CouncilHardwareRoadPlanner(ICouncilHardwareRoadConfiguration
                 Math.Clamp(route.MaxConcurrentModelsOnLane, 1, 16));
         }
 
+        logger.LogInformation("Built {PlanCount} council hardware-road plan(s).", result.Count);
         return result;
     }
 }

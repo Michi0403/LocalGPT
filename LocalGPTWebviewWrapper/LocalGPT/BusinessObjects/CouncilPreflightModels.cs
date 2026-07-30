@@ -15,6 +15,8 @@ public sealed class CouncilPreflightReport
     public List<string> ProjectNames { get; set; } = [];
     public List<string> FunctionNames { get; set; } = [];
     public List<string> SkillKeys { get; set; } = [];
+    public List<string> OnlineSkillKeys { get; set; } = [];
+    public List<string> OfflineSkillKeys { get; set; } = [];
     /// <summary>Bounded connected 1-Wire capability contracts taught to every Council member before substantive work.</summary>
     public List<string> CapabilityTeachings { get; set; } = [];
     public List<string> RegexNames { get; set; } = [];

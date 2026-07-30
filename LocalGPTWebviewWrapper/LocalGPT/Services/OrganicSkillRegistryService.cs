@@ -10,6 +10,7 @@ namespace LocalGPT.Services;
 public sealed class OrganicSkillRegistryService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    IOrganicAddonManifestService addonManifests,
     ILogger<OrganicSkillRegistryService> logger) : IOrganicSkillRegistryService
 {
     public async Task<IReadOnlyList<OrganicSkillDefinition>> GetSkillsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
@@ -168,21 +169,36 @@ public sealed class OrganicSkillRegistryService(
 
     public async Task<IReadOnlyList<OneWireSkillDescriptor>> GetWireSkillsAsync(CancellationToken cancellationToken = default)
     {
-        var skills = await GetSkillsAsync(false, cancellationToken).ConfigureAwait(false);
-        return skills.Select(item => new OneWireSkillDescriptor
-        {
-            Key = item.Key,
-            DisplayName = item.DisplayName,
-            Description = item.Description,
-            SourcePeerId = item.SourcePeerId,
-            Organs = Deserialize(item.OrgansJson),
-            CapabilityKeys = Deserialize(item.CapabilityKeysJson),
-            UiActivationKeys = Deserialize(item.UiActivationKeysJson),
-            IsOnline = item.IsOnline,
-            IsEnabled = item.IsEnabled,
-            UpdatedUtc = new DateTimeOffset(item.UpdatedAtUtc, TimeSpan.Zero)
-        }).ToList();
+        var manifests = addonManifests.GetSkillDescriptors();
+        var persisted = (await GetSkillsAsync(cancellationToken: cancellationToken).ConfigureAwait(false))
+            .Select(MapToWire);
+        var result = manifests
+            .Concat(persisted)
+            .GroupBy(skill => skill.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(skill => skill.IsOnline).First())
+            .OrderBy(skill => skill.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        logger.LogInformation(
+            "Returned {SkillCount} organic skill descriptor(s), including {ManifestSkillCount} source-controlled add-on manifest(s).",
+            result.Count,
+            manifests.Count);
+        return result;
     }
+
+    private OneWireSkillDescriptor MapToWire(OrganicSkillDefinition item) => new()
+    {
+        Key = item.Key,
+        DisplayName = item.DisplayName,
+        Description = item.Description,
+        SourcePeerId = item.SourcePeerId,
+        Organs = Deserialize(item.OrgansJson),
+        CapabilityKeys = Deserialize(item.CapabilityKeysJson),
+        UiActivationKeys = Deserialize(item.UiActivationKeysJson),
+        IsOnline = item.IsOnline,
+        IsEnabled = item.IsEnabled,
+        UpdatedUtc = new DateTimeOffset(item.UpdatedAtUtc, TimeSpan.Zero)
+    };
 
     private string SerializeDistinct(IEnumerable<string>? values) => JsonSerializer.Serialize((values ?? []).Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(128));
     private List<string> Deserialize(string json) { try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; } catch (JsonException) { return []; } }

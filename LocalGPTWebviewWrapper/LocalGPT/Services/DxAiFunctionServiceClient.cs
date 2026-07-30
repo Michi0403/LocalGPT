@@ -86,12 +86,14 @@ public sealed class DxAiFunctionServiceClient(
 
             return await registry.InvokeAsync(functionName, invocation, linkedCancellation.Token).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             string? reason;
             lock (stateGate)
                 reason = cancellationReason;
-            logger.LogInformation("DXAIFunction operation {OperationId} was cancelled by the current user.", operationId);
+#if DEBUG
+            logger.LogInformation(exception, "DXAIFunction operation {OperationId} was cancelled by the current user while debugging.", operationId);
+#endif
             return new DxAiFunctionInvocationResult
             {
                 FunctionName = functionName,

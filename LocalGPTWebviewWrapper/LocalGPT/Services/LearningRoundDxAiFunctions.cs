@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
-public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learning) : IDxAiFunctionHandler
+public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learning, ILogger<GetLearningRoundSnapshotFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.snapshot",
@@ -25,19 +25,22 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Learning-round snapshot DXFunction started.");
         var take = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("takePerSource", out var element) && element.TryGetInt32(out var parsed)
             ? Math.Clamp(parsed, 1, 10_000)
             : 200;
-        return new DxAiFunctionInvocationResult
+        var result = new DxAiFunctionInvocationResult
         {
             Succeeded = true,
             Status = "Completed",
             Value = await learning.BuildSnapshotAsync(take, cancellationToken).ConfigureAwait(false)
         };
+        logger.LogInformation("Learning-round snapshot DXFunction completed.");
+        return result;
     }
 }
 
-public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService learning) : IDxAiFunctionHandler
+public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService learning, ILogger<MaintainLearningRoundKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
@@ -68,14 +71,17 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Learning-round maintenance DXFunction started; maintenance payload content was omitted.");
         var maintenance = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
             ? new LearningMaintenanceRequest()
             : request.Parameters.Deserialize<LearningMaintenanceRequest>(JsonOptions) ?? new LearningMaintenanceRequest();
-        return new DxAiFunctionInvocationResult
+        var result = new DxAiFunctionInvocationResult
         {
             Succeeded = true,
             Status = "Completed",
             Value = await learning.MaintainAsync(maintenance, cancellationToken).ConfigureAwait(false)
         };
+        logger.LogInformation("Learning-round maintenance DXFunction completed.");
+        return result;
     }
 }

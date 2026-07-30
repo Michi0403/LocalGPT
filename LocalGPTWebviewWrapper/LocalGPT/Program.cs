@@ -83,33 +83,35 @@ namespace LocalGPT
             });
             logger.LogInformation("Created builder with startup service-provider validation enabled.");
             ConfigureAppConfiguration(builder, logger);
-            logger.LogInformation("Configured app configuration.", logger);
+            logger.LogInformation("Configured app configuration.");
             System.Threading.Volatile.Write(ref runtimePort, ResolveRequestedPort(args, builder.Configuration, logger));
             System.Threading.Volatile.Write(ref runtimeOneWirePort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-port", "LOCALGPT_ONEWIRE_PORT", $"{OneWireOptions.SectionName}:ServicePort", DefaultOneWirePort, allowDynamic: false, logger));
             System.Threading.Volatile.Write(ref runtimeOneWireDiscoveryPort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-discovery-port", "LOCALGPT_ONEWIRE_DISCOVERY_PORT", $"{OneWireOptions.SectionName}:DiscoveryPort", DefaultOneWireDiscoveryPort, allowDynamic: false, logger));
             ConfigureLogging(builder, logger);
-            logger.LogInformation("Configured logging.", logger);
+            logger.LogInformation("Configured logging.");
             ConfigureOptionsAndServices(builder, logger);
-            logger.LogInformation("Configured options and services.", logger);
+            logger.LogInformation("Configured options and services.");
             ConfigureSignalR(builder.Services, logger);
-            logger.LogInformation("Configured SignalR.", logger);
+            logger.LogInformation("Configured SignalR.");
             System.Threading.Volatile.Write(ref runtimePort, ConfigureKestrel(builder, Port, logger));
             ValidatePortContracts(logger);
             var port = Port;
             logger.LogInformation("Configured Kestrel on loopback port {Port}.", port);
             ConfigureResponseCompression(builder.Services, logger);
-            logger.LogInformation("Configured response compression.", logger);
+            logger.LogInformation("Configured response compression.");
             ConfigureBlazorAndMvc(builder, logger);
-            logger.LogInformation("Configured Blazor and MVC.", logger);
+            logger.LogInformation("Configured Blazor and MVC.");
             ConfigureJsonOptions(builder.Services, logger);
-            logger.LogInformation("Configured JSON options.", logger);
+            logger.LogInformation("Configured JSON options.");
             ConfigureForwardedHeaders(builder.Services, logger);
-            logger.LogInformation("Configured forwarded headers.", logger);
+            logger.LogInformation("Configured forwarded headers.");
+            new ServiceMethodDiagnosticsRegistration(logger).Apply(builder.Services, builder.Environment.IsDevelopment());
+            logger.LogInformation("Configured bounded service method diagnostics.");
 
             var app = builder.Build();
-            logger.LogInformation("Built web application.", logger);
+            logger.LogInformation("Built web application.");
             ConfigureMiddlewareAndEndpoints(app, logger);
-            logger.LogInformation("Configured middleware and endpoints.", logger);
+            logger.LogInformation("Configured middleware and endpoints.");
             var runtimeEndpointLogger = app.Services.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("LocalGPT.RuntimeEndpoint");
             app.Lifetime.ApplicationStarted.Register(() =>
@@ -226,7 +228,7 @@ namespace LocalGPT
                     builder.Logging.AddFilter((category, level) => level >= LogLevel.Warning);
 
                 builder.Services.AddLogging(logging =>
-                    new LoggingConfigurationService(builder.Services, builder.Configuration).Configure(logging));
+                    new LoggingConfigurationService(builder.Services, builder.Configuration, logger).Configure(logging));
             }
             catch (Exception ex)
             {
@@ -403,6 +405,7 @@ namespace LocalGPT
                 builder.Services.AddHostedService<OneWireDiscoveryHostedService>();
                 builder.Services.AddHostedService<OneWireCouncilApprovalProcessorHostedService>();
                 builder.Services.AddHostedService<OneWireWorkProcessorHostedService>();
+                builder.Services.AddSingleton<IOrganicAddonManifestService, OrganicAddonManifestService>();
                 builder.Services.AddScoped<IOrganicSkillRegistryService, OrganicSkillRegistryService>();
                 builder.Services.AddScoped<IModelCapabilitySelfAssessmentService, LocalGPT.Services.Council.Skills.ModelCapabilitySelfAssessmentService>();
                 builder.Services.AddSingleton<ICouncilHardwareRoadConfigurationService, LocalGPT.Services.Council.Scheduling.CouncilHardwareRoadConfigurationService>();

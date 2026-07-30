@@ -1307,5 +1307,6 @@
 
   <ItemGroup>
     <Content Update="Localization\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Configuration\OrganicAddons\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -9,7 +9,14 @@ namespace LocalGPT.Services;
 public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCouncilBlueprintSeedDataService> logger)
     : IOrganicCouncilBlueprintSeedDataService
 {
-    public IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeams() =>
+    public IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeams()
+    {
+        var teams = CreateDefaultTeamsCore();
+        logger.LogInformation("Created {TeamCount} default organic council team blueprint(s).", teams.Count);
+        return teams;
+    }
+
+    private IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeamsCore() =>
     [
         new()
         {

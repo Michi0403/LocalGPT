@@ -1,0 +1,863 @@
+{
+  "key": "publisherstudio",
+  "displayName": "Publisher Studio / BlazorPublisher",
+  "description": "Michi0403 Publisher Studio organic add-on. Its ASP.NET Core controller surface remains discoverable while offline; calls require a live trusted 1-Wire connection.",
+  "sourcePeerId": "publisherstudio",
+  "organs": [
+    "brain",
+    "eyes",
+    "hands"
+  ],
+  "capabilityKeys": [
+    "publisher.spreadsheet.inspect",
+    "publisher.screen.capture",
+    "publisher.screenreader.start",
+    "publisher.openscad.generate",
+    "publisher.media.convert",
+    "publisher.publication.manage",
+    "publisher.streaming.manage",
+    "publisher.automation.run",
+    "publisher.code.inspect"
+  ],
+  "uiActivationKeys": [
+    "localgpt.publisher.spreadsheet.request",
+    "localgpt.publisher.screenreader",
+    "localgpt.publisher.openscad",
+    "localgpt.organic.plugins"
+  ],
+  "controllerMethods": [
+    {
+      "controller": "AssetController",
+      "methodName": "GetMedia",
+      "httpMethod": "GET",
+      "route": "/api/assets/media/{id:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "AssetController",
+      "methodName": "UploadImage",
+      "httpMethod": "POST",
+      "route": "/api/assets/image",
+      "isReadOnly": false
+    },
+    {
+      "controller": "AssetController",
+      "methodName": "UploadDroppedAsset",
+      "httpMethod": "POST",
+      "route": "/api/assets/drop/{id:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "AutomationInputController",
+      "methodName": "List",
+      "httpMethod": "GET",
+      "route": "/api/automation/input",
+      "isReadOnly": true
+    },
+    {
+      "controller": "AutomationInputController",
+      "methodName": "Enqueue",
+      "httpMethod": "POST",
+      "route": "/api/automation/input",
+      "isReadOnly": false
+    },
+    {
+      "controller": "AutomationInputController",
+      "methodName": "Pending",
+      "httpMethod": "GET",
+      "route": "/api/automation/input/pending",
+      "isReadOnly": true
+    },
+    {
+      "controller": "AutomationInputController",
+      "methodName": "Complete",
+      "httpMethod": "POST",
+      "route": "/api/automation/input/{id:guid}/complete",
+      "isReadOnly": false
+    },
+    {
+      "controller": "AutomationInputController",
+      "methodName": "Cancel",
+      "httpMethod": "DELETE",
+      "route": "/api/automation/input/{id:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "AutomationScreenshotController",
+      "methodName": "List",
+      "httpMethod": "GET",
+      "route": "/api/automation/screenshots",
+      "isReadOnly": true
+    },
+    {
+      "controller": "AutomationScreenshotController",
+      "methodName": "Enqueue",
+      "httpMethod": "POST",
+      "route": "/api/automation/screenshots",
+      "isReadOnly": false
+    },
+    {
+      "controller": "AutomationScreenshotController",
+      "methodName": "Pending",
+      "httpMethod": "GET",
+      "route": "/api/automation/screenshots/pending",
+      "isReadOnly": true
+    },
+    {
+      "controller": "AutomationScreenshotController",
+      "methodName": "Complete",
+      "httpMethod": "POST",
+      "route": "/api/automation/screenshots/{id:guid}/complete",
+      "isReadOnly": false
+    },
+    {
+      "controller": "AutomationScreenshotController",
+      "methodName": "Get",
+      "httpMethod": "GET",
+      "route": "/api/automation/screenshots/{id:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "AutomationScreenshotController",
+      "methodName": "Download",
+      "httpMethod": "GET",
+      "route": "/api/automation/screenshots/{id:guid}/file",
+      "isReadOnly": true
+    },
+    {
+      "controller": "AutomationScreenshotController",
+      "methodName": "Cancel",
+      "httpMethod": "DELETE",
+      "route": "/api/automation/screenshots/{id:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "AutomationRuntimeController",
+      "methodName": "Status",
+      "httpMethod": "GET",
+      "route": "/api/automation/runtime/status",
+      "isReadOnly": true
+    },
+    {
+      "controller": "DomainContextController",
+      "methodName": "Get",
+      "httpMethod": "GET",
+      "route": "/api/domain-context",
+      "isReadOnly": true
+    },
+    {
+      "controller": "CodeController",
+      "methodName": "Languages",
+      "httpMethod": "GET",
+      "route": "/api/code/languages",
+      "isReadOnly": true
+    },
+    {
+      "controller": "CodeController",
+      "methodName": "Detect",
+      "httpMethod": "GET",
+      "route": "/api/code/detect",
+      "isReadOnly": true
+    },
+    {
+      "controller": "CodeController",
+      "methodName": "Format",
+      "httpMethod": "POST",
+      "route": "/api/code/format",
+      "isReadOnly": false
+    },
+    {
+      "controller": "CodeController",
+      "methodName": "Comment",
+      "httpMethod": "POST",
+      "route": "/api/code/comment",
+      "isReadOnly": false
+    },
+    {
+      "controller": "CodeController",
+      "methodName": "Analyze",
+      "httpMethod": "POST",
+      "route": "/api/code/analyze",
+      "isReadOnly": false
+    },
+    {
+      "controller": "ConfigurationController",
+      "methodName": "Paths",
+      "httpMethod": "GET",
+      "route": "/api/configuration/paths",
+      "isReadOnly": true
+    },
+    {
+      "controller": "ConfigurationController",
+      "methodName": "ResolvePaths",
+      "httpMethod": "POST",
+      "route": "/api/configuration/paths/resolve",
+      "isReadOnly": false
+    },
+    {
+      "controller": "ConfigurationController",
+      "methodName": "EnsurePaths",
+      "httpMethod": "POST",
+      "route": "/api/configuration/paths/ensure",
+      "isReadOnly": false
+    },
+    {
+      "controller": "ConfigurationController",
+      "methodName": "Cultures",
+      "httpMethod": "GET",
+      "route": "/api/configuration/localization/cultures",
+      "isReadOnly": true
+    },
+    {
+      "controller": "ConfigurationController",
+      "methodName": "Strings",
+      "httpMethod": "GET",
+      "route": "/api/configuration/localization/{culture}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "ConfigurationController",
+      "methodName": "String",
+      "httpMethod": "GET",
+      "route": "/api/configuration/localization/{culture}/{key}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "ConfigurationController",
+      "methodName": "SaveStrings",
+      "httpMethod": "PUT",
+      "route": "/api/configuration/localization/{culture}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "ConfigurationController",
+      "methodName": "SelectCulture",
+      "httpMethod": "GET",
+      "route": "/api/configuration/localization/select",
+      "isReadOnly": true
+    },
+    {
+      "controller": "RenderExportController",
+      "methodName": "Capabilities",
+      "httpMethod": "GET",
+      "route": "/api/render-export/capabilities",
+      "isReadOnly": true
+    },
+    {
+      "controller": "RenderExportController",
+      "methodName": "Capability",
+      "httpMethod": "GET",
+      "route": "/api/render-export/capabilities/{format}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "Capabilities",
+      "httpMethod": "GET",
+      "route": "/api/media-conversion/capabilities",
+      "isReadOnly": true
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "Profiles",
+      "httpMethod": "GET",
+      "route": "/api/media-conversion/profiles",
+      "isReadOnly": true
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "SaveProfile",
+      "httpMethod": "POST",
+      "route": "/api/media-conversion/profiles",
+      "isReadOnly": false
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "DeleteProfile",
+      "httpMethod": "DELETE",
+      "route": "/api/media-conversion/profiles/{id:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "Jobs",
+      "httpMethod": "GET",
+      "route": "/api/media-conversion/jobs",
+      "isReadOnly": true
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "Job",
+      "httpMethod": "GET",
+      "route": "/api/media-conversion/jobs/{id:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "Convert",
+      "httpMethod": "POST",
+      "route": "/api/media-conversion/jobs",
+      "isReadOnly": false
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "Download",
+      "httpMethod": "GET",
+      "route": "/api/media-conversion/jobs/{id:guid}/file",
+      "isReadOnly": true
+    },
+    {
+      "controller": "MediaConversionController",
+      "methodName": "Remove",
+      "httpMethod": "DELETE",
+      "route": "/api/media-conversion/jobs/{id:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "DefaultNode",
+      "httpMethod": "GET",
+      "route": "/api/openscad/nodes/{kind}/default",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "Catalog",
+      "httpMethod": "GET",
+      "route": "/api/openscad/catalog",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "FormatValue",
+      "httpMethod": "POST",
+      "route": "/api/openscad/format-value",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "Identifier",
+      "httpMethod": "GET",
+      "route": "/api/openscad/identifier",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "Quote",
+      "httpMethod": "GET",
+      "route": "/api/openscad/quote",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "Example",
+      "httpMethod": "GET",
+      "route": "/api/openscad/example",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "Validate",
+      "httpMethod": "POST",
+      "route": "/api/openscad/validate",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "Generate",
+      "httpMethod": "POST",
+      "route": "/api/openscad/generate",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OpenScadController",
+      "methodName": "GenerateVideoLayer",
+      "httpMethod": "POST",
+      "route": "/api/openscad/video-layer",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Status",
+      "httpMethod": "GET",
+      "route": "/api/organic/status",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Transport",
+      "httpMethod": "GET",
+      "route": "/api/organic/transport",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "ReplayPolicy",
+      "httpMethod": "GET",
+      "route": "/api/organic/replay-policy",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "AddonManifest",
+      "httpMethod": "GET",
+      "route": "/api/organic/addon-manifest",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Peers",
+      "httpMethod": "GET",
+      "route": "/api/organic/peers",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Capabilities",
+      "httpMethod": "GET",
+      "route": "/api/organic/capabilities",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Permissions",
+      "httpMethod": "GET",
+      "route": "/api/organic/permissions",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "SavePermission",
+      "httpMethod": "POST",
+      "route": "/api/organic/permissions",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "DeletePermission",
+      "httpMethod": "DELETE",
+      "route": "/api/organic/permissions",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Work",
+      "httpMethod": "GET",
+      "route": "/api/organic/work",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Results",
+      "httpMethod": "GET",
+      "route": "/api/organic/results",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "TextProposals",
+      "httpMethod": "GET",
+      "route": "/api/organic/text-proposals",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Connect",
+      "httpMethod": "POST",
+      "route": "/api/organic/connect/{peerId}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Disconnect",
+      "httpMethod": "POST",
+      "route": "/api/organic/disconnect",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Council",
+      "httpMethod": "POST",
+      "route": "/api/organic/council",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Approve",
+      "httpMethod": "POST",
+      "route": "/api/organic/work/{id:guid}/approve",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicPluginController",
+      "methodName": "Decline",
+      "httpMethod": "POST",
+      "route": "/api/organic/work/{id:guid}/decline",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicWireHttpController",
+      "methodName": "Profile",
+      "httpMethod": "GET",
+      "route": "/api/organic/onewire/http-json/profile",
+      "isReadOnly": true
+    },
+    {
+      "controller": "OrganicWireHttpController",
+      "methodName": "Dispatch",
+      "httpMethod": "POST",
+      "route": "/api/organic/onewire/http-json",
+      "isReadOnly": false
+    },
+    {
+      "controller": "OrganicWireHttpController",
+      "methodName": "Work",
+      "httpMethod": "GET",
+      "route": "/api/organic/onewire/http-json/work/{correlationId:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "PublicationController",
+      "methodName": "Download",
+      "httpMethod": "POST",
+      "route": "/api/publications/download",
+      "isReadOnly": false
+    },
+    {
+      "controller": "PublicationController",
+      "methodName": "Validate",
+      "httpMethod": "POST",
+      "route": "/api/publications/validate",
+      "isReadOnly": false
+    },
+    {
+      "controller": "PublicationLayoutController",
+      "methodName": "Constrain",
+      "httpMethod": "POST",
+      "route": "/api/publication/layout/constrain",
+      "isReadOnly": false
+    },
+    {
+      "controller": "PublicationLayoutController",
+      "methodName": "Reorder",
+      "httpMethod": "POST",
+      "route": "/api/publication/layout/reorder",
+      "isReadOnly": false
+    },
+    {
+      "controller": "RuntimePolicyController",
+      "methodName": "Get",
+      "httpMethod": "GET",
+      "route": "/api/runtime-policy",
+      "isReadOnly": true
+    },
+    {
+      "controller": "SpreadsheetController",
+      "methodName": "Editor",
+      "httpMethod": "GET",
+      "route": "/spreadsheet/editor/{sessionId:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "SpreadsheetController",
+      "methodName": "Open",
+      "httpMethod": "POST",
+      "route": "/spreadsheet/open/{sessionId:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "SpreadsheetController",
+      "methodName": "New",
+      "httpMethod": "POST",
+      "route": "/spreadsheet/new/{sessionId:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "SpreadsheetController",
+      "methodName": "Save",
+      "httpMethod": "POST",
+      "route": "/spreadsheet/save/{sessionId:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "SpreadsheetController",
+      "methodName": "Download",
+      "httpMethod": "GET",
+      "route": "/spreadsheet/download/{sessionId:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "NativeCaptureController",
+      "methodName": "Create",
+      "httpMethod": "POST",
+      "route": "/api/mediahost/native-captures",
+      "isReadOnly": false
+    },
+    {
+      "controller": "NativeCaptureController",
+      "methodName": "Stream",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/native-captures/{captureId:guid}/websocket",
+      "isReadOnly": true
+    },
+    {
+      "controller": "NativeCaptureController",
+      "methodName": "Stop",
+      "httpMethod": "DELETE",
+      "route": "/api/mediahost/native-captures/{captureId:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "StreamingChatController",
+      "methodName": "Subscribe",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/chat/{outputId:guid}/websocket",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingChatController",
+      "methodName": "Send",
+      "httpMethod": "POST",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/chat/{outputId:guid}/send",
+      "isReadOnly": false
+    },
+    {
+      "controller": "StreamingIngestController",
+      "methodName": "Ingest",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/ingest/websocket",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingIngestController",
+      "methodName": "Announce",
+      "httpMethod": "POST",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/ingest/announce",
+      "isReadOnly": false
+    },
+    {
+      "controller": "StreamingIngestController",
+      "methodName": "PublishWebRtc",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/webrtc/publisher",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingLanController",
+      "methodName": "GetStatus",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/lan",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingLanController",
+      "methodName": "GetAsset",
+      "httpMethod": "GET",
+      "route": "/stream/{sessionId:guid}/{**asset}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingLanController",
+      "methodName": "Watch",
+      "httpMethod": "GET",
+      "route": "/watch/{sessionId:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingRuntimeController",
+      "methodName": "GetCapabilities",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/capabilities",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingRuntimeController",
+      "methodName": "DiscoverDevices",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/devices",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingRuntimeController",
+      "methodName": "GetNowPlaying",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/now-playing",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingSessionController",
+      "methodName": "Create",
+      "httpMethod": "POST",
+      "route": "/api/mediahost/sessions",
+      "isReadOnly": false
+    },
+    {
+      "controller": "StreamingSessionController",
+      "methodName": "Get",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/sessions/{sessionId:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingSessionController",
+      "methodName": "GetEvents",
+      "httpMethod": "GET",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/events",
+      "isReadOnly": true
+    },
+    {
+      "controller": "StreamingSessionController",
+      "methodName": "Stop",
+      "httpMethod": "DELETE",
+      "route": "/api/mediahost/sessions/{sessionId:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "StreamingSessionController",
+      "methodName": "SetOutput",
+      "httpMethod": "PUT",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/outputs/{outputId:guid}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "StreamingSessionController",
+      "methodName": "SetRecording",
+      "httpMethod": "PUT",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/recording",
+      "isReadOnly": false
+    },
+    {
+      "controller": "StreamingSessionController",
+      "methodName": "SetProgramPage",
+      "httpMethod": "PUT",
+      "route": "/api/mediahost/sessions/{sessionId:guid}/program-page",
+      "isReadOnly": false
+    },
+    {
+      "controller": "VideoLayerInterchangeController",
+      "methodName": "CreateDefaultBlob",
+      "httpMethod": "POST",
+      "route": "/api/video-layer-interchange/default-blob",
+      "isReadOnly": false
+    },
+    {
+      "controller": "VideoLayerInterchangeController",
+      "methodName": "OpenScad",
+      "httpMethod": "POST",
+      "route": "/api/video-layer-interchange/openscad",
+      "isReadOnly": false
+    },
+    {
+      "controller": "VideoLayerInterchangeController",
+      "methodName": "Mainframe",
+      "httpMethod": "POST",
+      "route": "/api/video-layer-interchange/mainframe",
+      "isReadOnly": false
+    },
+    {
+      "controller": "VideoLayerInterchangeController",
+      "methodName": "FullFrame",
+      "httpMethod": "GET",
+      "route": "/api/video-layer-interchange/geometry/full-frame",
+      "isReadOnly": true
+    },
+    {
+      "controller": "VideoLayerInterchangeController",
+      "methodName": "Normalize",
+      "httpMethod": "POST",
+      "route": "/api/video-layer-interchange/geometry/normalize",
+      "isReadOnly": false
+    },
+    {
+      "controller": "VideoLayerInterchangeController",
+      "methodName": "Resample",
+      "httpMethod": "POST",
+      "route": "/api/video-layer-interchange/geometry/resample",
+      "isReadOnly": false
+    },
+    {
+      "controller": "VideoLayerInterchangeController",
+      "methodName": "OpenScadPoints",
+      "httpMethod": "POST",
+      "route": "/api/video-layer-interchange/geometry/openscad-points",
+      "isReadOnly": false
+    },
+    {
+      "controller": "VideoLayerInterchangeController",
+      "methodName": "BlobRuntime",
+      "httpMethod": "POST",
+      "route": "/api/video-layer-interchange/runtime/blob",
+      "isReadOnly": false
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "Status",
+      "httpMethod": "GET",
+      "route": "/api/publisher/system/status",
+      "isReadOnly": true
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "Publications",
+      "httpMethod": "GET",
+      "route": "/api/publisher/publications",
+      "isReadOnly": true
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "Publication",
+      "httpMethod": "GET",
+      "route": "/api/publisher/publications/{documentId:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "Data",
+      "httpMethod": "GET",
+      "route": "/api/publisher/publications/{documentId:guid}/data/{dataId:guid}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "Rows",
+      "httpMethod": "GET",
+      "route": "/api/publisher/publications/{documentId:guid}/data/{dataId:guid}/rows",
+      "isReadOnly": true
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "Pages",
+      "httpMethod": "GET",
+      "route": "/api/publisher/publications/{documentId:guid}/pages",
+      "isReadOnly": true
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "ExportRows",
+      "httpMethod": "GET",
+      "route": "/api/publisher/exports/{documentId:guid}/data/{dataId:guid}/{token}/rows",
+      "isReadOnly": true
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "Webhook",
+      "httpMethod": "POST",
+      "route": "/api/publisher/webhooks/{bindingId:guid}/{token}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "Webhook",
+      "httpMethod": "PUT",
+      "route": "/api/publisher/webhooks/{bindingId:guid}/{token}",
+      "isReadOnly": false
+    },
+    {
+      "controller": "WebDataController",
+      "methodName": "WebhookStatus",
+      "httpMethod": "GET",
+      "route": "/api/publisher/webhooks/{bindingId:guid}/status",
+      "isReadOnly": true
+    }
+  ]
+}

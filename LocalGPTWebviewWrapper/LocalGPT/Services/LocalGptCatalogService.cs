@@ -19,6 +19,8 @@ namespace LocalGPT.Services
     {
         private readonly ILocalGptRuntimePolicyDataService _runtimePolicy =
             runtimePolicy ?? throw new ArgumentNullException(nameof(runtimePolicy));
+        private readonly ILogger<LocalGptCatalogService> _logger =
+            logger ?? throw new ArgumentNullException(nameof(logger));
 
         public string DefaultGradleVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultGradleVersion);
         public Encoding Utf8NoBom { get; } =
@@ -249,6 +251,7 @@ namespace LocalGPT.Services
         public List<TestLabRoute> Routes => [.. _runtimePolicy.GetJson<TestLabRoute[]>(LocalGptRuntimeValue.TestLabRoutesJson)];
         public List<PromptSuggestion> GetSuggestion()
         {
+            _logger.LogTrace("Creating the LocalGPT prompt suggestion catalog.");
             return new List<PromptSuggestion>()
         {
         new PromptSuggestion("Recall memory", "Use saved chats and former thoughts", "Review your saved LocalGPT memory and former model thoughts, then summarize what you remember about this project and continue from that context."),
@@ -968,35 +971,12 @@ namespace LocalGPT.Services
         public Regex LoggingPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.LoggingPattern);
 
 
-        public JsonSerializerOptions JsonOptions { get; } = CreateJsonOptions(logger);
-
-        private static JsonSerializerOptions CreateJsonOptions(
-            ILogger<LocalGptCatalogService> logger)
+        public JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web)
         {
-            ArgumentNullException.ThrowIfNull(logger);
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true
+        };
 
-            try
-            {
-                var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
-                {
-                    PropertyNameCaseInsensitive = true,
-                    WriteIndented = true
-                };
-
-                logger.LogInformation(
-                    "Initialized the LocalGPT catalog from database-backed runtime policy.");
-
-                return options;
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(
-                    exception,
-                    "Could not initialize the LocalGPT catalog.");
-
-                throw;
-            }
-        }
         public Regex WhitespacePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.WhitespacePattern);
         public Regex HelpfulSourceLinePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.HelpfulSourceLinePattern);
         public sealed record ArtifactContractReport(

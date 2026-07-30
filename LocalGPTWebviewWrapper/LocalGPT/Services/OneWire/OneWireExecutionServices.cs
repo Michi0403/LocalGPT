@@ -436,10 +436,14 @@ public sealed class OneWireMessageDispatcher(
     };
 }
 
-public sealed class OneWireTargetApprovalPolicy(ILocalGptVocabularyService vocabulary) : IOneWireTargetApprovalPolicy
+public sealed class OneWireTargetApprovalPolicy(
+    ILocalGptVocabularyService vocabulary,
+    ILogger<OneWireTargetApprovalPolicy> logger) : IOneWireTargetApprovalPolicy
 {
     public HumanApprovalRequestSpec Create(OneWireEnvelope envelope)
     {
+        ArgumentNullException.ThrowIfNull(envelope);
+        logger.LogTrace("Creating a target approval policy for 1-Wire message type {MessageType} from peer {PeerId}.", envelope.MessageType, envelope.SourcePeerId);
         if (envelope.MessageType == OneWireMessageType.Hello)
         {
             return new HumanApprovalRequestSpec(
@@ -491,6 +495,8 @@ public sealed class OneWireTargetApprovalPolicy(ILocalGptVocabularyService vocab
 
     public OneWireInteractionEditor ReadEditor(OneWireEnvelope envelope)
     {
+        ArgumentNullException.ThrowIfNull(envelope);
+        logger.LogTrace("Resolving the target interaction editor for 1-Wire message type {MessageType}.", envelope.MessageType);
         if (envelope.Properties is not null && envelope.Properties.TryGetValue("InteractionEditor", out var value))
         {
             if (value.ValueKind == JsonValueKind.String && Enum.TryParse<OneWireInteractionEditor>(value.GetString(), true, out var parsed))
