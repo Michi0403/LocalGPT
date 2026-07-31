@@ -35,6 +35,7 @@ namespace LocalGPT.Services
         ICouncilHardwareRoadPlanner hardwareRoadPlanner,
         ICouncilRunConfigurationService runConfigurations,
         IModelCapabilitySelfAssessmentService modelSelfAssessment,
+        IAiFeatureReportService featureReports,
         IAmbientLocalGptContext ambientContext,
         ILogger<MultiModelCouncilService> logger,
         CouncilRuntimeService councilRuntime,
@@ -98,6 +99,7 @@ namespace LocalGPT.Services
         public async Task<MultiModelCouncilResult> RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
         {
             Guid? collaborationRunId = null;
+            MultiModelCouncilResult? result = null;
             try
             {
                 if (string.IsNullOrWhiteSpace(request.Prompt))
@@ -123,7 +125,7 @@ namespace LocalGPT.Services
                     request.ResourceLoadPercent,
                     ollamaNumGpu);
                 runConfigurations.Ensure(request, participants);
-                var result = new MultiModelCouncilResult
+                result = new MultiModelCouncilResult
                 {
                     RunId = request.RunId,
                     Prompt = request.Prompt.Trim(),
@@ -545,11 +547,13 @@ namespace LocalGPT.Services
                     result.Steps.Count == 0 ? 0 : result.Steps.Max(step => step.Round),
                     BuildHumanContributionEvaluation(result),
                     cancellationToken).ConfigureAwait(false);
-                if (await humanCollaboration.HasRequiredPendingInputAsync(result.RunId, cancellationToken).ConfigureAwait(false))
-                {
-                    humanCollaboration.UpdateCouncilRun(result.RunId, result.Steps.Count == 0 ? 0 : result.Steps.Max(step => step.Round), "Awaiting required human input", true);
-                    result.Warnings.Add("A required human collaboration request remains open. The council completed all independent work, but the guarded final action remains deferred until the Human Collaboration Inbox is answered and the exact action is retried.");
-                }
+                await WaitForHumanBoundaryAsync(
+                    result,
+                    request,
+                    result.Steps.Count == 0 ? 0 : result.Steps.Max(step => step.Round),
+                    "Council completion",
+                    HumanCollaborationBoundary.Completion,
+                    cancellationToken).ConfigureAwait(false);
 
                 foreach (var failedStep in result.Steps.Where(step => !string.IsNullOrWhiteSpace(step.Error)))
                 {
@@ -627,6 +631,7 @@ namespace LocalGPT.Services
 
                 result.CompletedAtUtc = DateTime.UtcNow;
                 result.LogPath = await WriteLogAsync(result, cancellationToken, logger).ConfigureAwait(false);
+                await WriteMissingFeatureReportAsync(result, CancellationToken.None).ConfigureAwait(false);
 
                 if (request.SaveToMemory)
                     result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken).ConfigureAwait(false);
@@ -647,16 +652,19 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error in council RunAsync.");
-                var failedResult = new MultiModelCouncilResult
+                var failedResult = result ?? new MultiModelCouncilResult
                 {
                     RunId = collaborationRunId ?? Guid.NewGuid(),
                     Prompt = request?.Prompt?.Trim() ?? string.Empty,
                     ModelNames = request?.ModelNames?.ToList() ?? [],
-                    StartedAtUtc = DateTime.UtcNow,
-                    CompletedAtUtc = DateTime.UtcNow,
-                    FinalAnswer = "The council run failed before a complete answer could be produced.",
-                    Warnings = [$"{ex.GetType().Name}: {ex.Message}"]
+                    StartedAtUtc = DateTime.UtcNow
                 };
+                failedResult.CompletedAtUtc = DateTime.UtcNow;
+                if (string.IsNullOrWhiteSpace(failedResult.FinalAnswer))
+                    failedResult.FinalAnswer = "The council run failed before a complete answer could be produced. Partial Council steps remain available below.";
+                failedResult.Warnings.Add($"{ex.GetType().Name}: {ex.Message}");
+                failedResult.LogPath = await WriteLogAsync(failedResult, CancellationToken.None, logger).ConfigureAwait(false);
+                await WriteMissingFeatureReportAsync(failedResult, CancellationToken.None).ConfigureAwait(false);
                 councilSpooler.Complete(failedResult, failed: true);
                 return failedResult;
             }
@@ -670,6 +678,131 @@ namespace LocalGPT.Services
             }
         }
 
+        private async Task WaitForHumanBoundaryAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            int upcomingRound,
+            string upcomingPhase,
+            HumanCollaborationBoundary boundary,
+            CancellationToken cancellationToken)
+        {
+            string? activeSignature = null;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var gate = await humanCollaboration.GetGateStatusAsync(
+                    result.RunId,
+                    upcomingRound,
+                    upcomingPhase,
+                    boundary,
+                    cancellationToken).ConfigureAwait(false);
+                if (!gate.IsBlocked)
+                {
+                    if (activeSignature is not null)
+                    {
+                        humanCollaboration.UpdateCouncilRun(result.RunId, upcomingRound, upcomingPhase, false);
+                        var releasedStep = new MultiModelCouncilStep
+                        {
+                            Round = upcomingRound,
+                            Phase = upcomingPhase,
+                            ModelName = "LocalGPT: human clarification gate",
+                            CouncilMembers = [.. result.ModelNames],
+                            Role = "Human clarification gate released",
+                            Content = "All human questions blocking this Council boundary were answered.",
+                            VisibleContent = $"Human clarification gate released. The Council may now continue into {upcomingPhase}.",
+                            StartedAtUtc = DateTime.UtcNow,
+                            CompletedAtUtc = DateTime.UtcNow,
+                            DurationSeconds = 0
+                        };
+                        MultiModelCouncilServiceAddOrderedStep(result, releasedStep, logger);
+                        request.StepCompleted?.Invoke(releasedStep);
+                        request.ProgressMessage?.Invoke(releasedStep.VisibleContent);
+                    }
+                    return;
+                }
+
+                var signature = string.Join("|", gate.BlockingRequests.Select(item => item.Id).OrderBy(id => id));
+                if (!string.Equals(signature, activeSignature, StringComparison.Ordinal))
+                {
+                    activeSignature = signature;
+                    var boundaryLabel = boundary switch
+                    {
+                        HumanCollaborationBoundary.Round => $"round {upcomingRound}",
+                        HumanCollaborationBoundary.Completion => "Council completion",
+                        _ => upcomingPhase
+                    };
+                    var questionLines = gate.BlockingRequests.Select(requestItem =>
+                        $"- {DescribeQuestionScope(requestItem)}; {DescribeQuestionGate(requestItem)}: {requestItem.Title}");
+                    var visible = $"Council paused before {boundaryLabel}. Waiting for {gate.BlockingRequests.Count} blocking human question(s):{Environment.NewLine}{string.Join(Environment.NewLine, questionLines)}";
+                    var waitingStep = new MultiModelCouncilStep
+                    {
+                        Round = upcomingRound,
+                        Phase = upcomingPhase,
+                        ModelName = "LocalGPT: human clarification gate",
+                        CouncilMembers = [.. result.ModelNames],
+                        Role = "Blocking human clarification",
+                        Content = visible,
+                        VisibleContent = visible,
+                        StartedAtUtc = DateTime.UtcNow,
+                        CompletedAtUtc = DateTime.UtcNow,
+                        DurationSeconds = 0
+                    };
+                    MultiModelCouncilServiceAddOrderedStep(result, waitingStep, logger);
+                    request.StepCompleted?.Invoke(waitingStep);
+                    request.ProgressMessage?.Invoke(visible);
+                    logger.LogInformation(
+                        "Council run {CouncilRunId} is waiting before {Boundary} for {QuestionCount} blocking human question(s).",
+                        result.RunId,
+                        boundaryLabel,
+                        gate.BlockingRequests.Count);
+                }
+
+                humanCollaboration.UpdateCouncilRun(
+                    result.RunId,
+                    upcomingRound,
+                    $"Awaiting human clarification before {upcomingPhase}",
+                    true);
+
+                var changed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                void HandleChanged() => changed.TrySetResult(true);
+                humanCollaboration.Changed += HandleChanged;
+                try
+                {
+                    var recheck = await humanCollaboration.GetGateStatusAsync(
+                        result.RunId,
+                        upcomingRound,
+                        upcomingPhase,
+                        boundary,
+                        cancellationToken).ConfigureAwait(false);
+                    if (!recheck.IsBlocked)
+                        continue;
+
+                    var fallback = Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                    await Task.WhenAny(changed.Task, fallback).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                finally
+                {
+                    humanCollaboration.Changed -= HandleChanged;
+                }
+            }
+        }
+
+        private string DescribeQuestionScope(HumanCollaborationRequest request) => request.QuestionScope switch
+        {
+            "Consensus" => "Council consensus question",
+            "SelectedMembers" => "selected-member question",
+            _ => $"question from {request.RequestedBy}"
+        };
+
+        private string DescribeQuestionGate(HumanCollaborationRequest request) => request.GateMode switch
+        {
+            "NextPhase" => "blocks the next phase",
+            "NextRound" => "blocks the next Council round",
+            "Completion" => "blocks Council completion",
+            _ => "non-blocking"
+        };
+
         private async Task<string> PrepareHumanHeartbeatAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -678,6 +811,19 @@ namespace LocalGPT.Services
             string bootstrap,
             CancellationToken cancellationToken)
         {
+            var lastCompletedRound = result.Steps.Count == 0 ? -1 : result.Steps.Max(step => step.Round);
+            var boundary = round > lastCompletedRound
+                ? HumanCollaborationBoundary.Round
+                : HumanCollaborationBoundary.Phase;
+            await WaitForHumanBoundaryAsync(
+                result,
+                request,
+                round,
+                phase,
+                boundary,
+                cancellationToken).ConfigureAwait(false);
+
+            runConfigurations.BeginRound(result.RunId, round, phase);
             humanCollaboration.UpdateCouncilRun(result.RunId, round, phase);
             councilSpooler.Update(result.RunId, round, phase);
             using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase);
@@ -1061,6 +1207,7 @@ namespace LocalGPT.Services
                 // non-streaming council runs still honor configured model parallelism.
                 var effectiveMaxParallelModels = streamUpdate is null ? maxParallelModels : 1;
                 using var globalGate = new SemaphoreSlim(effectiveMaxParallelModels, effectiveMaxParallelModels);
+                var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
 
                 var tasks = phaseParticipants
                     .Select(async modelName =>
@@ -1068,9 +1215,12 @@ namespace LocalGPT.Services
                         var fallbackPlan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
                             ? configuredPlan
                             : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
-                        await globalGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        var gateAcquired = false;
                         try
                         {
+                            using var gateCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
+                            await globalGate.WaitAsync(gateCancellation.Token).ConfigureAwait(false);
+                            gateAcquired = true;
                             var participantBootstrap = bootstrap;
                             if (streamUpdate is not null)
                             {
@@ -1093,9 +1243,22 @@ namespace LocalGPT.Services
                             ArgumentNullException.ThrowIfNull(step);
                             return step;
                         }
+                        catch (OperationCanceledException) when (
+                            roundSkipToken.IsCancellationRequested &&
+                            !cancellationToken.IsCancellationRequested)
+                        {
+                            return CreateRoundSkippedStep(
+                                modelName,
+                                participants,
+                                round,
+                                phase,
+                                role,
+                                fallbackPlan);
+                        }
                         finally
                         {
-                            globalGate.Release();
+                            if (gateAcquired)
+                                globalGate.Release();
                         }
                     })
                     .ToList();
@@ -1122,6 +1285,10 @@ namespace LocalGPT.Services
 
 
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(
@@ -1137,6 +1304,33 @@ namespace LocalGPT.Services
                     modelTimeoutSeconds);
             }
         }
+
+        private MultiModelCouncilStep CreateRoundSkippedStep(
+            string modelName,
+            IReadOnlyList<string> councilMembers,
+            int round,
+            string phase,
+            string role,
+            CouncilHardwareRoadPlan plan)
+        {
+            var now = DateTime.UtcNow;
+            var step = new MultiModelCouncilStep
+            {
+                Round = round,
+                Phase = phase,
+                ModelName = modelName,
+                CouncilMembers = councilMembers.ToList(),
+                Role = role,
+                Content = $"_{modelName} was skipped because the user advanced the running Council beyond {phase}._",
+                VisibleContent = $"_{modelName} was skipped because the user advanced the running Council beyond {phase}._",
+                StartedAtUtc = now,
+                CompletedAtUtc = now,
+                DurationSeconds = 0
+            };
+            ApplyHardwarePlan(step, plan);
+            return step;
+        }
+
         private List<string> SelectParticipants(MultiModelCouncilRequest request)
         {
             try
@@ -1199,6 +1393,9 @@ namespace LocalGPT.Services
                 var started = DateTime.UtcNow;
                 var stopwatch = Stopwatch.StartNew();
                 var councilRunId = ambientContext.Current.CouncilRunId;
+                var roundSkipToken = councilRunId is Guid runId
+                    ? runConfigurations.GetRoundCancellationToken(runId, round, phase)
+                    : CancellationToken.None;
                 var executionPlan = fallbackPlan ?? new CouncilHardwareRoadPlan(
                     modelName,
                     ollamaNumGpu == 0 ? OneWireHardwareKind.Cpu : OneWireHardwareKind.Auto,
@@ -1267,7 +1464,7 @@ namespace LocalGPT.Services
                     promptConfigService,
                     functionRegistry);
 
-                    using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
                     participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
 
                     var messages = new List<ChatMessage>();
@@ -1297,9 +1494,9 @@ namespace LocalGPT.Services
                         using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         var liveInputSignal = new TaskCompletionSource<IReadOnlyList<HumanCouncilContribution>>(
                             TaskCreationOptions.RunContinuationsAsynchronously);
-                        var monitorTask = councilRunId is Guid activeRunIdinner
+                        var monitorTask = councilRunId is Guid monitoredRunId
                             ? MonitorLiveCouncilInputAsync(
-                                activeRunIdinner,
+                                monitoredRunId,
                                 round,
                                 observedContributionIds,
                                 liveInputSignal,
@@ -1460,7 +1657,23 @@ namespace LocalGPT.Services
                     ApplyHardwarePlan(completedStep, executionPlan);
                     return completedStep;
                 }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (
+                    roundSkipToken.IsCancellationRequested &&
+                    !cancellationToken.IsCancellationRequested)
+                {
+                    stopwatch.Stop();
+                    logger.LogInformation(
+                        "Council participant {ModelName} stopped because the user skipped round {Round}, phase {Phase}.",
+                        modelName,
+                        round,
+                        phase);
+                    return CreateRoundSkippedStep(modelName, councilMembers, round, phase, role, executionPlan);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (OperationCanceledException)
                 {
                     stopwatch.Stop();
                     var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
@@ -1532,10 +1745,39 @@ namespace LocalGPT.Services
                         await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken).ConfigureAwait(false);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Council participant failed for model {ModelName}, round {Round}, phase {Phase}, role {Role}, max output {MaxOutputTokens}, max context {MaxContextTokens}, timeout {TimeoutSeconds}s.", modelName, round, phase, role, maxOutputTokens, maxContextTokens, modelTimeoutSeconds);
-                return null;
+                var failedStep = new MultiModelCouncilStep
+                {
+                    Round = round,
+                    Phase = phase,
+                    ModelName = modelName,
+                    CouncilMembers = councilMembers.ToList(),
+                    Role = role,
+                    Content = $"**{modelName} failed before its {phase} request could complete.**{Environment.NewLine}{ex.Message}",
+                    VisibleContent = $"**{modelName} failed before its {phase} request could complete.**{Environment.NewLine}{ex.Message}",
+                    StartedAtUtc = DateTime.UtcNow,
+                    CompletedAtUtc = DateTime.UtcNow,
+                    DurationSeconds = 0,
+                    Error = ex.Message
+                };
+                ApplyHardwarePlan(failedStep, fallbackPlan ?? new CouncilHardwareRoadPlan(
+                    modelName,
+                    ollamaNumGpu == 0 ? OneWireHardwareKind.Cpu : OneWireHardwareKind.Auto,
+                    ollamaNumGpu == 0 ? 0 : -1,
+                    ollamaNumGpu == 0 ? "CPU" : "Automatic",
+                    ollamaNumGpu == 0 ? "cpu:0:CPU" : $"auto:{modelName}",
+                    100,
+                    maxOutputTokens,
+                    maxContextTokens,
+                    ollamaNumGpu,
+                    1));
+                return failedStep;
             }
         }
 
@@ -2400,6 +2642,38 @@ namespace LocalGPT.Services
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "WriteLogAsync");
                 return string.Empty;
+            }
+        }
+
+        private async Task WriteMissingFeatureReportAsync(
+            MultiModelCouncilResult result,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var reportSource = $"AI Council {result.RunId:N}";
+                var reportContent = councilRuntime.MultiModelCouncilServiceBuildLogMarkdown(result, logger);
+                var reportPath = await featureReports
+                    .WriteIfMissingFeatureReportAsync(reportSource, reportContent, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(reportPath))
+                {
+                    logger.LogInformation(
+                        "Council run {RunId} wrote its durable missing-feature report to {ReportPath}.",
+                        result.RunId,
+                        reportPath);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Council run {RunId} could not write its missing-feature report; generated content was omitted from logs.",
+                    result.RunId);
             }
         }
 

@@ -85,6 +85,119 @@ public sealed class CouncilRunConfigurationService(
         return true;
     }
 
+    public void BeginRound(Guid runId, int round, string phase)
+    {
+        if (!runs.TryGetValue(runId, out var state))
+            return;
+
+        CancellationTokenSource? previousRoundCancellation = null;
+        lock (state.SyncRoot)
+        {
+            if (!state.IsRunning)
+                return;
+
+            if (state.CurrentRound == round &&
+                string.Equals(state.CurrentPhase, phase, StringComparison.Ordinal) &&
+                !state.RoundCancellation.IsCancellationRequested)
+            {
+                return;
+            }
+
+            previousRoundCancellation = state.RoundCancellation;
+            state.RoundCancellation = new CancellationTokenSource();
+            state.CurrentRound = round;
+            state.CurrentPhase = phase;
+            state.IsRoundSkipRequested = false;
+            PulseLocked(state);
+        }
+
+        try
+        {
+            previousRoundCancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        finally
+        {
+            previousRoundCancellation?.Dispose();
+        }
+
+        logger.LogInformation(
+            "Council run {RunId} entered round {Round}, phase {Phase}; session-only model settings remain isolated to this run.",
+            runId,
+            round,
+            phase);
+        Changed?.Invoke(runId);
+    }
+
+    public CancellationToken GetRoundCancellationToken(Guid runId, int round, string phase)
+    {
+        if (!runs.TryGetValue(runId, out var state))
+            return CancellationToken.None;
+
+        lock (state.SyncRoot)
+        {
+            return state.IsRunning &&
+                state.CurrentRound == round &&
+                string.Equals(state.CurrentPhase, phase, StringComparison.Ordinal)
+                    ? state.RoundCancellation.Token
+                    : CancellationToken.None;
+        }
+    }
+
+    public bool IsRoundSkipRequested(Guid runId, int round, string phase)
+    {
+        if (!runs.TryGetValue(runId, out var state))
+            return false;
+
+        lock (state.SyncRoot)
+        {
+            return state.IsRunning &&
+                state.IsRoundSkipRequested &&
+                state.CurrentRound == round &&
+                string.Equals(state.CurrentPhase, phase, StringComparison.Ordinal);
+        }
+    }
+
+    public bool RequestSkipCurrentRound(Guid runId)
+    {
+        if (!runs.TryGetValue(runId, out var state))
+            return false;
+
+        int round;
+        string phase;
+        CancellationTokenSource roundCancellation;
+        lock (state.SyncRoot)
+        {
+            if (!state.IsRunning || state.CurrentRound < 0 || state.IsRoundSkipRequested)
+                return false;
+
+            state.IsRoundSkipRequested = true;
+            round = state.CurrentRound;
+            phase = state.CurrentPhase;
+            roundCancellation = state.RoundCancellation;
+            PulseLocked(state);
+        }
+
+        try
+        {
+            roundCancellation.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            return false;
+        }
+
+        logger.LogInformation(
+            "The user requested that Council run {RunId} skip round {Round}, phase {Phase}. Other runs are unaffected.",
+            runId,
+            round,
+            phase);
+        Changed?.Invoke(runId);
+        return true;
+    }
+
     public async ValueTask<ICouncilModelRequestLease> AcquireModelRequestAsync(
         Guid runId,
         string modelName,
@@ -141,8 +254,17 @@ public sealed class CouncilRunConfigurationService(
         lock (state.SyncRoot)
         {
             state.IsRunning = false;
+            try
+            {
+                state.RoundCancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
             PulseLocked(state);
         }
+
+        state.RoundCancellation.Dispose();
 
         logger.LogInformation("Released run-scoped Council model settings for completed run {RunId}.", runId);
         Changed?.Invoke(runId);
@@ -203,6 +325,9 @@ public sealed class CouncilRunConfigurationService(
             state.RequestedMaxContextTokens,
             state.FallbackOllamaNumGpu,
             state.AllowParallelHardwareRoads,
+            state.CurrentRound,
+            state.CurrentPhase,
+            state.IsRoundSkipRequested,
             state.IsRunning);
 
     private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
@@ -258,9 +383,13 @@ public sealed class CouncilRunConfigurationService(
         public int RequestedMaxContextTokens { get; set; }
         public int? FallbackOllamaNumGpu { get; set; }
         public bool AllowParallelHardwareRoads { get; set; }
+        public int CurrentRound { get; set; } = -1;
+        public string CurrentPhase { get; set; } = "Preparing";
+        public bool IsRoundSkipRequested { get; set; }
         public bool IsRunning { get; set; } = true;
         public Dictionary<string, int> ActiveLaneCounts { get; } = new(StringComparer.OrdinalIgnoreCase);
         public TaskCompletionSource<bool> ChangeSignal { get; set; }
+        public CancellationTokenSource RoundCancellation { get; set; } = new();
     }
 
     private sealed class ModelRequestLease(

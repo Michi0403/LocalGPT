@@ -1021,9 +1021,9 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
         "human.collaboration.request",
         "POST",
         "/api/dxai/functions/human.collaboration.request/invoke",
-        "Ask the local human participant for bounded feedback or guidance without pausing unrelated council work.",
-        "JSON parameters: kind Feedback or Guidance; title and description required; requestedRole, responsePrompt, suggestedResponses, prefillText, allowFreeText, and requiredBeforeCompletion optional.",
-        "Coordination-only. This function may create a persistent inbox question, but it cannot approve operations, create trusted human identity, or authorize tools and side effects.",
+        "Ask the local human participant for bounded feedback or guidance, with an explicit Council scope and execution gate.",
+        "JSON parameters: kind Feedback or Guidance; title and description required. questionScope is Member, SelectedMembers, or Consensus; use Consensus only when all participating members explicitly agreed on the same question. gate is None, NextPhase, NextRound, or Completion. targetMembers identifies affected models. Use a blocking gate only when that boundary genuinely cannot be crossed without the answer.",
+        "Coordination-only. This function may create a persistent inbox question and pause only its declared Council boundary. It cannot approve operations, create trusted human identity, or authorize tools and side effects.",
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1046,7 +1046,14 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
             },
             "prefillText": { "type": "string", "maxLength": 2000 },
             "allowFreeText": { "type": "boolean" },
-            "requiredBeforeCompletion": { "type": "boolean" }
+            "questionScope": { "type": "string", "enum": ["Member", "SelectedMembers", "Consensus"] },
+            "gate": { "type": "string", "enum": ["None", "NextPhase", "NextRound", "Completion"] },
+            "targetMembers": {
+              "type": "array",
+              "items": { "type": "string", "maxLength": 160 },
+              "maxItems": 16
+            },
+            "requiredBeforeCompletion": { "type": "boolean", "description": "Backward-compatible alias for gate=Completion." }
           },
           "required": ["title", "description"],
           "additionalProperties": false
@@ -1068,12 +1075,27 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
             ? vocabulary.Get().HumanRequestGuidance
             : vocabulary.Get().HumanRequestFeedback;
         var ambient = ambientContext.Current;
+        var questionScope = NormalizeQuestionScope(parameters.QuestionScope);
+        var gateMode = NormalizeGateMode(parameters.Gate, parameters.RequiredBeforeCompletion);
+        var targetMembers = (parameters.TargetMembers ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Select(item => item.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(16)
+            .ToArray();
+        if (questionScope == "SelectedMembers" && targetMembers.Length == 0)
+            questionScope = "Member";
+        if (questionScope == "Member" && targetMembers.Length == 0 && !string.IsNullOrWhiteSpace(ambient.ActorDisplayName))
+            targetMembers = [ambient.ActorDisplayName];
         var suggestions = (parameters.SuggestedResponses ?? [])
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Select(item => item.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(8)
             .ToArray();
+        var earliestCouncilRound = gateMode == "NextRound"
+            ? Math.Max(0, ambient.CouncilRound + 1)
+            : Math.Max(0, ambient.CouncilRound);
         var fingerprintSource = JsonSerializer.Serialize(new
         {
             kind,
@@ -1084,8 +1106,13 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
             Suggestions = suggestions,
             parameters.PrefillText,
             parameters.AllowFreeText,
+            questionScope,
+            gateMode,
+            TargetMembers = targetMembers,
             parameters.RequiredBeforeCompletion,
-            ambient.CouncilRunId
+            ambient.CouncilRunId,
+            ambient.CouncilRound,
+            ambient.Phase
         }, JsonOptions);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintSource))).ToLowerInvariant();
         var gate = await collaboration.AuthorizeOrEnqueueAsync(
@@ -1099,7 +1126,7 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
                 ambient.ActorDisplayName,
                 string.IsNullOrWhiteSpace(parameters.RequestedRole) ? "Human collaborator" : parameters.RequestedRole,
                 ambient.CouncilRunId,
-                ambient.CouncilRound + 1,
+                earliestCouncilRound,
                 parameters.RequiredBeforeCompletion,
                 IsSensitive: false,
                 RequestKind: kind,
@@ -1107,7 +1134,12 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
                 ResponsePrompt: parameters.ResponsePrompt ?? string.Empty,
                 PrefillText: parameters.PrefillText ?? string.Empty,
                 AllowFreeText: parameters.AllowFreeText,
-                ParameterFingerprint: fingerprint),
+                ParameterFingerprint: fingerprint,
+                QuestionScope: questionScope,
+                GateMode: gateMode,
+                TargetMembersText: string.Join('\n', targetMembers),
+                RequestedCouncilRound: Math.Max(0, ambient.CouncilRound),
+                RequestedCouncilPhase: ambient.Phase),
             directHumanConfirmation: false,
             cancellationToken).ConfigureAwait(false);
 
@@ -1125,7 +1157,13 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
                 gate.RequestId,
                 gate.CorrelationId,
                 RequestKind = kind,
+                QuestionScope = questionScope,
+                Gate = gateMode,
+                TargetMembers = targetMembers,
                 EntersNextHeartbeat = ambient.CouncilRunId is not null,
+                BlocksNextPhase = gateMode == "NextPhase",
+                BlocksNextRound = gateMode == "NextRound",
+                BlocksCompletion = gateMode == "Completion",
                 BlocksUnrelatedWork = false
             },
             Error = gate.RequestId is null ? gate.Message : null
@@ -1142,6 +1180,29 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
         public string[]? SuggestedResponses { get; set; }
         public string PrefillText { get; set; } = string.Empty;
         public bool AllowFreeText { get; set; } = true;
+        public string QuestionScope { get; set; } = "Member";
+        public string Gate { get; set; } = "None";
+        public string[]? TargetMembers { get; set; }
         public bool RequiredBeforeCompletion { get; set; }
+    }
+
+    private string NormalizeQuestionScope(string? value)
+    {
+        if (string.Equals(value, "Consensus", StringComparison.OrdinalIgnoreCase))
+            return "Consensus";
+        if (string.Equals(value, "SelectedMembers", StringComparison.OrdinalIgnoreCase))
+            return "SelectedMembers";
+        return "Member";
+    }
+
+    private string NormalizeGateMode(string? value, bool requiredBeforeCompletion)
+    {
+        if (string.Equals(value, "NextPhase", StringComparison.OrdinalIgnoreCase))
+            return "NextPhase";
+        if (string.Equals(value, "NextRound", StringComparison.OrdinalIgnoreCase))
+            return "NextRound";
+        if (string.Equals(value, "Completion", StringComparison.OrdinalIgnoreCase) || requiredBeforeCompletion)
+            return "Completion";
+        return "None";
     }
 }

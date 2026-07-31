@@ -222,7 +222,8 @@ public class CompositeChatClient : IChatClient
         try
         {
             var response = await session.Client.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
-            await WriteMissingFeatureReportIfNeededAsync(session.Name, response.Text, cancellationToken).ConfigureAwait(false);
+            if (session.Client is not CouncilChatClient)
+                await WriteMissingFeatureReportIfNeededAsync(session.Name, response.Text, cancellationToken).ConfigureAwait(false);
             await WriteKnowledgeRequestsIfNeededAsync(session.Name, response.Text, cancellationToken).ConfigureAwait(false);
             return response;
         }
@@ -363,7 +364,8 @@ public class CompositeChatClient : IChatClient
         var text = responseText.ToString();
         try
         {
-            await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
+            if (session.Client is not CouncilChatClient)
+                await WriteMissingFeatureReportIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
             await WriteKnowledgeRequestsIfNeededAsync(session.Name, text, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

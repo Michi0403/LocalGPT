@@ -59,6 +59,13 @@ public interface IHumanCollaborationService
         int currentRound,
         CancellationToken cancellationToken = default);
 
+    Task<HumanCollaborationGateStatus> GetGateStatusAsync(
+        Guid councilRunId,
+        int upcomingRound,
+        string upcomingPhase,
+        HumanCollaborationBoundary boundary,
+        CancellationToken cancellationToken = default);
+
     Task<bool> HasRequiredPendingInputAsync(
         Guid councilRunId,
         CancellationToken cancellationToken = default);

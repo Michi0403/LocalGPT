@@ -172,6 +172,16 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
                 Column("CouncilTeamConfigurations", "LeaderSynthesisPromptTemplate"),
                 Column("CouncilTeamConfigurations", "MainRoundInstructionTemplate"),
                 Column("CouncilTeamConfigurations", "IsUserModified")
+            ]),
+        new(
+            "20260731152000_AddHumanQuestionFlow",
+            "10.0.10",
+            [
+                Column("HumanCollaborationRequests", "QuestionScope"),
+                Column("HumanCollaborationRequests", "GateMode"),
+                Column("HumanCollaborationRequests", "TargetMembersText"),
+                Column("HumanCollaborationRequests", "RequestedCouncilRound"),
+                Column("HumanCollaborationRequests", "RequestedCouncilPhase")
             ])
     ];
 

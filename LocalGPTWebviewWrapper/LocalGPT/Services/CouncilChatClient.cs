@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -9,7 +10,7 @@ using System.Threading.Channels;
 namespace LocalGPT.Services;
 
 public sealed partial class CouncilChatClient(
-    IMultiModelCouncilService councilService,
+    IServiceScopeFactory serviceScopeFactory,
     Func<MultiModelCouncilRequest> requestFactory,
     ILogger logger,
     CouncilRuntimeService councilRuntime,
@@ -133,6 +134,8 @@ public sealed partial class CouncilChatClient(
     {
         try
         {
+            await using var scope = serviceScopeFactory.CreateAsyncScope();
+            var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
             var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
             if (result is null)
             {
@@ -176,6 +179,8 @@ public sealed partial class CouncilChatClient(
             if (request.ModelNames.Count == 0)
                 return "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.";
 
+            await using var scope = serviceScopeFactory.CreateAsyncScope();
+            var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
             var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
             return FormatResult(result, includeProcess: true);
         }

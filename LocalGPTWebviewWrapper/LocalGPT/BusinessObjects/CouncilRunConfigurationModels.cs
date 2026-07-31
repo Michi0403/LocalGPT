@@ -10,4 +10,7 @@ public sealed record CouncilRunConfigurationSnapshot(
     int RequestedMaxContextTokens,
     int? FallbackOllamaNumGpu,
     bool AllowParallelHardwareRoads,
+    int CurrentRound,
+    string CurrentPhase,
+    bool IsRoundSkipRequested,
     bool IsRunning);

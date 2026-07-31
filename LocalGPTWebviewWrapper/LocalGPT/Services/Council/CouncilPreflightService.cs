@@ -217,7 +217,8 @@ public sealed class CouncilPreflightService(
             "Introduce yourself to the other members. State what you believe your strongest useful skills are, what evidence would verify them, what you want to improve in LocalGPT, and which DXFunctions or 1-Wire organs you can best use.",
             "Do not claim a function is available unless it appears in the supplied directory. Ask the user for missing compiler versions, scientific constants, project files, matching debug symbols or other current facts instead of guessing.",
             "Leaders and preparation experts must verify every member's hardware road, function directory and skill/organ access before accepting the substantive round.",
-            "End with a compact readiness verdict: Ready, ReadyWithQuestions, or Blocked, followed by the exact questions or missing requirements."
+            "End with a compact readiness verdict: Ready, ReadyWithQuestions, or Blocked, followed by the exact questions or missing requirements.",
+            "A prose verdict does not pause Council execution. If an answer must block the next phase, next round, or completion, invoke human.collaboration.request now with the matching gate and honest Member, SelectedMembers, or Consensus scope. Use gate None for advisory questions that should not stop work."
         };
         if (member?.MissingCapabilities.Count > 0)
         {

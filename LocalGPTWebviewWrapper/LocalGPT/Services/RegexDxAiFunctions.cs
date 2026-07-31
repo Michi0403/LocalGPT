@@ -82,12 +82,30 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var name = parameters.GetRequiredString(request.Parameters, "name");
-        var row = (await regexPatterns.ListAllAsync().ConfigureAwait(false))
-            .SingleOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
-        return row is null
-            ? new DxAiFunctionInvocationResult { Succeeded = false, Status = "NotFound", Error = $"Regex '{name}' was not found." }
-            : new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = row };
+        try
+        {
+            logger.LogInformation("Regex catalog get DXFunction started.");
+            var name = parameters.GetRequiredString(request.Parameters, "name");
+            var row = (await regexPatterns.ListAllAsync().ConfigureAwait(false))
+                .SingleOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (row is null)
+            {
+                logger.LogWarning("Regex catalog get DXFunction did not find the requested database-backed pattern.");
+                return new DxAiFunctionInvocationResult { Succeeded = false, Status = "NotFound", Error = $"Regex '{name}' was not found." };
+            }
+
+            logger.LogInformation("Regex catalog get DXFunction completed.");
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = row };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Regex catalog get DXFunction failed; parameters and returned pattern content were omitted from logs.");
+            return new DxAiFunctionInvocationResult { Succeeded = false, Status = "Failed", Error = ex.Message };
+        }
     }
 
 
@@ -124,18 +142,32 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var name = parameters.GetRequiredString(request.Parameters, "name");
-        var pattern = parameters.GetRequiredString(request.Parameters, "pattern");
-        var flags = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("flags", out var flagsElement) && flagsElement.ValueKind == JsonValueKind.String
-            ? flagsElement.GetString()
-            : null;
-        await regexPatterns.AddOrUpdateAsync(new RegexPatternDto(name, pattern, flags)).ConfigureAwait(false);
-        return new DxAiFunctionInvocationResult
+        try
         {
-            Succeeded = true,
-            Status = "Completed",
-            Value = new { name, flags = flags ?? string.Empty, stored = true, knowledgeSelfMaintenance = true }
-        };
+            logger.LogInformation("Regex catalog upsert DXFunction started.");
+            var name = parameters.GetRequiredString(request.Parameters, "name");
+            var pattern = parameters.GetRequiredString(request.Parameters, "pattern");
+            var flags = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("flags", out var flagsElement) && flagsElement.ValueKind == JsonValueKind.String
+                ? flagsElement.GetString()
+                : null;
+            await regexPatterns.AddOrUpdateAsync(new RegexPatternDto(name, pattern, flags)).ConfigureAwait(false);
+            logger.LogInformation("Regex catalog upsert DXFunction completed and persisted one database-backed pattern.");
+            return new DxAiFunctionInvocationResult
+            {
+                Succeeded = true,
+                Status = "Completed",
+                Value = new { name, flags = flags ?? string.Empty, stored = true, knowledgeSelfMaintenance = true }
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Regex catalog upsert DXFunction failed; parameters and pattern content were omitted from logs.");
+            return new DxAiFunctionInvocationResult { Succeeded = false, Status = "Failed", Error = ex.Message };
+        }
     }
 }
 
@@ -169,21 +201,35 @@ public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var name = parameters.GetRequiredString(request.Parameters, "name");
-        var text = parameters.GetRequiredString(request.Parameters, "text");
-        var maximumMatches = request.Parameters.ValueKind == JsonValueKind.Object
-            && request.Parameters.TryGetProperty("maximumMatches", out var takeElement)
-            && takeElement.TryGetInt32(out var take)
-            ? Math.Clamp(take, 1, 1000)
-            : 100;
-        var regex = await regexPatterns.GetRegexAsync(name).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Regex '{name}' was not found.");
-        var matches = regex.Matches(text).Cast<System.Text.RegularExpressions.Match>().Take(maximumMatches).Select(match => new
+        try
         {
-            match.Index,
-            match.Length,
-            match.Value,
-            Groups = regex.GetGroupNames().Where(groupName => !int.TryParse(groupName, out _)).ToDictionary(groupName => groupName, groupName => match.Groups[groupName].Value)
-        }).ToList();
-        return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = new { name, matches, truncated = matches.Count == maximumMatches } };
+            logger.LogInformation("Regex catalog test DXFunction started.");
+            var name = parameters.GetRequiredString(request.Parameters, "name");
+            var text = parameters.GetRequiredString(request.Parameters, "text");
+            var maximumMatches = request.Parameters.ValueKind == JsonValueKind.Object
+                && request.Parameters.TryGetProperty("maximumMatches", out var takeElement)
+                && takeElement.TryGetInt32(out var take)
+                ? Math.Clamp(take, 1, 1000)
+                : 100;
+            var regex = await regexPatterns.GetRegexAsync(name).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Regex '{name}' was not found.");
+            var matches = regex.Matches(text).Cast<System.Text.RegularExpressions.Match>().Take(maximumMatches).Select(match => new
+            {
+                match.Index,
+                match.Length,
+                match.Value,
+                Groups = regex.GetGroupNames().Where(groupName => !int.TryParse(groupName, out _)).ToDictionary(groupName => groupName, groupName => match.Groups[groupName].Value)
+            }).ToList();
+            logger.LogInformation("Regex catalog test DXFunction completed with {MatchCount} bounded match(es).", matches.Count);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = new { name, matches, truncated = matches.Count == maximumMatches } };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Regex catalog test DXFunction failed; parameters, input text, and match content were omitted from logs.");
+            return new DxAiFunctionInvocationResult { Succeeded = false, Status = "Failed", Error = ex.Message };
+        }
     }
 }

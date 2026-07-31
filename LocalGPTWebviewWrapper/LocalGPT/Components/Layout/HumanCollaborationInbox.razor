@@ -8,6 +8,7 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 @inject ISupervisedTaskRunner TaskRunner
+@inject IJSRuntime JS
 
 <ToastWrapper Name="HumanCollaborationToasts" />
 
@@ -18,7 +19,7 @@
         <div class="human-approval-bar-summary">
             <strong>@PendingCount AI Council action@(PendingCount == 1 ? string.Empty : "s") waiting</strong>
             <span>@nextRequest.Title</span>
-            <small>@nextRequest.RequestKind · @nextRequest.RiskLevel · @nextRequest.RequestedBy</small>
+            <small>@nextRequest.RequestKind · @nextRequest.QuestionScope · @GetGateLabel(nextRequest) · @nextRequest.RequestedBy</small>
         </div>
         <div class="human-approval-bar-actions">
             <button type="button" class="human-primary" data-localgpt-command="open-approvals" @onclick="OpenApprovalPanel">Review and work through</button>
@@ -92,14 +93,18 @@
                 <h3>Active council runs</h3>
                 @foreach (var run in snapshot.ActiveRuns)
                 {
-                    <article class="human-run-card">
+                    <article @key="run.RunId" class="human-run-card">
                         <div class="human-card-heading">
                             <strong>Round @run.CurrentRound · @run.Phase</strong>
                             <span>@run.CouncilMembers.Count team member(s)</span>
                         </div>
+                        @if (run.IsWaitingForFinalHumanInput)
+                        {
+                            <p><strong>Paused:</strong> this Council boundary is waiting for all applicable blocking questions below to be answered.</p>
+                        }
                         <p>Your message enters the next heartbeat as a clearly marked human council contribution. Models must review it like every other member answer.</p>
-                        <textarea value="@GetContributionText(run.RunId)"
-                                  @oninput="@(args => SetContributionText(run.RunId, Convert.ToString(args.Value) ?? string.Empty))"
+                        <textarea id="@GetContributionEditorId(run.RunId)"
+                                  data-localgpt-heartbeat-draft="true"
                                   maxlength="1000000"
                                   rows="4"
                                   placeholder="Add evidence, corrections, constraints, or your own answer without stopping the run."></textarea>
@@ -121,22 +126,26 @@
                 <article class="@GetRequestCssClass(request)">
                     <div class="human-card-heading">
                         <strong>@request.Title</strong>
-                        <span>@request.RequestKind · @request.RiskLevel</span>
+                        <span>@request.RequestKind · @request.QuestionScope · @GetGateLabel(request)</span>
                     </div>
                     <p>@request.Description</p>
                     <dl>
                         <dt>Requested by</dt><dd>@request.RequestedBy</dd>
                         <dt>Source</dt><dd>@request.Source</dd>
                         <dt>Role requested</dt><dd>@request.RequestedRole</dd>
+                        <dt>Question scope</dt><dd>@GetScopeLabel(request)</dd>
+                        <dt>Execution gate</dt><dd>@GetGateDescription(request)</dd>
+                        @if (!string.IsNullOrWhiteSpace(request.TargetMembersText))
+                        {
+                            <dt>Affected members</dt><dd>@request.TargetMembersDisplay</dd>
+                        }
+                        <dt>Asked during</dt><dd>Round @request.RequestedCouncilRound · @(string.IsNullOrWhiteSpace(request.RequestedCouncilPhase) ? "Unspecified phase" : request.RequestedCouncilPhase)</dd>
                         <dt>Operation</dt><dd>@request.OperationKey</dd>
                         @if (!string.IsNullOrWhiteSpace(request.ParameterFingerprint))
                         {
                             <dt>Exact request</dt><dd>@FingerprintPrefix(request.ParameterFingerprint)</dd>
                         }
-                        @if (request.RequiredBeforeCompletion)
-                        {
-                            <dt>Completion gate</dt><dd>This guarded final action remains deferred until this request is resolved.</dd>
-                        }
+
                     </dl>
                     @if (request.SuggestedResponses.Count > 0)
                     {
@@ -219,10 +228,32 @@
 }
 
 @code {
+    private string GetGateLabel(HumanCollaborationRequest request) => request.GateMode switch
+    {
+        "NextPhase" => "blocks next phase",
+        "NextRound" => "blocks next round",
+        "Completion" => "blocks completion",
+        _ => "non-blocking"
+    };
+
+    private string GetGateDescription(HumanCollaborationRequest request) => request.GateMode switch
+    {
+        "NextPhase" => "The Council may finish the current phase, then waits for all applicable open questions before starting the next phase.",
+        "NextRound" => "The Council may continue the current round, then waits before starting the next round.",
+        "Completion" => "Independent work may continue, but the Council cannot complete until this question is answered.",
+        _ => "Advisory context. The Council continues and consumes the answer at the next heartbeat."
+    };
+
+    private string GetScopeLabel(HumanCollaborationRequest request) => request.QuestionScope switch
+    {
+        "Consensus" => "Council consensus question",
+        "SelectedMembers" => "Question shared by selected Council members",
+        _ => "Question from one Council member"
+    };
+
     private HumanCollaborationSnapshot snapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
     private HumanCouncilParticipantProfile profile = new();
     private readonly Dictionary<Guid, RequestEditor> editors = [];
-    private readonly Dictionary<Guid, string> contributionTexts = [];
     private readonly CancellationTokenSource lifetimeCts = new();
     private bool isOpen;
     private bool approvalBarVisible = true;
@@ -316,7 +347,14 @@
 
     private async Task SubmitContributionAsync(Guid runId)
     {
-        var content = GetContributionText(runId);
+        var editorId = GetContributionEditorId(runId);
+        var content = await JS.InvokeAsync<string>("localGptHumanDrafts.read", editorId);
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            statusText = "Write a Council contribution before adding it to the next heartbeat.";
+            return;
+        }
+
         await RunHumanUiOperationAsync("QueueContribution", async () =>
         {
             using var scope = HumanAmbientContext.PushHumanInteraction(
@@ -325,7 +363,7 @@
                 nameof(HumanCollaborationInbox),
                 councilRunId: runId);
             await Collaboration.QueueContributionAsync(runId, content);
-            contributionTexts[runId] = string.Empty;
+            await JS.InvokeVoidAsync("localGptHumanDrafts.clear", editorId);
             statusText = "Your contribution will enter the next council heartbeat without stopping the current work.";
             Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Council contribution queued");
         });
@@ -400,8 +438,7 @@
                 .ToArray());
         return $"human-request-card risk-{(string.IsNullOrWhiteSpace(risk) ? "medium" : risk)}";
     }
-    private string GetContributionText(Guid runId) => contributionTexts.TryGetValue(runId, out var text) ? text : string.Empty;
-    private void SetContributionText(Guid runId, string text) => contributionTexts[runId] = text;
+    private static string GetContributionEditorId(Guid runId) => $"localgpt-heartbeat-draft-{runId:N}";
 
     private void OnCollaborationChanged()
     {

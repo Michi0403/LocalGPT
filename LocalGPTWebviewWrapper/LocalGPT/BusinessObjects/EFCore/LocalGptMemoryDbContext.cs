@@ -443,6 +443,10 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.Source).HasMaxLength(160).IsRequired();
                 entity.Property(item => item.RequestedBy).HasMaxLength(160).IsRequired();
                 entity.Property(item => item.RequestedRole).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.QuestionScope).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.GateMode).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.TargetMembersText).HasMaxLength(1600).IsRequired();
+                entity.Property(item => item.RequestedCouncilPhase).HasMaxLength(120).IsRequired();
                 entity.Property(item => item.SuggestedResponsesText).HasMaxLength(1600).IsRequired();
                 entity.Property(item => item.ResponsePrompt).HasMaxLength(500).IsRequired();
                 entity.Property(item => item.PrefillText).HasMaxLength(2000).IsRequired();
@@ -452,6 +456,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(item => new { item.CorrelationId, item.OperationKey, item.RequestedAtUtc });
                 entity.HasIndex(item => new { item.Status, item.UpdatedAtUtc });
                 entity.HasIndex(item => new { item.CouncilRunId, item.Status });
+                entity.HasIndex(item => new { item.CouncilRunId, item.Status, item.GateMode });
             });
 
             modelBuilder.Entity<HumanCouncilParticipantProfile>(entity =>

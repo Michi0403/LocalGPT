@@ -24,6 +24,14 @@ public interface ICouncilRunConfigurationService
         IReadOnlyCollection<OneWireCouncilModelRoute> routes,
         int resourceLoadPercent);
 
+    void BeginRound(Guid runId, int round, string phase);
+
+    CancellationToken GetRoundCancellationToken(Guid runId, int round, string phase);
+
+    bool IsRoundSkipRequested(Guid runId, int round, string phase);
+
+    bool RequestSkipCurrentRound(Guid runId);
+
     ValueTask<ICouncilModelRequestLease> AcquireModelRequestAsync(
         Guid runId,
         string modelName,

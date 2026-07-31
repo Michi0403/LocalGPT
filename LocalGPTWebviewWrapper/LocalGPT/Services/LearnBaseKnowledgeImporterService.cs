@@ -22,15 +22,16 @@ namespace LocalGPT.Services
         {
             try
             {
+                var defaultPreset = catalog.LearnBasePresets.FirstOrDefault();
                 var rootPath = string.IsNullOrWhiteSpace(request.RootPath)
-              ? @"C:\learnbaseforlocalgpt"
-              : request.RootPath.Trim();
+                    ? defaultPreset?.RootPath ?? @"C:\learnbaseforlocalgpt"
+                    : request.RootPath.Trim();
                 var result = new LearnBaseImportResult
                 {
                     RootPath = rootPath,
                     ImportMode = "Compact source-map import; stores architecture fingerprints and documentation corpus summaries, not full file contents.",
-                    FilePolicy = councilText.BuildFilePolicySummary(logger),
-                    DuplicatePolicy = "Knowledge entries use stable GUIDs derived from source path and corpus section. Re-importing the same folder updates the same row instead of creating duplicate rows."
+                    FilePolicy = catalog.LearnBaseFilePolicySummary,
+                    DuplicatePolicy = catalog.LearnBaseDuplicatePolicySummary
                 };
 
                 if (!Directory.Exists(rootPath))
@@ -42,7 +43,14 @@ namespace LocalGPT.Services
                 await knowledgeService.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
                 await ImportKnownDocumentationCorporaAsync(rootPath, request, result, cancellationToken).ConfigureAwait(false);
 
-                var projectDirectories = councilText.BuildImportDirectories(rootPath, Math.Clamp(request.MaxProjects, 1, 120), logger)
+                var configuredProjectLimit = catalog.LearnBaseScanProfiles
+                    .Select(profile => profile.MaxProjects)
+                    .DefaultIfEmpty(120)
+                    .Max();
+                var projectDirectories = councilText.BuildImportDirectories(
+                    rootPath,
+                    Math.Clamp(request.MaxProjects, 1, Math.Max(1, configuredProjectLimit)),
+                    logger)
                     .ToArray();
 
                 foreach (var projectDirectory in projectDirectories)

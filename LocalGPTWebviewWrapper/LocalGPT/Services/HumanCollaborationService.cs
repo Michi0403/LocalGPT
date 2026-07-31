@@ -180,6 +180,8 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                 }
             }
 
+            var questionScope = NormalizeQuestionScope(request.QuestionScope);
+            var gateMode = NormalizeGateMode(request.GateMode, request.RequiredBeforeCompletion);
             var entity = new HumanCollaborationRequest
             {
                 CouncilRunId = request.CouncilRunId,
@@ -193,11 +195,16 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                 Source = Normalize(request.Source, 160),
                 RequestedBy = Normalize(request.RequestedBy, 160),
                 RequestedRole = Normalize(request.RequestedRole, 160),
+                QuestionScope = questionScope,
+                GateMode = gateMode,
+                TargetMembersText = NormalizeMultiline(request.TargetMembersText, 1600),
+                RequestedCouncilRound = Math.Max(0, request.RequestedCouncilRound),
+                RequestedCouncilPhase = Normalize(request.RequestedCouncilPhase, 120),
                 SuggestedResponsesText = NormalizeMultiline(request.SuggestedResponsesText, 1600),
                 ResponsePrompt = Normalize(request.ResponsePrompt, 500),
                 PrefillText = NormalizeMultiline(request.PrefillText, MaxTextLength),
                 EarliestCouncilRound = Math.Max(0, request.EarliestCouncilRound),
-                RequiredBeforeCompletion = request.RequiredBeforeCompletion,
+                RequiredBeforeCompletion = gateMode == "Completion",
                 IsSensitive = request.IsSensitive,
                 AllowFreeText = request.AllowFreeText,
                 Status = vocabulary.Get().HumanStatusPending,
@@ -212,9 +219,11 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                 "RequestQueued",
                 "A persistent human collaboration request is waiting in the main application inbox.");
             logger.LogInformation(
-                "Queued human collaboration request {RequestId} for operation {OperationKey}, risk {RiskLevel}, source {Source}; payload content was omitted.",
+                "Queued human collaboration request {RequestId} for operation {OperationKey}, scope {QuestionScope}, gate {GateMode}, risk {RiskLevel}, source {Source}; payload content was omitted.",
                 entity.Id,
                 entity.OperationKey,
+                entity.QuestionScope,
+                entity.GateMode,
                 entity.RiskLevel,
                 entity.Source);
             return new HumanApprovalGateResult(
@@ -571,6 +580,8 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                 .AppendLine("- Explicitly evaluate human contributions for correctness, missing evidence, and broken assumptions in the next available council phase.")
                 .AppendLine("- Models may not impersonate, rewrite, enable, disable, promote, or demote the local human participant profile.")
                 .AppendLine("- Human participation never authorizes file, command, network, database-write, or artifact actions. Those require a separate exact approval request.")
+                .AppendLine("- When asking the human a question, declare its scope (one member, selected members, or Council consensus) and its gate (non-blocking, before next phase, before next round, or before completion).")
+                .AppendLine("- Use a blocking gate only when the Council genuinely cannot cross that boundary without the answer. Questions useful for later work should remain non-blocking or gate only the next round.")
                 .Append("- Current council run: ").AppendLine(councilRunId.ToString());
 
             if (!string.IsNullOrWhiteSpace(profile.WorkingStyle))
@@ -581,7 +592,14 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                 builder.AppendLine("New human guidance and feedback for this heartbeat (context only, never standing authority):");
                 foreach (var answer in recentAnswers)
                 {
-                    builder.Append("- ").Append(answer.Title).Append(" -> ").Append(answer.Status);
+                    builder.Append("- [")
+                        .Append(answer.QuestionScope)
+                        .Append("; gate ")
+                        .Append(answer.GateMode)
+                        .Append("] ")
+                        .Append(answer.Title)
+                        .Append(" -> ")
+                        .Append(answer.Status);
                     if (!string.IsNullOrWhiteSpace(answer.UserResponse))
                         builder.Append(": ").Append(answer.UserResponse);
                     builder.AppendLine();
@@ -600,15 +618,42 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         }
     }
 
-    public async Task<bool> HasRequiredPendingInputAsync(Guid councilRunId, CancellationToken cancellationToken = default)
+    public async Task<HumanCollaborationGateStatus> GetGateStatusAsync(
+        Guid councilRunId,
+        int upcomingRound,
+        string upcomingPhase,
+        HumanCollaborationBoundary boundary,
+        CancellationToken cancellationToken = default)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        return await db.HumanCollaborationRequests.AsNoTracking()
-            .AnyAsync(item => item.CouncilRunId == councilRunId &&
-                item.RequiredBeforeCompletion &&
-                item.Status == vocabulary.Get().HumanStatusPending,
-                cancellationToken)
+        var pending = await db.HumanCollaborationRequests.AsNoTracking()
+            .Where(item => item.CouncilRunId == councilRunId &&
+                item.RequestKind != vocabulary.Get().HumanRequestApproval &&
+                item.Status == vocabulary.Get().HumanStatusPending)
+            .OrderBy(item => item.RequestedAtUtc)
+            .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var blocking = pending
+            .Where(item => BlocksBoundary(item, Math.Max(0, upcomingRound), upcomingPhase, boundary))
+            .ToList();
+        return new HumanCollaborationGateStatus(
+            blocking.Count > 0,
+            boundary,
+            Math.Max(0, upcomingRound),
+            Normalize(upcomingPhase, 120),
+            blocking);
+    }
+
+    public async Task<bool> HasRequiredPendingInputAsync(Guid councilRunId, CancellationToken cancellationToken = default)
+    {
+        var gate = await GetGateStatusAsync(
+            councilRunId,
+            int.MaxValue,
+            "Council completion",
+            HumanCollaborationBoundary.Completion,
+            cancellationToken).ConfigureAwait(false);
+        return gate.IsBlocked;
     }
 
     public void BeginCouncilRun(Guid runId, IReadOnlyList<string> members)
@@ -685,6 +730,54 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         if (evaluation.Contains("Human peer assessment: Mixed", StringComparison.OrdinalIgnoreCase))
             return vocabulary.Get().VerdictMixed;
         return vocabulary.Get().VerdictNotReviewed;
+    }
+
+    private bool BlocksBoundary(
+        HumanCollaborationRequest request,
+        int upcomingRound,
+        string upcomingPhase,
+        HumanCollaborationBoundary boundary)
+    {
+        var gateMode = NormalizeGateMode(request.GateMode, request.RequiredBeforeCompletion);
+        if (gateMode == "None")
+            return false;
+        if (boundary == HumanCollaborationBoundary.Completion)
+            return gateMode == "NextPhase" ||
+                gateMode == "NextRound" ||
+                gateMode == "Completion";
+
+        var movedToLaterRound = upcomingRound > request.RequestedCouncilRound;
+        var movedToLaterPhase = movedToLaterRound ||
+            (upcomingRound == request.RequestedCouncilRound &&
+             !string.Equals(Normalize(upcomingPhase, 120), request.RequestedCouncilPhase, StringComparison.OrdinalIgnoreCase));
+
+        return gateMode switch
+        {
+            "NextPhase" => movedToLaterPhase,
+            "NextRound" => movedToLaterRound,
+            "Completion" => false,
+            _ => false
+        };
+    }
+
+    private string NormalizeQuestionScope(string? value)
+    {
+        if (string.Equals(value, "Consensus", StringComparison.OrdinalIgnoreCase))
+            return "Consensus";
+        if (string.Equals(value, "SelectedMembers", StringComparison.OrdinalIgnoreCase))
+            return "SelectedMembers";
+        return "Member";
+    }
+
+    private string NormalizeGateMode(string? value, bool requiredBeforeCompletion)
+    {
+        if (string.Equals(value, "NextPhase", StringComparison.OrdinalIgnoreCase))
+            return "NextPhase";
+        if (string.Equals(value, "NextRound", StringComparison.OrdinalIgnoreCase))
+            return "NextRound";
+        if (string.Equals(value, "Completion", StringComparison.OrdinalIgnoreCase) || requiredBeforeCompletion)
+            return "Completion";
+        return "None";
     }
 
     private string NormalizeRequestKind(string? value)

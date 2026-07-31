@@ -2,10 +2,12 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LocalGPT.BusinessObjects;
 
-
-
-
-
+public enum HumanCollaborationBoundary
+{
+    Phase,
+    Round,
+    Completion
+}
 
 public sealed class HumanCollaborationRequest
 {
@@ -22,6 +24,11 @@ public sealed class HumanCollaborationRequest
     public string Source { get; set; } = string.Empty;
     public string RequestedBy { get; set; } = string.Empty;
     public string RequestedRole { get; set; } = string.Empty;
+    public string QuestionScope { get; set; } = "Member";
+    public string GateMode { get; set; } = "None";
+    public string TargetMembersText { get; set; } = string.Empty;
+    public int RequestedCouncilRound { get; set; }
+    public string RequestedCouncilPhase { get; set; } = string.Empty;
     public string SuggestedResponsesText { get; set; } = string.Empty;
     public string ResponsePrompt { get; set; } = string.Empty;
     public string PrefillText { get; set; } = string.Empty;
@@ -44,6 +51,11 @@ public sealed class HumanCollaborationRequest
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .Take(8)
         .ToList();
+
+    [NotMapped]
+    public string TargetMembersDisplay => string.Join(", ", TargetMembersText
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Distinct(StringComparer.OrdinalIgnoreCase));
 }
 
 public sealed class HumanCouncilParticipantProfile
@@ -94,7 +106,19 @@ public sealed record HumanApprovalRequestSpec(
     string ResponsePrompt = "",
     string PrefillText = "",
     bool AllowFreeText = true,
-    string ParameterFingerprint = "");
+    string ParameterFingerprint = "",
+    string QuestionScope = "Member",
+    string GateMode = "None",
+    string TargetMembersText = "",
+    int RequestedCouncilRound = 0,
+    string RequestedCouncilPhase = "");
+
+public sealed record HumanCollaborationGateStatus(
+    bool IsBlocked,
+    HumanCollaborationBoundary Boundary,
+    int UpcomingRound,
+    string UpcomingPhase,
+    IReadOnlyList<HumanCollaborationRequest> BlockingRequests);
 
 public sealed record HumanApprovalGateResult(
     bool IsAuthorized,

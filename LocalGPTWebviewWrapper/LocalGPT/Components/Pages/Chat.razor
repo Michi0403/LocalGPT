@@ -25,6 +25,7 @@
 @inject IHumanCollaborationService HumanCollaboration
 @inject ICouncilLiveSessionService CouncilLiveSessions
 @inject ICouncilRunConfigurationService CouncilRunConfigurations
+@inject IServiceScopeFactory ServiceScopeFactory
 @inject ILocalHumanInteractionContext HumanAmbientContext
 @implements IDisposable
 @inject ILogger<Chat> Logger
@@ -461,6 +462,11 @@
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       Click="RefreshHumanCollaborationAsync" />
+            <DxButton CssClass="localgpt-rounded-action" Text="Skip current round"
+                      RenderStyle="ButtonRenderStyle.Danger"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Enabled="@(ActiveCouncilRun is not null)"
+                      Click="SkipCurrentCouncilRoundAsync" />
             @if (!collaborationSnapshot.Profile.IsEnabled)
             {
                 <DxButton CssClass="localgpt-rounded-action" Text="Enable human participation"
@@ -1258,7 +1264,7 @@
             EnsureDiagnosticOllamaSession(previousMessages);
        
             var councilSession = new ChatClientSession(
-                new CouncilChatClient(CouncilService, CreateCouncilRequest, Logger, CouncilRuntime, CouncilText, Catalog, CouncilLiveSessions, ResolveCouncilDownloadUrl),
+                new CouncilChatClient(ServiceScopeFactory, CreateCouncilRequest, Logger, CouncilRuntime, CouncilText, Catalog, CouncilLiveSessions, ResolveCouncilDownloadUrl),
                 Catalog.CouncilSessionName, "LocalGPT", "AI Council", Program.BaseUrl);
             if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
                 councilSession.Messages.AddRange(councilMessages);
@@ -2899,6 +2905,30 @@
         if (cancelled)
             ComponentActivity.RecordWarning(nameof(Chat), "StopCouncilRun", "The user explicitly stopped the active Council run.");
         return Task.FromResult(cancelled);
+    }
+
+    private Task SkipCurrentCouncilRoundAsync()
+    {
+        var runId = SelectedCouncilRunId
+            ?? ActiveCouncilRun?.RunId
+            ?? AttachedLiveCouncilRunId;
+        if (runId is not Guid activeRunId)
+        {
+            Notifier.ShowError(toastName, "No running Council round is available to skip.", "Skip round");
+            return Task.CompletedTask;
+        }
+
+        if (CouncilRunConfigurations.RequestSkipCurrentRound(activeRunId))
+        {
+            ComponentActivity.RecordWarning(nameof(Chat), "SkipCouncilRound", "The user skipped the current Council round; other running sessions were not changed.");
+            Notifier.ShowSuccess(toastName, "The current Council round is stopping. The run will continue with its next phase.", "Round skipped");
+        }
+        else
+        {
+            Notifier.ShowError(toastName, "The selected Council has already left that round or is no longer running.", "Skip round");
+        }
+
+        return Task.CompletedTask;
     }
 
     private void OnHumanCollaborationChanged()

@@ -780,6 +780,11 @@ namespace LocalGPT.Migrations
                     b.Property<int>("EarliestCouncilRound")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("GateMode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsSensitive")
                         .HasColumnType("INTEGER");
 
@@ -798,6 +803,11 @@ namespace LocalGPT.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("QuestionScope")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("RequestKind")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -810,6 +820,14 @@ namespace LocalGPT.Migrations
                         .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedCouncilPhase")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RequestedCouncilRound")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("RequestedRole")
                         .IsRequired()
@@ -844,6 +862,11 @@ namespace LocalGPT.Migrations
                         .HasMaxLength(1600)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TargetMembersText")
+                        .IsRequired()
+                        .HasMaxLength(1600)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(240)
@@ -860,6 +883,8 @@ namespace LocalGPT.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CouncilRunId", "Status");
+
+                    b.HasIndex("CouncilRunId", "Status", "GateMode");
 
                     b.HasIndex("Status", "UpdatedAtUtc");
 
