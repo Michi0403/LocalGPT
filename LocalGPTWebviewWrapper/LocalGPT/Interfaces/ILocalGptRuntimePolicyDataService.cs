@@ -11,7 +11,7 @@ public interface ILocalGptRuntimePolicySeedDataService
 
 public interface ILocalGptRuntimePolicyStoreService
 {
-    LocalGptRuntimePolicyDefinition GetDefinition();
+    LocalGptRuntimePolicyDefinition? GetDefinition();
 }
 
 public interface ILocalGptRuntimePolicyDataService

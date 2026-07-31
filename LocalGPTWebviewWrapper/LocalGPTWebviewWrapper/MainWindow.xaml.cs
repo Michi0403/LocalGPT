@@ -19,38 +19,6 @@ namespace WebView2_WinUI3_Sample
     public sealed partial class MainWindow : Window
     {
         private readonly string _baseUrl;
-        //public MainWindow()
-        //{
-        //    this.InitializeComponent();
-
-        //    Closed += (obj, eventArgs) =>
-        //    {
-        //        if (WebView2 != null)
-        //        {
-        //            // Ensure that WebView2 resources are released when
-        //            // the MainWindow is closed. This fixes an issue where
-        //            // the sample app was not properly shutting down when run
-        //            // in debug mode from within Visual Studio due to an
-        //            // an expected winrt::hresult_error exception in the WinUI3
-        //            // WebView2::CoreWebView2HasInvalidState method.
-        //            // (https://github.com/microsoft/microsoft-ui-xaml/blob/main/src/controls/dev/WebView2/WebView2.cpp)
-        //            //
-        //            // See here for more details regarding the WebView2
-        //            // lifecycle in WinUI3 and the Close() method.
-        //            // https://github.com/microsoft/microsoft-ui-xaml/issues/4752#issuecomment-819687363
-        //            WebView2.Close();
-        //        }
-        //    };
-
-        //    //AddressBar.Text = "https://developer.microsoft.com/en-us/microsoft-edge/webview2/";
-
-        //    WebView2.NavigationCompleted += WebView2_NavigationCompleted;
-        //    WebView2.CoreWebView2Initialized += WebView2_CoreWebView2Initialized;
-
-        //    //WebView2.Source = new Uri(AddressBar.Text);
-        //    StatusUpdate("Ready");
-        //    SetTitle();
-        //}
 
         public MainWindow(string baseUrl)
         {
@@ -113,50 +81,6 @@ namespace WebView2_WinUI3_Sample
                 return false;
             }
         }
-
-        //private void TryNavigate()
-        //{
-        //    StatusUpdate("TryNavigate");
-
-        //    Uri destinationUri;
-        //    if (TryCreateUri(AddressBar.Text, out destinationUri))
-        //    {
-        //        WebView2.Source = destinationUri;
-        //    }
-        //    else
-        //    {
-        //        StatusUpdate("URI couldn't be figured out use it as a bing search term");
-
-        //        //String bingString = $"https://www.bing.com/search?q={Uri.EscapeDataString(AddressBar.Text)}";
-        //        if (TryCreateUri(bingString, out destinationUri))
-        //        {
-        //            //AddressBar.Text = destinationUri.AbsoluteUri;
-        //            WebView2.Source = destinationUri;
-        //        }
-        //        else
-        //        {
-        //            StatusUpdate("URI couldn't be configured as bing search term, giving up");
-        //        }
-        //    }
-        //}
-
-        //private void Go_OnClick(object sender, RoutedEventArgs e)
-        //{
-        //    StatusUpdate("Go_OnClick: " + AddressBar.Text);
-
-        //    TryNavigate();
-        //}
-
-        //private void AddressBar_KeyDown(object sender, KeyRoutedEventArgs e)
-        //{
-        //    if (e.Key == Windows.System.VirtualKey.Enter)
-        //    {
-        //        StatusUpdate("AddressBar_KeyDown [Enter]: " + AddressBar.Text);
-
-        //        e.Handled = true;
-        //        TryNavigate();
-        //    }
-        //}
 
         private void SetTitle(WebView2 webView2 = null)
         {

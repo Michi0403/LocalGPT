@@ -1414,7 +1414,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError($"Error in GetGitHubDefaultBranchCommitShaAsync repo {repo.ToString()}");
+            logger.LogError($"Error in GetGitHubDefaultBranchCommitShaAsync repo {repo.ToString()} {ex.ToString()}");
             return null;
         }
        

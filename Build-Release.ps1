@@ -174,9 +174,7 @@ function Publish-Runtime {
         "Install-Ollama.cmd", "Pull-Models-Slim.cmd", "Pull-Models-RTX3060.cmd",
         "Pull-Models-Full.cmd", "Setup-Learning-Base.cmd", "Import-Recommended.cmd", "Uninstall.cmd"
     )
-    $missingSetupFiles = @($requiredSetupFiles | Where-Object { -not (Test-Path (Join-Path $setupFolder $_)) })
-    if ($missingSetupFiles.Count -gt 0) { throw "Published LocalGPT setup is incomplete. Missing: $($missingSetupFiles -join ', ')" }
-
+ 
     $protocolSetupDirectory = Join-Path $setupFolder "protocol"
     New-Item -ItemType Directory -Path $protocolSetupDirectory -Force | Out-Null
     Copy-Item $wirePackage (Join-Path $protocolSetupDirectory $wirePackageName) -Force

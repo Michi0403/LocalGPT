@@ -12,7 +12,7 @@ public sealed class LocalGptRuntimePolicyStoreService(
     ILocalGptRuntimePolicySeedDataService seedData,
     ILogger<LocalGptRuntimePolicyStoreService> logger) : ILocalGptRuntimePolicyStoreService
 {
-    public LocalGptRuntimePolicyDefinition GetDefinition()
+    public LocalGptRuntimePolicyDefinition? GetDefinition()
     {
         try
         {
@@ -99,7 +99,7 @@ public sealed class LocalGptRuntimePolicyStoreService(
         catch (Exception exception)
         {
             logger.LogError(exception, $"Could not load the LocalGPT runtime policy: {exception.Message}");
-            throw;
+            return null;
         }
     }
 }

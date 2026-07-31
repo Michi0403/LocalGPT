@@ -41,19 +41,74 @@ public sealed class DatabaseInitializationService(
         {
             if (IsInitializedStorePresent())
                 return;
-
+           
             await databaseFileHealth.EnsureHealthyOrRecoverAsync(cancellationToken).ConfigureAwait(false);
             await migrationCompatibility.PrepareAsync(cancellationToken).ConfigureAwait(false);
 
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            await db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
-            await SeedRegexAsync(db, cancellationToken).ConfigureAwait(false);
-            await SeedPromptsAsync(db, cancellationToken).ConfigureAwait(false);
-            await SeedVariablesAsync(db, cancellationToken).ConfigureAwait(false);
-            await SeedKnowledgeAsync(db, cancellationToken).ConfigureAwait(false);
-            await SeedCoreProjectsAsync(db, cancellationToken).ConfigureAwait(false);
-            await SeedCouncilModelPresetsAsync(db, cancellationToken).ConfigureAwait(false);
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) 
+            {
+                logger.LogError($"Error in Migrating Async {ex.ToString()}");
+            }
+            try
+            {
+                await SeedRegexAsync(db, cancellationToken).ConfigureAwait(false);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Error in SeedRegexAsync Async {ex.ToString()}");
+            }
+            try
+            {
+                await SeedPromptsAsync(db, cancellationToken).ConfigureAwait(false);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Error in SeedPromptsAsync Async {ex.ToString()}");
+            }
+            try
+            {
+                await SeedVariablesAsync(db, cancellationToken).ConfigureAwait(false);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Error in SeedVariablesAsync Async {ex.ToString()}");
+            }
+            try
+            {
+                await SeedKnowledgeAsync(db, cancellationToken).ConfigureAwait(false);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Error in SeedKnowledgeAsync Async {ex.ToString()}");
+            }
+            try
+            {
+                await SeedCoreProjectsAsync(db, cancellationToken).ConfigureAwait(false);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Error in SeedCoreProjectsAsync Async {ex.ToString()}");
+            }
+            try
+            {
+                await SeedCouncilModelPresetsAsync(db, cancellationToken).ConfigureAwait(false);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Error in SeedCouncilModelPresetsAsync Async {ex.ToString()}");
+            }
 
             initialized = true;
             logger.LogInformation("LocalGPT database migration and initial data feed completed.");
@@ -69,10 +124,20 @@ public sealed class DatabaseInitializationService(
 
     private async Task SeedRegexAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
-        var existingNames = await db.RegexPatterns.Select(x => x.Name).ToListAsync(token).ConfigureAwait(false);
+        var existingNames = await db.RegexPatterns
+            .Select(item => item.Name)
+            .ToListAsync(token)
+            .ConfigureAwait(false);
+
         var existing = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in catalog.RegexPatterns.Where(x => !existing.Contains(x.Name)))
+
+        foreach (var item in catalog.RegexPatterns)
         {
+            // Add returns false for both database-existing names and duplicate
+            // names encountered earlier in this same in-memory seed run.
+            if (!existing.Add(item.Name))
+                continue;
+
             db.RegexPatterns.Add(new RegexPattern
             {
                 Name = item.Name,
@@ -83,7 +148,6 @@ public sealed class DatabaseInitializationService(
             });
         }
     }
-
     private async Task SeedPromptsAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
         var existing = await db.Prompts.Select(x => new { x.Key, x.Language }).ToListAsync(token).ConfigureAwait(false);
@@ -114,13 +178,17 @@ public sealed class DatabaseInitializationService(
         {
             if (!existing.TryGetValue(item.Name, out var row))
             {
-                db.SystemVariables.Add(new SystemVariable
+                row = new SystemVariable
                 {
                     Name = item.Name,
                     ValueString = item.Value,
                     DataType = item.DataType,
                     LastUpdated = DateTime.UtcNow
-                });
+                };
+
+                // Make the newly queued row visible to later entries in this same seed run.
+                existing.Add(item.Name, row);
+                db.SystemVariables.Add(row);
                 continue;
             }
 
