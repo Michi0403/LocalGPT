@@ -1266,7 +1266,7 @@ namespace LocalGPT.Services
                                     MaxOutputTokens = Math.Clamp(maxOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens),
                                     Temperature = 0.2f
                                 },
-                                streamCts.Token).WithCancellation(streamCts.Token).ConfigureAwait(true))
+                                streamCts.Token).WithCancellation(streamCts.Token).ConfigureAwait(false))
                             {
                                 attemptBuilder.Append(update.Text);
                                 allContent.Append(update.Text);
@@ -1460,6 +1460,21 @@ namespace LocalGPT.Services
             CancellationTokenSource streamCancellation,
             CancellationToken cancellationToken)
         {
+            using var changedSignal = new SemaphoreSlim(0, 1);
+
+            void OnCollaborationChanged()
+            {
+                try
+                {
+                    changedSignal.Release();
+                }
+                catch (SemaphoreFullException)
+                {
+                    // A change is already pending; coalesce duplicate notifications.
+                }
+            }
+
+            humanCollaboration.Changed += OnCollaborationChanged;
             try
             {
                 while (!cancellationToken.IsCancellationRequested)
@@ -1477,15 +1492,30 @@ namespace LocalGPT.Services
                         return;
                     }
 
-                    await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken).ConfigureAwait(false);
+                    var wasSignaled = await changedSignal
+                        .WaitAsync(TimeSpan.FromSeconds(2), cancellationToken)
+                        .ConfigureAwait(false);
+                    if (wasSignaled)
+                    {
+                        // Coalesce rapid UI/database notifications and give the active stream,
+                        // renderer, and unrelated background work a cooperative scheduling window.
+                        await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
             }
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Could not monitor live Council user messages for run {CouncilRunId}; the active model stream will continue.", councilRunId);
+            }
+            finally
+            {
+                humanCollaboration.Changed -= OnCollaborationChanged;
             }
         }
 
