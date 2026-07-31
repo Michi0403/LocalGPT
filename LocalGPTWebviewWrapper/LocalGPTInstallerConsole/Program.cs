@@ -22,6 +22,8 @@ internal static class Program
     private const string LocalGptRepo = "Michi0403/LocalGPT";
     private const string LocalGptZipName = "LocalGPTByMichi0403.zip";
     private const string LocalGptSetupZipName = "LocalGPTSetupByMichi0403.zip";
+    private const string InstallationManifestFileName = "localgpt-installation.json";
+    private const string InstallerRelocatedEnvironmentVariable = "LOCALGPT_INSTALLER_RELOCATED";
     private static readonly HttpClient Http = CreateHttpClient();
     private static readonly JsonSerializerOptions ManifestJsonOptions = new()
     {
@@ -41,6 +43,16 @@ internal static class Program
         long TagRank,
         string ResolutionSource,
         IReadOnlyList<GitHubReleaseAsset> Assets);
+
+    private sealed record LocalGptInstallationManifest(
+        string ReleaseTag,
+        string AppAsset,
+        string SetupAsset,
+        string InstallRoot,
+        string DataRoot,
+        string ApplicationExecutable,
+        string InstallerExecutable,
+        DateTimeOffset InstalledAtUtc);
 
     private static readonly string[] SlimModels =
     [
@@ -124,6 +136,18 @@ internal static class Program
 
     public static async Task<int> Main(string[] args)
     {
+        try
+        {
+            var relocatedExitCode = TryRunInstallerFromTemporaryLocation(args);
+            if (relocatedExitCode.HasValue)
+                return relocatedExitCode.Value;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not relocate the setup helper for installation maintenance: {ex.Message}");
+            return 1;
+        }
+
         var launchedByDoubleClick = args.Length == 0 && Environment.UserInteractive;
         CliOptions? options = null;
 
@@ -149,6 +173,79 @@ internal static class Program
         }
         
     }
+    private static int? TryRunInstallerFromTemporaryLocation(string[] args)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            || string.Equals(
+                Environment.GetEnvironmentVariable(InstallerRelocatedEnvironmentVariable),
+                "1",
+                StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var performsInstallMaintenance =
+            args.Length == 0
+            || args.Any(argument =>
+                string.Equals(argument, "--install-localgpt", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(argument, "--all", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(argument, "--uninstall", StringComparison.OrdinalIgnoreCase));
+
+        if (!performsInstallMaintenance)
+            return null;
+
+        var currentExecutable = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(currentExecutable) || !File.Exists(currentExecutable))
+            return null;
+
+        var installRoot = GetCanonicalLocalGptInstallRoot();
+        if (!IsPathWithinRoot(currentExecutable, installRoot))
+            return null;
+
+        var relocationDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "LocalGPTInstallerConsole",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(relocationDirectory);
+
+        var relocatedExecutable = Path.Combine(
+            relocationDirectory,
+            Path.GetFileName(currentExecutable));
+        File.Copy(currentExecutable, relocatedExecutable, overwrite: true);
+
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = relocatedExecutable,
+                WorkingDirectory = relocationDirectory,
+                UseShellExecute = false
+            }
+        };
+
+        foreach (var argument in args)
+            process.StartInfo.ArgumentList.Add(argument);
+
+        process.StartInfo.Environment[InstallerRelocatedEnvironmentVariable] = "1";
+
+        if (!process.Start())
+            throw new InvalidOperationException("The relocated LocalGPT setup helper could not be started.");
+
+        process.WaitForExit();
+        var exitCode = process.ExitCode;
+
+        try
+        {
+            Directory.Delete(relocationDirectory, recursive: true);
+        }
+        catch
+        {
+            // Best effort. Windows can briefly retain the relocated executable after exit.
+        }
+
+        return exitCode;
+    }
+
     private static async Task<int> RunAsync(CliOptions options)
     {
         try
@@ -444,6 +541,7 @@ internal static class Program
 
     private static async Task InstallLocalGptAsync(CliOptions options, ILogger logger)
     {
+        string? stagingPath = null;
         try
         {
             var release = await ResolveNewestCompatibleReleaseAsync(LocalGptRepo, logger).ConfigureAwait(false);
@@ -456,18 +554,7 @@ internal static class Program
                 options,
                 setupAsset: false).ConfigureAwait(false);
 
-            var targetPath = GetLocalGptInstallRoot(logger);
-
-            if (options.ForceDelete)
-                DeleteIfExists(targetPath, logger);
-
-            Directory.CreateDirectory(targetPath);
-
-            logger.LogInformation($"Extracting LocalGPT app '{zipPath}' to '{targetPath}'");
-            ExtractZipSafely(zipPath, targetPath, logger);
-
             var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
-
             await DownloadReleaseAssetAsync(
                 release,
                 setupZipPath,
@@ -475,17 +562,276 @@ internal static class Program
                 options,
                 setupAsset: true).ConfigureAwait(false);
 
-            logger.LogInformation($"Extracting LocalGPT setup/bootstrap '{setupZipPath}' to '{targetPath}'");
-            ExtractZipSafely(setupZipPath, targetPath, logger);
+            var targetPath = GetLocalGptInstallRoot(logger);
+            var dataPath = GetLocalGptDataRoot(logger);
+            var parentDirectory = Path.GetDirectoryName(targetPath)
+                ?? throw new InvalidOperationException("LocalGPT install parent directory could not be resolved.");
 
-            logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
+            Directory.CreateDirectory(parentDirectory);
+            stagingPath = Path.Combine(
+                parentDirectory,
+                $".LocalGPT.install-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(stagingPath);
+
             logger.LogInformation(
-                $"LocalGPT release {release.TagName} app and setup/bootstrap files now reside in '{targetPath}'.");
+                "Installing LocalGPT application binaries to '{InstallRoot}'. Existing user data remains at '{DataRoot}'.",
+                targetPath,
+                dataPath);
+
+            logger.LogInformation(
+                "Extracting LocalGPT app archive '{ArchivePath}' into staging directory '{StagingPath}'.",
+                zipPath,
+                stagingPath);
+            ExtractReleaseArchiveSafely(zipPath, stagingPath, logger);
+
+            logger.LogInformation(
+                "Extracting LocalGPT setup/bootstrap archive '{ArchivePath}' into staging directory '{StagingPath}'.",
+                setupZipPath,
+                stagingPath);
+            ExtractReleaseArchiveSafely(setupZipPath, stagingPath, logger);
+
+            ValidateInstalledLayout(stagingPath);
+
+            var platform = GetPlatformToken();
+            var architecture = GetArchitectureToken();
+            var appAssetName = $"{platform}{architecture}.zip";
+            var setupAssetName = $"setup{platform}{architecture}.zip";
+            var appExecutableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "LocalGPT.exe"
+                : "LocalGPT";
+            var installerExecutableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "LocalGPTInstallerConsole.exe"
+                : "LocalGPTInstallerConsole";
+
+            var manifest = new LocalGptInstallationManifest(
+                ReleaseTag: release.TagName,
+                AppAsset: appAssetName,
+                SetupAsset: setupAssetName,
+                InstallRoot: targetPath,
+                DataRoot: dataPath,
+                ApplicationExecutable: Path.Combine(targetPath, appExecutableName),
+                InstallerExecutable: Path.Combine(targetPath, installerExecutableName),
+                InstalledAtUtc: DateTimeOffset.UtcNow);
+
+            File.WriteAllText(
+                Path.Combine(stagingPath, InstallationManifestFileName),
+                JsonSerializer.Serialize(manifest, ManifestJsonOptions),
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            EnsureLocalGptInstallRootIsNotRunning(targetPath, logger);
+            ReplaceInstalledDirectory(stagingPath, targetPath, logger);
+            stagingPath = null;
+
+            logger.LogInformation("LocalGPT release {ReleaseTag} installed successfully.", release.TagName);
+            logger.LogInformation("LocalGPT executable: {ExecutablePath}", manifest.ApplicationExecutable);
+            logger.LogInformation("LocalGPT setup helper: {InstallerPath}", manifest.InstallerExecutable);
+            logger.LogInformation("LocalGPT user-data directory: {DataRoot}", manifest.DataRoot);
+
+            LogLegacyMisplacedInstallFolders(dataPath, logger);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "LocalGPT installation failed.");
             throw;
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(stagingPath) && Directory.Exists(stagingPath))
+            {
+                try
+                {
+                    Directory.Delete(stagingPath, recursive: true);
+                }
+                catch (Exception cleanupException)
+                {
+                    logger.LogWarning(
+                        cleanupException,
+                        "Could not remove failed LocalGPT staging directory '{StagingPath}'.",
+                        stagingPath);
+                }
+            }
+        }
+    }
+
+    private static void ValidateInstalledLayout(string installRoot)
+    {
+        var appExecutable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? Path.Combine(installRoot, "LocalGPT.exe")
+            : Path.Combine(installRoot, "LocalGPT");
+        var installerExecutable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? Path.Combine(installRoot, "LocalGPTInstallerConsole.exe")
+            : Path.Combine(installRoot, "LocalGPTInstallerConsole");
+
+        if (!File.Exists(appExecutable))
+            throw new InvalidDataException(
+                $"The LocalGPT application archive did not produce the expected executable at '{appExecutable}'.");
+
+        if (!File.Exists(installerExecutable))
+            throw new InvalidDataException(
+                $"The LocalGPT setup archive did not produce the expected executable at '{installerExecutable}'.");
+
+        string[] requiredLaunchers =
+        [
+            "Default.cmd",
+            "Install.cmd",
+            "Update.cmd",
+            "Start.cmd",
+            "Start-NoBrowser.cmd",
+            "Install-Ollama.cmd",
+            "Pull-Models-Slim.cmd",
+            "Pull-Models-RTX3060.cmd",
+            "Pull-Models-Full.cmd",
+            "Setup-Learning-Base.cmd",
+            "Import-Recommended.cmd",
+            "Uninstall.cmd"
+        ];
+
+        var missingLaunchers = requiredLaunchers
+            .Where(fileName => !File.Exists(Path.Combine(installRoot, fileName)))
+            .ToArray();
+        if (missingLaunchers.Length > 0)
+        {
+            throw new InvalidDataException(
+                $"The LocalGPT setup archive is incomplete. Missing root launcher files: {string.Join(", ", missingLaunchers)}");
+        }
+    }
+
+    private static void ReplaceInstalledDirectory(
+        string stagingPath,
+        string targetPath,
+        ILogger logger)
+    {
+        var backupPath = targetPath + $".backup-{Guid.NewGuid():N}";
+        var targetMovedToBackup = false;
+
+        try
+        {
+            if (Directory.Exists(targetPath))
+            {
+                logger.LogInformation(
+                    "Moving existing LocalGPT application directory to temporary backup '{BackupPath}'.",
+                    backupPath);
+                Directory.Move(targetPath, backupPath);
+                targetMovedToBackup = true;
+            }
+
+            Directory.Move(stagingPath, targetPath);
+
+            if (targetMovedToBackup && Directory.Exists(backupPath))
+            {
+                try
+                {
+                    Directory.Delete(backupPath, recursive: true);
+                }
+                catch (Exception cleanupException)
+                {
+                    logger.LogWarning(
+                        cleanupException,
+                        "The new LocalGPT installation is active, but the previous application backup could not be removed: {BackupPath}",
+                        backupPath);
+                }
+            }
+        }
+        catch
+        {
+            if (!Directory.Exists(targetPath)
+                && targetMovedToBackup
+                && Directory.Exists(backupPath))
+            {
+                Directory.Move(backupPath, targetPath);
+            }
+
+            throw;
+        }
+    }
+
+    private static void EnsureLocalGptInstallRootIsNotRunning(
+        string installRoot,
+        ILogger logger)
+    {
+        var endpointPath = Path.Combine(
+            GetLocalGptDataRoot(logger),
+            "runtime",
+            "server.json");
+        if (!File.Exists(endpointPath))
+            return;
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(endpointPath));
+            if (!document.RootElement.TryGetProperty("ProcessId", out var processIdElement)
+                || !processIdElement.TryGetInt32(out var processId)
+                || processId <= 0)
+            {
+                return;
+            }
+
+            using var process = Process.GetProcessById(processId);
+            process.Refresh();
+            if (process.HasExited)
+                return;
+
+            string? processPath = null;
+            try
+            {
+                processPath = process.MainModule?.FileName;
+            }
+            catch
+            {
+                // Access to MainModule can be denied. The installer still checks the known root below.
+            }
+
+            if (!string.IsNullOrWhiteSpace(processPath)
+                && IsPathWithinRoot(processPath, installRoot))
+            {
+                throw new InvalidOperationException(
+                    $"LocalGPT is currently running from '{processPath}' (PID {processId}). Close it before installing or updating.");
+            }
+        }
+        catch (ArgumentException)
+        {
+            // Stale process id.
+        }
+        catch (InvalidOperationException ex)
+            when (!ex.Message.StartsWith("LocalGPT is currently running", StringComparison.Ordinal))
+        {
+            logger.LogDebug(ex, "Ignored a stale LocalGPT runtime endpoint during installer preflight.");
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Could not read the LocalGPT runtime endpoint during installer preflight.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Could not inspect the LocalGPT runtime process during installer preflight.");
+        }
+        catch (JsonException ex)
+        {
+            logger.LogDebug(ex, "Ignored an invalid LocalGPT runtime endpoint during installer preflight.");
+        }
+    }
+
+    private static void LogLegacyMisplacedInstallFolders(
+        string dataRoot,
+        ILogger logger)
+    {
+        if (!Directory.Exists(dataRoot))
+            return;
+
+        var platform = GetPlatformToken();
+        var architecture = GetArchitectureToken();
+        string[] legacyFolders =
+        [
+            Path.Combine(dataRoot, $"{platform}{architecture}"),
+            Path.Combine(dataRoot, $"setup{platform}{architecture}")
+        ];
+
+        foreach (var legacyFolder in legacyFolders.Where(Directory.Exists))
+        {
+            logger.LogWarning(
+                "A misplaced legacy application folder remains in the LocalGPT user-data directory and is no longer used: {LegacyFolder}. " +
+                "It was not deleted automatically because the installer preserves user data.",
+                legacyFolder);
         }
     }
 
@@ -532,25 +878,42 @@ internal static class Program
     {
         try
         {
-            var targets = new List<string>();
-
-            var localGptRoot = GetLocalGptInstallRoot( logger);
-            targets.Add(localGptRoot);
-
-            var startMenuFolder = GetStartMenuFolder(options,logger);
-            targets.Add(startMenuFolder);
+            var targets = new List<string>
+            {
+                GetLocalGptInstallRoot(logger),
+                GetStartMenuFolder(options, logger)
+            };
 
             var desktop = GetDesktopFolder(logger);
+            string[] shortcutNames =
+            [
+                "LocalGPT Folder",
+                "LocalGPT Default Install and Update",
+                "LocalGPT Install",
+                "LocalGPT Update",
+                "LocalGPT Start",
+                "LocalGPT Start without Browser",
+                "LocalGPT Install Ollama",
+                "LocalGPT Pull Slim Models",
+                "LocalGPT Pull RTX 3060 Models",
+                "LocalGPT Pull Full Models",
+                "LocalGPT Setup Learning Base",
+                "LocalGPT Import Recommended Sources",
+                "LocalGPT Uninstall"
+            ];
 
-            var shortcutDefinitions = GetShortcutTargets(localGptRoot, logger);
-
-            foreach (var shortcut in shortcutDefinitions)
+            foreach (var shortcutName in shortcutNames)
             {
-                var shortcutFileName = Path.ChangeExtension(shortcut.ShortcutName, ".url");
-                targets.Add(Path.Combine(desktop, shortcutFileName));
+                targets.Add(Path.Combine(desktop, Path.ChangeExtension(shortcutName, ".lnk")));
+                targets.Add(Path.Combine(desktop, Path.ChangeExtension(shortcutName, ".url")));
             }
 
-            logger.LogInformation("The learning-base directory is preserved during uninstall: {LearningBasePath}", options.LearningBasePath);
+            logger.LogInformation(
+                "The LocalGPT user-data directory is preserved during uninstall: {DataRoot}",
+                GetLocalGptDataRoot(logger));
+            logger.LogInformation(
+                "The learning-base directory is preserved during uninstall: {LearningBasePath}",
+                options.LearningBasePath);
 
             return targets
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -616,7 +979,7 @@ internal static class Program
             var shortcuts = new List<ShortcutDefinition>
             {
                 new(
-                    ShortcutName: "LocalGPT Folder.lnk",
+                    ShortcutName: "LocalGPT Folder",
                     TargetPath: localGptRoot,
                     Arguments: string.Empty,
                     WorkingDirectory: localGptRoot)
@@ -624,18 +987,18 @@ internal static class Program
 
             var launchers = new (string FileName, string ShortcutName)[]
             {
-                ("Default.cmd", "LocalGPT Default Install and Update.url"),
-                ("Install.cmd", "LocalGPT Install.url"),
-                ("Update.cmd", "LocalGPT Update.url"),
-                ("Start.cmd", "LocalGPT Start.url"),
-                ("Start-NoBrowser.cmd", "LocalGPT Start without Browser.url"),
-                ("Install-Ollama.cmd", "LocalGPT Install Ollama.url"),
-                ("Pull-Models-Slim.cmd", "LocalGPT Pull Slim Models.url"),
-                ("Pull-Models-RTX3060.cmd", "LocalGPT Pull RTX 3060 Models.url"),
-                ("Pull-Models-Full.cmd", "LocalGPT Pull Full Models.url"),
-                ("Setup-Learning-Base.cmd", "LocalGPT Setup Learning Base.url"),
-                ("Import-Recommended.cmd", "LocalGPT Import Recommended Sources.url"),
-                ("Uninstall.cmd", "LocalGPT Uninstall.url")
+                ("Default.cmd", "LocalGPT Default Install and Update"),
+                ("Install.cmd", "LocalGPT Install"),
+                ("Update.cmd", "LocalGPT Update"),
+                ("Start.cmd", "LocalGPT Start"),
+                ("Start-NoBrowser.cmd", "LocalGPT Start without Browser"),
+                ("Install-Ollama.cmd", "LocalGPT Install Ollama"),
+                ("Pull-Models-Slim.cmd", "LocalGPT Pull Slim Models"),
+                ("Pull-Models-RTX3060.cmd", "LocalGPT Pull RTX 3060 Models"),
+                ("Pull-Models-Full.cmd", "LocalGPT Pull Full Models"),
+                ("Setup-Learning-Base.cmd", "LocalGPT Setup Learning Base"),
+                ("Import-Recommended.cmd", "LocalGPT Import Recommended Sources"),
+                ("Uninstall.cmd", "LocalGPT Uninstall")
             };
 
             foreach (var launcher in launchers)
@@ -652,14 +1015,15 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in GetShortcutTargets. localGptRoot {localGptRoot}");
-            return new List<ShortcutDefinition>();
+            logger.LogError(ex, "Could not determine LocalGPT shortcut targets under {InstallRoot}.", localGptRoot);
+            return [];
         }
     }
+
     private static void CreateShortcutSet(
-    List<ShortcutDefinition> shortcuts,
-    string targetDirectory,
-    ILogger logger)
+        List<ShortcutDefinition> shortcuts,
+        string targetDirectory,
+        ILogger logger)
     {
         try
         {
@@ -667,79 +1031,158 @@ internal static class Program
                 throw new InvalidOperationException("Shortcut target directory is empty.");
 
             Directory.CreateDirectory(targetDirectory);
-
             var iconPath = FindLocalGptIcon(logger);
 
             foreach (var shortcut in shortcuts)
             {
+                DeleteLegacyUrlShortcut(targetDirectory, shortcut.ShortcutName, logger);
+
                 var shortcutPath = Path.Combine(
                     targetDirectory,
-                    Path.ChangeExtension(shortcut.ShortcutName, ".url"));
+                    Path.ChangeExtension(shortcut.ShortcutName, ".lnk"));
 
-                CreateWindowsUrlShortcut(
+                CreateWindowsShellLink(
                     shortcutPath,
-                    shortcut.TargetPath,
-                    iconPath, logger);
+                    shortcut,
+                    iconPath,
+                    logger);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in CreateShortcutSet. targetDirectory {targetDirectory}");
+            logger.LogError(ex, "Could not create LocalGPT shortcuts in {TargetDirectory}.", targetDirectory);
             throw;
         }
     }
-    private static void CreateWindowsUrlShortcut(
+
+    private static void DeleteLegacyUrlShortcut(
+        string targetDirectory,
+        string shortcutName,
+        ILogger logger)
+    {
+        var legacyUrlPath = Path.Combine(
+            targetDirectory,
+            Path.ChangeExtension(shortcutName, ".url"));
+        if (!File.Exists(legacyUrlPath))
+            return;
+
+        try
+        {
+            File.Delete(legacyUrlPath);
+            logger.LogInformation("Removed obsolete URL shortcut: {ShortcutPath}", legacyUrlPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not remove obsolete URL shortcut: {ShortcutPath}", legacyUrlPath);
+        }
+    }
+
+    private static void CreateWindowsShellLink(
         string shortcutPath,
-        string targetPath,
+        ShortcutDefinition shortcut,
         string? iconPath,
         ILogger logger)
     {
+        EnsureWindowsOnly(nameof(CreateWindowsShellLink), logger);
+
+        object? shell = null;
+        object? shellLink = null;
+
         try
         {
-            EnsureWindowsOnly(nameof(CreateWindowsUrlShortcut), logger);
+            var shellType = Type.GetTypeFromProgID("WScript.Shell")
+                ?? throw new PlatformNotSupportedException("Windows Script Host is unavailable.");
 
-            if (string.IsNullOrWhiteSpace(shortcutPath))
-                throw new ArgumentException("Shortcut path is empty.", nameof(shortcutPath));
+            shell = Activator.CreateInstance(shellType)
+                ?? throw new InvalidOperationException("Windows Script Host could not be created.");
 
-            if (string.IsNullOrWhiteSpace(targetPath))
-                throw new ArgumentException("Target path is empty.", nameof(targetPath));
+            shellLink = shellType.InvokeMember(
+                "CreateShortcut",
+                BindingFlags.InvokeMethod,
+                binder: null,
+                target: shell,
+                args: [shortcutPath])
+                ?? throw new InvalidOperationException("Windows shortcut object could not be created.");
 
-            var fullTargetPath = Path.GetFullPath(targetPath);
-            var targetUri = new Uri(fullTargetPath).AbsoluteUri;
+            var linkType = shellLink.GetType();
+            var targetPath = shortcut.TargetPath;
+            var arguments = shortcut.Arguments;
+            var workingDirectory = shortcut.WorkingDirectory;
 
-            logger.LogInformation($"Creating URL shortcut: {shortcutPath}");
-            logger.LogInformation($"URL shortcut target path: {fullTargetPath}");
-            logger.LogInformation($"URL shortcut target uri: {targetUri}");
-            logger.LogInformation($"adding shortcut to iconPath uri: {iconPath} if empty then not");
-            var directory = Path.GetDirectoryName(Path.GetFullPath(shortcutPath));
-            if (!string.IsNullOrWhiteSpace(directory))
-                Directory.CreateDirectory(directory);
-            var builder = new StringBuilder();
-            builder.AppendLine("[InternetShortcut]");
-            builder.AppendLine($"URL={targetUri}");
+            if (Directory.Exists(shortcut.TargetPath))
+            {
+                var windowsDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                targetPath = string.IsNullOrWhiteSpace(windowsDirectory)
+                    ? Path.Combine(Environment.SystemDirectory, "explorer.exe")
+                    : Path.Combine(windowsDirectory, "explorer.exe");
+                arguments = $"\"{shortcut.TargetPath}\"";
+            }
+            else if (string.Equals(
+                Path.GetExtension(shortcut.TargetPath),
+                ".cmd",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                var commandProcessor = Environment.GetEnvironmentVariable("ComSpec");
+                targetPath = string.IsNullOrWhiteSpace(commandProcessor)
+                    ? Path.Combine(Environment.SystemDirectory, "cmd.exe")
+                    : commandProcessor;
+
+                arguments = $"/d /c \"\"{shortcut.TargetPath}\"\"";
+            }
+
+            SetComProperty(linkType, shellLink, "TargetPath", targetPath);
+            SetComProperty(linkType, shellLink, "Arguments", arguments);
+            SetComProperty(linkType, shellLink, "WorkingDirectory", workingDirectory);
+            SetComProperty(linkType, shellLink, "Description", shortcut.ShortcutName);
+
             if (!string.IsNullOrWhiteSpace(iconPath) && File.Exists(iconPath))
-            {
-                var fullIconPath = Path.GetFullPath(iconPath);
+                SetComProperty(linkType, shellLink, "IconLocation", $"{Path.GetFullPath(iconPath)},0");
 
-                logger.LogInformation($"URL shortcut icon: {fullIconPath}");
+            linkType.InvokeMember(
+                "Save",
+                BindingFlags.InvokeMethod,
+                binder: null,
+                target: shellLink,
+                args: null);
 
-                builder.AppendLine($"IconFile={fullIconPath}");
-                builder.AppendLine("IconIndex=0");
-            }
-            else
-            {
-                logger.LogWarning($"Shortcut icon not found, creating shortcut without custom icon: {iconPath}");
-            }
-            File.WriteAllText(shortcutPath, builder.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-            logger.LogInformation($"URL shortcut created: {shortcutPath}");
+            logger.LogInformation(
+                "Created Windows shortcut '{ShortcutPath}' -> '{TargetPath}' {Arguments}.",
+                shortcutPath,
+                targetPath,
+                arguments);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in CreateWindowsUrlShortcut. shortcutPath {shortcutPath} targetPath {targetPath}");
+            logger.LogError(
+                ex,
+                "Could not create Windows shortcut '{ShortcutPath}' for target '{TargetPath}'.",
+                shortcutPath,
+                shortcut.TargetPath);
             throw;
         }
+        finally
+        {
+            if (shellLink is not null && Marshal.IsComObject(shellLink))
+                Marshal.FinalReleaseComObject(shellLink);
+            if (shell is not null && Marshal.IsComObject(shell))
+                Marshal.FinalReleaseComObject(shell);
+        }
     }
+
+    private static void SetComProperty(
+        Type linkType,
+        object shellLink,
+        string propertyName,
+        string propertyValue)
+    {
+        linkType.InvokeMember(
+            propertyName,
+            BindingFlags.SetProperty,
+            binder: null,
+            target: shellLink,
+            args: [propertyValue]);
+    }
+
     private static IEnumerable<string> EnumerateFilesSafe(
     string root,
     string searchPattern,
@@ -771,110 +1214,74 @@ internal static class Program
         try
         {
             var localGptRoot = GetLocalGptInstallRoot(logger);
-
-            if (string.IsNullOrWhiteSpace(localGptRoot) || !Directory.Exists(localGptRoot))
+            if (!Directory.Exists(localGptRoot))
             {
-                logger.LogWarning($"LocalGPT root does not exist while resolving icon: {localGptRoot}");
+                logger.LogWarning("LocalGPT install root does not exist while resolving the icon: {InstallRoot}", localGptRoot);
                 return null;
             }
 
-            var knownCandidates = new[]
-            {
-            Path.Combine(localGptRoot, "favicon.ico"),
-            Path.Combine(localGptRoot, "winx64", "favicon.ico")
-        };
+            string[] knownCandidates =
+            [
+                Path.Combine(localGptRoot, "wwwroot", "favicon.ico"),
+                Path.Combine(localGptRoot, "favicon.ico"),
+                Path.Combine(localGptRoot, "LocalGPT.exe")
+            ];
 
             foreach (var candidate in knownCandidates)
             {
-                logger.LogInformation($"Checking LocalGPT icon candidate: {candidate}");
-
                 if (File.Exists(candidate))
                 {
-                    logger.LogInformation($"Resolved LocalGPT icon from known path: {candidate}");
+                    logger.LogInformation("Resolved LocalGPT shortcut icon: {IconPath}", candidate);
                     return candidate;
                 }
             }
 
-            logger.LogWarning($"Known favicon.ico paths failed. Searching recursively under: {localGptRoot}");
-
-            var favicon = EnumerateFilesSafe(localGptRoot, "favicon.ico", logger)
-                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
-                .ThenBy(path => path.Length)
-                .FirstOrDefault();
-
-            if (!string.IsNullOrWhiteSpace(favicon) && File.Exists(favicon))
-            {
-                logger.LogInformation($"Resolved LocalGPT favicon recursively: {favicon}");
-                return favicon;
-            }
-
-            logger.LogWarning($"favicon.ico not found. Falling back to any .ico under: {localGptRoot}");
-
-            var anyIcon = EnumerateFilesSafe(localGptRoot, "*.ico", logger)
-                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
-                .ThenBy(path => path.Length)
-                .FirstOrDefault();
-
-            if (!string.IsNullOrWhiteSpace(anyIcon) && File.Exists(anyIcon))
-            {
-                logger.LogInformation($"Resolved LocalGPT icon recursively: {anyIcon}");
-                return anyIcon;
-            }
-
-            logger.LogWarning($"No .ico file found under: {localGptRoot}");
+            logger.LogWarning("No LocalGPT shortcut icon was found under the canonical install root: {InstallRoot}", localGptRoot);
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in FindLocalGptIcon.");
+            logger.LogError(ex, "Could not resolve the LocalGPT shortcut icon.");
             return null;
         }
     }
+
     private static string? FindLocalGptFile(
-    string localGptRoot,
-    string fileName,
-    ILogger logger)
+        string localGptRoot,
+        string fileName,
+        ILogger logger)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(localGptRoot) || !Directory.Exists(localGptRoot))
             {
-                logger.LogWarning($"LocalGPT root does not exist while searching for file '{fileName}': {localGptRoot}");
+                logger.LogWarning(
+                    "LocalGPT install root does not exist while searching for '{FileName}': {InstallRoot}",
+                    fileName,
+                    localGptRoot);
                 return null;
             }
 
             var directPath = Path.Combine(localGptRoot, fileName);
-
-            logger.LogInformation($"Checking direct LocalGPT file candidate: {directPath}");
-
             if (File.Exists(directPath))
-            {
-                logger.LogInformation($"Resolved LocalGPT file from direct path: {directPath}");
                 return directPath;
-            }
 
-            logger.LogWarning($"Direct LocalGPT file candidate not found. Searching recursively for '{fileName}' under: {localGptRoot}");
-
-            var recursiveCandidate = EnumerateFilesSafe(localGptRoot, fileName, logger)
-                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
-                .ThenBy(path => path.Length)
-                .FirstOrDefault();
-
-            if (!string.IsNullOrWhiteSpace(recursiveCandidate) && File.Exists(recursiveCandidate))
-            {
-                logger.LogInformation($"Resolved LocalGPT file recursively: {recursiveCandidate}");
-                return recursiveCandidate;
-            }
-
-            logger.LogWarning($"Could not find '{fileName}' under: {localGptRoot}");
+            logger.LogWarning(
+                "Expected LocalGPT launcher is missing from the canonical install root: {LauncherPath}",
+                directPath);
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in FindLocalGptFile. localGptRoot {localGptRoot} fileName {fileName}");
+            logger.LogError(
+                ex,
+                "Could not resolve LocalGPT file '{FileName}' under '{InstallRoot}'.",
+                fileName,
+                localGptRoot);
             return null;
         }
     }
+
     private static string? FindLocalGptExecutable(CliOptions options, ILogger logger)
     {
         try
@@ -882,62 +1289,36 @@ internal static class Program
             if (!string.IsNullOrWhiteSpace(options.LocalGptExePath))
             {
                 var explicitPath = Environment.ExpandEnvironmentVariables(options.LocalGptExePath);
-
-                logger.LogInformation($"Checking explicit LocalGPT executable path: {explicitPath}");
-
                 if (File.Exists(explicitPath))
                     return Path.GetFullPath(explicitPath);
 
-                logger.LogWarning($"--localgpt-exe was provided but does not exist: {explicitPath}");
+                logger.LogWarning("--localgpt-exe does not exist: {ExecutablePath}", explicitPath);
             }
 
             var localGptRoot = GetLocalGptInstallRoot(logger);
+            var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "LocalGPT.exe"
+                : "LocalGPT";
+            var executablePath = Path.Combine(localGptRoot, executableName);
 
-            if (string.IsNullOrWhiteSpace(localGptRoot) || !Directory.Exists(localGptRoot))
+            if (File.Exists(executablePath))
             {
-                logger.LogWarning($"LocalGPT root does not exist: {localGptRoot}");
-                return null;
+                logger.LogInformation("Resolved LocalGPT executable: {ExecutablePath}", executablePath);
+                return executablePath;
             }
 
-            var knownCandidates = new[]
-            {
-            Path.Combine(localGptRoot, "winx64", "LocalGPT.exe"),
-            Path.Combine(localGptRoot, "LocalGPT.exe")
-        };
-
-            foreach (var candidate in knownCandidates)
-            {
-                logger.LogInformation($"Checking LocalGPT executable candidate: {candidate}");
-
-                if (File.Exists(candidate))
-                {
-                    logger.LogInformation($"Resolved LocalGPT executable from known path: {candidate}");
-                    return candidate;
-                }
-            }
-
-            logger.LogWarning($"Known LocalGPT executable paths failed. Searching recursively under: {localGptRoot}");
-
-            var recursiveCandidate = EnumerateFilesSafe(localGptRoot, "LocalGPT.exe", logger)
-                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
-                .ThenBy(path => path.Length)
-                .FirstOrDefault();
-
-            if (!string.IsNullOrWhiteSpace(recursiveCandidate) && File.Exists(recursiveCandidate))
-            {
-                logger.LogInformation($"Resolved LocalGPT executable recursively: {recursiveCandidate}");
-                return recursiveCandidate;
-            }
-
-            logger.LogWarning($"Could not find LocalGPT.exe under: {localGptRoot}");
+            logger.LogWarning(
+                "LocalGPT executable is missing from the canonical install location: {ExecutablePath}",
+                executablePath);
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in FindLocalGptExecutable. options {options}");
+            logger.LogError(ex, "Could not resolve the LocalGPT executable.");
             return null;
         }
     }
+
     private static int GetRelativePathDepth(string root, string path)
     {
         try
@@ -999,33 +1380,57 @@ internal static class Program
         }
     }
 
-    private static string GetLocalGptInstallRoot( ILogger logger)
+    private static string GetLocalGptInstallRoot(ILogger logger)
     {
         try
         {
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-
-            if (string.IsNullOrWhiteSpace(localAppData))
-                throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
-
-            var canonical = Path.Combine(localAppData, "Programs", "LocalGPT");
-            var legacy = Path.Combine(localAppData, "LocalGPT");
-            if (Directory.Exists(canonical))
-                return canonical;
-            if (Directory.Exists(legacy))
-            {
-                logger.LogInformation("Using the existing legacy LocalGPT installation directory '{LegacyInstallRoot}'. Fresh installations use '{CanonicalInstallRoot}'.", legacy, canonical);
-                return legacy;
-            }
-
-            return canonical;
+            var installRoot = GetCanonicalLocalGptInstallRoot();
+            logger.LogDebug("Resolved canonical LocalGPT application directory: {InstallRoot}", installRoot);
+            return installRoot;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Could not resolve the LocalGPT install root.");
             throw;
         }
+    }
 
+    private static string GetCanonicalLocalGptInstallRoot()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localAppData))
+            throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
+
+        return Path.Combine(localAppData, "LocalGPT");
+    }
+
+    private static string GetLocalGptDataRoot(ILogger logger)
+    {
+        try
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrWhiteSpace(localAppData))
+                throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
+
+            return Path.Combine(localAppData, "LocalGPT");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not resolve the LocalGPT user-data root.");
+            throw;
+        }
+    }
+
+    private static bool IsPathWithinRoot(string path, string root)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        return string.Equals(fullPath, fullRoot, comparison)
+            || fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, comparison);
     }
 
     private static string GetStartMenuFolder(CliOptions options, ILogger logger)
@@ -1202,10 +1607,28 @@ internal static class Program
             logger.LogInformation($"Starting LocalGPT: {exePath}");
             logger.LogInformation($"LocalGPT requested loopback port: {port}");
 
-            if (TryGetRunningEndpoint("LocalGPT", "LocalGPT", out var existingUrl, logger))
+            if (TryGetRunningEndpoint(
+                "LocalGPT",
+                "LocalGPT",
+                out var existingUrl,
+                out var existingProcessId,
+                out var existingProcessPath,
+                logger))
             {
+                var canonicalRoot = GetLocalGptInstallRoot(logger);
+                if (options.InstallLocalGptWin
+                    && !string.IsNullOrWhiteSpace(existingProcessPath)
+                    && !IsPathWithinRoot(existingProcessPath, canonicalRoot))
+                {
+                    throw new InvalidOperationException(
+                        $"A previous LocalGPT process is still running from '{existingProcessPath}' (PID {existingProcessId}). " +
+                        $"The new application is installed at '{canonicalRoot}'. Close the old process and run LocalGPT Start again.");
+                }
+
                 Console.WriteLine();
                 Console.WriteLine($"LocalGPT is already running: {existingUrl}");
+                if (!string.IsNullOrWhiteSpace(existingProcessPath))
+                    Console.WriteLine($"Executable: {existingProcessPath}");
                 Console.WriteLine("Ctrl+click the URL above if your console does not open links on a normal click.");
                 if (options.OpenBrowser)
                     OpenDefaultBrowser(existingUrl, logger);
@@ -1248,9 +1671,13 @@ internal static class Program
         string productName,
         string runtimeProductDirectory,
         out string url,
+        out int processId,
+        out string? processPath,
         ILogger logger)
     {
         url = string.Empty;
+        processId = 0;
+        processPath = null;
         var endpointPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             runtimeProductDirectory,
@@ -1264,7 +1691,7 @@ internal static class Program
             using var document = JsonDocument.Parse(File.ReadAllText(endpointPath));
             var root = document.RootElement;
             if (!root.TryGetProperty("ProcessId", out var processIdElement)
-                || !processIdElement.TryGetInt32(out var processId)
+                || !processIdElement.TryGetInt32(out processId)
                 || processId <= 0
                 || !root.TryGetProperty("BaseUrl", out var baseUrlElement))
                 return false;
@@ -1280,8 +1707,22 @@ internal static class Program
             if (process.HasExited)
                 return false;
 
+            try
+            {
+                processPath = process.MainModule?.FileName;
+            }
+            catch
+            {
+                processPath = null;
+            }
+
             url = uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
-            logger.LogInformation("Using already running {ProductName} process {ProcessId} at {BaseUrl}.", productName, processId, url);
+            logger.LogInformation(
+                "Using already running {ProductName} process {ProcessId} at {BaseUrl}. Executable: {ExecutablePath}",
+                productName,
+                processId,
+                url,
+                processPath ?? "(unavailable)");
             return true;
         }
         catch (ArgumentException)
@@ -2035,6 +2476,115 @@ internal static class Program
         return fullPath;
     }
 
+    private static void ExtractReleaseArchiveSafely(
+        string zipPath,
+        string targetPath,
+        ILogger logger)
+    {
+        try
+        {
+            Directory.CreateDirectory(targetPath);
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetPath));
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            using var archive = ZipFile.OpenRead(zipPath);
+            var fileEntries = archive.Entries
+                .Where(entry => !string.IsNullOrEmpty(entry.Name))
+                .ToArray();
+
+            if (fileEntries.Length == 0)
+                throw new InvalidDataException($"Release archive contains no files: {zipPath}");
+
+            var topLevelSegments = fileEntries
+                .Select(entry => NormalizeArchiveEntryPath(entry.FullName))
+                .Select(path => path.Split('/', 2, StringSplitOptions.RemoveEmptyEntries))
+                .ToArray();
+
+            string? wrapperPrefix = null;
+            if (topLevelSegments.All(parts => parts.Length == 2)
+                && topLevelSegments
+                    .Select(parts => parts[0])
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count() == 1)
+            {
+                wrapperPrefix = topLevelSegments[0][0] + "/";
+                logger.LogInformation(
+                    "Removing release ZIP wrapper directory '{WrapperDirectory}' while extracting '{ArchivePath}'.",
+                    wrapperPrefix.TrimEnd('/'),
+                    zipPath);
+            }
+
+            foreach (var entry in archive.Entries)
+            {
+                var relativePath = NormalizeArchiveEntryPath(entry.FullName);
+                if (!string.IsNullOrWhiteSpace(wrapperPrefix)
+                    && relativePath.StartsWith(wrapperPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    relativePath = relativePath[wrapperPrefix.Length..];
+                }
+
+                relativePath = relativePath.TrimStart('/');
+                if (string.IsNullOrWhiteSpace(relativePath))
+                    continue;
+
+                var destination = Path.GetFullPath(
+                    Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+                if (!destination.StartsWith(root + Path.DirectorySeparatorChar, comparison))
+                    throw new InvalidDataException($"Archive entry escapes extraction root: {entry.FullName}");
+
+                var unixFileType = (entry.ExternalAttributes >> 16) & 0xF000;
+                if (unixFileType == 0xA000)
+                    throw new InvalidDataException($"Archive symlink entries are not allowed: {entry.FullName}");
+
+                if (string.IsNullOrEmpty(entry.Name)
+                    || relativePath.EndsWith("/", StringComparison.Ordinal))
+                {
+                    Directory.CreateDirectory(destination);
+                    continue;
+                }
+
+                var destinationDirectory = Path.GetDirectoryName(destination);
+                if (!string.IsNullOrWhiteSpace(destinationDirectory))
+                    Directory.CreateDirectory(destinationDirectory);
+
+                entry.ExtractToFile(destination, overwrite: true);
+
+                if (!OperatingSystem.IsWindows())
+                {
+                    var permissionBits = (entry.ExternalAttributes >> 16) & 0x1FF;
+                    if (permissionBits != 0)
+                    {
+                        try
+                        {
+                            File.SetUnixFileMode(destination, (UnixFileMode)permissionBits);
+                        }
+                        catch (Exception modeException)
+                        {
+                            logger.LogWarning(
+                                modeException,
+                                "Could not restore Unix file mode for '{DestinationPath}'.",
+                                destination);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Release ZIP extraction failed. zipPath {ZipPath} targetPath {TargetPath}",
+                zipPath,
+                targetPath);
+            throw;
+        }
+    }
+
+    private static string NormalizeArchiveEntryPath(string path) =>
+        path.Replace('\\', '/');
+
     private static void ExtractZipSafely(string zipPath, string targetPath, ILogger logger)
     {
         try
@@ -2435,7 +2985,7 @@ Options:
   --import-recommended       Import the hardcoded recommended repository list.
   --repo <owner/repo>         Import one extra GitHub repository. Can be repeated.
   --learnbase <path>          Learning base target path. Default: C:\learnbaseforlocalgpt.
-  --start-localgpt           Start LocalGPT.exe from %LOCALAPPDATA%\Programs\LocalGPT (existing legacy installs are auto-detected).
+  --start-localgpt           Start LocalGPT from %LOCALAPPDATA%\LocalGPT. User data remains in %LOCALAPPDATA%\LocalGPT.
   --localgpt-zip <path>      Override LocalGPT ZIP download path.
   --localgpt-exe <path>      Override LocalGPT executable path.
   --ollama-exe <path>        Override Ollama executable path. Default Windows location is %LOCALAPPDATA%\Programs\Ollama\ollama.exe.
