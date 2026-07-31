@@ -1,4 +1,4 @@
-param(
+﻿param(
     [ValidateSet("all", "win-x64", "win-x86", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")]
     [string]$Runtime = "all",
     [ValidateSet("Release", "Debug")]
@@ -30,6 +30,41 @@ function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
     & dotnet @Arguments
     if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
+}
+
+
+function Resolve-PublishedFolder {
+    param(
+        [Parameter(Mandatory)][string]$ExpectedFolder,
+        [Parameter(Mandatory)][string]$ProjectPath,
+        [Parameter(Mandatory)][string]$Rid,
+        [Parameter(Mandatory)][string]$ExecutableName
+    )
+
+    $expectedExecutable = Join-Path $ExpectedFolder $ExecutableName
+    if (Test-Path $expectedExecutable) { return $ExpectedFolder }
+
+    $projectDirectory = Split-Path -Parent $ProjectPath
+    $binDirectory = Join-Path $projectDirectory "bin"
+    if (-not (Test-Path $binDirectory)) { return $ExpectedFolder }
+
+    $publishSuffix = [IO.Path]::Combine($Rid, "publish")
+    $candidates = @(
+        Get-ChildItem -Path $binDirectory -Filter $ExecutableName -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.DirectoryName.EndsWith($publishSuffix, [StringComparison]::OrdinalIgnoreCase)
+            } |
+            Sort-Object LastWriteTimeUtc -Descending
+    )
+
+    if ($candidates.Count -eq 0) { return $ExpectedFolder }
+
+    $actualFolder = $candidates[0].DirectoryName
+    Write-Host "Publish profile wrote to $actualFolder; normalizing into $ExpectedFolder..." -ForegroundColor Yellow
+    Remove-Item $ExpectedFolder -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $ExpectedFolder -Force | Out-Null
+    Copy-Item (Join-Path $actualFolder "*") $ExpectedFolder -Recurse -Force
+    return $ExpectedFolder
 }
 
 function Resolve-ReleaseProfile {
@@ -104,21 +139,23 @@ function Publish-Runtime {
         "-p:RestoreAdditionalProjectSources=$packageDirectory"
     )
 
+    $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
+    $setupExecutable = if ($Rid.StartsWith("win-")) { "LocalGPTInstallerConsole.exe" } else { "LocalGPTInstallerConsole" }
+
     Write-Host "Publishing LocalGPT application through profile $($profile.AppProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments (@(
         "publish", $appProject,
         "-p:PublishProfile=$($profile.AppProfile)",
         "-p:IncludeWireProtocolPackageInPublish=true"
     ) + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
+    $appFolder = Resolve-PublishedFolder -ExpectedFolder $appFolder -ProjectPath $appProject -Rid $Rid -ExecutableName $appExecutable
 
     Write-Host "Publishing LocalGPT setup through profile $($profile.SetupProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @(
         "publish", $setupProject,
         "-p:PublishProfile=$($profile.SetupProfile)"
     ) -FailureMessage "LocalGPT setup publish failed for $Rid."
-
-    $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
-    $setupExecutable = if ($Rid.StartsWith("win-")) { "LocalGPTInstallerConsole.exe" } else { "LocalGPTInstallerConsole" }
+    $setupFolder = Resolve-PublishedFolder -ExpectedFolder $setupFolder -ProjectPath $setupProject -Rid $Rid -ExecutableName $setupExecutable
     if (-not (Test-Path (Join-Path $appFolder $appExecutable))) {
         throw "Published LocalGPT executable not found: $(Join-Path $appFolder $appExecutable)"
     }
