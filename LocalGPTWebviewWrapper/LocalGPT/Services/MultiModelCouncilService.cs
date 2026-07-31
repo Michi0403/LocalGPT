@@ -1310,8 +1310,11 @@ namespace LocalGPT.Services
                                 ChatRole.User,
                                 BuildLiveCouncilInterruptionPrompt(contributions)));
 
+                            var deliveredMessageCount = contributions.Count;
                             streamUpdate?.Invoke(
-                                $"\n\n> **New user message received.** LocalGPT interrupted only {WebUtility.HtmlEncode(modelName)}'s open Ollama stream and is resuming the same model with the new message in its prompt.\n\n");
+                                $"\n\n> **Live user input delivered to {WebUtility.HtmlEncode(modelName)}.** " +
+                                $"LocalGPT paused this model's open Ollama stream, added {deliveredMessageCount} new user message(s) to its prompt, and restarted the same model. " +
+                                "The next visible tokens are generated with that input present.\n\n");
                             logger.LogInformation(
                                 "Restarting Council model {ModelName} in phase {Phase} after receiving {ContributionCount} live user message(s).",
                                 modelName,

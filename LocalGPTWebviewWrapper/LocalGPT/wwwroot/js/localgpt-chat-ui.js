@@ -188,40 +188,35 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             const state = bindSlowScroll(host, region);
             if (!state || state.userInteracting || !state.follow) return;
 
-            const target = Math.max(0, region.scrollHeight - region.clientHeight);
-            if (target <= state.displayTop + 1) {
-                state.displayTop = target;
-                return;
-            }
-
-            // DevExpress may jump the message viewport immediately while streaming.
-            // Restore the last rendered position, then travel to the moving target over
-            // roughly seven seconds. New tokens update the target without restarting.
-            region.scrollTop = Math.min(state.displayTop, target);
-            state.targetTop = target;
+            state.targetTop = Math.max(0, region.scrollHeight - region.clientHeight);
             if (state.frame) return;
 
-            const started = performance.now();
-            const startTop = state.displayTop;
-            const duration = 7000;
+            let lastFrame = performance.now();
             const step = diagnostics.guard('localgpt-chat-ui.slowScroll.step', now => {
                 if (state.userInteracting || !state.follow) {
                     state.frame = 0;
                     return;
                 }
+
                 state.targetTop = Math.max(0, region.scrollHeight - region.clientHeight);
-                const progress = Math.min(1, (now - started) / duration);
-                const eased = progress < .5
-                    ? 2 * progress * progress
-                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-                state.displayTop = startTop + (state.targetTop - startTop) * eased;
-                region.scrollTop = state.displayTop;
-                if (progress < 1) state.frame = requestAnimationFrame(step);
-                else {
-                    state.displayTop = state.targetTop;
+                const current = region.scrollTop;
+                const remaining = state.targetTop - current;
+                if (Math.abs(remaining) <= 1) {
                     region.scrollTop = state.targetTop;
+                    state.displayTop = state.targetTop;
                     state.frame = 0;
+                    return;
                 }
+
+                const elapsed = Math.max(1, now - lastFrame);
+                lastFrame = now;
+                // Move toward the changing bottom target with an approximately six-second
+                // time constant. Never rewind the viewport to an older stored position.
+                const fraction = 1 - Math.exp(-elapsed / 6000);
+                const next = current + remaining * Math.max(.0025, fraction);
+                region.scrollTop = next;
+                state.displayTop = next;
+                state.frame = requestAnimationFrame(step);
             });
             state.frame = requestAnimationFrame(step);
         } catch (error) {
@@ -324,9 +319,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             if (!(region instanceof HTMLElement)) return;
             renderLiveUserMessages(host, region);
             const state = bindSlowScroll(host, region);
-            state.follow = true;
-            state.userInteracting = false;
-            scheduleSlowFollow(host, region);
+            if (state.follow && !state.userInteracting) scheduleSlowFollow(host, region);
         } catch (error) {
             diagnostics.report('localgpt-chat-ui.appendLiveUserMessage', error);
             throw error;
@@ -492,7 +485,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     function start() {
         try {
             scheduleApply();
-            observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            observer.observe(document.body, { childList: true, subtree: true });
             window.localGptChatUi = {
                 registerCouncilComposer(dotNetReference, isActive) {
                     try {
