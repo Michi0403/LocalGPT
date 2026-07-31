@@ -25,58 +25,74 @@ $wirePackage = Join-Path $packageDirectory $wirePackageName
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
 $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
 
-
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
     & dotnet @Arguments
     if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
 }
 
-
-function Resolve-PublishedFolder {
+function Resolve-PublishProfilePath {
     param(
-        [Parameter(Mandatory)][string]$ExpectedFolder,
         [Parameter(Mandatory)][string]$ProjectPath,
-        [Parameter(Mandatory)][string]$Rid,
-        [Parameter(Mandatory)][string]$ExecutableName
+        [Parameter(Mandatory)][string]$ProfileName
     )
-
-    $expectedExecutable = Join-Path $ExpectedFolder $ExecutableName
-    if (Test-Path $expectedExecutable) { return $ExpectedFolder }
 
     $projectDirectory = Split-Path -Parent $ProjectPath
-    $binDirectory = Join-Path $projectDirectory "bin"
-    if (-not (Test-Path $binDirectory)) { return $ExpectedFolder }
+    $profilePath = Join-Path $projectDirectory "Properties\PublishProfiles\$ProfileName.pubxml"
+    if (-not (Test-Path -LiteralPath $profilePath)) {
+        throw "Publish profile not found: $profilePath"
+    }
 
-    $publishSuffix = [IO.Path]::Combine($Rid, "publish")
-    $candidates = @(
-        Get-ChildItem -Path $binDirectory -Filter $ExecutableName -File -Recurse -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.DirectoryName.EndsWith($publishSuffix, [StringComparison]::OrdinalIgnoreCase)
-            } |
-            Sort-Object LastWriteTimeUtc -Descending
+    return $profilePath
+}
+
+function Resolve-ProfilePublishFolder {
+    param(
+        [Parameter(Mandatory)][string]$ProjectPath,
+        [Parameter(Mandatory)][string]$ProfileName
     )
 
-    if ($candidates.Count -eq 0) { return $ExpectedFolder }
+    $profilePath = Resolve-PublishProfilePath -ProjectPath $ProjectPath -ProfileName $ProfileName
+    [xml]$profile = Get-Content -LiteralPath $profilePath -Raw
+    $propertyGroups = @($profile.Project.PropertyGroup)
+    $publishDirectory = @(
+        $propertyGroups |
+            ForEach-Object { $_.PublishDir } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+    ) | Select-Object -First 1
 
-    $actualFolder = $candidates[0].DirectoryName
-    Write-Host "Publish profile wrote to $actualFolder; normalizing into $ExpectedFolder..." -ForegroundColor Yellow
-    Remove-Item $ExpectedFolder -Recurse -Force -ErrorAction SilentlyContinue
-    New-Item -ItemType Directory -Path $ExpectedFolder -Force | Out-Null
-    Copy-Item (Join-Path $actualFolder "*") $ExpectedFolder -Recurse -Force
-    return $ExpectedFolder
+    if ([string]::IsNullOrWhiteSpace([string]$publishDirectory)) {
+        $publishDirectory = @(
+            $propertyGroups |
+                ForEach-Object { $_.PublishUrl } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+        ) | Select-Object -First 1
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$publishDirectory)) {
+        throw "Publish profile does not define PublishDir or PublishUrl: $profilePath"
+    }
+
+    $projectDirectory = Split-Path -Parent $ProjectPath
+    $resolved = if ([IO.Path]::IsPathRooted([string]$publishDirectory)) {
+        [string]$publishDirectory
+    } else {
+        Join-Path $projectDirectory ([string]$publishDirectory)
+    }
+
+    return [IO.Path]::GetFullPath($resolved)
 }
 
 function Resolve-ReleaseProfile {
     param([Parameter(Mandatory)][string]$Rid)
     switch ($Rid) {
-        "win-x64"     { return @{ AppFolder = "winx64";     SetupFolder = "setupwinx64";     AppAsset = "winx64.zip";     SetupAsset = "setupwinx64.zip";     AppProfile = "winx64";     SetupProfile = "winx64";     WrapperProfile = "winx64";     WrapperPlatform = "x64" } }
-        "win-x86"     { return @{ AppFolder = "winx86";     SetupFolder = "setupwinx86";     AppAsset = "winx86.zip";     SetupAsset = "setupwinx86.zip";     AppProfile = "winx86";     SetupProfile = "winx86";     WrapperProfile = "winx86";     WrapperPlatform = "x86" } }
-        "win-arm64"   { return @{ AppFolder = "winarm64";   SetupFolder = "setupwinarm64";   AppAsset = "winarm64.zip";   SetupAsset = "setupwinarm64.zip";   AppProfile = "winarm64";   SetupProfile = "winarm64";   WrapperProfile = "winarm64";   WrapperPlatform = "ARM64" } }
-        "linux-x64"   { return @{ AppFolder = "linuxx64";   SetupFolder = "setuplinuxx64";   AppAsset = "linuxx64.zip";   SetupAsset = "setuplinuxx64.zip";   AppProfile = "linuxx64";   SetupProfile = "linuxx64";   WrapperProfile = $null; WrapperPlatform = $null } }
-        "linux-arm64" { return @{ AppFolder = "linuxarm64"; SetupFolder = "setuplinuxarm64"; AppAsset = "linuxarm64.zip"; SetupAsset = "setuplinuxarm64.zip"; AppProfile = "linuxarm64"; SetupProfile = "linuxarm64"; WrapperProfile = $null; WrapperPlatform = $null } }
-        "osx-x64"     { return @{ AppFolder = "macosx64";   SetupFolder = "setupmacosx64";   AppAsset = "macosx64.zip";   SetupAsset = "setupmacosx64.zip";   AppProfile = "macosx64";   SetupProfile = "macosx64";   WrapperProfile = $null; WrapperPlatform = $null } }
-        "osx-arm64"   { return @{ AppFolder = "macosarm64"; SetupFolder = "setupmacosarm64"; AppAsset = "macosarm64.zip"; SetupAsset = "setupmacosarm64.zip"; AppProfile = "macosarm64"; SetupProfile = "macosarm64"; WrapperProfile = $null; WrapperPlatform = $null } }
+        "win-x64"     { return @{ AppAsset = "winx64.zip";     SetupAsset = "setupwinx64.zip";     AppProfile = "winx64";     SetupProfile = "winx64";     WrapperProfile = "winx64" } }
+        "win-x86"     { return @{ AppAsset = "winx86.zip";     SetupAsset = "setupwinx86.zip";     AppProfile = "winx86";     SetupProfile = "winx86";     WrapperProfile = "winx86" } }
+        "win-arm64"   { return @{ AppAsset = "winarm64.zip";   SetupAsset = "setupwinarm64.zip";   AppProfile = "winarm64";   SetupProfile = "winarm64";   WrapperProfile = "winarm64" } }
+        "linux-x64"   { return @{ AppAsset = "linuxx64.zip";   SetupAsset = "setuplinuxx64.zip";   AppProfile = "linuxx64";   SetupProfile = "linuxx64";   WrapperProfile = $null } }
+        "linux-arm64" { return @{ AppAsset = "linuxarm64.zip"; SetupAsset = "setuplinuxarm64.zip"; AppProfile = "linuxarm64"; SetupProfile = "linuxarm64"; WrapperProfile = $null } }
+        "osx-x64"     { return @{ AppAsset = "macosx64.zip";   SetupAsset = "setupmacosx64.zip";   AppProfile = "macosx64";   SetupProfile = "macosx64";   WrapperProfile = $null } }
+        "osx-arm64"   { return @{ AppAsset = "macosarm64.zip"; SetupAsset = "setupmacosarm64.zip"; AppProfile = "macosarm64"; SetupProfile = "macosarm64"; WrapperProfile = $null } }
         default { throw "Unsupported release runtime: $Rid" }
     }
 }
@@ -124,43 +140,33 @@ function Publish-Runtime {
     param([Parameter(Mandatory)][string]$Rid)
 
     $profile = Resolve-ReleaseProfile $Rid
-    $appFolder = Join-Path $artifacts $profile.AppFolder
-    $setupFolder = Join-Path $artifacts $profile.SetupFolder
+    $appFolder = Resolve-ProfilePublishFolder -ProjectPath $appProject -ProfileName $profile.AppProfile
+    $setupFolder = Resolve-ProfilePublishFolder -ProjectPath $setupProject -ProfileName $profile.SetupProfile
     $appZip = Join-Path $artifacts $profile.AppAsset
     $setupZip = Join-Path $artifacts $profile.SetupAsset
 
     Remove-Item $appFolder, $setupFolder, $appZip, $setupZip -Recurse -Force -ErrorAction SilentlyContinue
-    New-Item -ItemType Directory -Path $appFolder, $setupFolder -Force | Out-Null
-
-    $sharedProperties = @(
-        "-p:UseLocalWireProtocolProject=false",
-        "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
-        "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
-        "-p:RestoreAdditionalProjectSources=$packageDirectory"
-    )
 
     $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
     $setupExecutable = if ($Rid.StartsWith("win-")) { "LocalGPTInstallerConsole.exe" } else { "LocalGPTInstallerConsole" }
 
     Write-Host "Publishing LocalGPT application through profile $($profile.AppProfile)..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments (@(
+    Invoke-DotNet -Arguments @(
         "publish", $appProject,
-        "-p:PublishProfile=$($profile.AppProfile)",
-        "-p:IncludeWireProtocolPackageInPublish=true"
-    ) + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
-    $appFolder = Resolve-PublishedFolder -ExpectedFolder $appFolder -ProjectPath $appProject -Rid $Rid -ExecutableName $appExecutable
+        "-p:PublishProfile=$($profile.AppProfile)"
+    ) -FailureMessage "LocalGPT application publish failed for $Rid."
 
     Write-Host "Publishing LocalGPT setup through profile $($profile.SetupProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @(
         "publish", $setupProject,
         "-p:PublishProfile=$($profile.SetupProfile)"
     ) -FailureMessage "LocalGPT setup publish failed for $Rid."
-    $setupFolder = Resolve-PublishedFolder -ExpectedFolder $setupFolder -ProjectPath $setupProject -Rid $Rid -ExecutableName $setupExecutable
+
     if (-not (Test-Path (Join-Path $appFolder $appExecutable))) {
-        throw "Published LocalGPT executable not found: $(Join-Path $appFolder $appExecutable)"
+        throw "Published LocalGPT executable not found in the publish-profile output: $(Join-Path $appFolder $appExecutable)"
     }
     if (-not (Test-Path (Join-Path $setupFolder $setupExecutable))) {
-        throw "Published LocalGPT setup executable not found: $(Join-Path $setupFolder $setupExecutable)"
+        throw "Published LocalGPT setup executable not found in the publish-profile output: $(Join-Path $setupFolder $setupExecutable)"
     }
 
     $requiredSetupFiles = @(
@@ -176,16 +182,12 @@ function Publish-Runtime {
     Copy-Item $wirePackage (Join-Path $protocolSetupDirectory $wirePackageName) -Force
 
     if ($IncludeWindowsWrapper -and $profile.WrapperProfile) {
-        $wrapperFolder = Join-Path $artifacts "wrapper-$($profile.AppFolder)"
+        $wrapperFolder = Resolve-ProfilePublishFolder -ProjectPath $wrapperProject -ProfileName $profile.WrapperProfile
         Remove-Item $wrapperFolder -Recurse -Force -ErrorAction SilentlyContinue
         Write-Host "Publishing the optional WinUI wrapper through profile $($profile.WrapperProfile)..." -ForegroundColor Cyan
         Invoke-DotNet -Arguments @(
             "publish", $wrapperProject,
-            "-p:PublishProfile=$($profile.WrapperProfile)",
-            "-p:UseLocalWireProtocolProject=false",
-            "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
-            "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
-            "-p:RestoreAdditionalProjectSources=$packageDirectory"
+            "-p:PublishProfile=$($profile.WrapperProfile)"
         ) -FailureMessage "WinUI wrapper publish failed for $Rid."
         Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force
     }

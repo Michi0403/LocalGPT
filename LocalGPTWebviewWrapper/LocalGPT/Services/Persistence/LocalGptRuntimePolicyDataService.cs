@@ -10,10 +10,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
 {
     private readonly ILocalGptRuntimePolicyStoreService store;
     private readonly ILogger<LocalGptRuntimePolicyDataService> logger;
-    private readonly System.Threading.Lock sync = new();
-    private FrozenDictionary<LocalGptRuntimeValue, string> values = null!;
-    private FrozenDictionary<LocalGptRuntimeCollection, FrozenSet<string>> collections = null!;
-    private FrozenDictionary<LocalGptRuntimePattern, Regex> patterns = null!;
+    private RuntimePolicyState state = null!;
 
     public LocalGptRuntimePolicyDataService(ILocalGptRuntimePolicyStoreService store, ILogger<LocalGptRuntimePolicyDataService> logger)
     {
@@ -42,12 +39,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     {
         try
         {
-            lock (sync)
-            {
-                if (!values.TryGetValue(key, out var value)) throw new KeyNotFoundException($"Runtime value '{key}' is not loaded.");
-                logger.LogTrace($"Resolved LocalGPT runtime value {key}.");
-                return value;
-            }
+            var current = Volatile.Read(ref state);
+            if (!current.Values.TryGetValue(key, out var value))
+                throw new KeyNotFoundException($"Runtime value '{key}' is not loaded.");
+            return value;
         }
         catch (Exception exception)
         {
@@ -61,8 +56,8 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         try
         {
             var raw = GetString(key);
-            if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)) throw new InvalidDataException($"Runtime value '{key}' is not a valid Int32.");
-            logger.LogTrace($"Parsed LocalGPT runtime integer {key}.");
+            if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+                throw new InvalidDataException($"Runtime value '{key}' is not a valid Int32.");
             return value;
         }
         catch (Exception exception)
@@ -77,8 +72,8 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         try
         {
             var raw = GetString(key);
-            if (!long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)) throw new InvalidDataException($"Runtime value '{key}' is not a valid Int64.");
-            logger.LogTrace($"Parsed LocalGPT runtime long {key}.");
+            if (!long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+                throw new InvalidDataException($"Runtime value '{key}' is not a valid Int64.");
             return value;
         }
         catch (Exception exception)
@@ -93,8 +88,8 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         try
         {
             var raw = GetString(key);
-            if (!Guid.TryParse(raw, out var value)) throw new InvalidDataException($"Runtime value '{key}' is not a valid Guid.");
-            logger.LogTrace($"Parsed LocalGPT runtime GUID {key}.");
+            if (!Guid.TryParse(raw, out var value))
+                throw new InvalidDataException($"Runtime value '{key}' is not a valid Guid.");
             return value;
         }
         catch (Exception exception)
@@ -111,10 +106,8 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             var raw = GetString(key);
             var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
             jsonOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-            var value = System.Text.Json.JsonSerializer.Deserialize<T>(raw, jsonOptions)
+            return System.Text.Json.JsonSerializer.Deserialize<T>(raw, jsonOptions)
                 ?? throw new InvalidDataException($"Runtime value '{key}' could not be deserialized as {typeof(T).Name}.");
-            logger.LogTrace($"Deserialized LocalGPT runtime document {key} as {typeof(T).Name}.");
-            return value;
         }
         catch (Exception exception)
         {
@@ -127,12 +120,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     {
         try
         {
-            lock (sync)
-            {
-                if (!patterns.TryGetValue(key, out var pattern)) throw new KeyNotFoundException($"Runtime pattern '{key}' is not loaded.");
-                logger.LogTrace($"Resolved LocalGPT runtime regex {key}.");
-                return pattern;
-            }
+            var current = Volatile.Read(ref state);
+            if (!current.Patterns.TryGetValue(key, out var pattern))
+                throw new KeyNotFoundException($"Runtime pattern '{key}' is not loaded.");
+            return pattern;
         }
         catch (Exception exception)
         {
@@ -145,12 +136,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     {
         try
         {
-            lock (sync)
-            {
-                if (!collections.TryGetValue(key, out var collection)) throw new KeyNotFoundException($"Runtime collection '{key}' is not loaded.");
-                logger.LogTrace($"Resolved LocalGPT runtime collection {key} with {collection.Count} entries.");
-                return collection;
-            }
+            var current = Volatile.Read(ref state);
+            if (!current.Collections.TryGetValue(key, out var collection))
+                throw new KeyNotFoundException($"Runtime collection '{key}' is not loaded.");
+            return collection;
         }
         catch (Exception exception)
         {
@@ -166,17 +155,27 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             var definition = store.GetDefinition();
             var timeoutRaw = definition.Values[LocalGptRuntimeValue.RegexTimeoutMilliseconds];
             if (!int.TryParse(timeoutRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMilliseconds) || timeoutMilliseconds <= 0)
-                throw new InvalidDataException($"RegexTimeoutMilliseconds must be positive.");
+                throw new InvalidDataException("RegexTimeoutMilliseconds must be positive.");
+
             var timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds);
-            var compiled = definition.RegexPatterns.ToDictionary(item => item.Key, item => new Regex(item.Value.Pattern, ParseFlags(item.Value), timeout)).ToFrozenDictionary();
-            var frozenCollections = definition.Collections.ToDictionary(item => item.Key, item => item.Value.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).ToFrozenSet(StringComparer.OrdinalIgnoreCase)).ToFrozenDictionary();
-            lock (sync)
-            {
-                values = definition.Values.ToFrozenDictionary();
-                collections = frozenCollections;
-                patterns = compiled;
-            }
-            var snapshot = GetSnapshot();
+            var next = new RuntimePolicyState(
+                definition.Values.ToFrozenDictionary(),
+                definition.Collections
+                    .ToDictionary(
+                        item => item.Key,
+                        item => item.Value
+                            .Where(value => !string.IsNullOrWhiteSpace(value))
+                            .Select(value => value.Trim())
+                            .ToFrozenSet(StringComparer.OrdinalIgnoreCase))
+                    .ToFrozenDictionary(),
+                definition.RegexPatterns
+                    .ToDictionary(
+                        item => item.Key,
+                        item => new Regex(item.Value.Pattern, ParseFlags(item.Value), timeout))
+                    .ToFrozenDictionary());
+
+            Volatile.Write(ref state, next);
+            var snapshot = CreateSnapshot(next);
             logger.LogInformation($"Reloaded {snapshot.Values.Count} values, {snapshot.Collections.Count} collections and {snapshot.RegexPatterns.Count} regexes from the LocalGPT database.");
             return snapshot;
         }
@@ -191,21 +190,33 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     {
         try
         {
-            lock (sync)
-            {
-                var snapshot = new LocalGptRuntimePolicySnapshot
-                {
-                    Values = values.ToDictionary(item => item.Key.ToString(), item => item.Value),
-                    Collections = collections.ToDictionary(item => item.Key.ToString(), item => (IReadOnlyList<string>)item.Value.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray()),
-                    RegexPatterns = patterns.ToDictionary(item => item.Key.ToString(), item => item.Value.ToString())
-                };
-                logger.LogTrace($"Returned a LocalGPT runtime-policy snapshot.");
-                return snapshot;
-            }
+            return CreateSnapshot(Volatile.Read(ref state));
         }
         catch (Exception exception)
         {
             logger.LogError(exception, $"Could not return the LocalGPT runtime-policy snapshot: {exception.Message}");
+            throw;
+        }
+    }
+
+    private LocalGptRuntimePolicySnapshot CreateSnapshot(RuntimePolicyState current)
+    {
+        try
+        {
+            var snapshot = new LocalGptRuntimePolicySnapshot
+            {
+                Values = current.Values.ToDictionary(item => item.Key.ToString(), item => item.Value),
+                Collections = current.Collections.ToDictionary(
+                    item => item.Key.ToString(),
+                    item => (IReadOnlyList<string>)item.Value.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray()),
+                RegexPatterns = current.Patterns.ToDictionary(item => item.Key.ToString(), item => item.Value.ToString())
+            };
+            logger.LogTrace($"Created a LocalGPT runtime-policy snapshot from the active immutable state.");
+            return snapshot;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not create a LocalGPT runtime-policy snapshot: {exception.Message}");
             throw;
         }
     }
@@ -232,7 +243,6 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
                     _ => throw new InvalidDataException($"Unknown regex option '{token}' for '{definition.Name}'.")
                 };
             }
-            logger.LogTrace($"Parsed runtime regex flags for {definition.Name}.");
             return options;
         }
         catch (Exception exception)
@@ -241,4 +251,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             throw;
         }
     }
+
+    private sealed record RuntimePolicyState(
+        FrozenDictionary<LocalGptRuntimeValue, string> Values,
+        FrozenDictionary<LocalGptRuntimeCollection, FrozenSet<string>> Collections,
+        FrozenDictionary<LocalGptRuntimePattern, Regex> Patterns);
 }

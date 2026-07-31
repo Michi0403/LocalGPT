@@ -5,7 +5,7 @@ using LocalGPT.Services.Helpers;
 
 namespace LocalGPT.Services;
 
-public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json, 
+public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IProjectMaintenanceService maintenance,
     ILogger<GetProjectMaintenanceFunction> logger) : IDxAiFunctionHandler
@@ -22,7 +22,10 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
     {
         try
         {
-            var parameters = json.Deserialize<Parameters>(request.Parameters);
+            var binding = json.Bind<Parameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
             var details = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
             if (details is null) return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The project was not found." };
             var workspace = await maintenance.ResolveWorkspaceAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
@@ -59,7 +62,10 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonSe
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId and revisionId are required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         var revision = await maintenance.RegisterRevisionWorkspaceAsync(
             parameters.ProjectId,
             parameters.RevisionId,
@@ -90,7 +96,10 @@ public sealed class ScanProjectFilesFunction(IDxAiFunctionJsonService json, IPro
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var p = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId is required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var p = binding.Value;
         p.Request.UserConfirmed = true;
         var result = await maintenance.ScanProjectFilesAsync(p.ProjectId, p.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved project scan completed for project {ProjectId} with {FileCount} stored files.", p.ProjectId, result.FilesStored);
@@ -110,7 +119,10 @@ public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService jso
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("trackedFileId is required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         parameters.Request.UserConfirmed = true;
         var result = await maintenance.SaveTrackedFilePatternAsync(parameters.TrackedFileId, parameters.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved regex metadata was saved for tracked file {TrackedFileId}; regex content omitted from logs.", parameters.TrackedFileId);
@@ -134,7 +146,10 @@ public sealed class VerifyProjectRevisionBuildFunction(IDxAiFunctionJsonService 
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var p = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId is required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var p = binding.Value;
         p.Request.UserConfirmed = true;
         var result = await maintenance.RunBuildVerificationAsync(p.ProjectId, p.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved build verification {VerificationId} completed for project {ProjectId}.", result.Id, p.ProjectId);
@@ -153,7 +168,10 @@ public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonSer
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var p = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("verificationId is required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var p = binding.Value;
         p.Request.UserConfirmed = true;
         var result = await maintenance.RecordCouncilBuildReviewAsync(p.VerificationId, p.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved council review recorded for verification {VerificationId}.", p.VerificationId);
@@ -172,7 +190,10 @@ public sealed class ApproveProjectRevisionReadyFunction(IDxAiFunctionJsonService
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var p = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId and revisionId are required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var p = binding.Value;
         p.Request.UserConfirmed = true;
         var result = await maintenance.ApproveRevisionReadyForTestAsync(p.ProjectId, p.RevisionId, p.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved revision {RevisionId} for project {ProjectId} as ready for testing.", p.RevisionId, p.ProjectId);

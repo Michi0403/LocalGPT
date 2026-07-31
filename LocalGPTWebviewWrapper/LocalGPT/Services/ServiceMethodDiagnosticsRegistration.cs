@@ -50,10 +50,23 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
             return false;
         if (serviceType == typeof(IServiceActivityService) || serviceType == typeof(IComponentActivityService))
             return false;
+        if (IsHighFrequencyReadService(serviceType))
+            return false;
         if (serviceType.Name.Contains("Theme", StringComparison.OrdinalIgnoreCase))
             return false;
         return true;
     }
+
+    private bool IsHighFrequencyReadService(Type serviceType) =>
+        serviceType == typeof(ILocalGptRuntimePolicyDataService) ||
+        serviceType == typeof(IDxAiFunctionJsonService) ||
+        serviceType == typeof(IChatContentRenderer) ||
+        serviceType == typeof(IChatResponseFormatter) ||
+        serviceType == typeof(IChatResponseFormatterFactory) ||
+        serviceType == typeof(IChatProtocolResolver) ||
+        serviceType == typeof(IChatProtocolProfileCatalog) ||
+        serviceType == typeof(IChatProtocolTextService) ||
+        serviceType == typeof(IChatProtocolProfile);
 
     private object CreateProxy(IServiceProvider provider, ServiceDescriptor descriptor, bool isDevelopment)
     {

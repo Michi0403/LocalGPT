@@ -185,6 +185,13 @@ public sealed class DxAiFunctionInvocationRequest
     public string ApplicationVersion { get; set; } = string.Empty;
 }
 
+public sealed class DxAiFunctionParameterBinding<T> where T : new()
+{
+    public bool Succeeded { get; init; }
+    public T Value { get; init; } = new();
+    public string Error { get; init; } = string.Empty;
+}
+
 public sealed class DxAiFunctionInvocationResult
 {
     public string FunctionName { get; set; } = string.Empty;

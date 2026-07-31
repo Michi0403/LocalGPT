@@ -300,6 +300,7 @@ public sealed class DxAiFunctionRegistry(
 }
 
 public sealed class ListCodeGenerationReviewsFunction(
+    IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<ListCodeGenerationReviewsFunction> logger) : IDxAiFunctionHandler
 {
@@ -337,10 +338,13 @@ public sealed class ListCodeGenerationReviewsFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = Deserialize<ListParameters>(request.Parameters);
+        var binding = json.Bind<ListParameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         var reviews = await workflow.ListReviewsAsync(parameters.ProjectId, parameters.Take, cancellationToken).ConfigureAwait(false);
         logger.LogDebug("DXAIFunction listed {ReviewCount} change review(s).", reviews.Count);
-        return Success(reviews);
+        return json.Success(reviews);
     }
 
     private sealed class ListParameters
@@ -349,15 +353,10 @@ public sealed class ListCodeGenerationReviewsFunction(
         public int Take { get; set; } = 20;
     }
 
-    private T Deserialize<T>(JsonElement element) where T : new() =>
-        element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new T()
-            : element.Deserialize<T>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true }) ?? new T();
-
-    private DxAiFunctionInvocationResult Success(object value) => new() { Succeeded = true, Status = "Completed", Value = value };
 }
 
 public sealed class GetCodeGenerationReviewFunction(
+    IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<GetCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
@@ -392,8 +391,10 @@ public sealed class GetCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<GetParameters>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
-            ?? throw new JsonException("reviewId is required.");
+        var binding = json.Bind<GetParameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         var review = await workflow.GetReviewAsync(parameters.ReviewId, cancellationToken).ConfigureAwait(false);
         logger.LogDebug("DXAIFunction loaded review {ReviewId}; found={Found}.", parameters.ReviewId, review is not null);
         return new DxAiFunctionInvocationResult
@@ -412,6 +413,7 @@ public sealed class GetCodeGenerationReviewFunction(
 }
 
 public sealed class CreateCodeGenerationReviewFunction(
+    IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<CreateCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
@@ -565,8 +567,10 @@ public sealed class CreateCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<CreateCodeGenerationReviewRequest>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
-            ?? throw new JsonException("A code-generation review request is required.");
+        var binding = json.Bind<CreateCodeGenerationReviewRequest>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         var review = await workflow.CreateReviewAsync(parameters, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("DXAIFunction created review {ReviewId} with hash prefix {HashPrefix}.", review.Id, review.ReviewHash[..Math.Min(12, review.ReviewHash.Length)]);
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };
@@ -574,6 +578,7 @@ public sealed class CreateCodeGenerationReviewFunction(
 }
 
 public sealed class ExecuteCodeGenerationReviewFunction(
+    IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<ExecuteCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
@@ -634,8 +639,10 @@ public sealed class ExecuteCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<ExecuteParameters>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
-            ?? throw new JsonException("A review execution request is required.");
+        var binding = json.Bind<ExecuteParameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         parameters.Request.UserConfirmed = request.UserConfirmed;
         if (request.UserConfirmed && parameters.Request.BuildAfterGeneration)
             parameters.Request.UserConfirmedBuild = true;
@@ -654,6 +661,7 @@ public sealed class ExecuteCodeGenerationReviewFunction(
 }
 
 public sealed class RejectCodeGenerationReviewFunction(
+    IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<RejectCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
@@ -707,8 +715,10 @@ public sealed class RejectCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<RejectParameters>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
-            ?? throw new JsonException("A review rejection request is required.");
+        var binding = json.Bind<RejectParameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         parameters.Request.UserConfirmed = request.UserConfirmed;
         if (string.IsNullOrWhiteSpace(parameters.Request.ExpectedReviewHash))
             parameters.Request.ExpectedReviewHash = request.ConfirmationSummaryHash ?? string.Empty;
@@ -768,6 +778,7 @@ public sealed class ListLocalGptProjectsFunction(
 }
 
 public sealed class GetLocalGptProjectFunction(
+    IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     ILogger<GetLocalGptProjectFunction> logger) : IDxAiFunctionHandler
 {
@@ -802,8 +813,10 @@ public sealed class GetLocalGptProjectFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<GetParameters>(JsonOptions)
-            ?? throw new JsonException("projectId is required.");
+        var binding = json.Bind<GetParameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         var value = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("DXAIFunction loaded LocalGPT project {ProjectId}; found={Found}.", parameters.ProjectId, value is not null);
         return new DxAiFunctionInvocationResult
@@ -815,7 +828,6 @@ public sealed class GetLocalGptProjectFunction(
         };
     }
 
-    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     private sealed class GetParameters { public Guid ProjectId { get; set; } }
 }
 
@@ -1007,7 +1019,7 @@ public sealed class ListChatMemoryConversationsFunction(
 
 
 public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService vocabulary,
-    
+
     IHumanCollaborationService collaboration,
     IAmbientLocalGptContext ambientContext,
     ILogger<RequestHumanCollaborationFunction> logger) : IDxAiFunctionHandler

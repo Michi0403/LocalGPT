@@ -5,7 +5,7 @@ using LocalGPT.Services.Helpers;
 
 namespace LocalGPT.Services;
 
-public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json, 
+public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IProjectArchitectureService architecture,
     ILogger<GetProjectArchitectureFunction> logger) : IDxAiFunctionHandler
@@ -28,7 +28,10 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = json.Deserialize<Parameters>(request.Parameters);
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         var details = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
         if (details is null)
             return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The project was not found." };
@@ -47,7 +50,7 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
     private sealed class Parameters { public Guid ProjectId { get; set; } }
 }
 
-public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json, 
+public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectRevisionFunction> logger) : IDxAiFunctionHandler
 {
@@ -68,7 +71,10 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId is required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         parameters.Request.UserConfirmed = true;
         var revision = await architecture.SaveRevisionAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved project revision {RevisionId} saved for project {ProjectId}.", revision.Id, parameters.ProjectId);
@@ -82,7 +88,7 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
     }
 }
 
-public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json, 
+public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectRequirementFunction> logger) : IDxAiFunctionHandler
 {
@@ -103,7 +109,10 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId is required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         parameters.Request.UserConfirmed = true;
         var requirement = await architecture.SaveRequirementAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved requirement {RequirementId} saved for project {ProjectId}.", requirement.Id, parameters.ProjectId);
@@ -117,7 +126,7 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
     }
 }
 
-public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json, 
+public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectArtifactFunction> logger) : IDxAiFunctionHandler
 {
@@ -138,7 +147,10 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.Deserialize<Parameters>(json.Options) ?? throw new JsonException("projectId is required.");
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         parameters.Request.UserConfirmed = true;
         var artifact = await architecture.SaveArtifactAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Approved project artifact {ArtifactId} saved for project {ProjectId}; value omitted from logs.", artifact.Id, parameters.ProjectId);

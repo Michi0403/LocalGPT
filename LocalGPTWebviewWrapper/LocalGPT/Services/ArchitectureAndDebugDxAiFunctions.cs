@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace LocalGPT.Services;
 
-public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonService json, 
+public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonService json,
     IDxAiFunctionRegistry registry,
     ILogger<GetPublicArchitectureDirectoryFunction> logger) : IDxAiFunctionHandler
 {
@@ -87,7 +87,10 @@ public sealed class InspectDebugArtifactFunction(
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Debug-artifact inspection DXFunction started; file path content was omitted.");
-        var parameters = json.Deserialize<Parameters>(request.Parameters);
+        var binding = json.Bind<Parameters>(request.Parameters);
+        if (!binding.Succeeded)
+            return json.InvalidParameters(binding.Error);
+        var parameters = binding.Value;
         var result = await inspector.InspectAsync(parameters.FilePath, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Debug-artifact inspection DXFunction completed.");
         return json.Success(result);
