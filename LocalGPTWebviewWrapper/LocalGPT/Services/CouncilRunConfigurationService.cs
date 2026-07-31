@@ -1,0 +1,285 @@
+using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
+using System.Collections.Concurrent;
+
+namespace LocalGPT.Services;
+
+public sealed class CouncilRunConfigurationService(
+    ICouncilHardwareRoadPlanner hardwareRoadPlanner,
+    ILogger<CouncilRunConfigurationService> logger) : ICouncilRunConfigurationService
+{
+    private readonly ConcurrentDictionary<Guid, RunState> runs = new();
+
+    public event Action<Guid>? Changed;
+
+    public CouncilRunConfigurationSnapshot Ensure(
+        MultiModelCouncilRequest request,
+        IReadOnlyCollection<string> participants)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(participants);
+
+        var state = runs.GetOrAdd(
+            request.RunId,
+            _ => new RunState(
+                request.RunId,
+                participants,
+                request.ModelRoutes.Select(CloneRoute),
+                request.ResourceLoadPercent,
+                request.MaxOutputTokens,
+                request.MaxContextTokens,
+                request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu,
+                request.AllowParallelHardwareRoads));
+
+        lock (state.SyncRoot)
+        {
+            state.Participants = participants
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            state.RequestedMaxOutputTokens = Math.Max(1, request.MaxOutputTokens);
+            state.RequestedMaxContextTokens = Math.Max(256, request.MaxContextTokens);
+            state.FallbackOllamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
+            state.AllowParallelHardwareRoads = request.AllowParallelHardwareRoads;
+            state.IsRunning = true;
+            return CreateSnapshotLocked(state);
+        }
+    }
+
+    public CouncilRunConfigurationSnapshot? Get(Guid runId)
+    {
+        if (!runs.TryGetValue(runId, out var state))
+            return null;
+
+        lock (state.SyncRoot)
+            return CreateSnapshotLocked(state);
+    }
+
+    public bool Update(
+        Guid runId,
+        IReadOnlyCollection<OneWireCouncilModelRoute> routes,
+        int resourceLoadPercent)
+    {
+        ArgumentNullException.ThrowIfNull(routes);
+        if (!runs.TryGetValue(runId, out var state))
+            return false;
+
+        long revision;
+        lock (state.SyncRoot)
+        {
+            if (!state.IsRunning)
+                return false;
+
+            state.ModelRoutes = routes.Select(CloneRoute).ToList();
+            state.ResourceLoadPercent = Math.Clamp((int)Math.Round(resourceLoadPercent / 5d) * 5, 0, 100);
+            revision = ++state.Revision;
+            PulseLocked(state);
+        }
+
+        logger.LogInformation(
+            "Updated run-scoped Council model settings for run {RunId} to revision {Revision}; saved presets and other runs were not changed.",
+            runId,
+            revision);
+        Changed?.Invoke(runId);
+        return true;
+    }
+
+    public async ValueTask<ICouncilModelRequestLease> AcquireModelRequestAsync(
+        Guid runId,
+        string modelName,
+        CouncilHardwareRoadPlan fallbackPlan,
+        CancellationToken cancellationToken = default)
+    {
+        if (!runs.TryGetValue(runId, out var state))
+            return new ModelRequestLease(fallbackPlan, revision: 0, isEnabled: true, release: null);
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            PlanCandidate candidate;
+            Task waitTask;
+            lock (state.SyncRoot)
+            {
+                if (!state.IsRunning)
+                    return new ModelRequestLease(fallbackPlan, state.Revision, isEnabled: true, release: null);
+
+                candidate = BuildCandidateLocked(state, modelName, fallbackPlan);
+                if (!candidate.IsEnabled)
+                    return new ModelRequestLease(candidate.Plan, candidate.Revision, isEnabled: false, release: null);
+
+                var laneKey = state.AllowParallelHardwareRoads
+                    ? candidate.Plan.LaneKey
+                    : "council:single-lane";
+                var laneCapacity = state.AllowParallelHardwareRoads
+                    ? Math.Max(1, candidate.Plan.MaxConcurrentModelsOnLane)
+                    : 1;
+                var activeCount = state.ActiveLaneCounts.GetValueOrDefault(laneKey);
+                if (activeCount < laneCapacity)
+                {
+                    state.ActiveLaneCounts[laneKey] = activeCount + 1;
+                    return new ModelRequestLease(
+                        candidate.Plan,
+                        candidate.Revision,
+                        isEnabled: true,
+                        release: () => Release(state, laneKey));
+                }
+
+                waitTask = state.ChangeSignal.Task;
+            }
+
+            await waitTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    public void Complete(Guid runId)
+    {
+        if (!runs.TryRemove(runId, out var state))
+            return;
+
+        lock (state.SyncRoot)
+        {
+            state.IsRunning = false;
+            PulseLocked(state);
+        }
+
+        logger.LogInformation("Released run-scoped Council model settings for completed run {RunId}.", runId);
+        Changed?.Invoke(runId);
+    }
+
+    private PlanCandidate BuildCandidateLocked(
+        RunState state,
+        string modelName,
+        CouncilHardwareRoadPlan fallbackPlan)
+    {
+        var route = state.ModelRoutes.LastOrDefault(item =>
+            string.Equals(item.ModelName, modelName, StringComparison.OrdinalIgnoreCase));
+        var isEnabled = route?.IsEnabled ?? true;
+        var plans = hardwareRoadPlanner.BuildPlans(
+            state.ModelRoutes,
+            [modelName],
+            state.RequestedMaxOutputTokens,
+            state.RequestedMaxContextTokens,
+            state.ResourceLoadPercent,
+            state.FallbackOllamaNumGpu);
+        var plan = plans.TryGetValue(modelName, out var configuredPlan)
+            ? configuredPlan
+            : fallbackPlan;
+        return new PlanCandidate(plan, state.Revision, isEnabled);
+    }
+
+    private void Release(RunState state, string laneKey)
+    {
+        lock (state.SyncRoot)
+        {
+            var activeCount = state.ActiveLaneCounts.GetValueOrDefault(laneKey);
+            if (activeCount <= 1)
+                state.ActiveLaneCounts.Remove(laneKey);
+            else
+                state.ActiveLaneCounts[laneKey] = activeCount - 1;
+            PulseLocked(state);
+        }
+    }
+
+    private void PulseLocked(RunState state)
+    {
+        var previous = state.ChangeSignal;
+        state.ChangeSignal = CreateSignal();
+        previous.TrySetResult(true);
+    }
+
+    private TaskCompletionSource<bool> CreateSignal() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private CouncilRunConfigurationSnapshot CreateSnapshotLocked(RunState state) =>
+        new(
+            state.RunId,
+            state.Revision,
+            state.Participants.ToList(),
+            state.ModelRoutes.Select(CloneRoute).ToList(),
+            state.ResourceLoadPercent,
+            state.RequestedMaxOutputTokens,
+            state.RequestedMaxContextTokens,
+            state.FallbackOllamaNumGpu,
+            state.AllowParallelHardwareRoads,
+            state.IsRunning);
+
+    private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
+    {
+        ModelName = route.ModelName,
+        HardwareKind = route.HardwareKind,
+        HardwareIndex = route.HardwareIndex,
+        HardwareName = route.HardwareName,
+        MinOutputTokens = route.MinOutputTokens,
+        MaxOutputTokens = route.MaxOutputTokens,
+        MinContextTokens = route.MinContextTokens,
+        MaxContextTokens = route.MaxContextTokens,
+        OllamaNumGpu = route.OllamaNumGpu,
+        LoadPercentOverride = route.LoadPercentOverride,
+        SelfReportedDxFunctions = [.. route.SelfReportedDxFunctions],
+        SelfReportedControllerMethods = [.. route.SelfReportedControllerMethods],
+        SelfReportedOrganicCapabilities = [.. route.SelfReportedOrganicCapabilities],
+        SelfReportedSkills = [.. route.SelfReportedSkills],
+        IsEnabled = route.IsEnabled,
+        MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
+    };
+
+    private sealed class RunState
+    {
+        public RunState(
+            Guid runId,
+            IEnumerable<string> participants,
+            IEnumerable<OneWireCouncilModelRoute> modelRoutes,
+            int resourceLoadPercent,
+            int requestedMaxOutputTokens,
+            int requestedMaxContextTokens,
+            int? fallbackOllamaNumGpu,
+            bool allowParallelHardwareRoads)
+        {
+            RunId = runId;
+            Participants = participants.ToList();
+            ModelRoutes = modelRoutes.ToList();
+            ResourceLoadPercent = Math.Clamp((int)Math.Round(resourceLoadPercent / 5d) * 5, 0, 100);
+            RequestedMaxOutputTokens = Math.Max(1, requestedMaxOutputTokens);
+            RequestedMaxContextTokens = Math.Max(256, requestedMaxContextTokens);
+            FallbackOllamaNumGpu = fallbackOllamaNumGpu;
+            AllowParallelHardwareRoads = allowParallelHardwareRoads;
+            ChangeSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        public object SyncRoot { get; } = new();
+        public Guid RunId { get; }
+        public long Revision { get; set; } = 1;
+        public List<string> Participants { get; set; }
+        public List<OneWireCouncilModelRoute> ModelRoutes { get; set; }
+        public int ResourceLoadPercent { get; set; }
+        public int RequestedMaxOutputTokens { get; set; }
+        public int RequestedMaxContextTokens { get; set; }
+        public int? FallbackOllamaNumGpu { get; set; }
+        public bool AllowParallelHardwareRoads { get; set; }
+        public bool IsRunning { get; set; } = true;
+        public Dictionary<string, int> ActiveLaneCounts { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public TaskCompletionSource<bool> ChangeSignal { get; set; }
+    }
+
+    private sealed class ModelRequestLease(
+        CouncilHardwareRoadPlan plan,
+        long revision,
+        bool isEnabled,
+        Action? release) : ICouncilModelRequestLease
+    {
+        private Action? releaseAction = release;
+
+        public CouncilHardwareRoadPlan Plan { get; } = plan;
+        public long Revision { get; } = revision;
+        public bool IsEnabled { get; } = isEnabled;
+
+        public void Dispose() => Interlocked.Exchange(ref releaseAction, null)?.Invoke();
+    }
+
+    private sealed record PlanCandidate(
+        CouncilHardwareRoadPlan Plan,
+        long Revision,
+        bool IsEnabled);
+}

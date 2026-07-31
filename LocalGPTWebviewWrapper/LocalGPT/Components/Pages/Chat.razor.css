@@ -1338,3 +1338,33 @@
         padding: .4rem !important;
     }
 }
+
+/* v27: one transcript scroll owner. Long thinking/code lines wrap inside the message so
+   the DevExpress viewer's own horizontal bar remains after the wait indicator instead of
+   a nested native scrollbar appearing above it. */
+.demo-chat ::deep .demo-chat-content,
+.demo-chat ::deep .council-step,
+.demo-chat ::deep .model-thinking {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: visible !important;
+    overflow-wrap: anywhere !important;
+}
+
+.demo-chat ::deep .demo-chat-content pre,
+.demo-chat ::deep .model-thinking pre,
+.demo-chat ::deep .council-step pre {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+}
+
+.live-council-settings-status {
+    margin: .55rem .7rem 0;
+    padding: .55rem .7rem;
+    border-radius: .55rem;
+    background: color-mix(in srgb, var(--bs-primary, #0d6efd) 8%, transparent);
+}

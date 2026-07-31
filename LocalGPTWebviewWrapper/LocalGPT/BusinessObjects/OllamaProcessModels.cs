@@ -10,4 +10,5 @@ public sealed record OllamaProcessStatus(
     bool IsRunning,
     string? ExecutablePath,
     IReadOnlyList<OllamaProcessInfo> Processes,
+    string ProcessSummary,
     string Message);

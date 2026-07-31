@@ -57,7 +57,7 @@
                     <span>@OllamaProcessStatus.Message</span>
                     @if (OllamaProcessStatus.Processes.Count > 0)
                     {
-                        <small>@string.Join(", ", OllamaProcessStatus.Processes.Select(process => $"{process.ProcessName} ({process.ProcessId})"))</small>
+                        <small>@OllamaProcessStatus.ProcessSummary</small>
                     }
                 </div>
                 <div class="ollama-process-actions">
@@ -263,7 +263,7 @@
     private bool IsConnectivityChecking;
     private bool IsSaving;
     private bool IsOllamaProcessBusy;
-    private OllamaProcessStatus OllamaProcessStatus = new(false, false, null, Array.Empty<OllamaProcessInfo>(), "Ollama process status not checked yet.");
+    private OllamaProcessStatus OllamaProcessStatus = new(false, false, null, Array.Empty<OllamaProcessInfo>(), string.Empty, "Ollama process status not checked yet.");
     private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify Ollama or LM Studio.";
     private DateTimeOffset? LastConnectivityCheck;
     private IReadOnlyList<LocalAiHostDiscoveryResult> DiscoveredHosts = Array.Empty<LocalAiHostDiscoveryResult>();

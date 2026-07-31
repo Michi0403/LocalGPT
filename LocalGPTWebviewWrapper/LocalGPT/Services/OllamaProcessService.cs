@@ -146,11 +146,16 @@ public sealed class OllamaProcessService(
             .ThenBy(process => process.ProcessId)
             .ToList();
 
+        var processSummary = string.Join(
+            ", ",
+            processes.Select(process => $"{process.ProcessName} ({process.ProcessId})"));
+
         return new OllamaProcessStatus(
             !string.IsNullOrWhiteSpace(executable),
             processes.Count > 0,
             executable,
             processes,
+            processSummary,
             processes.Count > 0
                 ? $"Ollama is running in {processes.Count} process(es)."
                 : !string.IsNullOrWhiteSpace(executable)

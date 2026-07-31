@@ -419,6 +419,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IModelCapabilitySelfAssessmentService, LocalGPT.Services.Council.Skills.ModelCapabilitySelfAssessmentService>();
                 builder.Services.AddSingleton<ICouncilHardwareRoadConfigurationService, LocalGPT.Services.Council.Scheduling.CouncilHardwareRoadConfigurationService>();
                 builder.Services.AddSingleton<ICouncilHardwareRoadPlanner, LocalGPT.Services.Council.Scheduling.CouncilHardwareRoadPlanner>();
+                builder.Services.AddSingleton<ICouncilRunConfigurationService, CouncilRunConfigurationService>();
                 builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
                 builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
                 builder.Services.AddScoped<IChatClient>(sp =>

@@ -24,6 +24,7 @@
 @inject IChatSessionContext SessionContext
 @inject IHumanCollaborationService HumanCollaboration
 @inject ICouncilLiveSessionService CouncilLiveSessions
+@inject ICouncilRunConfigurationService CouncilRunConfigurations
 @inject ILocalHumanInteractionContext HumanAmbientContext
 @implements IDisposable
 @inject ILogger<Chat> Logger
@@ -105,7 +106,7 @@
         <details id="localgpt-council-controls" class="council-command-center" data-testid="council-command-center">
             <summary title="Open model, hardware, team and artifact settings for AI Council runs.">
                 <span>AI Council controls</span>
-                <small>@SelectedCouncilModelNames.Count model@(SelectedCouncilModelNames.Count == 1 ? string.Empty : "s") · @CouncilResourceLoadPercent% power · @CouncilMaxContextTokens.ToString("N0") context</small>
+                <small>@CouncilEditorModelNames.Count model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s") · @CouncilEditorResourceLoadPercent% power · @CouncilMaxContextTokens.ToString("N0") context</small>
             </summary>
         <div class="model-toolbar" aria-label="DXAiChat model and council controls" data-testid="chat-model-toolbar">
             <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
@@ -168,8 +169,8 @@
             </label>
             <label class="council-load-setting" title="Sets the session position between every selected model's own minimum and maximum CPU/GPU road values. 30% means min + 30% of that model's configured range.">
                 <span>Hardware load</span>
-                <input type="range" min="0" max="100" step="5" @bind="CouncilResourceLoadPercent" @bind:event="oninput" />
-                <output>@CouncilResourceLoadPercent%</output>
+                <input type="range" min="0" max="100" step="5" value="@CouncilEditorResourceLoadPercent" @oninput="OnCouncilResourceLoadChanged" />
+                <output>@CouncilEditorResourceLoadPercent%</output>
             </label>
             @if (!string.IsNullOrWhiteSpace(modelStatus))
             {
@@ -201,9 +202,16 @@
         }
         <details class="council-road-details" data-testid="council-hardware-road-editor">
             <summary>Hardware spooler and per-model CPU/GPU roads</summary>
-            <CouncilHardwareRoadEditor ModelNames="SelectedCouncilModelNames"
-                                       Routes="@CouncilModelRoutes"
-                                       ResourceLoadPercent="CouncilResourceLoadPercent"
+            @if (EditingRunningCouncilConfiguration)
+            {
+                <p class="memory-status live-council-settings-status">
+                    Editing only running Council @ActiveCouncilRunShortId, revision @ActiveCouncilConfigurationRevision.
+                    Each model reads the newest revision immediately before its next Ollama request starts. Other runs and saved presets remain unchanged.
+                </p>
+            }
+            <CouncilHardwareRoadEditor ModelNames="CouncilEditorModelNames"
+                                       Routes="@CouncilEditorRoutes"
+                                       ResourceLoadPercent="CouncilEditorResourceLoadPercent"
                                        Changed="OnHardwareRoadsChanged" />
         </details>
         <div class="model-toolbar council-preset-toolbar" aria-label="AI Council model presets" data-testid="council-model-presets">
@@ -570,6 +578,21 @@
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
     List<CouncilModelPreset> ModelPresets { get; set; } = new();
     List<OneWireCouncilModelRoute> CouncilModelRoutes { get; set; } = [];
+    List<OneWireCouncilModelRoute> ActiveCouncilModelRoutes { get; set; } = [];
+    List<string> ActiveCouncilConfigurationParticipants { get; set; } = [];
+    Guid? ActiveCouncilConfigurationRunId { get; set; }
+    long ActiveCouncilConfigurationRevision { get; set; }
+    int ActiveCouncilResourceLoadPercent { get; set; } = 100;
+    bool EditingRunningCouncilConfiguration =>
+        ActiveCouncilConfigurationRunId is Guid runId &&
+        SelectedCouncilRunId == runId &&
+        ActiveCouncilRun?.RunId == runId;
+    IReadOnlyCollection<string> CouncilEditorModelNames =>
+        EditingRunningCouncilConfiguration ? ActiveCouncilConfigurationParticipants : SelectedCouncilModelNames;
+    List<OneWireCouncilModelRoute> CouncilEditorRoutes =>
+        EditingRunningCouncilConfiguration ? ActiveCouncilModelRoutes : CouncilModelRoutes;
+    int CouncilEditorResourceLoadPercent =>
+        EditingRunningCouncilConfiguration ? ActiveCouncilResourceLoadPercent : CouncilResourceLoadPercent;
     CouncilModelPreset? SelectedModelPreset { get; set; }
     List<OrganicCouncilTeamDefinition> CouncilTeams { get; set; } = [];
     string SelectedCouncilTeamKey { get; set; } = "general";
@@ -702,6 +725,7 @@
 
             HumanCollaboration.Changed += OnHumanCollaborationChanged;
             CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
+            CouncilRunConfigurations.Changed += OnCouncilRunConfigurationChanged;
             RejoinCouncilRunId = CouncilLiveSessions.GetActive().FirstOrDefault()?.RunId;
             await RefreshHumanCollaborationAsync().ConfigureAwait(true);
             ArchitectureUiStack = Catalog.ArchitectureUiStackOptions.FirstOrDefault() ?? string.Empty;
@@ -964,6 +988,7 @@
             ownsLiveCouncilStream = false;
             lastAttachedLiveCouncilUpdatedAtUtc = default;
             SelectedCouncilRunId = null;
+            LoadCouncilRunConfiguration(null);
             await JS.InvokeVoidAsync("localGptChatUi.clearLiveUserMessages").ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -1393,6 +1418,8 @@
                 CreateProjectForRun = CreateProjectPerCouncilRun
             };
 
+            var runtimeConfiguration = CouncilRunConfigurations.Ensure(request, request.ModelNames);
+            ApplyCouncilRunConfigurationSnapshot(runtimeConfiguration);
             AttachedLiveCouncilRunId = request.RunId;
             RejoinCouncilRunId = request.RunId;
             SelectedCouncilRunId = request.RunId;
@@ -1885,9 +1912,112 @@
 
     private Task OnHardwareRoadsChanged()
     {
+        if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+        {
+            if (CouncilRunConfigurations.Update(runId, ActiveCouncilModelRoutes, ActiveCouncilResourceLoadPercent))
+            {
+                LoadCouncilRunConfiguration(runId);
+                modelStatus = $"Applied model settings to running Council {ActiveCouncilRunShortId} revision {ActiveCouncilConfigurationRevision}. Other runs, future sessions, and saved presets were not changed.";
+            }
+            else
+            {
+                modelStatus = "The running Council ended before these session-only model settings could be applied.";
+            }
+            return Task.CompletedTask;
+        }
+
         SelectedModelPreset = null;
-        modelStatus = $"Custom hardware roads active at {CouncilResourceLoadPercent}% session load.";
+        modelStatus = $"Custom hardware roads active at {CouncilResourceLoadPercent}% session load for future Council runs.";
         return Task.CompletedTask;
+    }
+
+    private Task OnCouncilResourceLoadChanged(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out var value))
+            return Task.CompletedTask;
+
+        value = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100);
+        if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+        {
+            ActiveCouncilResourceLoadPercent = value;
+            CouncilRunConfigurations.Update(runId, ActiveCouncilModelRoutes, value);
+            LoadCouncilRunConfiguration(runId);
+            modelStatus = $"Running Council {ActiveCouncilRunShortId} now uses session settings revision {ActiveCouncilConfigurationRevision} at {value}% load for each model request that has not started yet.";
+        }
+        else
+        {
+            CouncilResourceLoadPercent = value;
+            SelectedModelPreset = null;
+            modelStatus = $"Future Council runs will use {value}% session load.";
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void ApplyCouncilRunConfigurationSnapshot(CouncilRunConfigurationSnapshot snapshot)
+    {
+        ActiveCouncilConfigurationRunId = snapshot.RunId;
+        ActiveCouncilConfigurationRevision = snapshot.Revision;
+        ActiveCouncilConfigurationParticipants = snapshot.Participants.ToList();
+        ActiveCouncilModelRoutes = snapshot.ModelRoutes.Select(CloneRoute).ToList();
+        ActiveCouncilResourceLoadPercent = snapshot.ResourceLoadPercent;
+    }
+
+    private void LoadCouncilRunConfiguration(Guid? runId)
+    {
+        if (runId is not Guid activeRunId)
+        {
+            ActiveCouncilConfigurationRunId = null;
+            ActiveCouncilConfigurationRevision = 0;
+            ActiveCouncilConfigurationParticipants.Clear();
+            ActiveCouncilModelRoutes.Clear();
+            return;
+        }
+
+        var snapshot = CouncilRunConfigurations.Get(activeRunId);
+        if (snapshot is not null &&
+            snapshot.IsRunning &&
+            ActiveCouncilConfigurationRunId == activeRunId &&
+            ActiveCouncilConfigurationRevision == snapshot.Revision)
+        {
+            return;
+        }
+
+        if (snapshot is null || !snapshot.IsRunning)
+        {
+            if (ActiveCouncilConfigurationRunId == activeRunId)
+            {
+                ActiveCouncilConfigurationRunId = null;
+                ActiveCouncilConfigurationRevision = 0;
+                ActiveCouncilConfigurationParticipants.Clear();
+                ActiveCouncilModelRoutes.Clear();
+            }
+            return;
+        }
+
+        ApplyCouncilRunConfigurationSnapshot(snapshot);
+    }
+
+    private void OnCouncilRunConfigurationChanged(Guid runId)
+    {
+        if (isDisposed || SelectedCouncilRunId != runId)
+            return;
+
+        try
+        {
+            TaskRunner.Run(
+                nameof(Chat),
+                "RefreshCouncilRunConfiguration",
+                _ => InvokeAsync(() =>
+                {
+                    LoadCouncilRunConfiguration(runId);
+                    StateHasChanged();
+                }),
+                componentLifetimeCts.Token);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+        }
     }
 
     private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
@@ -2503,6 +2633,7 @@
             if (SelectedCouncilRunId is not null && collaborationSnapshot.ActiveRuns.All(run => run.RunId != SelectedCouncilRunId))
                 SelectedCouncilRunId = null;
             SelectedCouncilRunId ??= collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault()?.RunId;
+            LoadCouncilRunConfiguration(SelectedCouncilRunId);
             await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -2514,6 +2645,7 @@
     private async Task OnActiveCouncilRunChanged(ChangeEventArgs args)
     {
         SelectedCouncilRunId = Guid.TryParse(args.Value?.ToString(), out var runId) ? runId : null;
+        LoadCouncilRunConfiguration(SelectedCouncilRunId);
         if (SelectedCouncilRunId is Guid selectedRunId && CouncilLiveSessions.Get(selectedRunId) is not null)
         {
             RejoinCouncilRunId = selectedRunId;
@@ -2722,6 +2854,7 @@
         ownsLiveCouncilStream = false;
         lastAttachedLiveCouncilUpdatedAtUtc = snapshot.UpdatedAtUtc;
         SelectedCouncilRunId = runId;
+        LoadCouncilRunConfiguration(runId);
         if (!hasUserSelectedSession || string.Equals(ChatClientProvider.SelectedSession?.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
             ChatClientProvider.SelectedSession = councilSession;
 
@@ -2797,6 +2930,7 @@
             isDisposed = true;
             HumanCollaboration.Changed -= OnHumanCollaborationChanged;
             CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
+            CouncilRunConfigurations.Changed -= OnCouncilRunConfigurationChanged;
             componentLifetimeCts.Cancel();
             if (interactiveAttached && DxAiChat is not null)
             {
