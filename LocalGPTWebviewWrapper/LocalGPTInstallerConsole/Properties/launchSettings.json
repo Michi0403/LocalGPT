@@ -1,55 +1,9 @@
 {
   "profiles": {
-    "LocalGPT Default Install and Update": {
-      "commandName": "Project"
-    },
-    "LocalGPT Install Preserving Data": {
+    "LocalGPTInstallerConsole": {
       "commandName": "Project",
-      "commandLineArgs": "--install-localgpt --install-ollama --pull-models --range Slim --shortcuts --start-localgpt"
-    },
-    "LocalGPT Update Preserving Data": {
-      "commandName": "Project",
-      "commandLineArgs": "--install-localgpt --shortcuts --start-localgpt"
-    },
-    "LocalGPT Start": {
-      "commandName": "Project",
-      "commandLineArgs": "--start-localgpt"
-    },
-    "LocalGPT Start without Browser": {
-      "commandName": "Project",
-      "commandLineArgs": "--start-localgpt --no-browser"
-    },
-    "LocalGPT Install Ollama": {
-      "commandName": "Project",
-      "commandLineArgs": "--install-ollama"
-    },
-    "LocalGPT Pull Slim Models": {
-      "commandName": "Project",
-      "commandLineArgs": "--pull-models --range Slim"
-    },
-    "LocalGPT Pull RTX 3060 Models": {
-      "commandName": "Project",
-      "commandLineArgs": "--pull-models --range RTX3060"
-    },
-    "LocalGPT Pull Full Models": {
-      "commandName": "Project",
-      "commandLineArgs": "--pull-models --range Full"
-    },
-    "LocalGPT Setup Learning Base": {
-      "commandName": "Project",
-      "commandLineArgs": "--setup-learning-base"
-    },
-    "LocalGPT Import Recommended Sources": {
-      "commandName": "Project",
-      "commandLineArgs": "--import-recommended"
-    },
-    "LocalGPT Uninstall Preview": {
-      "commandName": "Project",
-      "commandLineArgs": "--uninstall"
-    },
-    "LocalGPT Uninstall Explicit Delete": {
-      "commandName": "Project",
-      "commandLineArgs": "--uninstall --force-delete"
+      "commandLineArgs": "--install-ollama --install-localgpt --force-delete --start-localgpt --shortcuts",
+      "workingDirectory": "C:\\Users\\micha\\Documents\\Codex\\2026-06-01\\can-we-work-my-own-repository\\localgpt\\LocalGPTWebviewWrapper\\LocalGPTInstallerConsole\\bin\\Debug\\net10.0"
     }
   }
 }

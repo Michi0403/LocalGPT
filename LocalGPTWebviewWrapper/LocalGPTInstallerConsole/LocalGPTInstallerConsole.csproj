@@ -1,81 +1,47 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>2.0.1</Version>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <InvariantGlobalization>true</InvariantGlobalization>
 	<AssemblyName>LocalGPTInstallerConsole</AssemblyName>
-	  <RuntimeIdentifiers>
-		  win-x64;
-		  win-x86;
-		  win-arm64;
-		  linux-x64;
-		  linux-arm64;
-		  osx-x64;
-		  osx-arm64
-	  </RuntimeIdentifiers>
-    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
-    <PublishSingleFile>false</PublishSingleFile>
-    <PublishTrimmed>false</PublishTrimmed>
-    <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The wildcard keeps future reviewed launchers deployable. The explicit entries are the stable, architecture-reviewed launcher inventory. -->
-    <None Update="*.cmd" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
-    <None Update="Default.cmd">
+    <None Update="Force-Delete-Repull-LB-Slim-Model.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Update="Install.cmd">
+    <None Update="Install-Force-Delete-Start.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Update="Update.cmd">
+    <None Update="LocalGPT-Install-Start.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Update="Start.cmd">
+    <None Update="Pull-Models-RTX306012GSet.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Update="Start-NoBrowser.cmd">
+    <None Update="Pull-Models-RX7900XTXSet.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-    </None>
-    <None Update="Install-Ollama.cmd">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
     <None Update="Pull-Models-Slim.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Update="Pull-Models-RTX3060.cmd">
+    <None Update="Start.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Update="Pull-Models-Full.cmd">
+    <None Update="Uninstall-LocalGPT-DryRun.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Update="Setup-Learning-Base.cmd">
+    <None Update="Uninstall-LocalGPT-Force-Delete.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Update="Import-Recommended.cmd">
+    <None Update="Update-Default-Learnbase.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-    </None>
-    <None Update="Uninstall.cmd">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 
