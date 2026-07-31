@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using LocalGPT.Services;
 @inject NavigationUrlService NavigationUrls
 @inject NavigationManager NavigationManager
@@ -8,7 +9,9 @@
 @inject IComponentActivityService ComponentActivity
 
 <div class="page" data-testid="main-layout">
-    <Drawer DrawerHeader="drawerHeader" DrawerFooter="drawerFooter">
+    <Drawer DrawerHeader="drawerHeader"
+            DrawerFooter="drawerFooter"
+            CssClass="@(IsChatPage ? "navigation-drawer chat-navigation-drawer" : "navigation-drawer")">
         <DrawerBody>
             <div class="w-100">
                 <MenuIsland></MenuIsland>
@@ -18,7 +21,7 @@
         </DrawerBody>
         <DrawerTarget>
     
-            <article id="current-main-window" class="p-4 full-height" data-testid="main-content">
+            <article id="current-main-window" class="p-4 full-height @(IsChatPage ? "chat-main-window" : string.Empty)" data-testid="main-content">
                 <div class="nav-buttons-container drawer-target">
 
                     <NavLink data-enhance-nav="false" href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
@@ -51,6 +54,19 @@
 @code {
     [SupplyParameterFromQuery(Name = NavigationUrlService.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
+
+    private bool IsChatPage =>
+        string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/Chat", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => NavigationManager.LocationChanged -= OnLocationChanged;
 
     protected override void OnParametersSet()
     {

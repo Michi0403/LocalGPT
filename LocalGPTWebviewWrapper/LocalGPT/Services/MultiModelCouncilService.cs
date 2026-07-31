@@ -123,6 +123,7 @@ namespace LocalGPT.Services
                     ollamaNumGpu);
                 var result = new MultiModelCouncilResult
                 {
+                    RunId = request.RunId,
                     Prompt = request.Prompt.Trim(),
                     ModelNames = participants,
                     CouncilTeamKey = request.CouncilTeamKey,
@@ -1257,6 +1258,8 @@ namespace LocalGPT.Services
                                 monitorCts.Token)
                             : Task.CompletedTask;
 
+                        IReadOnlyList<HumanCouncilContribution>? liveContributions = null;
+                        var streamCompletedWithoutLiveInput = false;
                         try
                         {
                             await foreach (var update in client.GetStreamingResponseAsync(
@@ -1273,53 +1276,29 @@ namespace LocalGPT.Services
                                 streamUpdate?.Invoke(update.Text);
                             }
 
-                            finalAttemptContent = attemptBuilder.ToString();
-                            break;
+                            // A user message can arrive after Ollama emitted its last token but before
+                            // LocalGPT has finalized the participant. Give the synchronous service
+                            // notification a short grace window and honor it instead of silently
+                            // accepting the old answer.
+                            if (!liveInputSignal.Task.IsCompleted)
+                            {
+                                await Task.WhenAny(
+                                    liveInputSignal.Task,
+                                    Task.Delay(TimeSpan.FromMilliseconds(250), CancellationToken.None))
+                                    .ConfigureAwait(false);
+                            }
+
+                            if (liveInputSignal.Task.IsCompletedSuccessfully)
+                                liveContributions = await liveInputSignal.Task.ConfigureAwait(false);
+                            else
+                                streamCompletedWithoutLiveInput = true;
                         }
                         catch (OperationCanceledException) when (
                             liveInputSignal.Task.IsCompletedSuccessfully &&
                             !participantCts.IsCancellationRequested &&
                             !cancellationToken.IsCancellationRequested)
                         {
-                            var contributions = await liveInputSignal.Task.ConfigureAwait(false);
-                            foreach (var contribution in contributions)
-                                observedContributionIds.Add(contribution.Id);
-
-                            liveInputRestarts++;
-                            if (liveInputRestarts > maximumLiveInputRestarts)
-                            {
-                                logger.LogWarning(
-                                    "Stopped live-input restarts for Council model {ModelName} after {RestartCount} interruptions in {Phase}.",
-                                    modelName,
-                                    maximumLiveInputRestarts,
-                                    phase);
-                                finalAttemptContent = attemptBuilder.ToString();
-                                break;
-                            }
-
-                            var partial = attemptBuilder.ToString();
-                            if (!string.IsNullOrWhiteSpace(partial))
-                            {
-                                messages.Add(new ChatMessage(
-                                    ChatRole.Assistant,
-                                    "Partial response produced before the user interrupted this model:\n\n" +
-                                    LimitLiveCouncilContext(partial, 24_000)));
-                            }
-
-                            messages.Add(new ChatMessage(
-                                ChatRole.User,
-                                BuildLiveCouncilInterruptionPrompt(contributions)));
-
-                            var deliveredMessageCount = contributions.Count;
-                            streamUpdate?.Invoke(
-                                $"\n\n> **Live user input delivered to {WebUtility.HtmlEncode(modelName)}.** " +
-                                $"LocalGPT paused this model's open Ollama stream, added {deliveredMessageCount} new user message(s) to its prompt, and restarted the same model. " +
-                                "The next visible tokens are generated with that input present.\n\n");
-                            logger.LogInformation(
-                                "Restarting Council model {ModelName} in phase {Phase} after receiving {ContributionCount} live user message(s).",
-                                modelName,
-                                phase,
-                                contributions.Count);
+                            liveContributions = await liveInputSignal.Task.ConfigureAwait(false);
                         }
                         finally
                         {
@@ -1335,6 +1314,51 @@ namespace LocalGPT.Services
                             if (streamPanelOpened)
                                 streamUpdate?.Invoke($"\n\n</details><!--localgpt-council-stream-complete:{streamId}-->\n\n");
                         }
+
+                        if (streamCompletedWithoutLiveInput || liveContributions is null || liveContributions.Count == 0)
+                        {
+                            finalAttemptContent = attemptBuilder.ToString();
+                            break;
+                        }
+
+                        foreach (var contribution in liveContributions)
+                            observedContributionIds.Add(contribution.Id);
+
+                        liveInputRestarts++;
+                        if (liveInputRestarts > maximumLiveInputRestarts)
+                        {
+                            logger.LogWarning(
+                                "Stopped live-input restarts for Council model {ModelName} after {RestartCount} interruptions in {Phase}.",
+                                modelName,
+                                maximumLiveInputRestarts,
+                                phase);
+                            finalAttemptContent = attemptBuilder.ToString();
+                            break;
+                        }
+
+                        var partial = attemptBuilder.ToString();
+                        if (!string.IsNullOrWhiteSpace(partial))
+                        {
+                            messages.Add(new ChatMessage(
+                                ChatRole.Assistant,
+                                "Partial response produced before the user interrupted this model:\n\n" +
+                                LimitLiveCouncilContext(partial, 24_000)));
+                        }
+
+                        messages.Add(new ChatMessage(
+                            ChatRole.User,
+                            BuildLiveCouncilInterruptionPrompt(liveContributions)));
+
+                        var deliveredMessageCount = liveContributions.Count;
+                        streamUpdate?.Invoke(
+                            $"> **Live user input delivered to {WebUtility.HtmlEncode(modelName)}.** " +
+                            $"LocalGPT added {deliveredMessageCount} new user message(s) to this model's prompt and restarted the same model. " +
+                            "The following continuation is generated with that input present.\n\n");
+                        logger.LogInformation(
+                            "Restarting Council model {ModelName} in phase {Phase} after receiving {ContributionCount} live user message(s).",
+                            modelName,
+                            phase,
+                            liveContributions.Count);
                     }
 
                     var content = allContent.ToString();
@@ -1463,48 +1487,41 @@ namespace LocalGPT.Services
             CancellationTokenSource streamCancellation,
             CancellationToken cancellationToken)
         {
-            using var changedSignal = new SemaphoreSlim(0, 1);
-
-            void OnCollaborationChanged()
+            void Deliver(HumanCouncilContribution contribution)
             {
-                try
+                if (contribution.CouncilRunId != councilRunId ||
+                    contribution.EarliestCouncilRound > currentRound ||
+                    observedContributionIds.Contains(contribution.Id))
                 {
-                    changedSignal.Release();
+                    return;
                 }
-                catch (SemaphoreFullException)
-                {
-                    // A change is already pending; coalesce duplicate notifications.
-                }
+
+                if (signal.TrySetResult([contribution]))
+                    streamCancellation.Cancel();
             }
 
-            humanCollaboration.Changed += OnCollaborationChanged;
+            humanCollaboration.DirectUserMessageQueued += Deliver;
             try
             {
-                while (!cancellationToken.IsCancellationRequested)
+                // Catch a message persisted immediately before this model subscribed. This is
+                // the only database read performed by the active-stream monitor; subsequent
+                // delivery is event-driven and does not compete with Ollama or Blazor rendering.
+                var queued = await humanCollaboration
+                    .ReadQueuedContributionsAsync(councilRunId, currentRound, cancellationToken)
+                    .ConfigureAwait(false);
+                var unseenDirectMessages = queued
+                    .Where(item =>
+                        item.HumanRole.Equals("Direct user message", StringComparison.OrdinalIgnoreCase) &&
+                        !observedContributionIds.Contains(item.Id))
+                    .ToList();
+                if (unseenDirectMessages.Count > 0)
                 {
-                    var queued = await humanCollaboration
-                        .ReadQueuedContributionsAsync(councilRunId, currentRound, cancellationToken)
-                        .ConfigureAwait(false);
-                    var unseen = queued
-                        .Where(item => !observedContributionIds.Contains(item.Id))
-                        .ToList();
-                    if (unseen.Count > 0)
-                    {
-                        signal.TrySetResult(unseen);
+                    if (signal.TrySetResult(unseenDirectMessages))
                         streamCancellation.Cancel();
-                        return;
-                    }
-
-                    var wasSignaled = await changedSignal
-                        .WaitAsync(TimeSpan.FromSeconds(2), cancellationToken)
-                        .ConfigureAwait(false);
-                    if (wasSignaled)
-                    {
-                        // Coalesce rapid UI/database notifications and give the active stream,
-                        // renderer, and unrelated background work a cooperative scheduling window.
-                        await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken).ConfigureAwait(false);
-                    }
+                    return;
                 }
+
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -1518,7 +1535,7 @@ namespace LocalGPT.Services
             }
             finally
             {
-                humanCollaboration.Changed -= OnCollaborationChanged;
+                humanCollaboration.DirectUserMessageQueued -= Deliver;
             }
         }
 

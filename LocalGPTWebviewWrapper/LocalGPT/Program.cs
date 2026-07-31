@@ -284,6 +284,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IHumanApprovalExecutionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
                 builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
                 builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
+                builder.Services.AddSingleton<IOllamaProcessService, OllamaProcessService>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
                 builder.Services.AddSingleton<IArtifactBuildExecutor, ArtifactBuildExecutor>();
                 builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
@@ -339,6 +340,7 @@ namespace LocalGPT
 
                 builder.Services.AddSingleton<IOrganicCouncilBlueprintSeedDataService, OrganicCouncilBlueprintSeedDataService>();
                 builder.Services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
+                builder.Services.AddSingleton<ICouncilLiveSessionService, CouncilLiveSessionService>();
                 builder.Services.AddSingleton<IDeferredDxAiInvocationService, DeferredDxAiInvocationService>();
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();

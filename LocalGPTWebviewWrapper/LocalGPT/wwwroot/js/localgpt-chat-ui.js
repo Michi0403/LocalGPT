@@ -106,75 +106,41 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
 
     const slowScrollStates = new WeakMap();
 
-    function findScrollRegion(host, composer) {
-        try {
-            const chatRoot = host.querySelector('.demo-chat') || host;
-            const candidates = [...chatRoot.querySelectorAll('*')]
-                .filter(element => {
-                    if (!(element instanceof HTMLElement)
-                        || composer?.contains(element)
-                        || (composer instanceof HTMLElement && element.contains(composer))) return false;
-                    const style = getComputedStyle(element);
-                    return /(auto|scroll)/i.test(style.overflowY)
-                        && element.clientHeight >= 120
-                        && element.scrollHeight > element.clientHeight + 8;
-                })
-                .sort((left, right) => (right.clientHeight * right.clientWidth) - (left.clientHeight * left.clientWidth));
-            return candidates[0] || null;
-        } catch (error) {
-            diagnostics.report('localgpt-chat-ui.findScrollRegion', error);
-            throw error;
-        }
-    }
-
-    function cancelSlowFollow(state) {
-        try {
-            state.follow = false;
-            state.userInteracting = true;
-            state.displayTop = state.region.scrollTop;
-            if (state.frame) cancelAnimationFrame(state.frame);
-            state.frame = 0;
-        } catch (error) {
-            diagnostics.report('localgpt-chat-ui.cancelSlowFollow', error);
-            throw error;
-        }
-    }
-
     function bindSlowScroll(host, region) {
         try {
             let state = slowScrollStates.get(host);
             if (state?.region === region) return state;
-            if (state?.frame) cancelAnimationFrame(state.frame);
 
             state = {
                 region,
-                displayTop: region.scrollTop,
-                targetTop: Math.max(0, region.scrollHeight - region.clientHeight),
                 frame: 0,
                 follow: region.scrollHeight - region.clientHeight - region.scrollTop < 96,
                 userInteracting: false
             };
             slowScrollStates.set(host, state);
 
-            const beginUserScroll = diagnostics.guard('localgpt-chat-ui.slowScroll.userInput', () => cancelSlowFollow(state));
+            const beginUserScroll = diagnostics.guard('localgpt-chat-ui.scroll.userInput', () => {
+                state.userInteracting = true;
+                state.follow = false;
+                if (state.frame) cancelAnimationFrame(state.frame);
+                state.frame = 0;
+            });
+            const finishUserScroll = diagnostics.guard('localgpt-chat-ui.scroll.userInputEnd', () => {
+                state.userInteracting = false;
+                state.follow = region.scrollHeight - region.clientHeight - region.scrollTop < 96;
+            });
+
             region.addEventListener('wheel', beginUserScroll, { passive: true });
             region.addEventListener('touchstart', beginUserScroll, { passive: true });
             region.addEventListener('pointerdown', beginUserScroll, { passive: true });
-            region.addEventListener('keydown', diagnostics.guard('localgpt-chat-ui.slowScroll.keydown', event => {
-                if (/ArrowUp|ArrowDown|PageUp|PageDown|Home|End|Space/.test(event.code)) cancelSlowFollow(state);
+            region.addEventListener('pointerup', finishUserScroll, { passive: true });
+            region.addEventListener('touchend', finishUserScroll, { passive: true });
+            region.addEventListener('keydown', diagnostics.guard('localgpt-chat-ui.scroll.keydown', event => {
+                if (/ArrowUp|ArrowDown|PageUp|PageDown|Home|End|Space/.test(event.code)) beginUserScroll();
             }));
-            region.addEventListener('scroll', diagnostics.guard('localgpt-chat-ui.slowScroll.scroll', () => {
-                if (!state.userInteracting) return;
-                state.displayTop = region.scrollTop;
-                state.follow = region.scrollHeight - region.clientHeight - region.scrollTop < 96;
-            }), { passive: true });
-            region.addEventListener('pointerup', diagnostics.guard('localgpt-chat-ui.slowScroll.pointerup', () => {
-                state.userInteracting = false;
-                state.follow = region.scrollHeight - region.clientHeight - region.scrollTop < 96;
-            }), { passive: true });
-            region.addEventListener('touchend', diagnostics.guard('localgpt-chat-ui.slowScroll.touchend', () => {
-                state.userInteracting = false;
-                state.follow = region.scrollHeight - region.clientHeight - region.scrollTop < 96;
+            region.addEventListener('scroll', diagnostics.guard('localgpt-chat-ui.scroll.scroll', () => {
+                if (state.userInteracting)
+                    state.follow = region.scrollHeight - region.clientHeight - region.scrollTop < 96;
             }), { passive: true });
             return state;
         } catch (error) {
@@ -186,45 +152,20 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     function scheduleSlowFollow(host, region) {
         try {
             const state = bindSlowScroll(host, region);
-            if (!state || state.userInteracting || !state.follow) return;
+            if (!state || state.userInteracting || !state.follow || state.frame) return;
 
-            state.targetTop = Math.max(0, region.scrollHeight - region.clientHeight);
-            if (state.frame) return;
-
-            let lastFrame = performance.now();
-            const step = diagnostics.guard('localgpt-chat-ui.slowScroll.step', now => {
-                if (state.userInteracting || !state.follow) {
-                    state.frame = 0;
-                    return;
-                }
-
-                state.targetTop = Math.max(0, region.scrollHeight - region.clientHeight);
-                const current = region.scrollTop;
-                const remaining = state.targetTop - current;
-                if (Math.abs(remaining) <= 1) {
-                    region.scrollTop = state.targetTop;
-                    state.displayTop = state.targetTop;
-                    state.frame = 0;
-                    return;
-                }
-
-                const elapsed = Math.max(1, now - lastFrame);
-                lastFrame = now;
-                // Move toward the changing bottom target with an approximately six-second
-                // time constant. Never rewind the viewport to an older stored position.
-                const fraction = 1 - Math.exp(-elapsed / 6000);
-                const next = current + remaining * Math.max(.0025, fraction);
-                region.scrollTop = next;
-                state.displayTop = next;
-                state.frame = requestAnimationFrame(step);
-            });
-            state.frame = requestAnimationFrame(step);
+            // One coalesced internal-chat update per DOM render. There is no timer loop,
+            // no page scrolling and no attempt to animate against DevExpress rerenders.
+            state.frame = requestAnimationFrame(diagnostics.guard('localgpt-chat-ui.scroll.followFrame', () => {
+                state.frame = 0;
+                if (state.userInteracting || !state.follow || !state.region.isConnected) return;
+                state.region.scrollTop = Math.max(0, state.region.scrollHeight - state.region.clientHeight);
+            }));
         } catch (error) {
             diagnostics.report('localgpt-chat-ui.scheduleSlowFollow', error);
             throw error;
         }
     }
-
 
     function editorText(editor) {
         try {
@@ -390,7 +331,15 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     && rect.height <= 96
                     && rect.right >= composerRect.right - 120;
             }) || null;
-            (explicitStop || fallbackStop)?.classList.toggle('localgpt-council-stop-hidden', showLiveSend);
+            const stopButton = explicitStop || fallbackStop;
+            stopButton?.classList.toggle('localgpt-council-stop-hidden', showLiveSend);
+            if (stopButton instanceof HTMLElement && stopButton.dataset.localgptCouncilStopBound !== 'true') {
+                stopButton.dataset.localgptCouncilStopBound = 'true';
+                stopButton.addEventListener('click', diagnostics.guard('localgpt-chat-ui.councilStop.click', () => {
+                    if (councilComposerActive && councilComposerDotNet)
+                        void councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync');
+                }), { capture: true });
+            }
         } catch (error) {
             diagnostics.report('localgpt-chat-ui.updateCouncilComposer', error);
             throw error;

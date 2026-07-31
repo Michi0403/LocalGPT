@@ -207,3 +207,43 @@
         overflow: auto;
     }
 }
+
+
+/* v24: Chat owns the remaining application viewport. The layout shell, not the
+   Chat component, defines the available height so route headers and article
+   padding cannot create a second browser scrollbar. */
+#current-main-window.chat-main-window {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#current-main-window.chat-main-window > .nav-buttons-container {
+    flex: 0 0 auto;
+}
+
+#current-main-window.chat-main-window ::deep .main-container {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+}
+
+
+/* v24: the route-specific drawer content must not become a second page scroller.
+   Chat owns its viewport and exposes only bounded internal scroll regions. */
+::deep .chat-navigation-drawer > .dxbl-drawer-content {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+}
+
+#current-main-window.chat-main-window {
+    box-sizing: border-box !important;
+}

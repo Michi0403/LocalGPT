@@ -1219,3 +1219,122 @@
         border-radius: .82rem !important;
     }
 }
+
+/* v24: one viewport contract for both idle and running Chat states.
+   The application shell owns the browser viewport; configuration, transcript and
+   session tools scroll only inside their own bounded rows. */
+.main-container,
+.main-container.chat-session-active {
+    display: grid !important;
+    grid-template-rows: auto auto minmax(0, 1fr) auto !important;
+    align-content: stretch !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    gap: .55rem !important;
+    padding: .55rem .75rem .65rem !important;
+}
+
+.chat-primary-actions,
+.chat-configuration-ribbon,
+.chat-session-tools-ribbon {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.chat-configuration-ribbon[open] {
+    max-height: min(42dvh, 30rem) !important;
+    overflow: hidden !important;
+}
+
+.chat-configuration-content {
+    max-height: calc(min(42dvh, 30rem) - 3.1rem) !important;
+    overflow: auto !important;
+    overscroll-behavior: contain;
+}
+
+#localgpt-chat-host,
+.chat-session-active #localgpt-chat-host {
+    grid-row: 3;
+    align-self: stretch;
+    display: flex !important;
+    flex: none !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+}
+
+#localgpt-chat-host > .demo-chat,
+#localgpt-chat-host .demo-chat,
+.chat-session-active #localgpt-chat-host > .demo-chat,
+.chat-session-active #localgpt-chat-host .demo-chat,
+#localgpt-chat-host > .localgpt-chat-root,
+#localgpt-chat-host .localgpt-chat-root {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+}
+
+.demo-chat ::deep .localgpt-chat-scroll-region {
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    overflow-anchor: none;
+}
+
+.demo-chat ::deep .localgpt-prompt-suggestions {
+    flex: 0 0 auto !important;
+    max-height: 5.8rem !important;
+}
+
+.demo-chat ::deep .localgpt-chat-composer {
+    flex: 0 0 auto !important;
+    min-height: 3.8rem !important;
+    max-height: 8.4rem !important;
+}
+
+.chat-session-tools-ribbon[open] {
+    max-height: min(24dvh, 13rem) !important;
+    overflow: hidden !important;
+}
+
+.chat-session-tools-content {
+    max-height: calc(min(24dvh, 13rem) - 2.8rem) !important;
+    overflow: auto !important;
+}
+
+@media (max-height: 760px) {
+    .main-container,
+    .main-container.chat-session-active {
+        height: 100% !important;
+        max-height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    .chat-configuration-ribbon[open] { max-height: 34dvh !important; }
+    .chat-configuration-content { max-height: calc(34dvh - 3.1rem) !important; }
+}
+
+@media (max-width: 680px) {
+    .main-container,
+    .main-container.chat-session-active {
+        height: 100% !important;
+        max-height: 100% !important;
+        min-height: 0 !important;
+        padding: .4rem !important;
+    }
+}

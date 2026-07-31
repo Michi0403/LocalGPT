@@ -15,6 +15,7 @@ public sealed partial class CouncilChatClient(
     CouncilRuntimeService councilRuntime,
     CouncilTextService councilText,
     LocalGptCatalogService catalog,
+    ICouncilLiveSessionService liveSessions,
     Func<string, string>? downloadUrlResolver = null) : IChatClient
 {
 
@@ -56,36 +57,40 @@ public sealed partial class CouncilChatClient(
             SingleWriter = false,
             AllowSynchronousContinuations = false
         });
+        var attached = 1;
+
+        var request = CreateRequest(messages);
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.ModelNames.Count == 0)
+        {
+            yield return councilRuntime.CreateUpdate(
+                "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.",
+                logger);
+            yield break;
+        }
+
+        var introduction = $"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Thinking and answer text are streamed to this panel as soon as each local model emits them._\n\n";
+        var liveCancellation = liveSessions.Begin(request.RunId, request.ModelNames, introduction);
+
+        void Publish(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+            liveSessions.Append(request.RunId, text);
+            if (Volatile.Read(ref attached) == 1)
+                updates.Writer.TryWrite(text);
+        }
+
+        request.ProgressMessage = message => Publish($"_Council status: {message}_\n\n");
+        request.StreamUpdate = Publish;
+        request.StepCompleted = step => Publish(councilRuntime.FormatStepProgress(step, logger));
+
+        yield return councilRuntime.CreateUpdate(introduction, logger);
+        var startedAt = DateTimeOffset.UtcNow;
+        var runTask = RunCouncilInBackgroundAsync(request, liveCancellation, updates.Writer, Publish);
 
         try
         {
-            var request = CreateRequest(messages);
-            ArgumentNullException.ThrowIfNull(request);
-            if (request.ModelNames.Count == 0)
-            {
-                yield return councilRuntime.CreateUpdate(
-                    "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.",
-                    logger);
-                yield break;
-            }
-
-            yield return councilRuntime.CreateUpdate(
-                $"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Thinking and answer text are streamed to this panel as soon as each local model emits them._\n\n",
-                logger);
-
-            request.ProgressMessage = message =>
-                updates.Writer.TryWrite($"_Council status: {message}_\n\n");
-            request.StreamUpdate = text =>
-            {
-                if (!string.IsNullOrEmpty(text))
-                    updates.Writer.TryWrite(text);
-            };
-            request.StepCompleted = step =>
-                updates.Writer.TryWrite(councilRuntime.FormatStepProgress(step, logger));
-
-            var startedAt = DateTimeOffset.UtcNow;
-            var runTask = councilService.RunAsync(request, cancellationToken);
-
             while (!runTask.IsCompleted)
             {
                 while (updates.Reader.TryRead(out var update))
@@ -102,39 +107,57 @@ public sealed partial class CouncilChatClient(
 
                 if (completed == heartbeat)
                 {
-                    yield return councilRuntime.CreateUpdate(
-                        $"_Council still running after {(int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds}s. Waiting for local model output..._\n\n",
-                        logger);
+                    var heartbeatText = $"_Council still running after {(int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds}s. Waiting for local model output..._\n\n";
+                    liveSessions.Append(request.RunId, heartbeatText);
+                    yield return councilRuntime.CreateUpdate(heartbeatText, logger);
                 }
             }
 
             while (updates.Reader.TryRead(out var update))
                 yield return councilRuntime.CreateUpdate(update, logger);
-
-            MultiModelCouncilResult result;
-            try
-            {
-                result = await runTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                yield break;
-            }
-
-            if (result is null)
-            {
-                yield return councilRuntime.CreateUpdate(
-                    "The AI Council ended without a result. Review the LocalGPT log for the failed council phase.",
-                    logger);
-                yield break;
-            }
-
-            yield return councilRuntime.CreateUpdate(FormatResult(result, includeProcess: false), logger);
         }
         finally
         {
-            updates.Writer.TryComplete();
-            logger.LogInformation("AI Council streaming response ended.");
+            Interlocked.Exchange(ref attached, 0);
+            logger.LogInformation(
+                "AI Council DXChat stream detached for run {RunId}; the Council runtime remains owned by the live-session service until completion or explicit stop.",
+                request.RunId);
+        }
+    }
+
+    private async Task<MultiModelCouncilResult?> RunCouncilInBackgroundAsync(
+        MultiModelCouncilRequest request,
+        CancellationToken cancellationToken,
+        ChannelWriter<string> writer,
+        Action<string> publish)
+    {
+        try
+        {
+            var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
+            if (result is null)
+            {
+                publish("The AI Council ended without a result. Review the LocalGPT log for the failed council phase.");
+                return null;
+            }
+
+            publish(FormatResult(result, includeProcess: false));
+            return result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            publish("_The AI Council run was stopped by an explicit user action._\n\n");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "AI Council background execution failed for run {RunId}.", request.RunId);
+            publish("The AI Council could not complete this response. Review LocalGPT application logs, verify the selected local models, and try again.");
+            return null;
+        }
+        finally
+        {
+            liveSessions.Complete(request.RunId);
+            writer.TryComplete();
         }
     }
 

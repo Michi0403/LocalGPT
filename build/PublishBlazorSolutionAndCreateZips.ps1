@@ -2,8 +2,8 @@
     [string]$OutputRoot = "./publish-output",
     [string]$AddBrain = "y", 
     [string]$answerPushWildlyToGithub = "y", 
-    [string]$inputversion = "0.0.8-alpha1" 
-
+    [string]$inputversion = "0.0.8-alpha1",
+    [switch]$Overwrite
 )
 function New-DevMicroserviceCertificate {
     [CmdletBinding()]
@@ -319,88 +319,71 @@ New-DevMicroserviceCertificate `
     -DnsNames @("localhost", "localgptbymichi0403.local","127.0.0.1") `
     -TrustLocally
 # -----------------------------
-# 1. Liste der Publish-Profile
+# Publish through the checked-in .pubxml profiles.
+# The application and installer profiles own configuration, runtime, platform,
+# self-contained/single-file policy and output folders.
 # -----------------------------
+$repositoryRoot = Split-Path -Parent $PSScriptRoot
+$appProjectPath = Join-Path $repositoryRoot "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj"
+$setupProjectPath = Join-Path $repositoryRoot "LocalGPTWebviewWrapper/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj"
+$appProfileRoot = Join-Path (Split-Path -Parent $appProjectPath) "Properties/PublishProfiles"
+$setupProfileRoot = Join-Path (Split-Path -Parent $setupProjectPath) "Properties/PublishProfiles"
+$releaseRoot = Join-Path $repositoryRoot "artifacts/release"
 $profiles = @(
-    # linux64
-    @{
-        arch = "linux-x64"
-        PublishDir = "../build/publish-output/linux64"
-    }
-
-    # linuxarm64
-    @{
-        arch = "linux-arm64"
-        PublishDir = "../build/publish-output/linuxarm64"
-    }
-
-    # maxosx64
-    @{
-        arch = "osx-x64"
-        PublishDir = "../build/publish-output/maxosx64"
-    }
-
-    # maxosx64arm
-    @{
-        arch = "osx-arm64"
-        PublishDir = "../build/publish-output/maxosx64arm"
-    }
-
-    # winarm64
-    @{
-        arch = "win-arm64"
-        PublishDir = "../build/publish-output/winarm64"
-    }
-
-    # linuxarm64
-    @{
-        arch = "win-x64"
-        PublishDir = "../build/publish-output/winx64"
-    }
+    @{ Profile = "linuxx64";   AppFolder = "linuxx64";   SetupFolder = "setuplinuxx64" },
+    @{ Profile = "linuxarm64"; AppFolder = "linuxarm64"; SetupFolder = "setuplinuxarm64" },
+    @{ Profile = "macosx64";   AppFolder = "macosx64";   SetupFolder = "setupmacosx64" },
+    @{ Profile = "macosarm64"; AppFolder = "macosarm64"; SetupFolder = "setupmacosarm64" },
+    @{ Profile = "winx64";     AppFolder = "winx64";     SetupFolder = "setupwinx64" },
+    @{ Profile = "winx86";     AppFolder = "winx86";     SetupFolder = "setupwinx86" },
+    @{ Profile = "winarm64";   AppFolder = "winarm64";   SetupFolder = "setupwinarm64" }
 )
 
-# -----------------------------
-# 2. Start
-# -----------------------------
-Write-Host "Starting multi-profile publish..." -ForegroundColor Cyan
-
+Write-Host "Starting publish through LocalGPT and installer publish profiles..." -ForegroundColor Cyan
 foreach ($profile in $profiles) {
+    $profileName = $profile.Profile
+    $appProfilePath = Join-Path $appProfileRoot "$profileName.pubxml"
+    $setupProfilePath = Join-Path $setupProfileRoot "$profileName.pubxml"
+    $appPublishDir = Join-Path $releaseRoot $profile.AppFolder
+    $setupPublishDir = Join-Path $releaseRoot $profile.SetupFolder
 
-    $arch = $profile.arch
-    $publishDir = $profile.PublishDir
-
-    if (-not (Test-Path $profilePath)) {
-        Write-Host "❌ Profile not found: $profilePath" -ForegroundColor Red
-        continue
+    foreach ($profilePath in @($appProfilePath, $setupProfilePath)) {
+        if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
+            throw "Publish profile not found: $profilePath"
+        }
     }
 
-
-    if ($Overwrite -and (Test-Path $publishDir)) {
-        Remove-Item -Recurse -Force $publishDir
+    if ($Overwrite) {
+        Remove-Item -LiteralPath $appPublishDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $setupPublishDir -Recurse -Force -ErrorAction SilentlyContinue
     }
-    $projectPath = "../LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj"
-    # dotnet publish Befehl
-    $cmd = "dotnet publish $projectPath -c Release -f net10.0 -r $arch --self-contained true -p:PublishTrimmed=false -p:PublishDir=$publishDir -p:DeleteExistingFiles=true -p:ExcludeApp_Data=false -p:LaunchSiteAfterPublish=true -o $publishDir"
 
-
-    Write-Host "📦 Publishing $name..." -ForegroundColor Yellow
-    Write-Host "→ $($cmd -join ' ')" -ForegroundColor DarkGray
-   
-    # Ausführen
-    $result = powershell $cmd
-
+    Write-Host "Publishing LocalGPT $($profile.AppFolder) through profile $profileName..." -ForegroundColor Yellow
+    & dotnet publish $appProjectPath "-p:PublishProfile=$profileName"
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Failed: $name" -ForegroundColor Red
-        continue
+        throw "Publishing LocalGPT through profile $profileName failed with exit code $LASTEXITCODE."
     }
 
-    Write-Host "✅ Done: $name → $publishDir" -ForegroundColor Green
-    $targetZip = Join-Path $OutputRoot "$name.zip"
-    Compress-Archive -Path "$publishDir\*" -DestinationPath $targetZip -Force
-    Write-Host "✅ Done ZIP: $name → $targetZip" -ForegroundColor Green
+    Write-Host "Publishing installer $($profile.SetupFolder) through profile $profileName..." -ForegroundColor Yellow
+    & dotnet publish $setupProjectPath "-p:PublishProfile=$profileName"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Publishing the installer through profile $profileName failed with exit code $LASTEXITCODE."
+    }
+
+    foreach ($output in @(
+        @{ Folder = $appPublishDir; Zip = "$($profile.AppFolder).zip" },
+        @{ Folder = $setupPublishDir; Zip = "$($profile.SetupFolder).zip" }
+    )) {
+        if (-not (Test-Path -LiteralPath $output.Folder -PathType Container)) {
+            throw "Profile $profileName did not create its declared release folder: $($output.Folder)"
+        }
+        $targetZip = Join-Path $OutputRoot $output.Zip
+        Compress-Archive -Path (Join-Path $output.Folder "*") -DestinationPath $targetZip -Force
+        Write-Host "Created $targetZip from profile-owned output $($output.Folder)" -ForegroundColor Green
+    }
 }
 
-Write-Host "🎉 All profiles processed." -ForegroundColor Cyan
+Write-Host "All LocalGPT application and installer publish profiles completed." -ForegroundColor Cyan
 if ($AddBrain -notmatch '^(Y|y|1|J|j)$') 
 {
     $AddBrain = Read-Host "Do you want to add brain to Release?"

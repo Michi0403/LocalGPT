@@ -20,6 +20,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     private readonly ConcurrentDictionary<Guid, HumanCouncilRunSnapshot> activeRuns = new();
 
     public event Action? Changed;
+    public event Action<HumanCouncilContribution>? DirectUserMessageQueued;
 
     public async Task<HumanCollaborationSnapshot> GetSnapshotAsync(
         bool includeResolved = true,
@@ -429,6 +430,8 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         db.HumanCouncilContributions.Add(contribution);
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        if (directUserMessage)
+            NotifyDirectUserMessageQueued(contribution);
         NotifyChanged();
         componentActivity.RecordInformation(
             "HumanCollaboration",
@@ -637,6 +640,24 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     {
         if (!ambientContext.Current.IsTrustedHumanInteraction(vocabulary.Get()))
             throw new InvalidOperationException($"Only the trusted local human UI may {operation}.");
+    }
+
+    private void NotifyDirectUserMessageQueued(HumanCouncilContribution contribution)
+    {
+        var listeners = DirectUserMessageQueued?.GetInvocationList()
+            .Cast<Action<HumanCouncilContribution>>()
+            .ToArray() ?? [];
+        foreach (var listener in listeners)
+        {
+            try
+            {
+                listener(contribution);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "A direct Council user-message listener failed; remaining listeners will still be notified.");
+            }
+        }
     }
 
     private void NotifyChanged()

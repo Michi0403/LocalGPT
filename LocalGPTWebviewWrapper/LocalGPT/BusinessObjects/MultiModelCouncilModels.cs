@@ -4,6 +4,8 @@ namespace LocalGPT.BusinessObjects
 {
     public sealed class MultiModelCouncilRequest
     {
+        public Guid RunId { get; set; } = Guid.NewGuid();
+
         public string Prompt { get; set; } = string.Empty;
 
         public List<string> ModelNames { get; set; } = [];

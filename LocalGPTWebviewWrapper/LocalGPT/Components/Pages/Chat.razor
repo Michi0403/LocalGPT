@@ -23,6 +23,7 @@
 @inject ICouncilTeamConfigurationService CouncilTeamConfigurations
 @inject IChatSessionContext SessionContext
 @inject IHumanCollaborationService HumanCollaboration
+@inject ICouncilLiveSessionService CouncilLiveSessions
 @inject ILocalHumanInteractionContext HumanAmbientContext
 @implements IDisposable
 @inject ILogger<Chat> Logger
@@ -599,6 +600,12 @@
     bool isDisposed;
     HumanCollaborationSnapshot collaborationSnapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
     Guid? SelectedCouncilRunId { get; set; }
+    Guid? RejoinCouncilRunId { get; set; }
+    Guid? AttachedLiveCouncilRunId { get; set; }
+    int liveCouncilRefreshScheduled;
+    bool ownsLiveCouncilStream;
+    DateTime lastAttachedLiveCouncilUpdatedAtUtc;
+    const string LiveCouncilMessageMarkerPrefix = "<!-- localgpt-live-council:";
     string SelectedCouncilRunValue => SelectedCouncilRunId?.ToString() ?? string.Empty;
     string ActiveCouncilRunShortId => ActiveCouncilRun?.RunId.ToString("N")[..8] ?? string.Empty;
     string RunningCouncilContribution { get; set; } = string.Empty;
@@ -644,7 +651,7 @@
         try
         {
             Logger.LogDebug($"{nameof(OpenProviderSetup)} is navigating from Chat to provider setup.");
-            NavigationManager.NavigateTo("/install", forceLoad: true);
+            NavigationManager.NavigateTo("/install", forceLoad: false);
         }
         catch (Exception exception)
         {
@@ -659,7 +666,7 @@
         try
         {
             Logger.LogDebug($"{nameof(OpenOneWireSecurity)} is navigating from Chat to 1-Wire Security.");
-            NavigationManager.NavigateTo("/onewire-security", forceLoad: true);
+            NavigationManager.NavigateTo("/onewire-security", forceLoad: false);
         }
         catch (Exception exception)
         {
@@ -674,7 +681,7 @@
         try
         {
             Logger.LogDebug($"{nameof(OpenCouncilTeams)} is navigating from Chat to Council Teams.");
-            NavigationManager.NavigateTo("/council-teams", forceLoad: true);
+            NavigationManager.NavigateTo("/council-teams", forceLoad: false);
         }
         catch (Exception exception)
         {
@@ -694,6 +701,8 @@
             CouncilMaxContextTokens = Catalog.DefaultCouncilContextTokens;
 
             HumanCollaboration.Changed += OnHumanCollaborationChanged;
+            CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
+            RejoinCouncilRunId = CouncilLiveSessions.GetActive().FirstOrDefault()?.RunId;
             await RefreshHumanCollaborationAsync().ConfigureAwait(true);
             ArchitectureUiStack = Catalog.ArchitectureUiStackOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions.FirstOrDefault() ?? string.Empty;
@@ -909,6 +918,9 @@
                 DxAiChat.LoadMessages(initialMessages);
             RefreshFeedbackTargets(initialMessages);
 
+            if (RejoinCouncilRunId is Guid rejoinRunId)
+                await AttachToLiveCouncilSessionAsync(rejoinRunId).ConfigureAwait(true);
+
             StartAutoSaveLoop();
             StartInitialModelRefresh();
             await InvokeAsync(StateHasChanged).ConfigureAwait(true);
@@ -947,6 +959,11 @@
             lastSavedSignature = string.Empty;
             memoryStatus = "New empty chat started.";
             DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
+            RejoinCouncilRunId = null;
+            AttachedLiveCouncilRunId = null;
+            ownsLiveCouncilStream = false;
+            lastAttachedLiveCouncilUpdatedAtUtc = default;
+            SelectedCouncilRunId = null;
             await JS.InvokeVoidAsync("localGptChatUi.clearLiveUserMessages").ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -1216,7 +1233,7 @@
             EnsureDiagnosticOllamaSession(previousMessages);
        
             var councilSession = new ChatClientSession(
-                new CouncilChatClient(CouncilService, CreateCouncilRequest, Logger, CouncilRuntime, CouncilText, Catalog, ResolveCouncilDownloadUrl),
+                new CouncilChatClient(CouncilService, CreateCouncilRequest, Logger, CouncilRuntime, CouncilText, Catalog, CouncilLiveSessions, ResolveCouncilDownloadUrl),
                 Catalog.CouncilSessionName, "LocalGPT", "AI Council", Program.BaseUrl);
             if (previousMessages.TryGetValue(councilSession.Name, out var councilMessages))
                 councilSession.Messages.AddRange(councilMessages);
@@ -1351,7 +1368,7 @@
             var userConfirmedArtifactBuild = GenerateCouncilArtifacts;
             GenerateCouncilArtifacts = false;
 
-            return new MultiModelCouncilRequest
+            var request = new MultiModelCouncilRequest
             {
                 ModelNames = (CouncilRuntime.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
                 BaseUri = selectedEndpoint,
@@ -1375,6 +1392,12 @@
                 ProjectId = SessionContext.ProjectId,
                 CreateProjectForRun = CreateProjectPerCouncilRun
             };
+
+            AttachedLiveCouncilRunId = request.RunId;
+            RejoinCouncilRunId = request.RunId;
+            SelectedCouncilRunId = request.RunId;
+            ownsLiveCouncilStream = true;
+            return request;
         }
         catch (Exception ex)
         {
@@ -2488,9 +2511,14 @@
         }
     }
 
-    private void OnActiveCouncilRunChanged(ChangeEventArgs args)
+    private async Task OnActiveCouncilRunChanged(ChangeEventArgs args)
     {
         SelectedCouncilRunId = Guid.TryParse(args.Value?.ToString(), out var runId) ? runId : null;
+        if (SelectedCouncilRunId is Guid selectedRunId && CouncilLiveSessions.Get(selectedRunId) is not null)
+        {
+            RejoinCouncilRunId = selectedRunId;
+            await AttachToLiveCouncilSessionAsync(selectedRunId).ConfigureAwait(true);
+        }
     }
 
     private async Task EnableHumanParticipationAsync()
@@ -2636,6 +2664,110 @@
         }
     }
 
+
+    private void OnCouncilLiveSessionChanged(Guid runId)
+    {
+        if (isDisposed || (AttachedLiveCouncilRunId != runId && RejoinCouncilRunId != runId))
+            return;
+        if (ownsLiveCouncilStream && AttachedLiveCouncilRunId == runId)
+            return;
+        if (Interlocked.Exchange(ref liveCouncilRefreshScheduled, 1) != 0)
+            return;
+
+        try
+        {
+            TaskRunner.Run(
+                nameof(Chat),
+                "RefreshAttachedLiveCouncilSession",
+                async cancellationToken =>
+                {
+                    try
+                    {
+                        await Task.Delay(750, cancellationToken).ConfigureAwait(false);
+                        if (cancellationToken.IsCancellationRequested || isDisposed)
+                            return;
+                        await InvokeAsync(() => AttachToLiveCouncilSessionAsync(runId)).ConfigureAwait(true);
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref liveCouncilRefreshScheduled, 0);
+                    }
+                },
+                componentLifetimeCts.Token);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            Interlocked.Exchange(ref liveCouncilRefreshScheduled, 0);
+        }
+    }
+
+    private async Task AttachToLiveCouncilSessionAsync(Guid runId)
+    {
+        if (isDisposed || DxAiChat is null || ChatClientProvider is null)
+            return;
+
+        var snapshot = CouncilLiveSessions.Get(runId);
+        if (snapshot is null)
+            return;
+        if (AttachedLiveCouncilRunId == runId && snapshot.UpdatedAtUtc == lastAttachedLiveCouncilUpdatedAtUtc)
+            return;
+
+        var councilSession = ChatClientProvider.AvailableChatClients
+            .FirstOrDefault(session => string.Equals(session.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase));
+        if (councilSession is null)
+            return;
+
+        AttachedLiveCouncilRunId = runId;
+        RejoinCouncilRunId = runId;
+        ownsLiveCouncilStream = false;
+        lastAttachedLiveCouncilUpdatedAtUtc = snapshot.UpdatedAtUtc;
+        SelectedCouncilRunId = runId;
+        if (!hasUserSelectedSession || string.Equals(ChatClientProvider.SelectedSession?.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+            ChatClientProvider.SelectedSession = councilSession;
+
+        var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
+        var content = $"{marker}\n{snapshot.Transcript}";
+        var replacement = new BlazorChatMessage(
+            ChatRole.Assistant,
+            content,
+            new List<AIChatUploadFileInfo>());
+
+        var messageIndex = councilSession.Messages.FindIndex(message =>
+            message.Role == ChatMessageRole.Assistant &&
+            message.Content.Contains(marker, StringComparison.Ordinal));
+        if (messageIndex < 0)
+        {
+            messageIndex = councilSession.Messages.FindLastIndex(message =>
+                message.Role == ChatMessageRole.Assistant &&
+                message.Content.Contains("AI Council started with", StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (messageIndex >= 0)
+            councilSession.Messages[messageIndex] = replacement;
+        else
+            councilSession.Messages.Add(replacement);
+
+        if (ReferenceEquals(ChatClientProvider.SelectedSession, councilSession))
+            DxAiChat.LoadMessages(councilSession.Messages);
+
+        await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+    }
+
+    [JSInvokable]
+    public Task<bool> StopActiveCouncilRunAsync()
+    {
+        var runId = AttachedLiveCouncilRunId
+            ?? SelectedCouncilRunId
+            ?? CouncilLiveSessions.GetActive().FirstOrDefault()?.RunId;
+        if (runId is not Guid activeRunId)
+            return Task.FromResult(false);
+
+        var cancelled = CouncilLiveSessions.Cancel(activeRunId);
+        if (cancelled)
+            ComponentActivity.RecordWarning(nameof(Chat), "StopCouncilRun", "The user explicitly stopped the active Council run.");
+        return Task.FromResult(cancelled);
+    }
+
     private void OnHumanCollaborationChanged()
     {
         if (isDisposed)
@@ -2664,6 +2796,7 @@
 
             isDisposed = true;
             HumanCollaboration.Changed -= OnHumanCollaborationChanged;
+            CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
             componentLifetimeCts.Cancel();
             if (interactiveAttached && DxAiChat is not null)
             {

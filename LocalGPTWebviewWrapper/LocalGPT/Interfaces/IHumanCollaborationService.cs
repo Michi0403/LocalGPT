@@ -5,6 +5,7 @@ namespace LocalGPT.Interfaces;
 public interface IHumanCollaborationService
 {
     event Action? Changed;
+    event Action<HumanCouncilContribution>? DirectUserMessageQueued;
 
     Task<HumanCollaborationSnapshot> GetSnapshotAsync(
         bool includeResolved = true,

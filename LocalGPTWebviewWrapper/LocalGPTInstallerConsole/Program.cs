@@ -355,10 +355,16 @@ internal static class Program
     {
         try
         {
-            logger.LogInformation("Starting Ollama server if it is not already running...");
+            if (WaitForExistingOllamaProcess(TimeSpan.FromSeconds(3)))
+            {
+                logger.LogInformation("An Ollama app or server process is already running. The installer will reuse it instead of starting a duplicate ollama.exe instance.");
+                return;
+            }
+
+            logger.LogInformation("No Ollama process appeared during the duplicate-start guard window. Starting one local Ollama server...");
             try
             {
-                Process.Start(new ProcessStartInfo
+                using var process = Process.Start(new ProcessStartInfo
                 {
                     FileName = ollamaExe,
                     ArgumentList = { "serve" },
@@ -374,9 +380,48 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in StartOllamaServer. ollamaExe {ollamaExe.ToString()}");
+            logger.LogError(ex, "Error while checking or starting the Ollama server; executable paths were omitted from logs.");
             throw;
         }
+    }
+
+    private static bool WaitForExistingOllamaProcess(TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        do
+        {
+            if (IsOllamaProcessRunning())
+                return true;
+            Thread.Sleep(TimeSpan.FromMilliseconds(250));
+        }
+        while (DateTime.UtcNow < deadline);
+
+        return false;
+    }
+
+    private static bool IsOllamaProcessRunning()
+    {
+        foreach (var process in Process.GetProcesses())
+        {
+            using (process)
+            {
+                try
+                {
+                    var normalizedName = new string(process.ProcessName
+                        .Where(char.IsLetterOrDigit)
+                        .Select(char.ToLowerInvariant)
+                        .ToArray());
+                    if (normalizedName is "ollama" or "ollamaapp")
+                        return true;
+                }
+                catch
+                {
+                    // Processes can exit or become inaccessible while enumerating them.
+                }
+            }
+        }
+
+        return false;
     }
 
     private static async Task PullModelsAsync(string ollamaExe, string[] models, ILogger logger)

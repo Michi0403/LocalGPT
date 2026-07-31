@@ -26,14 +26,6 @@ $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]
 $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
 
 
-$multiFileSelfContainedProperties = @(
-    "--self-contained", "true",
-    "-p:PublishTrimmed=false",
-    "-p:PublishSingleFile=false",
-    "-p:PublishReadyToRun=false",
-    "-p:DeleteExistingFiles=true"
-)
-
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
     & dotnet @Arguments
@@ -43,13 +35,13 @@ function Invoke-DotNet {
 function Resolve-ReleaseProfile {
     param([Parameter(Mandatory)][string]$Rid)
     switch ($Rid) {
-        "win-x64"     { return @{ AppFolder = "winx64";     SetupFolder = "setupwinx64";     AppAsset = "winx64.zip";     SetupAsset = "setupwinx64.zip";     WrapperPlatform = "x64" } }
-        "win-x86"     { return @{ AppFolder = "winx86";     SetupFolder = "setupwinx86";     AppAsset = "winx86.zip";     SetupAsset = "setupwinx86.zip";     WrapperPlatform = "x86" } }
-        "win-arm64"   { return @{ AppFolder = "winarm64";   SetupFolder = "setupwinarm64";   AppAsset = "winarm64.zip";   SetupAsset = "setupwinarm64.zip";   WrapperPlatform = "ARM64" } }
-        "linux-x64"   { return @{ AppFolder = "linuxx64";   SetupFolder = "setuplinuxx64";   AppAsset = "linuxx64.zip";   SetupAsset = "setuplinuxx64.zip";   WrapperPlatform = $null } }
-        "linux-arm64" { return @{ AppFolder = "linuxarm64"; SetupFolder = "setuplinuxarm64"; AppAsset = "linuxarm64.zip"; SetupAsset = "setuplinuxarm64.zip"; WrapperPlatform = $null } }
-        "osx-x64"     { return @{ AppFolder = "macosx64";   SetupFolder = "setupmacosx64";   AppAsset = "macosx64.zip";   SetupAsset = "setupmacosx64.zip";   WrapperPlatform = $null } }
-        "osx-arm64"   { return @{ AppFolder = "macosarm64"; SetupFolder = "setupmacosarm64"; AppAsset = "macosarm64.zip"; SetupAsset = "setupmacosarm64.zip"; WrapperPlatform = $null } }
+        "win-x64"     { return @{ AppFolder = "winx64";     SetupFolder = "setupwinx64";     AppAsset = "winx64.zip";     SetupAsset = "setupwinx64.zip";     AppProfile = "winx64";     SetupProfile = "winx64";     WrapperProfile = "winx64";     WrapperPlatform = "x64" } }
+        "win-x86"     { return @{ AppFolder = "winx86";     SetupFolder = "setupwinx86";     AppAsset = "winx86.zip";     SetupAsset = "setupwinx86.zip";     AppProfile = "winx86";     SetupProfile = "winx86";     WrapperProfile = "winx86";     WrapperPlatform = "x86" } }
+        "win-arm64"   { return @{ AppFolder = "winarm64";   SetupFolder = "setupwinarm64";   AppAsset = "winarm64.zip";   SetupAsset = "setupwinarm64.zip";   AppProfile = "winarm64";   SetupProfile = "winarm64";   WrapperProfile = "winarm64";   WrapperPlatform = "ARM64" } }
+        "linux-x64"   { return @{ AppFolder = "linuxx64";   SetupFolder = "setuplinuxx64";   AppAsset = "linuxx64.zip";   SetupAsset = "setuplinuxx64.zip";   AppProfile = "linuxx64";   SetupProfile = "linuxx64";   WrapperProfile = $null; WrapperPlatform = $null } }
+        "linux-arm64" { return @{ AppFolder = "linuxarm64"; SetupFolder = "setuplinuxarm64"; AppAsset = "linuxarm64.zip"; SetupAsset = "setuplinuxarm64.zip"; AppProfile = "linuxarm64"; SetupProfile = "linuxarm64"; WrapperProfile = $null; WrapperPlatform = $null } }
+        "osx-x64"     { return @{ AppFolder = "macosx64";   SetupFolder = "setupmacosx64";   AppAsset = "macosx64.zip";   SetupAsset = "setupmacosx64.zip";   AppProfile = "macosx64";   SetupProfile = "macosx64";   WrapperProfile = $null; WrapperPlatform = $null } }
+        "osx-arm64"   { return @{ AppFolder = "macosarm64"; SetupFolder = "setupmacosarm64"; AppAsset = "macosarm64.zip"; SetupAsset = "setupmacosarm64.zip"; AppProfile = "macosarm64"; SetupProfile = "macosarm64"; WrapperProfile = $null; WrapperPlatform = $null } }
         default { throw "Unsupported release runtime: $Rid" }
     }
 }
@@ -112,34 +104,18 @@ function Publish-Runtime {
         "-p:RestoreAdditionalProjectSources=$packageDirectory"
     )
 
-    Write-Host "Restoring LocalGPT application for $Rid in package mode..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments (@("restore", $appProject, "-r", $Rid, "--disable-parallel") + $sharedProperties) -FailureMessage "LocalGPT restore failed for $Rid."
-
-    Write-Host "Publishing LocalGPT application for $Rid..." -ForegroundColor Cyan
+    Write-Host "Publishing LocalGPT application through profile $($profile.AppProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments (@(
         "publish", $appProject,
-        "-c", $Configuration,
-        "-f", "net10.0",
-        "-r", $Rid,
-        "--no-restore",
-        "-p:IncludeWireProtocolPackageInPublish=true",
-        "-o", $appFolder
-    ) + $multiFileSelfContainedProperties + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
+        "-p:PublishProfile=$($profile.AppProfile)",
+        "-p:IncludeWireProtocolPackageInPublish=true"
+    ) + $sharedProperties) -FailureMessage "LocalGPT application publish failed for $Rid."
 
-    Write-Host "Restoring LocalGPT setup for $Rid..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments @("restore", $setupProject, "-r", $Rid, "--disable-parallel") -FailureMessage "LocalGPT setup restore failed for $Rid."
-
-    Write-Host "Publishing LocalGPT setup for $Rid..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments (@(
+    Write-Host "Publishing LocalGPT setup through profile $($profile.SetupProfile)..." -ForegroundColor Cyan
+    Invoke-DotNet -Arguments @(
         "publish", $setupProject,
-        "-c", $Configuration,
-        "-f", "net10.0",
-        "-r", $Rid,
-        "--no-restore",
-        "-p:DebugType=None",
-        "-p:DebugSymbols=false",
-        "-o", $setupFolder
-    ) + $multiFileSelfContainedProperties) -FailureMessage "LocalGPT setup publish failed for $Rid."
+        "-p:PublishProfile=$($profile.SetupProfile)"
+    ) -FailureMessage "LocalGPT setup publish failed for $Rid."
 
     $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
     $setupExecutable = if ($Rid.StartsWith("win-")) { "LocalGPTInstallerConsole.exe" } else { "LocalGPTInstallerConsole" }
@@ -162,32 +138,18 @@ function Publish-Runtime {
     New-Item -ItemType Directory -Path $protocolSetupDirectory -Force | Out-Null
     Copy-Item $wirePackage (Join-Path $protocolSetupDirectory $wirePackageName) -Force
 
-    if ($IncludeWindowsWrapper -and $profile.WrapperPlatform) {
+    if ($IncludeWindowsWrapper -and $profile.WrapperProfile) {
         $wrapperFolder = Join-Path $artifacts "wrapper-$($profile.AppFolder)"
         Remove-Item $wrapperFolder -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Host "Building the optional WinUI wrapper for $($profile.WrapperPlatform)..." -ForegroundColor Cyan
+        Write-Host "Publishing the optional WinUI wrapper through profile $($profile.WrapperProfile)..." -ForegroundColor Cyan
         Invoke-DotNet -Arguments @(
-            "restore", $wrapperProject,
-            "-r", $Rid,
-            "--disable-parallel",
-            "-p:Platform=$($profile.WrapperPlatform)",
+            "publish", $wrapperProject,
+            "-p:PublishProfile=$($profile.WrapperProfile)",
             "-p:UseLocalWireProtocolProject=false",
             "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
             "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
             "-p:RestoreAdditionalProjectSources=$packageDirectory"
-        ) -FailureMessage "WinUI wrapper restore failed for $Rid."
-        Invoke-DotNet -Arguments (@(
-            "publish", $wrapperProject,
-            "-c", $Configuration,
-            "-r", $Rid,
-            "--no-restore",
-            "-p:Platform=$($profile.WrapperPlatform)",
-            "-p:UseLocalWireProtocolProject=false",
-            "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
-            "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
-            "-p:RestoreAdditionalProjectSources=$packageDirectory",
-            "-o", $wrapperFolder
-        ) + $multiFileSelfContainedProperties) -FailureMessage "WinUI wrapper publish failed for $Rid."
+        ) -FailureMessage "WinUI wrapper publish failed for $Rid."
         Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force
     }
 

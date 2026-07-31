@@ -34,81 +34,91 @@ function Assert-Profile(
     [string]$Runtime,
     [string]$Folder,
     [string]$Platform,
-    [string]$TargetFramework) {
+    [string]$TargetFramework,
+    [string]$PublishSingleFile) {
     $properties = Read-ProfileProperties $RelativePath
     $output = "..\..\artifacts\release\$Folder\"
     foreach ($requirement in @(
+        @{ Name = 'Configuration'; Value = 'Release' },
         @{ Name = 'RuntimeIdentifier'; Value = $Runtime },
         @{ Name = 'SelfContained'; Value = 'true' },
-        @{ Name = 'PublishSingleFile'; Value = 'false' },
+        @{ Name = 'PublishSingleFile'; Value = $PublishSingleFile },
         @{ Name = 'PublishTrimmed'; Value = 'false' },
-        @{ Name = 'PublishReadyToRun'; Value = 'false' },
         @{ Name = 'DeleteExistingFiles'; Value = 'true' },
         @{ Name = 'PublishProtocol'; Value = 'FileSystem' },
         @{ Name = 'Platform'; Value = $Platform },
-        @{ Name = 'TargetFramework'; Value = $TargetFramework },
-        @{ Name = 'PublishUrl'; Value = $output },
-        @{ Name = 'PublishDir'; Value = $output }
+        @{ Name = 'TargetFramework'; Value = $TargetFramework }
     )) {
         Assert-Property $properties $requirement.Name $requirement.Value $RelativePath
     }
+
+    if ($properties.ContainsKey('PublishReadyToRun')) {
+        Assert-Property $properties 'PublishReadyToRun' 'false' $RelativePath
+    }
+
+    $declaredOutput = @('PublishDir', 'PublishUrl') |
+        Where-Object { $properties.ContainsKey($_) }
+    if ($declaredOutput.Count -eq 0) {
+        Fail "$RelativePath must define PublishDir or PublishUrl so release scripts can consume the profile-owned output."
+    }
+    foreach ($outputProperty in $declaredOutput) {
+        Assert-Property $properties $outputProperty $output $RelativePath
+    }
 }
 
-$appProfiles = @(
-    @{ File = 'winx64.pubxml'; Runtime = 'win-x64'; App = 'winx64'; Setup = 'setupwinx64' },
-    @{ File = 'winx86.pubxml'; Runtime = 'win-x86'; App = 'winx86'; Setup = 'setupwinx86' },
-    @{ File = 'winarm64.pubxml'; Runtime = 'win-arm64'; App = 'winarm64'; Setup = 'setupwinarm64' },
-    @{ File = 'linuxx64.pubxml'; Runtime = 'linux-x64'; App = 'linuxx64'; Setup = 'setuplinuxx64' },
-    @{ File = 'linuxarm64.pubxml'; Runtime = 'linux-arm64'; App = 'linuxarm64'; Setup = 'setuplinuxarm64' },
-    @{ File = 'macosx64.pubxml'; Runtime = 'osx-x64'; App = 'macosx64'; Setup = 'setupmacosx64' },
-    @{ File = 'macosarm64.pubxml'; Runtime = 'osx-arm64'; App = 'macosarm64'; Setup = 'setupmacosarm64' }
+$profiles = @(
+    @{ File = 'winx64.pubxml'; Runtime = 'win-x64'; App = 'winx64'; Setup = 'setupwinx64'; SetupPlatform = 'x64' },
+    @{ File = 'winx86.pubxml'; Runtime = 'win-x86'; App = 'winx86'; Setup = 'setupwinx86'; SetupPlatform = 'x86' },
+    @{ File = 'winarm64.pubxml'; Runtime = 'win-arm64'; App = 'winarm64'; Setup = 'setupwinarm64'; SetupPlatform = 'arm64' },
+    @{ File = 'linuxx64.pubxml'; Runtime = 'linux-x64'; App = 'linuxx64'; Setup = 'setuplinuxx64'; SetupPlatform = 'x64' },
+    @{ File = 'linuxarm64.pubxml'; Runtime = 'linux-arm64'; App = 'linuxarm64'; Setup = 'setuplinuxarm64'; SetupPlatform = 'arm64' },
+    @{ File = 'macosx64.pubxml'; Runtime = 'osx-x64'; App = 'macosx64'; Setup = 'setupmacosx64'; SetupPlatform = 'x64' },
+    @{ File = 'macosarm64.pubxml'; Runtime = 'osx-arm64'; App = 'macosarm64'; Setup = 'setupmacosarm64'; SetupPlatform = 'arm64' }
 )
+
+foreach ($profile in $profiles) {
+    Assert-Profile "LocalGPTWebviewWrapper\LocalGPT\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.App 'AnyCPU' 'net10.0' 'false'
+    Assert-Profile "LocalGPTWebviewWrapper\LocalGPTInstallerConsole\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Setup $profile.SetupPlatform 'net10.0' 'true'
+}
 
 $wrapperProfiles = @(
-    @{ File = 'FolderProfile.pubxml'; Runtime = 'win-x64'; Platform = 'x64'; Folder = 'wrapper-winx64' },
-    @{ File = 'win10-x64.pubxml'; Runtime = 'win-x64'; Platform = 'x64'; Folder = 'wrapper-winx64' },
     @{ File = 'winx64.pubxml'; Runtime = 'win-x64'; Platform = 'x64'; Folder = 'wrapper-winx64' },
-    @{ File = 'win10-x86.pubxml'; Runtime = 'win-x86'; Platform = 'x86'; Folder = 'wrapper-winx86' },
     @{ File = 'winx86.pubxml'; Runtime = 'win-x86'; Platform = 'x86'; Folder = 'wrapper-winx86' },
-    @{ File = 'win10-arm64.pubxml'; Runtime = 'win-arm64'; Platform = 'ARM64'; Folder = 'wrapper-winarm64' },
     @{ File = 'winarm64.pubxml'; Runtime = 'win-arm64'; Platform = 'ARM64'; Folder = 'wrapper-winarm64' }
 )
-
-foreach ($profile in $appProfiles) {
-    Assert-Profile "LocalGPTWebviewWrapper\LocalGPT\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.App 'AnyCPU' 'net10.0'
-    Assert-Profile "LocalGPTWebviewWrapper\LocalGPTInstallerConsole\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Setup 'AnyCPU' 'net10.0'
-}
 foreach ($profile in $wrapperProfiles) {
-    Assert-Profile "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0'
+    Assert-Profile "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
 }
 
 $userProfiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'LocalGPTWebviewWrapper') -Recurse -File -Filter '*.pubxml.user' -ErrorAction SilentlyContinue)
 if ($userProfiles.Count -gt 0) { Fail 'Machine-specific .pubxml.user files must not be shipped in the source package.' }
 
-$migrationPath = Join-Path $root 'build\Migrate-ObsoletePublishConfiguration.ps1'
-if (-not (Test-Path -LiteralPath $migrationPath -PathType Leaf)) { Fail 'The publish-profile overlay migration script is missing.' }
-$migration = [IO.File]::ReadAllText($migrationPath)
-if ($migration.Contains('Remove-ObsoleteProfileRoot') -or $migration.Contains(".Extension -eq '.pubxml'")) {
-    Fail 'The migration script must preserve developer .pubxml profiles.'
-}
-if (-not $migration.Contains('*.pubxml.user')) { Fail 'The migration script must still clean machine-specific .pubxml.user overlays.' }
-
 $release = [IO.File]::ReadAllText((Join-Path $root 'Build-Release.ps1'))
-if (-not $release.Contains('$multiFileSelfContainedProperties = @(')) { Fail 'Build-Release.ps1 must own one shared multi-file self-contained property list.' }
-if (([regex]::Matches($release, '\+\s*\$multiFileSelfContainedProperties')).Count -ne 3) { Fail 'Build-Release.ps1 must apply the shared publish properties to the application, setup and WinUI wrapper.' }
-foreach ($profile in $appProfiles) {
-    foreach ($fragment in @(
-        '"' + $profile.Runtime + '"',
-        'AppFolder = "' + $profile.App + '"',
-        'SetupFolder = "' + $profile.Setup + '"',
-        'AppAsset = "' + $profile.App + '.zip"',
-        'SetupAsset = "' + $profile.Setup + '.zip"'
-    )) {
-        if (-not $release.Contains($fragment)) { Fail "Build-Release.ps1 is missing synchronized mapping: $fragment" }
-    }
+foreach ($required in @(
+    '-p:PublishProfile=$($profile.AppProfile)',
+    '-p:PublishProfile=$($profile.SetupProfile)',
+    '-p:PublishProfile=$($profile.WrapperProfile)'
+)) {
+    if (-not $release.Contains($required)) { Fail "Build-Release.ps1 must publish through checked-in profiles: $required" }
 }
-if ($release -match 'PublishSingleFile=true|IncludeNativeLibrariesForSelfExtract=true|EnableCompressionInSingleFile=true') {
-    Fail 'The scripted release lane must remain multi-file and self-contained like the developer profiles.'
+foreach ($forbidden in @(
+    '-p:PublishSingleFile=',
+    '-p:SelfContained=',
+    '--self-contained',
+    '-p:PublishDir=',
+    '-p:PublishUrl=',
+    '-p:DebugType=',
+    '-p:DebugSymbols='
+)) {
+    if ($release.Contains($forbidden)) { Fail "Build-Release.ps1 overrides profile-owned publish policy with $forbidden" }
 }
 
-Write-Host 'LocalGPT publish configuration validation passed for 7 application profiles, 7 setup profiles, 7 wrapper/developer profiles and the synchronized scripted release lane.'
+$legacy = [IO.File]::ReadAllText((Join-Path $root 'build\PublishBlazorSolutionAndCreateZips.ps1'))
+if (([regex]::Matches($legacy, '-p:PublishProfile=')).Count -lt 2) {
+    Fail 'The legacy release script must publish both LocalGPT and its installer through checked-in profiles.'
+}
+foreach ($forbidden in @('-p:PublishSingleFile=', '-p:SelfContained=', '--self-contained', '-p:PublishDir=', '-p:PublishUrl=', '-p:DebugType=', '-p:DebugSymbols=')) {
+    if ($legacy.Contains($forbidden)) { Fail "The legacy release script overrides profile-owned publish policy with $forbidden" }
+}
+
+Write-Host 'LocalGPT publish configuration validation passed: application, installer and wrapper profiles own publish behavior, and release scripts consume those profiles without overriding them.'

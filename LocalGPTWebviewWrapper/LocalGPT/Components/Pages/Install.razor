@@ -5,6 +5,7 @@
 @inject IOptionsMonitor<ConfigurationRoot> Opts
 @inject IConfigurationWriter Writer
 @inject IAiConnectivityProbe Probe
+@inject IOllamaProcessService OllamaProcesses
 @inject NavigationManager Nav
 @inject ILogger<Install> Logger
 @inject INotificationService Notifier
@@ -44,10 +45,47 @@
                     }
                 </div>
                 <DxButton Text="Refresh Connectivity"
+                          CssClass="provider-action-button"
                           RenderStyle="ButtonRenderStyle.Secondary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Enabled="@(!IsConnectivityChecking)"
                           Click="RefreshConnectivityStatusFromButton" />
+            </div>
+            <div class="ollama-process-panel" data-testid="ollama-process-controls">
+                <div class="ollama-process-status">
+                    <strong>Ollama process</strong>
+                    <span>@OllamaProcessStatus.Message</span>
+                    @if (OllamaProcessStatus.Processes.Count > 0)
+                    {
+                        <small>@string.Join(", ", OllamaProcessStatus.Processes.Select(process => $"{process.ProcessName} ({process.ProcessId})"))</small>
+                    }
+                </div>
+                <div class="ollama-process-actions">
+                    <DxButton Text="Start Ollama"
+                              CssClass="provider-action-button"
+                              RenderStyle="ButtonRenderStyle.Success"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Enabled="@(!IsOllamaProcessBusy && OllamaProcessStatus.IsInstalled && !OllamaProcessStatus.IsRunning)"
+                              Click="StartOllamaAsync" />
+                    <DxButton Text="Stop Ollama"
+                              CssClass="provider-action-button"
+                              RenderStyle="ButtonRenderStyle.Danger"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!IsOllamaProcessBusy && OllamaProcessStatus.IsRunning)"
+                              Click="StopOllamaAsync" />
+                    <DxButton Text="Restart Ollama"
+                              CssClass="provider-action-button"
+                              RenderStyle="ButtonRenderStyle.Warning"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Enabled="@(!IsOllamaProcessBusy && OllamaProcessStatus.IsInstalled)"
+                              Click="RestartOllamaAsync" />
+                    <DxButton Text="Refresh process status"
+                              CssClass="provider-action-button"
+                              RenderStyle="ButtonRenderStyle.Secondary"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(!IsOllamaProcessBusy)"
+                              Click="RefreshOllamaProcessStatusAsync" />
+                </div>
             </div>
         </div>
 
@@ -224,6 +262,8 @@
     private bool IsDiscovering;
     private bool IsConnectivityChecking;
     private bool IsSaving;
+    private bool IsOllamaProcessBusy;
+    private OllamaProcessStatus OllamaProcessStatus = new(false, false, null, Array.Empty<OllamaProcessInfo>(), "Ollama process status not checked yet.");
     private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify Ollama or LM Studio.";
     private DateTimeOffset? LastConnectivityCheck;
     private IReadOnlyList<LocalAiHostDiscoveryResult> DiscoveredHosts = Array.Empty<LocalAiHostDiscoveryResult>();
@@ -359,13 +399,80 @@
         try
         {
             if (firstRender)
+            {
+                await RefreshOllamaProcessStatusAsync().ConfigureAwait(true);
                 await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(true);
+            }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "OnAfterRenderAsync failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(OnAfterRenderAsync) " + ex.Message).ConfigureAwait(true);
+        }
+    }
+
+
+    private async Task RefreshOllamaProcessStatusAsync()
+    {
+        try
+        {
+            IsOllamaProcessBusy = true;
+            OllamaProcessStatus = await OllamaProcesses.GetStatusAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not refresh Ollama process status; executable paths were omitted from logs.");
+            OllamaProcessStatus = OllamaProcessStatus with { Message = $"Ollama process status failed: {ex.Message}" };
+        }
+        finally
+        {
+            IsOllamaProcessBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        }
+    }
+
+    private Task StartOllamaAsync() => RunOllamaProcessActionAsync(
+        cancellationToken => OllamaProcesses.StartAsync(cancellationToken),
+        "Start Ollama");
+
+    private Task StopOllamaAsync() => RunOllamaProcessActionAsync(
+        cancellationToken => OllamaProcesses.StopAsync(cancellationToken),
+        "Stop Ollama");
+
+    private Task RestartOllamaAsync() => RunOllamaProcessActionAsync(
+        cancellationToken => OllamaProcesses.RestartAsync(cancellationToken),
+        "Restart Ollama");
+
+    private async Task RunOllamaProcessActionAsync(
+        Func<CancellationToken, Task<OllamaProcessStatus>> action,
+        string operation)
+    {
+        try
+        {
+            IsOllamaProcessBusy = true;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+            OllamaProcessStatus = await action(default).ConfigureAwait(true);
+            await Append($"{operation}: {OllamaProcessStatus.Message}").ConfigureAwait(true);
+
+            if (OllamaProcessStatus.IsRunning)
+                Notifier.ShowSuccess(toastName, OllamaProcessStatus.Message, operation);
+            else if (operation.StartsWith("Stop", StringComparison.OrdinalIgnoreCase))
+                Notifier.ShowSuccess(toastName, OllamaProcessStatus.Message, operation);
+            else
+                Notifier.ShowWarning(toastName, OllamaProcessStatus.Message, operation);
+
+            await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ollama process operation {Operation} failed; executable paths were omitted from logs.", operation);
+            Notifier.ShowError(toastName, "The Ollama process operation failed. Review LocalGPT logs.", operation);
+        }
+        finally
+        {
+            IsOllamaProcessBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
     }
 
@@ -683,7 +790,7 @@
     {
         try
         {
-            Nav.NavigateTo("/Chat", forceLoad: true);
+            Nav.NavigateTo("/Chat", forceLoad: false);
         }
         catch (Exception ex)
         {

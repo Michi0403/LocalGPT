@@ -34,3 +34,51 @@
     .top-container:first-child { display: grid; grid-template-columns: 1fr; }
     ::deep .provider-save-button { width: 100% !important; min-width: 0 !important; min-height: 4.1rem !important; }
 }
+
+/* v24: provider process actions use the same visible, rounded touch contract as Save. */
+::deep .provider-action-button {
+    min-height: 3.15rem !important;
+    padding-inline: 1rem !important;
+    border-radius: .75rem !important;
+    font-weight: 750 !important;
+    touch-action: manipulation;
+}
+
+.ollama-process-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: .85rem;
+    padding-top: .85rem;
+    border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.ollama-process-status {
+    min-width: 14rem;
+    display: grid;
+    gap: .2rem;
+}
+
+.ollama-process-status small {
+    overflow-wrap: anywhere;
+    opacity: .78;
+}
+
+.ollama-process-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .55rem;
+}
+
+@media (max-width: 900px) {
+    .ollama-process-panel { align-items: stretch; flex-direction: column; }
+    .ollama-process-actions { justify-content: flex-start; }
+}
+
+@media (pointer: coarse), (max-width: 680px) {
+    ::deep .provider-action-button { min-height: 3.6rem !important; }
+    .ollama-process-actions { display: grid; grid-template-columns: 1fr; }
+    .ollama-process-actions ::deep .provider-action-button { width: 100% !important; }
+}
