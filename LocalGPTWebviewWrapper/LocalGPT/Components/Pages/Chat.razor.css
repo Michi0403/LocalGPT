@@ -1487,3 +1487,21 @@
         grid-column: auto;
     }
 }
+
+/* v28: one stable transcript viewport. Browser scroll anchoring and DevExpress' native
+   smooth/make-visible path must not compete with LocalGPT's delayed one-second follow. */
+.main-container,
+#localgpt-chat-host,
+#localgpt-chat-host > .demo-chat,
+#localgpt-chat-host .demo-chat,
+#localgpt-chat-host > .localgpt-chat-root,
+#localgpt-chat-host .localgpt-chat-root {
+    overflow-anchor: none !important;
+}
+
+.demo-chat ::deep .localgpt-chat-scroll-region {
+    scroll-behavior: auto !important;
+    overflow-anchor: none !important;
+    contain: layout style;
+}
+
