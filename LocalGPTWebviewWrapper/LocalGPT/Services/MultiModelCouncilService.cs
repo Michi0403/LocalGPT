@@ -240,6 +240,9 @@ namespace LocalGPT.Services
                 var organicBriefing = await organicCouncilBlueprints.BuildBriefingAsync(request, cancellationToken).ConfigureAwait(false);
                 bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Organic council and 1-Wire workflow", organicBriefing, logger);
 
+                string baseBootstrap;
+                if (UsesBuiltInCouncilWorkflow(organicTeam))
+                {
                 var readinessBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Readiness and introductions", bootstrap, cancellationToken).ConfigureAwait(false);
                 await RunPhaseAsync(
                     result,
@@ -325,7 +328,7 @@ namespace LocalGPT.Services
                         logger);
                 }
 
-                var baseBootstrap = bootstrap;
+                baseBootstrap = bootstrap;
                 var proposalBootstrap = await PrepareHumanHeartbeatAsync(
                     result,
                     request,
@@ -491,6 +494,26 @@ namespace LocalGPT.Services
                     {
                         result.FinalAnswer = consensusContent;
                     }
+                }
+                }
+                else
+                {
+                    baseBootstrap = bootstrap;
+                    result.Warnings.Add($"Custom council workflow '{organicTeam.DisplayName}' is active. LocalGPT will execute {organicTeam.WorkflowSteps.Count(step => step.IsEnabled)} saved step(s) literally instead of forcing the supplied readiness/proposal/critique/consensus structure.");
+                    result.FinalAnswer = await RunConfiguredWorkflowAsync(
+                        result,
+                        request,
+                        organicTeam,
+                        baseUri,
+                        participants,
+                        baseBootstrap,
+                        modelRoutes,
+                        maxParallelModels,
+                        keepAlive,
+                        ollamaNumGpu,
+                        maxContextTokens,
+                        modelTimeoutSeconds,
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 var finalHumanRound = (result.Steps.Count == 0 ? 0 : result.Steps.Max(step => step.Round)) + 1;
@@ -676,6 +699,443 @@ namespace LocalGPT.Services
                     runConfigurations.Complete(runId);
                 }
             }
+        }
+
+        private bool UsesBuiltInCouncilWorkflow(OrganicCouncilTeamDefinition team)
+        {
+            if (!team.IsSystemSeed || team.IsUserModified)
+                return false;
+
+            var expected = new Dictionary<string, (int SortOrder, string ExecutionMode)>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["member-readiness-introduction"] = (5, "AllMembersParallel"),
+                ["expert-preparation"] = (10, "LeaderSingle"),
+                ["leader-synthesis"] = (20, "LeaderSingle"),
+                ["member-proposals"] = (30, "AllMembersParallel"),
+                ["peer-review"] = (40, "AllMembersParallel"),
+                ["consensus"] = (50, "LeaderSingle")
+            };
+            var enabled = team.WorkflowSteps.Where(step => step.IsEnabled).ToList();
+            if (enabled.Count != expected.Count || enabled.Any(step => !step.UseBuiltInBehavior || step.RepeatCount != 1))
+                return false;
+
+            foreach (var step in enabled)
+            {
+                if (!expected.TryGetValue(step.Key, out var contract))
+                    return false;
+                if (step.SortOrder != contract.SortOrder || !string.Equals(NormalizeConfiguredExecutionMode(step.ExecutionMode), contract.ExecutionMode, StringComparison.Ordinal))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private async Task<string> RunConfiguredWorkflowAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            string baseUri,
+            IReadOnlyList<string> participants,
+            string bootstrap,
+            IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
+            int maxParallelModels,
+            string keepAlive,
+            int? ollamaNumGpu,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
+            CancellationToken cancellationToken)
+        {
+            var configuredSteps = team.WorkflowSteps
+                .Where(step => step.IsEnabled)
+                .OrderBy(step => step.SortOrder)
+                .ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (configuredSteps.Count == 0)
+                throw new InvalidOperationException($"Council team '{team.DisplayName}' has no enabled workflow step.");
+
+            var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
+            var leaderModel = SelectHealthyParticipant(result, participants, requestedLeader);
+            var finalAnswer = string.Empty;
+            var fallbackAnswer = string.Empty;
+            var previousStep = string.Empty;
+            var round = 0;
+            var expandedStepIndex = 0;
+
+            foreach (var definition in configuredSteps)
+            {
+                var repeatCount = Math.Clamp(definition.RepeatCount, 1, 100);
+                for (var repeatIndex = 0; repeatIndex < repeatCount; repeatIndex++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var basePhase = string.IsNullOrWhiteSpace(definition.Phase) ? definition.DisplayName : definition.Phase;
+                    var phase = repeatCount == 1 ? basePhase : $"{basePhase} {repeatIndex + 1}/{repeatCount}";
+                    if (definition.RequiresHumanCheckpoint)
+                    {
+                        request.ProgressMessage?.Invoke($"Council workflow is checking the human collaboration gate before configured round {round}: {phase}.");
+                        await WaitForHumanBoundaryAsync(
+                            result,
+                            request,
+                            round,
+                            phase,
+                            HumanCollaborationBoundary.Round,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    var heartbeatBootstrap = await PrepareHumanHeartbeatAsync(
+                        result,
+                        request,
+                        round,
+                        phase,
+                        bootstrap,
+                        cancellationToken).ConfigureAwait(false);
+                    var executionMode = NormalizeConfiguredExecutionMode(definition.ExecutionMode);
+                    request.ProgressMessage?.Invoke(
+                        $"Executing configured council round {round}: {definition.DisplayName} / {phase} / {definition.Role} using {executionMode}.");
+
+                    switch (executionMode)
+                    {
+                        case "AllMembersParallel":
+                            {
+                                var transcript = definition.IncludePriorTranscript
+                                    ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
+                                    : string.Empty;
+                                await RunPhaseAsync(
+                                    result,
+                                    baseUri,
+                                    participants,
+                                    round,
+                                    phase,
+                                    definition.Role,
+                                    modelName => RenderConfiguredWorkflowPrompt(
+                                        definition,
+                                        team,
+                                        request,
+                                        modelName,
+                                        participants,
+                                        round,
+                                        repeatIndex,
+                                        repeatCount,
+                                        transcript,
+                                        previousStep),
+                                    heartbeatBootstrap,
+                                    request.MaxOutputTokens,
+                                    maxParallelModels,
+                                    keepAlive,
+                                    ollamaNumGpu,
+                                    maxContextTokens,
+                                    modelTimeoutSeconds,
+                                    request.ProgressMessage,
+                                    request.StreamUpdate,
+                                    request.StepCompleted,
+                                    modelRoutes,
+                                    request.AllowParallelHardwareRoads,
+                                    cancellationToken,
+                                    definition.CanUseOrganicFunctions).ConfigureAwait(false);
+                                break;
+                            }
+                        case "AllMembersSequential":
+                            {
+                                foreach (var modelName in OrderParticipantsByObservedHealth(result, participants))
+                                {
+                                    var transcript = definition.IncludePriorTranscript
+                                        ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
+                                        : string.Empty;
+                                    await RunConfiguredParticipantAsync(
+                                        result,
+                                        request,
+                                        definition,
+                                        team,
+                                        baseUri,
+                                        participants,
+                                        modelName,
+                                        round,
+                                        phase,
+                                        repeatIndex,
+                                        repeatCount,
+                                        transcript,
+                                        previousStep,
+                                        heartbeatBootstrap,
+                                        modelRoutes,
+                                        keepAlive,
+                                        ollamaNumGpu,
+                                        maxContextTokens,
+                                        modelTimeoutSeconds,
+                                        cancellationToken).ConfigureAwait(false);
+                                }
+                                break;
+                            }
+                        default:
+                            {
+                                var modelName = SelectConfiguredWorkflowParticipant(
+                                    result,
+                                    request,
+                                    definition,
+                                    executionMode,
+                                    participants,
+                                    leaderModel,
+                                    expandedStepIndex);
+                                var transcript = definition.IncludePriorTranscript
+                                    ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
+                                    : string.Empty;
+                                await RunConfiguredParticipantAsync(
+                                    result,
+                                    request,
+                                    definition,
+                                    team,
+                                    baseUri,
+                                    participants,
+                                    modelName,
+                                    round,
+                                    phase,
+                                    repeatIndex,
+                                    repeatCount,
+                                    transcript,
+                                    previousStep,
+                                    heartbeatBootstrap,
+                                    modelRoutes,
+                                    keepAlive,
+                                    ollamaNumGpu,
+                                    maxContextTokens,
+                                    modelTimeoutSeconds,
+                                    cancellationToken).ConfigureAwait(false);
+                                break;
+                            }
+                    }
+
+                    var roundSteps = result.Steps
+                        .Where(step => step.Round == round && string.Equals(step.Phase, phase, StringComparison.Ordinal) && participants.Contains(step.ModelName, StringComparer.OrdinalIgnoreCase))
+                        .ToList();
+                    var stageAnswer = BuildConfiguredWorkflowStageAnswer(roundSteps);
+                    if (!string.IsNullOrWhiteSpace(stageAnswer))
+                    {
+                        previousStep = stageAnswer;
+                        fallbackAnswer = stageAnswer;
+                        if (definition.ProducesFinalAnswer)
+                            finalAnswer = stageAnswer;
+                    }
+                    else
+                    {
+                        result.Warnings.Add($"Configured council round '{definition.DisplayName}' did not produce a usable visible response.");
+                    }
+
+                    round++;
+                    expandedStepIndex++;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(finalAnswer))
+                return finalAnswer;
+            if (!string.IsNullOrWhiteSpace(fallbackAnswer))
+                return fallbackAnswer;
+            return "The configured council workflow completed without a substantive visible answer. Review the round prompts, selected models and local logs.";
+        }
+
+        private async Task RunConfiguredParticipantAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            CouncilWorkflowStepDefinition definition,
+            OrganicCouncilTeamDefinition team,
+            string baseUri,
+            IReadOnlyList<string> participants,
+            string modelName,
+            int round,
+            string phase,
+            int repeatIndex,
+            int repeatCount,
+            string transcript,
+            string previousStep,
+            string bootstrap,
+            IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
+            string keepAlive,
+            int? ollamaNumGpu,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
+            CancellationToken cancellationToken)
+        {
+            var plan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
+                ? configuredPlan
+                : new CouncilHardwareRoadPlan(
+                    modelName,
+                    OneWireHardwareKind.Auto,
+                    -1,
+                    "Automatic",
+                    $"auto:{modelName}",
+                    request.ResourceLoadPercent,
+                    request.MaxOutputTokens,
+                    maxContextTokens,
+                    ollamaNumGpu,
+                    1);
+            MultiModelCouncilStep? participantStep;
+            var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
+            try
+            {
+                using var participantCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
+                using (ambientContext.PushCouncil(result.RunId, round, phase))
+                {
+                    participantStep = await RunParticipantAsync(
+                        baseUri,
+                        modelName,
+                        participants,
+                        round,
+                        phase,
+                        definition.Role,
+                        RenderConfiguredWorkflowPrompt(
+                            definition,
+                            team,
+                            request,
+                            modelName,
+                            participants,
+                            round,
+                            repeatIndex,
+                            repeatCount,
+                            transcript,
+                            previousStep),
+                        bootstrap,
+                        plan.EffectiveMaxOutputTokens,
+                        keepAlive,
+                        plan.OllamaNumGpu,
+                        plan.EffectiveMaxContextTokens,
+                        modelTimeoutSeconds,
+                        request.StreamUpdate,
+                        participantCancellation.Token,
+                        fallbackPlan: plan,
+                        progressMessage: request.ProgressMessage).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (roundSkipToken.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                participantStep = CreateRoundSkippedStep(modelName, participants, round, phase, definition.Role, plan);
+            }
+
+            ArgumentNullException.ThrowIfNull(participantStep);
+            await AddCouncilStepAsync(
+                result,
+                participantStep,
+                request.StepCompleted,
+                request.ProgressMessage,
+                definition.CanUseOrganicFunctions,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private string SelectConfiguredWorkflowParticipant(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            CouncilWorkflowStepDefinition definition,
+            string executionMode,
+            IReadOnlyList<string> participants,
+            string leaderModel,
+            int expandedStepIndex)
+        {
+            if (executionMode == "RoundRobinSingle")
+            {
+                var preferred = participants[expandedStepIndex % participants.Count];
+                return SelectHealthyParticipant(result, participants, preferred);
+            }
+
+            if (executionMode == "AssignedModelSingle")
+            {
+                var assigned = participants.FirstOrDefault(model => string.Equals(model, definition.AssignedModelName, StringComparison.OrdinalIgnoreCase));
+                if (assigned is not null)
+                    return SelectHealthyParticipant(result, participants, assigned);
+
+                result.Warnings.Add(
+                    $"Configured round '{definition.DisplayName}' requested model '{definition.AssignedModelName}', but that model is not selected for this run. The healthy council leader was used instead.");
+            }
+
+            var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
+            return SelectHealthyParticipant(result, participants, requestedLeader ?? leaderModel);
+        }
+
+        private string RenderConfiguredWorkflowPrompt(
+            CouncilWorkflowStepDefinition definition,
+            OrganicCouncilTeamDefinition team,
+            MultiModelCouncilRequest request,
+            string modelName,
+            IReadOnlyList<string> participants,
+            int round,
+            int repeatIndex,
+            int repeatCount,
+            string transcript,
+            string previousStep)
+        {
+            var template = string.IsNullOrWhiteSpace(definition.PromptTemplate)
+                ? "Contribute to {{TeamName}} as {{Role}} during {{Phase}}. Address the user's request directly."
+                : definition.PromptTemplate;
+            var hasUserPromptPlaceholder = template.Contains("{{UserPrompt}}", StringComparison.Ordinal);
+            var hasTranscriptPlaceholder = template.Contains("{{Transcript}}", StringComparison.Ordinal);
+            var roleSummary = string.Join(
+                Environment.NewLine,
+                team.Roles.Select(role => $"- {role.Role}: {role.Expertise}. Responsibility: {role.Responsibility}"));
+            var boundedTranscript = transcript.Length <= 160000 ? transcript : transcript[^160000..];
+            var boundedPreviousStep = previousStep.Length <= 80000 ? previousStep : previousStep[^80000..];
+            var rendered = template
+                .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal)
+                .Replace("{{TeamKey}}", team.Key, StringComparison.Ordinal)
+                .Replace("{{TeamPurpose}}", team.Purpose, StringComparison.Ordinal)
+                .Replace("{{Roles}}", roleSummary, StringComparison.Ordinal)
+                .Replace("{{UserPrompt}}", request.Prompt, StringComparison.Ordinal)
+                .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
+                .Replace("{{CouncilMembers}}", string.Join(", ", participants), StringComparison.Ordinal)
+                .Replace("{{Role}}", definition.Role, StringComparison.Ordinal)
+                .Replace("{{Phase}}", definition.Phase, StringComparison.Ordinal)
+                .Replace("{{RoundNumber}}", round.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                .Replace("{{RepeatIndex}}", (repeatIndex + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                .Replace("{{RepeatCount}}", repeatCount.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                .Replace("{{Transcript}}", boundedTranscript, StringComparison.Ordinal)
+                .Replace("{{PreviousStep}}", boundedPreviousStep, StringComparison.Ordinal)
+                .Replace("{{Preparation}}", boundedPreviousStep, StringComparison.Ordinal)
+                .Replace("{{ExternalProjectContextJson}}", request.ExternalProjectContextJson, StringComparison.Ordinal);
+
+            if (!hasUserPromptPlaceholder)
+                rendered = $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}Original user request:{Environment.NewLine}{request.Prompt}";
+            if (definition.IncludePriorTranscript && !hasTranscriptPlaceholder && !string.IsNullOrWhiteSpace(boundedTranscript))
+                rendered = $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}Council transcript so far:{Environment.NewLine}{boundedTranscript}";
+            return rendered.Trim();
+        }
+
+        private string BuildConfiguredWorkflowStageAnswer(IReadOnlyList<MultiModelCouncilStep> steps)
+        {
+            var usable = steps
+                .Where(step =>
+                    string.IsNullOrWhiteSpace(step.Error) &&
+                    !string.IsNullOrWhiteSpace(step.VisibleContent) &&
+                    !IsRoundSkippedStep(step))
+                .ToList();
+            if (usable.Count == 0)
+                return string.Empty;
+            if (usable.Count == 1)
+                return usable[0].VisibleContent.Trim();
+
+            return string.Join(
+                Environment.NewLine + Environment.NewLine,
+                usable.Select(step => $"### {step.ModelName} — {step.Role}{Environment.NewLine}{step.VisibleContent.Trim()}"));
+        }
+
+
+        private bool IsRoundSkippedStep(MultiModelCouncilStep step) =>
+            step.VisibleContent.Contains("was skipped because the user advanced", StringComparison.OrdinalIgnoreCase);
+
+        private string NormalizeConfiguredExecutionMode(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "AllMembersParallel";
+            if (value.Equals("AllMembers", StringComparison.OrdinalIgnoreCase) || value.Equals("Parallel", StringComparison.OrdinalIgnoreCase))
+                return "AllMembersParallel";
+            if (value.Equals("Sequential", StringComparison.OrdinalIgnoreCase))
+                return "AllMembersSequential";
+            if (value.Equals("Single", StringComparison.OrdinalIgnoreCase))
+                return "LeaderSingle";
+            if (value.Equals("AllMembersParallel", StringComparison.OrdinalIgnoreCase))
+                return "AllMembersParallel";
+            if (value.Equals("AllMembersSequential", StringComparison.OrdinalIgnoreCase))
+                return "AllMembersSequential";
+            if (value.Equals("LeaderSingle", StringComparison.OrdinalIgnoreCase))
+                return "LeaderSingle";
+            if (value.Equals("RoundRobinSingle", StringComparison.OrdinalIgnoreCase))
+                return "RoundRobinSingle";
+            if (value.Equals("AssignedModelSingle", StringComparison.OrdinalIgnoreCase))
+                return "AssignedModelSingle";
+            throw new InvalidOperationException($"Configured council execution mode '{value}' is not supported.");
         }
 
         private async Task WaitForHumanBoundaryAsync(
@@ -1162,6 +1622,23 @@ namespace LocalGPT.Services
             }
         }
 
+        private async Task<IReadOnlyList<MultiModelCouncilStep>> AddCouncilStepAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilStep step,
+            Action<MultiModelCouncilStep>? stepCompleted,
+            Action<string>? progressMessage,
+            bool allowDxFunctions,
+            CancellationToken cancellationToken)
+        {
+            if (allowDxFunctions)
+                return await AddCouncilStepAndExecuteDxFunctionsAsync(result, step, stepCompleted, progressMessage, cancellationToken).ConfigureAwait(false);
+
+            MultiModelCouncilServiceAddOrderedStep(result, step, logger);
+            stepCompleted?.Invoke(step);
+            progressMessage?.Invoke($"Council added {step.ModelName} for round {step.Round} / {step.Phase} without organic function execution.");
+            return [];
+        }
+
         private async Task RunPhaseAsync(
             MultiModelCouncilResult result,
             string baseUri,
@@ -1182,7 +1659,8 @@ namespace LocalGPT.Services
             Action<MultiModelCouncilStep>? stepCompleted,
             IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
             bool allowParallelHardwareRoads,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool allowDxFunctions = true)
         {
             try
             {
@@ -1280,7 +1758,7 @@ namespace LocalGPT.Services
 
                 foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
                 {
-                    await AddCouncilStepAndExecuteDxFunctionsAsync(result, step, stepCompleted, progressMessage, cancellationToken).ConfigureAwait(false);
+                    await AddCouncilStepAsync(result, step, stepCompleted, progressMessage, allowDxFunctions, cancellationToken).ConfigureAwait(false);
                 }
 
 

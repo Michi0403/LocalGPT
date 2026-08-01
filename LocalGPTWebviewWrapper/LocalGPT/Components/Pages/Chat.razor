@@ -53,19 +53,18 @@
                 <small>@(ChatClientProvider.SelectedSession?.Name ?? "No provider") · @SelectedCouncilModelNames.Count council model@(SelectedCouncilModelNames.Count == 1 ? string.Empty : "s")</small>
             </summary>
             <div class="chat-configuration-content">
-        <div class="chat-session-toolbar" data-testid="chat-session-actions">
-            <DxToolbar Title="Chat actions"
-                       CssClass="localgpt-chat-toolbar"
-                       AdaptivityAutoCollapseItemsToIcons="true"
-                       ItemClick="OnChatToolbarItemClick">
-                <Items>
-                    <DxToolbarItem Name="provider-setup" Text="Provider setup" IconCssClass="oi oi-cog" />
-                    <DxToolbarItem Name="refresh-models" Text="Refresh local models" CssClass="localgpt-command-refresh-models" IconCssClass="oi oi-reload" Enabled="@(!isModelRefreshBusy)" />
-                    <DxToolbarItem Name="onewire-security" Text="1-Wire Security" IconCssClass="oi oi-lock-locked" />
-                    <DxToolbarItem Name="council-teams" Text="Council Teams" IconCssClass="oi oi-people" />
-                </Items>
-            </DxToolbar>
-        </div>
+        <nav class="chat-session-toolbar chat-navigation-actions" data-testid="chat-session-actions" aria-label="Chat actions">
+            <strong>Chat actions</strong>
+            <a class="btn btn-outline-secondary" href="/install" data-enhance-nav="false"><span class="oi oi-cog" aria-hidden="true"></span> Provider setup</a>
+            <DxButton CssClass="localgpt-command-refresh-models" Text="Refresh local models"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      IconCssClass="oi oi-reload"
+                      Enabled="@(!isModelRefreshBusy)"
+                      Click="RefreshOllamaModelsAsync" />
+            <a class="btn btn-outline-secondary" href="/onewire-security" data-enhance-nav="false"><span class="oi oi-lock-locked" aria-hidden="true"></span> 1-Wire Security</a>
+            <a class="btn btn-outline-secondary" href="/council-teams" data-enhance-nav="false"><span class="oi oi-people" aria-hidden="true"></span> Council Teams</a>
+        </nav>
 
         <div class="chat-provider-row" data-testid="chat-top-controls">
             <label class="chat-provider-selector" title="Choose the local or cloud model for the next response.">
@@ -716,74 +715,6 @@
     DotNetObjectReference<Chat>? chatInteropReference;
 
 
-
-    private async Task OnChatToolbarItemClick(ToolbarItemClickEventArgs args)
-    {
-        try
-        {
-            Logger.LogDebug($"{nameof(OnChatToolbarItemClick)} received command {args.ItemName}.");
-            switch (args.ItemName)
-            {
-                case "new-chat": await ClearHistoryAsync().ConfigureAwait(true); break;
-                case "provider-setup": OpenProviderSetup(); break;
-                case "refresh-models": await RefreshOllamaModelsAsync().ConfigureAwait(true); break;
-                case "onewire-security": OpenOneWireSecurity(); break;
-                case "council-teams": OpenCouncilTeams(); break;
-                default: Logger.LogWarning($"{nameof(OnChatToolbarItemClick)} ignored unknown command {args.ItemName}."); break;
-            }
-        }
-        catch (Exception exception)
-        {
-            Logger.LogError(exception, $"{nameof(OnChatToolbarItemClick)} failed for command {args.ItemName}.");
-            ComponentActivity.RecordFailure(nameof(Chat), nameof(OnChatToolbarItemClick), exception);
-            Notifier.ShowError(toastName, "The chat command failed. See local logs for details.", "Chat command failed");
-        }
-    }
-
-    private void OpenProviderSetup()
-    {
-        try
-        {
-            Logger.LogDebug($"{nameof(OpenProviderSetup)} is navigating from Chat to provider setup.");
-            NavigationManager.NavigateTo("/install", forceLoad: false);
-        }
-        catch (Exception exception)
-        {
-            Logger.LogError(exception, $"{nameof(OpenProviderSetup)} could not navigate from Chat to provider setup.");
-            ComponentActivity.RecordFailure(nameof(Chat), nameof(OpenProviderSetup), exception);
-            Notifier.ShowError(toastName, "Navigation failed. See local logs for details.", "Navigation failed");
-        }
-    }
-
-    private void OpenOneWireSecurity()
-    {
-        try
-        {
-            Logger.LogDebug($"{nameof(OpenOneWireSecurity)} is navigating from Chat to 1-Wire Security.");
-            NavigationManager.NavigateTo("/onewire-security", forceLoad: false);
-        }
-        catch (Exception exception)
-        {
-            Logger.LogError(exception, $"{nameof(OpenOneWireSecurity)} could not navigate from Chat to 1-Wire Security.");
-            ComponentActivity.RecordFailure(nameof(Chat), nameof(OpenOneWireSecurity), exception);
-            Notifier.ShowError(toastName, "Navigation failed. See local logs for details.", "Navigation failed");
-        }
-    }
-
-    private void OpenCouncilTeams()
-    {
-        try
-        {
-            Logger.LogDebug($"{nameof(OpenCouncilTeams)} is navigating from Chat to Council Teams.");
-            NavigationManager.NavigateTo("/council-teams", forceLoad: false);
-        }
-        catch (Exception exception)
-        {
-            Logger.LogError(exception, $"{nameof(OpenCouncilTeams)} could not navigate from Chat to Council Teams.");
-            ComponentActivity.RecordFailure(nameof(Chat), nameof(OpenCouncilTeams), exception);
-            Notifier.ShowError(toastName, "Navigation failed. See local logs for details.", "Navigation failed");
-        }
-    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -22,16 +22,28 @@ public sealed class OrganicCouncilBlueprintService(
         var team = await FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false)
             ?? await FindTeamAsync("general", cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("No enabled council team configuration is available.");
+        var usesBuiltInWorkflow = team.IsSystemSeed && !team.IsUserModified && team.WorkflowSteps.Count > 0 && team.WorkflowSteps.All(step => step.UseBuiltInBehavior);
         var builder = new StringBuilder()
             .AppendLine($"Council team: {team.DisplayName} ({team.Key})")
             .AppendLine(team.Purpose)
-            .AppendLine("Heartbeat contract:")
-            .AppendLine("1. A RegEx/language/domain expert preparation round grounds the user request in the selected revision, compiler syntax, project structures and approved knowledge.")
-            .AppendLine("2. The council leader synthesizes a scientific UML-compatible work order from current state to target state and explicitly lists compatibility contracts.")
-            .AppendLine("3. Every council member contributes according to role, subject expertise and demonstrated best practice during the main round.")
-            .AppendLine("4. Eye/hand/other organ functions are invoked only when required to finish the current task for the next heartbeat. Consequential operations remain behind the existing human approval path.")
-            .AppendLine("5. Results, pending approvals, errors and produced artifacts are carried into the next heartbeat; no unattended agent loop is created.")
-            .AppendLine("Roles:");
+            .AppendLine(usesBuiltInWorkflow ? "LocalGPT default heartbeat contract:" : "User-defined literal workflow contract:");
+        if (usesBuiltInWorkflow)
+        {
+            builder
+                .AppendLine("1. A RegEx/language/domain expert preparation round grounds the user request in the selected revision, compiler syntax, project structures and approved knowledge.")
+                .AppendLine("2. The council leader synthesizes a scientific UML-compatible work order from current state to target state and explicitly lists compatibility contracts.")
+                .AppendLine("3. Every council member contributes according to role, subject expertise and demonstrated best practice during the main round.")
+                .AppendLine("4. Eye/hand/other organ functions are invoked only when required to finish the current task for the next heartbeat. Consequential operations remain behind the existing human approval path.")
+                .AppendLine("5. Results, pending approvals, errors and produced artifacts are carried into the next heartbeat; no unattended agent loop is created.");
+        }
+        else
+        {
+            builder
+                .AppendLine("Execute enabled workflow steps in saved sort order and repeat each step exactly as configured.")
+                .AppendLine("Use the saved role, execution mode, assigned model, prompt, transcript option, function option and final-answer option for each step.")
+                .AppendLine("Do not add mandatory social roles or ideological filters that are absent from the user's saved structure. Technical safety, explicit approvals and bounded local execution still apply.");
+        }
+        builder.AppendLine("Roles:");
         foreach (var role in team.Roles)
             builder.AppendLine($"- {role.Role}: {role.Expertise}. Responsibility: {role.Responsibility}");
         builder.AppendLine($"Preferred organic capabilities: {string.Join(", ", team.PreferredCapabilities)}");

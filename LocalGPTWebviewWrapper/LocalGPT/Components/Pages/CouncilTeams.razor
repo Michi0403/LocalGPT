@@ -10,8 +10,8 @@
 <main class="council-team-page localgpt-surface">
     <header class="council-team-header">
         <div>
-            <h1>AI Council Teams and heartbeat scripts</h1>
-            <p>System teams are seeded into SQLite, remain selectable, and can be adjusted without overwriting existing user edits during later seed upgrades.</p>
+            <h1>AI Council social structures</h1>
+            <p>The supplied LocalGPT council remains available as the default. Create or duplicate a team to define any role set and any workflow from one round up to the technical run limit.</p>
         </div>
         <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
     </header>
@@ -36,30 +36,132 @@
             {
                 <button type="button" class="council-team-list-item @(team.Key == _selectedKey ? "active" : string.Empty)" @onclick="() => SelectTeam(team)">
                     <strong>@team.DisplayName</strong>
-                    <small>@team.Key · @(team.IsEnabled ? "enabled" : "disabled")</small>
+                    <small>@team.Key · @(team.IsEnabled ? "enabled" : "disabled") · @WorkflowLabel(team)</small>
                     <span>@team.Purpose</span>
                 </button>
             }
-            <button type="button" class="btn btn-outline-primary" @onclick="CreateTeam">Create team</button>
+            <div class="council-team-list-actions">
+                <button type="button" class="btn btn-outline-primary" @onclick="CreateTeam">Create empty structure</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="DuplicateTeam" disabled="@(_teams.Count == 0)">Duplicate selected</button>
+            </div>
         </aside>
 
         <section class="council-team-editor">
+            <div class="council-structure-mode @(UsesDefaultWorkflow(_editor) ? "default-mode" : "custom-mode")">
+                <strong>@WorkflowLabel(_editor)</strong>
+                <span>Untouched supplied teams use the established LocalGPT orchestration. Saving any edit creates a user-owned literal workflow; duplicating keeps the supplied default untouched.</span>
+            </div>
+
             <div class="council-team-fields">
                 <label><span>Key</span><input class="form-control" @bind="_editor.Key" /></label>
                 <label><span>Display name</span><input class="form-control" @bind="_editor.DisplayName" /></label>
                 <label class="wide"><span>Purpose</span><textarea class="form-control" rows="3" @bind="_editor.Purpose"></textarea></label>
-                <label class="wide"><span>Member readiness and introduction prompt</span><textarea class="form-control council-script" rows="7" @bind="_introductionPrompt"></textarea><small>Supported placeholders: {{ModelName}}, {{CouncilMembers}}, {{TeamName}}, {{TeamKey}}. This is stored as the member-readiness-introduction workflow step.</small></label>
-                <label class="wide"><span>Expert preparation prompt</span><textarea class="form-control council-script" rows="9" @bind="_editor.ExpertPreparationPromptTemplate"></textarea></label>
-                <label class="wide"><span>Leader synthesis prompt</span><textarea class="form-control council-script" rows="9" @bind="_editor.LeaderSynthesisPromptTemplate"></textarea></label>
-                <label class="wide"><span>Main-round instruction</span><textarea class="form-control council-script" rows="6" @bind="_editor.MainRoundInstructionTemplate"></textarea></label>
-                <label class="wide"><span>Roles JSON</span><textarea class="form-control council-script" rows="8" @bind="_rolesJson"></textarea></label>
-                <label class="wide"><span>Workflow steps JSON</span><textarea class="form-control council-script" rows="12" @bind="_workflowJson"></textarea></label>
-                <label class="wide"><span>Preferred organic capabilities JSON</span><textarea class="form-control council-script" rows="5" @bind="_capabilitiesJson"></textarea></label>
-                <label class="wide"><span>Architecture contracts JSON</span><textarea class="form-control council-script" rows="5" @bind="_contractsJson"></textarea></label>
             </div>
+
+            <section class="council-structure-section">
+                <header>
+                    <div>
+                        <h2>Roles</h2>
+                        <p>Roles are free-form social responsibilities. They do not need to match LocalGPT's supplied role names.</p>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddRole">Add role</button>
+                </header>
+                @if (_editor.Roles.Count == 0)
+                {
+                    <div class="council-empty-structure">No roles are defined. The workflow can still run, but named roles make the structure easier to understand.</div>
+                }
+                @for (var index = 0; index < _editor.Roles.Count; index++)
+                {
+                    var roleIndex = index;
+                    var role = _editor.Roles[roleIndex];
+                    <article class="council-role-card" @key="role">
+                        <label><span>Role name</span><input class="form-control" @bind="role.Role" /></label>
+                        <label><span>Expertise or viewpoint</span><input class="form-control" @bind="role.Expertise" /></label>
+                        <label class="wide"><span>Responsibility</span><textarea class="form-control" rows="2" @bind="role.Responsibility"></textarea></label>
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveRole(roleIndex)">Remove role</button>
+                    </article>
+                }
+            </section>
+
+            <section class="council-structure-section">
+                <header>
+                    <div>
+                        <h2>Rounds and workflow</h2>
+                        <p>Each enabled step is a council round. Repeat count expands one step into several rounds. Use placeholders such as <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddWorkflowStep">Add round</button>
+                </header>
+                @if (_editor.WorkflowSteps.Count == 0)
+                {
+                    <div class="council-empty-structure">No rounds are defined. Add at least one enabled round before saving.</div>
+                }
+                @for (var index = 0; index < _editor.WorkflowSteps.Count; index++)
+                {
+                    var stepIndex = index;
+                    var step = _editor.WorkflowSteps[stepIndex];
+                    <article class="council-workflow-card" @key="step">
+                        <header>
+                            <div>
+                                <strong>@(string.IsNullOrWhiteSpace(step.DisplayName) ? $"Round {stepIndex + 1}" : step.DisplayName)</strong>
+                                <small>@step.ExecutionMode · repeat @step.RepeatCount</small>
+                            </div>
+                            <div class="council-step-actions">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => MoveWorkflowStep(stepIndex, -1)" disabled="@(stepIndex == 0)">Up</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => MoveWorkflowStep(stepIndex, 1)" disabled="@(stepIndex == _editor.WorkflowSteps.Count - 1)">Down</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveWorkflowStep(stepIndex)">Remove</button>
+                            </div>
+                        </header>
+                        <div class="council-workflow-fields">
+                            <label><span>Key</span><input class="form-control" @bind="step.Key" /></label>
+                            <label><span>Display name</span><input class="form-control" @bind="step.DisplayName" /></label>
+                            <label><span>Phase</span><input class="form-control" @bind="step.Phase" /></label>
+                            <label><span>Role for this round</span><input class="form-control" @bind="step.Role" /></label>
+                            <label>
+                                <span>Execution</span>
+                                <select class="form-select" @bind="step.ExecutionMode">
+                                    @foreach (var mode in ExecutionModes)
+                                    {
+                                        <option value="@mode.Value">@mode.Label</option>
+                                    }
+                                </select>
+                            </label>
+                            <label><span>Assigned model (optional)</span><input class="form-control" @bind="step.AssignedModelName" placeholder="Used by Assigned model only" /></label>
+                            <label><span>Repeat count</span><input class="form-control" type="number" min="1" max="100" @bind="step.RepeatCount" /></label>
+                            <label><span>Sort order</span><input class="form-control" type="number" @bind="step.SortOrder" /></label>
+                            <label class="wide"><span>Round prompt</span><textarea class="form-control council-script" rows="7" @bind="step.PromptTemplate"></textarea></label>
+                        </div>
+                        <div class="council-step-options">
+                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IsEnabled" /><span>Enabled</span></label>
+                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IncludePriorTranscript" /><span>Include previous transcript</span></label>
+                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesFinalAnswer" /><span>Can become final answer</span></label>
+                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.RequiresHumanCheckpoint" /><span>Respect human gate before round</span></label>
+                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.CanUseOrganicFunctions" /><span>Allow DX/organic function requests</span></label>
+                        </div>
+                    </article>
+                }
+            </section>
+
+            <details class="council-advanced-section">
+                <summary>Advanced prompt compatibility and JSON import/export</summary>
+                <div class="council-team-fields">
+                    <label class="wide"><span>Legacy expert preparation prompt</span><textarea class="form-control council-script" rows="6" @bind="_editor.ExpertPreparationPromptTemplate"></textarea></label>
+                    <label class="wide"><span>Legacy leader synthesis prompt</span><textarea class="form-control council-script" rows="6" @bind="_editor.LeaderSynthesisPromptTemplate"></textarea></label>
+                    <label class="wide"><span>Legacy main-round instruction</span><textarea class="form-control council-script" rows="4" @bind="_editor.MainRoundInstructionTemplate"></textarea></label>
+                    <label class="wide"><span>Roles JSON</span><textarea class="form-control council-script" rows="8" @bind="_rolesJson"></textarea></label>
+                    <label class="wide"><span>Workflow steps JSON</span><textarea class="form-control council-script" rows="12" @bind="_workflowJson"></textarea></label>
+                    <div class="wide council-json-actions">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefreshAdvancedJson">Refresh JSON from editor</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="ApplyAdvancedJson">Apply JSON to editor</button>
+                    </div>
+                    <label class="wide"><span>Preferred organic capabilities JSON</span><textarea class="form-control council-script" rows="5" @bind="_capabilitiesJson"></textarea></label>
+                    <label class="wide"><span>Architecture contracts JSON</span><textarea class="form-control council-script" rows="5" @bind="_contractsJson"></textarea></label>
+                </div>
+            </details>
+
             <div class="council-team-savebar">
+                <span class="council-expanded-count">@EnabledRoundCount enabled step(s), @ExpandedRoundCount expanded round(s)</span>
                 <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_editor.IsEnabled" /><span>Enabled</span></label>
-                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_confirmed" /><span>I reviewed these prompts, roles and workflow changes</span></label>
+                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_confirmed" /><span>I reviewed this social structure and its prompts</span></label>
                 <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@(_busy || !_confirmed)">Save reviewed team</button>
             </div>
         </section>
@@ -68,18 +170,28 @@
 
 @code {
     private readonly System.Text.Json.JsonSerializerOptions JsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
+    private readonly IReadOnlyList<(string Value, string Label)> ExecutionModes =
+    [
+        ("AllMembersParallel", "All members in parallel"),
+        ("AllMembersSequential", "All members sequentially"),
+        ("LeaderSingle", "Council leader only"),
+        ("RoundRobinSingle", "One rotating member"),
+        ("AssignedModelSingle", "Assigned model only")
+    ];
     private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
     private OrganicCouncilTeamDefinition _editor = new();
     private string _selectedKey = string.Empty;
     private string _rolesJson = "[]";
     private string _workflowJson = "[]";
-    private string _introductionPrompt = string.Empty;
     private string _capabilitiesJson = "[]";
     private string _contractsJson = "[]";
     private string _status = string.Empty;
     private bool _hasError;
     private bool _confirmed;
     private bool _busy;
+
+    private int EnabledRoundCount => _editor.WorkflowSteps.Count(step => step.IsEnabled);
+    private int ExpandedRoundCount => _editor.WorkflowSteps.Where(step => step.IsEnabled).Sum(step => Math.Max(1, step.RepeatCount));
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
@@ -90,7 +202,10 @@
         {
             _teams = await TeamConfigurations.GetTeamsAsync(includeDisabled: true);
             var selected = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
-            if (selected is not null) SelectTeam(selected);
+            if (selected is not null)
+                SelectTeam(selected);
+            else
+                CreateTeam();
             _status = $"Loaded {_teams.Count} database-backed team configuration(s).";
             _hasError = false;
             Notifier.ShowInfo(nameof(CouncilTeams), _status, "Council Teams");
@@ -98,27 +213,31 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Could not load AI Council team configurations.");
+            ComponentActivity.RecordFailure(nameof(CouncilTeams), nameof(ReloadAsync), ex);
             _status = ex.Message;
             _hasError = true;
             Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council Teams");
         }
-        finally { _busy = false; }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private void OnTeamChanged(ChangeEventArgs args)
     {
         var key = args.Value?.ToString() ?? string.Empty;
         var team = _teams.FirstOrDefault(item => item.Key == key);
-        if (team is not null) SelectTeam(team);
+        if (team is not null)
+            SelectTeam(team);
     }
 
     private void SelectTeam(OrganicCouncilTeamDefinition team)
     {
         _selectedKey = team.Key;
         _editor = Clone(team);
-        _rolesJson = Serialize(team.Roles);
-        _workflowJson = Serialize(team.WorkflowSteps);
-        _introductionPrompt = team.WorkflowSteps.FirstOrDefault(step => string.Equals(step.Key, "member-readiness-introduction", StringComparison.OrdinalIgnoreCase))?.PromptTemplate ?? string.Empty;
+        NormalizeEditorOrdering();
+        RefreshAdvancedJson();
         _capabilitiesJson = Serialize(team.PreferredCapabilities);
         _contractsJson = Serialize(team.ArchitectureContracts);
         _confirmed = false;
@@ -127,13 +246,149 @@
     private void CreateTeam()
     {
         _selectedKey = string.Empty;
-        _editor = new OrganicCouncilTeamDefinition { Key = "new-team", DisplayName = "New Council Team", IsEnabled = true };
-        _rolesJson = "[]";
-        _workflowJson = "[]";
-        _introductionPrompt = "Introduce yourself, confirm your model-specific hardware road, directly available DXFunctions, approved skills and connected 1-Wire organs, then state evidence-backed strengths, improvement goals and exact questions.";
+        _editor = new OrganicCouncilTeamDefinition
+        {
+            Key = "new-team",
+            DisplayName = "New Council Team",
+            Purpose = "A user-defined social AI structure.",
+            IsEnabled = true,
+            Roles =
+            [
+                new OrganicCouncilRoleDefinition { Role = "Participant", Expertise = "A viewpoint chosen by the user", Responsibility = "Contribute according to the saved round prompt" }
+            ],
+            WorkflowSteps =
+            [
+                CreateWorkflowStep(0)
+            ]
+        };
         _capabilitiesJson = "[]";
         _contractsJson = "[]";
+        RefreshAdvancedJson();
         _confirmed = false;
+        _status = "Created an unsaved custom structure. Rename its key before saving if needed.";
+        _hasError = false;
+    }
+
+    private void DuplicateTeam()
+    {
+        var source = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
+        if (source is null)
+        {
+            CreateTeam();
+            return;
+        }
+
+        _editor = Clone(source);
+        _editor.Key = $"{source.Key}-custom";
+        _editor.DisplayName = $"{source.DisplayName} custom";
+        _editor.IsSystemSeed = false;
+        _editor.IsUserModified = true;
+        foreach (var step in _editor.WorkflowSteps)
+            step.UseBuiltInBehavior = false;
+        _selectedKey = string.Empty;
+        RefreshAdvancedJson();
+        _capabilitiesJson = Serialize(_editor.PreferredCapabilities);
+        _contractsJson = Serialize(_editor.ArchitectureContracts);
+        _confirmed = false;
+        _status = $"Duplicated '{source.DisplayName}' as an unsaved literal workflow. Change the key if it already exists.";
+        _hasError = false;
+    }
+
+    private void AddRole() => _editor.Roles.Add(new OrganicCouncilRoleDefinition
+    {
+        Role = $"Role {_editor.Roles.Count + 1}",
+        Expertise = string.Empty,
+        Responsibility = string.Empty
+    });
+
+    private void RemoveRole(int index)
+    {
+        if (index >= 0 && index < _editor.Roles.Count)
+            _editor.Roles.RemoveAt(index);
+    }
+
+    private void AddWorkflowStep()
+    {
+        foreach (var existing in _editor.WorkflowSteps)
+            existing.UseBuiltInBehavior = false;
+        _editor.WorkflowSteps.Add(CreateWorkflowStep(_editor.WorkflowSteps.Count));
+        NormalizeEditorOrdering();
+    }
+
+    private CouncilWorkflowStepDefinition CreateWorkflowStep(int index) => new()
+    {
+        Key = $"round-{index + 1}",
+        DisplayName = $"Round {index + 1}",
+        SortOrder = (index + 1) * 10,
+        Phase = "Discussion",
+        Role = "Council participant",
+        ExecutionMode = "AllMembersParallel",
+        RepeatCount = 1,
+        IncludePriorTranscript = true,
+        IsEnabled = true,
+        CanUseOrganicFunctions = true,
+        PromptTemplate = "Contribute to {{TeamName}} as {{Role}}. Address the original request, consider the prior transcript, and state disagreements or missing information plainly.\n\nUser request:\n{{UserPrompt}}\n\nPrior transcript:\n{{Transcript}}"
+    };
+
+    private void RemoveWorkflowStep(int index)
+    {
+        if (index < 0 || index >= _editor.WorkflowSteps.Count)
+            return;
+        _editor.WorkflowSteps.RemoveAt(index);
+        MarkWorkflowCustom();
+        NormalizeEditorOrdering();
+    }
+
+    private void MoveWorkflowStep(int index, int direction)
+    {
+        var target = index + direction;
+        if (index < 0 || index >= _editor.WorkflowSteps.Count || target < 0 || target >= _editor.WorkflowSteps.Count)
+            return;
+        (_editor.WorkflowSteps[index], _editor.WorkflowSteps[target]) = (_editor.WorkflowSteps[target], _editor.WorkflowSteps[index]);
+        MarkWorkflowCustom();
+        NormalizeEditorOrdering();
+    }
+
+    private void MarkWorkflowCustom()
+    {
+        foreach (var step in _editor.WorkflowSteps)
+            step.UseBuiltInBehavior = false;
+    }
+
+    private void NormalizeEditorOrdering()
+    {
+        for (var index = 0; index < _editor.WorkflowSteps.Count; index++)
+        {
+            if (_editor.WorkflowSteps[index].SortOrder == 0)
+                _editor.WorkflowSteps[index].SortOrder = (index + 1) * 10;
+            _editor.WorkflowSteps[index].RepeatCount = Math.Max(1, _editor.WorkflowSteps[index].RepeatCount);
+        }
+    }
+
+    private void RefreshAdvancedJson()
+    {
+        _rolesJson = Serialize(_editor.Roles);
+        _workflowJson = Serialize(_editor.WorkflowSteps);
+    }
+
+    private void ApplyAdvancedJson()
+    {
+        try
+        {
+            _editor.Roles = Deserialize<List<OrganicCouncilRoleDefinition>>(_rolesJson);
+            _editor.WorkflowSteps = Deserialize<List<CouncilWorkflowStepDefinition>>(_workflowJson);
+            MarkWorkflowCustom();
+            NormalizeEditorOrdering();
+            _status = "Applied the advanced JSON to the visual editor. Review the resulting roles and rounds before saving.";
+            _hasError = false;
+            _confirmed = false;
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _status = ex.Message;
+            _hasError = true;
+            Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council JSON rejected");
+        }
     }
 
     private async Task SaveAsync()
@@ -141,18 +396,10 @@
         _busy = true;
         try
         {
-            _editor.Roles = Deserialize<List<OrganicCouncilRoleDefinition>>(_rolesJson);
-            _editor.WorkflowSteps = Deserialize<List<CouncilWorkflowStepDefinition>>(_workflowJson);
-            var introduction = _editor.WorkflowSteps.FirstOrDefault(step => string.Equals(step.Key, "member-readiness-introduction", StringComparison.OrdinalIgnoreCase));
-            if (introduction is null)
-            {
-                introduction = new CouncilWorkflowStepDefinition { Key = "member-readiness-introduction", DisplayName = "Member readiness and introduction", SortOrder = 5, Phase = "Readiness", Role = "Every council member", ExecutionMode = "AllMembersParallel", IsEnabled = true, CanUseOrganicFunctions = false };
-                _editor.WorkflowSteps.Add(introduction);
-            }
-            introduction.PromptTemplate = _introductionPrompt.Trim();
-            _editor.WorkflowSteps = _editor.WorkflowSteps.OrderBy(step => step.SortOrder).ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase).ToList();
+            NormalizeEditorOrdering();
             _editor.PreferredCapabilities = Deserialize<List<string>>(_capabilitiesJson);
             _editor.ArchitectureContracts = Deserialize<List<string>>(_contractsJson);
+            RefreshAdvancedJson();
             var saved = await TeamConfigurations.SaveAsync(new SaveCouncilTeamConfigurationRequest
             {
                 Team = _editor,
@@ -160,7 +407,7 @@
                 UserConfirmed = _confirmed
             });
             _selectedKey = saved.Key;
-            _status = $"Saved '{saved.DisplayName}'. Existing seed/user knowledge was retained.";
+            _status = $"Saved '{saved.DisplayName}' with {saved.Roles.Count} role(s) and {saved.WorkflowSteps.Where(step => step.IsEnabled).Sum(step => step.RepeatCount)} expanded round(s).";
             _hasError = false;
             Notifier.ShowSuccess(nameof(CouncilTeams), _status, "Council team saved");
             _confirmed = false;
@@ -169,11 +416,40 @@
         catch (Exception ex) when (ex is System.Text.Json.JsonException or ArgumentException or InvalidOperationException)
         {
             Logger.LogWarning(ex, "AI Council team configuration was rejected.");
+            ComponentActivity.RecordFailure(nameof(CouncilTeams), nameof(SaveAsync), ex);
             _status = ex.Message;
             _hasError = true;
             Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council team rejected");
         }
-        finally { _busy = false; }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private string WorkflowLabel(OrganicCouncilTeamDefinition team) =>
+        UsesDefaultWorkflow(team) ? "LocalGPT default orchestration" : "literal custom workflow";
+
+    private bool UsesDefaultWorkflow(OrganicCouncilTeamDefinition team)
+    {
+        if (!team.IsSystemSeed || team.IsUserModified)
+            return false;
+        var expected = new Dictionary<string, (int SortOrder, string ExecutionMode)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["member-readiness-introduction"] = (5, "AllMembersParallel"),
+            ["expert-preparation"] = (10, "LeaderSingle"),
+            ["leader-synthesis"] = (20, "LeaderSingle"),
+            ["member-proposals"] = (30, "AllMembersParallel"),
+            ["peer-review"] = (40, "AllMembersParallel"),
+            ["consensus"] = (50, "LeaderSingle")
+        };
+        var enabled = team.WorkflowSteps.Where(step => step.IsEnabled).ToList();
+        return enabled.Count == expected.Count && enabled.All(step =>
+            step.UseBuiltInBehavior &&
+            step.RepeatCount == 1 &&
+            expected.TryGetValue(step.Key, out var contract) &&
+            step.SortOrder == contract.SortOrder &&
+            string.Equals(step.ExecutionMode, contract.ExecutionMode, StringComparison.OrdinalIgnoreCase));
     }
 
     private OrganicCouncilTeamDefinition Clone(OrganicCouncilTeamDefinition value) =>

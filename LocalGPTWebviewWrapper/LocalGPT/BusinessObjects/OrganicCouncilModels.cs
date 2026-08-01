@@ -13,6 +13,8 @@ public sealed class OrganicCouncilTeamDefinition
     public string LeaderSynthesisPromptTemplate { get; set; } = string.Empty;
     public string MainRoundInstructionTemplate { get; set; } = string.Empty;
     public bool IsEnabled { get; set; } = true;
+    public bool IsSystemSeed { get; set; }
+    public bool IsUserModified { get; set; }
 }
 
 public sealed class OrganicCouncilRoleDefinition
@@ -53,7 +55,12 @@ public sealed class CouncilWorkflowStepDefinition
     public string Phase { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string PromptTemplate { get; set; } = string.Empty;
-    public string ExecutionMode { get; set; } = "AllMembers";
+    public string ExecutionMode { get; set; } = "AllMembersParallel";
+    public string AssignedModelName { get; set; } = string.Empty;
+    public int RepeatCount { get; set; } = 1;
+    public bool IncludePriorTranscript { get; set; } = true;
+    public bool ProducesFinalAnswer { get; set; }
+    public bool UseBuiltInBehavior { get; set; }
     public bool IsEnabled { get; set; } = true;
     public bool RequiresHumanCheckpoint { get; set; }
     public bool CanUseOrganicFunctions { get; set; } = true;

@@ -1439,3 +1439,51 @@
         grid-column: 1;
     }
 }
+
+.chat-navigation-actions {
+    display: grid;
+    grid-template-columns: auto repeat(4, minmax(10rem, 1fr));
+    align-items: stretch;
+    gap: .5rem;
+    padding: .55rem;
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: .65rem;
+    background: var(--localgpt-surface-bg);
+    box-shadow: var(--localgpt-shadow-soft);
+}
+
+.chat-navigation-actions > strong {
+    display: flex;
+    align-items: center;
+    padding: 0 .45rem;
+}
+
+.chat-navigation-actions > a,
+.chat-navigation-actions ::deep button {
+    min-height: 2.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    font-weight: 700;
+}
+
+@media (max-width: 900px) {
+    .chat-navigation-actions {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .chat-navigation-actions > strong {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 560px) {
+    .chat-navigation-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .chat-navigation-actions > strong {
+        grid-column: auto;
+    }
+}
