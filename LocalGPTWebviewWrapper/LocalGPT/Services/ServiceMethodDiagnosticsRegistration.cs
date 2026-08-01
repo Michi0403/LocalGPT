@@ -59,6 +59,7 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
 
     private bool IsHighFrequencyReadService(Type serviceType) =>
         serviceType == typeof(ILocalGptRuntimePolicyDataService) ||
+        serviceType == typeof(ICouncilLiveSessionService) ||
         serviceType == typeof(IDxAiFunctionJsonService) ||
         serviceType == typeof(IChatContentRenderer) ||
         serviceType == typeof(IChatResponseFormatter) ||

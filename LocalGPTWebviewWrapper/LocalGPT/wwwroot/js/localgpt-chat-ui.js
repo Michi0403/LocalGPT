@@ -415,20 +415,26 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 button.addEventListener('click', diagnostics.guard('localgpt-chat-ui.liveCouncilSend.click', async event => {
                     event.preventDefault();
                     event.stopPropagation();
-                    const content = editorText(editor).trim();
-                    if (!content || !councilComposerActive || !councilComposerDotNet || councilComposerSubmitting) return;
+                    const currentEditor = host.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
+                    const currentComposer = button.closest('.localgpt-chat-composer') || composer;
+                    const content = editorText(currentEditor).trim();
+                    if (!councilComposerActive || !councilComposerDotNet || councilComposerSubmitting) return;
                     councilComposerSubmitting = true;
                     button.disabled = true;
                     try {
-                        const accepted = await councilComposerDotNet.invokeMethodAsync('QueueLiveCouncilUserMessageAsync', content);
-                        if (accepted) {
-                            appendLiveUserMessage(host, content);
-                            clearEditor(editor);
+                        if (content) {
+                            const accepted = await councilComposerDotNet.invokeMethodAsync('QueueLiveCouncilUserMessageAsync', content);
+                            if (accepted) {
+                                appendLiveUserMessage(host, content);
+                                clearEditor(currentEditor);
+                            }
+                        } else {
+                            await councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync');
                         }
                     } finally {
                         councilComposerSubmitting = false;
                         button.disabled = false;
-                        updateCouncilComposer(host, editor, composer);
+                        updateCouncilComposer(host, currentEditor, currentComposer);
                     }
                 }));
                 composer.appendChild(button);
@@ -444,16 +450,30 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         try {
             if (!(host instanceof HTMLElement) || !(editor instanceof HTMLElement) || !(composer instanceof HTMLElement)) return;
             const hasText = editorText(editor).trim().length > 0;
-            const showLiveSend = councilComposerActive && hasText;
+            const showLiveAction = councilComposerActive;
             const liveSend = ensureLiveSendButton(host, composer, editor);
-            liveSend?.classList.toggle('localgpt-live-send-visible', showLiveSend);
-            if (liveSend instanceof HTMLButtonElement) liveSend.disabled = councilComposerSubmitting;
+            liveSend?.classList.toggle('localgpt-live-send-visible', showLiveAction);
+            liveSend?.classList.toggle('localgpt-live-stop-mode', showLiveAction && !hasText);
+            if (liveSend instanceof HTMLButtonElement) {
+                liveSend.disabled = councilComposerSubmitting;
+                liveSend.textContent = hasText ? '➤' : '■';
+                liveSend.setAttribute('aria-label', hasText
+                    ? 'Send message to running AI Council'
+                    : 'Stop running AI Council');
+                liveSend.setAttribute('title', hasText
+                    ? 'Add this user message to the running Council without stopping generation'
+                    : 'Stop the running Council');
+            }
 
             const actionButtons = [...composer.querySelectorAll('button,[role="button"]')];
             const isUploadAction = button => /attach|upload|file|paperclip|clip/i.test(marker(button));
             const explicitStop = actionButtons.find(button => {
                 if (button === liveSend) return false;
                 return /stop|cancel generation|abort|square/i.test(marker(button));
+            }) || null;
+            const nativeSubmit = actionButtons.find(button => {
+                if (button === liveSend || isUploadAction(button)) return false;
+                return /send|submit|paper-plane|arrow-right/i.test(marker(button));
             }) || null;
             const composerRect = composer.getBoundingClientRect();
             const fallbackStop = actionButtons.find(button => {
@@ -465,8 +485,8 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     && rect.height <= 96
                     && rect.right >= composerRect.right - 120;
             }) || null;
-            const stopButton = explicitStop || fallbackStop;
-            stopButton?.classList.toggle('localgpt-council-stop-hidden', showLiveSend);
+            const stopButton = explicitStop || nativeSubmit || fallbackStop;
+            stopButton?.classList.toggle('localgpt-council-stop-hidden', showLiveAction);
             if (stopButton instanceof HTMLElement && stopButton.dataset.localgptCouncilStopBound !== 'true') {
                 stopButton.dataset.localgptCouncilStopBound = 'true';
                 stopButton.addEventListener('click', diagnostics.guard('localgpt-chat-ui.councilStop.click', () => {
@@ -515,6 +535,22 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     editor.dataset.localgptCouncilInputBound = 'true';
                     editor.addEventListener('input', diagnostics.guard('localgpt-chat-ui.liveCouncilInput', () =>
                         updateCouncilComposer(host, editor, composer)));
+                }
+                if (editor.dataset.localgptCouncilKeyBound !== 'true') {
+                    editor.dataset.localgptCouncilKeyBound = 'true';
+                    editor.addEventListener('keydown', diagnostics.guard('localgpt-chat-ui.liveCouncilKeyDown', event => {
+                        if (!councilComposerActive
+                            || event.isComposing
+                            || event.key !== 'Enter'
+                            || event.shiftKey
+                            || event.ctrlKey
+                            || event.altKey
+                            || event.metaKey) return;
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        if (!editorText(editor).trim()) return;
+                        ensureLiveSendButton(host, composer, editor)?.click();
+                    }), { capture: true });
                 }
                 updateCouncilComposer(host, editor, composer);
             }
@@ -599,6 +635,30 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                         throw error;
                     }
                 },
+                readComposerDraft() {
+                    try {
+                        const host = document.querySelector(hostSelector);
+                        const editor = host?.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
+                        return editorText(editor);
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.readComposerDraft', error);
+                        throw error;
+                    }
+                },
+                restoreComposerDraft(value) {
+                    try {
+                        const text = String(value ?? '');
+                        if (!text) return;
+                        const host = document.querySelector(hostSelector);
+                        const editor = host?.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
+                        if (editor instanceof HTMLTextAreaElement || editor instanceof HTMLInputElement) editor.value = text;
+                        else if (editor instanceof HTMLElement) editor.textContent = text;
+                        editor?.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.restoreComposerDraft', error);
+                        throw error;
+                    }
+                },
                 clearLiveUserMessages() {
                     try {
                         document.querySelectorAll(hostSelector).forEach(host => {
@@ -607,6 +667,35 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                         });
                     } catch (error) {
                         diagnostics.report('localgpt-chat-ui.clearLiveUserMessages', error);
+                        throw error;
+                    }
+                },
+                async copyText(value) {
+                    try {
+                        const text = String(value ?? '');
+                        if (navigator.clipboard?.writeText) {
+                            try {
+                                await navigator.clipboard.writeText(text);
+                                return;
+                            } catch {
+                                // Local browser policy can reject Clipboard API access. Use the legacy fallback below.
+                            }
+                        }
+
+                        const fallback = document.createElement('textarea');
+                        try {
+                            fallback.value = text;
+                            fallback.setAttribute('readonly', '');
+                            fallback.style.position = 'fixed';
+                            fallback.style.opacity = '0';
+                            document.body.appendChild(fallback);
+                            fallback.select();
+                            document.execCommand('copy');
+                        } finally {
+                            fallback.remove();
+                        }
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.copyText', error);
                         throw error;
                     }
                 }

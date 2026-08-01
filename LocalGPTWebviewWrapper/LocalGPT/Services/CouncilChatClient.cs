@@ -60,7 +60,8 @@ public sealed partial class CouncilChatClient(
         });
         var attached = 1;
 
-        var request = CreateRequest(messages);
+        var requestMessages = messages.ToList();
+        var request = CreateRequest(requestMessages);
         ArgumentNullException.ThrowIfNull(request);
         if (request.ModelNames.Count == 0)
         {
@@ -71,7 +72,16 @@ public sealed partial class CouncilChatClient(
         }
 
         var introduction = $"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Thinking and answer text are streamed to this panel as soon as each local model emits them._\n\n";
-        var liveCancellation = liveSessions.Begin(request.RunId, request.ModelNames, introduction);
+        var liveMessageMarker = $"<!-- localgpt-live-council:{request.RunId:N} -->\n";
+        var initiatingUserMessage = requestMessages
+            .LastOrDefault(message => message.Role == ChatRole.User)
+            ?.Text
+            ?.Trim() ?? string.Empty;
+        var liveCancellation = liveSessions.Begin(
+            request.RunId,
+            request.ModelNames,
+            initiatingUserMessage,
+            introduction);
 
         void Publish(string text)
         {
@@ -86,7 +96,7 @@ public sealed partial class CouncilChatClient(
         request.StreamUpdate = Publish;
         request.StepCompleted = step => Publish(councilRuntime.FormatStepProgress(step, logger));
 
-        yield return councilRuntime.CreateUpdate(introduction, logger);
+        yield return councilRuntime.CreateUpdate(liveMessageMarker + introduction, logger);
         var startedAt = DateTimeOffset.UtcNow;
         var runTask = RunCouncilInBackgroundAsync(request, liveCancellation, updates.Writer, Publish);
 

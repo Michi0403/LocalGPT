@@ -1368,3 +1368,90 @@
     border-radius: .55rem;
     background: color-mix(in srgb, var(--bs-primary, #0d6efd) 8%, transparent);
 }
+
+/* v36: a rejoined Council remains visibly live and fully controllable after a
+   language/page circuit replacement. Message copy is an explicit stable action
+   instead of depending on DevExpress streaming-only controls. */
+.demo-chat ::deep .localgpt-message-utility-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .55rem;
+    min-height: 2rem;
+    margin: 0 0 .45rem;
+}
+
+.demo-chat ::deep .localgpt-rejoined-live-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    margin-right: auto;
+    color: var(--bs-secondary-color);
+    font-size: .82rem;
+    font-weight: 650;
+}
+
+.demo-chat ::deep .localgpt-rejoined-live-spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid color-mix(in srgb, var(--bs-primary, #ff6b00) 28%, transparent);
+    border-top-color: var(--bs-primary, #ff6b00);
+    border-radius: 50%;
+    animation: localgpt-rejoined-live-spin .85s linear infinite;
+}
+
+@keyframes localgpt-rejoined-live-spin {
+    to { transform: rotate(360deg); }
+}
+
+.demo-chat ::deep .localgpt-message-copy-button {
+    min-height: 2rem;
+    padding: .3rem .7rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    background: var(--bs-tertiary-bg, var(--bs-body-bg));
+    color: var(--bs-body-color);
+    font: inherit;
+    font-size: .8rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.demo-chat ::deep .localgpt-message-copy-button:hover,
+.demo-chat ::deep .localgpt-message-copy-button:focus-visible {
+    border-color: var(--bs-primary);
+    outline: none;
+}
+
+::deep .localgpt-live-send-button.localgpt-live-stop-mode {
+    background: var(--bs-danger, #dc3545) !important;
+}
+
+[data-testid="chat-feedback-controls"] {
+    display: grid;
+    grid-template-columns: minmax(13rem, .8fr) minmax(18rem, 1.5fr);
+    align-items: end;
+    gap: .75rem;
+}
+
+[data-testid="chat-feedback-controls"] > label {
+    width: 100%;
+}
+
+.chat-feedback-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .65rem;
+}
+
+@media (max-width: 760px) {
+    [data-testid="chat-feedback-controls"] {
+        grid-template-columns: 1fr;
+    }
+
+    .chat-feedback-actions {
+        grid-column: 1;
+    }
+}

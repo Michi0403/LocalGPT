@@ -13,9 +13,13 @@ public sealed class CouncilLiveSessionService(
 
     public event Action<Guid>? Changed;
 
-    public CancellationToken Begin(Guid runId, IReadOnlyList<string> councilMembers, string initialTranscript)
+    public CancellationToken Begin(
+        Guid runId,
+        IReadOnlyList<string> councilMembers,
+        string userMessage,
+        string initialTranscript)
     {
-        var state = new LiveSessionState(runId, councilMembers, initialTranscript);
+        var state = new LiveSessionState(runId, councilMembers, userMessage, initialTranscript);
         if (sessions.TryGetValue(runId, out var previous))
             previous.Dispose();
         sessions[runId] = state;
@@ -34,6 +38,19 @@ public sealed class CouncilLiveSessionService(
             state.Transcript.Append(text);
             if (state.Transcript.Length > MaxTranscriptCharacters)
                 state.Transcript.Remove(0, state.Transcript.Length - MaxTranscriptCharacters);
+            state.UpdatedAtUtc = DateTime.UtcNow;
+        }
+        ScheduleChanged(state);
+    }
+
+    public void AppendUserMessage(Guid runId, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !sessions.TryGetValue(runId, out var state))
+            return;
+
+        lock (state.SyncRoot)
+        {
+            state.AdditionalUserMessages.Add(text.Trim());
             state.UpdatedAtUtc = DateTime.UtcNow;
         }
         ScheduleChanged(state);
@@ -71,11 +88,21 @@ public sealed class CouncilLiveSessionService(
     public CouncilLiveSessionSnapshot? Get(Guid runId) =>
         sessions.TryGetValue(runId, out var state) ? CreateSnapshot(state) : null;
 
+    public CouncilLiveSessionSummary? GetSummary(Guid runId) =>
+        sessions.TryGetValue(runId, out var state) ? CreateSummary(state) : null;
+
     public IReadOnlyList<CouncilLiveSessionSnapshot> GetActive() =>
         sessions.Values
             .Select(CreateSnapshot)
             .Where(snapshot => snapshot.IsRunning)
             .OrderByDescending(snapshot => snapshot.UpdatedAtUtc)
+            .ToList();
+
+    public IReadOnlyList<CouncilLiveSessionSummary> GetActiveSummaries() =>
+        sessions.Values
+            .Select(CreateSummary)
+            .Where(summary => summary.IsRunning)
+            .OrderByDescending(summary => summary.UpdatedAtUtc)
             .ToList();
 
     private CouncilLiveSessionSnapshot CreateSnapshot(LiveSessionState state)
@@ -88,7 +115,22 @@ public sealed class CouncilLiveSessionService(
                 state.StartedAtUtc,
                 state.UpdatedAtUtc,
                 state.CouncilMembers,
+                state.UserMessage,
+                state.AdditionalUserMessages.ToArray(),
                 state.Transcript.ToString());
+        }
+    }
+
+    private CouncilLiveSessionSummary CreateSummary(LiveSessionState state)
+    {
+        lock (state.SyncRoot)
+        {
+            return new CouncilLiveSessionSummary(
+                state.RunId,
+                state.IsRunning,
+                state.StartedAtUtc,
+                state.UpdatedAtUtc,
+                state.CouncilMembers);
         }
     }
 
@@ -126,16 +168,23 @@ public sealed class CouncilLiveSessionService(
 
     private sealed class LiveSessionState : IDisposable
     {
-        public LiveSessionState(Guid runId, IReadOnlyList<string> councilMembers, string initialTranscript)
+        public LiveSessionState(
+            Guid runId,
+            IReadOnlyList<string> councilMembers,
+            string userMessage,
+            string initialTranscript)
         {
             RunId = runId;
             CouncilMembers = councilMembers.ToArray();
+            UserMessage = userMessage ?? string.Empty;
             Transcript = new StringBuilder(initialTranscript ?? string.Empty);
         }
 
         public object SyncRoot { get; } = new();
         public Guid RunId { get; }
         public IReadOnlyList<string> CouncilMembers { get; }
+        public string UserMessage { get; }
+        public List<string> AdditionalUserMessages { get; } = [];
         public StringBuilder Transcript { get; }
         public CancellationTokenSource Cancellation { get; } = new();
         public DateTime StartedAtUtc { get; } = DateTime.UtcNow;

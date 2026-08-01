@@ -6,10 +6,17 @@ public interface ICouncilLiveSessionService
 {
     event Action<Guid>? Changed;
 
-    CancellationToken Begin(Guid runId, IReadOnlyList<string> councilMembers, string initialTranscript);
+    CancellationToken Begin(
+        Guid runId,
+        IReadOnlyList<string> councilMembers,
+        string userMessage,
+        string initialTranscript);
     void Append(Guid runId, string text);
+    void AppendUserMessage(Guid runId, string text);
     void Complete(Guid runId);
     bool Cancel(Guid runId);
     CouncilLiveSessionSnapshot? Get(Guid runId);
+    CouncilLiveSessionSummary? GetSummary(Guid runId);
     IReadOnlyList<CouncilLiveSessionSnapshot> GetActive();
+    IReadOnlyList<CouncilLiveSessionSummary> GetActiveSummaries();
 }
