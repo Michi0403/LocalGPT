@@ -4,7 +4,6 @@ namespace LocalGPT.Interfaces
 {
     public interface IThemeLoadNotifier
     {
-        Task NotifyThemeLoadedAsync(Theme theme);
+        Task NotifyThemeLoadedAsync(Theme theme, ThemeApplicationTarget target);
     }
-
 }

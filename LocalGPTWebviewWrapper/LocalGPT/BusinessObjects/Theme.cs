@@ -3,6 +3,12 @@ using System.Globalization;
 
 namespace LocalGPT.BusinessObjects;
 
+public enum ThemeApplicationTarget
+{
+    Shell,
+    Components
+}
+
 public sealed class Theme
 {
     private const string BootstrapDarkModePostfix = "-dark";

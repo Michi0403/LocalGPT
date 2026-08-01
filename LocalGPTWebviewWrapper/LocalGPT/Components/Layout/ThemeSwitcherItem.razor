@@ -1,23 +1,32 @@
-@rendermode @(new InteractiveServerRenderMode(prerender: true))
-@inject ThemeService Themes
 @inject ILogger<ThemeSwitcherItem> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
-<a class="themeswitcher-item list-group-item list-group-item-action @Theme?.GetCssClass(Themes.ActiveTheme == Theme) @Theme?.IconCssClass"
+<a class="themeswitcher-item list-group-item list-group-item-action @Theme?.GetCssClass(IsActive) @Theme?.IconCssClass"
+   aria-current="@(IsActive ? "true" : null)"
    @onclick:preventDefault
    @onclick="Anchor_Click">
     <span>@Theme?.Title</span>
 </a>
 @code {
     [Parameter] public Theme? Theme { get; set; }
+    [Parameter] public bool IsActive { get; set; }
     [Parameter] public EventCallback<Theme> Click { get; set; }
 
     async Task Anchor_Click()
     {
-        if (Theme is null)
-            return;
+        try
+        {
+            if (Theme is null)
+                return;
 
-        await Click.InvokeAsync(Theme).ConfigureAwait(true);
+            await Click.InvokeAsync(Theme).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Theme item activation failed; the selected theme name was omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcherItem), nameof(Anchor_Click), ex);
+            Notifier.ShowError("ThemeSwitcherRazorToasts", "The selected theme could not be activated. See local logs for details.", "Theme selection failed");
+        }
     }
 }

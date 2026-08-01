@@ -6,13 +6,16 @@ using DxThemes = DevExpress.Blazor.Themes;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Owns LocalGPT's selectable theme catalog and active theme for one Blazor circuit.
-/// DevExpress theme resources are represented as <see cref="ITheme"/> instances so startup
-/// registration and runtime switching use the supported DevExpress resource pipeline.
+/// Owns LocalGPT's selectable theme catalog and the two independently selectable theme layers
+/// for one Blazor circuit. The shell theme controls LocalGPT page surfaces and Bootstrap metadata;
+/// the component theme is applied through DevExpress' supported <see cref="IThemeChangeService"/>.
 /// </summary>
 public sealed class ThemeService
 {
     public const string DEFAULT_THEME_NAME = "office-white";
+    public const string LegacyThemeCookieName = "ActiveTheme";
+    public const string ShellThemeCookieName = "ActiveShellTheme";
+    public const string ComponentThemeCookieName = "ActiveComponentTheme";
     public const string LocalThemeContractPath = "css/localgpt-theme-contract.css";
 
     private readonly ILogger<ThemeService> logger;
@@ -20,6 +23,8 @@ public sealed class ThemeService
     private readonly IReadOnlyDictionary<string, string> highlightJsThemeNames;
     private readonly Dictionary<string, Theme> themesByName;
     private readonly Theme defaultTheme;
+    private Theme activeShellTheme;
+    private Theme activeComponentTheme;
 
     public ThemeService(
         ILogger<ThemeService> logger,
@@ -34,66 +39,169 @@ public sealed class ThemeService
             .ToDictionary(theme => theme.Name, StringComparer.OrdinalIgnoreCase);
         defaultTheme = FindThemeByName(DEFAULT_THEME_NAME)
             ?? throw new InvalidOperationException($"The required default theme '{DEFAULT_THEME_NAME}' is not configured.");
-        ActiveTheme = defaultTheme;
+        activeShellTheme = defaultTheme;
+        activeComponentTheme = defaultTheme;
     }
 
-    public Theme ActiveTheme { get; private set; }
+    public Theme ActiveShellTheme => activeShellTheme;
+    public Theme ActiveComponentTheme => activeComponentTheme;
+
+    /// <summary>
+    /// Compatibility alias for older diagnostics and components. The former single theme now maps
+    /// to the DevExpress component theme; new code should select the shell and component layers explicitly.
+    /// </summary>
+    public Theme ActiveTheme => ActiveComponentTheme;
+
+    public bool IsInitialized { get; private set; }
     public List<ThemeSet> ThemeSets { get; }
     public IThemeChangeRequestDispatcher? ThemeChangeRequestDispatcher { get; set; }
     public IThemeLoadNotifier? ThemeLoadNotifier { get; set; }
+    public event Action<Theme>? ActiveShellThemeChanged;
+    public event Action<Theme>? ActiveComponentThemeChanged;
     public event Action<Theme>? ActiveThemeChanged;
 
     public Theme GetThemeOrDefault(string? themeName) => FindThemeByName(themeName) ?? defaultTheme;
 
     public Theme? FindThemeByName(string? themeName)
     {
-        if (string.IsNullOrWhiteSpace(themeName))
-            return null;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(themeName))
+                return null;
 
-        return themesByName.GetValueOrDefault(themeName.Trim());
+            return themesByName.GetValueOrDefault(themeName.Trim());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Theme lookup failed; the requested theme name was omitted from logs.");
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(FindThemeByName), ex);
+            throw;
+        }
     }
 
+    public void InitializeThemes(string? shellThemeName, string? componentThemeName)
+    {
+        try
+        {
+            if (IsInitialized)
+                return;
+
+            activeShellTheme = GetThemeOrDefault(shellThemeName);
+            activeComponentTheme = GetThemeOrDefault(componentThemeName);
+            IsInitialized = true;
+            logger.LogInformation(
+                "Theme state initialized with shell {ShellTheme} and DevExpress components {ComponentTheme}.",
+                activeShellTheme.Name,
+                activeComponentTheme.Name);
+            serviceActivity.RecordInformation(
+                nameof(ThemeService),
+                nameof(InitializeThemes),
+                $"Theme layers initialized with shell {activeShellTheme.Name} and components {activeComponentTheme.Name}.");
+        }
+        catch (Exception ex)
+        {
+            activeShellTheme = defaultTheme;
+            activeComponentTheme = defaultTheme;
+            IsInitialized = true;
+            logger.LogError(ex, "Theme initialization failed; LocalGPT restored both theme layers to the default.");
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(InitializeThemes), ex);
+            throw;
+        }
+    }
+
+    public void SetActiveShellThemeByName(string? themeName) => SetActiveShellTheme(GetThemeOrDefault(themeName));
+    public void SetActiveComponentThemeByName(string? themeName) => SetActiveComponentTheme(GetThemeOrDefault(themeName));
+
+    public void SetActiveShellTheme(Theme theme) =>
+        SetActiveThemeCore(
+            theme,
+            ThemeApplicationTarget.Shell,
+            ref activeShellTheme,
+            changedTheme => ActiveShellThemeChanged?.Invoke(changedTheme));
+
+    public void SetActiveComponentTheme(Theme theme) =>
+        SetActiveThemeCore(
+            theme,
+            ThemeApplicationTarget.Components,
+            ref activeComponentTheme,
+            changedTheme => ActiveComponentThemeChanged?.Invoke(changedTheme));
+
+    /// <summary>
+    /// Backward-compatible single-theme setter. It intentionally updates both layers.
+    /// </summary>
     public void SetActiveThemeByName(string? themeName) => SetActiveTheme(GetThemeOrDefault(themeName));
 
     public void SetActiveTheme(Theme theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
-
-        if (ReferenceEquals(ActiveTheme, theme)
-            || ActiveTheme.Name.Equals(theme.Name, StringComparison.OrdinalIgnoreCase))
-        {
-            ActiveTheme = theme;
-            return;
-        }
-
-        var previousTheme = ActiveTheme;
-        ActiveTheme = theme;
+        var previousShell = activeShellTheme;
+        var previousComponent = activeComponentTheme;
         try
         {
-            logger.LogInformation(
-                "Application theme changed from {PreviousTheme} to {ThemeName}.",
-                previousTheme.Name,
-                theme.Name);
+            SetActiveShellTheme(theme);
+            SetActiveComponentTheme(theme);
             ActiveThemeChanged?.Invoke(theme);
-            serviceActivity.RecordInformation(
-                nameof(ThemeService),
-                nameof(SetActiveTheme),
-                $"The active theme changed from {previousTheme.Name} to {theme.Name}.");
         }
         catch (Exception ex)
         {
-            ActiveTheme = previousTheme;
-            logger.LogError(
-                ex,
-                "The active-theme notification for {ThemeName} failed; the previous theme was restored.",
-                theme.Name);
+            activeShellTheme = previousShell;
+            activeComponentTheme = previousComponent;
+            logger.LogError(ex, "The compatibility theme change failed; both prior theme layers were restored.");
             serviceActivity.RecordFailure(nameof(ThemeService), nameof(SetActiveTheme), ex);
             throw;
         }
     }
 
+    private void SetActiveThemeCore(
+        Theme theme,
+        ThemeApplicationTarget target,
+        ref Theme activeTheme,
+        Action<Theme>? changed)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+
+        if (ReferenceEquals(activeTheme, theme)
+            || activeTheme.Name.Equals(theme.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            activeTheme = theme;
+            IsInitialized = true;
+            return;
+        }
+
+        var previousTheme = activeTheme;
+        activeTheme = theme;
+        IsInitialized = true;
+        try
+        {
+            logger.LogInformation(
+                "{ThemeTarget} theme changed from {PreviousTheme} to {ThemeName}.",
+                target,
+                previousTheme.Name,
+                theme.Name);
+            changed?.Invoke(theme);
+            serviceActivity.RecordInformation(
+                nameof(ThemeService),
+                target == ThemeApplicationTarget.Shell ? nameof(SetActiveShellTheme) : nameof(SetActiveComponentTheme),
+                $"The {target} theme changed from {previousTheme.Name} to {theme.Name}.");
+        }
+        catch (Exception ex)
+        {
+            activeTheme = previousTheme;
+            logger.LogError(
+                ex,
+                "The {ThemeTarget} theme notification for {ThemeName} failed; the previous theme was restored.",
+                target,
+                theme.Name);
+            serviceActivity.RecordFailure(
+                nameof(ThemeService),
+                target == ThemeApplicationTarget.Shell ? nameof(SetActiveShellTheme) : nameof(SetActiveComponentTheme),
+                ex);
+            throw;
+        }
+    }
+
     /// <summary>
-    /// Compatibility helper for diagnostics and older code. Runtime switching uses
+    /// Compatibility helper for diagnostics and older code. Runtime component switching uses
     /// IThemeChangeService and the theme's ITheme instance instead of replacing this link manually.
     /// </summary>
     public string GetThemeCssUrl(Theme theme)
@@ -195,7 +303,7 @@ public sealed class ThemeService
         {
             properties.Name = $"LocalGPT-{name}";
             properties.Mode = mode;
-            properties.ApplyToPageElements = true;
+            properties.ApplyToPageElements = false;
             properties.UseBootstrapStyles = true;
             properties.AddFilePaths(LocalThemeContractPath);
         });

@@ -7,7 +7,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     guardObject(context, value) { try { return value; } catch (error) { console.error(`LocalGPT fallback object guard failed in ${String(context || "browser-runtime")}.`, error); return value; } },
     guardClass(context, value) { try { return value; } catch (error) { console.error(`LocalGPT fallback class guard failed in ${String(context || "browser-runtime")}.`, error); return value; } }
 };
-const diagnostics = window.localGptJavaScriptDiagnostics;
+const diagnostics = window.localGptJavaScriptDiagnostics || localGptDiagnostics;
 let abortController;
 
 function getThemeLinks(attributeName) {
@@ -19,6 +19,64 @@ function getThemeLinks(attributeName) {
     }
 }
 
+function readCookie(name) {
+    try {
+        const prefix = `${name}=`;
+        for (const entry of document.cookie.split(";")) {
+            const cookie = entry.trim();
+            if (cookie.startsWith(prefix))
+                return decodeURIComponent(cookie.substring(prefix.length));
+        }
+        return null;
+    } catch (error) {
+        diagnostics.report("theme-controller.readCookie", error);
+        return null;
+    }
+}
+
+function readStoredValue(key) {
+    try {
+        return window.localStorage?.getItem(key) || null;
+    } catch (error) {
+        diagnostics.report("theme-controller.readStoredValue", error);
+        return null;
+    }
+}
+
+function storeValue(key, value) {
+    try {
+        window.localStorage?.setItem(key, value);
+    } catch (error) {
+        diagnostics.report("theme-controller.storeValue", error);
+    }
+}
+
+function persistCookie(name, value) {
+    try {
+        document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=31536000;SameSite=Lax`;
+    } catch (error) {
+        diagnostics.report("theme-controller.persistCookie", error);
+        throw error;
+    }
+}
+
+export function readThemeState() {
+    try {
+        const legacyThemeName = readStoredValue("LocalGPT.ActiveTheme") || readCookie("ActiveTheme");
+        return {
+            shellThemeName: readStoredValue("LocalGPT.ActiveShellTheme")
+                || readCookie("ActiveShellTheme")
+                || legacyThemeName,
+            componentThemeName: readStoredValue("LocalGPT.ActiveComponentTheme")
+                || readCookie("ActiveComponentTheme")
+                || legacyThemeName
+        };
+    } catch (error) {
+        diagnostics.report("theme-controller.readThemeState", error);
+        return { shellThemeName: null, componentThemeName: null };
+    }
+}
+
 function waitForStylesheet(link, signal, timeoutMilliseconds = 1500) {
     try {
         if (link.sheet)
@@ -27,26 +85,31 @@ function waitForStylesheet(link, signal, timeoutMilliseconds = 1500) {
         return new Promise(resolve => {
             try {
                 let completed = false;
-                const finish = diagnostics.guard("theme-controller.waitForStylesheet.finish", () => { try {
-                    if (completed)
-                        return;
-                    completed = true;
-                    clearTimeout(timer);
-                    link.removeEventListener("load", finish);
-                    link.removeEventListener("error", finish);
-                    resolve();
-                 } catch (__javascriptError) { localGptDiagnostics.report('switcher-resources/theme-controller.js:callback:diagnostics.guard@24', __javascriptError); throw __javascriptError; }});
+                const finish = diagnostics.guard("theme-controller.waitForStylesheet.finish", () => {
+                    try {
+                        if (completed)
+                            return;
+                        completed = true;
+                        clearTimeout(timer);
+                        link.removeEventListener("load", finish);
+                        link.removeEventListener("error", finish);
+                        resolve();
+                    } catch (javascriptError) {
+                        localGptDiagnostics.report("theme-controller.waitForStylesheet.finish", javascriptError);
+                        resolve();
+                    }
+                });
                 const timer = setTimeout(finish, timeoutMilliseconds);
                 link.addEventListener("load", finish, { once: true, signal });
                 link.addEventListener("error", finish, { once: true, signal });
             } catch (error) {
                 diagnostics.report("theme-controller.waitForStylesheet.promise", error);
-                throw error;
+                resolve();
             }
         });
     } catch (error) {
         diagnostics.report("theme-controller.waitForStylesheet", error);
-        throw error;
+        return Promise.resolve();
     }
 }
 
@@ -54,12 +117,12 @@ async function updateHighlightTheme(url, signal) {
     try {
         const links = getThemeLinks("hl-theme-link");
         if (!url) {
-            links.forEach(diagnostics.guard("theme-controller.removeHighlightLink", link => { try { return (link.remove()); } catch (__javascriptError) { localGptDiagnostics.report('switcher-resources/theme-controller.js:callback:diagnostics.guard@51', __javascriptError); throw __javascriptError; } }));
+            links.forEach(diagnostics.guard("theme-controller.removeHighlightLink", link => link.remove()));
             return;
         }
 
         const absoluteUrl = new URL(url, document.baseURI).href;
-        let activeLink = links.find(link => { try { return (link.href === absoluteUrl); } catch (__javascriptError) { localGptDiagnostics.report('switcher-resources/theme-controller.js:callback:links.find@56', __javascriptError); throw __javascriptError; } });
+        let activeLink = links.find(link => link.href === absoluteUrl);
         if (!activeLink) {
             activeLink = document.createElement("link");
             activeLink.rel = "stylesheet";
@@ -72,15 +135,35 @@ async function updateHighlightTheme(url, signal) {
         if (signal.aborted)
             return;
 
-        links.filter(link => { try { return (link !== activeLink); } catch (__javascriptError) { localGptDiagnostics.report('switcher-resources/theme-controller.js:callback:links.filter@69', __javascriptError); throw __javascriptError; } })
-            .forEach(diagnostics.guard("theme-controller.removeInactiveHighlightLink", link => { try { return (link.remove()); } catch (__javascriptError) { localGptDiagnostics.report('switcher-resources/theme-controller.js:callback:diagnostics.guard@70', __javascriptError); throw __javascriptError; } }));
+        links.filter(link => link !== activeLink)
+            .forEach(diagnostics.guard("theme-controller.removeInactiveHighlightLink", link => link.remove()));
     } catch (error) {
         diagnostics.report("theme-controller.updateHighlightTheme", error);
         throw error;
     }
 }
 
-export async function applyThemeState(themeName, bootstrapThemeMode, highlightUrl, reference) {
+function persistThemeState(shellThemeName, componentThemeName) {
+    try {
+        persistCookie("ActiveShellTheme", shellThemeName);
+        persistCookie("ActiveComponentTheme", componentThemeName);
+        persistCookie("ActiveTheme", componentThemeName);
+        storeValue("LocalGPT.ActiveShellTheme", shellThemeName);
+        storeValue("LocalGPT.ActiveComponentTheme", componentThemeName);
+        storeValue("LocalGPT.ActiveTheme", componentThemeName);
+    } catch (error) {
+        diagnostics.report("theme-controller.persistThemeState", error);
+        throw error;
+    }
+}
+
+export async function applyThemeState(
+    shellThemeName,
+    bootstrapThemeMode,
+    highlightUrl,
+    componentThemeName,
+    callbackTarget,
+    reference) {
     try {
         abortController?.abort();
         abortController = new AbortController();
@@ -91,11 +174,13 @@ export async function applyThemeState(themeName, bootstrapThemeMode, highlightUr
             return;
 
         document.documentElement.setAttribute("data-bs-theme", bootstrapThemeMode || "light");
-        document.documentElement.setAttribute("data-localgpt-theme", themeName);
-        document.cookie = `ActiveTheme=${encodeURIComponent(themeName)};path=/;max-age=31536000;SameSite=Lax`;
+        document.documentElement.setAttribute("data-localgpt-theme", shellThemeName);
+        document.documentElement.setAttribute("data-localgpt-shell-theme", shellThemeName);
+        document.documentElement.setAttribute("data-localgpt-component-theme", componentThemeName);
+        persistThemeState(shellThemeName, componentThemeName);
 
-        if (reference)
-            await reference.invokeMethodAsync("ThemeLoadedAsync");
+        if (reference && callbackTarget)
+            await reference.invokeMethodAsync("ThemeLoadedAsync", callbackTarget);
     } catch (error) {
         diagnostics.report("theme-controller.applyThemeState", error);
         throw error;
@@ -103,5 +188,6 @@ export async function applyThemeState(themeName, bootstrapThemeMode, highlightUr
 }
 
 export const ThemeController = diagnostics.guardObject("ThemeController", {
+    readThemeState,
     applyThemeState
 });

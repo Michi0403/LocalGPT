@@ -1,109 +1,93 @@
-@rendermode @(new InteractiveServerRenderMode(prerender: true))
 @implements IDisposable
-@inject PersistentComponentState AppState
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @inject ThemeService Themes
 @inject ILogger<ThemeSwitcher> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
-    <ThemeJsChangeDispatcher InitialThemeName="@ThemeName" />
+<ThemeJsChangeDispatcher InitialShellThemeName="@ShellThemeName"
+                         InitialComponentThemeName="@ComponentThemeName" />
 <ToastWrapper Name="@toastName" />
-    <div class="@HeaderCss">
-        <div class="btn-container d-flex">
-            <DxButton Click="@Toggle" CssClass="@ButtonCss"
-                      SizeMode="SizeMode.Large"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      IconCssClass="theme-icon"
-                      aria-label="Themes"
-                      aria-haspopup="true"
-                      aria-expanded="@_open" />
-        </div>
-
-        <ThemeSwitcherContainer @bind-Shown="_open" @bind-ThemeName="ThemeName" />
+<div class="@HeaderCss">
+    <div class="btn-container d-flex">
+        <DxButton Click="@Toggle"
+                  CssClass="@ButtonCss"
+                  SizeMode="SizeMode.Large"
+                  RenderStyle="ButtonRenderStyle.Secondary"
+                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                  IconCssClass="theme-icon"
+                  aria-label="Themes"
+                  aria-haspopup="true"
+                  aria-expanded="@_open" />
     </div>
+
+    <ThemeSwitcherContainer @bind-Shown="_open"
+                            @bind-ShellThemeName="ShellThemeName"
+                            @bind-ComponentThemeName="ComponentThemeName" />
+</div>
 
 @code
 {
     string toastName { get; set; } = "ThemeSwitcherRazorToasts";
-    string ThemeName { get; set; } = string.Empty;
+    string ShellThemeName { get; set; } = ThemeService.DEFAULT_THEME_NAME;
+    string ComponentThemeName { get; set; } = ThemeService.DEFAULT_THEME_NAME;
     bool _open;
-    PersistingComponentStateSubscription? _subSrv;
-
-
+    bool _disposed;
 
     protected override void OnInitialized()
     {
-        // load
         try
         {
+            if (!Themes.IsInitialized)
+            {
+                var legacyCookie = HttpContextAccessor.HttpContext?.Request.Cookies[ThemeService.LegacyThemeCookieName];
+                var shellCookie = HttpContextAccessor.HttpContext?.Request.Cookies[ThemeService.ShellThemeCookieName];
+                var componentCookie = HttpContextAccessor.HttpContext?.Request.Cookies[ThemeService.ComponentThemeCookieName];
+                Themes.InitializeThemes(shellCookie ?? legacyCookie, componentCookie ?? legacyCookie);
+            }
 
-            var cookieTheme = HttpContextAccessor.HttpContext?.Request.Cookies["ActiveTheme"];
-            if (AppState.TryTakeFromJson("ThemeName", out string? stored) && !string.IsNullOrWhiteSpace(stored))
-                ThemeName = stored;
-            else if (!string.IsNullOrWhiteSpace(cookieTheme))
-                ThemeName = cookieTheme;
-            else
-                ThemeName = Themes.ActiveTheme.Name;
-
-            Themes.SetActiveThemeByName(ThemeName);
-            ThemeName = Themes.ActiveTheme.Name;
-
-            // Persist the effective theme name for the interactive circuit.
-            _subSrv = AppState.RegisterOnPersisting(Persist, RenderMode.InteractiveServer);
+            ShellThemeName = Themes.ActiveShellTheme.Name;
+            ComponentThemeName = Themes.ActiveComponentTheme.Name;
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             Logger.LogWarning(ex, "Theme initialization failed; local state details were omitted from logs.");
-
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcher), nameof(OnInitialized), ex);
             Notifier.ShowError(toastName, "The theme could not be initialized. See local application logs for details.", "Theme initialization failed");
         }
     }
 
-    Task Persist()
+    void Toggle()
     {
-        // never throws – just serialises a string
         try
         {
-            AppState.PersistAsJson("ThemeName", ThemeName);
-        }
-        catch (OperationCanceledException)
-        { /* ignored – user navigated */
+            _open = !_open;
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Theme persistence failed; the selected theme value was omitted from logs.");
-
-            Notifier.ShowError(toastName, "The theme preference could not be saved. See local application logs for details.", "Theme persistence failed");
+            Logger.LogError(ex, "Theme panel toggle failed.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcher), nameof(Toggle), ex);
+            Notifier.ShowError(toastName, "The theme panel could not be opened. See local logs for details.", "Theme panel failed");
         }
-        return Task.CompletedTask;
     }
 
-    void Toggle() => _open = !_open;
-
     string ButtonCss => "themeswitcher-button theme-settings " + _open;
-    string HeaderCss => $"theme-{ThemeName.Replace(" ", "-")}" +
-                         (Themes.ActiveTheme.IsBootstrapNative ? " theme-external" : "");
-    private bool _disposed = false;
+    string HeaderCss => $"theme-{ShellThemeName.Replace(" ", "-")} component-theme-{ComponentThemeName.Replace(" ", "-")}";
+
     public void Dispose()
     {
         try
         {
-            if(_disposed==false)
-            {
-                _disposed = true;
-                _subSrv?.Dispose();
-                GC.SuppressFinalize(this);
-            }
-        }
-        catch (OperationCanceledException)
-        { /* ignored – user navigated */
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            GC.SuppressFinalize(this);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "Theme switcher disposal failed.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcher), nameof(Dispose), ex);
         }
     }
 }

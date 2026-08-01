@@ -177,3 +177,239 @@ main,.main-container,[data-testid="chat-page"]{min-width:0;max-width:100%}
     min-width: 0 !important;
     max-width: none !important;
 }
+
+/*
+ * Independent outer-shell palette. The selected DevExpress component theme remains owned by
+ * IThemeChangeService; these higher-specificity variables color LocalGPT's page shell and native
+ * surfaces without requiring a second competing DevExpress stylesheet.
+ */
+html[data-localgpt-shell-theme="office-white"] {
+    --bs-primary: #fe7109;
+    --bs-primary-rgb: 254,113,9;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #212529;
+    --bs-body-color-rgb: 33,37,41;
+    --bs-secondary-bg: #f2f3f5;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #d9dde2;
+}
+
+html[data-localgpt-shell-theme="blazing-berry"] {
+    --bs-primary: #5c2d91;
+    --bs-primary-rgb: 92,45,145;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #27242b;
+    --bs-body-color-rgb: 39,36,43;
+    --bs-secondary-bg: #f1edf6;
+    --bs-tertiary-bg: #f8f6fb;
+    --bs-border-color: #d9cee5;
+}
+
+html[data-localgpt-shell-theme="blazing-dark"] {
+    --bs-primary: #ff8a33;
+    --bs-primary-rgb: 255,138,51;
+    --bs-body-bg: #2b2930;
+    --bs-body-color: #f4f1f6;
+    --bs-body-color-rgb: 244,241,246;
+    --bs-secondary-bg: #3b3940;
+    --bs-tertiary-bg: #46444a;
+    --bs-border-color: #5d5a62;
+}
+
+html[data-localgpt-shell-theme="purple"] {
+    --bs-primary: #7989ff;
+    --bs-primary-rgb: 121,137,255;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #262a3a;
+    --bs-body-color-rgb: 38,42,58;
+    --bs-secondary-bg: #eef0ff;
+    --bs-tertiary-bg: #f7f8ff;
+    --bs-border-color: #d5d9ff;
+}
+
+html[data-localgpt-shell-theme="fluent-light"] {
+    --bs-primary: #0f6cbd;
+    --bs-primary-rgb: 15,108,189;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #242424;
+    --bs-body-color-rgb: 36,36,36;
+    --bs-secondary-bg: #f3f3f3;
+    --bs-tertiary-bg: #fafafa;
+    --bs-border-color: #d1d1d1;
+}
+
+html[data-localgpt-shell-theme="fluent-dark"] {
+    --bs-primary: #60cdff;
+    --bs-primary-rgb: 96,205,255;
+    --bs-body-bg: #202020;
+    --bs-body-color: #ffffff;
+    --bs-body-color-rgb: 255,255,255;
+    --bs-secondary-bg: #2b2b2b;
+    --bs-tertiary-bg: #323232;
+    --bs-border-color: #4a4a4a;
+}
+
+html[data-localgpt-shell-theme="default"] {
+    --bs-primary: #0d6efd;
+    --bs-primary-rgb: 13,110,253;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #212529;
+    --bs-body-color-rgb: 33,37,41;
+    --bs-secondary-bg: #e9ecef;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #dee2e6;
+}
+
+html[data-localgpt-shell-theme="default-dark"] {
+    --bs-primary: #6ea8fe;
+    --bs-primary-rgb: 110,168,254;
+    --bs-body-bg: #212529;
+    --bs-body-color: #f8f9fa;
+    --bs-body-color-rgb: 248,249,250;
+    --bs-secondary-bg: #343a40;
+    --bs-tertiary-bg: #2b3035;
+    --bs-border-color: #495057;
+}
+
+html[data-localgpt-shell-theme="cerulean"] {
+    --bs-primary: #2fa4e7;
+    --bs-primary-rgb: 47,164,231;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #495057;
+    --bs-body-color-rgb: 73,80,87;
+    --bs-secondary-bg: #e9ecef;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #dee2e6;
+}
+
+html[data-localgpt-shell-theme="cyborg"] {
+    --bs-primary: #2a9fd6;
+    --bs-primary-rgb: 42,159,214;
+    --bs-body-bg: #060606;
+    --bs-body-color: #adafae;
+    --bs-body-color-rgb: 173,175,174;
+    --bs-secondary-bg: #171717;
+    --bs-tertiary-bg: #222222;
+    --bs-border-color: #444444;
+}
+
+html[data-localgpt-shell-theme="flatly"] {
+    --bs-primary: #2c3e50;
+    --bs-primary-rgb: 44,62,80;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #212529;
+    --bs-body-color-rgb: 33,37,41;
+    --bs-secondary-bg: #ecf0f1;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #dee2e6;
+}
+
+html[data-localgpt-shell-theme="journal"] {
+    --bs-primary: #eb6864;
+    --bs-primary-rgb: 235,104,100;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #222222;
+    --bs-body-color-rgb: 34,34,34;
+    --bs-secondary-bg: #eeeeee;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #dee2e6;
+}
+
+html[data-localgpt-shell-theme="litera"] {
+    --bs-primary: #4582ec;
+    --bs-primary-rgb: 69,130,236;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #343a40;
+    --bs-body-color-rgb: 52,58,64;
+    --bs-secondary-bg: #e9ecef;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #dddddd;
+}
+
+html[data-localgpt-shell-theme="lumen"] {
+    --bs-primary: #158cba;
+    --bs-primary-rgb: 21,140,186;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #222222;
+    --bs-body-color-rgb: 34,34,34;
+    --bs-secondary-bg: #f0f0f0;
+    --bs-tertiary-bg: #f6f6f6;
+    --bs-border-color: #dee2e6;
+}
+
+html[data-localgpt-shell-theme="lux"] {
+    --bs-primary: #1a1a1a;
+    --bs-primary-rgb: 26,26,26;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #55595c;
+    --bs-body-color-rgb: 85,89,92;
+    --bs-secondary-bg: #f7f7f9;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #eceeef;
+}
+
+html[data-localgpt-shell-theme="pulse"] {
+    --bs-primary: #593196;
+    --bs-primary-rgb: 89,49,150;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #444444;
+    --bs-body-color-rgb: 68,68,68;
+    --bs-secondary-bg: #f9f8fc;
+    --bs-tertiary-bg: #fafafa;
+    --bs-border-color: #ededed;
+}
+
+html[data-localgpt-shell-theme="simplex"] {
+    --bs-primary: #d9230f;
+    --bs-primary-rgb: 217,35,15;
+    --bs-body-bg: #fcfcfc;
+    --bs-body-color: #212529;
+    --bs-body-color-rgb: 33,37,41;
+    --bs-secondary-bg: #dddddd;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #cccccc;
+}
+
+html[data-localgpt-shell-theme="solar"] {
+    --bs-primary: #b58900;
+    --bs-primary-rgb: 181,137,0;
+    --bs-body-bg: #002b36;
+    --bs-body-color: #93a1a1;
+    --bs-body-color-rgb: 147,161,161;
+    --bs-secondary-bg: #073642;
+    --bs-tertiary-bg: #0b3b46;
+    --bs-border-color: #586e75;
+}
+
+html[data-localgpt-shell-theme="superhero"] {
+    --bs-primary: #df6919;
+    --bs-primary-rgb: 223,105,25;
+    --bs-body-bg: #0f2537;
+    --bs-body-color: #ebebeb;
+    --bs-body-color-rgb: 235,235,235;
+    --bs-secondary-bg: #20374a;
+    --bs-tertiary-bg: #2b4357;
+    --bs-border-color: #4e5d6c;
+}
+
+html[data-localgpt-shell-theme="united"] {
+    --bs-primary: #e95420;
+    --bs-primary-rgb: 233,84,32;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #333333;
+    --bs-body-color-rgb: 51,51,51;
+    --bs-secondary-bg: #e9ecef;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #dee2e6;
+}
+
+html[data-localgpt-shell-theme="yeti"] {
+    --bs-primary: #008cba;
+    --bs-primary-rgb: 0,140,186;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #222222;
+    --bs-body-color-rgb: 34,34,34;
+    --bs-secondary-bg: #eeeeee;
+    --bs-tertiary-bg: #f8f9fa;
+    --bs-border-color: #dee2e6;
+}

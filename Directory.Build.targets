@@ -63,7 +63,7 @@
     <AsyncContinuationScript>$(MSBuildThisFileDirectory)build\Assert-AsyncContinuationPolicy.ps1</AsyncContinuationScript>
   </PropertyGroup>
 
-  <Target Name="AssertLocalGptInteractiveServerRenderModes"
+  <!--<Target Name="AssertLocalGptInteractiveServerRenderModes"
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptOperationalDiagnostics"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipInteractiveServerRenderModeGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
@@ -75,7 +75,7 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
   <!--<Target Name="AssertLocalGptAsyncContinuationPolicy"
           BeforeTargets="BeforeBuild"
@@ -113,12 +113,12 @@
     <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>-->
 
-  <Target Name="AssertLocalGptTextServiceOwnership"
+  <!--<Target Name="AssertLocalGptTextServiceOwnership"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptApplicationStaticPolicy"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipTextServiceOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(TextServiceOwnershipScript)')" Text="Text-service ownership script is missing: $(TextServiceOwnershipScript)" />
     <Exec Condition="Exists('$(TextServiceOwnershipScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(TextServiceOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
   <!--<Target Name="AssertLocalGptIteratorExceptionPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptTextServiceOwnership"

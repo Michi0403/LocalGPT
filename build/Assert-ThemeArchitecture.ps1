@@ -23,7 +23,11 @@ foreach ($token in @(
     'DxThemes.BootstrapExternal.Clone',
     'DxThemes.Fluent.Clone',
     'properties.UseBootstrapStyles = true;',
-    'properties.ApplyToPageElements = true;',
+    'properties.ApplyToPageElements = false;',
+    'public Theme ActiveShellTheme => activeShellTheme;',
+    'public Theme ActiveComponentTheme => activeComponentTheme;',
+    'ShellThemeCookieName',
+    'ComponentThemeCookieName',
     'properties.AddFilePaths(LocalThemeContractPath);',
     'CreateClassic("blazing-berry"')) {
     if (-not $themeService.Contains($token, [StringComparison]::Ordinal)) {
@@ -47,7 +51,11 @@ foreach ($token in @(
     'IThemeChangeService DevExpressThemeChangeService',
     '.SetTheme(theme.DevExpressTheme)',
     'private ThemeService Themes { get; set; } = default!;',
-    'ThemeController.applyThemeState')) {
+    'InitialShellThemeName',
+    'InitialComponentThemeName',
+    'ThemeApplicationTarget target',
+    '"readThemeState"',
+    '"applyThemeState"')) {
     if (-not $dispatcher.Contains($token, [StringComparison]::Ordinal)) {
         $errors.Add("ThemeJsChangeDispatcher must retain '$token'.")
     }
@@ -63,8 +71,13 @@ if ($setThemeCount -ne $awaitedSetThemeCount) {
 }
 
 $app = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/App.razor'
-if (-not $app.Contains('@DxResourceManager.RegisterTheme(Themes.ActiveTheme.DevExpressTheme)', [StringComparison]::Ordinal)) {
-    $errors.Add('App.razor must register the validated ITheme with DxResourceManager.')
+if (-not $app.Contains('@DxResourceManager.RegisterTheme(Themes.ActiveComponentTheme.DevExpressTheme)', [StringComparison]::Ordinal)) {
+    $errors.Add('App.razor must register the validated component ITheme with DxResourceManager.')
+}
+foreach ($token in @('data-localgpt-shell-theme', 'data-localgpt-component-theme', 'ShellThemeCookieName', 'ComponentThemeCookieName')) {
+    if (-not $app.Contains($token, [StringComparison]::Ordinal)) {
+        $errors.Add("App.razor must retain dual-theme startup token '$token'.")
+    }
 }
 foreach ($forbidden in @('bs-theme-link', 'dx-theme-link', 'GetThemeCssUrl(Themes.ActiveTheme)', 'GetBootstrapThemeCssUrl(Themes.ActiveTheme)')) {
     if ($app.Contains($forbidden, [StringComparison]::Ordinal)) {
@@ -73,7 +86,7 @@ foreach ($forbidden in @('bs-theme-link', 'dx-theme-link', 'GetThemeCssUrl(Theme
 }
 
 $controller = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/wwwroot/switcher-resources/theme-controller.js'
-foreach ($required in @('applyThemeState', 'data-bs-theme', 'data-localgpt-theme', 'ActiveTheme=')) {
+foreach ($required in @('readThemeState', 'applyThemeState', 'data-bs-theme', 'data-localgpt-shell-theme', 'data-localgpt-component-theme', 'ActiveShellTheme', 'ActiveComponentTheme')) {
     if (-not $controller.Contains($required, [StringComparison]::Ordinal)) {
         $errors.Add("theme-controller.js must retain '$required'.")
     }
@@ -92,7 +105,7 @@ foreach ($token in @('--localgpt-body-bg', '--localgpt-border-color', '--localgp
 }
 
 $themeSwitcher = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcher.razor'
-foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'Request.Cookies["ActiveTheme"]', 'RegisterOnPersisting(Persist')) {
+foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'LegacyThemeCookieName', 'ShellThemeCookieName', 'ComponentThemeCookieName', 'Themes.InitializeThemes') {
     if (-not $themeSwitcher.Contains($token, [StringComparison]::Ordinal)) {
         $errors.Add("ThemeSwitcher must retain '$token'.")
     }
@@ -100,13 +113,23 @@ foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'Request.Cookie
 
 
 $themeSwitcherContainer = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor'
-foreach ($token in @('await InvokeAsync(async () =>', 'await ShownChanged.InvokeAsync(shown)', 'await ThemeNameChanged.InvokeAsync(ThemeName)')) {
+foreach ($token in @('await InvokeAsync(async () =>', 'await ShownChanged.InvokeAsync(shown)', 'await ShellThemeNameChanged.InvokeAsync(theme.Name)', 'await ComponentThemeNameChanged.InvokeAsync(theme.Name)', 'ThemeApplicationTarget.Shell', 'ThemeApplicationTarget.Components')) {
     if (-not $themeSwitcherContainer.Contains($token, [StringComparison]::Ordinal)) {
         $errors.Add("ThemeSwitcherContainer must retain dispatcher-safe token '$token'.")
     }
 }
 if ($themeSwitcherContainer.Contains('ConfigureAwait(false)', [StringComparison]::Ordinal)) {
     $errors.Add('Blazor theme component callbacks must not leave the renderer dispatcher with ConfigureAwait(false).')
+}
+
+foreach ($relative in @(
+    'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcher.razor',
+    'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor',
+    'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcherItem.razor')) {
+    $themeIslandChild = Read-RequiredText $relative
+    if ($themeIslandChild.Contains('@rendermode', [StringComparison]::Ordinal)) {
+        $errors.Add("$relative must inherit the single MenuIsland render mode instead of creating a competing theme circuit.")
+    }
 }
 
 $minecraft = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Controller/MinecraftDiagnosticController.cs'

@@ -9,11 +9,17 @@
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 @{
-    string? InitialThemeName = HttpContextAccessor.HttpContext?.Request.Cookies["ActiveTheme"];
-    Themes.SetActiveThemeByName(InitialThemeName);
-    var hlTheme = Themes.GetHighlightJSThemeCssUrl(Themes.ActiveTheme);
-    ComponentActivity.RecordInformation(nameof(App), "RenderShell", "The LocalGPT application shell selected its active theme.");
-    Logger.LogInformation("LocalGPT application shell rendered with theme {ThemeName}.", Themes.ActiveTheme.Name);
+    var cookies = HttpContextAccessor.HttpContext?.Request.Cookies;
+    string? legacyThemeName = cookies?[ThemeService.LegacyThemeCookieName];
+    string? initialShellThemeName = cookies?[ThemeService.ShellThemeCookieName] ?? legacyThemeName;
+    string? initialComponentThemeName = cookies?[ThemeService.ComponentThemeCookieName] ?? legacyThemeName;
+    Themes.InitializeThemes(initialShellThemeName, initialComponentThemeName);
+    var hlTheme = Themes.GetHighlightJSThemeCssUrl(Themes.ActiveShellTheme);
+    ComponentActivity.RecordInformation(nameof(App), "RenderShell", "The LocalGPT application shell selected its persisted shell and component themes.");
+    Logger.LogInformation(
+        "LocalGPT application shell rendered with shell theme {ShellTheme} and component theme {ComponentTheme}.",
+        Themes.ActiveShellTheme.Name,
+        Themes.ActiveComponentTheme.Name);
 
     string AppendVersion(string path) => FileVersionProvider.AddFileVersionToPath("/", path);
     var themeControllerModulePath = AppendVersion("switcher-resources/theme-controller.js");
@@ -23,13 +29,17 @@
     //     StringComparison.OrdinalIgnoreCase);
 }
 <!DOCTYPE html>
-<html lang="@System.Globalization.CultureInfo.CurrentUICulture.Name" data-bs-theme="@Themes.ActiveTheme.BootstrapThemeMode" data-localgpt-theme="@Themes.ActiveTheme.Name">
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.Name"
+      data-bs-theme="@Themes.ActiveShellTheme.BootstrapThemeMode"
+      data-localgpt-theme="@Themes.ActiveShellTheme.Name"
+      data-localgpt-shell-theme="@Themes.ActiveShellTheme.Name"
+      data-localgpt-component-theme="@Themes.ActiveComponentTheme.Name">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <title>LocalGPT</title>
-    @DxResourceManager.RegisterTheme(Themes.ActiveTheme.DevExpressTheme)
+    @DxResourceManager.RegisterTheme(Themes.ActiveComponentTheme.DevExpressTheme)
     @if (!string.IsNullOrEmpty(hlTheme))
     {
         <link rel="stylesheet" href="@hlTheme" hl-theme-link />

@@ -10,14 +10,16 @@ using Microsoft.JSInterop;
 namespace LocalGPT.Components.Layout;
 
 /// <summary>
-/// Bridges LocalGPT's theme selector to DevExpress' supported runtime theme service.
-/// JavaScript is used only for the Bootstrap color-mode attribute, the persisted cookie,
-/// and the optional Highlight.js stylesheet. DevExpress owns its component theme resources.
+/// Bridges LocalGPT's two theme layers to the browser and DevExpress runtime.
+/// The browser persists both validated names; DevExpress changes only the inner component layer.
 /// </summary>
 public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequestDispatcher, IAsyncDisposable, IDisposable
 {
     [Parameter]
-    public required string InitialThemeName { get; set; }
+    public required string InitialShellThemeName { get; set; }
+
+    [Parameter]
+    public required string InitialComponentThemeName { get; set; }
 
     [Inject]
     private ISafeJSRuntime? JsRuntime { get; set; }
@@ -41,6 +43,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     private IComponentActivityService ComponentActivity { get; set; } = default!;
 
     private Theme? _pendingTheme;
+    private ThemeApplicationTarget? _pendingTarget;
     private IJSObjectReference? _module;
     private DotNetObjectReference<ThemeJsChangeDispatcher>? _dotNetReference;
     private bool _disposed;
@@ -53,11 +56,8 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         try
         {
             Themes.ThemeChangeRequestDispatcher = this;
-            Themes.SetActiveThemeByName(InitialThemeName);
-            await DevExpressThemeChangeService
-                .SetTheme(Themes.ActiveTheme.DevExpressTheme)
-                .ConfigureAwait(true);
 
+            BrowserThemeState? browserState = null;
             if (JsRuntime is not null)
             {
                 var themeModulePath = FileVersionProvider.AddFileVersionToPath(
@@ -67,13 +67,39 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                     .InvokeAsync<IJSObjectReference>("import", themeModulePath)
                     .ConfigureAwait(true);
                 _dotNetReference = DotNetObjectReference.Create(this);
-                await ApplyClientThemeStateAsync(Themes.ActiveTheme).ConfigureAwait(true);
+                browserState = await _module
+                    .InvokeAsync<BrowserThemeState?>("readThemeState")
+                    .ConfigureAwait(true);
+            }
+
+            var shellTheme = Themes.GetThemeOrDefault(
+                browserState?.ShellThemeName ?? InitialShellThemeName);
+            var componentTheme = Themes.GetThemeOrDefault(
+                browserState?.ComponentThemeName ?? InitialComponentThemeName);
+
+            Themes.SetActiveShellTheme(shellTheme);
+            Themes.SetActiveComponentTheme(componentTheme);
+            await DevExpressThemeChangeService
+                .SetTheme(componentTheme.DevExpressTheme)
+                .ConfigureAwait(true);
+
+            if (_module is not null)
+                await ApplyClientThemeStateAsync(null).ConfigureAwait(true);
+
+            if (Themes.ThemeLoadNotifier is not null)
+            {
+                await Themes.ThemeLoadNotifier
+                    .NotifyThemeLoadedAsync(shellTheme, ThemeApplicationTarget.Shell)
+                    .ConfigureAwait(true);
+                await Themes.ThemeLoadNotifier
+                    .NotifyThemeLoadedAsync(componentTheme, ThemeApplicationTarget.Components)
+                    .ConfigureAwait(true);
             }
 
             ComponentActivity.RecordInformation(
                 nameof(ThemeJsChangeDispatcher),
                 "ThemeDispatcherReady",
-                $"Theme dispatcher initialized for {Themes.ActiveTheme.Name}.");
+                $"Theme dispatcher initialized with shell {shellTheme.Name} and components {componentTheme.Name}.");
         }
         catch (JSDisconnectedException)
         {
@@ -85,60 +111,83 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), "ThemeDispatcherReady", ex);
             Notifier.ShowWarning(
                 "ComponentSafetyToasts",
-                "The saved theme could not be fully restored. LocalGPT kept a usable default theme.",
+                "The saved themes could not be fully restored. LocalGPT kept usable defaults.",
                 "Theme warning");
         }
 
         await base.OnAfterRenderAsync(firstRender).ConfigureAwait(true);
     }
 
-    public async Task RequestThemeChangeAsync(Theme theme)
+    public async Task RequestThemeChangeAsync(Theme theme, ThemeApplicationTarget target)
     {
         ArgumentNullException.ThrowIfNull(theme);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (_pendingTheme?.Name.Equals(theme.Name, StringComparison.OrdinalIgnoreCase) == true)
+        if (_pendingTheme?.Name.Equals(theme.Name, StringComparison.OrdinalIgnoreCase) == true
+            && _pendingTarget == target)
+        {
             return;
+        }
 
-        var previousTheme = Themes.ActiveTheme;
+        var previousShellTheme = Themes.ActiveShellTheme;
+        var previousComponentTheme = Themes.ActiveComponentTheme;
         _pendingTheme = theme;
+        _pendingTarget = target;
 
         try
         {
-            await DevExpressThemeChangeService
-                .SetTheme(theme.DevExpressTheme)
-                .ConfigureAwait(true);
-            Themes.SetActiveTheme(theme);
+            if (target == ThemeApplicationTarget.Components)
+            {
+                await DevExpressThemeChangeService
+                    .SetTheme(theme.DevExpressTheme)
+                    .ConfigureAwait(true);
+                Themes.SetActiveComponentTheme(theme);
+            }
+            else
+            {
+                Themes.SetActiveShellTheme(theme);
+            }
 
             if (_module is not null)
-                await ApplyClientThemeStateAsync(theme).ConfigureAwait(true);
+                await ApplyClientThemeStateAsync(target).ConfigureAwait(true);
             else
-                await ThemeLoadedAsync().ConfigureAwait(true);
+                await ThemeLoadedAsync(target.ToString()).ConfigureAwait(true);
         }
         catch (JSDisconnectedException)
         {
             _pendingTheme = null;
+            _pendingTarget = null;
             Logger.LogDebug("Theme change ended because the browser circuit disconnected.");
         }
         catch (Exception ex)
         {
             _pendingTheme = null;
+            _pendingTarget = null;
             var restored = false;
             try
             {
-                await DevExpressThemeChangeService
-                    .SetTheme(previousTheme.DevExpressTheme)
-                    .ConfigureAwait(true);
-                Themes.SetActiveTheme(previousTheme);
+                if (target == ThemeApplicationTarget.Components)
+                {
+                    await DevExpressThemeChangeService
+                        .SetTheme(previousComponentTheme.DevExpressTheme)
+                        .ConfigureAwait(true);
+                    Themes.SetActiveComponentTheme(previousComponentTheme);
+                }
+                else
+                {
+                    Themes.SetActiveShellTheme(previousShellTheme);
+                }
+
+                if (_module is not null)
+                    await ApplyClientThemeStateAsync(null).ConfigureAwait(true);
                 restored = true;
             }
             catch (Exception rollbackException)
             {
                 Logger.LogCritical(
                     rollbackException,
-                    "Theme rollback to {PreviousTheme} failed after {ThemeName} could not be applied.",
-                    previousTheme.Name,
-                    theme.Name);
+                    "Theme rollback failed after the {ThemeTarget} theme could not be applied.",
+                    target);
                 ComponentActivity.RecordFailure(
                     nameof(ThemeJsChangeDispatcher),
                     "RollbackThemeChange",
@@ -147,47 +196,70 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
 
             Logger.LogError(
                 ex,
-                "Theme change from {PreviousTheme} to {ThemeName} failed.",
-                previousTheme.Name,
-                theme.Name);
+                "The {ThemeTarget} theme change failed; selected theme details were omitted from logs.",
+                target);
             ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), "RequestThemeChange", ex);
             Notifier.ShowError(
                 "ComponentSafetyToasts",
                 restored
-                    ? "The selected theme could not be applied. LocalGPT restored the previous theme."
-                    : "The selected theme and automatic rollback both failed. Reload the page to restore the saved default theme.",
+                    ? "The selected theme could not be applied. LocalGPT restored the previous theme layer."
+                    : "The selected theme and automatic rollback both failed. Reload the page to restore the saved themes.",
                 "Theme change failed");
         }
     }
 
     [JSInvokable]
-    public async Task ThemeLoadedAsync()
+    public async Task ThemeLoadedAsync(string targetName)
     {
-        var loadedTheme = _pendingTheme;
-        _pendingTheme = null;
-        if (loadedTheme is null)
-            return;
+        try
+        {
+            if (!Enum.TryParse<ThemeApplicationTarget>(targetName, true, out var target))
+                return;
 
-        Themes.SetActiveTheme(loadedTheme);
-        if (Themes.ThemeLoadNotifier is not null)
-            await Themes.ThemeLoadNotifier.NotifyThemeLoadedAsync(loadedTheme).ConfigureAwait(true);
+            var loadedTheme = _pendingTheme;
+            var loadedTarget = _pendingTarget;
+            _pendingTheme = null;
+            _pendingTarget = null;
+            if (loadedTheme is null || loadedTarget != target)
+                return;
 
-        ComponentActivity.RecordInformation(
-            nameof(ThemeJsChangeDispatcher),
-            "ThemeLoaded",
-            $"Theme {loadedTheme.Name} finished loading.");
+            if (target == ThemeApplicationTarget.Shell)
+                Themes.SetActiveShellTheme(loadedTheme);
+            else
+                Themes.SetActiveComponentTheme(loadedTheme);
+
+            if (Themes.ThemeLoadNotifier is not null)
+            {
+                await Themes.ThemeLoadNotifier
+                    .NotifyThemeLoadedAsync(loadedTheme, target)
+                    .ConfigureAwait(true);
+            }
+
+            ComponentActivity.RecordInformation(
+                nameof(ThemeJsChangeDispatcher),
+                "ThemeLoaded",
+                $"The {target} theme {loadedTheme.Name} finished loading.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Theme-loaded callback failed; theme details were omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), nameof(ThemeLoadedAsync), ex);
+            throw;
+        }
     }
 
-    private ValueTask ApplyClientThemeStateAsync(Theme theme)
+    private ValueTask ApplyClientThemeStateAsync(ThemeApplicationTarget? callbackTarget)
     {
         if (_module is null || _dotNetReference is null)
             return ValueTask.CompletedTask;
 
         return _module.InvokeVoidAsync(
             "applyThemeState",
-            theme.Name,
-            theme.BootstrapThemeMode,
-            Themes.GetHighlightJSThemeCssUrl(theme),
+            Themes.ActiveShellTheme.Name,
+            Themes.ActiveShellTheme.BootstrapThemeMode,
+            Themes.GetHighlightJSThemeCssUrl(Themes.ActiveShellTheme),
+            Themes.ActiveComponentTheme.Name,
+            callbackTarget?.ToString(),
             _dotNetReference);
     }
 
@@ -201,6 +273,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             Themes.ThemeChangeRequestDispatcher = null;
 
         _pendingTheme = null;
+        _pendingTarget = null;
         _dotNetReference?.Dispose();
         _dotNetReference = null;
 
@@ -213,6 +286,11 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             catch (JSDisconnectedException)
             {
                 // The browser circuit already ended.
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Theme JavaScript module disposal failed.");
+                ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), nameof(DisposeAsync), ex);
             }
             finally
             {
@@ -232,8 +310,11 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         if (ReferenceEquals(Themes.ThemeChangeRequestDispatcher, this))
             Themes.ThemeChangeRequestDispatcher = null;
         _pendingTheme = null;
+        _pendingTarget = null;
         _dotNetReference?.Dispose();
         _dotNetReference = null;
         GC.SuppressFinalize(this);
     }
+
+    private sealed record BrowserThemeState(string? ShellThemeName, string? ComponentThemeName);
 }

@@ -1,4 +1,3 @@
-@rendermode @(new InteractiveServerRenderMode(prerender: true))
 @inject ThemeService Themes
 @implements IDisposable
 @implements IThemeLoadNotifier
@@ -8,35 +7,81 @@
 
 <div class="themeswitcher-container shadow @StateCssClass">
     <ToastWrapper Name="@toastName" />
-    @if(IsLoaded) {
+    @if (IsLoaded)
+    {
+        <div class="theme-layer-toolbar">
+            <strong>Theme layers</strong>
+            <button type="button" class="localgpt-native-button" @onclick="CloseAsync">Done</button>
+        </div>
         <div class="blazor-themes blazor-scroll-view">
-            <div class="list-group list-group-flush">
-                @foreach(var themeSet in Themes.ThemeSets) {
-                    <span class="themeswitcher-group card-header list-group-item">@themeSet.Title</span>
-                    @foreach(var theme in themeSet.Themes) {
-                        <ThemeSwitcherItem Theme="@theme" Click="ThemeSwitcherItem_Click"/>
+            <section class="theme-layer-section" aria-label="Outer application shell theme">
+                <div class="theme-layer-heading">
+                    <strong>Outer shell</strong>
+                    <small>Page, navigation, native surfaces and syntax highlighting.</small>
+                </div>
+                <div class="list-group list-group-flush">
+                    @foreach (var themeSet in Themes.ThemeSets)
+                    {
+                        <span class="themeswitcher-group card-header list-group-item">@themeSet.Title</span>
+                        @foreach (var theme in themeSet.Themes)
+                        {
+                            <ThemeSwitcherItem Theme="@theme"
+                                               IsActive="@IsShellThemeActive(theme)"
+                                               Click="@(selected => ThemeSwitcherItem_Click(selected, ThemeApplicationTarget.Shell))" />
+                        }
                     }
-                }
-            </div>
+                </div>
+            </section>
+
+            <section class="theme-layer-section" aria-label="Inner DevExpress component theme">
+                <div class="theme-layer-heading">
+                    <strong>Inner controls</strong>
+                    <small>DevExpress editors, grids, chat controls and buttons.</small>
+                </div>
+                <div class="list-group list-group-flush">
+                    @foreach (var themeSet in Themes.ThemeSets)
+                    {
+                        <span class="themeswitcher-group card-header list-group-item">@themeSet.Title</span>
+                        @foreach (var theme in themeSet.Themes)
+                        {
+                            <ThemeSwitcherItem Theme="@theme"
+                                               IsActive="@IsComponentThemeActive(theme)"
+                                               Click="@(selected => ThemeSwitcherItem_Click(selected, ThemeApplicationTarget.Components))" />
+                        }
+                    }
+                </div>
+            </section>
         </div>
     }
 </div>
 
 @code {
-
-
     string toastName { get; set; } = "ThemeSwitcherContainerToasts";
+
     [Parameter]
     public bool Shown { get; set; }
+
     [Parameter]
     public EventCallback<bool> ShownChanged { get; set; }
-    [Parameter]
-    public string? ThemeName { get; set; }
-    [Parameter]
-    public EventCallback<string> ThemeNameChanged { get; set; }
 
-    string StateCssClass { get { return IsLoaded ? ((Shown? "themeswitcher-container-shown" : "themeswitcher-container-hidden")) : ""; } }
+    [Parameter]
+    public string? ShellThemeName { get; set; }
+
+    [Parameter]
+    public EventCallback<string> ShellThemeNameChanged { get; set; }
+
+    [Parameter]
+    public string? ComponentThemeName { get; set; }
+
+    [Parameter]
+    public EventCallback<string> ComponentThemeNameChanged { get; set; }
+
+    string StateCssClass => IsLoaded
+        ? Shown ? "themeswitcher-container-shown" : "themeswitcher-container-hidden"
+        : string.Empty;
+
     bool IsLoaded { get; set; }
+    bool disposedValue;
 
     protected override void OnInitialized()
     {
@@ -49,70 +94,96 @@
         {
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             Logger.LogError(ex, "Unable to initialize the theme switcher.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), nameof(OnInitialized), ex);
         }
     }
 
-    async Task ThemeSwitcherItem_Click(Theme theme) {
+    bool IsShellThemeActive(Theme theme) =>
+        string.Equals(ShellThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
+
+    bool IsComponentThemeActive(Theme theme) =>
+        string.Equals(ComponentThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
+
+    async Task ThemeSwitcherItem_Click(Theme theme, ThemeApplicationTarget target)
+    {
         try
         {
             if (Themes.ThemeChangeRequestDispatcher is null)
                 throw new InvalidOperationException("The theme change dispatcher is not ready yet.");
 
-            await Themes.ThemeChangeRequestDispatcher.RequestThemeChangeAsync(theme);
-            await ToggleThemeSwitcherPanel(false);
+            await Themes.ThemeChangeRequestDispatcher
+                .RequestThemeChangeAsync(theme, target)
+                .ConfigureAwait(true);
         }
         catch (OperationCanceledException)
-        { /* ignored – user navigated */
+        {
+            // The user navigated while a theme asset was changing.
         }
         catch (Exception ex)
         {
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Logger.LogError(ex, "Theme layer selection failed; selected theme details were omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), nameof(ThemeSwitcherItem_Click), ex);
         }
-
     }
 
-    public async Task NotifyThemeLoadedAsync(Theme theme) {
+    public async Task NotifyThemeLoadedAsync(Theme theme, ThemeApplicationTarget target)
+    {
         try
         {
             await InvokeAsync(async () =>
             {
-                Themes.SetActiveTheme(theme);
-                ThemeName = theme.Name;
-                await ThemeNameChanged.InvokeAsync(ThemeName);
+                if (target == ThemeApplicationTarget.Shell)
+                {
+                    ShellThemeName = theme.Name;
+                    await ShellThemeNameChanged.InvokeAsync(theme.Name);
+                }
+                else
+                {
+                    ComponentThemeName = theme.Name;
+                    await ComponentThemeNameChanged.InvokeAsync(theme.Name);
+                }
+
                 StateHasChanged();
             });
         }
         catch (OperationCanceledException)
-        { /* ignored – user navigated */
+        {
+            // The user navigated while the callback was queued.
         }
         catch (Exception ex)
         {
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Logger.LogError(ex, "Theme-loaded UI notification failed; selected theme details were omitted from logs.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), nameof(NotifyThemeLoadedAsync), ex);
         }
-
     }
 
-    async Task ToggleThemeSwitcherPanel(bool shown) {
+    Task CloseAsync() => ToggleThemeSwitcherPanel(false);
+
+    async Task ToggleThemeSwitcherPanel(bool shown)
+    {
         try
         {
             await InvokeAsync(async () =>
             {
                 if (shown == Shown)
                     return;
+
                 Shown = shown;
                 await ShownChanged.InvokeAsync(shown);
                 StateHasChanged();
             });
         }
         catch (OperationCanceledException)
-        { /* ignored – user navigated */
+        {
+            // The user navigated while the panel was closing.
         }
         catch (Exception ex)
         {
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
+            Logger.LogError(ex, "Theme panel state change failed.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), nameof(ToggleThemeSwitcherPanel), ex);
         }
     }
 
@@ -128,33 +199,22 @@
         GC.SuppressFinalize(this);
     }
 
-    private bool disposedValue;
-
-
-
-    protected override void OnAfterRender(bool firstRender) 
+    protected override void OnAfterRender(bool firstRender)
     {
         try
         {
-            if (firstRender)
-            {
-                IsLoaded = true;
+            if (!firstRender)
+                return;
 
-                if (Shown)
-
-                    StateHasChanged();
-            }
-        }
-        catch (OperationCanceledException)
-        { /* ignored – user navigated */
+            IsLoaded = true;
+            if (Shown)
+                StateHasChanged();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Theme state restoration failed; persisted theme details were omitted from logs.");
             ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), "RestoreThemeState", ex);
-            Notifier.ShowWarning(toastName, "The saved theme state could not be restored. LocalGPT kept the current theme.", "Theme warning");
+            Notifier.ShowWarning(toastName, "The saved theme state could not be restored. LocalGPT kept the current themes.", "Theme warning");
         }
-       
     }
-
 }

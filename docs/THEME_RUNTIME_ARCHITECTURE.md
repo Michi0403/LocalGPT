@@ -1,57 +1,51 @@
-# DevExpress and Bootstrap theme runtime architecture
+# DevExpress component and LocalGPT shell theme runtime architecture
 
 ## Goal
 
-LocalGPT supports DevExpress Classic themes, DevExpress Fluent light/dark themes, and local external Bootstrap themes without competing stylesheet managers. A theme change must preserve component behavior, Bootstrap layout variables, custom LocalGPT surfaces, user notification, and circuit safety.
+LocalGPT exposes two explicit, persistent theme layers:
+
+1. **Outer shell theme** — page background, navigation, native LocalGPT surfaces, Bootstrap metadata and Highlight.js.
+2. **Inner component theme** — DevExpress editors, grids, chat controls, buttons and other DevExpress components.
+
+The two selections may be identical or different. They must survive routed navigation, circuit recreation, new tabs and application restarts without racing back to Office White.
 
 ## Source of truth
 
-`ThemeService` is scoped and must be resolved through dependency injection. Components and services must never instantiate it with `new ThemeService(...)` or maintain an independent active-theme field.
+`ThemeService` is scoped and resolved through dependency injection. `MenuIsland` is the single interactive render-mode owner for the switcher; `ThemeSwitcher`, `ThemeSwitcherContainer`, and `ThemeSwitcherItem` inherit that circuit and must not create nested interactive roots.
 
-Each LocalGPT `Theme` contains the actual DevExpress `ITheme` object. The application uses the same object in both supported phases:
+`ThemeService.ActiveShellTheme` and `ThemeService.ActiveComponentTheme` are independent. The former `ActiveTheme` property remains a compatibility alias for the component theme only.
 
-1. `Components/App.razor` calls `DxResourceManager.RegisterTheme(Themes.ActiveTheme.DevExpressTheme)` for startup resources.
-2. `ThemeJsChangeDispatcher` injects `IThemeChangeService` and **awaits** `SetTheme(theme.DevExpressTheme)` for runtime changes.
+## Startup and persistence
 
-## Theme families
+The server-rendered shell reads:
 
-- **Classic:** clone `Themes.BlazingBerry`, `Themes.BlazingDark`, `Themes.Purple`, or `Themes.OfficeWhite`, then add the LocalGPT theme contract stylesheet.
-- **Fluent:** clone `Themes.Fluent`, set `ThemeMode.Light` or `ThemeMode.Dark`, enable `UseBootstrapStyles` and `ApplyToPageElements`, then add the LocalGPT theme contract stylesheet.
-- **External Bootstrap:** clone `Themes.BootstrapExternal`, add the selected local Bootstrap stylesheet with `AddFilePaths`, then add the LocalGPT theme contract stylesheet.
+- `ActiveShellTheme`;
+- `ActiveComponentTheme`;
+- legacy `ActiveTheme` as a migration fallback.
 
-External Bootstrap stylesheets are local source assets. Model output, imported documents, repository text, database values, and remote URLs cannot become a theme stylesheet path.
+The browser stores both names in cookies and local storage. The interactive dispatcher reads the live browser state after it attaches, which avoids reusing the stale initial HTTP cookie snapshot during later routed component recreation.
+
+## DevExpress ownership
+
+Each LocalGPT `Theme` contains the actual DevExpress `ITheme` object.
+
+- `Components/App.razor` registers `ActiveComponentTheme.DevExpressTheme` for startup.
+- `ThemeJsChangeDispatcher` awaits `IThemeChangeService.SetTheme(...)` only when the inner component theme changes.
+- A shell-only change does not load a competing DevExpress stylesheet.
+
+Fluent component themes do not apply themselves to page elements. LocalGPT shell palettes are expressed through higher-specificity Bootstrap variables selected by `data-localgpt-shell-theme`.
 
 ## JavaScript boundary
 
-`wwwroot/switcher-resources/theme-controller.js` does not add or remove DevExpress or Bootstrap theme links. DevExpress owns those resources. JavaScript may only:
+`wwwroot/switcher-resources/theme-controller.js` may:
 
-- set `data-bs-theme` and `data-localgpt-theme` on `<html>`;
-- persist the validated theme name in the `ActiveTheme` cookie;
-- switch the optional Highlight.js stylesheet with a short timeout;
-- call back into `ThemeLoadedAsync` after client metadata is applied.
+- read and persist the two validated theme names;
+- set `data-bs-theme`, `data-localgpt-shell-theme`, and `data-localgpt-component-theme`;
+- update the optional Highlight.js stylesheet;
+- notify .NET after a requested layer finishes applying.
 
-## CSS contract
-
-DevExpress internal selectors remain under DevExpress theme control. LocalGPT custom CSS uses variables from `css/localgpt-theme-contract.css`:
-
-- `--localgpt-body-bg` and `--localgpt-body-color`;
-- `--localgpt-surface-bg` and `--localgpt-surface-raised-bg`;
-- `--localgpt-border-color`;
-- status and RGB variables based on Bootstrap tokens;
-- fallback shadow, radius, and focus-ring values.
-
-Every variable resolves first to the active Bootstrap/DevExpress-provided token and then to an explicit safe fallback. Do not globally restyle `.dxbl-*` internals. Apply `CssClass` to the DevExpress component and style only that semantic application class when an override is necessary.
-
-Standalone DevExtreme JavaScript widgets are not currently part of the maintained UI surface. If one is introduced later, its official theme stylesheet and runtime lifecycle must be registered explicitly; the Blazor theme dispatcher must not guess or synthesize DevExtreme asset names.
-
-## State flow
-
-The server-rendered shell validates the `ActiveTheme` cookie before registering startup resources. `ThemeSwitcher` transfers the effective theme name through `PersistentComponentState` into the interactive circuit. Unknown or blank names fall back to Office White. Runtime changes update the scoped service, DevExpress theme service, client metadata, persistent component state, and cookie.
+It does not add or remove DevExpress component-theme stylesheets.
 
 ## Failure behavior
 
-A runtime failure performs one awaited restoration of the prior `ITheme`, records a technical log and bounded component-activity entry, and shows a sanitized notification. Rollback failure is logged separately and never hidden. A remote Highlight.js failure is optional and time-bounded; it cannot leave DevExpress controls half-switched.
-
-## Preservation audit
-
-The older component archive was compared against the maintained tree. Its theme resources, JavaScript helpers, startup marker, routed pages, and DevExpress control families remain. Blazing Berry was the only selectable theme omitted by the rewire and has been restored. The old `MainLayout` error fragment was replaced by the stronger shared `SafeErrorBoundary`; the old drawer disposal methods had no live resources to preserve.
+A failed component-theme switch restores the prior DevExpress `ITheme`. A failed shell-theme switch restores the prior shell state. Technical exceptions are logged, bounded component-activity records are written, and the user receives a sanitized notification.

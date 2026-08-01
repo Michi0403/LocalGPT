@@ -426,16 +426,16 @@
                         var liveCouncilMessage = ResolveLiveCouncilMessage(context.Content);
                     }
                     <div class="demo-chat-content" data-localgpt-details-host data-localgpt-copyable="true">
+                        @(new MarkupString(ChatContentRenderer.Render(context.Content)))
                         @if (liveCouncilMessage?.IsRunning == true)
                         {
-                            <div class="localgpt-message-utility-row">
+                            <div class="localgpt-message-utility-row localgpt-live-update-footer">
                                 <span class="localgpt-rejoined-live-status" role="status" aria-live="polite">
                                     <span class="localgpt-rejoined-live-spinner" aria-hidden="true"></span>
-                                    Council running @ShortCouncilRunId(liveCouncilMessage.RunId)
+                                    Council @ShortCouncilRunId(liveCouncilMessage.RunId) is still running. Waiting for the next streamed update…
                                 </span>
                             </div>
                         }
-                        @(new MarkupString(ChatContentRenderer.Render(context.Content)))
                     </div>
                 </MessageContentTemplate>
                 <AIChatSettings>
