@@ -274,7 +274,7 @@
     protected override async Task OnInitializedAsync()
     {
         Collaboration.Changed += OnCollaborationChanged;
-        await RefreshAsync();
+        await RefreshAsync().ConfigureAwait(true);
     }
 
     private void TogglePanel()
@@ -302,7 +302,7 @@
     {
         try
         {
-            snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80);
+            snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80).ConfigureAwait(true);
             if (!profileDirty)
             {
                 profile = new HumanCouncilParticipantProfile
@@ -320,7 +320,7 @@
             }
             foreach (var request in PendingRequests)
                 editors.TryAdd(request.Id, new RequestEditor(request.PrefillText, string.Empty));
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -338,17 +338,17 @@
                 RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox));
-            profile = await Collaboration.SaveProfileAsync(profile);
+            profile = await Collaboration.SaveProfileAsync(profile).ConfigureAwait(true);
             profileDirty = false;
             statusText = profile.IsEnabled ? "Human council participation is enabled." : "Human council participation is disabled.";
             Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Participant profile");
-        });
+        }).ConfigureAwait(true);
     }
 
     private async Task SubmitContributionAsync(Guid runId)
     {
         var editorId = GetContributionEditorId(runId);
-        var content = await JS.InvokeAsync<string>("localGptHumanDrafts.read", editorId);
+        var content = await JS.InvokeAsync<string>("localGptHumanDrafts.read", editorId).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(content))
         {
             statusText = "Write a Council contribution before adding it to the next heartbeat.";
@@ -362,11 +362,11 @@
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox),
                 councilRunId: runId);
-            await Collaboration.QueueContributionAsync(runId, content);
-            await JS.InvokeVoidAsync("localGptHumanDrafts.clear", editorId);
+            await Collaboration.QueueContributionAsync(runId, content).ConfigureAwait(true);
+            await JS.InvokeVoidAsync("localGptHumanDrafts.clear", editorId).ConfigureAwait(true);
             statusText = "Your contribution will enter the next council heartbeat without stopping the current work.";
             Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Council contribution queued");
-        });
+        }).ConfigureAwait(true);
     }
 
     private async Task ResolveAsync(HumanCollaborationRequest request, bool? approved)
@@ -382,10 +382,10 @@
                 request.CouncilRunId);
             var resolved = await Collaboration.ResolveRequestAsync(
                 request.Id,
-                new HumanDecisionSubmission(approved, editor.Response, editor.Reason));
+                new HumanDecisionSubmission(approved, editor.Response, editor.Reason)).ConfigureAwait(true);
             statusText = resolved is null ? "The request no longer exists." : $"Request marked {resolved.Status}.";
             Notifier.ShowInfo("HumanCollaborationToasts", statusText, "Human decision recorded");
-        });
+        }).ConfigureAwait(true);
     }
 
     private async Task RunHumanUiOperationAsync(string operation, Func<Task> action)
@@ -396,8 +396,8 @@
         statusText = string.Empty;
         try
         {
-            await action();
-            await RefreshAsync();
+            await action().ConfigureAwait(true);
+            await RefreshAsync().ConfigureAwait(true);
             ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), operation, "The trusted local human UI operation completed.");
         }
         catch (Exception ex)

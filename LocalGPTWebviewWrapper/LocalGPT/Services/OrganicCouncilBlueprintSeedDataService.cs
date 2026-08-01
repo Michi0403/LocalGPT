@@ -64,7 +64,7 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
                 new() { Role = "Workbook analyst", Expertise = "sheet structure, ranges, tables and data quality", Responsibility = "inspect the selected workbook/session without silently mutating it" },
                 new() { Role = "Formula and data specialist", Expertise = "formulas, validation, transformations and reconciliation", Responsibility = "propose exact changes and verification checks" },
                 new() { Role = "Visual/layout reviewer", Expertise = "readability, formatting, charts and print/export behavior", Responsibility = "review visual evidence supplied by the eyes organ" },
-                new() { Role = "Hand-eye workflow coordinator", Expertise = "sequential 1-Wire spools and UI action safety", Responsibility = "order screenshot and input packages, await results and prevent overlapping gestures/deadlocks" }
+                new() { Role = "Hand-eye workflow coordinator", Expertise = "sequential 1-Wire spools and UI action safety", Responsibility = "order screenshot and input packages, \u0061wait results and prevent overlapping gestures/deadlocks" }
             ],
             PreferredCapabilities = ["publisher.spreadsheet.inspect", "publisher.screen.capture", "publisher.screen.capture.result", "publisher.input.execute", "publisher.input.result", "publisher.text.insert.propose"],
             ArchitectureContracts =

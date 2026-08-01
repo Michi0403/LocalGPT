@@ -1189,7 +1189,7 @@
     opacity: .72;
 }
 
-::deep .localgpt-council-stop-hidden {
+::deep .localgpt-council-native-send-hidden {
     display: none !important;
 }
 
@@ -1369,9 +1369,9 @@
     background: color-mix(in srgb, var(--bs-primary, #0d6efd) 8%, transparent);
 }
 
-/* v36: a rejoined Council remains visibly live and fully controllable after a
-   language/page circuit replacement. Message copy is an explicit stable action
-   instead of depending on DevExpress streaming-only controls. */
+/* A rejoined Council remains visibly live after a language/page circuit replacement.
+   Existing DevExpress message actions stay authoritative; LocalGPT only keeps their
+   native copy action visible instead of replacing it with a parallel clipboard path. */
 .demo-chat ::deep .localgpt-message-utility-row {
     display: flex;
     align-items: center;
@@ -1404,27 +1404,11 @@
     to { transform: rotate(360deg); }
 }
 
-.demo-chat ::deep .localgpt-message-copy-button {
-    min-height: 2rem;
-    padding: .3rem .7rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: .5rem;
-    background: var(--bs-tertiary-bg, var(--bs-body-bg));
-    color: var(--bs-body-color);
-    font: inherit;
-    font-size: .8rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.demo-chat ::deep .localgpt-message-copy-button:hover,
-.demo-chat ::deep .localgpt-message-copy-button:focus-visible {
-    border-color: var(--bs-primary);
-    outline: none;
-}
-
-::deep .localgpt-live-send-button.localgpt-live-stop-mode {
-    background: var(--bs-danger, #dc3545) !important;
+.demo-chat ::deep .localgpt-native-copy-always-visible {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 [data-testid="chat-feedback-controls"] {

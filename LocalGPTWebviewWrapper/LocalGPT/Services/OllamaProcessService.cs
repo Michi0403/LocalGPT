@@ -8,8 +8,8 @@ namespace LocalGPT.Services;
 public sealed class OllamaProcessService(
     ILogger<OllamaProcessService> logger) : IOllamaProcessService
 {
-    private static readonly SemaphoreSlim ProcessGate = new(1, 1);
-    private static readonly string[] OllamaProcessNames = ["ollama", "ollamaapp"];
+    private readonly SemaphoreSlim processGate = new(1, 1);
+    private readonly string[] ollamaProcessNames = ["ollama", "ollamaapp"];
 
     public async Task<OllamaProcessStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
@@ -19,7 +19,7 @@ public sealed class OllamaProcessService(
 
     public async Task<OllamaProcessStatus> StartAsync(CancellationToken cancellationToken = default)
     {
-        await ProcessGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var current = BuildStatus();
@@ -64,13 +64,13 @@ public sealed class OllamaProcessService(
         }
         finally
         {
-            ProcessGate.Release();
+            processGate.Release();
         }
     }
 
     public async Task<OllamaProcessStatus> StopAsync(CancellationToken cancellationToken = default)
     {
-        await ProcessGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var terminatedCount = await TerminateAllOllamaProcessesAsync(cancellationToken).ConfigureAwait(false);
@@ -86,13 +86,13 @@ public sealed class OllamaProcessService(
         }
         finally
         {
-            ProcessGate.Release();
+            processGate.Release();
         }
     }
 
     public async Task<OllamaProcessStatus> RestartAsync(CancellationToken cancellationToken = default)
     {
-        await ProcessGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             await TerminateAllOllamaProcessesAsync(cancellationToken).ConfigureAwait(false);
@@ -124,7 +124,7 @@ public sealed class OllamaProcessService(
         }
         finally
         {
-            ProcessGate.Release();
+            processGate.Release();
         }
     }
 
@@ -163,14 +163,14 @@ public sealed class OllamaProcessService(
                     : "Ollama is not installed or could not be found.");
     }
 
-    private static List<Process> GetOllamaProcesses()
+    private List<Process> GetOllamaProcesses()
     {
         var matches = new List<Process>();
         foreach (var process in Process.GetProcesses())
         {
             try
             {
-                if (OllamaProcessNames.Contains(NormalizeProcessName(process.ProcessName), StringComparer.Ordinal))
+                if (ollamaProcessNames.Contains(NormalizeProcessName(process.ProcessName), StringComparer.Ordinal))
                     matches.Add(process);
                 else
                     process.Dispose();
@@ -183,13 +183,13 @@ public sealed class OllamaProcessService(
         return matches;
     }
 
-    private static string NormalizeProcessName(string value) =>
+    private string NormalizeProcessName(string value) =>
         new string(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
 
-    private static bool IsOllamaAppExecutable(string executable) =>
+    private bool IsOllamaAppExecutable(string executable) =>
         NormalizeProcessName(Path.GetFileNameWithoutExtension(executable)) == "ollamaapp";
 
-    private static string? ResolveOllamaExecutable()
+    private string? ResolveOllamaExecutable()
     {
         var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ollama.exe" : "ollama";
         var candidates = new List<string>();
@@ -261,7 +261,7 @@ public sealed class OllamaProcessService(
         return terminatedProcessIds.Count;
     }
 
-    private static async Task WaitForProcessStateAsync(bool expectedRunning, CancellationToken cancellationToken)
+    private async Task WaitForProcessStateAsync(bool expectedRunning, CancellationToken cancellationToken)
     {
         var deadline = DateTime.UtcNow.AddSeconds(expectedRunning ? 10 : 5);
         while (DateTime.UtcNow < deadline)

@@ -14,8 +14,8 @@
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/HumanCollaborationInbox.razor": {
-      "maxUnconfiguredAwaitCount": 11,
-      "maxConfigureAwaitTrueCount": 0,
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 13,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeJsChangeDispatcher.cs": {
@@ -34,8 +34,8 @@
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Chat.razor": {
-      "maxUnconfiguredAwaitCount": 12,
-      "maxConfigureAwaitTrueCount": 74,
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 96,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/CouncilTeams.razor": {
@@ -55,7 +55,7 @@
     },
     "Components/Pages/Install.razor": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 34,
+      "maxConfigureAwaitTrueCount": 45,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/MinecraftModBuilder.razor": {

@@ -27,7 +27,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         int take = 80,
         CancellationToken cancellationToken = default)
     {
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var query = db.HumanCollaborationRequests.AsNoTracking();
         if (!includeResolved)
             query = query.Where(item => item.Status == vocabulary.Get().HumanStatusPending);
@@ -96,7 +96,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var existing = await db.HumanCollaborationRequests
                 .Where(item => item.CorrelationId == request.CorrelationId && item.OperationKey == request.OperationKey)
                 .OrderByDescending(item => item.RequestedAtUtc)
@@ -249,7 +249,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var request = await db.HumanCollaborationRequests
                 .SingleOrDefaultAsync(item => item.Id == requestId, cancellationToken)
                 .ConfigureAwait(false);
@@ -328,7 +328,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 
     public async Task<HumanCouncilParticipantProfile> GetProfileAsync(CancellationToken cancellationToken = default)
     {
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         return await db.HumanCouncilParticipantProfiles.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId), cancellationToken)
             .ConfigureAwait(false)
@@ -344,7 +344,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var existing = await db.HumanCouncilParticipantProfiles
                 .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId), cancellationToken)
                 .ConfigureAwait(false);
@@ -436,7 +436,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             SubmittedAtUtc = DateTime.UtcNow
         };
 
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         db.HumanCouncilContributions.Add(contribution);
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         if (directUserMessage)
@@ -466,7 +466,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             return await db.HumanCouncilContributions.AsNoTracking()
                 .Where(item => item.CouncilRunId == councilRunId &&
                     item.Status == vocabulary.Get().ContributionQueued &&
@@ -489,7 +489,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var contributions = await db.HumanCouncilContributions
                 .Where(item => item.CouncilRunId == councilRunId &&
                     item.Status == vocabulary.Get().ContributionQueued &&
@@ -523,7 +523,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var contributions = await db.HumanCouncilContributions
                 .Where(item => item.CouncilRunId == councilRunId && item.Status == vocabulary.Get().ContributionInjected)
                 .ToListAsync(cancellationToken)
@@ -559,7 +559,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var recentAnswers = await db.HumanCollaborationRequests
                 .Where(item => item.RequestKind != vocabulary.Get().HumanRequestApproval &&
                     (item.CouncilRunId == councilRunId || item.CouncilRunId == null) &&
@@ -625,7 +625,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         HumanCollaborationBoundary boundary,
         CancellationToken cancellationToken = default)
     {
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var pending = await db.HumanCollaborationRequests.AsNoTracking()
             .Where(item => item.CouncilRunId == councilRunId &&
                 item.RequestKind != vocabulary.Get().HumanRequestApproval &&

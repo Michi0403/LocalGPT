@@ -139,6 +139,12 @@ def static_audit(app_root: Path, product: str):
                         continue
                     if 'this IServiceCollection' in declaration and 'ILogger' in declaration:
                         continue
+                if rel.startswith('Extensions/'):
+                    if re.search(r'\bstatic\s+class\s+\w+Extensions\b', declaration):
+                        continue
+                    signature_window=masked[m.start():m.start()+1000].split('{',1)[0]
+                    if re.search(r'\bpublic\s+static\b', declaration) and re.search(r'\(\s*this\s+', signature_window):
+                        continue
                 failures.append(f'{rel}:{line_of(text,m.start())}: {declaration}')
         elif rel.endswith('_Imports.razor'):
             # RenderMode import is framework syntax, not application state.

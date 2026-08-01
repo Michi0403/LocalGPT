@@ -425,20 +425,15 @@
                         var liveCouncilMessage = ResolveLiveCouncilMessage(context.Content);
                     }
                     <div class="demo-chat-content" data-localgpt-details-host data-localgpt-copyable="true">
-                        <div class="localgpt-message-utility-row">
-                            @if (liveCouncilMessage?.IsRunning == true)
-                            {
+                        @if (liveCouncilMessage?.IsRunning == true)
+                        {
+                            <div class="localgpt-message-utility-row">
                                 <span class="localgpt-rejoined-live-status" role="status" aria-live="polite">
                                     <span class="localgpt-rejoined-live-spinner" aria-hidden="true"></span>
                                     Council running @ShortCouncilRunId(liveCouncilMessage.RunId)
                                 </span>
-                            }
-                            <button type="button"
-                                    class="localgpt-message-copy-button"
-                                    title="Copy this message"
-                                    aria-label="Copy this message"
-                                    @onclick="() => CopyChatMessageAsync(context.Content)">Copy</button>
-                        </div>
+                            </div>
+                        }
                         @(new MarkupString(ChatContentRenderer.Render(context.Content)))
                     </div>
                 </MessageContentTemplate>
@@ -476,7 +471,7 @@
                         {
                             var run = collaborationSnapshot.ActiveRuns.FirstOrDefault(item => item.RunId == session.RunId);
                             var runState = run is null ? "live" : $"round {run.CurrentRound} · {run.Phase}";
-                            <option value="@session.RunId">@session.StartedAtUtc.ToLocalTime().ToString("g") · @runState · @string.Join(", ", session.CouncilMembers.Take(3))</option>
+                            <option value="@session.RunId">@CouncilText.FormatLiveCouncilSessionOption(session.StartedAtUtc, runState, session.CouncilMembers)</option>
                         }
                     }
                 </select>
@@ -680,14 +675,14 @@
     {
         get
         {
-            var candidateRunIds = new[] { SelectedCouncilRunId, AttachedLiveCouncilRunId, RejoinCouncilRunId };
+            Guid?[] candidateRunIds = [AttachedLiveCouncilRunId, RejoinCouncilRunId];
             foreach (var candidateRunId in candidateRunIds)
             {
                 if (candidateRunId is Guid runId && CouncilLiveSessions.GetSummary(runId) is { IsRunning: true } snapshot)
                     return snapshot;
             }
 
-            return RunningLiveCouncilSessions.FirstOrDefault();
+            return null;
         }
     }
     bool IsLiveCouncilInteractionAvailable => ActiveLiveCouncilSession?.IsRunning == true;
@@ -697,10 +692,23 @@
     string ActiveCouncilRunShortId => ActiveCouncilInteractionRunId is Guid runId ? ShortCouncilRunId(runId) : string.Empty;
     string RunningCouncilContribution { get; set; } = string.Empty;
     List<BlazorChatMessage> PendingLiveCouncilUserMessages { get; } = [];
-    HumanCouncilRunSnapshot? ActiveCouncilRun =>
-        SelectedCouncilRunId is Guid selected
-            ? collaborationSnapshot.ActiveRuns.FirstOrDefault(run => run.RunId == selected)
-            : collaborationSnapshot.ActiveRuns.OrderByDescending(run => run.StartedAtUtc).FirstOrDefault();
+    HumanCouncilRunSnapshot? ActiveCouncilRun
+    {
+        get
+        {
+            Guid?[] candidateRunIds = [AttachedLiveCouncilRunId, RejoinCouncilRunId];
+            foreach (var candidateRunId in candidateRunIds)
+            {
+                if (candidateRunId is Guid runId
+                    && collaborationSnapshot.ActiveRuns.FirstOrDefault(run => run.RunId == runId) is { } activeRun)
+                {
+                    return activeRun;
+                }
+            }
+
+            return null;
+        }
+    }
     bool autoSaveFailureNotified;
     bool initialModelRefreshStarted;
     bool hasUserSelectedSession;
@@ -789,8 +797,6 @@
             HumanCollaboration.Changed += OnHumanCollaborationChanged;
             CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
             CouncilRunConfigurations.Changed += OnCouncilRunConfigurationChanged;
-            RejoinCouncilRunId = CouncilLiveSessions.GetActiveSummaries().FirstOrDefault()?.RunId;
-            SelectedCouncilRunId = RejoinCouncilRunId;
             await RefreshHumanCollaborationAsync().ConfigureAwait(true);
             ArchitectureUiStack = Catalog.ArchitectureUiStackOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions.FirstOrDefault() ?? string.Empty;
@@ -845,27 +851,27 @@
             value => CouncilMaxOutputTokens = Math.Clamp(
                 value,
                 Catalog.MinCouncilOutputTokens,
-                Catalog.MaxCouncilOutputTokens));
+                Catalog.MaxCouncilOutputTokens)).ConfigureAwait(true);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultContextTokens,
             value => CouncilMaxContextTokens = Math.Clamp(
                 value,
                 Catalog.MinCouncilContextTokens,
-                Catalog.MaxCouncilContextTokens));
+                Catalog.MaxCouncilContextTokens)).ConfigureAwait(true);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultHeavyModelGpuLayers,
-            value => LimitedGpuLayers = Math.Clamp(value, 1, 99));
+            value => LimitedGpuLayers = Math.Clamp(value, 1, 99)).ConfigureAwait(true);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultCouncilResourceLoadPercent,
-            value => CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100));
+            value => CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100)).ConfigureAwait(true);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultCouncilCritiqueRounds,
-            value => CouncilCritiqueRounds = Math.Clamp(value, 0, 3));
+            value => CouncilCritiqueRounds = Math.Clamp(value, 0, 3)).ConfigureAwait(true);
         await TryApplyDatabaseVariableAsync<string>(
             SystemVariables.DefaultOllamaEndpoint,
             value => OllamaEndpoint = string.IsNullOrWhiteSpace(value)
                 ? Catalog.DefaultOllamaEndpoint
-                : value.Trim());
+                : value.Trim()).ConfigureAwait(true);
     }
 
     private async Task MigrateCouncilDefaultsAsync()
@@ -1005,6 +1011,21 @@
             if (initialMessages.Count > 0)
                 DxAiChat.LoadMessages(initialMessages);
             RefreshFeedbackTargets(initialMessages);
+
+            var selectedSessionIsCouncil = string.Equals(
+                ChatClientProvider?.SelectedSession?.Name,
+                Catalog.CouncilSessionName,
+                StringComparison.OrdinalIgnoreCase);
+            var linkedLiveCouncil = selectedSessionIsCouncil
+                ? initialMessages
+                    .Select(message => ResolveLiveCouncilMessage(message.Content))
+                    .LastOrDefault(session => session?.IsRunning == true)
+                : null;
+            if (linkedLiveCouncil is not null)
+            {
+                SelectedCouncilRunId = linkedLiveCouncil.RunId;
+                RejoinCouncilRunId = linkedLiveCouncil.RunId;
+            }
 
             if (RejoinCouncilRunId is Guid rejoinRunId)
                 await AttachToLiveCouncilSessionAsync(rejoinRunId).ConfigureAwait(true);
@@ -1163,6 +1184,13 @@
             ChatClientProvider.ForcedMaxPromptCharacters = null;
             ChatClientProvider.SuppressBootstrapContext = false;
             ChatClientProvider.SelectedSession = value;
+            if (!string.Equals(value.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
+            {
+                AttachedLiveCouncilRunId = null;
+                RejoinCouncilRunId = null;
+                ownsLiveCouncilStream = false;
+                lastAttachedLiveCouncilUpdatedAtUtc = default;
+            }
 
             if (ReuseContextWhenSwitching && value.Messages.Count == 0 && currentMessages.Count > 0)
                 value.Messages.AddRange(currentMessages);
@@ -2704,12 +2732,6 @@
                 SelectedCouncilRunId = null;
             }
 
-            SelectedCouncilRunId ??= collaborationSnapshot.ActiveRuns
-                .OrderByDescending(run => run.StartedAtUtc)
-                .FirstOrDefault()?.RunId
-                ?? CouncilLiveSessions.GetActiveSummaries().FirstOrDefault()?.RunId;
-            if (SelectedCouncilRunId is Guid liveRunId && CouncilLiveSessions.GetSummary(liveRunId)?.IsRunning == true)
-                RejoinCouncilRunId = liveRunId;
             LoadCouncilRunConfiguration(SelectedCouncilRunId);
             await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
@@ -2719,20 +2741,15 @@
         }
     }
 
-    private async Task OnActiveCouncilRunChanged(ChangeEventArgs args)
+    private void OnActiveCouncilRunChanged(ChangeEventArgs args)
     {
         SelectedCouncilRunId = Guid.TryParse(args.Value?.ToString(), out var runId) ? runId : null;
         LoadCouncilRunConfiguration(SelectedCouncilRunId);
-        if (SelectedCouncilRunId is Guid selectedRunId && CouncilLiveSessions.GetSummary(selectedRunId)?.IsRunning == true)
-        {
-            RejoinCouncilRunId = selectedRunId;
-            await AttachToLiveCouncilSessionAsync(selectedRunId).ConfigureAwait(true);
-        }
     }
 
     private async Task RejoinSelectedCouncilSessionAsync()
     {
-        var runId = SelectedCouncilRunId ?? CouncilLiveSessions.GetActiveSummaries().FirstOrDefault()?.RunId;
+        var runId = SelectedCouncilRunId;
         if (runId is not Guid selectedRunId || CouncilLiveSessions.GetSummary(selectedRunId)?.IsRunning != true)
         {
             Notifier.ShowError(toastName, "The selected Council session is no longer running.", "Rejoin Council");
@@ -2912,7 +2929,7 @@
                 {
                     try
                     {
-                        await Task.Delay(750, cancellationToken).ConfigureAwait(false);
+                        await Task.Delay(750, cancellationToken).ConfigureAwait(true);
                         if (cancellationToken.IsCancellationRequested || isDisposed)
                             return;
                         await InvokeAsync(() => AttachToLiveCouncilSessionAsync(runId)).ConfigureAwait(true);
@@ -2968,8 +2985,8 @@
         lastAttachedLiveCouncilUpdatedAtUtc = snapshot.UpdatedAtUtc;
         SelectedCouncilRunId = runId;
         LoadCouncilRunConfiguration(runId);
-        if (!hasUserSelectedSession || string.Equals(ChatClientProvider.SelectedSession?.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase))
-            ChatClientProvider.SelectedSession = councilSession;
+        ChatClientProvider.SelectedSession = councilSession;
+        hasUserSelectedSession = true;
 
         var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
         var content = $"{marker}\n{snapshot.Transcript}";
@@ -3083,14 +3100,14 @@
 
     private Guid? ResolveRunningCouncilRunId()
     {
-        Guid?[] candidates = [AttachedLiveCouncilRunId, SelectedCouncilRunId, RejoinCouncilRunId];
+        Guid?[] candidates = [AttachedLiveCouncilRunId, RejoinCouncilRunId];
         foreach (var candidate in candidates)
         {
             if (candidate is Guid runId && CouncilLiveSessions.GetSummary(runId)?.IsRunning == true)
                 return runId;
         }
 
-        return CouncilLiveSessions.GetActiveSummaries().FirstOrDefault()?.RunId;
+        return null;
     }
 
     private async Task StopSelectedCouncilSessionAsync()
@@ -3149,23 +3166,6 @@
         }
 
         return CouncilLiveSessions.GetSummary(runId);
-    }
-
-    private async Task CopyChatMessageAsync(string? content)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-            return;
-
-        var copyText = content;
-        var markerIndex = copyText.IndexOf(LiveCouncilMessageMarkerPrefix, StringComparison.Ordinal);
-        if (markerIndex >= 0)
-        {
-            var markerEnd = copyText.IndexOf("-->", markerIndex, StringComparison.Ordinal);
-            if (markerEnd >= 0)
-                copyText = copyText[(markerEnd + 3)..].TrimStart();
-        }
-
-        await JS.InvokeVoidAsync("localGptChatUi.copyText", copyText).ConfigureAwait(true);
     }
 
     private void OnHumanCollaborationChanged()

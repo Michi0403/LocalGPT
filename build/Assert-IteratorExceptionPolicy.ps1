@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 function Fail([string]$Message) { throw $Message }
 function Normalize-Signature([string]$Value) { return ([regex]::Replace($Value, '\s+', ' ')).Trim() }
 function Get-MethodRecords([string]$Text) {
-    $pattern = '(?ms)^[ \t]*(?<signature>(?:public|private|protected|internal)\s+(?:(?:static|async|virtual|override|sealed|partial|new)\s+)*(?:[\w\.\?<>,\[\]]+\s+)+(?<name>[A-Za-z_]\w*)\s*\([^;{}]*?\)\s*(?:where[^\{=>\r\n]+)?\s*)(?<body>=>|\{)'
+    $pattern = '(?ms)^[ \t]*(?<signature>(?:public|private|protected|internal)\s+(?!(?:(?:static|async|virtual|override|sealed|partial|new)\s+)*(?:class|struct|record|interface|enum)\b)(?:(?:static|async|virtual|override|sealed|partial|new)\s+)*(?:[\w\.\?<>,\[\]]+\s+)+(?<name>[A-Za-z_]\w*)\s*\([^;{}]*?\)\s*(?:where[^\{=>\r\n]+)?\s*)(?<body>=>|\{)'
     $records = @()
     foreach ($match in [regex]::Matches($Text, $pattern)) {
         $bodyStart = $match.Groups['body'].Index

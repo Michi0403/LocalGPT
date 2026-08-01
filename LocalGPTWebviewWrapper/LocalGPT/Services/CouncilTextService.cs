@@ -30,6 +30,24 @@ namespace LocalGPT.Services
     {
    
 
+        public string FormatLiveCouncilSessionOption(
+            DateTime startedAtUtc,
+            string runState,
+            IReadOnlyList<string> councilMembers)
+        {
+            try
+            {
+                serviceLogger.LogTrace("Council text operation {Operation} started.", nameof(FormatLiveCouncilSessionOption));
+                var memberText = string.Join(", ", councilMembers.Take(3));
+                return $"{startedAtUtc.ToLocalTime():g} · {runState} · {memberText}";
+            }
+            catch (Exception ex)
+            {
+                serviceLogger.LogError(ex, "Council text operation {Operation} failed.", nameof(FormatLiveCouncilSessionOption));
+                return $"{startedAtUtc.ToLocalTime():g} · {runState}";
+            }
+        }
+
         public string NormalizeFormerThought(string? value, ILogger logger)
         {
             try
@@ -3412,7 +3430,7 @@ namespace LocalGPT.Services
                 public async Task<GeneratedChatResponse> ChatAsync(GeneratedChatRequest request, CancellationToken cancellationToken = default)
                 {
                     request.Model = NormalizeModel(request.Model, options.Value.DefaultModel);
-                    return await runner.InferAsync(request, cancellationToken);
+                    return await runner.InferAsync(request, cancellationToken).ConfigureAwait(false);
                 }
 
                 public async Task<object> GenerateAsync(GeneratedModelActionRequest request, CancellationToken cancellationToken = default)
@@ -3430,7 +3448,7 @@ namespace LocalGPT.Services
                         Stream = request.Stream,
                         Options = request.Options
                     };
-                    var response = await runner.InferAsync(chat, cancellationToken);
+                    var response = await runner.InferAsync(chat, cancellationToken).ConfigureAwait(false);
                     return new
                     {
                         model = response.Model,
@@ -3512,9 +3530,9 @@ namespace LocalGPT.Services
                     {
                         var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
                         var errorTask = process.StandardError.ReadToEndAsync(timeout.Token);
-                        await process.WaitForExitAsync(timeout.Token);
-                        var output = await outputTask;
-                        var error = await errorTask;
+                        await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+                        var output = await outputTask.ConfigureAwait(false);
+                        var error = await errorTask.ConfigureAwait(false);
                         var visible = string.IsNullOrWhiteSpace(output)
                             ? $"Native runner exited with code {process.ExitCode}. {error}".Trim()
                             : output.Trim();
@@ -6214,18 +6232,18 @@ namespace LocalGPT.Services
                   app.MapPost("/api/create", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateOperation("create", request.Model));
                   app.MapPost("/api/copy", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelCopyRequest request) => service.CreateCopyPlan(request));
                   app.MapDelete("/api/delete", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateOperation("delete", request.Model));
-                  app.MapPost("/api/generate", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedModelActionRequest request, CancellationToken cancellationToken) => await provider.GenerateAsync(request, cancellationToken));
-                  app.MapPost("/api/chat", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedChatRequest request, CancellationToken cancellationToken) => await provider.ChatAsync(request, cancellationToken));
+                  app.MapPost("/api/generate", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedModelActionRequest request, CancellationToken cancellationToken) => await provider.GenerateAsync(request, cancellationToken).ConfigureAwait(false));
+                  app.MapPost("/api/chat", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedChatRequest request, CancellationToken cancellationToken) => await provider.ChatAsync(request, cancellationToken).ConfigureAwait(false));
                   app.MapPost("/api/embed", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   app.MapPost("/api/embeddings", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   app.MapGet("/api/blobs/{digest}", (string digest) => Results.Json(new { digest, status = "planned", boundary = "Blob storage is represented as metadata only in this generated lab." }));
-                  app.MapGet("/api/localgpt/runner/capability", async ([FromServices] IInferenceRunner runner, CancellationToken cancellationToken) => await runner.GetCapabilityAsync(cancellationToken));
+                  app.MapGet("/api/localgpt/runner/capability", async ([FromServices] IInferenceRunner runner, CancellationToken cancellationToken) => await runner.GetCapabilityAsync(cancellationToken).ConfigureAwait(false));
                   app.MapGet("/api/localgpt/plugins", ([FromServices] IPluginCatalogService plugins) => plugins.GetPlugins());
                   app.MapGet("/api/localgpt/hardware-budget", ([FromServices] IHardwareBudgetService hardware) => hardware.GetBudget());
                   app.MapGet("/api/localgpt/chat-templates", ([FromServices] IChatTemplateService templates) => templates.GetTemplateRules());
                   app.MapGet("/api/host/status", async ([FromServices] IInferenceRunner runner, [FromServices] IModelCatalogService catalog, [FromServices] IHardwareBudgetService hardware, CancellationToken cancellationToken) => new
                   {
-                      runner = await runner.GetCapabilityAsync(cancellationToken),
+                      runner = await runner.GetCapabilityAsync(cancellationToken).ConfigureAwait(false),
                       models = catalog.GetAiHostTags(),
                       running = catalog.GetRunningModels(),
                       hardware = hardware.GetBudget(),
@@ -6233,7 +6251,7 @@ namespace LocalGPT.Services
                   });
                   app.MapPost("/api/localgpt/scripts/plan", ([FromServices] IScriptExecutionService scripts, [FromBody] GeneratedScriptPlanRequest request) => scripts.CreatePlan(request.ScriptKind, request.Target, request.UserApproved));
                   app.MapGet("/v1/models", ([FromServices] IModelCatalogService catalog) => new { data = catalog.GetAiHostTags() });
-                  app.MapPost("/v1/chat/completions", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedChatRequest request, CancellationToken cancellationToken) => await provider.ChatAsync(request, cancellationToken));
+                  app.MapPost("/v1/chat/completions", async ([FromServices] IInferenceProvider provider, [FromBody] GeneratedChatRequest request, CancellationToken cancellationToken) => await provider.ChatAsync(request, cancellationToken).ConfigureAwait(false));
                   app.MapPost("/v1/embeddings", ([FromServices] GeneratedHealthSummaryService service, [FromBody] GeneratedModelActionRequest request) => service.CreateEmbeddingResponse(request));
                   """
                     : string.Empty;

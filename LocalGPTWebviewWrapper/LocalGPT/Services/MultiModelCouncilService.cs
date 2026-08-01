@@ -1841,7 +1841,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private static string BuildLiveCouncilInterruptionPrompt(IReadOnlyList<HumanCouncilContribution> contributions)
+        private string BuildLiveCouncilInterruptionPrompt(IReadOnlyList<HumanCouncilContribution> contributions)
         {
             var builder = new StringBuilder()
                 .AppendLine("The local user added new conversation input while your previous response was still generating.")
@@ -1857,7 +1857,7 @@ namespace LocalGPT.Services
             return builder.ToString().Trim();
         }
 
-        private static string LimitLiveCouncilContext(string value, int maximumCharacters)
+        private string LimitLiveCouncilContext(string value, int maximumCharacters)
         {
             if (string.IsNullOrEmpty(value) || value.Length <= maximumCharacters)
                 return value;

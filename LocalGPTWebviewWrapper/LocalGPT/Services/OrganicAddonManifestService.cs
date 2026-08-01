@@ -142,10 +142,20 @@ public sealed class OrganicAddonManifestService(
 
     private IEnumerable<string> GetManifestDirectories()
     {
-        yield return Path.Combine(environment.ContentRootPath, "Configuration", "OrganicAddons");
-        var outputDirectory = Path.Combine(AppContext.BaseDirectory, "Configuration", "OrganicAddons");
-        if (!string.Equals(outputDirectory, Path.Combine(environment.ContentRootPath, "Configuration", "OrganicAddons"), StringComparison.OrdinalIgnoreCase))
-            yield return outputDirectory;
+        logger.LogTrace("Organic add-on manifest directory enumeration started.");
+        try
+        {
+            var contentDirectory = Path.Combine(environment.ContentRootPath, "Configuration", "OrganicAddons");
+            yield return contentDirectory;
+
+            var outputDirectory = Path.Combine(AppContext.BaseDirectory, "Configuration", "OrganicAddons");
+            if (!string.Equals(outputDirectory, contentDirectory, StringComparison.OrdinalIgnoreCase))
+                yield return outputDirectory;
+        }
+        finally
+        {
+            logger.LogTrace("Organic add-on manifest directory enumeration completed.");
+        }
     }
 
     private void Normalize(OrganicAddonManifest manifest)

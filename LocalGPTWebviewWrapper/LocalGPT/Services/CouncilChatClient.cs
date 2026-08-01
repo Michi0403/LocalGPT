@@ -144,17 +144,20 @@ public sealed partial class CouncilChatClient(
     {
         try
         {
-            await using var scope = serviceScopeFactory.CreateAsyncScope();
-            var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
-            var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
-            if (result is null)
+            var scope = serviceScopeFactory.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
             {
-                publish("The AI Council ended without a result. Review the LocalGPT log for the failed council phase.");
-                return null;
-            }
+                var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
+                var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
+                if (result is null)
+                {
+                    publish("The AI Council ended without a result. Review the LocalGPT log for the failed council phase.");
+                    return null;
+                }
 
-            publish(FormatResult(result, includeProcess: false));
-            return result;
+                publish(FormatResult(result, includeProcess: false));
+                return result;
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -189,10 +192,13 @@ public sealed partial class CouncilChatClient(
             if (request.ModelNames.Count == 0)
                 return "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.";
 
-            await using var scope = serviceScopeFactory.CreateAsyncScope();
-            var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
-            var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
-            return FormatResult(result, includeProcess: true);
+            var scope = serviceScopeFactory.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
+                var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
+                return FormatResult(result, includeProcess: true);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
