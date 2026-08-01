@@ -10,14 +10,14 @@
     @if (IsLoaded)
     {
         <div class="theme-layer-toolbar">
-            <strong>Theme layers</strong>
+            <strong>Theme Fusion</strong>
             <button type="button" class="localgpt-native-button" @onclick="CloseAsync">Done</button>
         </div>
         <div class="blazor-themes blazor-scroll-view">
-            <section class="theme-layer-section" aria-label="Outer application shell theme">
+            <section class="theme-layer-section" aria-label="Base theme">
                 <div class="theme-layer-heading">
-                    <strong>Outer shell</strong>
-                    <small>Page, navigation, native surfaces and syntax highlighting.</small>
+                    <strong>Base Theme</strong>
+                    <small>Sets the visual foundation for pages, navigation, native surfaces and syntax highlighting.</small>
                 </div>
                 <div class="list-group list-group-flush">
                     @foreach (var themeSet in Themes.ThemeSets)
@@ -33,10 +33,10 @@
                 </div>
             </section>
 
-            <section class="theme-layer-section" aria-label="Inner DevExpress component theme">
+            <section class="theme-layer-section" aria-label="Style layer">
                 <div class="theme-layer-heading">
-                    <strong>Inner controls</strong>
-                    <small>DevExpress editors, grids, chat controls and buttons.</small>
+                    <strong>Style Layer</strong>
+                    <small>Blends with, overrides or extends the base theme across DevExpress editors, grids, chat controls and buttons.</small>
                 </div>
                 <div class="list-group list-group-flush">
                     @foreach (var themeSet in Themes.ThemeSets)
@@ -122,7 +122,7 @@
         catch (Exception ex)
         {
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            Logger.LogError(ex, "Theme layer selection failed; selected theme details were omitted from logs.");
+            Logger.LogError(ex, "Theme Fusion selection failed; selected theme details were omitted from logs.");
             ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), nameof(ThemeSwitcherItem_Click), ex);
         }
     }

@@ -25,6 +25,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     private IJSRuntime JsRuntime { get; set; } = default!;
 
     [Inject]
+    private NavigationManager NavigationManager { get; set; } = default!;
+
+    [Inject]
     private IFileVersionProvider FileVersionProvider { get; set; } = default!;
 
     [Inject]
@@ -184,11 +187,14 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             if (_module is not null)
                 return;
 
-            var themeModulePath = FileVersionProvider.AddFileVersionToPath(
+            var versionedThemeModulePath = FileVersionProvider.AddFileVersionToPath(
                 "/",
                 "switcher-resources/theme-controller.js");
+            var themeModuleUri = NavigationManager
+                .ToAbsoluteUri(versionedThemeModulePath)
+                .AbsoluteUri;
             var importedModule = await JsRuntime
-                .InvokeAsync<IJSObjectReference>("import", themeModulePath)
+                .InvokeAsync<IJSObjectReference>("import", themeModuleUri)
                 .ConfigureAwait(true);
             _module = importedModule
                 ?? throw new InvalidOperationException("The theme JavaScript module import returned no module reference.");

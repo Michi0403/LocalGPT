@@ -46,7 +46,7 @@ foreach ($relative in $inheritedThemeChildren) {
     $path = Join-Path $appRoot ($relative.Replace([char]'/', [System.IO.Path]::DirectorySeparatorChar))
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Fail "Required component is missing: $relative" }
     $text = [System.IO.File]::ReadAllText($path, $utf8)
-    if ($text.Contains('@rendermode', [StringComparison]::Ordinal)) {
+    if ($text.IndexOf('@rendermode', [StringComparison]::Ordinal) -ge 0) {
         Fail "$relative must inherit MenuIsland's InteractiveServer circuit instead of creating a competing nested circuit."
     }
 }

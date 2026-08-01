@@ -127,14 +127,14 @@ public sealed class ThemeService
             serviceActivity.RecordInformation(
                 nameof(ThemeService),
                 nameof(InitializeThemes),
-                $"Theme layers initialized with shell {activeShellTheme.Name} and components {activeComponentTheme.Name}.");
+                $"Theme Fusion initialized with base {activeShellTheme.Name} and style layer {activeComponentTheme.Name}.");
         }
         catch (Exception ex)
         {
             activeShellTheme = defaultTheme;
             activeComponentTheme = defaultTheme;
             IsInitialized = true;
-            logger.LogError(ex, "Theme initialization failed; LocalGPT restored both theme layers to the default.");
+            logger.LogError(ex, "Theme Fusion initialization failed; LocalGPT restored the Base Theme and Style Layer to the default.");
             serviceActivity.RecordFailure(nameof(ThemeService), nameof(InitializeThemes), ex);
             throw;
         }

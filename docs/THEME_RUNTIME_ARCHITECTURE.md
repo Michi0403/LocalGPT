@@ -1,13 +1,13 @@
-# DevExpress component and LocalGPT shell theme runtime architecture
+# Theme Fusion runtime architecture
 
 ## Goal
 
-LocalGPT exposes two explicit, persistent theme layers:
+LocalGPT exposes Theme Fusion through two explicit, persistent selections:
 
-1. **Outer shell theme** — page background, navigation, native LocalGPT surfaces, Bootstrap metadata and Highlight.js.
-2. **Inner component theme** — DevExpress editors, grids, chat controls, buttons and other DevExpress components.
+1. **Base Theme** — page background, navigation, native LocalGPT surfaces, Bootstrap metadata and Highlight.js.
+2. **Style Layer** — blends with, overrides or extends the Base Theme across DevExpress editors, grids, chat controls, buttons and other DevExpress components.
 
-The two selections may be identical or different. They must survive routed navigation, circuit recreation, new tabs and application restarts without racing back to Office White.
+The two selections may be identical or different, allowing combinations that behave as blends, overrides or extensions. They must survive routed navigation, circuit recreation, new tabs and application restarts without racing back to Office White.
 
 ## Source of truth
 
@@ -30,8 +30,8 @@ The browser stores both names in cookies and local storage. The interactive disp
 Each LocalGPT `Theme` contains the actual DevExpress `ITheme` object.
 
 - `Components/App.razor` registers `ActiveComponentTheme.DevExpressTheme` for startup.
-- `ThemeJsChangeDispatcher` awaits `IThemeChangeService.SetTheme(...)` only when the inner component theme changes.
-- A shell-only change does not load a competing DevExpress stylesheet.
+- `ThemeJsChangeDispatcher` awaits `IThemeChangeService.SetTheme(...)` only when the Style Layer changes.
+- A Base Theme-only change does not load a competing DevExpress stylesheet.
 
 Fluent component themes do not apply themselves to page elements. LocalGPT shell palettes are expressed through higher-specificity Bootstrap variables selected by `data-localgpt-shell-theme`.
 
@@ -48,4 +48,4 @@ It does not add or remove DevExpress component-theme stylesheets.
 
 ## Failure behavior
 
-A failed component-theme switch restores the prior DevExpress `ITheme`. A failed shell-theme switch restores the prior shell state. Technical exceptions are logged, bounded component-activity records are written, and the user receives a sanitized notification.
+A failed Style Layer switch restores the prior DevExpress `ITheme`. A failed Base Theme switch restores the prior shell state. Technical exceptions are logged, bounded component-activity records are written, and the user receives a sanitized notification.

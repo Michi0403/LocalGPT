@@ -50,6 +50,8 @@ $dispatcher = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layo
 foreach ($token in @(
     'IThemeChangeService DevExpressThemeChangeService',
     'private IJSRuntime JsRuntime { get; set; } = default!;',
+    'private NavigationManager NavigationManager { get; set; } = default!;',
+    '.ToAbsoluteUri(versionedThemeModulePath)',
     '.SetTheme(theme.DevExpressTheme)',
     'private ThemeService Themes { get; set; } = default!;',
     'InitialShellThemeName',
@@ -66,6 +68,9 @@ if ($dispatcher.Contains('new ThemeService(', [StringComparison]::Ordinal)) {
 }
 if ($dispatcher.Contains('ISafeJSRuntime', [StringComparison]::Ordinal)) {
     $errors.Add('ThemeJsChangeDispatcher must use the interactive circuit IJSRuntime; ISafeJSRuntime can return a null module reference for dynamic imports.')
+}
+if ($dispatcher.Contains('.InvokeAsync<IJSObjectReference>("import", versionedThemeModulePath)', [StringComparison]::Ordinal)) {
+    $errors.Add('ThemeJsChangeDispatcher must resolve the versioned module path to an absolute URI before dynamic import; browsers reject a bare module specifier.')
 }
 
 $setThemeCount = ([regex]::Matches($dispatcher, '\.SetTheme\(')).Count
