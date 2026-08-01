@@ -80,6 +80,30 @@ namespace LocalGPT.Services
             }
         }
 
+        public string BuildRoleCoordinationExplanation(IReadOnlyCollection<string> details, ILogger logger)
+        {
+            try
+            {
+                if (details.Count == 0)
+                    return "No cross-role assignment or pairing rule is configured.";
+
+                var explanation = $"Coordination: {string.Join("; ", details)}.";
+                logger.LogDebug(
+                    "{MethodName} prepared a role-coordination explanation with {DetailCount} detail(s).",
+                    nameof(BuildRoleCoordinationExplanation),
+                    details.Count);
+                return explanation;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "{MethodName} failed; role-coordination details were omitted.",
+                    nameof(BuildRoleCoordinationExplanation));
+                return "Role coordination is configured, but its explanation could not be displayed.";
+            }
+        }
+
         public string BuildFeedbackPreview(string? content, ILogger logger)
         {
             try

@@ -2,6 +2,7 @@
 @page "/council-teams"
 @inject ICouncilTeamConfigurationService TeamConfigurations
 @inject ILogger<CouncilTeams> Logger
+@inject CouncilTextService CouncilText
 @inject IComponentActivityService ComponentActivity
 @inject INotificationService Notifier
 
@@ -617,9 +618,7 @@
                 details.Add("one distinct model slot is reserved for each paired member");
             }
         }
-        return details.Count == 0
-            ? "No cross-role assignment or pairing rule is configured."
-            : $"Coordination: {string.Join("; ", details)}.";
+        return CouncilText.BuildRoleCoordinationExplanation(details, Logger);
     }
 
     private string WorkflowLoopLabel(CouncilWorkflowStepDefinition step) =>
