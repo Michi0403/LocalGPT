@@ -72,7 +72,7 @@
     }
 
     string ButtonCss => "themeswitcher-button theme-settings " + _open;
-    string HeaderCss => $"theme-{ShellThemeName.Replace(" ", "-")} component-theme-{ComponentThemeName.Replace(" ", "-")}";
+    string HeaderCss => Themes.GetThemeLayerCssClass(ShellThemeName, ComponentThemeName);
 
     public void Dispose()
     {

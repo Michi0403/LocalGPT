@@ -46,29 +46,32 @@ function readStoredValue(key) {
 function storeValue(key, value) {
     try {
         window.localStorage?.setItem(key, value);
+        return readStoredValue(key) === value;
     } catch (error) {
         diagnostics.report("theme-controller.storeValue", error);
+        return false;
     }
 }
 
 function persistCookie(name, value) {
     try {
         document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=31536000;SameSite=Lax`;
+        return readCookie(name) === value;
     } catch (error) {
         diagnostics.report("theme-controller.persistCookie", error);
-        throw error;
+        return false;
     }
 }
 
 export function readThemeState() {
     try {
-        const legacyThemeName = readStoredValue("LocalGPT.ActiveTheme") || readCookie("ActiveTheme");
+        const legacyThemeName = readCookie("ActiveTheme") || readStoredValue("LocalGPT.ActiveTheme");
         return {
-            shellThemeName: readStoredValue("LocalGPT.ActiveShellTheme")
-                || readCookie("ActiveShellTheme")
+            shellThemeName: readCookie("ActiveShellTheme")
+                || readStoredValue("LocalGPT.ActiveShellTheme")
                 || legacyThemeName,
-            componentThemeName: readStoredValue("LocalGPT.ActiveComponentTheme")
-                || readCookie("ActiveComponentTheme")
+            componentThemeName: readCookie("ActiveComponentTheme")
+                || readStoredValue("LocalGPT.ActiveComponentTheme")
                 || legacyThemeName
         };
     } catch (error) {
@@ -145,12 +148,24 @@ async function updateHighlightTheme(url, signal) {
 
 function persistThemeState(shellThemeName, componentThemeName) {
     try {
-        persistCookie("ActiveShellTheme", shellThemeName);
-        persistCookie("ActiveComponentTheme", componentThemeName);
-        persistCookie("ActiveTheme", componentThemeName);
-        storeValue("LocalGPT.ActiveShellTheme", shellThemeName);
-        storeValue("LocalGPT.ActiveComponentTheme", componentThemeName);
-        storeValue("LocalGPT.ActiveTheme", componentThemeName);
+        const shellCookieSaved = persistCookie("ActiveShellTheme", shellThemeName);
+        const componentCookieSaved = persistCookie("ActiveComponentTheme", componentThemeName);
+        const legacyCookieSaved = persistCookie("ActiveTheme", componentThemeName);
+        const shellStorageSaved = storeValue("LocalGPT.ActiveShellTheme", shellThemeName);
+        const componentStorageSaved = storeValue("LocalGPT.ActiveComponentTheme", componentThemeName);
+        const legacyStorageSaved = storeValue("LocalGPT.ActiveTheme", componentThemeName);
+
+        const shellSaved = shellCookieSaved || shellStorageSaved;
+        const componentSaved = componentCookieSaved || componentStorageSaved;
+        if (!shellSaved || !componentSaved) {
+            throw new Error("The browser rejected both cookie and local-storage theme persistence.");
+        }
+
+        return {
+            shellSaved,
+            componentSaved,
+            legacySaved: legacyCookieSaved || legacyStorageSaved
+        };
     } catch (error) {
         diagnostics.report("theme-controller.persistThemeState", error);
         throw error;
@@ -169,10 +184,8 @@ export async function applyThemeState(
         abortController = new AbortController();
         const signal = abortController.signal;
 
-        await updateHighlightTheme(highlightUrl, signal);
-        if (signal.aborted)
-            return;
-
+        // Apply and persist first. Highlight stylesheet loading is asynchronous and must never
+        // be able to cancel the selected shell/component values or make the UI look unchanged.
         document.documentElement.setAttribute("data-bs-theme", bootstrapThemeMode || "light");
         document.documentElement.setAttribute("data-localgpt-theme", shellThemeName);
         document.documentElement.setAttribute("data-localgpt-shell-theme", shellThemeName);
@@ -181,6 +194,8 @@ export async function applyThemeState(
 
         if (reference && callbackTarget)
             await reference.invokeMethodAsync("ThemeLoadedAsync", callbackTarget);
+
+        await updateHighlightTheme(highlightUrl, signal);
     } catch (error) {
         diagnostics.report("theme-controller.applyThemeState", error);
         throw error;

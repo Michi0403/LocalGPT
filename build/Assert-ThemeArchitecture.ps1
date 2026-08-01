@@ -49,6 +49,7 @@ foreach ($token in @(
 $dispatcher = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeJsChangeDispatcher.cs'
 foreach ($token in @(
     'IThemeChangeService DevExpressThemeChangeService',
+    'private IJSRuntime JsRuntime { get; set; } = default!;',
     '.SetTheme(theme.DevExpressTheme)',
     'private ThemeService Themes { get; set; } = default!;',
     'InitialShellThemeName',
@@ -62,6 +63,9 @@ foreach ($token in @(
 }
 if ($dispatcher.Contains('new ThemeService(', [StringComparison]::Ordinal)) {
     $errors.Add('ThemeJsChangeDispatcher must not construct ThemeService manually.')
+}
+if ($dispatcher.Contains('ISafeJSRuntime', [StringComparison]::Ordinal)) {
+    $errors.Add('ThemeJsChangeDispatcher must use the interactive circuit IJSRuntime; ISafeJSRuntime can return a null module reference for dynamic imports.')
 }
 
 $setThemeCount = ([regex]::Matches($dispatcher, '\.SetTheme\(')).Count
@@ -86,11 +90,18 @@ foreach ($forbidden in @('bs-theme-link', 'dx-theme-link', 'GetThemeCssUrl(Theme
 }
 
 $controller = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/wwwroot/switcher-resources/theme-controller.js'
-foreach ($required in @('readThemeState', 'applyThemeState', 'data-bs-theme', 'data-localgpt-shell-theme', 'data-localgpt-component-theme', 'ActiveShellTheme', 'ActiveComponentTheme')) {
+foreach ($required in @('readThemeState', 'applyThemeState', 'persistThemeState', 'data-bs-theme', 'data-localgpt-shell-theme', 'data-localgpt-component-theme', 'ActiveShellTheme', 'ActiveComponentTheme')) {
     if (-not $controller.Contains($required, [StringComparison]::Ordinal)) {
         $errors.Add("theme-controller.js must retain '$required'.")
     }
 }
+
+$persistIndex = $controller.IndexOf('persistThemeState(shellThemeName, componentThemeName);', [StringComparison]::Ordinal)
+$highlightIndex = $controller.IndexOf('await updateHighlightTheme(highlightUrl, signal);', [StringComparison]::Ordinal)
+if ($persistIndex -lt 0 -or $highlightIndex -lt 0 -or $persistIndex -gt $highlightIndex) {
+    $errors.Add('theme-controller.js must persist and apply both theme names before asynchronous highlight stylesheet loading.')
+}
+
 foreach ($forbidden in @('setStylesheetLinks', 'dx-theme-link', 'bs-theme-link', 'bootstrap-external.bs5')) {
     if ($controller.Contains($forbidden, [StringComparison]::Ordinal)) {
         $errors.Add("theme-controller.js must not manage DevExpress/Bootstrap component-theme links: $forbidden")
@@ -105,12 +116,22 @@ foreach ($token in @('--localgpt-body-bg', '--localgpt-border-color', '--localgp
 }
 
 $themeSwitcher = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcher.razor'
-foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'LegacyThemeCookieName', 'ShellThemeCookieName', 'ComponentThemeCookieName', 'Themes.InitializeThemes') {
+foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'LegacyThemeCookieName', 'ShellThemeCookieName', 'ComponentThemeCookieName', 'Themes.InitializeThemes', 'Themes.GetThemeLayerCssClass')) {
     if (-not $themeSwitcher.Contains($token, [StringComparison]::Ordinal)) {
         $errors.Add("ThemeSwitcher must retain '$token'.")
     }
 }
 
+
+
+$themeLoadNotifier = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IThemeLoadNotifier.cs'
+if ($themeLoadNotifier.Contains('namespace LocalGPT.Interfaces;', [StringComparison]::Ordinal)) {
+    $errors.Add('IThemeLoadNotifier must not mix a file-scoped namespace semicolon with a block-scoped namespace body.')
+}
+if (-not $themeLoadNotifier.Contains('namespace LocalGPT.Interfaces', [StringComparison]::Ordinal) -or
+    -not $themeLoadNotifier.Contains('public interface IThemeLoadNotifier', [StringComparison]::Ordinal)) {
+    $errors.Add('IThemeLoadNotifier must retain a valid block-scoped LocalGPT.Interfaces declaration.')
+}
 
 $themeSwitcherContainer = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor'
 foreach ($token in @('await InvokeAsync(async () =>', 'await ShownChanged.InvokeAsync(shown)', 'await ShellThemeNameChanged.InvokeAsync(theme.Name)', 'await ComponentThemeNameChanged.InvokeAsync(theme.Name)', 'ThemeApplicationTarget.Shell', 'ThemeApplicationTarget.Components')) {

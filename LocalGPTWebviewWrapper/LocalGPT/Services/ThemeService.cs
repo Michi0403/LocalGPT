@@ -62,6 +62,37 @@ public sealed class ThemeService
 
     public Theme GetThemeOrDefault(string? themeName) => FindThemeByName(themeName) ?? defaultTheme;
 
+    public string GetThemeLayerCssClass(string? shellThemeName, string? componentThemeName)
+    {
+        try
+        {
+            var shellToken = GetThemeCssToken(shellThemeName);
+            var componentToken = GetThemeCssToken(componentThemeName);
+            return $"theme-{shellToken} component-theme-{componentToken}";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Theme layer CSS class generation failed; theme names were omitted from logs.");
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(GetThemeLayerCssClass), ex);
+            return $"theme-{DEFAULT_THEME_NAME} component-theme-{DEFAULT_THEME_NAME}";
+        }
+    }
+
+    private string GetThemeCssToken(string? themeName)
+    {
+        try
+        {
+            var validatedTheme = GetThemeOrDefault(themeName);
+            return validatedTheme.Name.Replace(" ", "-", StringComparison.Ordinal).ToLowerInvariant();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Theme CSS token generation failed; theme details were omitted from logs.");
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(GetThemeCssToken), ex);
+            throw;
+        }
+    }
+
     public Theme? FindThemeByName(string? themeName)
     {
         try

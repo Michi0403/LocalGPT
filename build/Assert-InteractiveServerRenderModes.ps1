@@ -11,9 +11,6 @@ $expected = [ordered]@{
     'Components/Layout/HumanCollaborationInbox.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Layout/MenuIsland.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Layout/NavMenu.razor' = '@rendermode InteractiveServer'
-    'Components/Layout/ThemeSwitcher.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: true))'
-    'Components/Layout/ThemeSwitcherContainer.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: true))'
-    'Components/Layout/ThemeSwitcherItem.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: true))'
     'Components/Layout/ToastWrapper.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Pages/Chat.razor' = '@rendermode InteractiveServer'
     'Components/Pages/CouncilTeams.razor' = '@rendermode InteractiveServer'
@@ -37,6 +34,20 @@ foreach ($entry in $expected.GetEnumerator()) {
     $first = @($text -split '\r?\n' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })[0].Trim()
     if ($first -cne [string]$entry.Value) {
         Fail "Render mode changed in $relative. Expected first directive '$($entry.Value)' but found '$first'."
+    }
+}
+
+$inheritedThemeChildren = @(
+    'Components/Layout/ThemeSwitcher.razor',
+    'Components/Layout/ThemeSwitcherContainer.razor',
+    'Components/Layout/ThemeSwitcherItem.razor'
+)
+foreach ($relative in $inheritedThemeChildren) {
+    $path = Join-Path $appRoot ($relative.Replace([char]'/', [System.IO.Path]::DirectorySeparatorChar))
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Fail "Required component is missing: $relative" }
+    $text = [System.IO.File]::ReadAllText($path, $utf8)
+    if ($text.Contains('@rendermode', [StringComparison]::Ordinal)) {
+        Fail "$relative must inherit MenuIsland's InteractiveServer circuit instead of creating a competing nested circuit."
     }
 }
 
@@ -69,4 +80,4 @@ if (-not $program.Contains('AddInteractiveServerRenderMode()')) { Fail 'Program.
 if (-not $program.Contains('AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>()')) { Fail 'Program.cs no longer registers circuit diagnostics.' }
 if (-not $imports.Contains('@using static Microsoft.AspNetCore.Components.Web.RenderMode')) { Fail 'Components/_Imports.razor no longer imports RenderMode.' }
 
-Write-Host "InteractiveServer render-mode validation passed for $($expected.Count) components and pages."
+Write-Host "InteractiveServer render-mode validation passed for $($expected.Count) explicit islands/pages and $($inheritedThemeChildren.Count) inherited theme children."
