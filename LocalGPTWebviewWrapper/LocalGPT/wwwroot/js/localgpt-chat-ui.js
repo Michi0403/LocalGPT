@@ -429,7 +429,8 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                                 clearEditor(currentEditor);
                             }
                         } else {
-                            await councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync');
+                            const stopped = await councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync');
+                            if (stopped) councilComposerActive = false;
                         }
                     } finally {
                         councilComposerSubmitting = false;
@@ -450,49 +451,32 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         try {
             if (!(host instanceof HTMLElement) || !(editor instanceof HTMLElement) || !(composer instanceof HTMLElement)) return;
             const hasText = editorText(editor).trim().length > 0;
-            const showLiveAction = councilComposerActive;
-            const liveSend = ensureLiveSendButton(host, composer, editor);
-            liveSend?.classList.toggle('localgpt-live-send-visible', showLiveAction);
-            liveSend?.classList.toggle('localgpt-live-stop-mode', showLiveAction && !hasText);
-            if (liveSend instanceof HTMLButtonElement) {
-                liveSend.disabled = councilComposerSubmitting;
-                liveSend.textContent = hasText ? '➤' : '■';
-                liveSend.setAttribute('aria-label', hasText
-                    ? 'Send message to running AI Council'
-                    : 'Stop running AI Council');
-                liveSend.setAttribute('title', hasText
-                    ? 'Add this user message to the running Council without stopping generation'
-                    : 'Stop the running Council');
-            }
-
+            const liveAction = ensureLiveSendButton(host, composer, editor);
             const actionButtons = [...composer.querySelectorAll('button,[role="button"]')];
-            const isUploadAction = button => /attach|upload|file|paperclip|clip/i.test(marker(button));
-            const explicitStop = actionButtons.find(button => {
-                if (button === liveSend) return false;
+            const nativeStop = actionButtons.find(button => {
+                if (button === liveAction || !visible(button)) return false;
                 return /stop|cancel generation|abort|square/i.test(marker(button));
             }) || null;
-            const nativeSubmit = actionButtons.find(button => {
-                if (button === liveSend || isUploadAction(button)) return false;
-                return /send|submit|paper-plane|arrow-right/i.test(marker(button));
+            const nativeSend = actionButtons.find(button => {
+                if (button === liveAction || button === nativeStop) return false;
+                const buttonMarker = marker(button);
+                return /send|submit|paper-plane|arrow-right/i.test(buttonMarker)
+                    && !/attach|upload|file|paperclip|clip|stop|cancel generation|abort|square/i.test(buttonMarker);
             }) || null;
-            const composerRect = composer.getBoundingClientRect();
-            const fallbackStop = actionButtons.find(button => {
-                if (button === liveSend || isUploadAction(button)) return false;
-                const rect = button.getBoundingClientRect();
-                return rect.width > 0
-                    && rect.width <= 96
-                    && rect.height > 0
-                    && rect.height <= 96
-                    && rect.right >= composerRect.right - 120;
-            }) || null;
-            const stopButton = explicitStop || nativeSubmit || fallbackStop;
-            stopButton?.classList.toggle('localgpt-council-stop-hidden', showLiveAction);
-            if (stopButton instanceof HTMLElement && stopButton.dataset.localgptCouncilStopBound !== 'true') {
-                stopButton.dataset.localgptCouncilStopBound = 'true';
-                stopButton.addEventListener('click', diagnostics.guard('localgpt-chat-ui.councilStop.click', () => {
-                    if (councilComposerActive && councilComposerDotNet)
-                        void councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync');
-                }), { capture: true });
+            nativeSend?.classList.toggle('localgpt-council-native-send-hidden', councilComposerActive && hasText);
+            const showLiveAction = councilComposerActive && (hasText || nativeStop === null);
+            liveAction?.classList.toggle('localgpt-live-send-visible', showLiveAction);
+            if (liveAction instanceof HTMLButtonElement) {
+                liveAction.disabled = councilComposerSubmitting;
+                liveAction.textContent = hasText ? '➤' : '■';
+                liveAction.setAttribute(
+                    'aria-label',
+                    hasText ? 'Send message to running AI Council' : 'Stop running AI Council');
+                liveAction.setAttribute(
+                    'title',
+                    hasText
+                        ? 'Add this user message to the running Council without stopping generation'
+                        : 'Stop the running Council');
             }
         } catch (error) {
             diagnostics.report('localgpt-chat-ui.updateCouncilComposer', error);
@@ -510,7 +494,8 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             setAttributeIfMissing(editor, 'aria-label', 'Message to AI assistant');
             if (editor instanceof HTMLElement) editor.dataset.localgptChatInput = 'true';
 
-            const buttons = [...host.querySelectorAll('button,[role="button"]')].filter(visible);
+            const allButtons = [...host.querySelectorAll('button,[role="button"]')];
+            const buttons = allButtons.filter(visible);
             const send = buttons.find(button => { try { return (!button.classList.contains('localgpt-live-send-button')
                 && /send|submit|paper-plane|arrow-right/i.test(marker(button))
                 && !/attach|upload|file|paperclip|clip/i.test(marker(button))); } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:buttons.find@107', __javascriptError); throw __javascriptError; } }) || null;
@@ -527,6 +512,14 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 setAttributeIfMissing(upload, 'title', 'Attach files');
             }
 
+            for (const button of allButtons) {
+                const copyMarker = [marker(button), ...[...button.querySelectorAll('*')].map(marker)].join(' ');
+                if (/copy|clipboard/i.test(copyMarker)) {
+                    addClass(button, 'localgpt-native-copy-always-visible');
+                    setAttributeIfMissing(button, 'title', 'Copy message');
+                }
+            }
+
             const composer = findComposer(host, editor, send);
             addClass(composer, 'localgpt-chat-composer');
             if (composer instanceof HTMLElement) composer.dataset.localgptComposer = 'true';
@@ -535,20 +528,14 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     editor.dataset.localgptCouncilInputBound = 'true';
                     editor.addEventListener('input', diagnostics.guard('localgpt-chat-ui.liveCouncilInput', () =>
                         updateCouncilComposer(host, editor, composer)));
-                }
-                if (editor.dataset.localgptCouncilKeyBound !== 'true') {
-                    editor.dataset.localgptCouncilKeyBound = 'true';
-                    editor.addEventListener('keydown', diagnostics.guard('localgpt-chat-ui.liveCouncilKeyDown', event => {
+                    editor.addEventListener('keydown', diagnostics.guard('localgpt-chat-ui.liveCouncilInput.keydown', event => {
                         if (!councilComposerActive
-                            || event.isComposing
                             || event.key !== 'Enter'
                             || event.shiftKey
-                            || event.ctrlKey
-                            || event.altKey
-                            || event.metaKey) return;
+                            || event.isComposing
+                            || editorText(editor).trim().length === 0) return;
                         event.preventDefault();
                         event.stopImmediatePropagation();
-                        if (!editorText(editor).trim()) return;
                         ensureLiveSendButton(host, composer, editor)?.click();
                     }), { capture: true });
                 }
@@ -667,35 +654,6 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                         });
                     } catch (error) {
                         diagnostics.report('localgpt-chat-ui.clearLiveUserMessages', error);
-                        throw error;
-                    }
-                },
-                async copyText(value) {
-                    try {
-                        const text = String(value ?? '');
-                        if (navigator.clipboard?.writeText) {
-                            try {
-                                await navigator.clipboard.writeText(text);
-                                return;
-                            } catch {
-                                // Local browser policy can reject Clipboard API access. Use the legacy fallback below.
-                            }
-                        }
-
-                        const fallback = document.createElement('textarea');
-                        try {
-                            fallback.value = text;
-                            fallback.setAttribute('readonly', '');
-                            fallback.style.position = 'fixed';
-                            fallback.style.opacity = '0';
-                            document.body.appendChild(fallback);
-                            fallback.select();
-                            document.execCommand('copy');
-                        } finally {
-                            fallback.remove();
-                        }
-                    } catch (error) {
-                        diagnostics.report('localgpt-chat-ui.copyText', error);
                         throw error;
                     }
                 }
