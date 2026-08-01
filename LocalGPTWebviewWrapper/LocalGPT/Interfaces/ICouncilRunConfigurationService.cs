@@ -17,12 +17,20 @@ public interface ICouncilRunConfigurationService
         MultiModelCouncilRequest request,
         IReadOnlyCollection<string> participants);
 
+    CouncilPreparationConfiguration? GetPreparation();
+
+    CouncilPreparationConfiguration SavePreparation(CouncilPreparationConfiguration configuration);
+
     CouncilRunConfigurationSnapshot? Get(Guid runId);
 
     bool Update(
         Guid runId,
         IReadOnlyCollection<OneWireCouncilModelRoute> routes,
-        int resourceLoadPercent);
+        int resourceLoadPercent,
+        int requestedMaxOutputTokens,
+        int requestedMaxContextTokens,
+        int? fallbackOllamaNumGpu,
+        bool allowParallelHardwareRoads);
 
     void BeginRound(Guid runId, int round, string phase);
 

@@ -55,7 +55,7 @@
                         <label>Max context
                             <input type="number" min="256" max="1048576" step="1024" value="@route.MaxContextTokens" @onchange="args => SetInt(route, nameof(route.MaxContextTokens), args)" />
                         </label>
-                        <label>Ollama num_gpu
+                        <label title="CPU always uses 0. For GPU or accelerator roads leave this blank so Ollama chooses the offload automatically, or enter a positive layer count.">Ollama num_gpu
                             <input type="number" min="0" max="999" value="@(route.OllamaNumGpu?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" @onchange="args => SetNullableInt(route, nameof(route.OllamaNumGpu), args)" placeholder="auto" />
                         </label>
                         <label>Lane concurrency
@@ -112,7 +112,44 @@
 
     private Task SetHardwareKind(OneWireCouncilModelRoute route, ChangeEventArgs args)
     {
-        if (Enum.TryParse<OneWireHardwareKind>(args.Value?.ToString(), out var kind)) route.HardwareKind = kind;
+        if (!Enum.TryParse<OneWireHardwareKind>(args.Value?.ToString(), out var kind))
+            return Task.CompletedTask;
+
+        var previousKind = route.HardwareKind;
+        route.HardwareKind = kind;
+        if (kind == OneWireHardwareKind.Cpu)
+        {
+            route.HardwareIndex = 0;
+            route.OllamaNumGpu = 0;
+            if (string.IsNullOrWhiteSpace(route.HardwareName) ||
+                previousKind == OneWireHardwareKind.Auto ||
+                route.HardwareName.Equals("Automatic", StringComparison.OrdinalIgnoreCase))
+            {
+                route.HardwareName = "CPU";
+            }
+        }
+        else if (kind is OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator)
+        {
+            route.HardwareIndex = Math.Max(0, route.HardwareIndex);
+            if (route.OllamaNumGpu == 0)
+                route.OllamaNumGpu = null;
+            if (string.IsNullOrWhiteSpace(route.HardwareName) ||
+                route.HardwareName.Equals("CPU", StringComparison.OrdinalIgnoreCase) ||
+                route.HardwareName.Equals("Automatic", StringComparison.OrdinalIgnoreCase))
+            {
+                route.HardwareName = kind == OneWireHardwareKind.Gpu ? "GPU 0" : "Accelerator 0";
+            }
+        }
+        else if (kind == OneWireHardwareKind.Auto)
+        {
+            route.HardwareIndex = -1;
+            if (string.IsNullOrWhiteSpace(route.HardwareName) ||
+                route.HardwareName.Equals("CPU", StringComparison.OrdinalIgnoreCase))
+            {
+                route.HardwareName = "Automatic";
+            }
+        }
+
         return NormalizeAndNotify(route);
     }
 

@@ -55,6 +55,15 @@ public sealed class CouncilHardwareRoadPlanner(
                 ? $"auto:{modelName}"
                 : $"{route.HardwareKind.ToString().ToLowerInvariant()}:{route.HardwareIndex}:{hardwareName}";
 
+            var effectiveOllamaNumGpu = route.HardwareKind switch
+            {
+                OneWireHardwareKind.Cpu => 0,
+                OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is > 0
+                    ? route.OllamaNumGpu
+                    : null,
+                _ => route.OllamaNumGpu ?? fallbackOllamaNumGpu
+            };
+
             result[modelName] = new CouncilHardwareRoadPlan(
                 modelName,
                 route.HardwareKind,
@@ -64,7 +73,7 @@ public sealed class CouncilHardwareRoadPlanner(
                 effectiveLoadPercent,
                 effectiveOutput,
                 effectiveContext,
-                route.OllamaNumGpu ?? fallbackOllamaNumGpu,
+                effectiveOllamaNumGpu,
                 Math.Clamp(route.MaxConcurrentModelsOnLane, 1, 16));
         }
 

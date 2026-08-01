@@ -18,7 +18,15 @@ public sealed class ModelPresetService(
         var query = db.CouncilModelPresets.AsNoTracking();
         if (!includeArchived)
             query = query.Where(item => !item.IsArchived);
-        return await query.OrderByDescending(item => item.IsDefault).ThenBy(item => item.Name).ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var presets = await query
+            .OrderByDescending(item => item.IsDefault)
+            .ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        foreach (var preset in presets)
+            NormalizeLoadedPreset(preset);
+        return presets;
     }
 
     public async Task<CouncilModelPreset> SavePresetAsync(CouncilModelPreset preset, bool userConfirmed, CancellationToken cancellationToken = default)
@@ -91,6 +99,27 @@ public sealed class ModelPresetService(
         return entity;
     }
 
+    private void NormalizeLoadedPreset(CouncilModelPreset preset)
+    {
+        try
+        {
+            var routes = JsonSerializer.Deserialize<List<OneWireCouncilModelRoute>>(preset.ModelRoutesJson) ?? [];
+            preset.ModelRoutesJson = JsonSerializer.Serialize(routes
+                .Where(route => route is not null && !string.IsNullOrWhiteSpace(route.ModelName))
+                .Select(NormalizeRoute)
+                .ToList());
+        }
+        catch (JsonException exception)
+        {
+            logger.LogWarning(exception, "Council model preset {PresetId} contains invalid model-route JSON; the stored value remains available for repair.", preset.Id);
+        }
+
+        preset.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, 512, 262144);
+        preset.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, 2048, 262144);
+        preset.MaxParallelModels = Math.Clamp(preset.MaxParallelModels, 1, 8);
+        preset.OllamaNumGpu = preset.OllamaNumGpu is < 0 ? 0 : preset.OllamaNumGpu;
+    }
+
     private OneWireCouncilModelRoute NormalizeRoute(OneWireCouncilModelRoute route)
     {
         route.ModelName = route.ModelName.Trim();
@@ -100,7 +129,14 @@ public sealed class ModelPresetService(
         route.MaxOutputTokens = Math.Clamp(Math.Max(route.MinOutputTokens, route.MaxOutputTokens), route.MinOutputTokens, 262144);
         route.MinContextTokens = Math.Clamp(route.MinContextTokens, 512, 262144);
         route.MaxContextTokens = Math.Clamp(Math.Max(route.MinContextTokens, route.MaxContextTokens), route.MinContextTokens, 262144);
-        route.OllamaNumGpu = route.HardwareKind == OneWireHardwareKind.Cpu ? 0 : route.OllamaNumGpu is < 0 ? 0 : route.OllamaNumGpu;
+        route.OllamaNumGpu = route.HardwareKind switch
+        {
+            OneWireHardwareKind.Cpu => 0,
+            OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is > 0
+                ? route.OllamaNumGpu
+                : null,
+            _ => route.OllamaNumGpu is < 0 ? 0 : route.OllamaNumGpu
+        };
         route.SelfReportedDxFunctions = NormalizeValues(route.SelfReportedDxFunctions);
         route.SelfReportedControllerMethods = NormalizeValues(route.SelfReportedControllerMethods);
         route.SelfReportedOrganicCapabilities = NormalizeValues(route.SelfReportedOrganicCapabilities);

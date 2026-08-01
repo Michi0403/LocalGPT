@@ -50,7 +50,7 @@
         <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
             <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation.">
                 <span>Chat configuration</span>
-                <small>@(ChatClientProvider.SelectedSession?.Name ?? "No provider") · @SelectedCouncilModelNames.Count council model@(SelectedCouncilModelNames.Count == 1 ? string.Empty : "s")</small>
+                <small>@(ChatClientProvider.SelectedSession?.Name ?? "No provider") · @CouncilEditorModelNames.Count council model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s")</small>
             </summary>
             <div class="chat-configuration-content">
         <nav class="chat-session-toolbar chat-navigation-actions" data-testid="chat-session-actions" aria-label="Chat actions">
@@ -106,7 +106,7 @@
         <details id="localgpt-council-controls" class="council-command-center" data-testid="council-command-center">
             <summary title="Open model, hardware, team and artifact settings for AI Council runs.">
                 <span>AI Council controls</span>
-                <small>@CouncilEditorModelNames.Count model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s") · @CouncilEditorResourceLoadPercent% power · @CouncilMaxContextTokens.ToString("N0") context</small>
+                <small>@CouncilEditorModelNames.Count model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s") · @CouncilEditorResourceLoadPercent% power · @CouncilEditorMaxContextTokens.ToString("N0") context</small>
             </summary>
         <div class="model-toolbar" aria-label="DXAiChat model and council controls" data-testid="chat-model-toolbar">
             <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
@@ -149,7 +149,8 @@
                        min="256"
                        max="262144"
                        step="1024"
-                       @bind="CouncilMaxOutputTokens" />
+                       value="@CouncilEditorMaxOutputTokens"
+                       @onchange="OnCouncilMaxOutputTokensChanged" />
             </label>
             <label class="council-token-setting" title="Maximum Ollama context window requested for council and detected model sessions. Use 262144 for full source or solution generation when supported. Values below 64000 are quick-chat only and are not a valid code-generation acceptance test.">
                 <span>Council context tokens</span>
@@ -157,7 +158,8 @@
                        min="2048"
                        max="262144"
                        step="2048"
-                       @bind="CouncilMaxContextTokens" />
+                       value="@CouncilEditorMaxContextTokens"
+                       @onchange="OnCouncilMaxContextTokensChanged" />
             </label>
             <label class="council-token-setting" title="Number of peer critique/refinement rounds after the initial proposal. One is the balanced default; three is the most thorough and slowest mode.">
                 <span>Peer review rounds</span>
@@ -601,6 +603,8 @@
     int CouncilMaxContextTokens { get; set; }
     int CouncilResourceLoadPercent { get; set; } = 100;
     int CouncilCritiqueRounds { get; set; } = 1;
+    bool CouncilAllowParallelHardwareRoads { get; set; } = true;
+    int CouncilMaxParallelModels { get; set; } = 1;
 
     string ArchitectureUiStack { get; set; } = string.Empty;
     string ArchitectureSolutionShape { get; set; } = string.Empty;
@@ -622,16 +626,24 @@
     Guid? ActiveCouncilConfigurationRunId { get; set; }
     long ActiveCouncilConfigurationRevision { get; set; }
     int ActiveCouncilResourceLoadPercent { get; set; } = 100;
+    int ActiveCouncilMaxOutputTokens { get; set; }
+    int ActiveCouncilMaxContextTokens { get; set; }
+    int? ActiveCouncilFallbackOllamaNumGpu { get; set; }
+    bool ActiveCouncilAllowParallelHardwareRoads { get; set; } = true;
     bool EditingRunningCouncilConfiguration =>
         ActiveCouncilConfigurationRunId is Guid runId &&
         SelectedCouncilRunId == runId &&
-        ActiveCouncilRun?.RunId == runId;
+        CouncilLiveSessions.GetSummary(runId)?.IsRunning == true;
     IReadOnlyCollection<string> CouncilEditorModelNames =>
         EditingRunningCouncilConfiguration ? ActiveCouncilConfigurationParticipants : SelectedCouncilModelNames;
     List<OneWireCouncilModelRoute> CouncilEditorRoutes =>
         EditingRunningCouncilConfiguration ? ActiveCouncilModelRoutes : CouncilModelRoutes;
     int CouncilEditorResourceLoadPercent =>
         EditingRunningCouncilConfiguration ? ActiveCouncilResourceLoadPercent : CouncilResourceLoadPercent;
+    int CouncilEditorMaxOutputTokens =>
+        EditingRunningCouncilConfiguration ? ActiveCouncilMaxOutputTokens : CouncilMaxOutputTokens;
+    int CouncilEditorMaxContextTokens =>
+        EditingRunningCouncilConfiguration ? ActiveCouncilMaxContextTokens : CouncilMaxContextTokens;
     CouncilModelPreset? SelectedModelPreset { get; set; }
     List<OrganicCouncilTeamDefinition> CouncilTeams { get; set; } = [];
     string SelectedCouncilTeamKey { get; set; } = "general";
@@ -1406,6 +1418,7 @@
     {
         try
         {
+            SavePreparationConfiguration();
             var selectedModels = DiagnosticCouncilModelNames.Count > 0
             ? DiagnosticCouncilModelNames
             : SelectedCouncilModelNames;
@@ -1422,8 +1435,8 @@
                 BaseUri = selectedEndpoint,
                 MaxRounds = Math.Clamp(CouncilCritiqueRounds, 0, 3),
                 MaxOutputTokens = ResolveCouncilOutputTokens(),
-                MaxParallelModels = Math.Max(1, SelectedModelPreset?.MaxParallelModels ?? 1),
-                AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
+                MaxParallelModels = Math.Max(1, CouncilMaxParallelModels),
+                AllowParallelHardwareRoads = CouncilAllowParallelHardwareRoads,
                 ResourceLoadPercent = Math.Clamp((int)Math.Round(CouncilResourceLoadPercent / 5d) * 5, 0, 100),
                 ModelRoutes = CouncilModelRoutes.Select(CloneRoute).ToList(),
                 MaxContextTokens = ResolveCouncilContextTokens(),
@@ -1797,6 +1810,8 @@
             {
                 modelStatus = "Ollama acceleration: Auto GPU. LocalGPT lets Ollama choose GPU offload.";
             }
+
+            SavePreparationConfiguration();
         }
         catch (Exception ex)
         {
@@ -1812,9 +1827,17 @@
         try
         {
             ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(true)).ToList();
-            var defaultPreset = ModelPresets.FirstOrDefault(item => item.IsDefault);
-            if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
-                ApplyModelPreset(defaultPreset);
+            var preparation = CouncilRunConfigurations.GetPreparation();
+            if (preparation is not null && DiagnosticCouncilModelNames.Count == 0)
+            {
+                ApplyPreparationConfiguration(preparation);
+            }
+            else
+            {
+                var defaultPreset = ModelPresets.FirstOrDefault(item => item.IsDefault);
+                if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
+                    ApplyModelPreset(defaultPreset);
+            }
         }
         catch (Exception ex)
         {
@@ -1863,6 +1886,8 @@
         IncludeCouncilMemory = preset.IncludeMemory;
         GenerateCouncilArtifacts = preset.GenerateArtifacts;
         CreateProjectPerCouncilRun = preset.CreateProjectPerRun;
+        CouncilAllowParallelHardwareRoads = preset.AllowParallelHardwareRoads;
+        CouncilMaxParallelModels = Math.Max(1, preset.MaxParallelModels);
         if (preset.OllamaNumGpu == 0)
             OllamaAccelerationMode = Catalog.OllamaModeSafeCpu;
         else if (preset.OllamaNumGpu is > 0)
@@ -1872,6 +1897,8 @@
         }
         else
             OllamaAccelerationMode = Catalog.OllamaModeAutoGpu;
+
+        SavePreparationConfiguration();
     }
 
     private async Task SaveModelPresetAsync()
@@ -1888,10 +1915,10 @@
                     Description = "Saved from the DXChat council model selector.",
                     ModelNamesJson = JsonSerializer.Serialize(SelectedCouncilModelNames),
                     ModelRoutesJson = JsonSerializer.Serialize(CouncilModelRoutes.Select(CloneRoute).ToList()),
-                    AllowParallelHardwareRoads = SelectedModelPreset?.AllowParallelHardwareRoads ?? true,
+                    AllowParallelHardwareRoads = CouncilAllowParallelHardwareRoads,
                     MaxOutputTokens = CouncilMaxOutputTokens,
                     MaxContextTokens = CouncilMaxContextTokens,
-                    MaxParallelModels = 1,
+                    MaxParallelModels = Math.Max(1, CouncilMaxParallelModels),
                     OllamaNumGpu = ResolveOllamaNumGpu(),
                     IncludeMemory = IncludeCouncilMemory,
                     GenerateArtifacts = GenerateCouncilArtifacts,
@@ -1933,11 +1960,126 @@
         }, "Archive model preset").ConfigureAwait(true);
     }
 
+    private void SavePreparationConfiguration()
+    {
+        if (DiagnosticCouncilModelNames.Count > 0)
+            return;
+
+        CouncilRunConfigurations.SavePreparation(new CouncilPreparationConfiguration(
+            SelectedCouncilModelNames.ToList(),
+            CouncilModelRoutes.Select(CloneRoute).ToList(),
+            CouncilResourceLoadPercent,
+            ResolveCouncilOutputTokens(),
+            ResolveCouncilContextTokens(),
+            ResolveOllamaNumGpu(),
+            CouncilAllowParallelHardwareRoads,
+            Math.Max(1, CouncilMaxParallelModels),
+            Math.Clamp(CouncilCritiqueRounds, 0, 3),
+            IncludeCouncilMemory,
+            CreateProjectPerCouncilRun,
+            string.IsNullOrWhiteSpace(SelectedCouncilTeamKey) ? "general" : SelectedCouncilTeamKey));
+    }
+
+    private void ApplyPreparationConfiguration(CouncilPreparationConfiguration configuration)
+    {
+        SelectedModelPreset = null;
+        SelectedCouncilModelNames = configuration.ModelNames
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        CouncilModelRoutes = configuration.ModelRoutes.Select(CloneRoute).ToList();
+        CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(configuration.ResourceLoadPercent / 5d) * 5, 0, 100);
+        CouncilMaxOutputTokens = Math.Clamp(configuration.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
+        CouncilMaxContextTokens = Math.Clamp(configuration.MaxContextTokens, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
+        CouncilCritiqueRounds = Math.Clamp(configuration.CritiqueRounds, 0, 3);
+        CouncilAllowParallelHardwareRoads = configuration.AllowParallelHardwareRoads;
+        CouncilMaxParallelModels = Math.Max(1, configuration.MaxParallelModels);
+        IncludeCouncilMemory = configuration.IncludeMemory;
+        CreateProjectPerCouncilRun = configuration.CreateProjectPerRun;
+        var requestedTeamKey = string.IsNullOrWhiteSpace(configuration.CouncilTeamKey) ? "general" : configuration.CouncilTeamKey;
+        SelectedCouncilTeamKey = CouncilTeams.Any(team => string.Equals(team.Key, requestedTeamKey, StringComparison.OrdinalIgnoreCase))
+            ? requestedTeamKey
+            : CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams.FirstOrDefault()?.Key ?? "general";
+        if (configuration.OllamaNumGpu == 0)
+        {
+            OllamaAccelerationMode = Catalog.OllamaModeSafeCpu;
+        }
+        else if (configuration.OllamaNumGpu is > 0)
+        {
+            OllamaAccelerationMode = Catalog.OllamaModeLimitedGpu;
+            LimitedGpuLayers = Math.Clamp(configuration.OllamaNumGpu.Value, 1, 99);
+        }
+        else
+        {
+            OllamaAccelerationMode = Catalog.OllamaModeAutoGpu;
+        }
+
+        modelStatus = "Restored the last Council preparation settings for this LocalGPT process.";
+    }
+
+    private bool UpdateActiveCouncilConfiguration(Guid runId) =>
+        CouncilRunConfigurations.Update(
+            runId,
+            ActiveCouncilModelRoutes,
+            ActiveCouncilResourceLoadPercent,
+            ActiveCouncilMaxOutputTokens,
+            ActiveCouncilMaxContextTokens,
+            ActiveCouncilFallbackOllamaNumGpu,
+            ActiveCouncilAllowParallelHardwareRoads);
+
+    private Task OnCouncilMaxOutputTokensChanged(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out var value))
+            return Task.CompletedTask;
+
+        value = Math.Clamp(value, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
+        if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+        {
+            ActiveCouncilMaxOutputTokens = value;
+            UpdateActiveCouncilConfiguration(runId);
+            LoadCouncilRunConfiguration(runId);
+            modelStatus = $"Running Council {ActiveCouncilRunShortId} now uses an output ceiling of {value:N0} tokens for model requests that have not started yet.";
+        }
+        else
+        {
+            CouncilMaxOutputTokens = value;
+            SelectedModelPreset = null;
+            SavePreparationConfiguration();
+            modelStatus = $"Future Council sessions will use an output ceiling of {value:N0} tokens.";
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnCouncilMaxContextTokensChanged(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out var value))
+            return Task.CompletedTask;
+
+        value = Math.Clamp(value, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
+        if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+        {
+            ActiveCouncilMaxContextTokens = value;
+            UpdateActiveCouncilConfiguration(runId);
+            LoadCouncilRunConfiguration(runId);
+            modelStatus = $"Running Council {ActiveCouncilRunShortId} now uses a context ceiling of {value:N0} tokens for model requests that have not started yet.";
+        }
+        else
+        {
+            CouncilMaxContextTokens = value;
+            SelectedModelPreset = null;
+            SavePreparationConfiguration();
+            modelStatus = $"Future Council sessions will use a context ceiling of {value:N0} tokens.";
+        }
+
+        return Task.CompletedTask;
+    }
+
     private Task OnHardwareRoadsChanged()
     {
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
-            if (CouncilRunConfigurations.Update(runId, ActiveCouncilModelRoutes, ActiveCouncilResourceLoadPercent))
+            if (UpdateActiveCouncilConfiguration(runId))
             {
                 LoadCouncilRunConfiguration(runId);
                 modelStatus = $"Applied model settings to running Council {ActiveCouncilRunShortId} revision {ActiveCouncilConfigurationRevision}. Other runs, future sessions, and saved presets were not changed.";
@@ -1950,6 +2092,7 @@
         }
 
         SelectedModelPreset = null;
+        SavePreparationConfiguration();
         modelStatus = $"Custom hardware roads active at {CouncilResourceLoadPercent}% session load for future Council runs.";
         return Task.CompletedTask;
     }
@@ -1963,7 +2106,7 @@
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
             ActiveCouncilResourceLoadPercent = value;
-            CouncilRunConfigurations.Update(runId, ActiveCouncilModelRoutes, value);
+            UpdateActiveCouncilConfiguration(runId);
             LoadCouncilRunConfiguration(runId);
             modelStatus = $"Running Council {ActiveCouncilRunShortId} now uses session settings revision {ActiveCouncilConfigurationRevision} at {value}% load for each model request that has not started yet.";
         }
@@ -1971,6 +2114,7 @@
         {
             CouncilResourceLoadPercent = value;
             SelectedModelPreset = null;
+            SavePreparationConfiguration();
             modelStatus = $"Future Council runs will use {value}% session load.";
         }
 
@@ -1984,6 +2128,10 @@
         ActiveCouncilConfigurationParticipants = snapshot.Participants.ToList();
         ActiveCouncilModelRoutes = snapshot.ModelRoutes.Select(CloneRoute).ToList();
         ActiveCouncilResourceLoadPercent = snapshot.ResourceLoadPercent;
+        ActiveCouncilMaxOutputTokens = snapshot.RequestedMaxOutputTokens;
+        ActiveCouncilMaxContextTokens = snapshot.RequestedMaxContextTokens;
+        ActiveCouncilFallbackOllamaNumGpu = snapshot.FallbackOllamaNumGpu;
+        ActiveCouncilAllowParallelHardwareRoads = snapshot.AllowParallelHardwareRoads;
     }
 
     private void LoadCouncilRunConfiguration(Guid? runId)
@@ -1994,6 +2142,10 @@
             ActiveCouncilConfigurationRevision = 0;
             ActiveCouncilConfigurationParticipants.Clear();
             ActiveCouncilModelRoutes.Clear();
+            ActiveCouncilMaxOutputTokens = 0;
+            ActiveCouncilMaxContextTokens = 0;
+            ActiveCouncilFallbackOllamaNumGpu = null;
+            ActiveCouncilAllowParallelHardwareRoads = true;
             return;
         }
 
@@ -2014,6 +2166,10 @@
                 ActiveCouncilConfigurationRevision = 0;
                 ActiveCouncilConfigurationParticipants.Clear();
                 ActiveCouncilModelRoutes.Clear();
+                ActiveCouncilMaxOutputTokens = 0;
+                ActiveCouncilMaxContextTokens = 0;
+                ActiveCouncilFallbackOllamaNumGpu = null;
+                ActiveCouncilAllowParallelHardwareRoads = true;
             }
             return;
         }
@@ -2077,6 +2233,9 @@
             {
                 SelectedCouncilModelNames.RemoveAll(name => name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
             }
+
+            SelectedModelPreset = null;
+            SavePreparationConfiguration();
         }
         catch (Exception ex)
         {
@@ -3125,6 +3284,7 @@
             if (isDisposed)
                 return;
 
+            SavePreparationConfiguration();
             isDisposed = true;
             HumanCollaboration.Changed -= OnHumanCollaborationChanged;
             CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;

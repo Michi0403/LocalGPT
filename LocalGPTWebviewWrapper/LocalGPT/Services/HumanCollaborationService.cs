@@ -364,6 +364,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             existing.UpdatedAtUtc = DateTime.UtcNow;
             existing.UpdatedBy = Normalize(ambientContext.Current.ActorDisplayName, 120, "Human User");
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            SynchronizeActiveHumanMembership(existing);
             NotifyChanged();
             componentActivity.RecordInformation(
                 "HumanCollaboration",
@@ -654,6 +655,26 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             HumanCollaborationBoundary.Completion,
             cancellationToken).ConfigureAwait(false);
         return gate.IsBlocked;
+    }
+
+
+    private void SynchronizeActiveHumanMembership(HumanCouncilParticipantProfile profile)
+    {
+        var humanMember = $"Human: {Normalize(profile.DisplayName, 120, "Human User")}";
+        foreach (var pair in activeRuns.ToArray())
+        {
+            var current = pair.Value;
+            var members = current.CouncilMembers
+                .Where(member => !member.StartsWith("Human:", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (profile.IsEnabled)
+                members.Add(humanMember);
+
+            activeRuns[pair.Key] = current with
+            {
+                CouncilMembers = members
+            };
+        }
     }
 
     public void BeginCouncilRun(Guid runId, IReadOnlyList<string> members)

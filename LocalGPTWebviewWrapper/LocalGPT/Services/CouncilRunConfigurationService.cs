@@ -9,6 +9,8 @@ public sealed class CouncilRunConfigurationService(
     ILogger<CouncilRunConfigurationService> logger) : ICouncilRunConfigurationService
 {
     private readonly ConcurrentDictionary<Guid, RunState> runs = new();
+    private readonly object preparationSyncRoot = new();
+    private CouncilPreparationConfiguration? preparationConfiguration;
 
     public event Action<Guid>? Changed;
 
@@ -38,13 +40,32 @@ public sealed class CouncilRunConfigurationService(
                 .Select(name => name.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            state.RequestedMaxOutputTokens = Math.Max(1, request.MaxOutputTokens);
-            state.RequestedMaxContextTokens = Math.Max(256, request.MaxContextTokens);
-            state.FallbackOllamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
-            state.AllowParallelHardwareRoads = request.AllowParallelHardwareRoads;
+            // The first Ensure call captures the request as the run's configuration snapshot.
+            // Later Ensure calls may refine the participant list, but must not overwrite
+            // user edits that reached this running session before execution begins.
             state.IsRunning = true;
             return CreateSnapshotLocked(state);
         }
+    }
+
+
+    public CouncilPreparationConfiguration? GetPreparation()
+    {
+        lock (preparationSyncRoot)
+            return preparationConfiguration is null ? null : ClonePreparation(preparationConfiguration);
+    }
+
+    public CouncilPreparationConfiguration SavePreparation(CouncilPreparationConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var normalized = NormalizePreparation(configuration);
+        lock (preparationSyncRoot)
+            preparationConfiguration = normalized;
+
+        logger.LogDebug(
+            "Captured the process-local Council preparation configuration for {ModelCount} model(s); running Council snapshots remain isolated.",
+            normalized.ModelNames.Count);
+        return ClonePreparation(normalized);
     }
 
     public CouncilRunConfigurationSnapshot? Get(Guid runId)
@@ -59,7 +80,11 @@ public sealed class CouncilRunConfigurationService(
     public bool Update(
         Guid runId,
         IReadOnlyCollection<OneWireCouncilModelRoute> routes,
-        int resourceLoadPercent)
+        int resourceLoadPercent,
+        int requestedMaxOutputTokens,
+        int requestedMaxContextTokens,
+        int? fallbackOllamaNumGpu,
+        bool allowParallelHardwareRoads)
     {
         ArgumentNullException.ThrowIfNull(routes);
         if (!runs.TryGetValue(runId, out var state))
@@ -73,12 +98,16 @@ public sealed class CouncilRunConfigurationService(
 
             state.ModelRoutes = routes.Select(CloneRoute).ToList();
             state.ResourceLoadPercent = Math.Clamp((int)Math.Round(resourceLoadPercent / 5d) * 5, 0, 100);
+            state.RequestedMaxOutputTokens = Math.Max(1, requestedMaxOutputTokens);
+            state.RequestedMaxContextTokens = Math.Max(256, requestedMaxContextTokens);
+            state.FallbackOllamaNumGpu = fallbackOllamaNumGpu is < 0 ? 0 : fallbackOllamaNumGpu;
+            state.AllowParallelHardwareRoads = allowParallelHardwareRoads;
             revision = ++state.Revision;
             PulseLocked(state);
         }
 
         logger.LogInformation(
-            "Updated run-scoped Council model settings for run {RunId} to revision {Revision}; saved presets and other runs were not changed.",
+            "Updated run-scoped Council model settings, token ceilings and fallback acceleration for run {RunId} to revision {Revision}; saved presets and other runs were not changed.",
             runId,
             revision);
         Changed?.Invoke(runId);
@@ -329,6 +358,48 @@ public sealed class CouncilRunConfigurationService(
             state.CurrentPhase,
             state.IsRoundSkipRequested,
             state.IsRunning);
+
+
+    private CouncilPreparationConfiguration NormalizePreparation(CouncilPreparationConfiguration configuration)
+    {
+        var modelNames = configuration.ModelNames
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var modelRoutes = configuration.ModelRoutes
+            .Where(route => route is not null && !string.IsNullOrWhiteSpace(route.ModelName))
+            .Select(CloneRoute)
+            .ToList();
+        return new CouncilPreparationConfiguration(
+            modelNames,
+            modelRoutes,
+            Math.Clamp((int)Math.Round(configuration.ResourceLoadPercent / 5d) * 5, 0, 100),
+            Math.Max(1, configuration.MaxOutputTokens),
+            Math.Max(256, configuration.MaxContextTokens),
+            configuration.OllamaNumGpu is < 0 ? 0 : configuration.OllamaNumGpu,
+            configuration.AllowParallelHardwareRoads,
+            Math.Max(1, configuration.MaxParallelModels),
+            Math.Max(0, configuration.CritiqueRounds),
+            configuration.IncludeMemory,
+            configuration.CreateProjectPerRun,
+            string.IsNullOrWhiteSpace(configuration.CouncilTeamKey) ? "general" : configuration.CouncilTeamKey.Trim());
+    }
+
+    private CouncilPreparationConfiguration ClonePreparation(CouncilPreparationConfiguration configuration) =>
+        new(
+            configuration.ModelNames.ToList(),
+            configuration.ModelRoutes.Select(CloneRoute).ToList(),
+            configuration.ResourceLoadPercent,
+            configuration.MaxOutputTokens,
+            configuration.MaxContextTokens,
+            configuration.OllamaNumGpu,
+            configuration.AllowParallelHardwareRoads,
+            configuration.MaxParallelModels,
+            configuration.CritiqueRounds,
+            configuration.IncludeMemory,
+            configuration.CreateProjectPerRun,
+            configuration.CouncilTeamKey);
 
     private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
     {
