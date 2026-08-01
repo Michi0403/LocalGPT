@@ -77,6 +77,196 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
         },
         new()
         {
+            Key = "pokemon-tournament",
+            DisplayName = "Pokémon Tournament",
+            Purpose = "A harmless, non-graphic, round-based text RPG tournament with one independent judge, two or more distinct trainers, and one distinct AI Pokémon contestant paired to each trainer. The judge reports every completed battle round, uses fainting rather than injury or death, and never predetermines a winner.",
+            Roles =
+            [
+                new()
+                {
+                    Role = "Judge",
+                    Expertise = "fair tournament structure, evidence-based rulings, scorekeeping and conflict resolution",
+                    Responsibility = "create the bracket without choosing a winner, enforce harmless text-RPG rules, and report the evidence-based result after every completed battle round",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    DistinctAiAssignmentGroup = "pokemon-tournament"
+                },
+                new()
+                {
+                    Role = "Pokemon Trainer",
+                    Expertise = "strategy, sportsmanship, type matchups and creative command decisions",
+                    Responsibility = "name and coach the uniquely paired Pokémon model, issue one bounded command per active round, and never decide the judge's ruling",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 2,
+                    MaximumAiParticipants = 4,
+                    DistinctAiAssignmentGroup = "pokemon-tournament",
+                    PairedRole = "Pokemon"
+                },
+                new()
+                {
+                    Role = "Pokemon",
+                    Expertise = "role-played Pokémon abilities, stamina, tactical reactions and clear action descriptions",
+                    Responsibility = "perform harmless fictional moves only for the paired trainer, track the judge's latest state, and never award itself victory",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 2,
+                    MaximumAiParticipants = 4,
+                    DistinctAiAssignmentGroup = "pokemon-tournament",
+                    MatchAiParticipantCountToRole = "Pokemon Trainer",
+                    PairedRole = "Pokemon Trainer"
+                }
+            ],
+            WorkflowSteps =
+            [
+                new()
+                {
+                    Key = "judge-introduction",
+                    DisplayName = "Judge introduction",
+                    SortOrder = 10,
+                    Phase = "Tournament introduction",
+                    Role = "Judge",
+                    PromptTemplate = """
+You are the sole independent judge of {{TeamName}}, a harmless fictional and non-graphic round-based text RPG. Introduce the tournament, state neutral sportsmanship rules, list the runtime trainer-to-Pokémon model pairings, and create a fair opening bracket. Use only text narration. Pokémon may become tired, lose HP, faint, concede, or be withdrawn; never describe real-world harm, gore, cruelty, permanent injury, or death. Do not request tools, DXFunctions, organic functions, files, network access, or external actions.
+
+Do not predict, script, imply, or announce any winner. Do not invent completed attacks or damage. Explain that every ruling will use only actions already present in the transcript and that you will publish the result and full scoreboard after every battle round.
+
+Runtime pairings:
+{{RolePairings}}
+""",
+                    ExecutionMode = "LeaderSingle",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = true,
+                    ProducesFinalAnswer = false,
+                    UseBuiltInBehavior = false,
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false
+                },
+                new()
+                {
+                    Key = "trainer-pokemon-selection",
+                    DisplayName = "Trainer Pokémon selection",
+                    SortOrder = 20,
+                    Phase = "Trainer selection",
+                    Role = "Pokemon Trainer",
+                    PromptTemplate = """
+You are a Pokémon Trainer in a harmless, non-graphic text RPG. The tournament engine reserved this different AI council member as your one contestant: {{PairedParticipant}}. Choose a Pokémon species and a distinct tournament nickname for that exact model, then introduce a compact strategy, one friendly pre-match challenge, and a sportsmanship pledge. You may not claim another trainer's paired model, assign yourself a second Pokémon, predetermine a winner, or request any tool/function call. Read earlier trainer selections in the transcript so species and nicknames remain clear and distinct.
+
+All runtime pairings:
+{{RolePairings}}
+""",
+                    ExecutionMode = "AllMembersSequential",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = true,
+                    ProducesFinalAnswer = false,
+                    UseBuiltInBehavior = false,
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false
+                },
+                new()
+                {
+                    Key = "pokemon-introduction",
+                    DisplayName = "Pokémon introductions",
+                    SortOrder = 30,
+                    Phase = "Pokémon introduction",
+                    Role = "Pokemon",
+                    PromptTemplate = """
+You are the Pokémon contestant paired with trainer {{PairedParticipant}} in a harmless, non-graphic text RPG. Find that trainer's latest selection for your exact model in the transcript, adopt the assigned species and nickname, begin at 100 HP, and introduce a small fair move set with clear limits. Use only fictional text narration; no gore, cruelty, permanent injury, death, tools, DXFunctions, organic functions, files, network access, or external actions. Do not attack yet, assign damage, or declare a winner. If the trainer did not assign a clear identity, ask the judge to resolve it before battle.
+
+All runtime pairings:
+{{RolePairings}}
+""",
+                    ExecutionMode = "AllMembersParallel",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = true,
+                    ProducesFinalAnswer = false,
+                    UseBuiltInBehavior = false,
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false
+                },
+                new()
+                {
+                    Key = "trainer-round-command",
+                    DisplayName = "Trainer round commands",
+                    SortOrder = 40,
+                    Phase = "Trainer commands",
+                    Role = "Pokemon Trainer",
+                    PromptTemplate = """
+This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}} in a harmless, non-graphic text RPG. You are the trainer paired with {{PairedParticipant}}. Read the judge's latest bracket, scoreboard, and ruling. If your pair is in the current legal match and has not fainted or conceded, issue exactly one short tactical command for your paired Pokémon. Do not narrate the Pokémon's completed action, assign damage or HP, decide the result, control another pair, or request any tool/function call. If your pair is waiting, eliminated, or already champion, give one brief sportsmanlike spectator response instead.
+""",
+                    ExecutionMode = "AllMembersSequential",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = true,
+                    ProducesFinalAnswer = false,
+                    UseBuiltInBehavior = false,
+                    LoopGroup = "pokemon-battle",
+                    MaximumLoopIterations = 24,
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false
+                },
+                new()
+                {
+                    Key = "fight-round",
+                    DisplayName = "Pokémon actions",
+                    SortOrder = 50,
+                    Phase = "Pokémon actions",
+                    Role = "Pokemon",
+                    PromptTemplate = """
+This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}} in a harmless, non-graphic text RPG. You are the Pokémon paired with trainer {{PairedParticipant}}. Read the judge's latest bracket and scoreboard plus your paired trainer's latest command, then perform exactly one fair, bounded fictional action only if your pair is in the current legal match. State the attempted move, tactical intent, and limitation. Do not assign damage, HP, status, elimination, victory, the opponent's response, or any real-world effect; those decisions belong only to the judge after all active Pokémon have acted. Never describe gore, cruelty, permanent injury, or death, and never request tools or function calls. If you are waiting, fainted, eliminated, or not in the active match, provide one brief respectful spectator reaction instead of attacking.
+""",
+                    ExecutionMode = "AllMembersSequential",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = true,
+                    ProducesFinalAnswer = false,
+                    UseBuiltInBehavior = false,
+                    LoopGroup = "pokemon-battle",
+                    MaximumLoopIterations = 24,
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false
+                },
+                new()
+                {
+                    Key = "judge-round-result",
+                    DisplayName = "Judge round result",
+                    SortOrder = 60,
+                    Phase = "Judge result",
+                    Role = "Judge",
+                    PromptTemplate = """
+You are the sole independent judge after battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Evaluate only the trainer commands and Pokémon actions completed since your previous ruling. Apply neutral, consistent, harmless text-RPG logic; reject impossible, unfair, duplicate, self-awarded, or out-of-turn claims. Assign bounded damage or temporary status changes, use fainting/withdrawal rather than injury or death, and publish the result of this round with: the active match, a short evidence-based ruling, every trainer/Pokémon pair's HP and status, the bracket state, and the next legal match or next round. Never reward a participant merely for asserting that it won, and never request any tool/function call.
+
+If at least two legal contestants can still continue somewhere in the bracket, end with exactly [[TOURNAMENT_CONTINUE]].
+If all scheduled fights are resolved and one evidence-based champion remains, or every other trainer has conceded, end with exactly [[TOURNAMENT_COMPLETE]] and announce the champion.
+Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually resolved.
+""",
+                    ExecutionMode = "LeaderSingle",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = true,
+                    ProducesFinalAnswer = true,
+                    UseBuiltInBehavior = false,
+                    LoopGroup = "pokemon-battle",
+                    MaximumLoopIterations = 24,
+                    LoopCompletionMarker = "[[TOURNAMENT_COMPLETE]]",
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false
+                }
+            ],
+            PreferredCapabilities = [],
+            ArchitectureContracts =
+            [
+                .. DefaultArchitectureContracts(),
+                "Judge, trainers and Pokémon use distinct AI models within the pokemon-tournament assignment group; the supplied two-to-four trainer range requires at least five selected models, reserves one distinct Pokémon model per trainer, and automatically stays within the selected-model capacity.",
+                "Each trainer is deterministically paired with one distinct Pokémon model for the run, assigns that exact model a species and nickname, and issues at most one command in each active battle round.",
+                "The judge may rule only on completed transcript evidence, reports every battle round with a complete scoreboard and bracket state, and ends the bounded loop only with the configured completion marker after all fights are resolved.",
+                "The supplied tournament is text-only, harmless and non-graphic. Every step has organic/DX function execution disabled; fainting, concession and withdrawal replace injury or death."
+            ]
+        },
+        new()
+        {
             Key = "learning-round",
             DisplayName = "Learning Round",
             Purpose = "A database-grounded council preset that studies LocalGPT chat memory, logs, knowledge, regex definitions and verified project facts, then stores only bounded model-suggested learning evidence for later review.",

@@ -9,6 +9,8 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
 };
 const diagnostics = window.localGptJavaScriptDiagnostics || localGptDiagnostics;
 let abortController;
+const fusionRouteStorageKey = "LocalGPT.ThemeFusionRoute";
+const maxFusionRouteSteps = 256;
 
 function getThemeLinks(attributeName) {
     try {
@@ -53,6 +55,74 @@ function storeValue(key, value) {
     }
 }
 
+function removeStoredValue(key) {
+    try {
+        window.localStorage?.removeItem(key);
+        return readStoredValue(key) === null;
+    } catch (error) {
+        diagnostics.report("theme-controller.removeStoredValue", error);
+        return false;
+    }
+}
+
+function sanitizeFusionRoute(route) {
+    try {
+        if (!Array.isArray(route))
+            return [];
+
+        return route
+            .slice(-maxFusionRouteSteps)
+            .map((step, index) => {
+                const rawTarget = step?.target ?? step?.Target;
+                const target = rawTarget === 0 || rawTarget === "0" || rawTarget === "Shell"
+                    ? "Shell"
+                    : rawTarget === 1 || rawTarget === "1" || rawTarget === "Components"
+                        ? "Components"
+                        : "";
+                const themeName = String(step?.themeName || step?.ThemeName || "").trim();
+                if (!target || !themeName)
+                    return null;
+
+                return {
+                    sequence: index + 1,
+                    target,
+                    themeName
+                };
+            })
+            .filter(Boolean);
+    } catch (error) {
+        diagnostics.report("theme-controller.sanitizeFusionRoute", error);
+        return [];
+    }
+}
+
+function readFusionRoute() {
+    try {
+        const storedRoute = readStoredValue(fusionRouteStorageKey);
+        if (!storedRoute)
+            return [];
+
+        return sanitizeFusionRoute(JSON.parse(storedRoute));
+    } catch (error) {
+        diagnostics.report("theme-controller.readFusionRoute", error);
+        return [];
+    }
+}
+
+export function persistFusionRoute(route) {
+    try {
+        const sanitizedRoute = sanitizeFusionRoute(route);
+        const serializedRoute = JSON.stringify(sanitizedRoute);
+        if (!storeValue(fusionRouteStorageKey, serializedRoute))
+            throw new Error("The browser rejected Theme Fusion route persistence.");
+
+        return sanitizedRoute;
+    } catch (error) {
+        diagnostics.report("theme-controller.persistFusionRoute", error);
+        throw error;
+    }
+}
+
 function persistCookie(name, value) {
     try {
         document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=31536000;SameSite=Lax`;
@@ -72,7 +142,8 @@ export function readThemeState() {
                 || legacyThemeName,
             componentThemeName: readCookie("ActiveComponentTheme")
                 || readStoredValue("LocalGPT.ActiveComponentTheme")
-                || legacyThemeName
+                || legacyThemeName,
+            fusionRoute: readFusionRoute()
         };
     } catch (error) {
         diagnostics.report("theme-controller.readThemeState", error);
@@ -172,6 +243,22 @@ function persistThemeState(shellThemeName, componentThemeName) {
     }
 }
 
+export function resetFusionRoute(shellThemeName, componentThemeName) {
+    try {
+        persistThemeState(shellThemeName, componentThemeName);
+        if (!removeStoredValue(fusionRouteStorageKey))
+            throw new Error("The browser rejected Theme Fusion route removal.");
+
+        // Reloading is deliberate: it removes runtime theme resources accumulated by the old
+        // selection route while retaining the currently selected Base Theme and Style Layer.
+        window.setTimeout(() => window.location.reload(), 0);
+        return true;
+    } catch (error) {
+        diagnostics.report("theme-controller.resetFusionRoute", error);
+        throw error;
+    }
+}
+
 export async function applyThemeState(
     shellThemeName,
     bootstrapThemeMode,
@@ -204,5 +291,7 @@ export async function applyThemeState(
 
 export const ThemeController = diagnostics.guardObject("ThemeController", {
     readThemeState,
-    applyThemeState
+    applyThemeState,
+    persistFusionRoute,
+    resetFusionRoute
 });

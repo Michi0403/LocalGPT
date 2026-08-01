@@ -253,7 +253,8 @@
 }
 
 .human-inbox-panel {
-    width: min(42rem, 100vw);
+    width: min(75vw, 80rem);
+    max-width: calc(100vw - .75rem);
     height: 100dvh;
 }
 
@@ -264,6 +265,11 @@
         bottom: .75rem;
         writing-mode: horizontal-tb;
         border-radius: 999px;
+    }
+
+    .human-inbox-panel {
+        width: 100vw;
+        max-width: 100vw;
     }
 }
 

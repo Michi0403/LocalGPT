@@ -5,4 +5,5 @@ namespace LocalGPT.Interfaces;
 public interface IThemeChangeRequestDispatcher
 {
     Task RequestThemeChangeAsync(Theme theme, ThemeApplicationTarget target);
+    Task ResetFusionRouteAsync();
 }

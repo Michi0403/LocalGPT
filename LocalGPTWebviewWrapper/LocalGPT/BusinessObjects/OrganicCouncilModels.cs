@@ -1,4 +1,22 @@
+using System.Text.Json.Serialization;
+
 namespace LocalGPT.BusinessObjects;
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilRoleAiSelectionMode
+{
+    AllSelected,
+    RandomRange
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum HumanParticipationMode
+{
+    None,
+    Optional,
+    Required,
+    HumanOnly
+}
 
 public sealed class OrganicCouncilTeamDefinition
 {
@@ -22,6 +40,13 @@ public sealed class OrganicCouncilRoleDefinition
     public string Role { get; set; } = string.Empty;
     public string Expertise { get; set; } = string.Empty;
     public string Responsibility { get; set; } = string.Empty;
+    public CouncilRoleAiSelectionMode AiSelectionMode { get; set; } = CouncilRoleAiSelectionMode.AllSelected;
+    public int MinimumAiParticipants { get; set; } = 1;
+    public int MaximumAiParticipants { get; set; } = 1;
+    public HumanParticipationMode HumanParticipationMode { get; set; } = HumanParticipationMode.None;
+    public string DistinctAiAssignmentGroup { get; set; } = string.Empty;
+    public string MatchAiParticipantCountToRole { get; set; } = string.Empty;
+    public string PairedRole { get; set; } = string.Empty;
 }
 
 public class ProjectOrganicContext
@@ -61,6 +86,9 @@ public sealed class CouncilWorkflowStepDefinition
     public bool IncludePriorTranscript { get; set; } = true;
     public bool ProducesFinalAnswer { get; set; }
     public bool UseBuiltInBehavior { get; set; }
+    public string LoopGroup { get; set; } = string.Empty;
+    public int MaximumLoopIterations { get; set; } = 1;
+    public string LoopCompletionMarker { get; set; } = string.Empty;
     public bool IsEnabled { get; set; } = true;
     public bool RequiresHumanCheckpoint { get; set; }
     public bool CanUseOrganicFunctions { get; set; } = true;

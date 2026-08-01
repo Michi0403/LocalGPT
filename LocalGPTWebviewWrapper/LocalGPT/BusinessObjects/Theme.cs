@@ -9,6 +9,29 @@ public enum ThemeApplicationTarget
     Components
 }
 
+/// <summary>
+/// One successful selection in the order-sensitive Theme Fusion route. The route is intentionally
+/// preserved because repeated theme swaps can create a visual result that is not described by the
+/// final Base Theme and Style Layer alone.
+/// </summary>
+public sealed class ThemeFusionStep
+{
+    public ThemeFusionStep(int sequence, ThemeApplicationTarget target, string themeName)
+    {
+        if (sequence < 1)
+            throw new ArgumentOutOfRangeException(nameof(sequence));
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(themeName);
+        Sequence = sequence;
+        Target = target;
+        ThemeName = themeName;
+    }
+
+    public int Sequence { get; }
+    public ThemeApplicationTarget Target { get; }
+    public string ThemeName { get; }
+}
+
 public sealed class Theme
 {
     private const string BootstrapDarkModePostfix = "-dark";

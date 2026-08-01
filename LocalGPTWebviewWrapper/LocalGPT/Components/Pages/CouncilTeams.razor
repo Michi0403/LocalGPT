@@ -75,19 +75,83 @@
                     var roleIndex = index;
                     var role = _editor.Roles[roleIndex];
                     <article class="council-role-card" @key="role">
+                        <header class="council-role-card-header wide">
+                            <strong>@(string.IsNullOrWhiteSpace(role.Role) ? $"Role {roleIndex + 1}" : role.Role)</strong>
+                            <div class="council-role-badges">
+                                <span class="council-role-badge ai">@RoleAiBadge(role)</span>
+                                <span class="@($"council-role-badge {RoleHumanBadgeClass(role)}")">@RoleHumanBadge(role)</span>
+                                @if (!string.IsNullOrWhiteSpace(role.PairedRole))
+                                {
+                                    <span class="council-role-badge pairing">Paired with @role.PairedRole</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(role.DistinctAiAssignmentGroup))
+                                {
+                                    <span class="council-role-badge distinct">Distinct group @role.DistinctAiAssignmentGroup</span>
+                                }
+                            </div>
+                        </header>
                         <label><span>Role name</span><input class="form-control" @bind="role.Role" /></label>
                         <label><span>Expertise or viewpoint</span><input class="form-control" @bind="role.Expertise" /></label>
                         <label class="wide"><span>Responsibility</span><textarea class="form-control" rows="2" @bind="role.Responsibility"></textarea></label>
+                        <div class="wide council-role-policy-grid">
+                            <label>
+                                <span>AI assignment</span>
+                                <select class="form-select" @bind="role.AiSelectionMode" disabled="@(role.HumanParticipationMode == HumanParticipationMode.HumanOnly)">
+                                    @foreach (var mode in AiSelectionModes)
+                                    {
+                                        <option value="@mode.Value">@mode.Label</option>
+                                    }
+                                </select>
+                            </label>
+                            <label>
+                                <span>Minimum random AIs</span>
+                                <input class="form-control" type="number" min="1" max="100" @bind="role.MinimumAiParticipants" disabled="@(role.AiSelectionMode != CouncilRoleAiSelectionMode.RandomRange || role.HumanParticipationMode == HumanParticipationMode.HumanOnly)" />
+                            </label>
+                            <label>
+                                <span>Maximum random AIs</span>
+                                <input class="form-control" type="number" min="1" max="100" @bind="role.MaximumAiParticipants" disabled="@(role.AiSelectionMode != CouncilRoleAiSelectionMode.RandomRange || role.HumanParticipationMode == HumanParticipationMode.HumanOnly)" />
+                            </label>
+                            <label>
+                                <span>Human participation</span>
+                                <select class="form-select" @bind="role.HumanParticipationMode">
+                                    @foreach (var mode in HumanParticipationModes)
+                                    {
+                                        <option value="@mode.Value">@mode.Label</option>
+                                    }
+                                </select>
+                            </label>
+                        </div>
+                        <div class="wide council-role-coordination-grid">
+                            <label>
+                                <span>Distinct AI assignment group</span>
+                                <input class="form-control" @bind="role.DistinctAiAssignmentGroup" placeholder="Optional shared group key" />
+                            </label>
+                            <label>
+                                <span>Match AI count to role</span>
+                                <input class="form-control" list="council-role-names" @bind="role.MatchAiParticipantCountToRole" placeholder="Optional role name" />
+                            </label>
+                            <label>
+                                <span>Pair one-to-one with role</span>
+                                <input class="form-control" list="council-role-names" @bind="role.PairedRole" placeholder="Optional role name" />
+                            </label>
+                        </div>
+                        <p class="wide council-role-policy-help">@RolePolicyExplanation(role) @RoleCoordinationExplanation(role)</p>
                         <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveRole(roleIndex)">Remove role</button>
                     </article>
                 }
+                <datalist id="council-role-names">
+                    @foreach (var role in _editor.Roles.Where(role => !string.IsNullOrWhiteSpace(role.Role)))
+                    {
+                        <option value="@role.Role"></option>
+                    }
+                </datalist>
             </section>
 
             <section class="council-structure-section">
                 <header>
                     <div>
                         <h2>Rounds and workflow</h2>
-                        <p>Each enabled step is a council round. Repeat count expands one step into several rounds. Use placeholders such as <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
+                        <p>Each enabled step is a council round. Its role name links to the matching role policy above. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddWorkflowStep">Add round</button>
                 </header>
@@ -103,7 +167,7 @@
                         <header>
                             <div>
                                 <strong>@(string.IsNullOrWhiteSpace(step.DisplayName) ? $"Round {stepIndex + 1}" : step.DisplayName)</strong>
-                                <small>@step.ExecutionMode · repeat @step.RepeatCount</small>
+                                <small>@step.ExecutionMode · repeat @step.RepeatCount · @WorkflowLoopLabel(step) · @WorkflowRolePolicyLabel(step.Role)</small>
                             </div>
                             <div class="council-step-actions">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => MoveWorkflowStep(stepIndex, -1)" disabled="@(stepIndex == 0)">Up</button>
@@ -115,7 +179,7 @@
                             <label><span>Key</span><input class="form-control" @bind="step.Key" /></label>
                             <label><span>Display name</span><input class="form-control" @bind="step.DisplayName" /></label>
                             <label><span>Phase</span><input class="form-control" @bind="step.Phase" /></label>
-                            <label><span>Role for this round</span><input class="form-control" @bind="step.Role" /></label>
+                            <label><span>Role for this round</span><input class="form-control" list="council-role-names" @bind="step.Role" /></label>
                             <label>
                                 <span>Execution</span>
                                 <select class="form-select" @bind="step.ExecutionMode">
@@ -126,8 +190,20 @@
                                 </select>
                             </label>
                             <label><span>Assigned model (optional)</span><input class="form-control" @bind="step.AssignedModelName" placeholder="Used by Assigned model only" /></label>
-                            <label><span>Repeat count</span><input class="form-control" type="number" min="1" max="100" @bind="step.RepeatCount" /></label>
+                            <label><span>Repeat count inside this step</span><input class="form-control" type="number" min="1" max="100" @bind="step.RepeatCount" /></label>
                             <label><span>Sort order</span><input class="form-control" type="number" @bind="step.SortOrder" /></label>
+                            <label>
+                                <span>Loop group (optional)</span>
+                                <input class="form-control" @bind="step.LoopGroup" placeholder="Same key on consecutive steps" />
+                            </label>
+                            <label>
+                                <span>Maximum loop iterations</span>
+                                <input class="form-control" type="number" min="1" max="100" @bind="step.MaximumLoopIterations" disabled="@(string.IsNullOrWhiteSpace(step.LoopGroup))" />
+                            </label>
+                            <label class="wide">
+                                <span>Loop completion marker (optional)</span>
+                                <input class="form-control" @bind="step.LoopCompletionMarker" placeholder="Example: [[TOURNAMENT_COMPLETE]]" disabled="@(string.IsNullOrWhiteSpace(step.LoopGroup))" />
+                            </label>
                             <label class="wide"><span>Round prompt</span><textarea class="form-control council-script" rows="7" @bind="step.PromptTemplate"></textarea></label>
                         </div>
                         <div class="council-step-options">
@@ -159,7 +235,7 @@
             </details>
 
             <div class="council-team-savebar">
-                <span class="council-expanded-count">@EnabledRoundCount enabled step(s), @ExpandedRoundCount expanded round(s)</span>
+                <span class="council-expanded-count">@EnabledRoundCount enabled step(s), up to @ExpandedRoundCount expanded round(s)</span>
                 <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_editor.IsEnabled" /><span>Enabled</span></label>
                 <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_confirmed" /><span>I reviewed this social structure and its prompts</span></label>
                 <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@(_busy || !_confirmed)">Save reviewed team</button>
@@ -172,11 +248,23 @@
     private readonly System.Text.Json.JsonSerializerOptions JsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly IReadOnlyList<(string Value, string Label)> ExecutionModes =
     [
-        ("AllMembersParallel", "All members in parallel"),
-        ("AllMembersSequential", "All members sequentially"),
-        ("LeaderSingle", "Council leader only"),
-        ("RoundRobinSingle", "One rotating member"),
+        ("AllMembersParallel", "All role members in parallel"),
+        ("AllMembersSequential", "All role members sequentially"),
+        ("LeaderSingle", "Council leader or one role member"),
+        ("RoundRobinSingle", "One rotating role member"),
         ("AssignedModelSingle", "Assigned model only")
+    ];
+    private readonly IReadOnlyList<(CouncilRoleAiSelectionMode Value, string Label)> AiSelectionModes =
+    [
+        (CouncilRoleAiSelectionMode.AllSelected, "All selected council AIs"),
+        (CouncilRoleAiSelectionMode.RandomRange, "Random role members within range")
+    ];
+    private readonly IReadOnlyList<(HumanParticipationMode Value, string Label)> HumanParticipationModes =
+    [
+        (HumanParticipationMode.None, "No human role"),
+        (HumanParticipationMode.Optional, "Human may participate"),
+        (HumanParticipationMode.Required, "Human response required"),
+        (HumanParticipationMode.HumanOnly, "Human only; no AI")
     ];
     private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
     private OrganicCouncilTeamDefinition _editor = new();
@@ -191,7 +279,7 @@
     private bool _busy;
 
     private int EnabledRoundCount => _editor.WorkflowSteps.Count(step => step.IsEnabled);
-    private int ExpandedRoundCount => _editor.WorkflowSteps.Where(step => step.IsEnabled).Sum(step => Math.Max(1, step.RepeatCount));
+    private int ExpandedRoundCount => CalculateExpandedRoundCount(_editor.WorkflowSteps);
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
@@ -254,7 +342,15 @@
             IsEnabled = true,
             Roles =
             [
-                new OrganicCouncilRoleDefinition { Role = "Participant", Expertise = "A viewpoint chosen by the user", Responsibility = "Contribute according to the saved round prompt" }
+                new OrganicCouncilRoleDefinition
+                {
+                    Role = "Participant",
+                    Expertise = "A viewpoint chosen by the user",
+                    Responsibility = "Contribute according to the saved round prompt",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1
+                }
             ],
             WorkflowSteps =
             [
@@ -298,7 +394,11 @@
     {
         Role = $"Role {_editor.Roles.Count + 1}",
         Expertise = string.Empty,
-        Responsibility = string.Empty
+        Responsibility = string.Empty,
+        AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+        MinimumAiParticipants = 1,
+        MaximumAiParticipants = 1,
+        HumanParticipationMode = HumanParticipationMode.None
     });
 
     private void RemoveRole(int index)
@@ -321,9 +421,10 @@
         DisplayName = $"Round {index + 1}",
         SortOrder = (index + 1) * 10,
         Phase = "Discussion",
-        Role = "Council participant",
+        Role = "Participant",
         ExecutionMode = "AllMembersParallel",
         RepeatCount = 1,
+        MaximumLoopIterations = 1,
         IncludePriorTranscript = true,
         IsEnabled = true,
         CanUseOrganicFunctions = true,
@@ -357,11 +458,32 @@
 
     private void NormalizeEditorOrdering()
     {
+        foreach (var role in _editor.Roles)
+        {
+            role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, 100);
+            role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, 1, 100);
+            if (role.MinimumAiParticipants > role.MaximumAiParticipants)
+                role.MaximumAiParticipants = role.MinimumAiParticipants;
+            if (!Enum.IsDefined(typeof(CouncilRoleAiSelectionMode), role.AiSelectionMode))
+                role.AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected;
+            if (!Enum.IsDefined(typeof(HumanParticipationMode), role.HumanParticipationMode))
+                role.HumanParticipationMode = HumanParticipationMode.None;
+            role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;
+            role.MatchAiParticipantCountToRole = role.MatchAiParticipantCountToRole?.Trim() ?? string.Empty;
+            role.PairedRole = role.PairedRole?.Trim() ?? string.Empty;
+        }
+
         for (var index = 0; index < _editor.WorkflowSteps.Count; index++)
         {
-            if (_editor.WorkflowSteps[index].SortOrder == 0)
-                _editor.WorkflowSteps[index].SortOrder = (index + 1) * 10;
-            _editor.WorkflowSteps[index].RepeatCount = Math.Max(1, _editor.WorkflowSteps[index].RepeatCount);
+            var step = _editor.WorkflowSteps[index];
+            if (step.SortOrder == 0)
+                step.SortOrder = (index + 1) * 10;
+            step.RepeatCount = Math.Clamp(step.RepeatCount, 1, 100);
+            step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
+            step.MaximumLoopIterations = string.IsNullOrWhiteSpace(step.LoopGroup)
+                ? 1
+                : Math.Clamp(step.MaximumLoopIterations, 1, 100);
+            step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
         }
     }
 
@@ -407,7 +529,7 @@
                 UserConfirmed = _confirmed
             });
             _selectedKey = saved.Key;
-            _status = $"Saved '{saved.DisplayName}' with {saved.Roles.Count} role(s) and {saved.WorkflowSteps.Where(step => step.IsEnabled).Sum(step => step.RepeatCount)} expanded round(s).";
+            _status = $"Saved '{saved.DisplayName}' with {saved.Roles.Count} role(s) and {CalculateExpandedRoundCount(saved.WorkflowSteps)} maximum expanded round(s).";
             _hasError = false;
             Notifier.ShowSuccess(nameof(CouncilTeams), _status, "Council team saved");
             _confirmed = false;
@@ -425,6 +547,117 @@
         {
             _busy = false;
         }
+    }
+
+
+    private OrganicCouncilRoleDefinition? FindRolePolicy(string? roleName) =>
+        _editor.Roles.FirstOrDefault(role =>
+            !string.IsNullOrWhiteSpace(roleName) &&
+            string.Equals(role.Role, roleName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private string WorkflowRolePolicyLabel(string? roleName)
+    {
+        var role = FindRolePolicy(roleName);
+        return role is null
+            ? "no matching role policy; all selected AIs"
+            : $"{RoleAiBadge(role)}; {RoleHumanBadge(role)}";
+    }
+
+    private string RoleAiBadge(OrganicCouncilRoleDefinition role)
+    {
+        if (role.HumanParticipationMode == HumanParticipationMode.HumanOnly)
+            return "Human only · 0 AI";
+        return role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected
+            ? "All selected AIs"
+            : role.MinimumAiParticipants == role.MaximumAiParticipants
+                ? $"Random {role.MinimumAiParticipants} AI" + (role.MinimumAiParticipants == 1 ? string.Empty : "s")
+                : $"Random {role.MinimumAiParticipants}–{role.MaximumAiParticipants} AIs";
+    }
+
+    private string RoleHumanBadge(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
+    {
+        HumanParticipationMode.Optional => "Human optional",
+        HumanParticipationMode.Required => "Human required",
+        HumanParticipationMode.HumanOnly => "Human only",
+        _ => "AI role"
+    };
+
+    private string RoleHumanBadgeClass(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
+    {
+        HumanParticipationMode.Optional => "human-optional",
+        HumanParticipationMode.Required => "human-required",
+        HumanParticipationMode.HumanOnly => "human-only",
+        _ => "human-none"
+    };
+
+    private string RolePolicyExplanation(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
+    {
+        HumanParticipationMode.HumanOnly => "This role pauses for a human response and assigns no AI model.",
+        HumanParticipationMode.Required => $"The role pauses for a human response, then {RoleAiBadge(role).ToLowerInvariant()} continue with that response in the transcript.",
+        HumanParticipationMode.Optional => $"The human may join this role without blocking it; {RoleAiBadge(role).ToLowerInvariant()} are assigned when the round runs.",
+        _ => $"No human response is requested for this role; {RoleAiBadge(role).ToLowerInvariant()} are assigned when the round runs."
+    };
+
+    private string RoleCoordinationExplanation(OrganicCouncilRoleDefinition role)
+    {
+        var details = new List<string>();
+        if (!string.IsNullOrWhiteSpace(role.DistinctAiAssignmentGroup))
+            details.Add($"models are kept distinct from other roles in group '{role.DistinctAiAssignmentGroup}'");
+        if (!string.IsNullOrWhiteSpace(role.MatchAiParticipantCountToRole))
+            details.Add($"AI count follows role '{role.MatchAiParticipantCountToRole}'");
+        if (!string.IsNullOrWhiteSpace(role.PairedRole))
+        {
+            details.Add($"members pair one-to-one with role '{role.PairedRole}'");
+            var pairedRole = FindRolePolicy(role.PairedRole);
+            if (pairedRole is not null &&
+                !string.IsNullOrWhiteSpace(role.DistinctAiAssignmentGroup) &&
+                string.Equals(pairedRole.DistinctAiAssignmentGroup, role.DistinctAiAssignmentGroup, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(pairedRole.MatchAiParticipantCountToRole, role.Role, StringComparison.OrdinalIgnoreCase))
+            {
+                details.Add("one distinct model slot is reserved for each paired member");
+            }
+        }
+        return details.Count == 0
+            ? "No cross-role assignment or pairing rule is configured."
+            : $"Coordination: {string.Join("; ", details)}.";
+    }
+
+    private string WorkflowLoopLabel(CouncilWorkflowStepDefinition step) =>
+        string.IsNullOrWhiteSpace(step.LoopGroup)
+            ? "single pass"
+            : $"loop {step.LoopGroup}, max {Math.Max(1, step.MaximumLoopIterations)}" +
+              (string.IsNullOrWhiteSpace(step.LoopCompletionMarker) ? string.Empty : $", marker {step.LoopCompletionMarker}");
+
+    private int CalculateExpandedRoundCount(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
+    {
+        var ordered = steps
+            .Where(step => step.IsEnabled)
+            .OrderBy(step => step.SortOrder)
+            .ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var total = 0;
+        for (var index = 0; index < ordered.Count;)
+        {
+            var step = ordered[index];
+            if (string.IsNullOrWhiteSpace(step.LoopGroup))
+            {
+                total += Math.Max(1, step.RepeatCount);
+                index++;
+                continue;
+            }
+
+            var loopGroup = step.LoopGroup;
+            var blockRounds = 0;
+            var maximumIterations = 1;
+            while (index < ordered.Count && string.Equals(ordered[index].LoopGroup, loopGroup, StringComparison.OrdinalIgnoreCase))
+            {
+                blockRounds += Math.Max(1, ordered[index].RepeatCount);
+                maximumIterations = Math.Max(maximumIterations, Math.Max(1, ordered[index].MaximumLoopIterations));
+                index++;
+            }
+            total += blockRounds * maximumIterations;
+        }
+        return total;
     }
 
     private string WorkflowLabel(OrganicCouncilTeamDefinition team) =>

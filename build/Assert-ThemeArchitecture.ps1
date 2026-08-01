@@ -12,8 +12,16 @@ function Read-RequiredText([string]$relativePath) {
     return Get-Content -LiteralPath $path -Raw
 }
 
+
+function Test-ContainsOrdinal([string]$text, [string]$token) {
+    if ($null -eq $text -or $null -eq $token) {
+        return $false
+    }
+    return $text.IndexOf($token, [StringComparison]::Ordinal) -ge 0
+}
+
 $regexService = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/RegexPatternService.cs'
-if (-not $regexService.Contains('using LocalGPT.Interfaces;', [StringComparison]::Ordinal)) {
+if (-not (Test-ContainsOrdinal $regexService 'using LocalGPT.Interfaces;')) {
     $errors.Add('RegexPatternService must import LocalGPT.Interfaces for IDatabaseInitializationService.')
 }
 
@@ -30,7 +38,7 @@ foreach ($token in @(
     'ComponentThemeCookieName',
     'properties.AddFilePaths(LocalThemeContractPath);',
     'CreateClassic("blazing-berry"')) {
-    if (-not $themeService.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not (Test-ContainsOrdinal $themeService $token)) {
         $errors.Add("ThemeService must retain '$token'.")
     }
 }
@@ -41,7 +49,7 @@ foreach ($token in @(
     'public ITheme DevExpressTheme { get; }',
     'public string BootstrapThemeMode { get; }',
     'public bool IsBootstrapNative { get; }')) {
-    if (-not $themeModel.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not (Test-ContainsOrdinal $themeModel $token)) {
         $errors.Add("Theme model must retain '$token'.")
     }
 }
@@ -59,17 +67,17 @@ foreach ($token in @(
     'ThemeApplicationTarget target',
     '"readThemeState"',
     '"applyThemeState"')) {
-    if (-not $dispatcher.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not (Test-ContainsOrdinal $dispatcher $token)) {
         $errors.Add("ThemeJsChangeDispatcher must retain '$token'.")
     }
 }
-if ($dispatcher.Contains('new ThemeService(', [StringComparison]::Ordinal)) {
+if ((Test-ContainsOrdinal $dispatcher 'new ThemeService(')) {
     $errors.Add('ThemeJsChangeDispatcher must not construct ThemeService manually.')
 }
-if ($dispatcher.Contains('ISafeJSRuntime', [StringComparison]::Ordinal)) {
+if ((Test-ContainsOrdinal $dispatcher 'ISafeJSRuntime')) {
     $errors.Add('ThemeJsChangeDispatcher must use the interactive circuit IJSRuntime; ISafeJSRuntime can return a null module reference for dynamic imports.')
 }
-if ($dispatcher.Contains('.InvokeAsync<IJSObjectReference>("import", versionedThemeModulePath)', [StringComparison]::Ordinal)) {
+if ((Test-ContainsOrdinal $dispatcher '.InvokeAsync<IJSObjectReference>("import", versionedThemeModulePath)')) {
     $errors.Add('ThemeJsChangeDispatcher must resolve the versioned module path to an absolute URI before dynamic import; browsers reject a bare module specifier.')
 }
 
@@ -80,23 +88,23 @@ if ($setThemeCount -ne $awaitedSetThemeCount) {
 }
 
 $app = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/App.razor'
-if (-not $app.Contains('@DxResourceManager.RegisterTheme(Themes.ActiveComponentTheme.DevExpressTheme)', [StringComparison]::Ordinal)) {
+if (-not (Test-ContainsOrdinal $app '@DxResourceManager.RegisterTheme(Themes.ActiveComponentTheme.DevExpressTheme)')) {
     $errors.Add('App.razor must register the validated component ITheme with DxResourceManager.')
 }
 foreach ($token in @('data-localgpt-shell-theme', 'data-localgpt-component-theme', 'ShellThemeCookieName', 'ComponentThemeCookieName')) {
-    if (-not $app.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not (Test-ContainsOrdinal $app $token)) {
         $errors.Add("App.razor must retain dual-theme startup token '$token'.")
     }
 }
 foreach ($forbidden in @('bs-theme-link', 'dx-theme-link', 'GetThemeCssUrl(Themes.ActiveTheme)', 'GetBootstrapThemeCssUrl(Themes.ActiveTheme)')) {
-    if ($app.Contains($forbidden, [StringComparison]::Ordinal)) {
+    if ((Test-ContainsOrdinal $app $forbidden)) {
         $errors.Add("App.razor must not restore manual theme-link wiring: $forbidden")
     }
 }
 
 $controller = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/wwwroot/switcher-resources/theme-controller.js'
 foreach ($required in @('readThemeState', 'applyThemeState', 'persistThemeState', 'data-bs-theme', 'data-localgpt-shell-theme', 'data-localgpt-component-theme', 'ActiveShellTheme', 'ActiveComponentTheme')) {
-    if (-not $controller.Contains($required, [StringComparison]::Ordinal)) {
+    if (-not (Test-ContainsOrdinal $controller $required)) {
         $errors.Add("theme-controller.js must retain '$required'.")
     }
 }
@@ -108,21 +116,21 @@ if ($persistIndex -lt 0 -or $highlightIndex -lt 0 -or $persistIndex -gt $highlig
 }
 
 foreach ($forbidden in @('setStylesheetLinks', 'dx-theme-link', 'bs-theme-link', 'bootstrap-external.bs5')) {
-    if ($controller.Contains($forbidden, [StringComparison]::Ordinal)) {
+    if ((Test-ContainsOrdinal $controller $forbidden)) {
         $errors.Add("theme-controller.js must not manage DevExpress/Bootstrap component-theme links: $forbidden")
     }
 }
 
 $contract = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/wwwroot/css/localgpt-theme-contract.css'
 foreach ($token in @('--localgpt-body-bg', '--localgpt-border-color', '--localgpt-primary-rgb', 'Do not override DevExpress internal control selectors')) {
-    if (-not $contract.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not (Test-ContainsOrdinal $contract $token)) {
         $errors.Add("LocalGPT theme CSS contract must retain '$token'.")
     }
 }
 
 $themeSwitcher = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcher.razor'
 foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'LegacyThemeCookieName', 'ShellThemeCookieName', 'ComponentThemeCookieName', 'Themes.InitializeThemes', 'Themes.GetThemeLayerCssClass')) {
-    if (-not $themeSwitcher.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not (Test-ContainsOrdinal $themeSwitcher $token)) {
         $errors.Add("ThemeSwitcher must retain '$token'.")
     }
 }
@@ -130,21 +138,21 @@ foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'LegacyThemeCoo
 
 
 $themeLoadNotifier = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IThemeLoadNotifier.cs'
-if ($themeLoadNotifier.Contains('namespace LocalGPT.Interfaces;', [StringComparison]::Ordinal)) {
+if ((Test-ContainsOrdinal $themeLoadNotifier 'namespace LocalGPT.Interfaces;')) {
     $errors.Add('IThemeLoadNotifier must not mix a file-scoped namespace semicolon with a block-scoped namespace body.')
 }
-if (-not $themeLoadNotifier.Contains('namespace LocalGPT.Interfaces', [StringComparison]::Ordinal) -or
-    -not $themeLoadNotifier.Contains('public interface IThemeLoadNotifier', [StringComparison]::Ordinal)) {
+if (-not (Test-ContainsOrdinal $themeLoadNotifier 'namespace LocalGPT.Interfaces') -or
+    -not (Test-ContainsOrdinal $themeLoadNotifier 'public interface IThemeLoadNotifier')) {
     $errors.Add('IThemeLoadNotifier must retain a valid block-scoped LocalGPT.Interfaces declaration.')
 }
 
 $themeSwitcherContainer = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor'
 foreach ($token in @('await InvokeAsync(async () =>', 'await ShownChanged.InvokeAsync(shown)', 'await ShellThemeNameChanged.InvokeAsync(theme.Name)', 'await ComponentThemeNameChanged.InvokeAsync(theme.Name)', 'ThemeApplicationTarget.Shell', 'ThemeApplicationTarget.Components')) {
-    if (-not $themeSwitcherContainer.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not (Test-ContainsOrdinal $themeSwitcherContainer $token)) {
         $errors.Add("ThemeSwitcherContainer must retain dispatcher-safe token '$token'.")
     }
 }
-if ($themeSwitcherContainer.Contains('ConfigureAwait(false)', [StringComparison]::Ordinal)) {
+if ((Test-ContainsOrdinal $themeSwitcherContainer 'ConfigureAwait(false)')) {
     $errors.Add('Blazor theme component callbacks must not leave the renderer dispatcher with ConfigureAwait(false).')
 }
 
@@ -153,16 +161,16 @@ foreach ($relative in @(
     'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor',
     'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/ThemeSwitcherItem.razor')) {
     $themeIslandChild = Read-RequiredText $relative
-    if ($themeIslandChild.Contains('@rendermode', [StringComparison]::Ordinal)) {
+    if ((Test-ContainsOrdinal $themeIslandChild '@rendermode')) {
         $errors.Add("$relative must inherit the single MenuIsland render mode instead of creating a competing theme circuit.")
     }
 }
 
 $minecraft = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Controller/MinecraftDiagnosticController.cs'
-if (-not $minecraft.Contains('?? throw new InvalidOperationException("The approved datapack build did not produce a command result.")', [StringComparison]::Ordinal)) {
+if (-not (Test-ContainsOrdinal $minecraft '?? throw new InvalidOperationException("The approved datapack build did not produce a command result.")')) {
     $errors.Add('MinecraftDiagnosticController must handle a missing approved command result explicitly.')
 }
-if ($minecraft.Contains('Confidence = build?.Succeeded', [StringComparison]::Ordinal)) {
+if ((Test-ContainsOrdinal $minecraft 'Confidence = build?.Succeeded')) {
     $errors.Add('MinecraftDiagnosticController must not restore nullable build-result confidence logic.')
 }
 

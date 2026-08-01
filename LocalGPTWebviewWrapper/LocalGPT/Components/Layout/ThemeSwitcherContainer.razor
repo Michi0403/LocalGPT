@@ -10,7 +10,10 @@
     @if (IsLoaded)
     {
         <div class="theme-layer-toolbar">
-            <strong>Theme Fusion</strong>
+            <div class="theme-layer-toolbar-title">
+                <strong>Theme Fusion</strong>
+                <small>@Themes.FusionRoute.Count route steps · @UsedThemes.Count() themes used</small>
+            </div>
             <button type="button" class="localgpt-native-button" @onclick="CloseAsync">Done</button>
         </div>
         <div class="blazor-themes blazor-scroll-view">
@@ -36,7 +39,7 @@
             <section class="theme-layer-section" aria-label="Style layer">
                 <div class="theme-layer-heading">
                     <strong>Style Layer</strong>
-                    <small>Blends with, overrides or extends the base theme across DevExpress editors, grids, chat controls and buttons.</small>
+                    <small>Blends with, overrides or extends the Base Theme across DevExpress editors, grids, chat controls and buttons.</small>
                 </div>
                 <div class="list-group list-group-flush">
                     @foreach (var themeSet in Themes.ThemeSets)
@@ -49,6 +52,57 @@
                                                Click="@(selected => ThemeSwitcherItem_Click(selected, ThemeApplicationTarget.Components))" />
                         }
                     }
+                </div>
+            </section>
+
+            <section class="theme-route-section" aria-label="Theme Fusion route">
+                <div class="theme-layer-heading theme-route-heading">
+                    <strong>Fusion Route</strong>
+                    <small>The result can depend on selection order. This is the stored path that produced the current mix.</small>
+                </div>
+                <div class="theme-route-content" aria-live="polite">
+                    <div class="theme-route-current">
+                        <span><strong>Base:</strong> @Themes.ActiveShellTheme.Title</span>
+                        <span><strong>Style:</strong> @Themes.ActiveComponentTheme.Title</span>
+                    </div>
+
+                    <div class="theme-used-block">
+                        <strong>Used themes</strong>
+                        <div class="theme-used-list">
+                            @foreach (var theme in UsedThemes)
+                            {
+                                <span class="theme-used-chip @theme.IconCssClass" title="@theme.Name">@theme.Title</span>
+                            }
+                        </div>
+                    </div>
+
+                    @if (Themes.FusionRoute.Count == 0)
+                    {
+                        <p class="theme-route-empty">No selection route has been recorded yet.</p>
+                    }
+                    else
+                    {
+                        <ol class="theme-route-list">
+                            @foreach (var step in Themes.FusionRoute)
+                            {
+                                <li class="theme-route-step">
+                                    <span class="theme-route-number">@step.Sequence</span>
+                                    <span class="theme-route-target @GetTargetCssClass(step.Target)">@GetTargetTitle(step.Target)</span>
+                                    <span class="theme-route-theme" title="@step.ThemeName">@Themes.GetThemeTitle(step.ThemeName)</span>
+                                </li>
+                            }
+                        </ol>
+                    }
+
+                    <div class="theme-route-reset">
+                        <button type="button"
+                                class="localgpt-native-button"
+                                disabled="@(Themes.ThemeChangeRequestDispatcher is null)"
+                                @onclick="ResetFusionRouteAsync">
+                            Reset route
+                        </button>
+                        <small>Keeps the current Base Theme and Style Layer, removes earlier swaps, then reloads the page cleanly.</small>
+                    </div>
                 </div>
             </section>
         </div>
@@ -80,6 +134,13 @@
         ? Shown ? "themeswitcher-container-shown" : "themeswitcher-container-hidden"
         : string.Empty;
 
+    IEnumerable<Theme> UsedThemes => Themes.FusionRoute
+        .Select(step => Themes.FindThemeByName(step.ThemeName))
+        .Where(theme => theme is not null)
+        .Cast<Theme>()
+        .GroupBy(theme => theme.Name, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.First());
+
     bool IsLoaded { get; set; }
     bool disposedValue;
 
@@ -104,6 +165,12 @@
     bool IsComponentThemeActive(Theme theme) =>
         string.Equals(ComponentThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
 
+    string GetTargetTitle(ThemeApplicationTarget target) =>
+        target == ThemeApplicationTarget.Shell ? "Base" : "Style";
+
+    string GetTargetCssClass(ThemeApplicationTarget target) =>
+        target == ThemeApplicationTarget.Shell ? "theme-route-target-base" : "theme-route-target-style";
+
     async Task ThemeSwitcherItem_Click(Theme theme, ThemeApplicationTarget target)
     {
         try
@@ -124,6 +191,29 @@
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             Logger.LogError(ex, "Theme Fusion selection failed; selected theme details were omitted from logs.");
             ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), nameof(ThemeSwitcherItem_Click), ex);
+        }
+    }
+
+    async Task ResetFusionRouteAsync()
+    {
+        try
+        {
+            if (Themes.ThemeChangeRequestDispatcher is null)
+                throw new InvalidOperationException("The theme change dispatcher is not ready yet.");
+
+            await Themes.ThemeChangeRequestDispatcher
+                .ResetFusionRouteAsync()
+                .ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // The requested clean reload can cancel the current circuit callback.
+        }
+        catch (Exception ex)
+        {
+            Notifier.ShowError(toastName, "The Theme Fusion route could not be reset. See local logs for details.", "Route reset failed");
+            Logger.LogError(ex, "Theme Fusion route reset request failed.");
+            ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), nameof(ResetFusionRouteAsync), ex);
         }
     }
 

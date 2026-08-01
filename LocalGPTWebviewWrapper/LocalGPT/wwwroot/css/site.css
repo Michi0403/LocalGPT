@@ -331,8 +331,8 @@ html, body {
 .localgpt-overlays-hidden .human-approval-bar,.localgpt-overlays-hidden .human-inbox-launcher,.localgpt-overlays-hidden .council-spooler-launcher { display:none!important; }
 
 /* User-defined AI Council social structures. */
-.council-team-list-actions{display:grid;gap:.5rem}.council-structure-mode{display:grid;gap:.2rem;padding:.75rem 1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-raised-bg)}.council-structure-mode.default-mode{box-shadow:inset .25rem 0 0 var(--localgpt-primary)}.council-structure-mode.custom-mode{box-shadow:inset .25rem 0 0 var(--bs-success)}.council-structure-mode span{color:var(--localgpt-secondary-color)}.council-structure-section{display:grid;gap:.75rem;padding:1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius-lg);background:var(--localgpt-control-bg)}.council-structure-section>header,.council-workflow-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.council-structure-section h2{margin:0;font-size:1.15rem}.council-structure-section p{margin:.2rem 0 0;color:var(--localgpt-secondary-color)}.council-role-card,.council-workflow-card{display:grid;gap:.75rem;padding:.8rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-bg)}.council-role-card{grid-template-columns:repeat(2,minmax(0,1fr))}.council-role-card label,.council-workflow-fields label{display:grid;gap:.3rem}.council-role-card .wide,.council-workflow-fields .wide{grid-column:1/-1}.council-role-card>button{justify-self:end;grid-column:1/-1}.council-workflow-card>header small{display:block;color:var(--localgpt-secondary-color)}.council-step-actions,.council-step-options,.council-json-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.council-workflow-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.council-step-options{padding-top:.25rem;border-top:1px solid var(--localgpt-border-color)}.council-empty-structure{padding:.75rem;border:1px dashed var(--localgpt-border-color);border-radius:var(--localgpt-radius);color:var(--localgpt-secondary-color)}.council-advanced-section{padding:.75rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-bg)}.council-advanced-section>summary{cursor:pointer;font-weight:700}.council-advanced-section[open]>summary{margin-bottom:.75rem}.council-expanded-count{margin-right:auto;font-weight:700;color:var(--localgpt-secondary-color)}
-@media(max-width:900px){.council-role-card,.council-workflow-fields{grid-template-columns:1fr}.council-role-card .wide,.council-workflow-fields .wide{grid-column:auto}.council-structure-section>header,.council-workflow-card>header{flex-direction:column}.council-step-actions{width:100%}}
+.council-team-list-actions{display:grid;gap:.5rem}.council-structure-mode{display:grid;gap:.2rem;padding:.75rem 1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-raised-bg)}.council-structure-mode.default-mode{box-shadow:inset .25rem 0 0 var(--localgpt-primary)}.council-structure-mode.custom-mode{box-shadow:inset .25rem 0 0 var(--bs-success)}.council-structure-mode span{color:var(--localgpt-secondary-color)}.council-structure-section{display:grid;gap:.75rem;padding:1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius-lg);background:var(--localgpt-control-bg)}.council-structure-section>header,.council-workflow-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.council-structure-section h2{margin:0;font-size:1.15rem}.council-structure-section p{margin:.2rem 0 0;color:var(--localgpt-secondary-color)}.council-role-card,.council-workflow-card{display:grid;gap:.75rem;padding:.8rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-bg)}.council-role-card{grid-template-columns:repeat(2,minmax(0,1fr))}.council-role-card label,.council-workflow-fields label{display:grid;gap:.3rem}.council-role-card .wide,.council-workflow-fields .wide{grid-column:1/-1}.council-role-card>button{justify-self:end;grid-column:1/-1}.council-role-card-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding-bottom:.55rem;border-bottom:1px solid var(--localgpt-border-color)}.council-role-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.4rem}.council-role-badge{display:inline-flex;align-items:center;min-height:1.7rem;padding:.18rem .55rem;border:1px solid var(--localgpt-border-color);border-radius:999px;background:var(--localgpt-surface-raised-bg);font-size:.78rem;font-weight:700;line-height:1.15}.council-role-badge.ai{box-shadow:inset .18rem 0 0 var(--localgpt-primary)}.council-role-badge.human-none{color:var(--localgpt-secondary-color)}.council-role-badge.human-optional{box-shadow:inset .18rem 0 0 var(--bs-info)}.council-role-badge.human-required{box-shadow:inset .18rem 0 0 var(--bs-warning)}.council-role-badge.human-only{box-shadow:inset .18rem 0 0 var(--bs-success)}.council-role-policy-grid{display:grid;grid-template-columns:minmax(12rem,1.4fr) repeat(2,minmax(8rem,.7fr)) minmax(12rem,1.2fr);gap:.65rem;padding:.7rem;border:1px dashed var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-raised-bg)}.council-role-policy-grid label{display:grid;gap:.3rem}.council-role-policy-help{margin:0;color:var(--localgpt-secondary-color);font-size:.9rem}.council-workflow-card>header small{display:block;color:var(--localgpt-secondary-color)}.council-step-actions,.council-step-options,.council-json-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.council-workflow-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.council-step-options{padding-top:.25rem;border-top:1px solid var(--localgpt-border-color)}.council-empty-structure{padding:.75rem;border:1px dashed var(--localgpt-border-color);border-radius:var(--localgpt-radius);color:var(--localgpt-secondary-color)}.council-advanced-section{padding:.75rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-bg)}.council-advanced-section>summary{cursor:pointer;font-weight:700}.council-advanced-section[open]>summary{margin-bottom:.75rem}.council-expanded-count{margin-right:auto;font-weight:700;color:var(--localgpt-secondary-color)}
+@media(max-width:900px){.council-role-card,.council-workflow-fields{grid-template-columns:1fr}.council-role-card .wide,.council-workflow-fields .wide{grid-column:auto}.council-role-policy-grid{grid-template-columns:1fr}.council-role-card-header,.council-structure-section>header,.council-workflow-card>header{flex-direction:column;align-items:flex-start}.council-role-badges{justify-content:flex-start}.council-step-actions{width:100%}}
 
 /* Rejoined Council activity must remain visible even though DevExpress no longer owns the
    generation task in this browser circuit. These rules are global because message templates
@@ -385,5 +385,44 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
     .localgpt-rejoined-live-spinner {
         animation-duration: 1.8s;
+    }
+}
+
+/* Coordinated AI role assignment and bounded workflow-loop editor. */
+.council-role-coordination-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .65rem;
+    padding: .7rem;
+    border: 1px dashed var(--localgpt-border-color);
+    border-radius: var(--localgpt-radius);
+    background: var(--localgpt-surface-raised-bg);
+}
+
+.council-role-coordination-grid label {
+    display: grid;
+    gap: .3rem;
+}
+
+.council-role-badge.pairing {
+    box-shadow: inset .18rem 0 0 var(--bs-purple, #6f42c1);
+}
+
+.council-role-badge.distinct {
+    box-shadow: inset .18rem 0 0 var(--bs-orange, #fd7e14);
+}
+
+/* LocalGPT-owned dialogs use most of the available desktop canvas rather than a narrow side strip. */
+@media (min-width: 900px) {
+    .modal-dialog:not(.modal-sm) {
+        --bs-modal-width: min(75vw, 90rem);
+        width: min(75vw, 90rem);
+        max-width: min(75vw, 90rem);
+    }
+}
+
+@media (max-width: 900px) {
+    .council-role-coordination-grid {
+        grid-template-columns: 1fr;
     }
 }

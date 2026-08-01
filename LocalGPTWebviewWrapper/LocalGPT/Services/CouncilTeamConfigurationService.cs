@@ -16,10 +16,11 @@ public sealed class CouncilTeamConfigurationService(
     IOrganicCouncilBlueprintSeedDataService seedData,
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
-    private const int CurrentSeedVersion = 6;
+    private const int CurrentSeedVersion = 8;
     private const int MaxRoles = 100;
     private const int MaxWorkflowSteps = 100;
     private const int MaxExpandedWorkflowSteps = 100;
+    private const int MaxAiParticipantsPerRole = 100;
     private readonly IReadOnlyList<string> SupportedExecutionModes =
     [
         "AllMembersParallel",
@@ -89,7 +90,7 @@ public sealed class CouncilTeamConfigurationService(
             key,
             request.Team.Roles.Count,
             request.Team.WorkflowSteps.Count,
-            request.Team.WorkflowSteps.Where(step => step.IsEnabled).Sum(step => step.RepeatCount));
+            CalculateMaximumExpandedRounds(request.Team.WorkflowSteps));
         return ToDefinition(row);
     }
 
@@ -161,7 +162,8 @@ Original user request:
         team.MainRoundInstructionTemplate = string.IsNullOrWhiteSpace(team.MainRoundInstructionTemplate)
             ? "Every member contributes democratically according to role, evidence and demonstrated skill. Integrate new human corrections at the next heartbeat without cancelling the active run."
             : team.MainRoundInstructionTemplate;
-        if (team.WorkflowSteps.Count == 0)
+        var useSuppliedDefaultWorkflow = team.WorkflowSteps.Count == 0;
+        if (useSuppliedDefaultWorkflow)
         {
             team.WorkflowSteps =
             [
@@ -173,7 +175,7 @@ Original user request:
             ];
         }
 
-        if (!team.WorkflowSteps.Any(step => string.Equals(step.Key, "member-readiness-introduction", StringComparison.OrdinalIgnoreCase)))
+        if (useSuppliedDefaultWorkflow && !team.WorkflowSteps.Any(step => string.Equals(step.Key, "member-readiness-introduction", StringComparison.OrdinalIgnoreCase)))
         {
             team.WorkflowSteps.Add(new CouncilWorkflowStepDefinition
             {
@@ -191,11 +193,29 @@ Original user request:
             });
         }
 
+        foreach (var role in team.Roles)
+        {
+            role.Role = role.Role?.Trim() ?? string.Empty;
+            role.Expertise = role.Expertise?.Trim() ?? string.Empty;
+            role.Responsibility = role.Responsibility?.Trim() ?? string.Empty;
+            role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;
+            role.MatchAiParticipantCountToRole = role.MatchAiParticipantCountToRole?.Trim() ?? string.Empty;
+            role.PairedRole = role.PairedRole?.Trim() ?? string.Empty;
+            role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, MaxAiParticipantsPerRole);
+            role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, role.MinimumAiParticipants, MaxAiParticipantsPerRole);
+        }
+
         foreach (var step in team.WorkflowSteps)
         {
             step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
             step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
+            step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
+            step.MaximumLoopIterations = string.IsNullOrWhiteSpace(step.LoopGroup)
+                ? 1
+                : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
+            step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
         }
+        NormalizeLoopGroups(team.WorkflowSteps);
         team.WorkflowSteps = team.WorkflowSteps.OrderBy(step => step.SortOrder).ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
@@ -227,7 +247,57 @@ Original user request:
             role.Role = role.Role?.Trim() ?? string.Empty;
             role.Expertise = role.Expertise?.Trim() ?? string.Empty;
             role.Responsibility = role.Responsibility?.Trim() ?? string.Empty;
+            role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;
+            role.MatchAiParticipantCountToRole = role.MatchAiParticipantCountToRole?.Trim() ?? string.Empty;
+            role.PairedRole = role.PairedRole?.Trim() ?? string.Empty;
+
+            if (!Enum.IsDefined(typeof(CouncilRoleAiSelectionMode), role.AiSelectionMode))
+                role.AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected;
+            if (!Enum.IsDefined(typeof(HumanParticipationMode), role.HumanParticipationMode))
+                role.HumanParticipationMode = HumanParticipationMode.None;
+
+            role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, MaxAiParticipantsPerRole);
+            role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, 1, MaxAiParticipantsPerRole);
+            if (role.AiSelectionMode == CouncilRoleAiSelectionMode.RandomRange &&
+                role.MinimumAiParticipants > role.MaximumAiParticipants)
+            {
+                throw new InvalidOperationException(
+                    $"Role '{role.Role}' has a minimum AI participant count greater than its maximum.");
+            }
         }
+
+        var duplicateRoleNames = team.Roles
+            .Where(role => !string.IsNullOrWhiteSpace(role.Role))
+            .GroupBy(role => role.Role, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
+        if (duplicateRoleNames.Count > 0)
+            throw new InvalidOperationException($"Role names must be unique. Duplicate role(s): {string.Join(", ", duplicateRoleNames)}.");
+
+        var rolesByName = team.Roles
+            .Where(role => !string.IsNullOrWhiteSpace(role.Role))
+            .ToDictionary(role => role.Role, StringComparer.OrdinalIgnoreCase);
+        foreach (var role in team.Roles)
+        {
+            if (!string.IsNullOrWhiteSpace(role.MatchAiParticipantCountToRole))
+            {
+                if (string.Equals(role.Role, role.MatchAiParticipantCountToRole, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"Role '{role.Role}' cannot match its AI participant count to itself.");
+                if (!rolesByName.ContainsKey(role.MatchAiParticipantCountToRole))
+                    throw new InvalidOperationException($"Role '{role.Role}' matches its AI participant count to missing role '{role.MatchAiParticipantCountToRole}'.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(role.PairedRole))
+            {
+                if (string.Equals(role.Role, role.PairedRole, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"Role '{role.Role}' cannot be paired with itself.");
+                if (!rolesByName.ContainsKey(role.PairedRole))
+                    throw new InvalidOperationException($"Role '{role.Role}' references missing paired role '{role.PairedRole}'.");
+            }
+        }
+        ValidateRoleCountReferenceCycles(team.Roles);
+        ValidateDistinctAssignmentGroups(team.Roles);
 
         var duplicateKeys = team.WorkflowSteps
             .Where(step => !string.IsNullOrWhiteSpace(step.Key))
@@ -249,14 +319,24 @@ Original user request:
             step.AssignedModelName = step.AssignedModelName?.Trim() ?? string.Empty;
             step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
             step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
+            step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
+            step.MaximumLoopIterations = string.IsNullOrWhiteSpace(step.LoopGroup)
+                ? 1
+                : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
+            step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(step.LoopGroup) && !string.IsNullOrWhiteSpace(step.LoopCompletionMarker))
+                throw new InvalidOperationException($"Workflow step '{step.DisplayName}' defines a loop completion marker without a loop group.");
         }
+
+        NormalizeLoopGroups(team.WorkflowSteps);
+        ValidateLoopGroups(team.WorkflowSteps);
 
         var enabledSteps = team.WorkflowSteps.Where(step => step.IsEnabled).ToList();
         if (enabledSteps.Count == 0)
             throw new InvalidOperationException("Enable at least one workflow step before saving the council team.");
-        var expandedCount = enabledSteps.Sum(step => step.RepeatCount);
+        var expandedCount = CalculateMaximumExpandedRounds(enabledSteps);
         if (expandedCount > MaxExpandedWorkflowSteps)
-            throw new InvalidOperationException($"The enabled workflow expands to {expandedCount} rounds. The technical limit is {MaxExpandedWorkflowSteps} per run.");
+            throw new InvalidOperationException($"The enabled workflow can expand to {expandedCount} rounds including bounded loops. The technical limit is {MaxExpandedWorkflowSteps} per run.");
 
         team.WorkflowSteps = team.WorkflowSteps
             .OrderBy(step => step.SortOrder)
@@ -264,6 +344,119 @@ Original user request:
             .ToList();
         team.PreferredCapabilities = team.PreferredCapabilities.Select(value => value?.Trim() ?? string.Empty).Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         team.ArchitectureContracts = team.ArchitectureContracts.Select(value => value?.Trim() ?? string.Empty).Where(value => value.Length > 0).ToList();
+    }
+
+    private void ValidateRoleCountReferenceCycles(IReadOnlyList<OrganicCouncilRoleDefinition> roles)
+    {
+        var byName = roles
+            .Where(role => !string.IsNullOrWhiteSpace(role.Role))
+            .ToDictionary(role => role.Role, StringComparer.OrdinalIgnoreCase);
+        foreach (var role in roles)
+        {
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var current = role;
+            while (!string.IsNullOrWhiteSpace(current.MatchAiParticipantCountToRole) &&
+                   byName.TryGetValue(current.MatchAiParticipantCountToRole, out var next))
+            {
+                if (!visited.Add(current.Role))
+                    throw new InvalidOperationException($"Role AI participant count references contain a cycle involving '{role.Role}'.");
+                current = next;
+            }
+        }
+    }
+
+    private void ValidateDistinctAssignmentGroups(IReadOnlyList<OrganicCouncilRoleDefinition> roles)
+    {
+        foreach (var group in roles
+                     .Where(role => !string.IsNullOrWhiteSpace(role.DistinctAiAssignmentGroup) &&
+                                    role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
+                     .GroupBy(role => role.DistinctAiAssignmentGroup, StringComparer.OrdinalIgnoreCase))
+        {
+            if (group.Count() > 1 && group.Any(role => role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected))
+            {
+                throw new InvalidOperationException(
+                    $"Distinct AI assignment group '{group.Key}' contains more than one AI role, so every role in that group must use a bounded random range instead of all selected AIs.");
+            }
+        }
+    }
+
+    private void NormalizeLoopGroups(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
+    {
+        foreach (var group in steps
+                     .Where(step => !string.IsNullOrWhiteSpace(step.LoopGroup))
+                     .GroupBy(step => step.LoopGroup, StringComparer.OrdinalIgnoreCase))
+        {
+            var maximumIterations = group.Max(step => Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps));
+            foreach (var step in group)
+                step.MaximumLoopIterations = maximumIterations;
+        }
+    }
+
+    private void ValidateLoopGroups(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
+    {
+        var ordered = steps
+            .Where(step => step.IsEnabled)
+            .OrderBy(step => step.SortOrder)
+            .ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var completedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? activeGroup = null;
+        foreach (var step in ordered)
+        {
+            var group = string.IsNullOrWhiteSpace(step.LoopGroup) ? null : step.LoopGroup;
+            if (string.Equals(group, activeGroup, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (activeGroup is not null)
+                completedGroups.Add(activeGroup);
+            if (group is not null && completedGroups.Contains(group))
+                throw new InvalidOperationException($"Loop group '{group}' must occupy one consecutive block in workflow sort order.");
+            activeGroup = group;
+        }
+
+        foreach (var group in ordered
+                     .Where(step => !string.IsNullOrWhiteSpace(step.LoopGroup))
+                     .GroupBy(step => step.LoopGroup, StringComparer.OrdinalIgnoreCase))
+        {
+            var markers = group
+                .Where(step => !string.IsNullOrWhiteSpace(step.LoopCompletionMarker))
+                .Select(step => step.LoopCompletionMarker)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (markers.Count > 1)
+                throw new InvalidOperationException($"Loop group '{group.Key}' defines multiple different completion markers. Use one marker for the whole loop.");
+        }
+    }
+
+    private int CalculateMaximumExpandedRounds(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
+    {
+        var ordered = steps
+            .Where(step => step.IsEnabled)
+            .OrderBy(step => step.SortOrder)
+            .ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var total = 0;
+        for (var index = 0; index < ordered.Count;)
+        {
+            var step = ordered[index];
+            if (string.IsNullOrWhiteSpace(step.LoopGroup))
+            {
+                total += Math.Max(1, step.RepeatCount);
+                index++;
+                continue;
+            }
+
+            var loopGroup = step.LoopGroup;
+            var blockRounds = 0;
+            var maximumIterations = 1;
+            while (index < ordered.Count && string.Equals(ordered[index].LoopGroup, loopGroup, StringComparison.OrdinalIgnoreCase))
+            {
+                blockRounds += Math.Max(1, ordered[index].RepeatCount);
+                maximumIterations = Math.Max(maximumIterations, Math.Max(1, ordered[index].MaximumLoopIterations));
+                index++;
+            }
+            total += blockRounds * maximumIterations;
+        }
+        return total;
     }
 
     private string NormalizeExecutionMode(string? value)

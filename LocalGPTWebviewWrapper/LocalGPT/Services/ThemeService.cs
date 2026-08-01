@@ -17,14 +17,17 @@ public sealed class ThemeService
     public const string ShellThemeCookieName = "ActiveShellTheme";
     public const string ComponentThemeCookieName = "ActiveComponentTheme";
     public const string LocalThemeContractPath = "css/localgpt-theme-contract.css";
+    public const int MaxFusionRouteSteps = 256;
 
     private readonly ILogger<ThemeService> logger;
     private readonly IServiceActivityService serviceActivity;
     private readonly IReadOnlyDictionary<string, string> highlightJsThemeNames;
     private readonly Dictionary<string, Theme> themesByName;
     private readonly Theme defaultTheme;
+    private readonly List<ThemeFusionStep> fusionRoute = [];
     private Theme activeShellTheme;
     private Theme activeComponentTheme;
+    private int nextFusionRouteSequence = 1;
 
     public ThemeService(
         ILogger<ThemeService> logger,
@@ -54,6 +57,7 @@ public sealed class ThemeService
 
     public bool IsInitialized { get; private set; }
     public List<ThemeSet> ThemeSets { get; }
+    public IReadOnlyList<ThemeFusionStep> FusionRoute => fusionRoute;
     public IThemeChangeRequestDispatcher? ThemeChangeRequestDispatcher { get; set; }
     public IThemeLoadNotifier? ThemeLoadNotifier { get; set; }
     public event Action<Theme>? ActiveShellThemeChanged;
@@ -61,6 +65,124 @@ public sealed class ThemeService
     public event Action<Theme>? ActiveThemeChanged;
 
     public Theme GetThemeOrDefault(string? themeName) => FindThemeByName(themeName) ?? defaultTheme;
+
+    public string GetThemeTitle(string? themeName) =>
+        FindThemeByName(themeName)?.Title
+        ?? (string.IsNullOrWhiteSpace(themeName) ? "Unknown theme" : themeName.Trim());
+
+    public void ReplaceFusionRoute(IEnumerable<ThemeFusionStep>? steps)
+    {
+        try
+        {
+            fusionRoute.Clear();
+            nextFusionRouteSequence = 1;
+
+            if (steps is not null)
+            {
+                foreach (var step in steps.TakeLast(MaxFusionRouteSteps))
+                {
+                    if (FindThemeByName(step.ThemeName) is null
+                        || !Enum.IsDefined(step.Target))
+                    {
+                        continue;
+                    }
+
+                    fusionRoute.Add(new ThemeFusionStep(
+                        nextFusionRouteSequence++,
+                        step.Target,
+                        step.ThemeName));
+                }
+            }
+
+            logger.LogInformation(
+                "Theme Fusion route restored with {StepCount} selection steps.",
+                fusionRoute.Count);
+        }
+        catch (Exception ex)
+        {
+            fusionRoute.Clear();
+            nextFusionRouteSequence = 1;
+            logger.LogError(ex, "Theme Fusion route restoration failed; the route was cleared.");
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(ReplaceFusionRoute), ex);
+            throw;
+        }
+    }
+
+    public void EnsureFusionRouteSeeded()
+    {
+        try
+        {
+            if (fusionRoute.Count > 0)
+                return;
+
+            RecordFusionStep(ThemeApplicationTarget.Shell, activeShellTheme);
+            RecordFusionStep(ThemeApplicationTarget.Components, activeComponentTheme);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Theme Fusion route seeding failed.");
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(EnsureFusionRouteSeeded), ex);
+            throw;
+        }
+    }
+
+    public ThemeFusionStep RecordFusionStep(ThemeApplicationTarget target, Theme theme)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+
+        try
+        {
+            if (!Enum.IsDefined(target))
+                throw new ArgumentOutOfRangeException(nameof(target));
+
+            if (FindThemeByName(theme.Name) is null)
+                throw new InvalidOperationException("Only catalog themes can be added to the Theme Fusion route.");
+
+            if (fusionRoute.Count >= MaxFusionRouteSteps)
+                fusionRoute.RemoveAt(0);
+
+            var step = new ThemeFusionStep(nextFusionRouteSequence++, target, theme.Name);
+            fusionRoute.Add(step);
+
+            logger.LogInformation(
+                "Theme Fusion route step {RouteStep}: {ThemeTarget} selected {ThemeName}.",
+                step.Sequence,
+                target,
+                theme.Name);
+            serviceActivity.RecordInformation(
+                nameof(ThemeService),
+                nameof(RecordFusionStep),
+                $"Theme Fusion route step {step.Sequence}: {target} selected {theme.Name}.");
+            return step;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Theme Fusion route recording failed; selected theme details were omitted from the error message.");
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(RecordFusionStep), ex);
+            throw;
+        }
+    }
+
+    public void ResetFusionRouteToCurrentSelection()
+    {
+        try
+        {
+            fusionRoute.Clear();
+            nextFusionRouteSequence = 1;
+            RecordFusionStep(ThemeApplicationTarget.Shell, activeShellTheme);
+            RecordFusionStep(ThemeApplicationTarget.Components, activeComponentTheme);
+            logger.LogInformation(
+                "Theme Fusion route reset to current Base Theme {ShellTheme} and Style Layer {ComponentTheme}.",
+                activeShellTheme.Name,
+                activeComponentTheme.Name);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Theme Fusion route reset failed.");
+            serviceActivity.RecordFailure(nameof(ThemeService), nameof(ResetFusionRouteToCurrentSelection), ex);
+            throw;
+        }
+    }
 
     public string GetThemeLayerCssClass(string? shellThemeName, string? componentThemeName)
     {

@@ -42,7 +42,33 @@ namespace LocalGPT.Services
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : IMultiModelCouncilService
     {
-   
+        private sealed record CouncilRoleRuntimeAssignment(
+            string RoleName,
+            OrganicCouncilRoleDefinition? Definition,
+            IReadOnlyList<string> AiParticipants)
+        {
+            public HumanParticipationMode HumanParticipationMode =>
+                Definition?.HumanParticipationMode ?? global::LocalGPT.BusinessObjects.HumanParticipationMode.None;
+
+            public string AiSelectionDescription => HumanParticipationMode == global::LocalGPT.BusinessObjects.HumanParticipationMode.HumanOnly
+                ? "no AI members (human-only role)"
+                : Definition is null || Definition.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected
+                    ? $"all {AiParticipants.Count} selected AI member(s)"
+                    : $"{AiParticipants.Count} deterministic-random AI member(s)";
+        }
+
+        private sealed record CouncilParticipantPairing(
+            string RoleName,
+            string Participant,
+            string PairedRoleName,
+            string PairedParticipant);
+
+        private sealed record ConfiguredWorkflowExecutionState(
+            int Round,
+            int ExpandedStepIndex,
+            string PreviousStep,
+            string FallbackAnswer,
+            string FinalAnswer);
 
         public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
         {
@@ -739,6 +765,580 @@ namespace LocalGPT.Services
             return true;
         }
 
+        private Dictionary<string, CouncilRoleRuntimeAssignment> BuildConfiguredRoleAssignments(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            IReadOnlyList<string> participants)
+        {
+            try
+            {
+                var rolesByName = team.Roles
+                    .Where(role => !string.IsNullOrWhiteSpace(role.Role))
+                    .ToDictionary(role => role.Role.Trim(), StringComparer.OrdinalIgnoreCase);
+                var assignments = new Dictionary<string, CouncilRoleRuntimeAssignment>(StringComparer.OrdinalIgnoreCase);
+                var activeRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var roleName in rolesByName.Keys)
+                {
+                    ResolveConfiguredRoleAssignment(
+                        result,
+                        request,
+                        team,
+                        roleName,
+                        participants,
+                        rolesByName,
+                        assignments,
+                        activeRoles);
+                }
+
+                logger.LogInformation(
+                    "Council run {RunId} created {RoleAssignmentCount} configured role assignment(s) for team {TeamKey}.",
+                    result.RunId,
+                    assignments.Count,
+                    team.Key);
+                return assignments;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Council run {RunId} could not create configured role assignments for team {TeamKey}; selected model count {ParticipantCount}.",
+                    result.RunId,
+                    team.Key,
+                    participants.Count);
+                throw;
+            }
+        }
+
+        private CouncilRoleRuntimeAssignment ResolveConfiguredRoleAssignment(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            string roleName,
+            IReadOnlyList<string> participants,
+            IReadOnlyDictionary<string, OrganicCouncilRoleDefinition> rolesByName,
+            IDictionary<string, CouncilRoleRuntimeAssignment> assignments,
+            ISet<string> activeRoles)
+        {
+            try
+            {
+                var normalizedRole = string.IsNullOrWhiteSpace(roleName) ? "Council participant" : roleName.Trim();
+                if (assignments.TryGetValue(normalizedRole, out var existing))
+                    return existing;
+
+                if (!rolesByName.TryGetValue(normalizedRole, out var definition))
+                {
+                    var fallback = new CouncilRoleRuntimeAssignment(normalizedRole, null, participants.ToList());
+                    assignments[normalizedRole] = fallback;
+                    logger.LogWarning(
+                        "Council run {RunId} workflow role {RoleName} has no exact saved role policy; all selected AI models are assigned for compatibility.",
+                        result.RunId,
+                        normalizedRole);
+                    request.ProgressMessage?.Invoke(
+                        $"Role assignment '{normalizedRole}': {fallback.AiSelectionDescription}; no exact saved role policy matched, so all selected AIs are used.");
+                    return fallback;
+                }
+
+                if (!activeRoles.Add(normalizedRole))
+                    throw new InvalidOperationException($"Role AI participant count references contain a runtime cycle involving '{normalizedRole}'.");
+
+                try
+                {
+                    IReadOnlyList<string> selectedAiParticipants;
+                    if (definition.HumanParticipationMode == HumanParticipationMode.HumanOnly)
+                    {
+                        selectedAiParticipants = [];
+                    }
+                    else if (definition.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected)
+                    {
+                        selectedAiParticipants = participants.ToList();
+                    }
+                    else
+                    {
+                        var requestedMinimum = Math.Clamp(definition.MinimumAiParticipants, 1, 100);
+                        var requestedMaximum = Math.Clamp(definition.MaximumAiParticipants, requestedMinimum, 100);
+                        int selectedCount;
+
+                        if (!string.IsNullOrWhiteSpace(definition.MatchAiParticipantCountToRole))
+                        {
+                            var matched = ResolveConfiguredRoleAssignment(
+                                result,
+                                request,
+                                team,
+                                definition.MatchAiParticipantCountToRole,
+                                participants,
+                                rolesByName,
+                                assignments,
+                                activeRoles);
+                            selectedCount = matched.AiParticipants.Count;
+                            if (selectedCount <= 0)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Role '{normalizedRole}' matches its AI participant count to role '{matched.RoleName}', but that role has no AI participant in this run.");
+                            }
+                        }
+                        else
+                        {
+                            selectedCount = -1;
+                        }
+
+                        var pool = BuildConfiguredRoleParticipantPool(definition, participants, assignments);
+                        var pairingReservationMultiplier = GetConfiguredRolePairingReservationMultiplier(definition, rolesByName);
+                        var selectablePoolCount = pairingReservationMultiplier <= 1
+                            ? pool.Count
+                            : pool.Count / pairingReservationMultiplier;
+                        if (selectedCount < 0)
+                        {
+                            if (selectablePoolCount < requestedMinimum)
+                            {
+                                if (!string.IsNullOrWhiteSpace(definition.DistinctAiAssignmentGroup))
+                                {
+                                    var alreadyUsed = participants.Count - pool.Count;
+                                    var pairedReservation = pairingReservationMultiplier > 1
+                                        ? $" and must reserve one distinct paired AI for each '{normalizedRole}' member"
+                                        : string.Empty;
+                                    throw new InvalidOperationException(
+                                        $"Role '{normalizedRole}' requires at least {requestedMinimum} unused AI model(s) in distinct assignment group '{definition.DistinctAiAssignmentGroup}'{pairedReservation}, " +
+                                        $"but the {pool.Count} remaining model(s) support only {selectablePoolCount}. Select more distinct models or lower the saved role range.");
+                                }
+
+                                var warning = $"Role '{normalizedRole}' requests at least {requestedMinimum} AI members, but this run supports only {selectablePoolCount} after paired-role reservations. All available capacity is used for that role.";
+                                if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
+                                    result.Warnings.Add(warning);
+                            }
+
+                            var effectiveMinimum = Math.Min(requestedMinimum, selectablePoolCount);
+                            var effectiveMaximum = Math.Min(requestedMaximum, selectablePoolCount);
+                            if (effectiveMaximum <= 0)
+                                throw new InvalidOperationException($"Role '{normalizedRole}' has no available AI model in this run after paired-role reservations.");
+
+                            var seed = $"{result.RunId:N}|{team.Key}|{normalizedRole}";
+                            var countHash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(seed + "|count"));
+                            var countValue = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(countHash);
+                            var countRange = Math.Max(1, effectiveMaximum - effectiveMinimum + 1);
+                            selectedCount = effectiveMinimum + (int)(countValue % (uint)countRange);
+                        }
+
+                        if (selectedCount > selectablePoolCount)
+                        {
+                            var alreadyUsed = participants.Count - pool.Count;
+                            var pairedReservation = pairingReservationMultiplier > 1
+                                ? $" while reserving {selectedCount} distinct paired-role model(s)"
+                                : string.Empty;
+                            throw new InvalidOperationException(
+                                $"Role '{normalizedRole}' requires {selectedCount} distinct AI model(s){pairedReservation}, but only {pool.Count} remain after {alreadyUsed} model(s) were assigned. " +
+                                $"Select more distinct models for team '{team.DisplayName}'.");
+                        }
+
+                        selectedAiParticipants = DeterministicallySelectConfiguredRoleParticipants(
+                            result.RunId,
+                            team.Key,
+                            normalizedRole,
+                            pool,
+                            selectedCount);
+                    }
+
+                    var assignment = new CouncilRoleRuntimeAssignment(normalizedRole, definition, selectedAiParticipants);
+                    assignments[normalizedRole] = assignment;
+                    logger.LogInformation(
+                        "Council run {RunId} assigned role {RoleName} to AI members {AiMembers} with human mode {HumanMode}, distinct group {DistinctGroup}, matched-count role {MatchedRole} and paired role {PairedRole}.",
+                        result.RunId,
+                        normalizedRole,
+                        selectedAiParticipants.Count == 0 ? "none" : string.Join(", ", selectedAiParticipants),
+                        assignment.HumanParticipationMode,
+                        string.IsNullOrWhiteSpace(definition.DistinctAiAssignmentGroup) ? "none" : definition.DistinctAiAssignmentGroup,
+                        string.IsNullOrWhiteSpace(definition.MatchAiParticipantCountToRole) ? "none" : definition.MatchAiParticipantCountToRole,
+                        string.IsNullOrWhiteSpace(definition.PairedRole) ? "none" : definition.PairedRole);
+                    request.ProgressMessage?.Invoke(
+                        $"Role assignment '{normalizedRole}': {assignment.AiSelectionDescription}; human participation {assignment.HumanParticipationMode}." +
+                        (string.IsNullOrWhiteSpace(definition.DistinctAiAssignmentGroup)
+                            ? string.Empty
+                            : $" Distinct model group: {definition.DistinctAiAssignmentGroup}.") +
+                        (string.IsNullOrWhiteSpace(definition.PairedRole)
+                            ? string.Empty
+                            : $" Paired role: {definition.PairedRole}."));
+                    return assignment;
+                }
+                finally
+                {
+                    activeRoles.Remove(normalizedRole);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Council run {RunId} failed while resolving configured role assignment {RoleName} for team {TeamKey}.",
+                    result.RunId,
+                    roleName,
+                    team.Key);
+                throw;
+            }
+        }
+
+        private IReadOnlyList<string> BuildConfiguredRoleParticipantPool(
+            OrganicCouncilRoleDefinition definition,
+            IReadOnlyList<string> participants,
+            IDictionary<string, CouncilRoleRuntimeAssignment> assignments)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(definition.DistinctAiAssignmentGroup))
+                    return participants.ToList();
+
+                var alreadyAssigned = assignments.Values
+                    .Where(assignment =>
+                        assignment.Definition is not null &&
+                        string.Equals(
+                            assignment.Definition.DistinctAiAssignmentGroup,
+                            definition.DistinctAiAssignmentGroup,
+                            StringComparison.OrdinalIgnoreCase))
+                    .SelectMany(assignment => assignment.AiParticipants)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                return participants
+                    .Where(participant => !alreadyAssigned.Contains(participant))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to build the configured role participant pool for role {RoleName}.", definition.Role);
+                throw;
+            }
+        }
+
+
+        private int GetConfiguredRolePairingReservationMultiplier(
+            OrganicCouncilRoleDefinition definition,
+            IReadOnlyDictionary<string, OrganicCouncilRoleDefinition> rolesByName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(definition.PairedRole) ||
+                    string.IsNullOrWhiteSpace(definition.DistinctAiAssignmentGroup) ||
+                    !rolesByName.TryGetValue(definition.PairedRole, out var pairedRole) ||
+                    pairedRole.HumanParticipationMode == HumanParticipationMode.HumanOnly ||
+                    !string.Equals(
+                        pairedRole.DistinctAiAssignmentGroup,
+                        definition.DistinctAiAssignmentGroup,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(
+                        pairedRole.MatchAiParticipantCountToRole,
+                        definition.Role,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return 1;
+                }
+
+                return 2;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Failed to calculate paired-role model reservation for configured role {RoleName} paired with {PairedRoleName}.",
+                    definition.Role,
+                    definition.PairedRole);
+                throw;
+            }
+        }
+
+        private IReadOnlyList<string> DeterministicallySelectConfiguredRoleParticipants(
+            Guid runId,
+            string teamKey,
+            string roleName,
+            IReadOnlyList<string> pool,
+            int selectedCount)
+        {
+            try
+            {
+                var seed = $"{runId:N}|{teamKey}|{roleName}";
+                return pool
+                    .OrderBy(model => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                        Encoding.UTF8.GetBytes(seed + "|member|" + model))))
+                    .ThenBy(model => model, StringComparer.OrdinalIgnoreCase)
+                    .Take(Math.Clamp(selectedCount, 0, pool.Count))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to select deterministic configured role participants for team {TeamKey}, role {RoleName}.", teamKey, roleName);
+                throw;
+            }
+        }
+
+        private CouncilRoleRuntimeAssignment GetConfiguredRoleAssignment(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            string? roleName,
+            IReadOnlyList<string> participants,
+            IDictionary<string, CouncilRoleRuntimeAssignment> assignments)
+        {
+            try
+            {
+                var normalizedRole = string.IsNullOrWhiteSpace(roleName) ? "Council participant" : roleName.Trim();
+                if (assignments.TryGetValue(normalizedRole, out var assignment))
+                    return assignment;
+
+                assignment = new CouncilRoleRuntimeAssignment(normalizedRole, null, participants.ToList());
+                assignments[normalizedRole] = assignment;
+                logger.LogWarning(
+                    "Council run {RunId} workflow role {RoleName} was not present in the saved role list; all selected models are used.",
+                    result.RunId,
+                    normalizedRole);
+                request.ProgressMessage?.Invoke(
+                    $"Role assignment '{normalizedRole}': all selected AIs; no matching saved role policy exists.");
+                return assignment;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Council run {RunId} failed to obtain workflow role assignment {RoleName}.", result.RunId, roleName);
+                throw;
+            }
+        }
+
+        private IReadOnlyList<CouncilParticipantPairing> BuildConfiguredRolePairings(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            IReadOnlyDictionary<string, CouncilRoleRuntimeAssignment> assignments)
+        {
+            try
+            {
+                var pairings = new List<CouncilParticipantPairing>();
+                var processedRolePairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var role in team.Roles.Where(role => !string.IsNullOrWhiteSpace(role.PairedRole)))
+                {
+                    var leftRole = role.Role.Trim();
+                    var rightRole = role.PairedRole.Trim();
+                    var rolePairKey = string.Compare(leftRole, rightRole, StringComparison.OrdinalIgnoreCase) <= 0
+                        ? $"{leftRole}|{rightRole}"
+                        : $"{rightRole}|{leftRole}";
+                    if (!processedRolePairs.Add(rolePairKey))
+                        continue;
+                    if (!assignments.TryGetValue(leftRole, out var leftAssignment) ||
+                        !assignments.TryGetValue(rightRole, out var rightAssignment))
+                    {
+                        var warning = $"Configured role pairing '{leftRole}' ↔ '{rightRole}' could not be created because one role has no runtime assignment.";
+                        if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
+                            result.Warnings.Add(warning);
+                        continue;
+                    }
+
+                    var pairCount = Math.Min(leftAssignment.AiParticipants.Count, rightAssignment.AiParticipants.Count);
+                    if (pairCount == 0)
+                    {
+                        var warning = $"Configured role pairing '{leftRole}' ↔ '{rightRole}' has no AI participants to pair in this run.";
+                        if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
+                            result.Warnings.Add(warning);
+                        continue;
+                    }
+                    if (leftAssignment.AiParticipants.Count != rightAssignment.AiParticipants.Count)
+                    {
+                        var warning = $"Configured role pairing '{leftRole}' ↔ '{rightRole}' has unequal AI counts ({leftAssignment.AiParticipants.Count} and {rightAssignment.AiParticipants.Count}); only {pairCount} one-to-one pair(s) were created.";
+                        if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
+                            result.Warnings.Add(warning);
+                    }
+
+                    for (var index = 0; index < pairCount; index++)
+                    {
+                        var leftParticipant = leftAssignment.AiParticipants[index];
+                        var rightParticipant = rightAssignment.AiParticipants[index];
+                        pairings.Add(new CouncilParticipantPairing(leftRole, leftParticipant, rightRole, rightParticipant));
+                        pairings.Add(new CouncilParticipantPairing(rightRole, rightParticipant, leftRole, leftParticipant));
+                    }
+                }
+
+                if (pairings.Count > 0)
+                {
+                    var summary = BuildConfiguredRolePairingSummary(pairings);
+                    request.ProgressMessage?.Invoke($"Runtime role pairings:{Environment.NewLine}{summary}");
+                    logger.LogInformation(
+                        "Council run {RunId} created {PairingCount} directional participant pairing(s) for team {TeamKey}: {PairingSummary}",
+                        result.RunId,
+                        pairings.Count,
+                        team.Key,
+                        summary.Replace(Environment.NewLine, " | ", StringComparison.Ordinal));
+                }
+
+                return pairings;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Council run {RunId} failed to build role pairings for team {TeamKey}.", result.RunId, team.Key);
+                throw;
+            }
+        }
+
+        private string BuildConfiguredRolePairingSummary(IReadOnlyList<CouncilParticipantPairing> pairings)
+        {
+            try
+            {
+                var unique = pairings
+                    .Where(pairing => string.Compare(pairing.RoleName, pairing.PairedRoleName, StringComparison.OrdinalIgnoreCase) <= 0)
+                    .Select(pairing => $"- {pairing.RoleName} {pairing.Participant} ↔ {pairing.PairedRoleName} {pairing.PairedParticipant}")
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                return unique.Count == 0
+                    ? "No one-to-one role pairings are configured for this run."
+                    : string.Join(Environment.NewLine, unique);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to build configured role pairing summary.");
+                throw;
+            }
+        }
+
+        private string DescribeConfiguredRoleAiPolicy(OrganicCouncilRoleDefinition role)
+        {
+            if (role.HumanParticipationMode == HumanParticipationMode.HumanOnly)
+                return "human only; no AI model";
+            if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected)
+                return "all selected council AIs";
+            return role.MinimumAiParticipants == role.MaximumAiParticipants
+                ? $"deterministic-random {Math.Max(1, role.MinimumAiParticipants)} AI member(s) per run"
+                : $"deterministic-random {Math.Max(1, role.MinimumAiParticipants)}-{Math.Max(role.MinimumAiParticipants, role.MaximumAiParticipants)} AI member(s) per run";
+        }
+
+        private async Task WaitForConfiguredRoleHumanParticipationAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            CouncilRoleRuntimeAssignment assignment,
+            int round,
+            string phase,
+            int repeatIndex,
+            CancellationToken cancellationToken)
+        {
+            var profile = await humanCollaboration.GetProfileAsync(cancellationToken).ConfigureAwait(false);
+            if (!profile.IsEnabled)
+            {
+                var warning = $"Role '{assignment.RoleName}' requires a human response while the human participant profile is disabled. The run remains safely paused in the Human Collaboration Inbox until a local human answers.";
+                if (!result.Warnings.Contains(warning, StringComparer.OrdinalIgnoreCase))
+                    result.Warnings.Add(warning);
+            }
+
+            var roleSeed = $"{result.RunId:N}|{team.Key}|{assignment.RoleName}|{round}|{repeatIndex}";
+            var fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(roleSeed))).ToLowerInvariant();
+            var roleKey = fingerprint[..16];
+            var requestedAtUtc = DateTime.UtcNow;
+            var spec = new HumanApprovalRequestSpec(
+                CorrelationId: $"council:role:{result.RunId:N}:{round}:{repeatIndex}:{roleKey}",
+                OperationKey: $"council.role.response.{roleKey}.{round}.{repeatIndex}",
+                Title: $"{assignment.RoleName} response required — {phase}",
+                Description: $"The configured council team '{team.DisplayName}' requires a local human to participate as '{assignment.RoleName}' before this round can continue.",
+                RiskLevel: "Low",
+                Source: nameof(MultiModelCouncilService),
+                RequestedBy: team.DisplayName,
+                RequestedRole: assignment.RoleName,
+                CouncilRunId: result.RunId,
+                EarliestCouncilRound: round,
+                RequiredBeforeCompletion: false,
+                IsSensitive: false,
+                RequestKind: vocabulary.Get().HumanRequestGuidance,
+                SuggestedResponsesText: string.Empty,
+                ResponsePrompt: $"Respond as the '{assignment.RoleName}' role for {phase}. The response enters the council transcript as peer evidence.",
+                PrefillText: string.Join(
+                    Environment.NewLine,
+                    new[]
+                    {
+                        $"Role: {assignment.RoleName}",
+                        string.IsNullOrWhiteSpace(assignment.Definition?.Expertise) ? string.Empty : $"Expertise/viewpoint: {assignment.Definition.Expertise}",
+                        string.IsNullOrWhiteSpace(assignment.Definition?.Responsibility) ? string.Empty : $"Responsibility: {assignment.Definition.Responsibility}"
+                    }.Where(value => !string.IsNullOrWhiteSpace(value))),
+                AllowFreeText: true,
+                ParameterFingerprint: fingerprint,
+                QuestionScope: "Member",
+                GateMode: "None",
+                TargetMembersText: profile.DisplayName,
+                RequestedCouncilRound: round,
+                RequestedCouncilPhase: phase);
+
+            var waitingStepAdded = false;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(spec, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (gate.IsAuthorized)
+                {
+                    if (string.IsNullOrWhiteSpace(gate.UserResponse))
+                        throw new InvalidOperationException($"The required human response for role '{assignment.RoleName}' was empty.");
+
+                    humanCollaboration.UpdateCouncilRun(result.RunId, round, phase);
+                    var humanStep = new MultiModelCouncilStep
+                    {
+                        Round = round,
+                        Phase = phase,
+                        ModelName = $"Human: {profile.DisplayName}",
+                        CouncilMembers = [.. result.ModelNames, $"Human: {profile.DisplayName}"],
+                        Role = assignment.RoleName,
+                        Content = gate.UserResponse.Trim(),
+                        VisibleContent = gate.UserResponse.Trim(),
+                        StartedAtUtc = requestedAtUtc,
+                        CompletedAtUtc = DateTime.UtcNow,
+                        DurationSeconds = Math.Max(0, (DateTime.UtcNow - requestedAtUtc).TotalSeconds)
+                    };
+                    MultiModelCouncilServiceAddOrderedStep(result, humanStep, logger);
+                    request.StepCompleted?.Invoke(humanStep);
+                    request.ProgressMessage?.Invoke(
+                        $"Human participant {profile.DisplayName} completed required role '{assignment.RoleName}' for round {round} / {phase}. The response is now peer evidence in the transcript.");
+                    logger.LogInformation(
+                        "Council run {RunId} received the required human response for role {RoleName}, round {Round}, phase {Phase}; response content was omitted from logs.",
+                        result.RunId,
+                        assignment.RoleName,
+                        round,
+                        phase);
+                    return;
+                }
+
+                if (gate.IsDeclined)
+                    throw new InvalidOperationException($"The local human declined required role '{assignment.RoleName}' for {phase}.");
+
+                if (!waitingStepAdded)
+                {
+                    var visible = $"Council paused for required human role '{assignment.RoleName}' before {phase}. Answer the waiting guidance request in Approvals & team to continue.";
+                    var waitingStep = new MultiModelCouncilStep
+                    {
+                        Round = round,
+                        Phase = phase,
+                        ModelName = "LocalGPT: required human role",
+                        CouncilMembers = [.. result.ModelNames, $"Human: {profile.DisplayName}"],
+                        Role = assignment.RoleName,
+                        Content = visible,
+                        VisibleContent = visible,
+                        StartedAtUtc = DateTime.UtcNow,
+                        CompletedAtUtc = DateTime.UtcNow,
+                        DurationSeconds = 0
+                    };
+                    MultiModelCouncilServiceAddOrderedStep(result, waitingStep, logger);
+                    request.StepCompleted?.Invoke(waitingStep);
+                    request.ProgressMessage?.Invoke(visible);
+                    waitingStepAdded = true;
+                }
+
+                humanCollaboration.UpdateCouncilRun(
+                    result.RunId,
+                    round,
+                    $"Awaiting human role: {assignment.RoleName}",
+                    true);
+
+                var changed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                void HandleChanged() => changed.TrySetResult(true);
+                humanCollaboration.Changed += HandleChanged;
+                try
+                {
+                    var fallback = Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                    await Task.WhenAny(changed.Task, fallback).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                finally
+                {
+                    humanCollaboration.Changed -= HandleChanged;
+                }
+            }
+        }
+
         private async Task<string> RunConfiguredWorkflowAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -754,30 +1354,213 @@ namespace LocalGPT.Services
             int modelTimeoutSeconds,
             CancellationToken cancellationToken)
         {
-            var configuredSteps = team.WorkflowSteps
-                .Where(step => step.IsEnabled)
-                .OrderBy(step => step.SortOrder)
-                .ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            if (configuredSteps.Count == 0)
-                throw new InvalidOperationException($"Council team '{team.DisplayName}' has no enabled workflow step.");
-
-            var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
-            var leaderModel = SelectHealthyParticipant(result, participants, requestedLeader);
-            var finalAnswer = string.Empty;
-            var fallbackAnswer = string.Empty;
-            var previousStep = string.Empty;
-            var round = 0;
-            var expandedStepIndex = 0;
-
-            foreach (var definition in configuredSteps)
+            try
             {
+                var configuredSteps = team.WorkflowSteps
+                    .Where(step => step.IsEnabled)
+                    .OrderBy(step => step.SortOrder)
+                    .ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (configuredSteps.Count == 0)
+                    throw new InvalidOperationException($"Council team '{team.DisplayName}' has no enabled workflow step.");
+
+                var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
+                var leaderModel = SelectHealthyParticipant(result, participants, requestedLeader);
+                var roleAssignments = BuildConfiguredRoleAssignments(result, request, team, participants);
+                var rolePairings = BuildConfiguredRolePairings(result, request, team, roleAssignments);
+                var state = new ConfiguredWorkflowExecutionState(0, 0, string.Empty, string.Empty, string.Empty);
+
+                for (var stepIndex = 0; stepIndex < configuredSteps.Count;)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var firstStep = configuredSteps[stepIndex];
+                    if (string.IsNullOrWhiteSpace(firstStep.LoopGroup))
+                    {
+                        state = await ExecuteConfiguredWorkflowDefinitionAsync(
+                            result,
+                            request,
+                            team,
+                            firstStep,
+                            baseUri,
+                            participants,
+                            bootstrap,
+                            modelRoutes,
+                            maxParallelModels,
+                            keepAlive,
+                            ollamaNumGpu,
+                            maxContextTokens,
+                            modelTimeoutSeconds,
+                            leaderModel,
+                            roleAssignments,
+                            rolePairings,
+                            state,
+                            loopGroup: string.Empty,
+                            loopIteration: 1,
+                            loopMaximumIterations: 1,
+                            cancellationToken: cancellationToken).ConfigureAwait(false);
+                        stepIndex++;
+                        continue;
+                    }
+
+                    var loopGroup = firstStep.LoopGroup.Trim();
+                    var loopSteps = new List<CouncilWorkflowStepDefinition>();
+                    while (stepIndex + loopSteps.Count < configuredSteps.Count &&
+                           string.Equals(configuredSteps[stepIndex + loopSteps.Count].LoopGroup, loopGroup, StringComparison.OrdinalIgnoreCase))
+                    {
+                        loopSteps.Add(configuredSteps[stepIndex + loopSteps.Count]);
+                    }
+
+                    var maximumIterations = loopSteps.Max(step => Math.Clamp(step.MaximumLoopIterations, 1, 100));
+                    var completionMarker = loopSteps
+                        .Select(step => step.LoopCompletionMarker?.Trim() ?? string.Empty)
+                        .FirstOrDefault(marker => !string.IsNullOrWhiteSpace(marker)) ?? string.Empty;
+                    var completed = false;
+                    request.ProgressMessage?.Invoke(
+                        $"Starting bounded workflow loop '{loopGroup}' with {loopSteps.Count} step(s), up to {maximumIterations} iteration(s)" +
+                        (string.IsNullOrWhiteSpace(completionMarker) ? "." : $", stopping when '{completionMarker}' appears."));
+
+                    for (var loopIteration = 1; loopIteration <= maximumIterations; loopIteration++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var completionReportedThisIteration = false;
+                        request.ProgressMessage?.Invoke($"Workflow loop '{loopGroup}' iteration {loopIteration}/{maximumIterations} started.");
+                        foreach (var loopStep in loopSteps)
+                        {
+                            var firstLoopStepResultIndex = result.Steps.Count;
+                            state = await ExecuteConfiguredWorkflowDefinitionAsync(
+                                result,
+                                request,
+                                team,
+                                loopStep,
+                                baseUri,
+                                participants,
+                                bootstrap,
+                                modelRoutes,
+                                maxParallelModels,
+                                keepAlive,
+                                ollamaNumGpu,
+                                maxContextTokens,
+                                modelTimeoutSeconds,
+                                leaderModel,
+                                roleAssignments,
+                                rolePairings,
+                                state,
+                                loopGroup,
+                                loopIteration,
+                                maximumIterations,
+                                cancellationToken).ConfigureAwait(false);
+
+                            var configuredStepMarker = loopStep.LoopCompletionMarker?.Trim() ?? string.Empty;
+                            if (!string.IsNullOrWhiteSpace(configuredStepMarker) &&
+                                string.Equals(configuredStepMarker, completionMarker, StringComparison.OrdinalIgnoreCase) &&
+                                ContainsConfiguredLoopCompletionMarker(result.Steps.Skip(firstLoopStepResultIndex), completionMarker))
+                            {
+                                completionReportedThisIteration = true;
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(completionMarker) && completionReportedThisIteration)
+                        {
+                            completed = true;
+                            request.ProgressMessage?.Invoke(
+                                $"Workflow loop '{loopGroup}' completed after iteration {loopIteration}/{maximumIterations}; marker '{completionMarker}' was reported by the configured workflow.");
+                            logger.LogInformation(
+                                "Council run {RunId} completed configured workflow loop {LoopGroup} after {LoopIteration} of {MaximumIterations} iterations using marker {CompletionMarker}.",
+                                result.RunId,
+                                loopGroup,
+                                loopIteration,
+                                maximumIterations,
+                                completionMarker);
+                            break;
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(completionMarker) && !completed)
+                    {
+                        var warning = $"Workflow loop '{loopGroup}' reached its safety limit of {maximumIterations} iteration(s) without completion marker '{completionMarker}'. The run stopped the loop instead of continuing indefinitely.";
+                        result.Warnings.Add(warning);
+                        request.ProgressMessage?.Invoke(warning);
+                        logger.LogWarning(
+                            "Council run {RunId} reached the configured safety limit for loop {LoopGroup} without marker {CompletionMarker}.",
+                            result.RunId,
+                            loopGroup,
+                            completionMarker);
+                    }
+
+                    stepIndex += loopSteps.Count;
+                }
+
+                if (!string.IsNullOrWhiteSpace(state.FinalAnswer))
+                    return state.FinalAnswer;
+                if (!string.IsNullOrWhiteSpace(state.FallbackAnswer))
+                    return state.FallbackAnswer;
+                return "The configured council workflow completed without a substantive visible answer. Review the round prompts, role policies, selected models and local logs.";
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Council run {RunId} failed while executing configured workflow for team {TeamKey}.",
+                    result.RunId,
+                    team.Key);
+                throw;
+            }
+        }
+
+        private async Task<ConfiguredWorkflowExecutionState> ExecuteConfiguredWorkflowDefinitionAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            CouncilWorkflowStepDefinition definition,
+            string baseUri,
+            IReadOnlyList<string> participants,
+            string bootstrap,
+            IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
+            int maxParallelModels,
+            string keepAlive,
+            int? ollamaNumGpu,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
+            string leaderModel,
+            IDictionary<string, CouncilRoleRuntimeAssignment> roleAssignments,
+            IReadOnlyList<CouncilParticipantPairing> rolePairings,
+            ConfiguredWorkflowExecutionState state,
+            string loopGroup,
+            int loopIteration,
+            int loopMaximumIterations,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var round = state.Round;
+                var expandedStepIndex = state.ExpandedStepIndex;
+                var previousStep = state.PreviousStep;
+                var fallbackAnswer = state.FallbackAnswer;
+                var finalAnswer = state.FinalAnswer;
                 var repeatCount = Math.Clamp(definition.RepeatCount, 1, 100);
+
                 for (var repeatIndex = 0; repeatIndex < repeatCount; repeatIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var basePhase = string.IsNullOrWhiteSpace(definition.Phase) ? definition.DisplayName : definition.Phase;
-                    var phase = repeatCount == 1 ? basePhase : $"{basePhase} {repeatIndex + 1}/{repeatCount}";
+                    var phaseParts = new List<string> { basePhase };
+                    if (!string.IsNullOrWhiteSpace(loopGroup))
+                        phaseParts.Add($"loop {loopIteration}/{loopMaximumIterations}");
+                    if (repeatCount > 1)
+                        phaseParts.Add($"repeat {repeatIndex + 1}/{repeatCount}");
+                    var phase = string.Join(" · ", phaseParts);
+                    var roleAssignment = GetConfiguredRoleAssignment(
+                        result,
+                        request,
+                        definition.Role,
+                        participants,
+                        roleAssignments);
+                    var roleParticipants = roleAssignment.AiParticipants;
+
                     if (definition.RequiresHumanCheckpoint)
                     {
                         request.ProgressMessage?.Invoke($"Council workflow is checking the human collaboration gate before configured round {round}: {phase}.");
@@ -790,6 +1573,19 @@ namespace LocalGPT.Services
                             cancellationToken).ConfigureAwait(false);
                     }
 
+                    if (roleAssignment.HumanParticipationMode is HumanParticipationMode.Required or HumanParticipationMode.HumanOnly)
+                    {
+                        await WaitForConfiguredRoleHumanParticipationAsync(
+                            result,
+                            request,
+                            team,
+                            roleAssignment,
+                            round,
+                            phase,
+                            repeatIndex,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
                     var heartbeatBootstrap = await PrepareHumanHeartbeatAsync(
                         result,
                         request,
@@ -799,53 +1595,110 @@ namespace LocalGPT.Services
                         cancellationToken).ConfigureAwait(false);
                     var executionMode = NormalizeConfiguredExecutionMode(definition.ExecutionMode);
                     request.ProgressMessage?.Invoke(
-                        $"Executing configured council round {round}: {definition.DisplayName} / {phase} / {definition.Role} using {executionMode}.");
+                        $"Executing configured council round {round}: {definition.DisplayName} / {phase} / {definition.Role} using {executionMode}; " +
+                        $"role assignment: {roleAssignment.AiSelectionDescription}; human mode {roleAssignment.HumanParticipationMode}; " +
+                        $"organic functions {(definition.CanUseOrganicFunctions ? "allowed" : "disabled")}.");
 
-                    switch (executionMode)
+                    if (roleParticipants.Count == 0)
                     {
-                        case "AllMembersParallel":
-                            {
-                                var transcript = definition.IncludePriorTranscript
-                                    ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
-                                    : string.Empty;
-                                await RunPhaseAsync(
-                                    result,
-                                    baseUri,
-                                    participants,
-                                    round,
-                                    phase,
-                                    definition.Role,
-                                    modelName => RenderConfiguredWorkflowPrompt(
-                                        definition,
-                                        team,
-                                        request,
-                                        modelName,
-                                        participants,
-                                        round,
-                                        repeatIndex,
-                                        repeatCount,
-                                        transcript,
-                                        previousStep),
-                                    heartbeatBootstrap,
-                                    request.MaxOutputTokens,
-                                    maxParallelModels,
-                                    keepAlive,
-                                    ollamaNumGpu,
-                                    maxContextTokens,
-                                    modelTimeoutSeconds,
-                                    request.ProgressMessage,
-                                    request.StreamUpdate,
-                                    request.StepCompleted,
-                                    modelRoutes,
-                                    request.AllowParallelHardwareRoads,
-                                    cancellationToken,
-                                    definition.CanUseOrganicFunctions).ConfigureAwait(false);
-                                break;
-                            }
-                        case "AllMembersSequential":
-                            {
-                                foreach (var modelName in OrderParticipantsByObservedHealth(result, participants))
+                        request.ProgressMessage?.Invoke(
+                            $"Configured role '{roleAssignment.RoleName}' is human-only. Its human response is the round contribution; no AI model is called.");
+                    }
+                    else
+                    {
+                        switch (executionMode)
+                        {
+                            case "AllMembersParallel":
                                 {
+                                    var transcript = definition.IncludePriorTranscript
+                                        ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
+                                        : string.Empty;
+                                    await RunPhaseAsync(
+                                        result,
+                                        baseUri,
+                                        roleParticipants,
+                                        round,
+                                        phase,
+                                        definition.Role,
+                                        modelName => RenderConfiguredWorkflowPrompt(
+                                            definition,
+                                            team,
+                                            request,
+                                            modelName,
+                                            participants,
+                                            roleAssignment,
+                                            rolePairings,
+                                            round,
+                                            repeatIndex,
+                                            repeatCount,
+                                            loopGroup,
+                                            loopIteration,
+                                            loopMaximumIterations,
+                                            transcript,
+                                            previousStep),
+                                        heartbeatBootstrap,
+                                        request.MaxOutputTokens,
+                                        maxParallelModels,
+                                        keepAlive,
+                                        ollamaNumGpu,
+                                        maxContextTokens,
+                                        modelTimeoutSeconds,
+                                        request.ProgressMessage,
+                                        request.StreamUpdate,
+                                        request.StepCompleted,
+                                        modelRoutes,
+                                        request.AllowParallelHardwareRoads,
+                                        cancellationToken,
+                                        allowDxFunctions: definition.CanUseOrganicFunctions,
+                                        councilMembers: participants).ConfigureAwait(false);
+                                    break;
+                                }
+                            case "AllMembersSequential":
+                                {
+                                    foreach (var modelName in OrderParticipantsByObservedHealth(result, roleParticipants))
+                                    {
+                                        var transcript = definition.IncludePriorTranscript
+                                            ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
+                                            : string.Empty;
+                                        await RunConfiguredParticipantAsync(
+                                            result,
+                                            request,
+                                            definition,
+                                            team,
+                                            baseUri,
+                                            participants,
+                                            roleAssignment,
+                                            rolePairings,
+                                            modelName,
+                                            round,
+                                            phase,
+                                            repeatIndex,
+                                            repeatCount,
+                                            loopGroup,
+                                            loopIteration,
+                                            loopMaximumIterations,
+                                            transcript,
+                                            previousStep,
+                                            heartbeatBootstrap,
+                                            modelRoutes,
+                                            keepAlive,
+                                            ollamaNumGpu,
+                                            maxContextTokens,
+                                            modelTimeoutSeconds,
+                                            cancellationToken).ConfigureAwait(false);
+                                    }
+                                    break;
+                                }
+                            default:
+                                {
+                                    var modelName = SelectConfiguredWorkflowParticipant(
+                                        result,
+                                        request,
+                                        definition,
+                                        executionMode,
+                                        roleParticipants,
+                                        leaderModel,
+                                        expandedStepIndex);
                                     var transcript = definition.IncludePriorTranscript
                                         ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
                                         : string.Empty;
@@ -856,11 +1709,16 @@ namespace LocalGPT.Services
                                         team,
                                         baseUri,
                                         participants,
+                                        roleAssignment,
+                                        rolePairings,
                                         modelName,
                                         round,
                                         phase,
                                         repeatIndex,
                                         repeatCount,
+                                        loopGroup,
+                                        loopIteration,
+                                        loopMaximumIterations,
                                         transcript,
                                         previousStep,
                                         heartbeatBootstrap,
@@ -870,49 +1728,17 @@ namespace LocalGPT.Services
                                         maxContextTokens,
                                         modelTimeoutSeconds,
                                         cancellationToken).ConfigureAwait(false);
+                                    break;
                                 }
-                                break;
-                            }
-                        default:
-                            {
-                                var modelName = SelectConfiguredWorkflowParticipant(
-                                    result,
-                                    request,
-                                    definition,
-                                    executionMode,
-                                    participants,
-                                    leaderModel,
-                                    expandedStepIndex);
-                                var transcript = definition.IncludePriorTranscript
-                                    ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
-                                    : string.Empty;
-                                await RunConfiguredParticipantAsync(
-                                    result,
-                                    request,
-                                    definition,
-                                    team,
-                                    baseUri,
-                                    participants,
-                                    modelName,
-                                    round,
-                                    phase,
-                                    repeatIndex,
-                                    repeatCount,
-                                    transcript,
-                                    previousStep,
-                                    heartbeatBootstrap,
-                                    modelRoutes,
-                                    keepAlive,
-                                    ollamaNumGpu,
-                                    maxContextTokens,
-                                    modelTimeoutSeconds,
-                                    cancellationToken).ConfigureAwait(false);
-                                break;
-                            }
+                        }
                     }
 
                     var roundSteps = result.Steps
-                        .Where(step => step.Round == round && string.Equals(step.Phase, phase, StringComparison.Ordinal) && participants.Contains(step.ModelName, StringComparer.OrdinalIgnoreCase))
+                        .Where(step =>
+                            step.Round == round &&
+                            string.Equals(step.Phase, phase, StringComparison.Ordinal) &&
+                            (roleParticipants.Contains(step.ModelName, StringComparer.OrdinalIgnoreCase) ||
+                             step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase)))
                         .ToList();
                     var stageAnswer = BuildConfiguredWorkflowStageAnswer(roundSteps);
                     if (!string.IsNullOrWhiteSpace(stageAnswer))
@@ -930,13 +1756,42 @@ namespace LocalGPT.Services
                     round++;
                     expandedStepIndex++;
                 }
-            }
 
-            if (!string.IsNullOrWhiteSpace(finalAnswer))
-                return finalAnswer;
-            if (!string.IsNullOrWhiteSpace(fallbackAnswer))
-                return fallbackAnswer;
-            return "The configured council workflow completed without a substantive visible answer. Review the round prompts, selected models and local logs.";
+                return new ConfiguredWorkflowExecutionState(round, expandedStepIndex, previousStep, fallbackAnswer, finalAnswer);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Council run {RunId} failed while executing configured workflow definition {StepKey} for role {RoleName}.",
+                    result.RunId,
+                    definition.Key,
+                    definition.Role);
+                throw;
+            }
+        }
+
+        private bool ContainsConfiguredLoopCompletionMarker(
+            IEnumerable<MultiModelCouncilStep> steps,
+            string completionMarker)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(completionMarker))
+                    return false;
+                return steps.Any(step =>
+                    (!string.IsNullOrWhiteSpace(step.VisibleContent) && step.VisibleContent.Contains(completionMarker, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(step.Content) && step.Content.Contains(completionMarker, StringComparison.OrdinalIgnoreCase)));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to inspect configured workflow output for completion marker {CompletionMarker}.", completionMarker);
+                throw;
+            }
         }
 
         private async Task RunConfiguredParticipantAsync(
@@ -946,11 +1801,16 @@ namespace LocalGPT.Services
             OrganicCouncilTeamDefinition team,
             string baseUri,
             IReadOnlyList<string> participants,
+            CouncilRoleRuntimeAssignment roleAssignment,
+            IReadOnlyList<CouncilParticipantPairing> rolePairings,
             string modelName,
             int round,
             string phase,
             int repeatIndex,
             int repeatCount,
+            string loopGroup,
+            int loopIteration,
+            int loopMaximumIterations,
             string transcript,
             string previousStep,
             string bootstrap,
@@ -994,9 +1854,14 @@ namespace LocalGPT.Services
                             request,
                             modelName,
                             participants,
+                            roleAssignment,
+                            rolePairings,
                             round,
                             repeatIndex,
                             repeatCount,
+                            loopGroup,
+                            loopIteration,
+                            loopMaximumIterations,
                             transcript,
                             previousStep),
                         bootstrap,
@@ -1048,11 +1913,12 @@ namespace LocalGPT.Services
                     return SelectHealthyParticipant(result, participants, assigned);
 
                 result.Warnings.Add(
-                    $"Configured round '{definition.DisplayName}' requested model '{definition.AssignedModelName}', but that model is not selected for this run. The healthy council leader was used instead.");
+                    $"Configured round '{definition.DisplayName}' requested model '{definition.AssignedModelName}', but that model is not assigned to role '{definition.Role}' for this run. A healthy assigned role member was used instead.");
             }
 
             var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
-            return SelectHealthyParticipant(result, participants, requestedLeader ?? leaderModel);
+            var roleLeader = participants.FirstOrDefault(model => string.Equals(model, leaderModel, StringComparison.OrdinalIgnoreCase));
+            return SelectHealthyParticipant(result, participants, requestedLeader ?? roleLeader);
         }
 
         private string RenderConfiguredWorkflowPrompt(
@@ -1061,9 +1927,14 @@ namespace LocalGPT.Services
             MultiModelCouncilRequest request,
             string modelName,
             IReadOnlyList<string> participants,
+            CouncilRoleRuntimeAssignment roleAssignment,
+            IReadOnlyList<CouncilParticipantPairing> rolePairings,
             int round,
             int repeatIndex,
             int repeatCount,
+            string loopGroup,
+            int loopIteration,
+            int loopMaximumIterations,
             string transcript,
             string previousStep)
         {
@@ -1074,9 +1945,28 @@ namespace LocalGPT.Services
             var hasTranscriptPlaceholder = template.Contains("{{Transcript}}", StringComparison.Ordinal);
             var roleSummary = string.Join(
                 Environment.NewLine,
-                team.Roles.Select(role => $"- {role.Role}: {role.Expertise}. Responsibility: {role.Responsibility}"));
+                team.Roles.Select(role =>
+                    $"- {role.Role}: {role.Expertise}. Responsibility: {role.Responsibility}. " +
+                    $"AI assignment: {DescribeConfiguredRoleAiPolicy(role)}. Human participation: {role.HumanParticipationMode}."));
             var boundedTranscript = transcript.Length <= 160000 ? transcript : transcript[^160000..];
             var boundedPreviousStep = previousStep.Length <= 80000 ? previousStep : previousStep[^80000..];
+            var roleMembers = roleAssignment.AiParticipants.Count == 0
+                ? "No AI members; the role is performed by the human participant."
+                : string.Join(", ", roleAssignment.AiParticipants);
+            var roleExpertise = roleAssignment.Definition?.Expertise ?? string.Empty;
+            var roleResponsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
+            var participantPairings = rolePairings
+                .Where(pairing =>
+                    string.Equals(pairing.RoleName, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(pairing.Participant, modelName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var pairedParticipants = participantPairings.Count == 0
+                ? "No paired participant is assigned to this model."
+                : string.Join(", ", participantPairings.Select(pairing => $"{pairing.PairedRoleName}: {pairing.PairedParticipant}"));
+            var pairedRole = participantPairings.Count == 0
+                ? roleAssignment.Definition?.PairedRole ?? string.Empty
+                : string.Join(", ", participantPairings.Select(pairing => pairing.PairedRoleName).Distinct(StringComparer.OrdinalIgnoreCase));
+            var rolePairingSummary = BuildConfiguredRolePairingSummary(rolePairings);
             var rendered = template
                 .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal)
                 .Replace("{{TeamKey}}", team.Key, StringComparison.Ordinal)
@@ -1085,6 +1975,17 @@ namespace LocalGPT.Services
                 .Replace("{{UserPrompt}}", request.Prompt, StringComparison.Ordinal)
                 .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
                 .Replace("{{CouncilMembers}}", string.Join(", ", participants), StringComparison.Ordinal)
+                .Replace("{{RoleMembers}}", roleMembers, StringComparison.Ordinal)
+                .Replace("{{RoleAiSelection}}", roleAssignment.AiSelectionDescription, StringComparison.Ordinal)
+                .Replace("{{HumanParticipationMode}}", roleAssignment.HumanParticipationMode.ToString(), StringComparison.Ordinal)
+                .Replace("{{RoleExpertise}}", roleExpertise, StringComparison.Ordinal)
+                .Replace("{{RoleResponsibility}}", roleResponsibility, StringComparison.Ordinal)
+                .Replace("{{PairedParticipant}}", pairedParticipants, StringComparison.Ordinal)
+                .Replace("{{PairedRole}}", pairedRole, StringComparison.Ordinal)
+                .Replace("{{RolePairings}}", rolePairingSummary, StringComparison.Ordinal)
+                .Replace("{{LoopGroup}}", loopGroup, StringComparison.Ordinal)
+                .Replace("{{LoopIteration}}", loopIteration.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                .Replace("{{LoopMaximumIterations}}", loopMaximumIterations.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
                 .Replace("{{Role}}", definition.Role, StringComparison.Ordinal)
                 .Replace("{{Phase}}", definition.Phase, StringComparison.Ordinal)
                 .Replace("{{RoundNumber}}", round.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
@@ -1099,7 +2000,24 @@ namespace LocalGPT.Services
                 rendered = $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}Original user request:{Environment.NewLine}{request.Prompt}";
             if (definition.IncludePriorTranscript && !hasTranscriptPlaceholder && !string.IsNullOrWhiteSpace(boundedTranscript))
                 rendered = $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}Council transcript so far:{Environment.NewLine}{boundedTranscript}";
-            return rendered.Trim();
+
+            var assignmentBriefing = new StringBuilder()
+                .AppendLine("Runtime role assignment for this round:")
+                .Append("- Role: ").AppendLine(roleAssignment.RoleName)
+                .Append("- Assigned AI role members: ").AppendLine(roleMembers)
+                .Append("- AI selection policy: ").AppendLine(roleAssignment.AiSelectionDescription)
+                .Append("- Human participation mode: ").AppendLine(roleAssignment.HumanParticipationMode.ToString());
+            if (!string.IsNullOrWhiteSpace(roleExpertise))
+                assignmentBriefing.Append("- Expertise/viewpoint: ").AppendLine(roleExpertise);
+            if (!string.IsNullOrWhiteSpace(roleResponsibility))
+                assignmentBriefing.Append("- Responsibility: ").AppendLine(roleResponsibility);
+            assignmentBriefing.Append("- Paired participant(s): ").AppendLine(pairedParticipants);
+            assignmentBriefing.Append("- Runtime pairings: ").AppendLine(rolePairingSummary);
+            if (!string.IsNullOrWhiteSpace(loopGroup))
+                assignmentBriefing.Append("- Loop: ").Append(loopGroup).Append(' ').Append(loopIteration).Append('/').AppendLine(loopMaximumIterations.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            assignmentBriefing.AppendLine("Treat the role assignment as workflow structure, not as proof that any participant's answer is correct.");
+
+            return $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}{assignmentBriefing.ToString().Trim()}";
         }
 
         private string BuildConfiguredWorkflowStageAnswer(IReadOnlyList<MultiModelCouncilStep> steps)
@@ -1726,7 +2644,8 @@ namespace LocalGPT.Services
             IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
             bool allowParallelHardwareRoads,
             CancellationToken cancellationToken,
-            bool allowDxFunctions = true)
+            bool allowDxFunctions = true,
+            IReadOnlyList<string>? councilMembers = null)
         {
             try
             {
@@ -1779,7 +2698,7 @@ namespace LocalGPT.Services
                             }
 
                             var step = await RunParticipantAsync(
-                                baseUri, modelName, participants, round, phase, role, promptFactory(modelName), participantBootstrap,
+                                baseUri, modelName, councilMembers ?? participants, round, phase, role, promptFactory(modelName), participantBootstrap,
                                 fallbackPlan.EffectiveMaxOutputTokens, keepAlive, fallbackPlan.OllamaNumGpu, fallbackPlan.EffectiveMaxContextTokens,
                                 modelTimeoutSeconds, streamUpdate, cancellationToken,
                                 fallbackPlan: fallbackPlan,
@@ -1793,7 +2712,7 @@ namespace LocalGPT.Services
                         {
                             return CreateRoundSkippedStep(
                                 modelName,
-                                participants,
+                                councilMembers ?? participants,
                                 round,
                                 phase,
                                 role,

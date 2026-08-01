@@ -83,6 +83,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                 .SetTheme(componentTheme.DevExpressTheme)
                 .ConfigureAwait(true);
 
+            Themes.ReplaceFusionRoute(ConvertBrowserFusionRoute(browserState?.FusionRoute));
+            Themes.EnsureFusionRouteSeeded();
+            await PersistFusionRouteAsync().ConfigureAwait(true);
             await ApplyClientThemeStateAsync().ConfigureAwait(true);
             await NotifyLoadedAsync(shellTheme, ThemeApplicationTarget.Shell).ConfigureAwait(true);
             await NotifyLoadedAsync(componentTheme, ThemeApplicationTarget.Components).ConfigureAwait(true);
@@ -140,6 +143,8 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                 }
 
                 await ApplyClientThemeStateAsync().ConfigureAwait(true);
+                Themes.RecordFusionStep(target, theme);
+                await PersistFusionRouteAsync().ConfigureAwait(true);
                 await NotifyLoadedAsync(theme, target).ConfigureAwait(true);
 
                 ComponentActivity.RecordInformation(
@@ -173,6 +178,46 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                 "ComponentSafetyToasts",
                 "The selected theme could not be applied or stored. See local logs for details.",
                 "Theme change failed");
+        }
+        finally
+        {
+            _changeGate.Release();
+        }
+    }
+
+    public async Task ResetFusionRouteAsync()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        await _changeGate.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            await EnsureModuleAsync().ConfigureAwait(true);
+            Themes.ResetFusionRouteToCurrentSelection();
+            await _module!
+                .InvokeVoidAsync(
+                    "resetFusionRoute",
+                    Themes.ActiveShellTheme.Name,
+                    Themes.ActiveComponentTheme.Name)
+                .ConfigureAwait(true);
+
+            ComponentActivity.RecordInformation(
+                nameof(ThemeJsChangeDispatcher),
+                nameof(ResetFusionRouteAsync),
+                "Theme Fusion route reset to the current Base Theme and Style Layer; a clean reload was requested.");
+        }
+        catch (JSDisconnectedException)
+        {
+            Logger.LogDebug("Theme Fusion route reset completed while the requested page reload disconnected the circuit.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Theme Fusion route reset failed.");
+            ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), nameof(ResetFusionRouteAsync), ex);
+            Notifier.ShowError(
+                "ComponentSafetyToasts",
+                "The Theme Fusion route could not be reset. See local logs for details.",
+                "Theme route reset failed");
         }
         finally
         {
@@ -228,6 +273,56 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             Logger.LogError(ex, "Applying or persisting the browser theme state failed.");
             ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), nameof(ApplyClientThemeStateAsync), ex);
             throw;
+        }
+    }
+
+    private async Task PersistFusionRouteAsync()
+    {
+        try
+        {
+            await EnsureModuleAsync().ConfigureAwait(true);
+            await _module!
+                .InvokeVoidAsync("persistFusionRoute", Themes.FusionRoute)
+                .ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Theme Fusion route persistence failed; the active themes remain usable for this circuit.");
+            ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), nameof(PersistFusionRouteAsync), ex);
+        }
+    }
+
+    private IReadOnlyList<ThemeFusionStep> ConvertBrowserFusionRoute(
+        IReadOnlyList<BrowserThemeFusionStep>? browserSteps)
+    {
+        try
+        {
+            if (browserSteps is null || browserSteps.Count == 0)
+                return [];
+
+            var route = new List<ThemeFusionStep>(Math.Min(browserSteps.Count, ThemeService.MaxFusionRouteSteps));
+            foreach (var browserStep in browserSteps.TakeLast(ThemeService.MaxFusionRouteSteps))
+            {
+                if (string.IsNullOrWhiteSpace(browserStep.ThemeName)
+                    || !Enum.TryParse<ThemeApplicationTarget>(browserStep.Target, true, out var target))
+                {
+                    continue;
+                }
+
+                route.Add(new ThemeFusionStep(route.Count + 1, target, browserStep.ThemeName));
+            }
+
+            return route;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "The browser Theme Fusion route could not be converted into the LocalGPT runtime route.");
+            ComponentActivity.RecordFailure(nameof(ThemeJsChangeDispatcher), nameof(ConvertBrowserFusionRoute), ex);
+            return [];
         }
     }
 
@@ -363,5 +458,13 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     {
         public string? ShellThemeName { get; set; }
         public string? ComponentThemeName { get; set; }
+        public List<BrowserThemeFusionStep>? FusionRoute { get; set; }
+    }
+
+    private sealed class BrowserThemeFusionStep
+    {
+        public int Sequence { get; set; }
+        public string? Target { get; set; }
+        public string? ThemeName { get; set; }
     }
 }

@@ -1,77 +1,96 @@
-﻿.blazor-themes a.blazing-berry:before {
+.blazor-themes a.blazing-berry:before,
+.theme-used-chip.blazing-berry::before {
     background: #5c2d91;
 }
 
-.blazor-themes a.blazing-dark:before {
+.blazor-themes a.blazing-dark:before,
+.theme-used-chip.blazing-dark::before {
     background: #46444a;
 }
 
-.blazor-themes a.office-white:before {
+.blazor-themes a.office-white:before,
+.theme-used-chip.office-white::before {
     background: #fe7109;
 }
 
-.blazor-themes a.purple:before {
+.blazor-themes a.purple:before,
+.theme-used-chip.purple::before {
     background: #7989ff;
 }
 
 
-.blazor-themes a.default:before {
+.blazor-themes a.default:before,
+.theme-used-chip.default::before {
     background: #007bff;
 }
 
-.blazor-themes a.default-dark:before {
+.blazor-themes a.default-dark:before,
+.theme-used-chip.default-dark::before {
     background: #212529;
 }
 
-.blazor-themes a.cerulean:before {
+.blazor-themes a.cerulean:before,
+.theme-used-chip.cerulean::before {
     background: #2fa4e7;
 }
 
-.blazor-themes a.cyborg:before {
+.blazor-themes a.cyborg:before,
+.theme-used-chip.cyborg::before {
     background: #060606;
 }
 
-.blazor-themes a.flatly:before {
+.blazor-themes a.flatly:before,
+.theme-used-chip.flatly::before {
     background: #dce4ec;
 }
 
-.blazor-themes a.journal:before {
+.blazor-themes a.journal:before,
+.theme-used-chip.journal::before {
     background: #eb6864;
 }
 
-.blazor-themes a.litera:before {
+.blazor-themes a.litera:before,
+.theme-used-chip.litera::before {
     background: #4582ec;
 }
 
-.blazor-themes a.lumen:before {
+.blazor-themes a.lumen:before,
+.theme-used-chip.lumen::before {
     background: #158cba;
 }
 
-.blazor-themes a.lux:before {
+.blazor-themes a.lux:before,
+.theme-used-chip.lux::before {
     background: #1a1a1a;
 }
 
-.blazor-themes a.pulse:before {
+.blazor-themes a.pulse:before,
+.theme-used-chip.pulse::before {
     background: #593196;
 }
 
-.blazor-themes a.simplex:before {
+.blazor-themes a.simplex:before,
+.theme-used-chip.simplex::before {
     background: #d9230f;
 }
 
-.blazor-themes a.solar:before {
+.blazor-themes a.solar:before,
+.theme-used-chip.solar::before {
     background: #b58900;
 }
 
-.blazor-themes a.superhero:before {
+.blazor-themes a.superhero:before,
+.theme-used-chip.superhero::before {
     background: #df691a;
 }
 
-.blazor-themes a.united:before {
+.blazor-themes a.united:before,
+.theme-used-chip.united::before {
     background: #e95420;
 }
 
-.blazor-themes a.yeti:before {
+.blazor-themes a.yeti:before,
+.theme-used-chip.yeti::before {
     background: #008cba;
 }
 
@@ -79,10 +98,12 @@
     font-size: 0.875rem;
 }
 
-.blazor-themes a.fluent-light:before {
+.blazor-themes a.fluent-light:before,
+.theme-used-chip.fluent-light::before {
     background: #0f6cbd;
 }
 
-.blazor-themes a.fluent-dark:before {
+.blazor-themes a.fluent-dark:before,
+.theme-used-chip.fluent-dark::before {
     background: #282828;
 }

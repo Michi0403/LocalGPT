@@ -25,6 +25,8 @@ The server-rendered shell reads:
 
 The browser stores both names in cookies and local storage. The interactive dispatcher reads the live browser state after it attaches, which avoids reusing the stale initial HTTP cookie snapshot during later routed component recreation.
 
+The browser also stores the bounded **Fusion Route**: the successful Base Theme and Style Layer selections in their original order. The final two names remain the startup contract; the route is diagnostic and user-visible because the observed runtime composition can depend on the path used to reach those names.
+
 ## DevExpress ownership
 
 Each LocalGPT `Theme` contains the actual DevExpress `ITheme` object.
@@ -45,6 +47,12 @@ Fluent component themes do not apply themselves to page elements. LocalGPT shell
 - notify .NET after a requested layer finishes applying.
 
 It does not add or remove DevExpress component-theme stylesheets.
+
+## Fusion Route and clean reset
+
+`ThemeService.FusionRoute` retains up to 256 validated selection steps. Each successful selection is written to local storage and displayed with its target, sequence number, and theme title. The switcher also displays the distinct set of themes used by the route.
+
+**Reset route** keeps the current Base Theme and Style Layer names, removes the stored route, and performs a full page reload. The reload deliberately clears runtime theme resources left by earlier swaps. The new route is then seeded with the current Base and Style selections, so reset means “start a clean composition from this pair,” not “return to Office White.”
 
 ## Failure behavior
 
