@@ -16,7 +16,7 @@ public sealed class CouncilTeamConfigurationService(
     IOrganicCouncilBlueprintSeedDataService seedData,
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
-    private const int CurrentSeedVersion = 8;
+    private const int CurrentSeedVersion = 10;
     private const int MaxRoles = 100;
     private const int MaxWorkflowSteps = 100;
     private const int MaxExpandedWorkflowSteps = 100;
@@ -99,8 +99,23 @@ public sealed class CouncilTeamConfigurationService(
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var existingRows = await db.CouncilTeamConfigurations.ToListAsync(cancellationToken).ConfigureAwait(false);
-        var existing = existingRows.ToDictionary(item => item.Key, StringComparer.OrdinalIgnoreCase);
         var changed = false;
+
+        // The first experimental arena preset used a third-party franchise name. Preserve user-edited
+        // rows, but migrate the untouched system seed to LocalGPT's original kernel-creature identity.
+        var legacyArena = existingRows.SingleOrDefault(item =>
+            string.Equals(item.Key, "pokemon-tournament", StringComparison.OrdinalIgnoreCase));
+        var modernArenaExists = existingRows.Any(item =>
+            string.Equals(item.Key, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase));
+        if (legacyArena is { IsSystemSeed: true, IsUserModified: false } && !modernArenaExists)
+        {
+            legacyArena.Key = "kernel-creature-tournament";
+            legacyArena.SeedVersion = 0;
+            legacyArena.UpdatedAtUtc = DateTime.UtcNow;
+            changed = true;
+        }
+
+        var existing = existingRows.ToDictionary(item => item.Key, StringComparer.OrdinalIgnoreCase);
         foreach (var definition in seedData.CreateDefaultTeams())
         {
             NormalizeSeedDefaults(definition);
@@ -255,6 +270,12 @@ Original user request:
                 role.AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected;
             if (!Enum.IsDefined(typeof(HumanParticipationMode), role.HumanParticipationMode))
                 role.HumanParticipationMode = HumanParticipationMode.None;
+            if (!Enum.IsDefined(typeof(CouncilRolePerformanceMode), role.PerformanceMode))
+                role.PerformanceMode = CouncilRolePerformanceMode.TaskSpecialist;
+            if (!Enum.IsDefined(typeof(CouncilRoleLanguageMode), role.LanguageMode))
+                role.LanguageMode = CouncilRoleLanguageMode.ModelChoice;
+            if (!Enum.IsDefined(typeof(CouncilRoleBoundaryMode), role.BoundaryMode))
+                role.BoundaryMode = CouncilRoleBoundaryMode.Bounded;
 
             role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, MaxAiParticipantsPerRole);
             role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, 1, MaxAiParticipantsPerRole);

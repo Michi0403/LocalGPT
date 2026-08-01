@@ -331,7 +331,7 @@ html, body {
 .localgpt-overlays-hidden .human-approval-bar,.localgpt-overlays-hidden .human-inbox-launcher,.localgpt-overlays-hidden .council-spooler-launcher { display:none!important; }
 
 /* User-defined AI Council social structures. */
-.council-team-list-actions{display:grid;gap:.5rem}.council-structure-mode{display:grid;gap:.2rem;padding:.75rem 1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-raised-bg)}.council-structure-mode.default-mode{box-shadow:inset .25rem 0 0 var(--localgpt-primary)}.council-structure-mode.custom-mode{box-shadow:inset .25rem 0 0 var(--bs-success)}.council-structure-mode span{color:var(--localgpt-secondary-color)}.council-structure-section{display:grid;gap:.75rem;padding:1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius-lg);background:var(--localgpt-control-bg)}.council-structure-section>header,.council-workflow-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.council-structure-section h2{margin:0;font-size:1.15rem}.council-structure-section p{margin:.2rem 0 0;color:var(--localgpt-secondary-color)}.council-role-card,.council-workflow-card{display:grid;gap:.75rem;padding:.8rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-bg)}.council-role-card{grid-template-columns:repeat(2,minmax(0,1fr))}.council-role-card label,.council-workflow-fields label{display:grid;gap:.3rem}.council-role-card .wide,.council-workflow-fields .wide{grid-column:1/-1}.council-role-card>button{justify-self:end;grid-column:1/-1}.council-role-card-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding-bottom:.55rem;border-bottom:1px solid var(--localgpt-border-color)}.council-role-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.4rem}.council-role-badge{display:inline-flex;align-items:center;min-height:1.7rem;padding:.18rem .55rem;border:1px solid var(--localgpt-border-color);border-radius:999px;background:var(--localgpt-surface-raised-bg);font-size:.78rem;font-weight:700;line-height:1.15}.council-role-badge.ai{box-shadow:inset .18rem 0 0 var(--localgpt-primary)}.council-role-badge.human-none{color:var(--localgpt-secondary-color)}.council-role-badge.human-optional{box-shadow:inset .18rem 0 0 var(--bs-info)}.council-role-badge.human-required{box-shadow:inset .18rem 0 0 var(--bs-warning)}.council-role-badge.human-only{box-shadow:inset .18rem 0 0 var(--bs-success)}.council-role-policy-grid{display:grid;grid-template-columns:minmax(12rem,1.4fr) repeat(2,minmax(8rem,.7fr)) minmax(12rem,1.2fr);gap:.65rem;padding:.7rem;border:1px dashed var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-raised-bg)}.council-role-policy-grid label{display:grid;gap:.3rem}.council-role-policy-help{margin:0;color:var(--localgpt-secondary-color);font-size:.9rem}.council-workflow-card>header small{display:block;color:var(--localgpt-secondary-color)}.council-step-actions,.council-step-options,.council-json-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.council-workflow-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.council-step-options{padding-top:.25rem;border-top:1px solid var(--localgpt-border-color)}.council-empty-structure{padding:.75rem;border:1px dashed var(--localgpt-border-color);border-radius:var(--localgpt-radius);color:var(--localgpt-secondary-color)}.council-advanced-section{padding:.75rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-bg)}.council-advanced-section>summary{cursor:pointer;font-weight:700}.council-advanced-section[open]>summary{margin-bottom:.75rem}.council-expanded-count{margin-right:auto;font-weight:700;color:var(--localgpt-secondary-color)}
+.council-team-list-actions{display:grid;gap:.5rem}.council-structure-mode{display:grid;gap:.2rem;padding:.75rem 1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-raised-bg)}.council-structure-mode.default-mode{box-shadow:inset .25rem 0 0 var(--localgpt-primary)}.council-structure-mode.custom-mode{box-shadow:inset .25rem 0 0 var(--bs-success)}.council-structure-mode span{color:var(--localgpt-secondary-color)}.council-structure-section{display:grid;gap:.75rem;padding:1rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius-lg);background:var(--localgpt-control-bg)}.council-structure-section>header,.council-workflow-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.council-structure-section h2{margin:0;font-size:1.15rem}.council-structure-section p{margin:.2rem 0 0;color:var(--localgpt-secondary-color)}.council-role-card,.council-workflow-card{display:grid;gap:.75rem;padding:.8rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-bg)}.council-role-card{grid-template-columns:repeat(2,minmax(0,1fr))}.council-role-card label,.council-workflow-fields label{display:grid;gap:.3rem}.council-role-card .wide,.council-workflow-fields .wide{grid-column:1/-1}.council-role-card>button{justify-self:end;grid-column:1/-1}.council-role-card-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding-bottom:.55rem;border-bottom:1px solid var(--localgpt-border-color)}.council-role-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.4rem}.council-role-badge{display:inline-flex;align-items:center;min-height:1.7rem;padding:.18rem .55rem;border:1px solid var(--localgpt-border-color);border-radius:999px;background:var(--localgpt-surface-raised-bg);font-size:.78rem;font-weight:700;line-height:1.15}.council-role-badge.ai{box-shadow:inset .18rem 0 0 var(--localgpt-primary)}.council-role-badge.human-none{color:var(--localgpt-secondary-color)}.council-role-badge.human-optional{box-shadow:inset .18rem 0 0 var(--bs-info)}.council-role-badge.human-required{box-shadow:inset .18rem 0 0 var(--bs-warning)}.council-role-badge.human-only{box-shadow:inset .18rem 0 0 var(--bs-success)}.council-role-policy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.65rem;padding:.7rem;border:1px dashed var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-raised-bg)}.council-role-policy-grid label{display:grid;gap:.3rem}.council-role-policy-help{margin:0;color:var(--localgpt-secondary-color);font-size:.9rem}.council-workflow-card>header small{display:block;color:var(--localgpt-secondary-color)}.council-step-actions,.council-step-options,.council-json-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.council-workflow-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.council-step-options{padding-top:.25rem;border-top:1px solid var(--localgpt-border-color)}.council-empty-structure{padding:.75rem;border:1px dashed var(--localgpt-border-color);border-radius:var(--localgpt-radius);color:var(--localgpt-secondary-color)}.council-advanced-section{padding:.75rem;border:1px solid var(--localgpt-border-color);border-radius:var(--localgpt-radius);background:var(--localgpt-surface-bg)}.council-advanced-section>summary{cursor:pointer;font-weight:700}.council-advanced-section[open]>summary{margin-bottom:.75rem}.council-expanded-count{margin-right:auto;font-weight:700;color:var(--localgpt-secondary-color)}
 @media(max-width:900px){.council-role-card,.council-workflow-fields{grid-template-columns:1fr}.council-role-card .wide,.council-workflow-fields .wide{grid-column:auto}.council-role-policy-grid{grid-template-columns:1fr}.council-role-card-header,.council-structure-section>header,.council-workflow-card>header{flex-direction:column;align-items:flex-start}.council-role-badges{justify-content:flex-start}.council-step-actions{width:100%}}
 
 /* Rejoined Council activity must remain visible even though DevExpress no longer owns the
@@ -424,5 +424,101 @@ html, body {
 @media (max-width: 900px) {
     .council-role-coordination-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+.council-role-badge.performance{box-shadow:inset .18rem 0 0 var(--bs-purple, #6f42c1)}
+.council-role-badge.boundary{box-shadow:inset .18rem 0 0 var(--bs-warning, #ffc107)}
+.council-role-badge.language{box-shadow:inset .18rem 0 0 var(--bs-cyan, #0dcaf0)}
+
+/* Native Blazor reconnect surface. These buttons remain browser-owned and clickable even when the
+   InteractiveServer circuit is down, so a running Council can be recovered through a reload/spooler. */
+.localgpt-reconnect-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    display: grid;
+    align-items: end;
+    justify-items: center;
+    padding: 1rem;
+    pointer-events: auto;
+    isolation: isolate;
+    background: linear-gradient(to top, rgba(0, 0, 0, .18), transparent 38%);
+}
+
+.localgpt-reconnect-modal.components-reconnect-hide {
+    display: none;
+}
+
+.localgpt-reconnect-card {
+    width: min(58rem, calc(100vw - 2rem));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .85rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--bs-warning) 55%, var(--localgpt-border-color));
+    border-radius: .75rem;
+    background: color-mix(in srgb, var(--localgpt-body-bg, var(--bs-body-bg)) 96%, var(--bs-warning) 4%);
+    color: var(--localgpt-body-color, var(--bs-body-color));
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .42);
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.localgpt-reconnect-card > div:first-child {
+    display: grid;
+    gap: .2rem;
+}
+
+.localgpt-reconnect-card span {
+    color: var(--localgpt-secondary-color, var(--bs-secondary-color));
+}
+
+.localgpt-reconnect-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: .45rem;
+}
+
+.localgpt-reconnect-actions button {
+    min-height: 2.35rem;
+    padding: .4rem .75rem;
+    border: 1px solid var(--localgpt-border-color, var(--bs-border-color));
+    border-radius: .45rem;
+    background: var(--localgpt-control-bg, var(--bs-tertiary-bg));
+    color: inherit;
+    cursor: pointer;
+}
+
+.localgpt-reconnect-actions button:disabled {
+    cursor: wait;
+    opacity: .62;
+}
+
+.localgpt-reconnect-actions [data-localgpt-reconnect] {
+    border-color: var(--bs-info);
+}
+
+.localgpt-reconnect-actions [data-localgpt-reload] {
+    border-color: var(--bs-warning);
+}
+
+
+@media (max-width: 700px) {
+    .localgpt-reconnect-card {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .localgpt-reconnect-actions {
+        justify-content: stretch;
+    }
+
+    .localgpt-reconnect-actions button {
+        flex: 1 1 10rem;
     }
 }

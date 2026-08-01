@@ -81,6 +81,9 @@
                             <div class="council-role-badges">
                                 <span class="council-role-badge ai">@RoleAiBadge(role)</span>
                                 <span class="@($"council-role-badge {RoleHumanBadgeClass(role)}")">@RoleHumanBadge(role)</span>
+                                <span class="council-role-badge performance">@RolePerformanceBadge(role)</span>
+                                <span class="council-role-badge boundary">@RoleBoundaryBadge(role)</span>
+                                <span class="council-role-badge language">@RoleLanguageBadge(role)</span>
                                 @if (!string.IsNullOrWhiteSpace(role.PairedRole))
                                 {
                                     <span class="council-role-badge pairing">Paired with @role.PairedRole</span>
@@ -121,6 +124,33 @@
                                     }
                                 </select>
                             </label>
+                            <label>
+                                <span>Role performance</span>
+                                <select class="form-select" @bind="role.PerformanceMode">
+                                    @foreach (var mode in PerformanceModes)
+                                    {
+                                        <option value="@mode.Value">@mode.Label</option>
+                                    }
+                                </select>
+                            </label>
+                            <label>
+                                <span>Role boundary</span>
+                                <select class="form-select" @bind="role.BoundaryMode">
+                                    @foreach (var mode in BoundaryModes)
+                                    {
+                                        <option value="@mode.Value">@mode.Label</option>
+                                    }
+                                </select>
+                            </label>
+                            <label>
+                                <span>Response language</span>
+                                <select class="form-select" @bind="role.LanguageMode">
+                                    @foreach (var mode in LanguageModes)
+                                    {
+                                        <option value="@mode.Value">@mode.Label</option>
+                                    }
+                                </select>
+                            </label>
                         </div>
                         <div class="wide council-role-coordination-grid">
                             <label>
@@ -136,7 +166,7 @@
                                 <input class="form-control" list="council-role-names" @bind="role.PairedRole" placeholder="Optional role name" />
                             </label>
                         </div>
-                        <p class="wide council-role-policy-help">@RolePolicyExplanation(role) @RoleCoordinationExplanation(role)</p>
+                        <p class="wide council-role-policy-help">@RolePolicyExplanation(role) @RolePerformanceExplanation(role) @RoleBoundaryExplanation(role) @RoleLanguageExplanation(role) @RoleCoordinationExplanation(role)</p>
                         <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveRole(roleIndex)">Remove role</button>
                     </article>
                 }
@@ -152,7 +182,7 @@
                 <header>
                     <div>
                         <h2>Rounds and workflow</h2>
-                        <p>Each enabled step is a council round. Its role name links to the matching role policy above. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
+                        <p>Each enabled step is a council round. Its role name links to the matching role policy above. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddWorkflowStep">Add round</button>
                 </header>
@@ -266,6 +296,23 @@
         (HumanParticipationMode.Optional, "Human may participate"),
         (HumanParticipationMode.Required, "Human response required"),
         (HumanParticipationMode.HumanOnly, "Human only; no AI")
+    ];
+    private readonly IReadOnlyList<(CouncilRolePerformanceMode Value, string Label)> PerformanceModes =
+    [
+        (CouncilRolePerformanceMode.TaskSpecialist, "Task specialist"),
+        (CouncilRolePerformanceMode.ImprovisationPlayer, "Improvisation player / actor")
+    ];
+    private readonly IReadOnlyList<(CouncilRoleBoundaryMode Value, string Label)> BoundaryModes =
+    [
+        (CouncilRoleBoundaryMode.Bounded, "Bounded role"),
+        (CouncilRoleBoundaryMode.Collaborative, "Collaborative role"),
+        (CouncilRoleBoundaryMode.Strict, "Strict role ownership")
+    ];
+    private readonly IReadOnlyList<(CouncilRoleLanguageMode Value, string Label)> LanguageModes =
+    [
+        (CouncilRoleLanguageMode.ModelChoice, "Model chooses language"),
+        (CouncilRoleLanguageMode.SenderLanguage, "Match latest human sender"),
+        (CouncilRoleLanguageMode.English, "English")
     ];
     private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
     private OrganicCouncilTeamDefinition _editor = new();
@@ -469,6 +516,12 @@
                 role.AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected;
             if (!Enum.IsDefined(typeof(HumanParticipationMode), role.HumanParticipationMode))
                 role.HumanParticipationMode = HumanParticipationMode.None;
+            if (!Enum.IsDefined(typeof(CouncilRolePerformanceMode), role.PerformanceMode))
+                role.PerformanceMode = CouncilRolePerformanceMode.TaskSpecialist;
+            if (!Enum.IsDefined(typeof(CouncilRoleLanguageMode), role.LanguageMode))
+                role.LanguageMode = CouncilRoleLanguageMode.ModelChoice;
+            if (!Enum.IsDefined(typeof(CouncilRoleBoundaryMode), role.BoundaryMode))
+                role.BoundaryMode = CouncilRoleBoundaryMode.Bounded;
             role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;
             role.MatchAiParticipantCountToRole = role.MatchAiParticipantCountToRole?.Trim() ?? string.Empty;
             role.PairedRole = role.PairedRole?.Trim() ?? string.Empty;
@@ -591,12 +644,52 @@
         _ => "human-none"
     };
 
+    private string RolePerformanceBadge(OrganicCouncilRoleDefinition role) => role.PerformanceMode switch
+    {
+        CouncilRolePerformanceMode.ImprovisationPlayer => "Improvisation player",
+        _ => "Task specialist"
+    };
+
+    private string RoleBoundaryBadge(OrganicCouncilRoleDefinition role) => role.BoundaryMode switch
+    {
+        CouncilRoleBoundaryMode.Collaborative => "Collaborative boundary",
+        CouncilRoleBoundaryMode.Strict => "Strict boundary",
+        _ => "Bounded role"
+    };
+
+    private string RoleLanguageBadge(OrganicCouncilRoleDefinition role) => role.LanguageMode switch
+    {
+        CouncilRoleLanguageMode.SenderLanguage => "Sender language",
+        CouncilRoleLanguageMode.English => "English",
+        _ => "Model language"
+    };
+
     private string RolePolicyExplanation(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
     {
         HumanParticipationMode.HumanOnly => "This role pauses for a human response and assigns no AI model.",
         HumanParticipationMode.Required => $"The role pauses for a human response, then {RoleAiBadge(role).ToLowerInvariant()} continue with that response in the transcript.",
         HumanParticipationMode.Optional => $"The human may join this role without blocking it; {RoleAiBadge(role).ToLowerInvariant()} are assigned when the round runs.",
         _ => $"No human response is requested for this role; {RoleAiBadge(role).ToLowerInvariant()} are assigned when the round runs."
+    };
+
+    private string RolePerformanceExplanation(OrganicCouncilRoleDefinition role) => role.PerformanceMode switch
+    {
+        CouncilRolePerformanceMode.ImprovisationPlayer => "The AI kernel plays this role as a self-aware improvisation participant, stays inside the fictional scene, and does not seize another role.",
+        _ => "The AI kernel approaches this role as a bounded task specialist."
+    };
+
+    private string RoleBoundaryExplanation(OrganicCouncilRoleDefinition role) => role.BoundaryMode switch
+    {
+        CouncilRoleBoundaryMode.Collaborative => "The participant may offer clearly labeled suggestions to neighboring roles but may not perform their decisions.",
+        CouncilRoleBoundaryMode.Strict => "The participant may speak and act only for this role; narration, rulings, commands and outcomes belonging to another role are forbidden.",
+        _ => "The participant remains inside this role and may reference other roles without deciding their actions or outcomes."
+    };
+
+    private string RoleLanguageExplanation(OrganicCouncilRoleDefinition role) => role.LanguageMode switch
+    {
+        CouncilRoleLanguageMode.SenderLanguage => "Visible output and exposed thinking should follow the latest human sender's language when the model can do so.",
+        CouncilRoleLanguageMode.English => "Visible output and exposed thinking are requested in English.",
+        _ => "The model may choose the most suitable response language."
     };
 
     private string RoleCoordinationExplanation(OrganicCouncilRoleDefinition role)

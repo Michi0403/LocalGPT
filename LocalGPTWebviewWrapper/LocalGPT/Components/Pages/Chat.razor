@@ -673,6 +673,9 @@
     bool chatRuntimeActivationScheduled;
     bool isDisposed;
     HumanCollaborationSnapshot collaborationSnapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "rejoinCouncilRunId")]
+    public Guid? RequestedRejoinCouncilRunId { get; set; }
     Guid? SelectedCouncilRunId { get; set; }
     Guid? RejoinCouncilRunId { get; set; }
     Guid? AttachedLiveCouncilRunId { get; set; }
@@ -736,6 +739,11 @@
             OllamaEndpoint = Catalog.DefaultOllamaEndpoint;
             CouncilMaxOutputTokens = Catalog.DefaultCouncilOutputTokens;
             CouncilMaxContextTokens = Catalog.DefaultCouncilContextTokens;
+            if (RequestedRejoinCouncilRunId is Guid requestedRunId)
+            {
+                SelectedCouncilRunId = requestedRunId;
+                RejoinCouncilRunId = requestedRunId;
+            }
 
             HumanCollaboration.Changed += OnHumanCollaborationChanged;
             CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
@@ -883,6 +891,10 @@
                     chatInteropReference,
                     IsLiveCouncilInteractionAvailable).ConfigureAwait(true);
             }
+
+            await JS.InvokeVoidAsync(
+                "localGptReconnect.setCouncilRun",
+                ResolveRunningCouncilRunId()?.ToString()).ConfigureAwait(true);
         }
         catch (JSDisconnectedException) when (isDisposed)
         {

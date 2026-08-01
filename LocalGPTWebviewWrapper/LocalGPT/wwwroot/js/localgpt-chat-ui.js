@@ -145,7 +145,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
 
     const slowScrollStates = new WeakMap();
     const transcriptQuietDelayMilliseconds = 1000;
-    const interactionQuietDelayMilliseconds = 1000;
+    const interactionQuietDelayMilliseconds = 3000;
     const smoothFollowDurationMilliseconds = 950;
     const followResumeDistancePixels = 120;
 
@@ -182,8 +182,11 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             if (!state?.region?.isConnected) return;
             const pageX = window.scrollX;
             const pageY = window.scrollY;
-            state.programmaticUntil = performance.now() + 80;
-            state.region.scrollTop = Math.max(0, value);
+            const targetTop = Math.max(0, value);
+            state.lastProgrammaticAt = performance.now();
+            state.lastProgrammaticScrollTop = targetTop;
+            state.programmaticUntil = state.lastProgrammaticAt + 260;
+            state.region.scrollTop = targetTop;
             if (window.scrollX !== pageX || window.scrollY !== pageY)
                 window.scrollTo({ left: pageX, top: pageY, behavior: 'auto' });
         } catch (error) {
@@ -255,7 +258,11 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 follow: distanceToBottom(region) <= followResumeDistancePixels,
                 userInteracting: false,
                 interactionTimer: 0,
+                userPauseUntil: 0,
+                pendingFollowRequest: false,
                 programmaticUntil: 0,
+                lastProgrammaticAt: 0,
+                lastProgrammaticScrollTop: region.scrollTop,
                 lastScrollHeight: region.scrollHeight,
                 lastClientHeight: region.clientHeight,
                 initialized: false,
@@ -267,18 +274,34 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             slowScrollStates.set(host, state);
 
             const releaseUserInteraction = diagnostics.guard('localgpt-chat-ui.scroll.releaseUserInput', () => {
+                const remaining = state.userPauseUntil - performance.now();
+                if (remaining > 1) {
+                    if (state.interactionTimer) clearTimeout(state.interactionTimer);
+                    state.interactionTimer = window.setTimeout(releaseUserInteraction, remaining);
+                    return;
+                }
+
                 state.userInteracting = false;
                 state.interactionTimer = 0;
-                state.follow = distanceToBottom(region) <= followResumeDistancePixels;
-                if (state.follow) scheduleSlowFollow(host, region);
+                const closeEnoughToFollow = distanceToBottom(region) <= followResumeDistancePixels;
+                state.follow = closeEnoughToFollow;
+                host.dataset.localgptAutoFollow = closeEnoughToFollow ? 'following' : 'manual';
+                if (closeEnoughToFollow && state.pendingFollowRequest) {
+                    state.pendingFollowRequest = false;
+                    scheduleSlowFollow(host, region);
+                }
             });
             const scheduleRelease = diagnostics.guard('localgpt-chat-ui.scroll.scheduleUserInputEnd', () => {
                 if (state.interactionTimer) clearTimeout(state.interactionTimer);
-                state.interactionTimer = window.setTimeout(releaseUserInteraction, interactionQuietDelayMilliseconds);
+                const delay = Math.max(1, state.userPauseUntil - performance.now());
+                state.interactionTimer = window.setTimeout(releaseUserInteraction, delay);
             });
             const beginUserScroll = diagnostics.guard('localgpt-chat-ui.scroll.userInput', () => {
                 state.userInteracting = true;
+                state.userPauseUntil = performance.now() + interactionQuietDelayMilliseconds;
                 state.follow = false;
+                host.dataset.localgptAutoFollow = 'paused';
+                state.pendingFollowRequest = true;
                 if (state.interactionTimer) clearTimeout(state.interactionTimer);
                 state.interactionTimer = 0;
                 stopSmoothFollow(state);
@@ -293,9 +316,6 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 scheduleRelease();
             }), listenerOptions);
             region.addEventListener('touchstart', beginUserScroll, listenerOptions);
-            region.addEventListener('pointerdown', beginUserScroll, listenerOptions);
-            region.addEventListener('pointerup', finishUserScroll, listenerOptions);
-            region.addEventListener('pointercancel', finishUserScroll, listenerOptions);
             region.addEventListener('touchend', finishUserScroll, listenerOptions);
             region.addEventListener('touchcancel', finishUserScroll, listenerOptions);
             region.addEventListener('keydown', diagnostics.guard('localgpt-chat-ui.scroll.keydown', event => {
@@ -305,9 +325,12 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 }
             }), { signal: abortController.signal });
             region.addEventListener('scroll', diagnostics.guard('localgpt-chat-ui.scroll.scroll', () => {
-                if (performance.now() < state.programmaticUntil) return;
-                if (state.userInteracting)
-                    state.follow = distanceToBottom(region) <= followResumeDistancePixels;
+                const now = performance.now();
+                const delayedProgrammaticEvent = now - state.lastProgrammaticAt < 400
+                    && Math.abs(region.scrollTop - state.lastProgrammaticScrollTop) <= 2;
+                if (now < state.programmaticUntil || delayedProgrammaticEvent) return;
+                beginUserScroll();
+                scheduleRelease();
             }), listenerOptions);
 
             state.contentObserver = new MutationObserver(diagnostics.guard('localgpt-chat-ui.scroll.contentChanged', () =>
@@ -762,9 +785,13 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 const region = findScrollRegion(host, composer);
                 if (!region) return;
                 const state = bindSlowScroll(host, region);
-                state.follow = true;
-                state.userInteracting = false;
-                scheduleSlowFollow(host, region);
+                state.pendingFollowRequest = true;
+                if (state.userInteracting || performance.now() < state.userPauseUntil) return;
+                state.follow = distanceToBottom(region) <= followResumeDistancePixels;
+                if (state.follow) {
+                    state.pendingFollowRequest = false;
+                    scheduleSlowFollow(host, region);
+                }
             });
             document.addEventListener('focusin', diagnostics.guard('localgpt-chat-ui.focusin', event => { try {
                 if (event.target instanceof Element && event.target.closest(hostSelector)) scheduleApply();

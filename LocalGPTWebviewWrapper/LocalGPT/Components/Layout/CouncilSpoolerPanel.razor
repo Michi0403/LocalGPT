@@ -36,6 +36,10 @@
                 <strong>@Selected.Status · @Selected.CouncilTeamKey</strong>
                 <span>@string.Join(", ", Selected.ModelNames)</span>
                 <p>@Selected.Prompt</p>
+                @if (Selected.Status == Vocabulary.Get().CouncilSpoolerRunning)
+                {
+                    <a class="council-spooler-rejoin-link" href="@BuildRejoinHref(Selected.RunId)" data-enhance-nav="false">Open or rejoin this live Council in Chat</a>
+                }
             </section>
             <div class="council-spooler-steps">
                 @foreach (var step in Selected.Steps.OrderBy(item => item.SortOrder))
@@ -81,6 +85,8 @@
         _selectedRunId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
         Refresh();
     }
+    private static string BuildRejoinHref(Guid runId) => $"/Chat?rejoinCouncilRunId={Uri.EscapeDataString(runId.ToString())}";
+
     private void OnSpoolerChanged()
     {
         _ = InvokeAsync(() => { Refresh(); StateHasChanged(); });

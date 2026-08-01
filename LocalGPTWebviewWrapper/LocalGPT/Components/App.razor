@@ -64,6 +64,18 @@
         <strong>@Localization.Get("Startup.Connecting", fallback: "LocalGPT UI is connecting")</strong>
         <span>@Localization.Get("Startup.Attaching", fallback: "Controls become active after Blazor finishes attaching.")</span>
     </div>
+    <div id="components-reconnect-modal" class="localgpt-reconnect-modal components-reconnect-hide" data-permanent role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="localgpt-reconnect-title">
+        <section class="localgpt-reconnect-card">
+            <div>
+                <strong id="localgpt-reconnect-title">LocalGPT UI connection interrupted</strong>
+                <span data-localgpt-reconnect-status>The interactive circuit is reconnecting. Running Council work may continue in the server spooler.</span>
+            </div>
+            <div class="localgpt-reconnect-actions">
+                <button type="button" data-localgpt-reconnect>Reconnect now</button>
+                <button type="button" data-localgpt-reload>Reload &amp; rejoin</button>
+            </div>
+        </section>
+    </div>
     <ToastWrapper Name="ComponentSafetyToasts" />
     <Routes></Routes>
     <InteractiveStartupMarker />
@@ -82,7 +94,7 @@
     <script src="js/vendor/qrcode-generator.js"></script>
     <script src="js/oneWireSecurityQr.js"></script>
     <script src="js/localgpt-context-menu.js"></script>
-    <script src="js/localgpt-chat-ui.js?v=20260801-38"></script>
+    <script src="js/localgpt-chat-ui.js?v=20260801-40"></script>
     <script src="js/localgpt-localization.js"></script>
     <script type="module" src="js/chat-details-state.js"></script>
     <script type="module" src="js/webApiCallsInBrowser.js"></script>
@@ -91,6 +103,7 @@
         <script type="module" src="@AppendVersion("js/localgpt-e2e.js")"></script>
     } *@
     <script type="module" src="@themeControllerModulePath"></script>
+    <script src="js/localgpt-reconnect.js?v=20260801-2"></script>
 
     <script src="_framework/blazor.web.js" autostart="false"></script>
     <script>
@@ -105,6 +118,9 @@
             .catch(error => {
                 window.localGptJavaScriptDiagnostics.report('Blazor.start', error);
                 document.documentElement.classList.add('localgpt-interactive-error');
+                const reconnectModal = document.getElementById('components-reconnect-modal');
+                reconnectModal?.classList.remove('components-reconnect-hide');
+                reconnectModal?.classList.add('components-reconnect-failed');
             });
     </script>
 </body>

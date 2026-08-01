@@ -335,6 +335,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IChatProtocolProfile, PlainTextChatProtocolProfile>();
                 builder.Services.AddSingleton<IChatProtocolProfileCatalog, ChatProtocolProfileCatalog>();
                 builder.Services.AddSingleton<IChatResponseFormatterFactory, ChatResponseFormatterFactory>();
+                builder.Services.AddSingleton<IStructuredTextTranslationService, StructuredTextTranslationService>();
                 builder.Services.AddSingleton<IChatContentRenderer, ChatContentRenderer>();
                 builder.Services.AddSingleton<IChatProtocolResolver, ChatProtocolResolver>();
 

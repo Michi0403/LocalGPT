@@ -1504,3 +1504,43 @@
     overflow-anchor: none !important;
     contain: layout style;
 }
+
+/* Structured JSON emitted as plain model text is translated into a readable tree while the raw
+   document remains available on demand. */
+.demo-chat ::deep .localgpt-json-translation {
+    margin: .65rem 0;
+    border: 1px solid rgba(var(--localgpt-info-rgb, 13, 202, 240), .32);
+    border-radius: .6rem;
+    background: color-mix(in srgb, var(--localgpt-control-bg, var(--bs-body-bg)) 94%, var(--bs-info) 6%);
+    overflow: hidden;
+}
+
+.demo-chat ::deep .localgpt-json-translation > summary,
+.demo-chat ::deep .localgpt-json-source > summary {
+    padding: .55rem .75rem;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.demo-chat ::deep .localgpt-json-translation > ul,
+.demo-chat ::deep .localgpt-json-translation > ol,
+.demo-chat ::deep .localgpt-json-translation > p,
+.demo-chat ::deep .localgpt-json-translation > details {
+    margin-left: .75rem;
+    margin-right: .75rem;
+}
+
+.demo-chat ::deep .localgpt-json-source {
+    margin-bottom: .75rem;
+    border: 1px solid var(--localgpt-border-color, var(--bs-border-color));
+    border-radius: .45rem;
+    background: var(--localgpt-surface-bg, var(--bs-body-bg));
+}
+
+.demo-chat ::deep .localgpt-json-source pre {
+    margin: 0;
+    max-height: 24rem;
+    overflow: auto;
+    border-top: 1px solid var(--localgpt-border-color, var(--bs-border-color));
+    border-radius: 0;
+}

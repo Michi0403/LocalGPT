@@ -25,3 +25,4 @@
         max-width: none;
     }
 }
+.council-spooler-rejoin-link{justify-self:start;display:inline-flex;align-items:center;min-height:2.35rem;margin-top:.35rem;padding:.4rem .7rem;border:1px solid var(--bs-info);border-radius:.45rem;color:var(--bs-body-color);text-decoration:none;background:var(--bs-tertiary-bg)}.council-spooler-rejoin-link:hover,.council-spooler-rejoin-link:focus-visible{filter:brightness(1.12);text-decoration:none}

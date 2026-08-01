@@ -264,7 +264,7 @@ namespace LocalGPT.Services
         new PromptSuggestion("Write an email", "Make your text look and sound professional", "Format text as a formal email to a client:"),
         new PromptSuggestion("Brainstorm ideas", "Get creative input for your tasks", "Help me brainstorm ideas for:"),
         new PromptSuggestion("Fix my writing", "Avoid spelling, grammar, and style errors", "Proofread the following text:"),
-        new PromptSuggestion("Half-Life 3","Valve didn't deliver Half-Life 3 for like Decades", "Hi Team, very important reading: Valve didn't deliver Half-Life 3 for like Decades, tell me what you need to learn to invent a great Story which could be Half-Life 3 and as well in which Engine you are gonna building it and how?"),
+        new PromptSuggestion("Lost sci-fi sequel", "Imagine the long-awaited continuation of an original science-fiction series", "Hi Team, invent an original science-fiction sequel for a fictional series that has been absent for decades. Explain what you need to learn, how the story should evolve, which engine could support it, and how you would build a convincing prototype without copying an existing franchise."),
     };
         }
         public string LivingCitiesPrompt =>

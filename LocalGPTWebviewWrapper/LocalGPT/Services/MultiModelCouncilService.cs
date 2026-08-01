@@ -1201,6 +1201,51 @@ namespace LocalGPT.Services
                 : $"deterministic-random {Math.Max(1, role.MinimumAiParticipants)}-{Math.Max(role.MinimumAiParticipants, role.MaximumAiParticipants)} AI member(s) per run";
         }
 
+        private string BuildConfiguredRolePerformanceInstruction(
+            CouncilRolePerformanceMode performanceMode,
+            string modelName,
+            string roleName) => performanceMode switch
+        {
+            CouncilRolePerformanceMode.ImprovisationPlayer =>
+                $"You are AI kernel '{modelName}', a genuine improvisation player performing the assigned role '{roleName}' inside the configured fictional scene. " +
+                "You are not an NPC or a passive narrator. Make creative, bounded choices for your own role, preserve continuity, react to other players, and remain aware that the world, prizes, creatures and consequences are fictional. " +
+                "Do not seize another participant's role, decide another player's action, or step outside the scenario to redesign the workflow unless the role explicitly requires it.",
+            _ =>
+                $"Work as AI kernel '{modelName}' in the bounded task-specialist role '{roleName}'. Stay within that role's responsibility and do not take over another role."
+        };
+
+        private string BuildConfiguredRoleBoundaryInstruction(CouncilRoleBoundaryMode boundaryMode, string roleName) => boundaryMode switch
+        {
+            CouncilRoleBoundaryMode.Strict =>
+                $"Strict role ownership is active for '{roleName}'. Speak and act only for this role. Do not narrate another participant's private thinking, choose another player's move, issue a ruling reserved for another role, or manufacture another role's dialogue or outcome.",
+            CouncilRoleBoundaryMode.Collaborative =>
+                $"Collaborative role boundaries are active for '{roleName}'. You may offer clearly labeled suggestions to neighboring roles, but you may not perform their choices, speak as them, or convert a suggestion into an accomplished action.",
+            _ =>
+                $"Bounded role ownership is active for '{roleName}'. Stay inside this role's responsibility, refer to other participants only as shared context, and never decide their actions or outcomes."
+        };
+
+        private string BuildConfiguredRoleLanguageInstruction(CouncilRoleLanguageMode languageMode) => languageMode switch
+        {
+            CouncilRoleLanguageMode.SenderLanguage =>
+                "Use the natural language of the latest human sender message for both visible output and any thinking text the model exposes. Preserve identifiers, code, names and quoted commands unchanged. If the latest human message is mixed-language, follow its dominant language.",
+            CouncilRoleLanguageMode.English =>
+                "Use English for visible output and any thinking text the model exposes, while preserving identifiers, code, names and quoted commands unchanged.",
+            _ =>
+                "Choose the response language that best fits the current conversation, while preserving identifiers, code, names and quoted commands unchanged."
+        };
+
+        private string BuildConfiguredRoleHumanParticipationInstruction(HumanParticipationMode mode) => mode switch
+        {
+            HumanParticipationMode.Optional =>
+                "A human may optionally send a current role command or improvisation cue. Use a clearly targeted current human message when present; otherwise continue autonomously without asking, blocking or inventing a human command.",
+            HumanParticipationMode.Required =>
+                "A current human response is required before this role continues. Use the approved human response as guidance without treating it as proof that an outcome already happened.",
+            HumanParticipationMode.HumanOnly =>
+                "This role belongs to the human participant. Do not simulate the missing human decision.",
+            _ =>
+                "No human turn is configured for this role. Continue autonomously and do not ask the user to choose commands unless the workflow prompt explicitly creates a decision checkpoint."
+        };
+
         private async Task WaitForConfiguredRoleHumanParticipationAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1947,7 +1992,8 @@ namespace LocalGPT.Services
                 Environment.NewLine,
                 team.Roles.Select(role =>
                     $"- {role.Role}: {role.Expertise}. Responsibility: {role.Responsibility}. " +
-                    $"AI assignment: {DescribeConfiguredRoleAiPolicy(role)}. Human participation: {role.HumanParticipationMode}."));
+                    $"AI assignment: {DescribeConfiguredRoleAiPolicy(role)}. Human participation: {role.HumanParticipationMode}. " +
+                    $"Performance: {role.PerformanceMode}. Boundary: {role.BoundaryMode}. Language: {role.LanguageMode}."));
             var boundedTranscript = transcript.Length <= 160000 ? transcript : transcript[^160000..];
             var boundedPreviousStep = previousStep.Length <= 80000 ? previousStep : previousStep[^80000..];
             var roleMembers = roleAssignment.AiParticipants.Count == 0
@@ -1955,6 +2001,13 @@ namespace LocalGPT.Services
                 : string.Join(", ", roleAssignment.AiParticipants);
             var roleExpertise = roleAssignment.Definition?.Expertise ?? string.Empty;
             var roleResponsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
+            var performanceMode = roleAssignment.Definition?.PerformanceMode ?? CouncilRolePerformanceMode.TaskSpecialist;
+            var boundaryMode = roleAssignment.Definition?.BoundaryMode ?? CouncilRoleBoundaryMode.Bounded;
+            var languageMode = roleAssignment.Definition?.LanguageMode ?? CouncilRoleLanguageMode.ModelChoice;
+            var performanceInstruction = BuildConfiguredRolePerformanceInstruction(performanceMode, modelName, roleAssignment.RoleName);
+            var boundaryInstruction = BuildConfiguredRoleBoundaryInstruction(boundaryMode, roleAssignment.RoleName);
+            var languageInstruction = BuildConfiguredRoleLanguageInstruction(languageMode);
+            var humanParticipationInstruction = BuildConfiguredRoleHumanParticipationInstruction(roleAssignment.HumanParticipationMode);
             var participantPairings = rolePairings
                 .Where(pairing =>
                     string.Equals(pairing.RoleName, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase) &&
@@ -1978,6 +2031,13 @@ namespace LocalGPT.Services
                 .Replace("{{RoleMembers}}", roleMembers, StringComparison.Ordinal)
                 .Replace("{{RoleAiSelection}}", roleAssignment.AiSelectionDescription, StringComparison.Ordinal)
                 .Replace("{{HumanParticipationMode}}", roleAssignment.HumanParticipationMode.ToString(), StringComparison.Ordinal)
+                .Replace("{{RolePerformanceMode}}", performanceMode.ToString(), StringComparison.Ordinal)
+                .Replace("{{RoleBoundaryMode}}", boundaryMode.ToString(), StringComparison.Ordinal)
+                .Replace("{{RoleLanguageMode}}", languageMode.ToString(), StringComparison.Ordinal)
+                .Replace("{{RolePerformanceInstruction}}", performanceInstruction, StringComparison.Ordinal)
+                .Replace("{{RoleBoundaryInstruction}}", boundaryInstruction, StringComparison.Ordinal)
+                .Replace("{{RoleLanguageInstruction}}", languageInstruction, StringComparison.Ordinal)
+                .Replace("{{HumanParticipationInstruction}}", humanParticipationInstruction, StringComparison.Ordinal)
                 .Replace("{{RoleExpertise}}", roleExpertise, StringComparison.Ordinal)
                 .Replace("{{RoleResponsibility}}", roleResponsibility, StringComparison.Ordinal)
                 .Replace("{{PairedParticipant}}", pairedParticipants, StringComparison.Ordinal)
@@ -2006,7 +2066,10 @@ namespace LocalGPT.Services
                 .Append("- Role: ").AppendLine(roleAssignment.RoleName)
                 .Append("- Assigned AI role members: ").AppendLine(roleMembers)
                 .Append("- AI selection policy: ").AppendLine(roleAssignment.AiSelectionDescription)
-                .Append("- Human participation mode: ").AppendLine(roleAssignment.HumanParticipationMode.ToString());
+                .Append("- Human participation mode: ").AppendLine(roleAssignment.HumanParticipationMode.ToString())
+                .Append("- Role performance mode: ").AppendLine(performanceMode.ToString())
+                .Append("- Role boundary mode: ").AppendLine(boundaryMode.ToString())
+                .Append("- Role language mode: ").AppendLine(languageMode.ToString());
             if (!string.IsNullOrWhiteSpace(roleExpertise))
                 assignmentBriefing.Append("- Expertise/viewpoint: ").AppendLine(roleExpertise);
             if (!string.IsNullOrWhiteSpace(roleResponsibility))
@@ -2016,6 +2079,10 @@ namespace LocalGPT.Services
             if (!string.IsNullOrWhiteSpace(loopGroup))
                 assignmentBriefing.Append("- Loop: ").Append(loopGroup).Append(' ').Append(loopIteration).Append('/').AppendLine(loopMaximumIterations.ToString(System.Globalization.CultureInfo.InvariantCulture));
             assignmentBriefing.AppendLine("Treat the role assignment as workflow structure, not as proof that any participant's answer is correct.");
+            assignmentBriefing.Append("- Performance instruction: ").AppendLine(performanceInstruction);
+            assignmentBriefing.Append("- Boundary instruction: ").AppendLine(boundaryInstruction);
+            assignmentBriefing.Append("- Language instruction: ").AppendLine(languageInstruction);
+            assignmentBriefing.Append("- Human-turn instruction: ").AppendLine(humanParticipationInstruction);
 
             return $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}{assignmentBriefing.ToString().Trim()}";
         }

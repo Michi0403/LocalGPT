@@ -18,6 +18,29 @@ public enum HumanParticipationMode
     HumanOnly
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilRolePerformanceMode
+{
+    TaskSpecialist,
+    ImprovisationPlayer
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilRoleLanguageMode
+{
+    ModelChoice,
+    SenderLanguage,
+    English
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilRoleBoundaryMode
+{
+    Bounded,
+    Collaborative,
+    Strict
+}
+
 public sealed class OrganicCouncilTeamDefinition
 {
     public string Key { get; set; } = string.Empty;
@@ -44,6 +67,9 @@ public sealed class OrganicCouncilRoleDefinition
     public int MinimumAiParticipants { get; set; } = 1;
     public int MaximumAiParticipants { get; set; } = 1;
     public HumanParticipationMode HumanParticipationMode { get; set; } = HumanParticipationMode.None;
+    public CouncilRolePerformanceMode PerformanceMode { get; set; } = CouncilRolePerformanceMode.TaskSpecialist;
+    public CouncilRoleLanguageMode LanguageMode { get; set; } = CouncilRoleLanguageMode.ModelChoice;
+    public CouncilRoleBoundaryMode BoundaryMode { get; set; } = CouncilRoleBoundaryMode.Bounded;
     public string DistinctAiAssignmentGroup { get; set; } = string.Empty;
     public string MatchAiParticipantCountToRole { get; set; } = string.Empty;
     public string PairedRole { get; set; } = string.Empty;

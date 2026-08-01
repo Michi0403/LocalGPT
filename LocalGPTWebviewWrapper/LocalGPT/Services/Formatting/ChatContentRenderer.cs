@@ -13,6 +13,7 @@ namespace LocalGPT.Services.Formatting;
 /// </summary>
 public sealed class ChatContentRenderer(
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IStructuredTextTranslationService structuredText,
     ILogger<ChatContentRenderer> logger) : IChatContentRenderer
 {
     private readonly Regex HarmonyMarkerRegex = new(
@@ -94,6 +95,7 @@ public sealed class ChatContentRenderer(
             // preserving valid surrogate pairs and every other character.
             var text = SanitizeInvalidUnicode(content);
             text = HarmonyMarkerRegex.Replace(text, string.Empty);
+            text = structuredText.TranslatePlainJsonBlocksToMarkdown(text);
             text = ThinkingDetailsStartRegex.Replace(
                 text,
                 "<details class=\"model-thinking\">");
