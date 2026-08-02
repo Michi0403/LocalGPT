@@ -76,12 +76,12 @@ function Get-LocalGptHtmlPage {
 
 function Convert-LocalGptMarkdownToHtml {
     param([Parameter(Mandatory)][string]$Markdown)
-    $lines = @($Markdown -split "`r?`n")
+    $lines = @($Markdown -split '\r?\n')
     $html = [System.Collections.Generic.List[string]]::new()
     $inCode = $false
     $inList = $false
     foreach ($line in $lines) {
-        if ($line.Trim().StartsWith("```")) {
+        if ($line.Trim().StartsWith('```')) {
             if ($inList) { $html.Add("</ul>"); $inList = $false }
             if ($inCode) { $html.Add("</code></pre>"); $inCode = $false }
             else { $html.Add("<pre><code>"); $inCode = $true }
