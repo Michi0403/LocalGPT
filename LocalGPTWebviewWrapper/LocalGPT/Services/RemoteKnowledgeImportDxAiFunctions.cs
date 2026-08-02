@@ -88,7 +88,7 @@ public sealed class RemoteImportDxParameterReader(
                 SourceUrl = String(parameters, "sourceUrl"),
                 SourceKind = String(parameters, "sourceKind", "Auto"),
                 Branch = String(parameters, "branch", "main"),
-                FileIncludeRegex = String(parameters, "fileIncludeRegex", @"(?i)\.(cs|razor|csproj|sln|json|xml|md|txt|ps1|cmd|sh|py|js|ts|tsx|css|html|php|c|h|cpp|hpp|java|kt|go|rs|sql|yml|yaml)$"),
+                FileIncludeRegex = String(parameters, "fileIncludeRegex", @"(?i)\.(cs|razor|csproj|sln|json|xml|md|mdx|rst|adoc|txt|ps1|cmd|sh|py|js|ts|tsx|css|html|php|c|h|cpp|hpp|cc|cxx|ino|pde|cmake|kconfig|sdkconfig|toml|ini|cfg|csv|java|kt|go|rs|sql|yml|yaml)$|(^|/)(CMakeLists\.txt|platformio\.ini|library\.properties)$"),
                 MaxFiles = Integer(parameters, "maxFiles", 5000),
                 MaxLinkedPages = Integer(parameters, "maxLinkedPages", 20),
                 SaveToKnowledge = !preview && Boolean(parameters, "saveToKnowledge", true),

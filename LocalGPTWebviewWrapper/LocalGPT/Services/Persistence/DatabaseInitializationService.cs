@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.1.13",
+                CurrentVersion = "2.1.14",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -426,6 +426,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.13", repositoryRoot, "Compile recovery and database-logger startup isolation release that awaits configured UI actions and defers ApplicationLogs persistence until migration and deterministic seeding complete.");
         EnsureRevision(core, "main", "seed-v2.1.13", repositoryRoot,
             "Repairs RunRemoteKnowledgeAsync so LocalGPT compiles and adds a one-way database-logger readiness gate so startup diagnostics cannot race migration or seed SaveChangesAsync operations. The adaptive Ollama benchmark implementation and independently versioned wire protocol remain unchanged.");
+        EnsureVersion(core, "2.1.14", repositoryRoot, "Embedded firmware and workspace-environment preparation release with transport-neutral ESP32/Arduino planning, board/pin catalogs, PublisherStudio wiring contracts, official learning-source manifests and permission-aware compiler workspaces.");
+        EnsureRevision(core, "main", "seed-v2.1.14", repositoryRoot,
+            "Adds Chat-level embedded catalog, wiring, firmware and telemetry DXFunctions; protected logical 1-Wire telemetry ingress; PublisherStudio organic wiring-editor contracts; Arduino/Espressif/PlatformIO installer learning sources; and workspace environment, compiler, structure-regex and access-policy assessment wiring. Legacy embedded sources remain architectural evidence and are not copied into the product.");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",

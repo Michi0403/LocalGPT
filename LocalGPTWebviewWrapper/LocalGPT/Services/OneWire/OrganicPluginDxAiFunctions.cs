@@ -470,6 +470,43 @@ public sealed class RequestPublisherWebsiteContentFunction(
             }, cancellationToken);
 }
 
+
+/// <summary>Requests PublisherStudio's future embedded wiring canvas for a LocalGPT board/pin draft.</summary>
+public sealed class RequestPublisherEmbeddedWiringEditorFunction(
+    IOrganicDxFunctionSupport organicSupport,
+    IPublisherInteractionDxSupport publisherInteractionSupport,
+    IEmbeddedHardwareCatalogService embeddedCatalog,
+    IOneWireConnectionRegistry connections,
+    IOneWirePeerRegistry peers,
+    IOneWireWorkSpooler spooler,
+    ILogger<RequestPublisherEmbeddedWiringEditorFunction> logger) : IDxAiFunctionHandler
+{
+    private const string CapabilityKey = "publisher.embedded.wiring.edit.request";
+
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        Name: "publisher.embedded.wiring.edit.request",
+        Method: "POST",
+        Route: "/api/onewire/peers/connected/embedded/wiring/edit",
+        Purpose: "Requests the connected PublisherStudio workbench to render and edit a canvas-neutral ESP32/Arduino board, pin and wiring draft with optional OpenSCAD part links and animated signal arrows.",
+        Parameters: "boardProfileKey, draft, reason, peerId, workOrderKey",
+        SafetyNotes: "Requires fresh approval in both applications. PublisherStudio may edit and return the draft, but LocalGPT must revalidate it before firmware artifact creation; no compile, flash or actuator action is implied.",
+        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,
+        Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"boardProfileKey":{"type":"string"},"draft":{"type":"object"},"reason":{"type":"string"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
+        IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
+
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
+        publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
+            parameters => JsonSerializer.SerializeToElement(new
+            {
+                boardProfileKey = organicSupport.GetString(parameters, "boardProfileKey", "esp32-classic-generic"),
+                draft = parameters.TryGetProperty("draft", out var draft) && draft.ValueKind == JsonValueKind.Object
+                    ? draft.Clone()
+                    : JsonSerializer.SerializeToElement(new { }),
+                reason = organicSupport.GetString(parameters, "reason", "Review and edit the embedded board pin and wiring plan."),
+                workbench = embeddedCatalog.GetPublisherWorkbenchContract()
+            }), cancellationToken);
+}
+
 public sealed class PublisherInteractionDxSupport(
     IOrganicDxFunctionSupport organicSupport,
     ILogger<PublisherInteractionDxSupport> serviceLogger) : IPublisherInteractionDxSupport

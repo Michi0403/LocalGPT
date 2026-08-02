@@ -128,6 +128,16 @@ public sealed class ProjectMaintenanceGetParameters
     public Guid? RevisionId { get; set; }
 }
 
+public sealed class ProjectWorkspaceEnvironmentSaveParameters
+{
+    public SaveProjectWorkspaceRootRequest Request { get; set; } = new();
+}
+
+public sealed class ProjectWorkspaceEnvironmentAssessParameters
+{
+    public Guid WorkspaceRootId { get; set; }
+}
+
 public sealed class ProjectRevisionWorkspaceRegisterParameters
 {
     public Guid ProjectId { get; set; }

@@ -193,6 +193,24 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
                 Column("CouncilRuntimeClassConfigurations", "FieldsJson"),
                 Column("CouncilRuntimeClassConfigurations", "InputBindingsJson"),
                 Column("CouncilRuntimeClassConfigurations", "SourceReferencesJson")
+            ]),
+        new(
+            "20260802020000_AddEmbeddedFirmwareAndWorkspaceEnvironments",
+            "10.0.10",
+            [
+                Column("ProjectWorkspaceRoots", "AccessPolicyJson"),
+                Column("ProjectWorkspaceRoots", "BuildArguments"),
+                Column("ProjectWorkspaceRoots", "DefaultSubdirectoriesJson"),
+                Column("ProjectWorkspaceRoots", "EnvironmentKind"),
+                Column("ProjectWorkspaceRoots", "EnvironmentRootPath"),
+                Column("ProjectWorkspaceRoots", "EnvironmentVariablesJson"),
+                Column("ProjectWorkspaceRoots", "ExpectedStructureRegex"),
+                Column("ProjectWorkspaceRoots", "LastPermissionCheckedAtUtc"),
+                Column("ProjectWorkspaceRoots", "LastPermissionReadAccess"),
+                Column("ProjectWorkspaceRoots", "LastPermissionStatus"),
+                Column("ProjectWorkspaceRoots", "LastPermissionSummary"),
+                Column("ProjectWorkspaceRoots", "LastPermissionWriteAccess"),
+                Column("ProjectWorkspaceRoots", "PreferredCompilerInstallationId")
             ])
     ];
 

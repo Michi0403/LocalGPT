@@ -29,6 +29,7 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
             var details = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
             if (details is null) return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The project was not found." };
             var workspace = await maintenance.ResolveWorkspaceAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
+            var workspaceRoots = await maintenance.GetWorkspaceRootsAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
             var compilers = await maintenance.GetCompilerInstallationsAsync(cancellationToken).ConfigureAwait(false);
             var files = await maintenance.GetTrackedFilesAsync(parameters.ProjectId, parameters.RevisionId, cancellationToken).ConfigureAwait(false);
             logger.LogDebug("DXAIFunction returned project maintenance metadata for project {ProjectId} with {FileCount} tracked file(s).", parameters.ProjectId, files.Count);
@@ -36,6 +37,7 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
             {
             Project = new { details.Project.Id, details.Project.Name, details.Project.ProjectType, details.Project.RootPath, details.Project.SolutionPath, details.Project.SolutionSearchPattern, details.Project.FileIncludePattern, details.Project.FileExcludePattern },
             Workspace = workspace,
+            WorkspaceRoots = workspaceRoots.Select(item => new { item.Id, item.Name, item.RootPath, item.ScopeKind, item.ProjectTypePattern, item.SolutionPattern, item.EnvironmentKind, item.EnvironmentRootPath, item.PreferredCompilerInstallationId, item.BuildArguments, item.EnvironmentVariablesJson, item.DefaultSubdirectoriesJson, item.AccessPolicyJson, item.ExpectedStructureRegex, item.LastPermissionStatus, item.LastPermissionSummary, item.LastPermissionReadAccess, item.LastPermissionWriteAccess, item.LastPermissionCheckedAtUtc, item.IsDefault, item.IsEnabled }),
             Compilers = compilers.Where(item => item.IsEnabled).Select(item => new { item.Id, item.Name, item.Language, item.ExecutablePath, item.CompilerHomePath, item.Version, item.Architecture, item.LastValidationSucceeded, item.IsDefaultForLanguage }),
             Revisions = details.Revisions.Select(item => new { item.Id, item.BranchName, item.RevisionName, item.IsCurrent, item.CompileVerified, item.CouncilVerified, item.ReadyForTesting, item.SourceRootPath, item.SolutionPath, item.SourceSnapshotHash, item.SnapshotArchivePath }),
             Files = files.Select(item => new { item.Id, item.ProjectRelativePath, item.AbsolutePath, item.SolutionPath, item.ProjectFilePath, item.FileRole, item.StructureRegex, item.ContentFormatRegex, item.ContentHash, item.SizeBytes, item.Exists, item.IsGenerated }),
@@ -47,6 +49,46 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
             logger.LogError(ex, "Could not load project maintenance metadata; project paths were omitted from logs.");
             return new DxAiFunctionInvocationResult { Status = "Failed", Error = "Project maintenance metadata could not be loaded. Review LocalGPT logs." };
         }
+    }
+}
+
+public sealed class SaveProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<SaveProjectWorkspaceEnvironmentFunction> logger) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "project.workspace.environment.save", "POST", "/api/dxai/functions/project.workspace.environment.save/invoke",
+        "Save one project/global workspace local-environment definition, preferred compiler, expected subdirectories, structure regex, and Council-maintainable access-policy regex rules.",
+        "JSON parameters: request containing SaveProjectWorkspaceRootRequest.",
+        "Metadata-only change after one-use human approval. Paths and regex rules grant no execution authority; assess and validate before build use.",
+        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        var binding = json.Bind<ProjectWorkspaceEnvironmentSaveParameters>(request.Parameters);
+        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+        binding.Value.Request.UserConfirmed = true;
+        var result = await maintenance.SaveWorkspaceRootAsync(binding.Value.Request, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Approved workspace environment metadata saved for workspace {WorkspaceRootId}; paths and regex content omitted from logs.", result.Id);
+        return json.Success(result);
+    }
+}
+
+public sealed class AssessProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<AssessProjectWorkspaceEnvironmentFunction> logger) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "project.workspace.environment.assess", "POST", "/api/dxai/functions/project.workspace.environment.assess/invoke",
+        "Assess whether the current LocalGPT process has too broad or insufficient rights for a configured workspace, verify expected directories/regex rules, and check the assigned compiler state.",
+        "JSON parameters: workspaceRootId.",
+        "Requires fresh human approval because it creates and immediately removes one bounded probe file in the selected workspace. It does not compile or edit project sources.",
+        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler",
+        ParameterSchemaJson: """{"type":"object","required":["workspaceRootId"],"properties":{"workspaceRootId":{"type":"string","format":"uuid"}},"additionalProperties":false}""");
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        var binding = json.Bind<ProjectWorkspaceEnvironmentAssessParameters>(request.Parameters);
+        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+        var result = await maintenance.AssessWorkspacePermissionsAsync(binding.Value.WorkspaceRootId, userConfirmedWriteProbe: true, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Approved workspace permission assessment completed for workspace {WorkspaceRootId} with status {Status}.", result.WorkspaceRootId, result.Status);
+        return json.Success(result);
     }
 }
 

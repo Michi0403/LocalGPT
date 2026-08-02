@@ -3,6 +3,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
@@ -12,7 +13,9 @@ namespace LocalGPT.Services
         ILogger<LearnBaseKnowledgeImporterService> logger,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
-        LocalGptCatalogService catalog) : ILearnBaseKnowledgeImporterService
+        LocalGptCatalogService catalog,
+        ILocalGptRuntimePolicyDataService runtimePolicy,
+        IRegexPatternService regexPatterns) : ILearnBaseKnowledgeImporterService
     {
 
 
@@ -41,6 +44,7 @@ namespace LocalGPT.Services
                 }
 
                 await knowledgeService.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
+                await ImportLearningSourceManifestsAsync(rootPath, request, result, cancellationToken).ConfigureAwait(false);
                 await ImportKnownDocumentationCorporaAsync(rootPath, request, result, cancellationToken).ConfigureAwait(false);
 
                 var configuredProjectLimit = catalog.LearnBaseScanProfiles
@@ -102,6 +106,209 @@ namespace LocalGPT.Services
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ImportAsync");
                 throw;
             }
+        }
+
+        private async Task ImportLearningSourceManifestsAsync(
+            string rootPath,
+            LearnBaseImportRequest request,
+            LearnBaseImportResult result,
+            CancellationToken cancellationToken)
+        {
+            IReadOnlyList<string> manifestPaths;
+            try
+            {
+                manifestPaths = Directory.EnumerateFiles(rootPath, "localgpt-learning-source.json", SearchOption.AllDirectories)
+                    .Take(100)
+                    .ToArray();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                result.Warnings.Add("Learning-source manifests could not be enumerated completely.");
+                logger.LogWarning(ex, "Could not enumerate LocalGPT learning-source manifests; paths omitted from logs.");
+                return;
+            }
+
+            foreach (var manifestPath in manifestPaths)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+                    var manifest = JsonSerializer.Deserialize<LearningSourceManifest>(manifestJson, new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true });
+                    if (manifest is null || string.IsNullOrWhiteSpace(manifest.Repository))
+                    {
+                        result.Warnings.Add($"Ignored invalid learning-source manifest: {Path.GetFileName(Path.GetDirectoryName(manifestPath))}");
+                        continue;
+                    }
+                    var sourceRoot = Path.GetDirectoryName(manifestPath)!;
+                    var include = CompileManifestRegex(manifest.IncludeRegex, @"(?i)\.(md|txt|ino|c|h|cpp|hpp|json|ya?ml)$");
+                    var exclude = CompileManifestRegex(manifest.ExcludeRegex, @"(?!)");
+                    var maximumFiles = Math.Clamp(manifest.MaximumFiles, 1, 20000);
+                    var maximumBytes = Math.Clamp(manifest.MaximumFileBytes, 1024, 8 * 1024 * 1024);
+                    var matched = new List<FileInfo>();
+                    var pending = new Stack<string>();
+                    pending.Push(sourceRoot);
+                    while (pending.Count > 0 && matched.Count < maximumFiles)
+                    {
+                        var current = pending.Pop();
+                        IEnumerable<string> directories;
+                        IEnumerable<string> files;
+                        try
+                        {
+                            directories = Directory.EnumerateDirectories(current).ToArray();
+                            files = Directory.EnumerateFiles(current).ToArray();
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            logger.LogDebug(ex, "Skipped one unreadable learning-source directory; path omitted from logs.");
+                            continue;
+                        }
+                        foreach (var directory in directories)
+                        {
+                            var relative = Path.GetRelativePath(sourceRoot, directory).Replace('\\', '/') + "/";
+                            if (!exclude.IsMatch(relative)) pending.Push(directory);
+                        }
+                        foreach (var file in files)
+                        {
+                            var relative = Path.GetRelativePath(sourceRoot, file).Replace('\\', '/');
+                            if (relative.Equals("localgpt-learning-source.json", StringComparison.OrdinalIgnoreCase) || exclude.IsMatch(relative) || !include.IsMatch(relative)) continue;
+                            var info = new FileInfo(file);
+                            if (info.Length <= maximumBytes) matched.Add(info);
+                            if (matched.Count >= maximumFiles) break;
+                        }
+                    }
+
+                    var extensionCounts = matched
+                        .GroupBy(file => string.IsNullOrWhiteSpace(file.Extension) ? "(none)" : file.Extension.ToLowerInvariant())
+                        .OrderByDescending(group => group.Count())
+                        .ThenBy(group => group.Key, StringComparer.Ordinal)
+                        .Take(30)
+                        .Select(group => $"{group.Key}: {group.Count()}")
+                        .ToArray();
+                    var representative = matched
+                        .OrderBy(file => RepresentativeRank(file.Extension))
+                        .ThenBy(file => file.FullName.Length)
+                        .Take(40)
+                        .ToArray();
+                    var sourceSignatures = new List<string>();
+                    foreach (var file in representative.Take(20))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var signature = await ExtractManifestFileSignatureAsync(sourceRoot, file, cancellationToken).ConfigureAwait(false);
+                        if (!string.IsNullOrWhiteSpace(signature)) sourceSignatures.Add(signature);
+                    }
+                    var helpfulSources = string.Join("; ", representative.Select(file => Path.GetRelativePath(sourceRoot, file.FullName).Replace('\\', '/')).Take(30));
+                    var canonical = manifest.Repository + "|" + manifest.Revision + "|" + string.Join("|", matched.OrderBy(file => file.FullName, StringComparer.Ordinal).Select(file => Path.GetRelativePath(sourceRoot, file.FullName).Replace('\\', '/') + ":" + file.Length));
+                    var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+                    var content = new StringBuilder()
+                        .AppendLine($"Repository: {manifest.Repository}")
+                        .AppendLine($"Revision: {manifest.Revision}")
+                        .AppendLine($"Matched files: {matched.Count}")
+                        .AppendLine($"Manifest include regex: {manifest.IncludeRegex}")
+                        .AppendLine($"Manifest exclude regex: {manifest.ExcludeRegex}")
+                        .AppendLine("Extension map: " + string.Join(", ", extensionCounts))
+                        .AppendLine("Representative parsed source/document signatures:")
+                        .AppendLine(sourceSignatures.Count == 0 ? "- No bounded readable signatures were extracted." : string.Join(Environment.NewLine, sourceSignatures.Select(item => "- " + item)))
+                        .AppendLine("Use this compact source map as navigation evidence. Read exact current files before making board, compiler, GPIO, or API claims.")
+                        .ToString().Trim();
+                    Guid? knowledgeEntryId = null;
+                    if (request.SaveToKnowledge)
+                    {
+                        var entry = new CouncilKnowledgeEntry
+                        {
+                            Id = DeterministicGuid(hash),
+                            Topic = $"{manifest.Repository} embedded source map",
+                            Scope = "Installer learning source",
+                            Content = content,
+                            Source = string.IsNullOrWhiteSpace(manifest.SourceUrl) ? manifest.Repository : manifest.SourceUrl,
+                            HelpfulSources = helpfulSources,
+                            Tags = string.Join(",", (manifest.Topics ?? []).Concat(manifest.RoleKeys ?? []).Append("manifest-import").Distinct(StringComparer.OrdinalIgnoreCase)),
+                            Confidence = 70,
+                            VerificationStatus = "SourceMapped",
+                            ReviewStatus = "NeedsUserReview",
+                            SourceHash = hash,
+                            SourceDateUtc = DateTime.UtcNow,
+                            IsUserApproved = false
+                        };
+                        var saved = await knowledgeService.SaveEntryAsync(entry, cancellationToken).ConfigureAwait(false);
+                        knowledgeEntryId = saved.Id;
+                        result.SavedKnowledgeCount++;
+                    }
+                    result.Projects.Add(new LearnBaseProjectSummary
+                    {
+                        Name = $"{manifest.Repository} manifest corpus",
+                        SourcePath = sourceRoot,
+                        Architecture = "Installer-provisioned compact source/document corpus parsed through an explicit include/exclude regex manifest.",
+                        ProtocolsAndComponents = string.Join(", ", manifest.Topics ?? []),
+                        TargetFrameworks = "Documentation and embedded source corpus; exact build targets remain repository-owned.",
+                        PackageReferences = "Not expanded by compact manifest import.",
+                        ImportantFiles = helpfulSources,
+                        SourceFileCount = matched.Count,
+                        BinaryFileCount = 0,
+                        KnowledgeEntryId = knowledgeEntryId
+                    });
+                    logger.LogInformation("Parsed LocalGPT learning-source manifest for repository {Repository}: {MatchedFileCount} bounded file(s), saved={Saved}.", manifest.Repository, matched.Count, request.SaveToKnowledge);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+                {
+                    result.Warnings.Add($"Could not parse learning-source manifest under {Path.GetFileName(Path.GetDirectoryName(manifestPath))}: {ex.Message}");
+                    logger.LogWarning(ex, "Could not parse one LocalGPT learning-source manifest; path and source content omitted from logs.");
+                }
+            }
+        }
+
+        private Guid DeterministicGuid(string hexadecimalHash)
+        {
+            var bytes = Convert.FromHexString(hexadecimalHash);
+            return new Guid(bytes.AsSpan(0, 16));
+        }
+
+        private Regex CompileManifestRegex(string? pattern, string fallback)
+        {
+            var value = string.IsNullOrWhiteSpace(pattern) ? fallback : pattern;
+            return regexPatterns.Compile(value, "CultureInvariant", runtimePolicy.RegexTimeout);
+        }
+
+        private int RepresentativeRank(string extension) => extension.ToLowerInvariant() switch
+        {
+            ".md" or ".mdx" or ".rst" or ".adoc" => 0,
+            ".ino" or ".pde" => 1,
+            ".h" or ".hpp" => 2,
+            ".c" or ".cc" or ".cpp" or ".cxx" => 3,
+            ".json" or ".yml" or ".yaml" or ".toml" or ".ini" => 4,
+            _ => 5
+        };
+
+        private async Task<string> ExtractManifestFileSignatureAsync(string root, FileInfo file, CancellationToken cancellationToken)
+        {
+            const int maximumCharacters = 12000;
+            await using var stream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: false);
+            var buffer = new char[Math.Min(maximumCharacters, (int)Math.Min(file.Length + 1, maximumCharacters))];
+            var count = await reader.ReadBlockAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+            var text = new string(buffer, 0, count);
+            var relative = Path.GetRelativePath(root, file.FullName).Replace('\\', '/');
+            var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(line => line.StartsWith('#') || line.Contains("setup(", StringComparison.Ordinal) || line.Contains("loop(", StringComparison.Ordinal) || line.Contains("#define ", StringComparison.Ordinal) || line.Contains("class ", StringComparison.Ordinal) || line.Contains("struct ", StringComparison.Ordinal) || line.Contains("GPIO", StringComparison.OrdinalIgnoreCase) || line.Contains("pinMode", StringComparison.Ordinal))
+                .Select(line => line.Length <= 220 ? line : line[..220])
+                .Take(6)
+                .ToArray();
+            return lines.Length == 0 ? relative : relative + " :: " + string.Join(" | ", lines);
+        }
+
+        private sealed class LearningSourceManifest
+        {
+            public int SchemaVersion { get; set; } = 1;
+            public string Repository { get; set; } = string.Empty;
+            public string SourceUrl { get; set; } = string.Empty;
+            public string Revision { get; set; } = string.Empty;
+            public string IncludeRegex { get; set; } = string.Empty;
+            public string ExcludeRegex { get; set; } = string.Empty;
+            public int MaximumFiles { get; set; } = 12000;
+            public int MaximumFileBytes { get; set; } = 2 * 1024 * 1024;
+            public List<string> Topics { get; set; } = [];
+            public List<string> RoleKeys { get; set; } = [];
+            public string ImportMode { get; set; } = "CompactManifestCorpus";
         }
 
         private async Task ImportKnownDocumentationCorporaAsync(

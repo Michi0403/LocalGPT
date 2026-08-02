@@ -259,7 +259,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.1.13"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.1.14"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
@@ -353,6 +353,11 @@ namespace LocalGPT
                 builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
                 builder.Services.AddScoped<IProjectArchitectureService, ProjectArchitectureService>();
                 builder.Services.AddScoped<IProjectMaintenanceService, ProjectMaintenanceService>();
+                builder.Services.AddSingleton<IEmbeddedHardwareCatalogService, EmbeddedHardwareCatalogService>();
+                builder.Services.AddSingleton<IEmbeddedWiringService, EmbeddedWiringService>();
+                builder.Services.AddSingleton<IEmbeddedTelemetryBridgeService, EmbeddedTelemetryBridgeService>();
+                builder.Services.AddSingleton<IEmbeddedTelemetryIngressService, EmbeddedTelemetryIngressService>();
+                builder.Services.AddScoped<IEmbeddedFirmwarePlanningService, EmbeddedFirmwarePlanningService>();
                 builder.Services.AddScoped<IModelPresetService, ModelPresetService>();
                 builder.Services.AddScoped<ISqliteEditorPreferenceService, SqliteEditorPreferenceService>();
                 builder.Services.AddScoped<ISafeTextDocumentService, SafeTextDocumentService>();

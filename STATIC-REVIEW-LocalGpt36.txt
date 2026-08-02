@@ -1,0 +1,101 @@
+LocalGPT 2.1.14 / LocalGpt(36) static review
+================================================
+
+Scope
+-----
+This source package extends the compiling LocalGPT 2.1.13 baseline with a bounded,
+Chat-first ESP32/Arduino firmware and wiring planning slice, transport-neutral
+embedded protocol contracts, official installer learning-source manifests, and
+workspace-local environment/compiler/permission policy wiring.
+
+The supplied legacy embedded archive was treated as architecture and workflow
+evidence only. No vendored Fritzing/Qt/Boost/libgit2 tree, legacy application,
+binary, build output, private crawler, or old framework dependency was copied
+into LocalGPT.
+
+Implemented contract surface
+----------------------------
+- Council preset: embedded-firmware-wiring.
+- Board/pin catalog profiles: ESP32 classic review profile, Arduino Uno R3 review
+  profile, and a deliberately blocked generic ESP32 family placeholder.
+- Protocol catalog: GPIO, ADC, PWM, physical 1-Wire, I2C, SPI, UART, CAN, RS-485,
+  serial JSON lines, HTTP JSON, MQTT, LocalGPT logical 1-Wire, organic peers and
+  custom protocols.
+- Services: catalog, wiring draft/validation, deterministic firmware planning,
+  artifact creation, telemetry normalization/bridge, and bounded telemetry ingress.
+- HTTP controller: /api/embedded catalog, wiring, firmware and telemetry methods.
+- DXFunctions: embedded catalog, wiring, firmware plan/artifacts, telemetry preview,
+  logical 1-Wire envelope preview and telemetry publish.
+- Organic capability: PublisherStudio embedded wiring editor request plus manifest
+  descriptors for future validation, OpenSCAD part preview and signal animation.
+- Workspace environments: local environment root/kind, compiler selection, build
+  arguments, environment variables, expected subdirectories, structure regex,
+  access-policy regex, persisted permission status and bounded read/write proof.
+- Installer sources: official Arduino documentation/API/CLI, Espressif Arduino/ESP-IDF
+  and PlatformIO Core repositories, each with a bounded learning-source manifest.
+- Learning importer: compact source/document maps and representative signatures;
+  it does not copy entire repositories into knowledge entries.
+
+Safety boundaries retained
+--------------------------
+- Planning does not compile, flash, open serial ports or operate actuators.
+- Artifact writing requires fresh approval and is blocked by danger findings.
+- Compiler execution requires a successful compiler validation and a non-stale
+  workspace assessment with proven read and write access.
+- Editing workspace metadata resets the prior permission assessment.
+- Physical Dallas/Maxim 1-Wire is optional and distinct from LocalGPT's logical
+  authenticated 1-Wire peer envelope.
+- Edge telemetry contains no LocalGPT trust secret. Replay/authentication policy
+  remains at the trusted gateway or protected LocalGPT peer boundary.
+
+Checks completed in this environment
+------------------------------------
+PASS: repository async continuation audit for 133 source files:
+      1,985 await tokens, 1,704 ConfigureAwait(false), 123 renderer-affine
+      ConfigureAwait(true), 2 preconfigured awaitables, 154 reviewed await-using
+      disposals and 2 configured async streams.
+PASS: LocalGPT application architecture/static/diagnostics/C# structure audit.
+PASS: all JSON board/organic configuration files parse.
+PASS: all XML/MSBuild files parse.
+PASS: changed C# files pass lexical string/comment/delimiter balance checks.
+PASS: 71 discovered DI DXFunction descriptors have unique names.
+PASS: new migration carries DbContext/Migration attributes and its compatibility
+      signature includes every newly persisted workspace column.
+PASS: board profiles have unique GPIO/pin keys and recognized protocol capabilities.
+PASS: PublisherStudio embedded capability descriptors and installer repository list
+      are present and internally consistent.
+PASS: no newly introduced maintained-source line exceeds the repository's 600
+      character policy.
+PASS: changed files contain no merge markers, NUL bytes or UTF-8 replacement markers.
+
+Known validation limits
+-----------------------
+- This container has no dotnet, csc, msbuild, PowerShell, Windows App SDK or
+  DevExpress build environment. The package was therefore not semantically compiled
+  here. Run Rebuild All in the same Windows/.NET 10 setup that compiled 2.1.13.
+- The repository's PowerShell migration-bootstrap guard currently reports three
+  older pre-existing migrations without compatibility signatures:
+  20260727190000_AddProjectMaintenanceWorkspaces,
+  20260727193000_FixProjectTrackedFileRevisionIdentity and
+  20260727200603_testWithNewSystem. The new 2.1.14 migration does have a verified
+  compatibility signature; this package does not silently invent repair signatures
+  for the older historical migrations.
+- Board profiles are review data, not electrical certification. Confirm the exact
+  carrier/module schematic and measured voltage before compile or flash.
+
+Recommended Windows smoke test
+------------------------------
+1. Rebuild All and confirm migration/startup succeeds.
+2. Open Project Maintenance, save a bounded workspace, assign PlatformIO or Arduino
+   CLI, validate the compiler and run Assess rights with the write probe.
+3. In Chat/Council select ESP32 / Arduino Wiring Council and describe an exact board,
+   sensors, supply voltage and desired telemetry path.
+4. Invoke embedded.firmware.plan; review every warning/danger finding.
+5. Create artifacts only after review. Inspect src/main.cpp, platformio.ini,
+   WIRING.md, localgpt-plan.json and transport contracts.
+6. Send one dry-run telemetry packet through preview and ingress. Confirm no actuator,
+   serial or flash action occurs.
+7. Run the advised learning round with actual board revision, calibration values,
+   observed packet and compiler version.
+8. Test PublisherStudio organic wiring handoff only when the peer advertises the new
+   capability; otherwise LocalGPT should remain in Chat-only planning mode.

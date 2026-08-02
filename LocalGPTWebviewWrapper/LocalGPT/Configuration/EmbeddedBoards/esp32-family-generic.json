@@ -1,0 +1,31 @@
+{
+  "key": "esp32-family-generic",
+  "displayName": "ESP32 family (generic placeholder)",
+  "family": "ESP32",
+  "framework": "Arduino",
+  "platformIoBoard": "esp32dev",
+  "logicVoltage": 3.3,
+  "documentationSource": "espressif/arduino-esp32 and espressif/esp-idf",
+  "status": "DangerUntilExactBoardSelected",
+  "supportedProtocols": [
+    "gpio.digital",
+    "gpio.analog",
+    "gpio.pwm",
+    "bus.onewire.physical",
+    "bus.i2c",
+    "bus.spi",
+    "bus.uart",
+    "bus.can",
+    "transport.serial-json-lines",
+    "transport.http-json",
+    "transport.mqtt",
+    "localgpt.onewire-envelope",
+    "localgpt.organic-peer",
+    "custom"
+  ],
+  "notes": [
+    "Different ESP32 variants have materially different exposed pins and peripheral mappings.",
+    "Use this profile for Council discovery only; select an exact source-controlled board profile before artifact approval."
+  ],
+  "pins": []
+}

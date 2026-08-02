@@ -203,7 +203,8 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
             CreateFeature("localgpt.learning.round", "Learning Round", true, string.Empty),
             CreateCapabilityFeature("localgpt.publisher.spreadsheet.request", "Request spreadsheet help", connectedPeers, availableSkills, ["publisher.spreadsheet.inspect"], ["spreadsheet"]),
             CreateCapabilityFeature("localgpt.publisher.screenreader", "Recurring screen reader", connectedPeers, availableSkills, ["publisher.screen.capture"], ["vision"]),
-            CreateCapabilityFeature("localgpt.publisher.openscad", "OpenSCAD Team tools", connectedPeers, availableSkills, ["publisher.openscad.generate"], ["openscad"])
+            CreateCapabilityFeature("localgpt.publisher.openscad", "OpenSCAD Team tools", connectedPeers, availableSkills, ["publisher.openscad.generate"], ["openscad"]),
+            CreateCapabilityFeature("localgpt.publisher.embedded.wiring", "Embedded wiring workbench", connectedPeers, availableSkills, ["publisher.embedded.wiring.edit.request"], ["embedded"])
         ];
     }
 
@@ -246,7 +247,30 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
         new() { Key = "openscad", DisplayName = "OpenSCAD", Description = "OpenSCAD project planning and canonical shape generation.", SourcePeerId = "localgpt", Organs = ["brain", "eyes", "hands"], CapabilityKeys = ["publisher.openscad.generate"], UiActivationKeys = ["localgpt.publisher.openscad"], IsOnline = true, IsEnabled = true },
         new() { Key = "vision", DisplayName = "Vision", Description = "Screen capture, recurring screen reading and visual evidence.", SourcePeerId = "localgpt", Organs = ["eyes"], CapabilityKeys = ["publisher.screen.capture", "publisher.screenreader.start"], UiActivationKeys = ["localgpt.publisher.screenreader"], IsOnline = true, IsEnabled = true },
         new() { Key = "organic-routing", DisplayName = "Organic routing", Description = "Maps project/member skills to DX functions, controllers and external capabilities.", SourcePeerId = "localgpt", Organs = ["brain"], CapabilityKeys = ["organic.skills.manage"], UiActivationKeys = ["localgpt.organic.skills"], IsOnline = true, IsEnabled = true },
-        new() { Key = "learning", DisplayName = "Learning Round", Description = "Studies bounded chat memory, logs, knowledge and database regexes and stores untrusted reusable evidence.", SourcePeerId = "localgpt", Organs = ["brain"], CapabilityKeys = ["localgpt.learning.snapshot", "localgpt.learning.maintain", "localgpt.regex.list", "localgpt.regex.test", "localgpt.regex.upsert"], UiActivationKeys = ["localgpt.learning.round"], IsOnline = true, IsEnabled = true }
+        new() { Key = "learning", DisplayName = "Learning Round", Description = "Studies bounded chat memory, logs, knowledge and database regexes and stores untrusted reusable evidence.", SourcePeerId = "localgpt", Organs = ["brain"], CapabilityKeys = ["localgpt.learning.snapshot", "localgpt.learning.maintain", "localgpt.regex.list", "localgpt.regex.test", "localgpt.regex.upsert"], UiActivationKeys = ["localgpt.learning.round"], IsOnline = true, IsEnabled = true },
+        new()
+        {
+            Key = "embedded",
+            DisplayName = "Embedded wiring and firmware",
+            Description = "Plans bounded ESP32/Arduino pins, buses, telemetry contracts, firmware artifacts and PublisherStudio wiring handoffs without forcing one physical protocol.",
+            SourcePeerId = "localgpt",
+            Organs = ["brain", "eyes", "hands"],
+            CapabilityKeys =
+            [
+                "embedded.catalog.get",
+                "embedded.wiring.draft.create",
+                "embedded.wiring.validate",
+                "embedded.firmware.plan",
+                "embedded.firmware.artifacts.create",
+                "embedded.telemetry.preview",
+                "embedded.telemetry.onewire-envelope.preview",
+                "embedded.sensor.telemetry.publish",
+                "publisher.embedded.wiring.edit.request"
+            ],
+            UiActivationKeys = ["localgpt.publisher.embedded.wiring"],
+            IsOnline = true,
+            IsEnabled = true
+        }
     ];
 
     private List<string> ParseList(string? json)

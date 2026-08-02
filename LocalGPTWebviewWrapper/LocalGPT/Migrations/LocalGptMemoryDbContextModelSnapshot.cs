@@ -2103,6 +2103,14 @@ namespace LocalGPT.Migrations
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectWorkspaceRoot", b =>
                 {
+                    b.Property<string>("AccessPolicyJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BuildArguments")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
@@ -2110,10 +2118,51 @@ namespace LocalGPT.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DefaultSubdirectoriesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EnvironmentKind")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EnvironmentRootPath")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EnvironmentVariablesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExpectedStructureRegex")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsDefault")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastPermissionCheckedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("LastPermissionReadAccess")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastPermissionStatus")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastPermissionSummary")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("LastPermissionWriteAccess")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("LastResolutionStatus")
@@ -2131,6 +2180,9 @@ namespace LocalGPT.Migrations
 
                     b.Property<int>("Priority")
                         .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("PreferredCompilerInstallationId")
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("TEXT");

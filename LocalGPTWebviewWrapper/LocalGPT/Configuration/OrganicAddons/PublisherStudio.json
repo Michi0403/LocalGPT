@@ -17,13 +17,19 @@
     "publisher.publication.manage",
     "publisher.streaming.manage",
     "publisher.automation.run",
-    "publisher.code.inspect"
+    "publisher.code.inspect",
+    "publisher.embedded.wiring.edit.request",
+    "publisher.embedded.wiring.validate",
+    "publisher.embedded.signal.animate",
+    "publisher.embedded.openscad.part.preview"
   ],
   "uiActivationKeys": [
     "localgpt.publisher.spreadsheet.request",
     "localgpt.publisher.screenreader",
     "localgpt.publisher.openscad",
-    "localgpt.organic.plugins"
+    "localgpt.organic.plugins",
+    "localgpt.publisher.embedded.wiring",
+    "localgpt.publisher.embedded.signal-animation"
   ],
   "controllerMethods": [
     {
@@ -857,6 +863,48 @@
       "methodName": "WebhookStatus",
       "httpMethod": "GET",
       "route": "/api/publisher/webhooks/{bindingId:guid}/status",
+      "isReadOnly": true
+    },
+    {
+      "controller": "EmbeddedWorkbenchController",
+      "methodName": "Catalog",
+      "httpMethod": "GET",
+      "route": "/api/embedded-workbench/catalog",
+      "isReadOnly": true
+    },
+    {
+      "controller": "EmbeddedWorkbenchController",
+      "methodName": "Board",
+      "httpMethod": "GET",
+      "route": "/api/embedded-workbench/boards/{boardProfileKey}",
+      "isReadOnly": true
+    },
+    {
+      "controller": "EmbeddedWorkbenchController",
+      "methodName": "EditWiring",
+      "httpMethod": "POST",
+      "route": "/api/embedded-workbench/wiring/edit",
+      "isReadOnly": false
+    },
+    {
+      "controller": "EmbeddedWorkbenchController",
+      "methodName": "ValidateWiring",
+      "httpMethod": "POST",
+      "route": "/api/embedded-workbench/wiring/validate",
+      "isReadOnly": true
+    },
+    {
+      "controller": "EmbeddedWorkbenchController",
+      "methodName": "AnimateSignal",
+      "httpMethod": "POST",
+      "route": "/api/embedded-workbench/wiring/signals/animate",
+      "isReadOnly": false
+    },
+    {
+      "controller": "EmbeddedWorkbenchController",
+      "methodName": "OpenScadPartPreview",
+      "httpMethod": "POST",
+      "route": "/api/embedded-workbench/openscad/part-preview",
       "isReadOnly": true
     }
   ]

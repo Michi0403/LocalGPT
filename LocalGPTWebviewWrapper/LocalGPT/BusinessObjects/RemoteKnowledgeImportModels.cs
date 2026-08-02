@@ -5,7 +5,7 @@ public sealed class RemoteKnowledgeImportRequest
     public string SourceUrl { get; set; } = string.Empty;
     public string SourceKind { get; set; } = "Auto";
     public string Branch { get; set; } = "main";
-    public string FileIncludeRegex { get; set; } = @"(?i)\.(cs|razor|csproj|sln|json|xml|md|txt|ps1|cmd|sh|py|js|ts|tsx|css|scss|html|htm|php|c|h|cpp|hpp|java|kt|go|rs|sql|yml|yaml)$";
+    public string FileIncludeRegex { get; set; } = @"(?i)\.(cs|razor|csproj|sln|json|xml|md|mdx|rst|adoc|txt|ps1|cmd|sh|py|js|ts|tsx|css|scss|html|htm|php|c|h|cpp|hpp|cc|cxx|ino|pde|cmake|kconfig|sdkconfig|toml|ini|cfg|csv|java|kt|go|rs|sql|yml|yaml)$|(^|/)(CMakeLists\.txt|platformio\.ini|library\.properties)$";
     public int MaxFiles { get; set; } = 5000;
     public int MaxLinkedPages { get; set; } = 20;
     public bool SaveToKnowledge { get; set; } = true;

@@ -102,7 +102,14 @@ internal static class Program
         "DevExpress/Blazor",
         "DevExpress/DevExtreme",
         "DevExpress/devextreme-documentation",
-        "DevExpress-Examples/XAF_Security_E4908"
+        "DevExpress-Examples/XAF_Security_E4908",
+        "arduino/docs-content",
+        "arduino/reference-en",
+        "arduino/ArduinoCore-API",
+        "arduino/arduino-cli",
+        "espressif/arduino-esp32",
+        "espressif/esp-idf",
+        "platformio/platformio-core"
     ];
 
     public static async Task<int> Main(string[] args)
@@ -251,7 +258,7 @@ internal static class Program
 
                         foreach (var repo in repos)
                             await ImportGitHubSourceToLearningBaseAsync(repo, options, logger).ConfigureAwait(false);
-                        logger.LogInformation("Remember: still import/teach the downloaded repositories inside LocalGPT's learning-base importer.");
+                        logger.LogInformation("Downloaded repositories include LocalGPT learning-source manifests. Run the LocalGPT learning-base importer to apply the manifest regexes and store compact documentation/source maps in the knowledge database.");
                     }
                 }
                 catch (Exception ex)
@@ -1208,6 +1215,7 @@ internal static class Program
                     TargetPath: targetPath,
                     CachedAtUtc: DateTimeOffset.UtcNow),
                 logger);
+            WriteLocalGptLearningSourceManifest(targetPath, repo, remoteSha, logger);
 
             logger.LogInformation($"Imported {repo} at commit {remoteSha}");
         }
@@ -1215,6 +1223,44 @@ internal static class Program
         {
             logger.LogError(ex, $"Error importing repo {repo} {ex}");
             throw;
+        }
+    }
+
+    private static void WriteLocalGptLearningSourceManifest(string targetPath, string repo, string commitSha, ILogger logger)
+    {
+        try
+        {
+            var isEspressif = repo.StartsWith("espressif/", StringComparison.OrdinalIgnoreCase);
+            var isArduino = repo.StartsWith("arduino/", StringComparison.OrdinalIgnoreCase);
+            var isPlatformIo = repo.Equals("platformio/platformio-core", StringComparison.OrdinalIgnoreCase);
+            if (!isEspressif && !isArduino && !isPlatformIo)
+                return;
+
+            var manifest = new
+            {
+                schemaVersion = 1,
+                repository = repo,
+                sourceUrl = $"https://github.com/{repo}",
+                revision = commitSha,
+                includeRegex = @"(?i)\.(md|mdx|rst|adoc|txt|ino|pde|c|h|cpp|hpp|cc|cxx|py|json|ya?ml|toml|ini|cfg|conf|cmake|kconfig|sdkconfig|csv|xml)$|(^|/)(CMakeLists\.txt|platformio\.ini|library\.properties|keywords\.txt)$",
+                excludeRegex = @"(?i)(^|/)(\.git|\.github/workflows|bin|obj|build|dist|out|node_modules|\.pio|tools/sdk|components/esp_rom)(/|$)|\.(bin|elf|exe|dll|so|a|lib|obj|o|pdb|zip|7z|gz|png|jpe?g|gif|pdf)$",
+                maximumFiles = 12000,
+                maximumFileBytes = 2 * 1024 * 1024,
+                topics = isEspressif
+                    ? new[] { "ESP32", "Espressif", "GPIO", "firmware", "sensors", "embedded" }
+                    : isPlatformIo
+                        ? new[] { "PlatformIO", "compiler", "build", "firmware", "embedded" }
+                        : new[] { "Arduino", "GPIO", "firmware", "sensors", "embedded" },
+                roleKeys = new[] { "board-gpio-analyst", "sensor-wiring-reviewer", "firmware-protocol-implementer", "verification-learning-curator" },
+                importMode = "CompactManifestCorpus"
+            };
+            var path = Path.Combine(targetPath, "localgpt-learning-source.json");
+            File.WriteAllText(path, JsonSerializer.Serialize(manifest, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true }), new UTF8Encoding(false));
+            logger.LogInformation("Wrote LocalGPT learning-source manifest for {Repo}; target path omitted from logs.", repo);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not write LocalGPT learning-source manifest for {Repo}.", repo);
         }
     }
 

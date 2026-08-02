@@ -35,6 +35,41 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
         },
         new()
         {
+            Key = "embedded-firmware-wiring",
+            DisplayName = "ESP32 / Arduino Wiring Council",
+            Purpose = "Turns a bounded user pin layout and sensor description into a reviewable GPIO assignment, electrical-risk report, simple Arduino/ESP32 firmware plan, and transport-neutral telemetry contract with an optional protected LocalGPT logical 1-Wire bridge before any compile or flash action.",
+            Roles =
+            [
+                new() { Role = "Board and GPIO analyst", Expertise = "ESP32/Arduino board variants, reserved pins, ADC limitations, boot straps and pin conflict detection", Responsibility = "separate known board facts from assumptions and produce the smallest viable pin map" },
+                new() { Role = "Sensor and wiring reviewer", Expertise = "moisture, temperature, digital/analog sensors, pull-ups, voltage levels, shared ground and repairable field wiring", Responsibility = "describe safe physical wiring and flag every unresolved electrical risk" },
+                new() { Role = "Firmware and protocol implementer", Expertise = "small Arduino sketches, PlatformIO layouts, serial JSON lines and LocalGPT 1-Wire controller/method/capability contracts", Responsibility = "generate deterministic reviewable firmware text without compiling or flashing" },
+                new() { Role = "Verification and learning curator", Expertise = "dry-run telemetry, calibration evidence, workspace regex policies and Council learning rounds", Responsibility = "define the first capture/test plan and advise the follow-up learning round" }
+            ],
+            PreferredCapabilities = ["embedded.catalog.get", "embedded.wiring.draft.create", "embedded.wiring.validate", "embedded.firmware.plan", "embedded.telemetry.preview", "embedded.telemetry.onewire-envelope.preview", "embedded.firmware.artifacts.create", "publisher.embedded.wiring.edit.request", "localgpt.knowledge.remote.inspect", "localgpt.knowledge.remote.import", "localgpt.learning.snapshot", "localgpt.learning.maintain", "project.maintenance.get"],
+            ExpertPreparationPromptTemplate = """
+You prepare an ESP32/Arduino wiring and firmware Council run. Extract the exact board or state that it is unknown; list every supplied sensor, GPIO, direction, voltage, interface, metric and LocalGPT return-path requirement. Distinguish the physical Dallas-style 1-Wire bus from LocalGPT's logical transport-neutral 1-Wire envelope. Do not invent silent wiring facts. Identify the smallest questions whose absence would make a pin assignment dangerous.
+User request:
+{{UserPrompt}}
+""",
+            LeaderSynthesisPromptTemplate = """
+You lead the ESP32 / Arduino Wiring Council. Produce a bounded work order: proposed pin table, electrical warnings, sensor read functions, physical bus choice, edge telemetry contract, optional protected LocalGPT logical 1-Wire controller/method/capability bridge, generated firmware-plan function call, dry-run verification, and explicit compile/flash approval gates. Use embedded.firmware.plan for deterministic review when enough pin data exists. Never claim a generic pin rule overrides the exact board data sheet.
+Preparation:
+{{Preparation}}
+Original request:
+{{UserPrompt}}
+""",
+            MainRoundInstructionTemplate = "Review the proposed GPIO and wiring plan from your role. Prefer a tiny deterministic sketch over a framework rewrite. Explain how each sensor reading becomes a bounded edge packet and, only where useful, a protected LocalGPT logical 1-Wire method invocation. Do not force physical 1-Wire, I2C, SPI, UART, CAN, RS-485 or another bus into the wrong role. End with a concrete dry-run and advise a learning round using measured calibration values and captured messages.",
+            ArchitectureContracts =
+            [
+                .. DefaultArchitectureContracts(),
+                "Planning and artifact creation are separate; compile, serial access and flash remain later fresh-approval operations.",
+                "Physical 1-Wire sensor wiring and LocalGPT logical 1-Wire messaging are distinct layers and must be named separately.",
+                "Every generated firmware plan includes GPIO conflict/voltage warnings, a LocalGPT capability contract, a dry-run capture, and a recommended learning round.",
+                "Use official/user-approved board documentation imported through LocalGPT knowledge and workspace regex policies; do not copy legacy Fritzing/Tasmota code blindly."
+            ]
+        },
+        new()
+        {
             Key = "openscad-team",
             DisplayName = "OpenSCAD Team",
             Purpose = "Generates and reviews parametric OpenSCAD projects made from reusable blocks, forms, transforms and code parts, then delegates rendering through PublisherStudio's canonical OpenScadDocument/OpenScadNode pathway.",

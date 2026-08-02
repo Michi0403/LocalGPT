@@ -57,6 +57,10 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     {
         ScopeKind = "Global",
         SolutionPattern = @"(?i)\.(sln|slnx)$",
+        EnvironmentKind = "LocalHost",
+        EnvironmentVariablesJson = "{}",
+        DefaultSubdirectoriesJson = "[\"src\",\"docs\",\"tests\",\"artifacts\"]",
+        AccessPolicyJson = "[{\"name\":\"Project sources\",\"relativePathRegex\":\"(?i)^(src|source)(/|$)\",\"expectedEntryKind\":\"Either\",\"requiredAccess\":\"ReadWrite\",\"severity\":\"Warning\",\"required\":false,\"councilMaintained\":true}]",
         Priority = 100,
         IsEnabled = true
     }, nameof(CreateWorkspaceRootRequest));

@@ -527,6 +527,15 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.ScopeKind).HasMaxLength(40).IsRequired();
                 entity.Property(item => item.ProjectTypePattern).HasMaxLength(240).IsRequired();
                 entity.Property(item => item.SolutionPattern).HasMaxLength(1000).IsRequired();
+                entity.Property(item => item.EnvironmentKind).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.EnvironmentRootPath).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.BuildArguments).IsRequired();
+                entity.Property(item => item.EnvironmentVariablesJson).IsRequired();
+                entity.Property(item => item.DefaultSubdirectoriesJson).IsRequired();
+                entity.Property(item => item.AccessPolicyJson).IsRequired();
+                entity.Property(item => item.ExpectedStructureRegex).IsRequired();
+                entity.Property(item => item.LastPermissionStatus).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.LastPermissionSummary).HasMaxLength(4000).IsRequired();
                 entity.Property(item => item.LastResolutionStatus).HasMaxLength(80).IsRequired();
                 entity.HasIndex(item => new { item.ScopeKind, item.ProjectId, item.Priority });
                 entity.HasIndex(item => item.RootPath);

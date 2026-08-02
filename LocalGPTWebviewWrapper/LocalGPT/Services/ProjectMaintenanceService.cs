@@ -38,6 +38,10 @@ public sealed class ProjectMaintenanceService(
         var scope = NormalizeScope(request.ScopeKind);
         ValidateRegex(request.ProjectTypePattern, nameof(request.ProjectTypePattern), allowEmpty: true);
         ValidateRegex(request.SolutionPattern, nameof(request.SolutionPattern), allowEmpty: false);
+        ValidateRegex(request.ExpectedStructureRegex, nameof(request.ExpectedStructureRegex), allowEmpty: true);
+        ValidateJsonObject(request.EnvironmentVariablesJson, nameof(request.EnvironmentVariablesJson));
+        ValidateJsonArray(request.DefaultSubdirectoriesJson, nameof(request.DefaultSubdirectoriesJson));
+        ValidateWorkspaceAccessPolicyJson(request.AccessPolicyJson);
         if (scope == "Project" && request.ProjectId is null)
             throw new ArgumentException("A project-scoped workspace requires a project id.", nameof(request.ProjectId));
 
@@ -70,6 +74,19 @@ public sealed class ProjectMaintenanceService(
         item.ProjectId = request.ProjectId;
         item.ProjectTypePattern = Trim(request.ProjectTypePattern, 240);
         item.SolutionPattern = TrimOrFallback(request.SolutionPattern, 1000, @"(?i)\.(sln|slnx)$");
+        item.EnvironmentKind = TrimOrFallback(request.EnvironmentKind, 80, "LocalHost");
+        item.EnvironmentRootPath = NormalizeOptionalPath(request.EnvironmentRootPath);
+        item.PreferredCompilerInstallationId = request.PreferredCompilerInstallationId;
+        item.BuildArguments = Trim(request.BuildArguments, 16000);
+        item.EnvironmentVariablesJson = TrimOrFallback(request.EnvironmentVariablesJson, 32000, "{}");
+        item.DefaultSubdirectoriesJson = TrimOrFallback(request.DefaultSubdirectoriesJson, 16000, "[]");
+        item.AccessPolicyJson = TrimOrFallback(request.AccessPolicyJson, 64000, "[]");
+        item.ExpectedStructureRegex = Trim(request.ExpectedStructureRegex, 16000);
+        item.LastPermissionStatus = "NotChecked";
+        item.LastPermissionSummary = string.Empty;
+        item.LastPermissionReadAccess = false;
+        item.LastPermissionWriteAccess = false;
+        item.LastPermissionCheckedAtUtc = null;
         item.Priority = Math.Clamp(request.Priority, 0, 10000);
         item.IsDefault = request.IsDefault;
         item.IsEnabled = request.IsEnabled;
@@ -118,6 +135,105 @@ public sealed class ProjectMaintenanceService(
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
         return new ProjectWorkspaceResolution(selected?.Id, path, selected?.ScopeKind ?? "Fallback", reason, exists);
+    }
+
+    public async Task<WorkspacePermissionAssessment> AssessWorkspacePermissionsAsync(Guid workspaceRootId, bool userConfirmedWriteProbe, CancellationToken cancellationToken = default)
+    {
+        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var workspace = await db.ProjectWorkspaceRoots.SingleOrDefaultAsync(item => item.Id == workspaceRootId, cancellationToken).ConfigureAwait(false)
+            ?? throw new KeyNotFoundException($"Workspace root {workspaceRootId} was not found.");
+        var findings = new List<WorkspacePermissionFinding>();
+        var root = workspace.RootPath;
+        var rootExists = Directory.Exists(root);
+        var readAccess = false;
+        var writeAccess = false;
+        var expectedSubdirectories = ParseStringArray(workspace.DefaultSubdirectoriesJson);
+        var checkedAt = DateTime.UtcNow;
+
+        if (!rootExists)
+        {
+            findings.Add(new("Danger", "ROOT_MISSING", "The workspace root does not exist."));
+        }
+        else
+        {
+            readAccess = CanEnumerateDirectory(root);
+            if (!readAccess)
+                findings.Add(new("Danger", "ROOT_READ_DENIED", "The current LocalGPT process cannot enumerate the workspace root."));
+            if (IsBroadOrSystemRoot(root))
+                findings.Add(new("Danger", "ROOT_TOO_BROAD", "The workspace points at a drive, user-profile, operating-system, or program-files root. LocalGPT would have substantially broader rights than a bounded project workspace needs."));
+
+            if (userConfirmedWriteProbe)
+                writeAccess = await ProbeDirectoryWriteAsync(root, cancellationToken).ConfigureAwait(false);
+            else
+                findings.Add(new("Warning", "WRITE_NOT_PROBED", "Write access was not probed because fresh user confirmation was not supplied."));
+            if (userConfirmedWriteProbe && !writeAccess)
+                findings.Add(new("Danger", "ROOT_WRITE_DENIED", "The current LocalGPT process could not create and remove a bounded probe file in the workspace root."));
+
+            foreach (var relative in expectedSubdirectories)
+            {
+                var safeRelative = NormalizeRelativePolicyPath(relative);
+                if (string.IsNullOrWhiteSpace(safeRelative))
+                {
+                    findings.Add(new("Danger", "SUBDIRECTORY_INVALID", "An expected subdirectory is absolute, empty, or contains a parent-path escape.", relative));
+                    continue;
+                }
+                var fullPath = Path.GetFullPath(Path.Combine(root, safeRelative));
+                if (!IsPathInside(root, fullPath))
+                {
+                    findings.Add(new("Danger", "SUBDIRECTORY_ESCAPE", "An expected subdirectory escapes the workspace root.", relative));
+                    continue;
+                }
+                if (!Directory.Exists(fullPath))
+                    findings.Add(new("Warning", "SUBDIRECTORY_MISSING", "An expected workspace subdirectory is missing.", safeRelative));
+            }
+
+            var relativeEntries = EnumerateRelativeEntries(root, 5000, findings);
+            if (!string.IsNullOrWhiteSpace(workspace.ExpectedStructureRegex))
+            {
+                var structure = string.Join("\n", relativeEntries);
+                if (!CompileRegex(workspace.ExpectedStructureRegex, nameof(workspace.ExpectedStructureRegex), @"(?s).*").IsMatch(structure))
+                    findings.Add(new("Warning", "STRUCTURE_REGEX_MISMATCH", "The current directory/file map does not satisfy the configured expected-structure regular expression."));
+            }
+            foreach (var rule in ParseAccessPolicy(workspace.AccessPolicyJson))
+                EvaluateAccessPolicyRule(rule, relativeEntries, root, writeAccess, findings);
+        }
+
+        var environmentRoot = string.IsNullOrWhiteSpace(workspace.EnvironmentRootPath) ? root : workspace.EnvironmentRootPath;
+        if (!string.IsNullOrWhiteSpace(environmentRoot))
+        {
+            if (!Directory.Exists(environmentRoot))
+                findings.Add(new("Warning", "ENVIRONMENT_ROOT_MISSING", "The configured local environment root does not exist."));
+            else if (rootExists && !IsPathInside(root, environmentRoot))
+                findings.Add(new("Warning", "ENVIRONMENT_OUTSIDE_WORKSPACE", "The local environment root is outside the workspace. Review this intentionally before Council build execution."));
+        }
+
+        if (workspace.PreferredCompilerInstallationId is Guid compilerId)
+        {
+            var compiler = await db.ProjectCompilerInstallations.AsNoTracking().SingleOrDefaultAsync(item => item.Id == compilerId, cancellationToken).ConfigureAwait(false);
+            if (compiler is null || !compiler.IsEnabled)
+                findings.Add(new("Danger", "COMPILER_UNAVAILABLE", "The assigned compiler installation is missing or disabled."));
+            else if (!File.Exists(compiler.ExecutablePath))
+                findings.Add(new("Danger", "COMPILER_PATH_MISSING", "The assigned compiler executable does not exist."));
+            else if (!compiler.LastValidationSucceeded)
+                findings.Add(new("Warning", "COMPILER_UNVALIDATED", "The assigned compiler has not completed a successful version probe."));
+        }
+        else
+        {
+            findings.Add(new("Warning", "COMPILER_NOT_ASSIGNED", "No preferred compiler installation is assigned to this workspace."));
+        }
+
+        var status = findings.Any(item => item.Severity == "Danger") ? "Danger" : findings.Any(item => item.Severity == "Warning") ? "Warning" : "Approved";
+        workspace.LastPermissionStatus = status;
+        workspace.LastPermissionReadAccess = readAccess;
+        workspace.LastPermissionWriteAccess = writeAccess;
+        workspace.LastPermissionCheckedAtUtc = checkedAt;
+        workspace.LastPermissionSummary = Trim(string.Join(" | ", findings.Take(20).Select(item => $"{item.Severity}:{item.Code}:{item.Message}")), 4000);
+        workspace.LastResolvedAtUtc = checkedAt;
+        workspace.LastResolutionStatus = rootExists ? "Available" : "Missing";
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Workspace {WorkspaceRootId} permission assessment completed with status {Status}, read={ReadAccess}, write={WriteAccess}; paths were omitted from logs.", workspace.Id, status, readAccess, writeAccess);
+        return new WorkspacePermissionAssessment(workspace.Id, status, checkedAt, rootExists, readAccess, writeAccess, environmentRoot, workspace.PreferredCompilerInstallationId, expectedSubdirectories, findings);
     }
 
     public async Task<IReadOnlyList<ProjectCompilerInstallation>> GetCompilerInstallationsAsync(CancellationToken cancellationToken = default)
@@ -381,8 +497,24 @@ public sealed class ProjectMaintenanceService(
             ?? throw new KeyNotFoundException($"Project {projectId} was not found.");
         var revision = await db.LocalGptProjectRevisions.SingleOrDefaultAsync(item => item.Id == request.RevisionId && item.ProjectId == projectId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("The project revision was not found.");
-        var compiler = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.Id == request.CompilerInstallationId && item.IsEnabled, cancellationToken).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException("The compiler installation was not found or is disabled.");
+        var workspaceCandidates = await db.ProjectWorkspaceRoots.Where(item => item.IsEnabled && (item.ProjectId == null || item.ProjectId == projectId)).OrderBy(item => item.Priority).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var workspace = workspaceCandidates.FirstOrDefault(item => item.ScopeKind == "Project" && item.ProjectId == projectId)
+            ?? workspaceCandidates.FirstOrDefault(item => item.ScopeKind == "ProjectType" && RegexMatches(item.ProjectTypePattern, project.ProjectType))
+            ?? workspaceCandidates.FirstOrDefault(item => item.ScopeKind == "Global" && item.IsDefault)
+            ?? workspaceCandidates.FirstOrDefault(item => item.ScopeKind == "Global");
+        if (workspace is not null)
+        {
+            if (workspace.LastPermissionCheckedAtUtc is null)
+                throw new InvalidOperationException("Assess the selected workspace permissions before running a compiler in it.");
+            if (string.Equals(workspace.LastPermissionStatus, "Danger", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("The selected workspace permission assessment contains danger findings. Correct them before build execution.");
+            if (!workspace.LastPermissionReadAccess || !workspace.LastPermissionWriteAccess)
+                throw new InvalidOperationException("The selected workspace has not proven the read and write access required for compiler execution. Run the rights assessment with the bounded write probe first.");
+        }
+
+        var compilerId = request.CompilerInstallationId != Guid.Empty ? request.CompilerInstallationId : workspace?.PreferredCompilerInstallationId ?? Guid.Empty;
+        var compiler = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.Id == compilerId && item.IsEnabled, cancellationToken).ConfigureAwait(false)
+            ?? throw new KeyNotFoundException("The selected or workspace-assigned compiler installation was not found or is disabled.");
         if (!compiler.LastValidationSucceeded)
             throw new InvalidOperationException("Validate the selected compiler installation successfully before using it for a revision build.");
 
@@ -397,9 +529,12 @@ public sealed class ProjectMaintenanceService(
             throw new InvalidOperationException("Scan the selected revision before running its build verification.");
         var beforeState = await CaptureTrackedSourceStateAsync(trackedFiles, requireStoredHashMatch: true, cancellationToken).ConfigureAwait(false);
 
-        var arguments = string.IsNullOrWhiteSpace(request.Arguments)
-            ? DefaultBuildArguments(compiler.Language, target, request.Configuration)
-            : request.Arguments.Trim();
+        var arguments = !string.IsNullOrWhiteSpace(request.Arguments)
+            ? request.Arguments.Trim()
+            : !string.IsNullOrWhiteSpace(workspace?.BuildArguments)
+                ? workspace.BuildArguments.Trim()
+                : DefaultBuildArguments(compiler.Language, target, request.Configuration);
+        var executionEnvironmentJson = MergeEnvironmentJson(compiler.EnvironmentVariablesJson, workspace?.EnvironmentVariablesJson);
         var timeout = Math.Clamp(request.TimeoutSeconds, 10, 7200);
         var outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "BuildVerifications", projectId.ToString("N"));
         Directory.CreateDirectory(outputDirectory);
@@ -420,13 +555,13 @@ public sealed class ProjectMaintenanceService(
         db.ProjectBuildVerifications.Add(verification);
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        var build = await RunProcessAsync(compiler.ExecutablePath, arguments, root, compiler.EnvironmentVariablesJson, timeout, cancellationToken).ConfigureAwait(false);
+        var build = await RunProcessAsync(compiler.ExecutablePath, arguments, root, executionEnvironmentJson, timeout, cancellationToken).ConfigureAwait(false);
         var testsExecuted = build.ExitCode == 0 && !string.IsNullOrWhiteSpace(request.TestArguments);
         var testsExitCode = 0;
         var combined = new StringBuilder().AppendLine("BUILD").AppendLine(build.Output);
         if (testsExecuted)
         {
-            var tests = await RunProcessAsync(compiler.ExecutablePath, request.TestArguments.Trim(), root, compiler.EnvironmentVariablesJson, timeout, cancellationToken).ConfigureAwait(false);
+            var tests = await RunProcessAsync(compiler.ExecutablePath, request.TestArguments.Trim(), root, executionEnvironmentJson, timeout, cancellationToken).ConfigureAwait(false);
             testsExitCode = tests.ExitCode;
             combined.AppendLine().AppendLine("TESTS").AppendLine(tests.Output);
         }
@@ -442,6 +577,7 @@ public sealed class ProjectMaintenanceService(
             CompilerId = compiler.Id,
             Compiler = new { compiler.Name, compiler.Language, compiler.Version, compiler.Architecture, compiler.ExecutablePath, compiler.CompilerHomePath },
             WorkingDirectory = root,
+            Workspace = workspace is null ? null : new { workspace.Id, workspace.Name, workspace.EnvironmentKind, workspace.EnvironmentRootPath, workspace.LastPermissionStatus },
             Target = target,
             BuildArguments = arguments,
             TestArguments = testsExecuted ? request.TestArguments.Trim() : string.Empty,
@@ -570,7 +706,9 @@ public sealed class ProjectMaintenanceService(
             ("Windows PowerShell", "PowerShell", "powershell.exe"),
             ("MSVC C++", "Cpp", "cl.exe"),
             ("GNU C++", "Cpp", OperatingSystem.IsWindows() ? "g++.exe" : "g++"),
-            ("Clang C++", "Cpp", OperatingSystem.IsWindows() ? "clang++.exe" : "clang++")
+            ("Clang C++", "Cpp", OperatingSystem.IsWindows() ? "clang++.exe" : "clang++"),
+            ("PlatformIO Core", "Embedded", OperatingSystem.IsWindows() ? "platformio.exe" : "platformio"),
+            ("Arduino CLI", "Embedded", OperatingSystem.IsWindows() ? "arduino-cli.exe" : "arduino-cli")
         };
         foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         foreach (var spec in specs)
@@ -584,7 +722,12 @@ public sealed class ProjectMaintenanceService(
             knownRoots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet"));
             knownRoots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "dotnet"));
             knownRoots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Java"));
-            knownRoots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Python"));
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            knownRoots.Add(Path.Combine(localAppData, "Programs", "Python"));
+            knownRoots.Add(Path.Combine(userProfile, ".platformio", "penv", "Scripts"));
+            knownRoots.Add(Path.Combine(localAppData, "Programs", "Arduino IDE", "resources", "app", "lib", "backend", "resources"));
+            knownRoots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Arduino IDE", "resources", "app", "lib", "backend", "resources"));
             knownRoots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "PowerShell"));
             knownRoots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft Visual Studio"));
         }
@@ -714,6 +857,8 @@ public sealed class ProjectMaintenanceService(
         "powershell" when Path.GetFileName(executable).StartsWith("powershell", StringComparison.OrdinalIgnoreCase) => "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"",
         "powershell" => "-NoProfile -NonInteractive -Command \"$PSVersionTable.PSVersion.ToString()\"",
         "java" => "-version",
+        "embedded" when Path.GetFileName(executable).StartsWith("arduino-cli", StringComparison.OrdinalIgnoreCase) => "version",
+        "embedded" => "--version",
         "cpp" when Path.GetFileName(executable).StartsWith("cl", StringComparison.OrdinalIgnoreCase) => "",
         _ => "--version"
     };
@@ -728,7 +873,10 @@ public sealed class ProjectMaintenanceService(
         ".ps1" => ("PowerShell", @"(?mi)^\s*(?:function|class|enum)\s+(?<name>[A-Za-z_][A-Za-z0-9_-]*)", @"(?s).*"),
         ".java" => ("JavaSource", @"(?m)^\s*(?:public|protected|private)?\s*(?:abstract\s+|final\s+)?(?:class|interface|enum|record)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", @"(?s).*"),
         ".py" => ("PythonSource", @"(?m)^\s*(?:async\s+)?(?:def|class)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", @"(?s).*"),
-        ".cpp" or ".c" or ".h" or ".hpp" => ("CppSource", @"(?m)^\s*(?:class|struct|enum|namespace)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", @"(?s).*"),
+        ".ino" or ".pde" => ("ArduinoSketch", @"(?m)^\s*(?:void\s+(?<entry>setup|loop)\s*\(|#define\s+(?<define>[A-Za-z_][A-Za-z0-9_]*)|(?:class|struct|enum)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*))", @"(?s).*"),
+        ".cpp" or ".cc" or ".cxx" or ".c" or ".h" or ".hpp" => ("CppSource", @"(?m)^\s*(?:class|struct|enum|namespace)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", @"(?s).*"),
+        ".ini" or ".toml" or ".cfg" or ".conf" => ("ToolchainConfiguration", @"(?m)^\s*(?:\[(?<section>[^]]+)\]|(?<key>[A-Za-z_][A-Za-z0-9_.-]*)\s*=)", @"(?s).*"),
+        ".cmake" or ".kconfig" or ".sdkconfig" => ("EmbeddedBuildConfiguration", @"(?mi)^\s*(?<directive>project|set|option|config|menuconfig|source|include)\b", @"(?s).*"),
         _ => ("Document", string.Empty, @"(?s).*")
     };
 
@@ -737,7 +885,7 @@ public sealed class ProjectMaintenanceService(
         ".json" => "application/json", ".xml" or ".csproj" or ".props" or ".targets" or ".slnx" => "application/xml",
         ".md" => "text/markdown", ".yml" or ".yaml" => "application/yaml", _ => IsTextExtension(extension) ? "text/plain" : "application/octet-stream"
     };
-    private bool IsTextExtension(string extension) => new[] { ".cs", ".razor", ".csproj", ".sln", ".slnx", ".json", ".xml", ".props", ".targets", ".ps1", ".cmd", ".md", ".yml", ".yaml", ".java", ".py", ".cpp", ".c", ".h", ".hpp", ".txt", ".css", ".js", ".ts", ".html" }.Contains(extension.ToLowerInvariant());
+    private bool IsTextExtension(string extension) => new[] { ".cs", ".razor", ".csproj", ".sln", ".slnx", ".json", ".xml", ".props", ".targets", ".ps1", ".cmd", ".md", ".yml", ".yaml", ".java", ".py", ".ino", ".pde", ".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".ini", ".toml", ".cfg", ".conf", ".cmake", ".kconfig", ".sdkconfig", ".txt", ".css", ".js", ".ts", ".html" }.Contains(extension.ToLowerInvariant());
     private bool IsGeneratedPath(string relative) => Regex.IsMatch(relative, @"(?i)(^|/)(bin|obj|node_modules|artifacts|\.vs)(/|$)", RegexOptions.CultureInvariant, runtimePolicy.RegexTimeout);
     private string FindNearestProjectFile(string root, string file)
     {
@@ -802,12 +950,164 @@ public sealed class ProjectMaintenanceService(
         if (string.IsNullOrWhiteSpace(pattern)) { if (allowEmpty) return; throw new ArgumentException("A regular expression is required.", parameter); }
         _ = CompileRegex(pattern, parameter, pattern);
     }
+    private void ValidateJsonArray(string? json, string parameter)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return;
+        try { using var doc = JsonDocument.Parse(json); if (doc.RootElement.ValueKind != JsonValueKind.Array) throw new ArgumentException("A JSON array is required.", parameter); }
+        catch (JsonException ex) { throw new ArgumentException("The JSON array is invalid.", parameter, ex); }
+    }
+    private void ValidateWorkspaceAccessPolicyJson(string? json)
+    {
+        ValidateJsonArray(json, nameof(json));
+        foreach (var rule in ParseAccessPolicy(json))
+        {
+            ValidateRegex(rule.RelativePathRegex, nameof(rule.RelativePathRegex), allowEmpty: false);
+            if (rule.ExpectedEntryKind != "File" && rule.ExpectedEntryKind != "Directory" && rule.ExpectedEntryKind != "Either")
+                throw new ArgumentException("ExpectedEntryKind must be File, Directory, or Either.", nameof(json));
+            if (rule.RequiredAccess != "Read" && rule.RequiredAccess != "ReadWrite" && rule.RequiredAccess != "Execute" && rule.RequiredAccess != "ReadWriteExecute")
+                throw new ArgumentException("RequiredAccess is invalid.", nameof(json));
+            if (rule.Severity != "Warning" && rule.Severity != "Danger")
+                throw new ArgumentException("Severity must be Warning or Danger.", nameof(json));
+        }
+    }
+    private List<string> ParseStringArray(string? json)
+    {
+        try { return JsonSerializer.Deserialize<List<string>>(string.IsNullOrWhiteSpace(json) ? "[]" : json)?.Where(item => !string.IsNullOrWhiteSpace(item)).Select(item => item.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(100).ToList() ?? []; }
+        catch (JsonException) { return []; }
+    }
+    private List<WorkspaceAccessPolicyRule> ParseAccessPolicy(string? json)
+    {
+        try { return JsonSerializer.Deserialize<List<WorkspaceAccessPolicyRule>>(string.IsNullOrWhiteSpace(json) ? "[]" : json, new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })?.Take(200).ToList() ?? []; }
+        catch (JsonException) { return []; }
+    }
+    private List<string> EnumerateRelativeEntries(string root, int maximum, List<WorkspacePermissionFinding> findings)
+    {
+        var result = new List<string>();
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.Count > 0 && result.Count < maximum)
+        {
+            var current = pending.Pop();
+            try
+            {
+                foreach (var directory in Directory.EnumerateDirectories(current))
+                {
+                    result.Add(Path.GetRelativePath(root, directory).Replace('\\', '/') + "/");
+                    if (result.Count >= maximum) break;
+                    pending.Push(directory);
+                }
+                if (result.Count >= maximum) break;
+                foreach (var file in Directory.EnumerateFiles(current))
+                {
+                    result.Add(Path.GetRelativePath(root, file).Replace('\\', '/'));
+                    if (result.Count >= maximum) break;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                findings.Add(new("Warning", "ENUMERATION_PARTIAL", "Part of the workspace could not be inspected.", Path.GetRelativePath(root, current).Replace('\\', '/')));
+            }
+        }
+        if (result.Count >= maximum)
+            findings.Add(new("Warning", "ENTRY_LIMIT", $"Workspace assessment stopped after {maximum} entries."));
+        return result;
+    }
+    private void EvaluateAccessPolicyRule(WorkspaceAccessPolicyRule rule, IReadOnlyList<string> entries, string root, bool rootWriteAccess, List<WorkspacePermissionFinding> findings)
+    {
+        var regex = CompileRegex(rule.RelativePathRegex, nameof(rule.RelativePathRegex), @"(?!)");
+        var matches = entries.Where(regex.IsMatch).Take(100).ToArray();
+        if (rule.Required && matches.Length == 0)
+        {
+            findings.Add(new(rule.Severity, "POLICY_NO_MATCH", $"Required workspace policy '{Trim(rule.Name, 160)}' matched no file or directory."));
+            return;
+        }
+        foreach (var relative in matches)
+        {
+            var isDirectory = relative.EndsWith('/', StringComparison.Ordinal);
+            if ((rule.ExpectedEntryKind == "File" && isDirectory) || (rule.ExpectedEntryKind == "Directory" && !isDirectory))
+                findings.Add(new(rule.Severity, "POLICY_KIND", $"Workspace policy '{Trim(rule.Name, 160)}' matched the wrong entry kind.", relative));
+            var fullPath = Path.GetFullPath(Path.Combine(root, relative.TrimEnd('/').Replace('/', Path.DirectorySeparatorChar)));
+            if (!IsPathInside(root, fullPath))
+            {
+                findings.Add(new("Danger", "POLICY_ESCAPE", "A workspace policy match escaped the configured root.", relative));
+                continue;
+            }
+            if (rule.RequiredAccess.Contains("Read", StringComparison.OrdinalIgnoreCase) && !(isDirectory ? CanEnumerateDirectory(fullPath) : CanOpenRead(fullPath)))
+                findings.Add(new(rule.Severity, "POLICY_READ_DENIED", $"Workspace policy '{Trim(rule.Name, 160)}' requires read access that is unavailable.", relative));
+            if (rule.RequiredAccess.Contains("Write", StringComparison.OrdinalIgnoreCase) && !rootWriteAccess)
+                findings.Add(new(rule.Severity, "POLICY_WRITE_UNPROVEN", $"Workspace policy '{Trim(rule.Name, 160)}' requires write access, but the bounded workspace write probe did not succeed.", relative));
+            if (rule.RequiredAccess.Contains("Execute", StringComparison.OrdinalIgnoreCase) && isDirectory)
+                findings.Add(new("Warning", "POLICY_EXECUTE_DIRECTORY", $"Execute access for directory policy '{Trim(rule.Name, 160)}' is not inferred; validate the assigned compiler/tool explicitly.", relative));
+        }
+    }
+    private bool CanEnumerateDirectory(string path)
+    {
+        try { _ = Directory.EnumerateFileSystemEntries(path).Take(1).ToArray(); return true; } catch { return false; }
+    }
+    private bool CanOpenRead(string path)
+    {
+        try { using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete); return true; } catch { return false; }
+    }
+    private async Task<bool> ProbeDirectoryWriteAsync(string root, CancellationToken cancellationToken)
+    {
+        var probe = Path.Combine(root, $".localgpt-rights-probe-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await File.WriteAllTextAsync(probe, "LocalGPT bounded workspace rights probe.", Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            try { if (File.Exists(probe)) File.Delete(probe); } catch { }
+            return false;
+        }
+    }
+    private bool IsBroadOrSystemRoot(string path)
+    {
+        var normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var root = Path.TrimEndingDirectorySeparator(Path.GetPathRoot(normalized) ?? string.Empty);
+        if (string.Equals(normalized, root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) return true;
+        var protectedRoots = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+        }.Where(item => !string.IsNullOrWhiteSpace(item));
+        return protectedRoots.Any(item => string.Equals(normalized, Path.TrimEndingDirectorySeparator(Path.GetFullPath(item)), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+    }
+    private string NormalizeRelativePolicyPath(string value)
+    {
+        var normalized = (value ?? string.Empty).Trim().Replace('\\', '/').Trim('/');
+        return normalized.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(normalized) ? string.Empty : normalized;
+    }
+
     private void ValidateJsonObject(string? json, string parameter)
     {
         if (string.IsNullOrWhiteSpace(json)) return;
         try { using var doc = JsonDocument.Parse(json); if (doc.RootElement.ValueKind != JsonValueKind.Object) throw new ArgumentException("A JSON object is required.", parameter); }
         catch (JsonException ex) { throw new ArgumentException("The JSON object is invalid.", parameter, ex); }
     }
+    private string MergeEnvironmentJson(string? compilerJson, string? workspaceJson)
+    {
+        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var json in new[] { compilerJson, workspaceJson })
+        {
+            if (string.IsNullOrWhiteSpace(json)) continue;
+            try
+            {
+                foreach (var pair in JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [])
+                    merged[pair.Key] = pair.Value;
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException("A compiler or workspace environment JSON object is invalid.", ex);
+            }
+        }
+        return JsonSerializer.Serialize(merged);
+    }
+
     private string NormalizeScope(string? scope) => (scope ?? string.Empty).Trim() switch { "Project" => "Project", "ProjectType" => "ProjectType", "Global" => "Global", _ => throw new ArgumentException("ScopeKind must be Project, ProjectType, or Global.", nameof(scope)) };
     private string NormalizeAbsolutePath(string? value, string parameter)
     {

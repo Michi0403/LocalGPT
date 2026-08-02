@@ -15,6 +15,19 @@ public sealed class ProjectWorkspaceRoot
     public LocalGptProject? Project { get; set; }
     [MaxLength(240)] public string ProjectTypePattern { get; set; } = string.Empty;
     [MaxLength(1000)] public string SolutionPattern { get; set; } = @"(?i)\.(sln|slnx)$";
+    [MaxLength(80)] public string EnvironmentKind { get; set; } = "LocalHost";
+    [MaxLength(2048)] public string EnvironmentRootPath { get; set; } = string.Empty;
+    public Guid? PreferredCompilerInstallationId { get; set; }
+    [Column(TypeName = "TEXT")] public string BuildArguments { get; set; } = string.Empty;
+    [Column(TypeName = "TEXT")] public string EnvironmentVariablesJson { get; set; } = "{}";
+    [Column(TypeName = "TEXT")] public string DefaultSubdirectoriesJson { get; set; } = "[\"src\",\"docs\",\"tests\",\"artifacts\"]";
+    [Column(TypeName = "TEXT")] public string AccessPolicyJson { get; set; } = "[]";
+    [Column(TypeName = "TEXT")] public string ExpectedStructureRegex { get; set; } = string.Empty;
+    [MaxLength(80)] public string LastPermissionStatus { get; set; } = "NotChecked";
+    [MaxLength(4000)] public string LastPermissionSummary { get; set; } = string.Empty;
+    public bool LastPermissionReadAccess { get; set; }
+    public bool LastPermissionWriteAccess { get; set; }
+    public DateTime? LastPermissionCheckedAtUtc { get; set; }
     public int Priority { get; set; } = 100;
     public bool IsDefault { get; set; }
     public bool IsEnabled { get; set; } = true;
@@ -114,6 +127,14 @@ public sealed class SaveProjectWorkspaceRootRequest
     public Guid? ProjectId { get; set; }
     public string ProjectTypePattern { get; set; } = string.Empty;
     public string SolutionPattern { get; set; } = @"(?i)\.(sln|slnx)$";
+    public string EnvironmentKind { get; set; } = "LocalHost";
+    public string EnvironmentRootPath { get; set; } = string.Empty;
+    public Guid? PreferredCompilerInstallationId { get; set; }
+    public string BuildArguments { get; set; } = string.Empty;
+    public string EnvironmentVariablesJson { get; set; } = "{}";
+    public string DefaultSubdirectoriesJson { get; set; } = "[\"src\",\"docs\",\"tests\",\"artifacts\"]";
+    public string AccessPolicyJson { get; set; } = "[]";
+    public string ExpectedStructureRegex { get; set; } = string.Empty;
     public int Priority { get; set; } = 100;
     public bool IsDefault { get; set; }
     public bool IsEnabled { get; set; } = true;
@@ -210,3 +231,32 @@ public sealed record ProjectScanResult(
     int FilesStored,
     int FilesSkipped,
     IReadOnlyList<string> Warnings);
+
+public sealed class WorkspaceAccessPolicyRule
+{
+    public string Name { get; set; } = string.Empty;
+    public string RelativePathRegex { get; set; } = @"(?s).*";
+    public string ExpectedEntryKind { get; set; } = "Either";
+    public string RequiredAccess { get; set; } = "Read";
+    public string Severity { get; set; } = "Warning";
+    public bool Required { get; set; } = true;
+    public bool CouncilMaintained { get; set; } = true;
+}
+
+public sealed record WorkspacePermissionFinding(
+    string Severity,
+    string Code,
+    string Message,
+    string RelativePath = "");
+
+public sealed record WorkspacePermissionAssessment(
+    Guid WorkspaceRootId,
+    string Status,
+    DateTime CheckedAtUtc,
+    bool RootExists,
+    bool ReadAccess,
+    bool WriteAccess,
+    string EnvironmentRootPath,
+    Guid? PreferredCompilerInstallationId,
+    IReadOnlyList<string> ExpectedSubdirectories,
+    IReadOnlyList<WorkspacePermissionFinding> Findings);

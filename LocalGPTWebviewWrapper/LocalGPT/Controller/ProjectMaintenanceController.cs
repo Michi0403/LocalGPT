@@ -24,6 +24,11 @@ public sealed class ProjectMaintenanceController(
     public async Task<IResult> ResolveWorkspace(Guid projectId, CancellationToken cancellationToken)
         => Results.Ok(await maintenance.ResolveWorkspaceAsync(projectId, cancellationToken).ConfigureAwait(false));
 
+    [HttpPost("workspaces/{workspaceRootId:guid}/assess")]
+    [HumanApprovalRequired("project.workspace.permissions.assess", "Assess workspace permissions", "Inspect the configured workspace structure and optionally perform one bounded create/delete write probe.", "Medium", "Workspace security reviewer")]
+    public async Task<IResult> AssessWorkspacePermissions(Guid workspaceRootId, [FromQuery] bool userConfirmedWriteProbe, CancellationToken cancellationToken)
+        => await ExecuteAsync(() => maintenance.AssessWorkspacePermissionsAsync(workspaceRootId, userConfirmedWriteProbe, cancellationToken), "workspace permission assessment").ConfigureAwait(false);
+
     [HttpGet("compilers")]
     public async Task<IResult> GetCompilers(CancellationToken cancellationToken)
         => Results.Ok(await maintenance.GetCompilerInstallationsAsync(cancellationToken).ConfigureAwait(false));

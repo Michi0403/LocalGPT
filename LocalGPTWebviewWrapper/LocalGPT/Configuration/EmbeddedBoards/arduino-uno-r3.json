@@ -1,0 +1,51 @@
+{
+  "key": "arduino-uno-r3",
+  "displayName": "Arduino Uno R3 (review profile)",
+  "family": "Arduino AVR",
+  "framework": "Arduino",
+  "platformIoBoard": "uno",
+  "logicVoltage": 5.0,
+  "documentationSource": "arduino/docs-content, arduino/reference-en and arduino/ArduinoCore-API",
+  "status": "NeedsExactBoardReview",
+  "supportedProtocols": [
+    "gpio.digital",
+    "gpio.analog",
+    "gpio.pwm",
+    "bus.onewire.physical",
+    "bus.i2c",
+    "bus.spi",
+    "bus.uart",
+    "transport.serial-json-lines",
+    "localgpt.onewire-envelope"
+  ],
+  "notes": [
+    "This profile is intended for simple Arduino Uno R3 sketches.",
+    "Pins D0 and D1 are shared with the primary UART/USB serial connection.",
+    "Voltage compatibility must be reviewed when connecting 3.3 V-only sensors or gateways."
+  ],
+  "pins": [
+    { "pinKey": "D0", "gpio": 0, "label": "D0 / RX", "capabilities": ["gpio.digital", "bus.uart"], "warning": "Shared with the primary UART.", "canvasX": 100, "canvasY": 80 },
+    { "pinKey": "D1", "gpio": 1, "label": "D1 / TX", "capabilities": ["gpio.digital", "bus.uart"], "warning": "Shared with the primary UART.", "canvasX": 100, "canvasY": 120 },
+    { "pinKey": "D2", "gpio": 2, "label": "D2", "capabilities": ["gpio.digital", "bus.onewire.physical"], "canvasX": 100, "canvasY": 160 },
+    { "pinKey": "D3", "gpio": 3, "label": "D3 / PWM", "capabilities": ["gpio.digital", "gpio.pwm", "bus.onewire.physical"], "canvasX": 100, "canvasY": 200 },
+    { "pinKey": "D4", "gpio": 4, "label": "D4", "capabilities": ["gpio.digital", "bus.onewire.physical"], "canvasX": 100, "canvasY": 240 },
+    { "pinKey": "D5", "gpio": 5, "label": "D5 / PWM", "capabilities": ["gpio.digital", "gpio.pwm", "bus.onewire.physical"], "canvasX": 100, "canvasY": 280 },
+    { "pinKey": "D6", "gpio": 6, "label": "D6 / PWM", "capabilities": ["gpio.digital", "gpio.pwm", "bus.onewire.physical"], "canvasX": 100, "canvasY": 320 },
+    { "pinKey": "D7", "gpio": 7, "label": "D7", "capabilities": ["gpio.digital", "bus.onewire.physical"], "canvasX": 100, "canvasY": 360 },
+    { "pinKey": "D8", "gpio": 8, "label": "D8", "capabilities": ["gpio.digital", "bus.onewire.physical"], "canvasX": 100, "canvasY": 400 },
+    { "pinKey": "D9", "gpio": 9, "label": "D9 / PWM", "capabilities": ["gpio.digital", "gpio.pwm", "bus.onewire.physical"], "canvasX": 100, "canvasY": 440 },
+    { "pinKey": "D10", "gpio": 10, "label": "D10 / PWM / SS", "capabilities": ["gpio.digital", "gpio.pwm", "bus.spi"], "canvasX": 100, "canvasY": 480 },
+    { "pinKey": "D11", "gpio": 11, "label": "D11 / PWM / MOSI", "capabilities": ["gpio.digital", "gpio.pwm", "bus.spi"], "canvasX": 100, "canvasY": 520 },
+    { "pinKey": "D12", "gpio": 12, "label": "D12 / MISO", "capabilities": ["gpio.digital", "bus.spi"], "canvasX": 100, "canvasY": 560 },
+    { "pinKey": "D13", "gpio": 13, "label": "D13 / SCK / LED", "capabilities": ["gpio.digital", "bus.spi"], "warning": "Commonly connected to the onboard LED.", "canvasX": 100, "canvasY": 600 },
+    { "pinKey": "A0", "gpio": 14, "label": "A0", "capabilities": ["gpio.analog", "gpio.digital"], "canvasX": 460, "canvasY": 160 },
+    { "pinKey": "A1", "gpio": 15, "label": "A1", "capabilities": ["gpio.analog", "gpio.digital"], "canvasX": 460, "canvasY": 200 },
+    { "pinKey": "A2", "gpio": 16, "label": "A2", "capabilities": ["gpio.analog", "gpio.digital"], "canvasX": 460, "canvasY": 240 },
+    { "pinKey": "A3", "gpio": 17, "label": "A3", "capabilities": ["gpio.analog", "gpio.digital"], "canvasX": 460, "canvasY": 280 },
+    { "pinKey": "A4", "gpio": 18, "label": "A4 / SDA", "capabilities": ["gpio.analog", "gpio.digital", "bus.i2c"], "canvasX": 460, "canvasY": 320 },
+    { "pinKey": "A5", "gpio": 19, "label": "A5 / SCL", "capabilities": ["gpio.analog", "gpio.digital", "bus.i2c"], "canvasX": 460, "canvasY": 360 },
+    { "pinKey": "5V", "label": "5 V", "capabilities": ["power"], "isPowerPin": true, "voltage": 5.0, "canvasX": 280, "canvasY": 80 },
+    { "pinKey": "3V3", "label": "3.3 V", "capabilities": ["power"], "isPowerPin": true, "voltage": 3.3, "canvasX": 280, "canvasY": 120 },
+    { "pinKey": "GND", "label": "Ground", "capabilities": ["ground"], "isGroundPin": true, "voltage": 0, "canvasX": 280, "canvasY": 640 }
+  ]
+}

@@ -15,7 +15,7 @@
     <header class="maintenance-header">
         <div>
             <h1>@T("ProjectMaintenance.Title", "Project maintenance")</h1>
-            <p>@T("ProjectMaintenance.Intro", "Configure project-specific or project-type workspaces, compiler installations, solution discovery, file metadata, and the build/council/approval gate for ready-to-test revisions.")</p>
+            <p>@T("ProjectMaintenance.Intro", "Configure project workspaces, local environments, permission policies, compiler installations, solution discovery, file metadata, and the build/council/approval gate for ready-to-test revisions.")</p>
         </div>
         <DxButton Text='@T("Common.Refresh", "Refresh")' Enabled="@(!busy)" Click="LoadAsync" />
     </header>
@@ -119,7 +119,23 @@
                 </label>
                 <label>@T("ProjectMaintenance.ProjectTypeRegex", "Project type regex")<input @bind="workspaceEdit.ProjectTypePattern" placeholder="(?i)DotNet.*" /></label>
                 <label>@T("ProjectMaintenance.SolutionRegex", "Solution regex")<input @bind="workspaceEdit.SolutionPattern" /></label>
+                <label>@T("ProjectMaintenance.EnvironmentKind", "Local environment kind")<select @bind="workspaceEdit.EnvironmentKind"><option>LocalHost</option><option>PythonNet</option><option>PlatformIO</option><option>ArduinoCLI</option><option>Custom</option></select></label>
+                <label>@T("ProjectMaintenance.EnvironmentRoot", "Environment root")<input @bind="workspaceEdit.EnvironmentRootPath" placeholder="C:\LocalGPT-Workspaces\project\.localenv" /></label>
+                <label>@T("ProjectMaintenance.PreferredCompiler", "Preferred compiler")
+                    <select @bind="workspaceEdit.PreferredCompilerInstallationId">
+                        <option value="">@T("Common.None", "None")</option>
+                        @foreach (var compiler in compilers.Where(item => item.IsEnabled))
+                        {
+                            <option value="@compiler.Id">@compiler.Language · @compiler.Name</option>
+                        }
+                    </select>
+                </label>
                 <label>@T("Common.Priority", "Priority")<input type="number" @bind="workspaceEdit.Priority" /></label>
+                <label class="span-all">@T("ProjectMaintenance.WorkspaceBuildArguments", "Workspace build arguments")<textarea @bind="workspaceEdit.BuildArguments" rows="2" placeholder="run -e localgpt-esp32"></textarea></label>
+                <label class="span-all">@T("ProjectMaintenance.WorkspaceEnvironmentJson", "Environment variables JSON")<textarea @bind="workspaceEdit.EnvironmentVariablesJson" rows="3" placeholder='{"PLATFORMIO_CORE_DIR":".localenv/platformio"}'></textarea></label>
+                <label class="span-all">@T("ProjectMaintenance.DefaultSubdirectories", "Expected project subdirectories JSON")<textarea @bind="workspaceEdit.DefaultSubdirectoriesJson" rows="3" placeholder='["src","include","docs","tests","artifacts"]'></textarea></label>
+                <label class="span-all">@T("ProjectMaintenance.ExpectedStructureRegex", "Expected project structure regex")<textarea @bind="workspaceEdit.ExpectedStructureRegex" rows="3" placeholder="(?s)(^|\n)src/.*(^|\n)(platformio\.ini|CMakeLists\.txt)$"></textarea></label>
+                <label class="span-all">@T("ProjectMaintenance.AccessPolicyJson", "Regex access policy JSON")<textarea @bind="workspaceEdit.AccessPolicyJson" rows="7" placeholder='[{"name":"firmware sources","relativePathRegex":"(?i)^(src|include)/","expectedEntryKind":"Either","requiredAccess":"ReadWrite","severity":"Danger","required":true,"councilMaintained":true}]'></textarea></label>
             </div>
             <label class="check"><input type="checkbox" @bind="workspaceEdit.IsDefault" /> @T("Common.Default", "Default")</label>
             <label class="check"><input type="checkbox" @bind="workspaceEdit.IsEnabled" /> @T("Common.Enabled", "Enabled")</label>
@@ -127,7 +143,42 @@
             <ul class="compact-list">
                 @foreach (var workspace in workspaceRoots)
                 {
-                    <li><strong>@workspace.Name</strong><span>@workspace.ScopeKind · @workspace.LastResolutionStatus</span><code>@workspace.RootPath</code></li>
+                    <li>
+                        <div class="workspace-title-row">
+                            <strong>@workspace.Name</strong>
+                            <span class="permission-badge permission-@workspace.LastPermissionStatus.ToLowerInvariant()">@PermissionIcon(workspace.LastPermissionStatus) @workspace.LastPermissionStatus</span>
+                        </div>
+                        <span>@workspace.ScopeKind · @workspace.EnvironmentKind · @workspace.LastResolutionStatus · R:@PermissionBoolean(workspace.LastPermissionReadAccess) · W:@PermissionBoolean(workspace.LastPermissionWriteAccess)</span>
+                        <code>@workspace.RootPath</code>
+                        @if (!string.IsNullOrWhiteSpace(workspace.EnvironmentRootPath))
+                        {
+                            <code>@workspace.EnvironmentRootPath</code>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(workspace.LastPermissionSummary))
+                        {
+                            <small>@workspace.LastPermissionSummary</small>
+                        }
+                        <div class="action-row">
+                            <DxButton Text='@T("ProjectMaintenance.EditWorkspace", "Edit")' RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy)" Click="@(() => EditWorkspace(workspace))" />
+                            <DxButton Text='@T("ProjectMaintenance.AssessWorkspace", "Assess rights")' RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy)" Click="@(() => AssessWorkspaceAsync(workspace.Id))" />
+                        </div>
+                        @if (workspaceAssessments.TryGetValue(workspace.Id, out var assessment))
+                        {
+                            <ul class="finding-list">
+                                @foreach (var finding in assessment.Findings)
+                                {
+                                    <li class="finding-@finding.Severity.ToLowerInvariant()">
+                                        <strong>@PermissionIcon(finding.Severity) @finding.Code</strong>
+                                        <span>@finding.Message</span>
+                                        @if (!string.IsNullOrWhiteSpace(finding.RelativePath))
+                                        {
+                                            <code>@finding.RelativePath</code>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </li>
                 }
             </ul>
         </article>
@@ -159,7 +210,7 @@
                 <summary>@T("ProjectMaintenance.AddCustomCompiler", "Add custom compiler installation")</summary>
                 <div class="field-grid">
                     <label>@T("Common.Name", "Name")<input @bind="compilerEdit.Name" /></label>
-                    <label>@T("Common.Language", "Language")<select @bind="compilerEdit.Language"><option>DotNet</option><option>Java</option><option>Python</option><option>Cpp</option><option>PowerShell</option></select></label>
+                    <label>@T("Common.Language", "Language")<select @bind="compilerEdit.Language"><option>DotNet</option><option>Java</option><option>Python</option><option>Cpp</option><option>Embedded</option><option>PowerShell</option></select></label>
                     <label>@T("ProjectMaintenance.ExecutablePath", "Executable path")<input @bind="compilerEdit.ExecutablePath" /></label>
                     <label>@T("ProjectMaintenance.CompilerHome", "Compiler home")<input @bind="compilerEdit.CompilerHomePath" /></label>
                     <label>@T("ProjectMaintenance.ValidationArguments", "Validation arguments")<input @bind="compilerEdit.ValidationArguments" /></label>
@@ -223,6 +274,7 @@
     LocalGptProjectDetails? selectedProject;
     List<ProjectWorkspaceRoot> workspaceRoots = [];
     List<ProjectCompilerInstallation> compilers = [];
+    Dictionary<Guid, WorkspacePermissionAssessment> workspaceAssessments = [];
     List<LocalGptProjectTrackedFile> trackedFiles = [];
     LocalGptProjectTrackedFile? selectedTrackedFile;
     SaveProjectWorkspaceRootRequest workspaceEdit = null!;
@@ -323,6 +375,48 @@
             selectedTrackedFile = null;
         }, T("ProjectMaintenance.FileMetadataLoadFailed", "Could not load tracked file metadata.")).ConfigureAwait(true) /* renderer-affine loading continuation */;
     }
+
+    void EditWorkspace(ProjectWorkspaceRoot workspace)
+    {
+        workspaceEdit = new SaveProjectWorkspaceRootRequest
+        {
+            Id = workspace.Id,
+            Name = workspace.Name,
+            RootPath = workspace.RootPath,
+            ScopeKind = workspace.ScopeKind,
+            ProjectId = workspace.ProjectId,
+            ProjectTypePattern = workspace.ProjectTypePattern,
+            SolutionPattern = workspace.SolutionPattern,
+            EnvironmentKind = workspace.EnvironmentKind,
+            EnvironmentRootPath = workspace.EnvironmentRootPath,
+            PreferredCompilerInstallationId = workspace.PreferredCompilerInstallationId,
+            BuildArguments = workspace.BuildArguments,
+            EnvironmentVariablesJson = workspace.EnvironmentVariablesJson,
+            DefaultSubdirectoriesJson = workspace.DefaultSubdirectoriesJson,
+            AccessPolicyJson = workspace.AccessPolicyJson,
+            ExpectedStructureRegex = workspace.ExpectedStructureRegex,
+            Priority = workspace.Priority,
+            IsDefault = workspace.IsDefault,
+            IsEnabled = workspace.IsEnabled
+        };
+    }
+
+    async Task AssessWorkspaceAsync(Guid workspaceId) => await RunAsync(async () =>
+    {
+        var assessment = await Maintenance.AssessWorkspacePermissionsAsync(workspaceId, userConfirmedWriteProbe: true).ConfigureAwait(false);
+        workspaceAssessments[workspaceId] = assessment;
+        workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList();
+        Notifier.ShowSuccess(ToastName, $"Workspace assessment: {assessment.Status}", T("Common.Completed", "Completed"));
+    }, T("ProjectMaintenance.WorkspaceAssessmentFailed", "Workspace permission assessment failed.")).ConfigureAwait(false);
+
+    static string PermissionBoolean(bool value) => value ? "✓" : "—";
+    static string PermissionIcon(string status) => status switch
+    {
+        "Approved" => "✓",
+        "Danger" => "⛔",
+        "Warning" => "⚠",
+        _ => "○"
+    };
 
     async Task SaveWorkspaceAsync() => await RunAsync(async () =>
     {
