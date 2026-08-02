@@ -11,6 +11,8 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 @inject IFirstRunOnboardingService Onboarding
+@inject IProjectMaintenanceService ProjectMaintenance
+@inject IFeaturePersistenceService FeaturePersistence
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <PageTitle>AI Setup</PageTitle>
@@ -307,6 +309,62 @@
             }
         </section>
 
+        <section class="installer-workbench-card" aria-labelledby="toolchain-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <h3 id="toolchain-heading">@T("Install.Toolchains.Title", "Compilers and runtime toolchains")</h3>
+                    <p>@T("Install.Toolchains.Description", "Discover MSBuild, .NET, Java, Python, PowerShell and embedded toolchains from PATH and common installation folders. Saved defaults are reused by project workspaces and build verification.")</p>
+                </div>
+                <div class="top-container">
+                    <DxButton Text='@T("Install.Toolchains.Discover", "Discover and save toolchains")' RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!IsToolchainBusy)" Click="DiscoverToolchainsAsync" />
+                    <DxButton Text='@T("Install.Toolchains.Refresh", "Refresh stored toolchains")' Enabled="@(!IsToolchainBusy)" Click="RefreshCompilerInstallationsAsync" />
+                </div>
+            </div>
+            <label class="toolchain-search-roots">
+                @T("Install.Toolchains.CustomRoots", "Additional search roots (one path per line)")
+                <textarea rows="3" @bind="ToolchainSearchRoots" placeholder="C:\Program Files\Microsoft Visual Studio&#10;C:\Python313"></textarea>
+            </label>
+            @if (!string.IsNullOrWhiteSpace(ToolchainStatus))
+            {
+                <div class="installer-status-line"><span>@ToolchainStatus</span></div>
+            }
+            @if (CompilerInstallations.Count == 0)
+            {
+                <p class="field-help">@T("Install.Toolchains.None", "No stored toolchains yet. Discovery is explicit and only saves detected executable paths after you press the button.")</p>
+            }
+            else
+            {
+                <div class="toolchain-grid">
+                    @foreach (var compiler in CompilerInstallations)
+                    {
+                        <article class="toolchain-card">
+                            <header>
+                                <div>
+                                    <h4>@compiler.Name</h4>
+                                    <small>@compiler.Language · @(string.IsNullOrWhiteSpace(compiler.Version) ? T("Install.Toolchains.VersionUnknown", "version not validated") : compiler.Version)</small>
+                                </div>
+                                @if (compiler.IsDefaultForLanguage)
+                                {
+                                    <strong class="toolchain-default-badge">@T("Install.Toolchains.Default", "Default")</strong>
+                                }
+                            </header>
+                            <code>@compiler.ExecutablePath</code>
+                            <small>@compiler.DiscoverySource · @(compiler.LastValidationSucceeded ? T("Install.Toolchains.Valid", "validated") : T("Install.Toolchains.Unvalidated", "not validated"))</small>
+                            @if (!string.IsNullOrWhiteSpace(compiler.LastValidationMessage))
+                            {
+                                <p class="toolchain-validation-message">@compiler.LastValidationMessage</p>
+                            }
+                            <div class="toolchain-actions">
+                                <DxButton Text='@T("Install.Toolchains.Validate", "Validate")' Enabled="@(!IsToolchainBusy)" Click="@(() => ValidateCompilerAsync(compiler.Id))" />
+                                <DxButton Text='@T("Install.Toolchains.MakeDefault", "Use as language default")' Enabled="@(!IsToolchainBusy && !compiler.IsDefaultForLanguage)" Click="@(() => MakeCompilerDefaultAsync(compiler))" />
+                                <DxButton Text='@T("Install.Toolchains.Remove", "Remove")' RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!IsToolchainBusy)" Click="@(() => DeleteCompilerAsync(compiler.Id))" />
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+
         <section class="installer-workbench-card" aria-labelledby="localization-heading">
             <div class="installer-card-heading">
                 <div>
@@ -367,11 +425,15 @@
     private bool IsOllamaProcessBusy;
     private bool IsOnboardingLoading;
     private bool IsLocalizationImporting;
+    private bool IsToolchainBusy;
     private bool OverwriteLocalizationCatalog;
     private string LocalizationCulture = "fr-FR";
     private string LocalizationImportStatus = string.Empty;
+    private string ToolchainSearchRoots = string.Empty;
+    private string ToolchainStatus = string.Empty;
     private FirstRunOnboardingStatus? OnboardingStatus;
     private IReadOnlyList<LocalizationCatalogDescriptor> LocalizationCatalogs = Array.Empty<LocalizationCatalogDescriptor>();
+    private IReadOnlyList<ProjectCompilerInstallation> CompilerInstallations = Array.Empty<ProjectCompilerInstallation>();
     private OllamaProcessStatus OllamaProcessStatus = new(false, false, null, Array.Empty<OllamaProcessInfo>(), string.Empty, "Ollama process status not checked yet.");
     private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify Ollama or LM Studio.";
     private DateTimeOffset? LastConnectivityCheck;
@@ -513,6 +575,7 @@
             {
                 LocalizationCatalogs = Localization.GetCatalogs();
                 await RefreshOnboardingAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                await RefreshCompilerInstallationsAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
                 await RefreshOllamaProcessStatusAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
                 await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             }
@@ -569,6 +632,157 @@
         }
     }
 
+    /// <summary>Loads compiler and runtime toolchains stored in the LocalGPT database.</summary>
+    /// <returns>A task that completes after the installer list is refreshed.</returns>
+    private async Task RefreshCompilerInstallationsAsync()
+    {
+        try
+        {
+            IsToolchainBusy = true;
+            CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(true) /* renderer-affine toolchain list */;
+            ToolchainStatus = $"{CompilerInstallations.Count} stored toolchain profile(s).";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not load stored compiler installations; executable paths were omitted from logs.");
+            ToolchainStatus = T("Install.Toolchains.LoadFailed", "Stored toolchains could not be loaded. Review LocalGPT logs.");
+            Notifier.ShowError(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+        }
+        finally
+        {
+            IsToolchainBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine toolchain completion */;
+        }
+    }
+
+    /// <summary>Discovers compiler executables from PATH, common locations and optional user roots.</summary>
+    /// <returns>A task that completes after detected profiles are saved and displayed.</returns>
+    private async Task DiscoverToolchainsAsync()
+    {
+        try
+        {
+            IsToolchainBusy = true;
+            ToolchainStatus = T("Install.Toolchains.Discovering", "Discovering toolchains...");
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine discovery status */;
+            var roots = ToolchainSearchRoots
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var discovered = await ProjectMaintenance.DiscoverCompilerInstallationsAsync(new DiscoverProjectCompilersRequest
+            {
+                CustomSearchRoots = roots,
+                SaveDiscovered = true,
+                UserConfirmed = true
+            }).ConfigureAwait(true) /* renderer-affine discovery result */;
+            CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(true) /* renderer-affine discovery refresh */;
+            ToolchainStatus = $"Discovered {discovered.Count} candidate(s); {CompilerInstallations.Count} profile(s) are stored.";
+            Notifier.ShowSuccess(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Compiler discovery failed; search roots and executable paths were omitted from logs.");
+            ToolchainStatus = T("Install.Toolchains.DiscoveryFailed", "Toolchain discovery failed. Review LocalGPT logs.");
+            Notifier.ShowError(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+        }
+        finally
+        {
+            IsToolchainBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine discovery completion */;
+        }
+    }
+
+    /// <summary>Runs the bounded version probe for one stored compiler installation.</summary>
+    /// <param name="compilerId">Stored compiler identifier.</param>
+    /// <returns>A task that completes after validation and list refresh.</returns>
+    private async Task ValidateCompilerAsync(Guid compilerId)
+    {
+        try
+        {
+            IsToolchainBusy = true;
+            var compiler = await ProjectMaintenance.ValidateCompilerInstallationAsync(compilerId, userConfirmed: true).ConfigureAwait(true) /* renderer-affine validation result */;
+            ToolchainStatus = compiler.LastValidationSucceeded
+                ? $"Validated {compiler.Name}: {compiler.Version}."
+                : $"Validation failed for {compiler.Name}.";
+            CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(true) /* renderer-affine validation refresh */;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Compiler validation failed for {CompilerId}; executable path was omitted from logs.", compilerId);
+            ToolchainStatus = T("Install.Toolchains.ValidationFailed", "Compiler validation failed. Review LocalGPT logs.");
+            Notifier.ShowError(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+        }
+        finally
+        {
+            IsToolchainBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine validation completion */;
+        }
+    }
+
+    /// <summary>Marks one stored compiler as the default for its language.</summary>
+    /// <param name="compiler">Compiler profile selected by the user.</param>
+    /// <returns>A task that completes after the default profile is saved.</returns>
+    private async Task MakeCompilerDefaultAsync(ProjectCompilerInstallation compiler)
+    {
+        ArgumentNullException.ThrowIfNull(compiler);
+        try
+        {
+            IsToolchainBusy = true;
+            await ProjectMaintenance.SaveCompilerInstallationAsync(new SaveProjectCompilerInstallationRequest
+            {
+                Id = compiler.Id,
+                Name = compiler.Name,
+                Language = compiler.Language,
+                ExecutablePath = compiler.ExecutablePath,
+                CompilerHomePath = compiler.CompilerHomePath,
+                Version = compiler.Version,
+                Architecture = compiler.Architecture,
+                DiscoverySource = compiler.DiscoverySource,
+                ValidationArguments = compiler.ValidationArguments,
+                EnvironmentVariablesJson = compiler.EnvironmentVariablesJson,
+                IsEnabled = compiler.IsEnabled,
+                IsDefaultForLanguage = true,
+                UserConfirmed = true
+            }).ConfigureAwait(true) /* renderer-affine default save */;
+            CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(true) /* renderer-affine default refresh */;
+            ToolchainStatus = $"{compiler.Name} is now the default {compiler.Language} toolchain.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Setting compiler {CompilerId} as language default failed.", compiler.Id);
+            ToolchainStatus = T("Install.Toolchains.DefaultFailed", "The default toolchain could not be saved.");
+        }
+        finally
+        {
+            IsToolchainBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine default completion */;
+        }
+    }
+
+    /// <summary>Deletes one unreferenced stored compiler profile.</summary>
+    /// <param name="compilerId">Stored compiler identifier.</param>
+    /// <returns>A task that completes after the delete attempt.</returns>
+    private async Task DeleteCompilerAsync(Guid compilerId)
+    {
+        try
+        {
+            IsToolchainBusy = true;
+            await ProjectMaintenance.DeleteCompilerInstallationAsync(compilerId, userConfirmed: true).ConfigureAwait(true) /* renderer-affine delete result */;
+            CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(true) /* renderer-affine delete refresh */;
+            ToolchainStatus = T("Install.Toolchains.Removed", "The compiler profile was removed.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Deleting compiler {CompilerId} failed.", compilerId);
+            ToolchainStatus = exception.Message;
+            Notifier.ShowError(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+        }
+        finally
+        {
+            IsToolchainBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine delete completion */;
+        }
+    }
+
     /// <summary>Validates and imports one user-selected localization JSON file.</summary>
     /// <param name="args">Selected browser file.</param>
     private async Task ImportLocalizationFileAsync(InputFileChangeEventArgs args)
@@ -596,6 +810,21 @@
                 json,
                 OverwriteLocalizationCatalog).ConfigureAwait(false);
             LocalizationCatalogs = Localization.GetCatalogs();
+            var catalogDescriptor = LocalizationCatalogs.FirstOrDefault(item => string.Equals(item.Culture, imported.Culture, StringComparison.OrdinalIgnoreCase));
+            await FeaturePersistence.SaveLocalizationCatalogAsync(new SaveFeatureRecordRequest<LocalizationCatalogRegistration>
+            {
+                UserConfirmed = true,
+                Record = new LocalizationCatalogRegistration
+                {
+                    CultureName = imported.Culture,
+                    DisplayName = catalogDescriptor?.DisplayName ?? imported.Culture,
+                    CatalogPath = $"user-localization://{imported.Culture}",
+                    StringCount = imported.StringCount,
+                    MissingBaselineKeyCount = imported.MissingBaselineKeyCount,
+                    IsUserOverride = true,
+                    IsEnabled = true
+                }
+            }).ConfigureAwait(false);
             LocalizationCulture = imported.Culture;
             LocalizationImportStatus = $"Imported {imported.StringCount} strings for {imported.Culture}. {imported.MissingBaselineKeyCount} missing baseline keys use English fallback.";
             Notifier.ShowSuccess(toastName, LocalizationImportStatus, "Language catalog imported");

@@ -132,6 +132,46 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
+    function clickPromptSuggestion(title) {
+        try {
+            const normalizedTitle = String(title ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (!normalizedTitle) return false;
+            const host = document.querySelector(hostSelector);
+            if (!(host instanceof HTMLElement)) return false;
+            const editor = host.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
+            const composer = findComposer(host, editor, null);
+            const candidates = [...host.querySelectorAll('button,[role="button"],a,[class*="suggest" i]')]
+                .filter(element => element instanceof HTMLElement && visible(element))
+                .filter(element => !composer?.contains(element))
+                .filter(element => (element.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase().includes(normalizedTitle));
+            const suggestion = candidates.find(element => suggestionRegion(element, host, composer)) || candidates[0];
+            if (!(suggestion instanceof HTMLElement)) return false;
+            suggestion.focus({ preventScroll: true });
+            suggestion.click();
+            return true;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.clickPromptSuggestion', error);
+            return false;
+        }
+    }
+
+
+    async function waitForComposerSubmission(editor, expectedText) {
+        try {
+            const expected = String(expectedText ?? '').trim();
+            for (let attempt = 0; attempt < 16; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 75));
+                if (!(editor instanceof HTMLElement) || !editor.isConnected) return true;
+                const current = editorText(editor).trim();
+                if (!current || (expected && current !== expected)) return true;
+            }
+            return false;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.waitForComposerSubmission', error);
+            return false;
+        }
+    }
+
     function markChatRoots(host) {
         try {
             for (const child of host.children) addClass(child, 'localgpt-chat-root');
@@ -827,6 +867,19 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                         return false;
                     }
                 },
+                async submitSuggestionOrPrompt(title, value) {
+                    try {
+                        // Prompt-suggestion clicks are intentionally not used for direct Council starts.
+                        // DevExpress highlights a suggestion before it submits and can therefore report a
+                        // successful click while no message was sent. Direct starters must populate the
+                        // composer and activate its native send action so the Council pipeline really runs.
+                        void title;
+                        return await this.submitPrompt(value);
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.submitSuggestionOrPrompt', error);
+                        return false;
+                    }
+                },
                 async submitPrompt(value) {
                     try {
                         const text = String(value ?? '').trim();
@@ -847,20 +900,47 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                                 editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
                                 editor.dispatchEvent(new Event('change', { bubbles: true }));
                                 await new Promise(resolve => setTimeout(resolve, 60));
-                                const send = [...host.querySelectorAll('button,[role="button"]')].find(button => {
-                                    if (!(button instanceof HTMLElement) || !visible(button)) return false;
-                                    const valueMarker = marker(button);
-                                    return /send|submit|paper-plane|arrow-right/i.test(valueMarker)
-                                        && !/attach|upload|file|paperclip|clip|stop|cancel|abort|square/i.test(valueMarker);
-                                });
-                                if (send instanceof HTMLButtonElement && !send.disabled) {
-                                    send.click();
-                                    return true;
+                                const composer = findComposer(host, editor, null);
+                                const editorRect = editor.getBoundingClientRect();
+                                const localCandidates = composer instanceof HTMLElement
+                                    ? [...composer.querySelectorAll('button,[role="button"]')]
+                                    : [];
+                                const hostCandidates = [...host.querySelectorAll('button,[role="button"]')]
+                                    .filter(button => {
+                                        if (!(button instanceof HTMLElement)) return false;
+                                        const rect = button.getBoundingClientRect();
+                                        const verticallyNearComposer = rect.top <= editorRect.bottom + 80 && rect.bottom >= editorRect.top - 80;
+                                        const horizontallyNearComposer = rect.left >= editorRect.left - 80 && rect.right <= editorRect.right + 240;
+                                        return verticallyNearComposer && horizontallyNearComposer;
+                                    });
+                                const candidates = [...new Set([...localCandidates, ...hostCandidates])]
+                                    .filter(button => button instanceof HTMLElement && visible(button))
+                                    .filter(button => !(button instanceof HTMLButtonElement) || !button.disabled)
+                                    .filter(button => button.getAttribute('aria-disabled') !== 'true')
+                                    .filter(button => !/attach|upload|file|paperclip|clip|stop|cancel|abort|square|microphone/i.test(marker(button)));
+                                let send = candidates.find(button =>
+                                    /send|submit|paper-plane|arrow-right|arrow-up|dxbl-image-submit/i.test(marker(button) + ' ' + button.innerHTML));
+                                if (!(send instanceof HTMLElement) && candidates.length > 0) {
+                                    // DevExpress may render an icon-only submit button outside the editor's immediate parent.
+                                    // Prefer the right-most candidate close to the composer rather than any page-level action.
+                                    send = candidates
+                                        .map(button => ({ button, rect: button.getBoundingClientRect() }))
+                                        .sort((left, right) => right.rect.right - left.rect.right)[0]?.button || null;
                                 }
-                                if (send instanceof HTMLElement && send.getAttribute('aria-disabled') !== 'true') {
+                                if (send instanceof HTMLElement) {
+                                    send.focus({ preventScroll: true });
                                     send.click();
-                                    return true;
+                                    if (await waitForComposerSubmission(editor, text)) return true;
                                 }
+
+                                // Keyboard submission is the final DevExpress-compatible fallback when the icon button
+                                // is rendered in a shadowed or dynamically replaced action container.
+                                editor.focus({ preventScroll: true });
+                                const keyOptions = { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true };
+                                editor.dispatchEvent(new KeyboardEvent('keydown', keyOptions));
+                                editor.dispatchEvent(new KeyboardEvent('keypress', keyOptions));
+                                editor.dispatchEvent(new KeyboardEvent('keyup', keyOptions));
+                                if (await waitForComposerSubmission(editor, text)) return true;
                             }
                             await new Promise(resolve => setTimeout(resolve, 125));
                         }

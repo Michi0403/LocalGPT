@@ -48,6 +48,7 @@
     ],
     "Components/Pages/Chat.razor": [
       "AttachToLiveCouncilSessionAsync",
+      "AutoStartRequestedCouncilPromptAsync",
       "LoadChatProjectsAsync",
       "LoadCouncilTeamsAsync",
       "LoadDatabaseBackedDefaultsAsync",
@@ -58,11 +59,17 @@
       "MigrateCouncilDefaultsAsync",
       "RefreshHumanCollaborationAsync",
       "RefreshMemoryAsync",
-      "RunUiActionAsync"
+      "RunUiActionAsync",
+      "StartCouncilPromptAsync"
     ],
     "Components/Pages/Install.razor": [
+      "DeleteCompilerAsync",
+      "DiscoverToolchainsAsync",
+      "MakeCompilerDefaultAsync",
+      "RefreshCompilerInstallationsAsync",
+      "RefreshConnectivityStatusAsync",
       "RefreshOllamaProcessStatusAsync",
-      "RefreshConnectivityStatusAsync"
+      "ValidateCompilerAsync"
     ],
     "Components/Pages/TestLab.razor": [
       "LoadArtifactWorkspacesAsync",

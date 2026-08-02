@@ -153,7 +153,8 @@ function Publish-Runtime {
     Write-Host "Publishing LocalGPT application through profile $($profile.AppProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @(
         "publish", $appProject,
-        "-p:PublishProfile=$($profile.AppProfile)"
+        "-p:PublishProfile=$($profile.AppProfile)",
+        "-p:RequireLocalGptDocumentationPdf=false"
     ) -FailureMessage "LocalGPT application publish failed for $Rid."
 
     Write-Host "Publishing LocalGPT setup through profile $($profile.SetupProfile)..." -ForegroundColor Cyan

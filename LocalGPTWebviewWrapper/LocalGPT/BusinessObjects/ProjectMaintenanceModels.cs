@@ -158,10 +158,17 @@ public sealed class SaveProjectCompilerInstallationRequest
     public bool UserConfirmed { get; set; }
 }
 
+/// <summary>Describes one approval-gated compiler and runtime discovery request.</summary>
+[DocumentationUpdated("2.1.23")]
 public sealed class DiscoverProjectCompilersRequest
 {
+    /// <summary>Gets or sets additional absolute directories that LocalGPT may inspect.</summary>
     public List<string> CustomSearchRoots { get; set; } = [];
+
+    /// <summary>Gets or sets whether detected executable profiles are persisted in the project database.</summary>
     public bool SaveDiscovered { get; set; } = true;
+
+    /// <summary>Gets or sets whether the user explicitly approved bounded local path discovery and persistence.</summary>
     public bool UserConfirmed { get; set; }
 }
 

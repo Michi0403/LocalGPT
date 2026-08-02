@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.1.22",
+            CurrentVersion = "2.1.23",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -446,6 +446,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.22", repositoryRoot, "Open localization catalogs, persistent installer onboarding access and resilient DocFX metadata fallback.");
         EnsureRevision(core, "main", "seed-v2.1.22", repositoryRoot,
             "Keeps onboarding and benchmark quick starts accessible from Install, supports validated user language JSON catalogs and prevents DocFX metadata failures from breaking Debug builds.");
+        EnsureVersion(core, "2.1.23", repositoryRoot, "Release-safe documentation fallback, direct Council autostart, compiler discovery UI and durable feature records.");
+        EnsureRevision(core, "main", "seed-v2.1.23", repositoryRoot,
+            "Added static HTML/PDF documentation fallback, fixed Council starter dispatch, restored normal quick prompts, exposed toolchains, and persisted newer feature records with CRUD APIs.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",

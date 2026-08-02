@@ -341,9 +341,7 @@ public sealed class CodeGenerationWorkflowService(
             entity.UpdatedAtUtc = DateTime.UtcNow;
             entity.CompletedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
-#if DEBUG
-            logger.LogInformation(exception, "Code-generation review {ReviewId} was cancelled after approval was consumed while debugging.", reviewId);
-#endif
+            logger.LogInformation(exception, "Code-generation review {ReviewId} was cancelled after approval was consumed.", reviewId);
             throw;
         }
         catch (Exception ex)

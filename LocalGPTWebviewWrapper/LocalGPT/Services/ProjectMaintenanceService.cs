@@ -289,56 +289,129 @@ public sealed class ProjectMaintenanceService(
         return item;
     }
 
+    /// <summary>Discovers compiler and runtime executables from approved local search locations.</summary>
+    /// <param name="request">Discovery roots, persistence preference and explicit approval.</param>
+    /// <param name="cancellationToken">Cancels local discovery and persistence.</param>
+    /// <returns>A task that returns detected or persisted compiler profiles.</returns>
     public async Task<IReadOnlyList<ProjectCompilerInstallation>> DiscoverCompilerInstallationsAsync(DiscoverProjectCompilersRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         RequireConfirmation(request.UserConfirmed, "discovering and saving compiler installations");
-        var candidates = DiscoverCompilerCandidates(request.CustomSearchRoots).Take(MaxCompilerCandidates).ToList();
-        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var saved = new List<ProjectCompilerInstallation>();
-        foreach (var candidate in candidates)
+        try
         {
-            var existing = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.ExecutablePath == candidate.Path, cancellationToken).ConfigureAwait(false);
-            if (existing is null)
+            var candidates = await Task.Run(
+                () => DiscoverCompilerCandidates(request.CustomSearchRoots, cancellationToken).Take(MaxCompilerCandidates).ToList(),
+                cancellationToken).ConfigureAwait(false);
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var defaultLanguages = (await db.ProjectCompilerInstallations.AsNoTracking()
+                .Where(item => item.IsDefaultForLanguage)
+                .Select(item => item.Language)
+                .ToListAsync(cancellationToken).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var saved = new List<ProjectCompilerInstallation>();
+            foreach (var candidate in candidates)
             {
-                existing = new ProjectCompilerInstallation
+                var existing = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.ExecutablePath == candidate.Path, cancellationToken).ConfigureAwait(false);
+                if (existing is null)
                 {
-                    Name = candidate.Name,
-                    Language = candidate.Language,
-                    ExecutablePath = candidate.Path,
-                    CompilerHomePath = Path.GetDirectoryName(candidate.Path) ?? string.Empty,
-                    DiscoverySource = candidate.Source,
-                    ValidationArguments = DefaultValidationArguments(candidate.Language, candidate.Path),
-                    IsEnabled = true,
-                    IsDefaultForLanguage = !await db.ProjectCompilerInstallations.AnyAsync(item => item.Language == candidate.Language && item.IsDefaultForLanguage, cancellationToken).ConfigureAwait(false)
-                };
-                db.ProjectCompilerInstallations.Add(existing);
+                    existing = new ProjectCompilerInstallation
+                    {
+                        Name = candidate.Name,
+                        Language = candidate.Language,
+                        ExecutablePath = candidate.Path,
+                        CompilerHomePath = Path.GetDirectoryName(candidate.Path) ?? string.Empty,
+                        DiscoverySource = candidate.Source,
+                        ValidationArguments = DefaultValidationArguments(candidate.Language, candidate.Path),
+                        IsEnabled = true,
+                        IsDefaultForLanguage = defaultLanguages.Add(candidate.Language)
+                    };
+                    db.ProjectCompilerInstallations.Add(existing);
+                }
+                saved.Add(existing);
             }
-            saved.Add(existing);
+            if (request.SaveDiscovered)
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Discovered {CompilerCount} compiler executable candidate(s).", saved.Count);
+            return saved;
         }
-        if (request.SaveDiscovered)
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Discovered {CompilerCount} compiler executable candidate(s).", saved.Count);
-        return saved;
+        catch (OperationCanceledException exception)
+        {
+            logger.LogInformation(exception, "Compiler discovery was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Compiler discovery failed; search paths were omitted from logs.");
+            throw;
+        }
     }
 
+    /// <summary>Executes the bounded validation command for one stored compiler profile.</summary>
+    /// <param name="compilerId">Stored compiler identifier.</param>
+    /// <param name="userConfirmed">Whether the user approved native process execution.</param>
+    /// <param name="cancellationToken">Cancels process execution and persistence.</param>
+    /// <returns>A task that returns the updated validation profile.</returns>
     public async Task<ProjectCompilerInstallation> ValidateCompilerInstallationAsync(Guid compilerId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         RequireConfirmation(userConfirmed, "executing a compiler version probe");
-        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var compiler = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.Id == compilerId, cancellationToken).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException($"Compiler installation {compilerId} was not found.");
-        var result = await RunProcessAsync(compiler.ExecutablePath, compiler.ValidationArguments, compiler.CompilerHomePath, compiler.EnvironmentVariablesJson, 30, cancellationToken).ConfigureAwait(false);
-        compiler.LastValidatedAtUtc = DateTime.UtcNow;
-        compiler.LastValidationSucceeded = result.ExitCode == 0;
-        compiler.LastValidationMessage = Trim(result.Output, 4000);
-        if (compiler.LastValidationSucceeded && string.IsNullOrWhiteSpace(compiler.Version))
-            compiler.Version = FirstNonEmptyLine(result.Output, 160);
-        compiler.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Compiler installation {CompilerId} validation completed with success={Succeeded} and exit code {ExitCode}.", compiler.Id, compiler.LastValidationSucceeded, result.ExitCode);
-        return compiler;
+        try
+        {
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var compiler = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.Id == compilerId, cancellationToken).ConfigureAwait(false)
+                ?? throw new KeyNotFoundException($"Compiler installation {compilerId} was not found.");
+            var result = await RunProcessAsync(compiler.ExecutablePath, compiler.ValidationArguments, compiler.CompilerHomePath, compiler.EnvironmentVariablesJson, 30, cancellationToken).ConfigureAwait(false);
+            compiler.LastValidatedAtUtc = DateTime.UtcNow;
+            compiler.LastValidationSucceeded = result.ExitCode == 0;
+            compiler.LastValidationMessage = Trim(result.Output, 4000);
+            if (compiler.LastValidationSucceeded && string.IsNullOrWhiteSpace(compiler.Version))
+                compiler.Version = FirstNonEmptyLine(result.Output, 160);
+            compiler.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Compiler installation {CompilerId} validation completed with success={Succeeded} and exit code {ExitCode}.", compiler.Id, compiler.LastValidationSucceeded, result.ExitCode);
+            return compiler;
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogInformation(exception, "Compiler installation {CompilerId} validation was cancelled.", compilerId);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Compiler installation {CompilerId} validation failed; executable path and output were omitted from logs.", compilerId);
+            throw;
+        }
+    }
+
+    /// <summary>Deletes one unreferenced compiler installation after explicit user confirmation.</summary>
+    /// <param name="compilerId">Stored compiler installation identifier.</param>
+    /// <param name="userConfirmed">Whether the user approved the destructive database change.</param>
+    /// <param name="cancellationToken">Cancellation token for database work.</param>
+    /// <returns>A task whose result is true when the compiler record was removed.</returns>
+    public async Task<bool> DeleteCompilerInstallationAsync(Guid compilerId, bool userConfirmed, CancellationToken cancellationToken = default)
+    {
+        RequireConfirmation(userConfirmed, "deleting a compiler installation");
+        try
+        {
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var compiler = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.Id == compilerId, cancellationToken).ConfigureAwait(false)
+                ?? throw new KeyNotFoundException($"Compiler installation {compilerId} was not found.");
+            var workspaceReference = await db.ProjectWorkspaceRoots.AnyAsync(item => item.PreferredCompilerInstallationId == compilerId, cancellationToken).ConfigureAwait(false);
+            var verificationReference = await db.ProjectBuildVerifications.AnyAsync(item => item.CompilerInstallationId == compilerId, cancellationToken).ConfigureAwait(false);
+            if (workspaceReference || verificationReference)
+                throw new InvalidOperationException("The compiler installation is still referenced by a workspace or build verification and cannot be deleted.");
+            db.ProjectCompilerInstallations.Remove(compiler);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Deleted compiler installation {CompilerId}; executable path was omitted from logs.", compilerId);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Deleting compiler installation {CompilerId} failed; executable paths were omitted from logs.", compilerId);
+            throw;
+        }
     }
 
     public async Task<ProjectScanResult> ScanProjectFilesAsync(Guid projectId, ScanProjectFilesRequest request, CancellationToken cancellationToken = default)
@@ -693,15 +766,20 @@ public sealed class ProjectMaintenanceService(
         return verification;
     }
 
-    private IEnumerable<(string Name, string Language, string Path, string Source)> DiscoverCompilerCandidates(IEnumerable<string> customRoots)
+    private IEnumerable<(string Name, string Language, string Path, string Source)> DiscoverCompilerCandidates(IEnumerable<string>? customRoots, CancellationToken cancellationToken)
     {
+        var approvedCustomRoots = (customRoots ?? [])
+            .Where(root => !string.IsNullOrWhiteSpace(root))
+            .ToArray();
         var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var specs = new[]
         {
             (".NET SDK", "DotNet", OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet"),
+            ("MSBuild", "DotNet", OperatingSystem.IsWindows() ? "MSBuild.exe" : "msbuild"),
             ("Java compiler", "Java", OperatingSystem.IsWindows() ? "javac.exe" : "javac"),
             ("Java runtime", "Java", OperatingSystem.IsWindows() ? "java.exe" : "java"),
             ("Python", "Python", OperatingSystem.IsWindows() ? "python.exe" : "python3"),
+            ("Python launcher", "Python", OperatingSystem.IsWindows() ? "py.exe" : "python"),
             ("PowerShell", "PowerShell", OperatingSystem.IsWindows() ? "pwsh.exe" : "pwsh"),
             ("Windows PowerShell", "PowerShell", "powershell.exe"),
             ("MSVC C++", "Cpp", "cl.exe"),
@@ -713,6 +791,7 @@ public sealed class ProjectMaintenanceService(
         foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         foreach (var spec in specs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var candidate = Path.Combine(dir, spec.Item3);
             if (File.Exists(candidate) && found.Add(Path.GetFullPath(candidate))) yield return (spec.Item1, spec.Item2, Path.GetFullPath(candidate), "PATH");
         }
@@ -742,8 +821,9 @@ public sealed class ProjectMaintenanceService(
                 "/usr/local/microsoft/powershell", "/opt/microsoft/powershell"
             });
         }
-        foreach (var customRoot in customRoots.Where(root => !string.IsNullOrWhiteSpace(root)))
+        foreach (var customRoot in approvedCustomRoots)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try { knownRoots.Add(Path.GetFullPath(Environment.ExpandEnvironmentVariables(customRoot.Trim()))); }
             catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
             {
@@ -751,11 +831,12 @@ public sealed class ProjectMaintenanceService(
             }
         }
         foreach (var root in knownRoots.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
-        foreach (var file in EnumerateCompilerFiles(root, specs.Select(spec => spec.Item3).ToHashSet(StringComparer.OrdinalIgnoreCase), 4))
+        foreach (var file in EnumerateCompilerFiles(root, specs.Select(spec => spec.Item3).ToHashSet(StringComparer.OrdinalIgnoreCase), 7, cancellationToken))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!found.Add(file)) continue;
             var spec = specs.First(item => string.Equals(item.Item3, Path.GetFileName(file), StringComparison.OrdinalIgnoreCase));
-            var isCustomRoot = customRoots.Where(item => !string.IsNullOrWhiteSpace(item))
+            var isCustomRoot = approvedCustomRoots
                 .Select(item =>
                 {
                     try { return Path.GetFullPath(item); }
@@ -766,12 +847,13 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
-    private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth)
+    private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth, CancellationToken cancellationToken)
     {
         var pending = new Queue<(string Path, int Depth)>();
         pending.Enqueue((root, 0));
         while (pending.Count > 0)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var current = pending.Dequeue();
             IEnumerable<string> files;
             try { files = Directory.EnumerateFiles(current.Path); } catch { continue; }

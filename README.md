@@ -348,3 +348,15 @@ Version 2.1.22 keeps the benchmark/development onboarding surface permanently av
 The documentation build now stages referenced assemblies for DocFX metadata extraction and falls back to a compiler-XML Markdown API catalog when metadata extraction is unavailable. Diagnostic builds preserve the last generated documentation instead of failing after the application assembly already compiled.
 
 See `CHANGELOG-v2.1.22-direct-council-starters-docfx-modals-shortcuts.md`.
+
+## LocalGPT 2.1.23 release-safe documentation, Council handoff, toolchains and durable feature data
+
+Version 2.1.23 makes the documentation step release-safe without disabling it. DocFX metadata and HTML generation are still attempted first; when either path fails, the build script publishes deterministic HTML/API pages from maintained articles and compiler XML comments and creates a versioned dependency-free PDF index. Documentation failures are reported as build warnings rather than invalidating a successfully compiled application, and generated help files are copied into RID publish output after `Publish` completes.
+
+Direct Council starters now switch to the Council session and submit their complete maintained prompt through the native composer/send path instead of treating a highlighted DevExpress suggestion as a completed submission. Regular quick prompts remain available and Council-specific cards are additive. The running-session workspace is content-sized while the already successful Chat configuration workspace keeps its large responsive layout.
+
+The installer can explicitly discover, validate, save, select and remove MSBuild, .NET SDK, Java, Python, PowerShell, C/C++, PlatformIO and Arduino CLI installations from `PATH`, common folders and user-supplied roots. Saved language defaults are reused by workspace and build-verification configuration.
+
+Durable records introduced for recent feature areas are now represented in EF Core with a migration, DbSets, indexes, foreign keys, logged services and approval-gated CRUD controllers: Council prompt starters, localization catalog registrations, documentation build evidence, embedded firmware plan envelopes and authoritative GameDirector session snapshots. Transient requests, renderer DTOs and calculated runtime projections remain deliberately outside EF Core.
+
+See `CHANGELOG-v2.1.23-release-docs-council-toolchains-persistence.md`.

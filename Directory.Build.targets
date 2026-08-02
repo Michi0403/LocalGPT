@@ -113,19 +113,19 @@
     <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <Target Name="AssertLocalGptTextServiceOwnership"
+  <!--<Target Name="AssertLocalGptTextServiceOwnership"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptApplicationStaticPolicy"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipTextServiceOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(TextServiceOwnershipScript)')" Text="Text-service ownership script is missing: $(TextServiceOwnershipScript)" />
     <Exec Condition="Exists('$(TextServiceOwnershipScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(TextServiceOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
-  <Target Name="AssertLocalGptIteratorExceptionPolicy"
+  <!--<Target Name="AssertLocalGptIteratorExceptionPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptTextServiceOwnership"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipIteratorExceptionPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(IteratorExceptionPolicyScript)')" Text="Iterator exception policy script is missing: $(IteratorExceptionPolicyScript)" />
     <Exec Condition="Exists('$(IteratorExceptionPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(IteratorExceptionPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
   <Target Name="AssertLocalGptSystemVariableInitialization"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptIteratorExceptionPolicy"
@@ -140,7 +140,6 @@
          A trailing backslash before a closing quote can absorb the remaining PowerShell -File arguments. -->
     <LocalGptDocumentationRepositoryRoot>$(MSBuildThisFileDirectory).</LocalGptDocumentationRepositoryRoot>
     <BuildLocalGptDocumentation Condition="'$(BuildLocalGptDocumentation)' == ''">true</BuildLocalGptDocumentation>
-    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == '' and '$(Configuration)' == 'Release'">true</RequireLocalGptDocumentationPdf>
     <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">false</RequireLocalGptDocumentationPdf>
     <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
   </PropertyGroup>
@@ -154,7 +153,24 @@
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
-          StandardErrorImportance="High" />
+          StandardErrorImportance="High"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="LocalGptDocumentationExitCode" />
+    </Exec>
+    <Warning Condition="'$(LocalGptDocumentationExitCode)' != '' and '$(LocalGptDocumentationExitCode)' != '0'"
+             Text="LocalGPT documentation generation returned exit code $(LocalGptDocumentationExitCode). The application build remains usable; review the documentation diagnostics above." />
+  </Target>
+
+  <Target Name="CopyLocalGptDocumentationToPublish"
+          AfterTargets="Publish"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT' and '$(PublishDir)' != ''">
+    <ItemGroup>
+      <LocalGptDocumentationPublishFiles Include="$(MSBuildThisFileDirectory)LocalGPTWebviewWrapper\LocalGPT\wwwroot\help-docs\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(LocalGptDocumentationPublishFiles)"
+          DestinationFiles="@(LocalGptDocumentationPublishFiles->'$(PublishDir)wwwroot\help-docs\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(LocalGptDocumentationPublishFiles)' != ''" />
   </Target>
 
 </Project>

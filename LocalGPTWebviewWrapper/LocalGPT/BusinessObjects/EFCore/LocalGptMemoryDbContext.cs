@@ -40,6 +40,11 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<ProjectCompilerInstallation> ProjectCompilerInstallations => Set<ProjectCompilerInstallation>();
         public DbSet<LocalGptProjectTrackedFile> LocalGptProjectTrackedFiles => Set<LocalGptProjectTrackedFile>();
         public DbSet<ProjectBuildVerification> ProjectBuildVerifications => Set<ProjectBuildVerification>();
+        public DbSet<CouncilPromptStarterConfiguration> CouncilPromptStarterConfigurations => Set<CouncilPromptStarterConfiguration>();
+        public DbSet<LocalizationCatalogRegistration> LocalizationCatalogRegistrations => Set<LocalizationCatalogRegistration>();
+        public DbSet<DocumentationBuildRecord> DocumentationBuildRecords => Set<DocumentationBuildRecord>();
+        public DbSet<EmbeddedFirmwarePlanRecord> EmbeddedFirmwarePlanRecords => Set<EmbeddedFirmwarePlanRecord>();
+        public DbSet<CouncilGameSessionRecord> CouncilGameSessionRecords => Set<CouncilGameSessionRecord>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -605,6 +610,71 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasOne(item => item.Project).WithMany(project => project.BuildVerifications).HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(item => item.Revision).WithMany(revision => revision.BuildVerifications).HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(item => item.CompilerInstallation).WithMany().HasForeignKey(item => item.CompilerInstallationId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CouncilPromptStarterConfiguration>(entity =>
+            {
+                entity.ToTable("CouncilPromptStarterConfigurations");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Key).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Title).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Summary).HasMaxLength(1000).IsRequired();
+                entity.Property(item => item.PromptMessage).IsRequired();
+                entity.Property(item => item.TeamKeysJson).IsRequired();
+                entity.HasIndex(item => item.Key).IsUnique();
+                entity.HasIndex(item => new { item.IsEnabled, item.Title });
+            });
+
+            modelBuilder.Entity<LocalizationCatalogRegistration>(entity =>
+            {
+                entity.ToTable("LocalizationCatalogRegistrations");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.CultureName).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.CatalogPath).HasMaxLength(2048).IsRequired();
+                entity.HasIndex(item => item.CultureName).IsUnique();
+                entity.HasIndex(item => new { item.IsEnabled, item.DisplayName });
+            });
+
+            modelBuilder.Entity<DocumentationBuildRecord>(entity =>
+            {
+                entity.ToTable("DocumentationBuildRecords");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Version).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.DocumentationMode).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.PdfMode).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.ToolSource).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.OutputRoot).HasMaxLength(2048).IsRequired();
+                entity.Property(item => item.Warning).HasMaxLength(4000).IsRequired();
+                entity.HasIndex(item => new { item.Version, item.GeneratedAtUtc });
+            });
+
+            modelBuilder.Entity<EmbeddedFirmwarePlanRecord>(entity =>
+            {
+                entity.ToTable("EmbeddedFirmwarePlanRecords");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.PlanKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.DeviceName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.BoardProfileKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Status).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.PlanJson).IsRequired();
+                entity.HasIndex(item => item.PlanKey).IsUnique();
+                entity.HasIndex(item => new { item.ProjectId, item.UpdatedAtUtc });
+                entity.HasOne<LocalGptProject>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CouncilGameSessionRecord>(entity =>
+            {
+                entity.ToTable("CouncilGameSessionRecords");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.SessionKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.GameKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.TeamKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Status).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.SnapshotJson).IsRequired();
+                entity.HasIndex(item => item.SessionKey).IsUnique();
+                entity.HasIndex(item => new { item.GameKey, item.Status, item.UpdatedAtUtc });
+                entity.HasOne<ChatMemoryConversation>().WithMany().HasForeignKey(item => item.ConversationId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<NativeCommandLogEntry>(entity =>

@@ -48,6 +48,11 @@ public sealed class ProjectMaintenanceController(
     public async Task<IResult> ValidateCompiler(Guid compilerId, [FromQuery] bool userConfirmed, CancellationToken cancellationToken)
         => await ExecuteAsync(() => maintenance.ValidateCompilerInstallationAsync(compilerId, userConfirmed, cancellationToken), "compiler validation").ConfigureAwait(false);
 
+    [HttpDelete("compilers/{compilerId:guid}")]
+    [HumanApprovalRequired("project.compiler.delete", "Delete compiler installation", "Remove one stored compiler profile that is not referenced by a workspace or verification record.", "Medium", "Project toolchain administrator")]
+    public async Task<IResult> DeleteCompiler(Guid compilerId, [FromQuery] bool userConfirmed, CancellationToken cancellationToken)
+        => await ExecuteAsync(() => maintenance.DeleteCompilerInstallationAsync(compilerId, userConfirmed, cancellationToken), "compiler delete").ConfigureAwait(false);
+
     [HttpGet("projects/{projectId:guid}/files")]
     public async Task<IResult> GetFiles(Guid projectId, [FromQuery] Guid? revisionId, CancellationToken cancellationToken)
         => Results.Ok(await maintenance.GetTrackedFilesAsync(projectId, revisionId, cancellationToken).ConfigureAwait(false));

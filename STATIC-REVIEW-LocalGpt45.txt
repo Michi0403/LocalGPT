@@ -1,0 +1,33 @@
+LocalGPT 2.1.23 static review
+===============================
+
+Implemented scope
+-----------------
+- Release publishing no longer fails merely because DocFX metadata, HTML or PDF generation is unavailable.
+- Documentation still runs after normal builds, attempts DocFX first, and then publishes deterministic static HTML/API pages plus a dependency-free versioned PDF fallback.
+- The publish target copies generated help into each RID publish output.
+- Route-driven Council starters no longer race DxAIChat.LoadMessages during provider/model refresh.
+- Direct Council starts wait for the interactive chat runtime, select the requested team/session, submit through the real composer/send path and verify that the composer accepted the submission.
+- Normal DxAIChat quick prompts remain in the catalog; team-specific direct Council starters are additive and visibly prefixed.
+- Running-session tools use a compact content-sized responsive workspace instead of leaving an empty viewport-sized overlay.
+- Installer toolchain management discovers and stores .NET SDK, MSBuild, Java, Python, PowerShell, C/C++, PlatformIO and Arduino CLI profiles, including validation and per-language defaults.
+- Added durable EF Core aggregates for Council prompt starters, localization registrations, documentation builds, embedded firmware plans and GameDirector sessions.
+- Added DbSets, fluent mappings, a migration, snapshot updates, approval-gated CRUD service methods and CRUD controller routes with bounded logging and error handling.
+- Existing ProjectCompilerInstallation persistence is reused for compiler/toolchain defaults; transient request, UI, renderer and prediction DTOs remain intentionally non-entity types.
+- Release-only unused cancellation-exception warnings were removed without losing diagnostics.
+
+Static validation performed in this environment
+-----------------------------------------------
+- Async continuation audit passed for 142 source files and 2,121 await tokens.
+- Application architecture audit passed.
+- 24 JSON files parsed successfully.
+- English and German catalogs contain 1,394 matching localization keys.
+- 7 XML/project/props/targets files parsed successfully.
+- JavaScript syntax check passed for 25 files with Node.js.
+- Lightweight lexical closure checks passed for 368 C# files and 31 Razor files / 28 @code blocks.
+- Maintained-source merge-marker and version/seed-history alignment checks passed.
+- No bin, obj, .pio, artifacts, DLL, EXE, PDB, OBJ or firmware BIN files are included.
+
+Limitations
+-----------
+This environment has no .NET SDK, Windows PowerShell, DevExpress runtime or DocFX runtime execution path. The Windows .NET 10 rebuild, EF migration application, Council route start and RID release publish remain the authoritative semantic/runtime tests.

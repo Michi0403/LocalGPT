@@ -9,7 +9,7 @@ LocalGPT documentation is built from two maintained sources:
 
 ## Build outputs
 
-A Windows LocalGPT build restores the repository-local DocFX tool, generates API metadata and HTML, and then attempts PDF generation. The PDF name contains the application version, for example `LocalGPT-2.1.20.pdf`.
+A Windows LocalGPT build restores the repository-local DocFX tool, generates API metadata and HTML, and then attempts PDF generation. The PDF name contains the application version, for example `LocalGPT-2.1.23.pdf`.
 
 The running application exposes:
 
@@ -19,8 +19,8 @@ The running application exposes:
 - `/api/documentation/comment?memberId=...` for one stable compiler member id;
 - `/api/documentation/pdf` for the current versioned PDF.
 
-Release builds require the PDF by default. Set `RequireLocalGptDocumentationPdf=false` only for a deliberate diagnostic build. Set `BuildLocalGptDocumentation=false` to bypass the complete documentation target while diagnosing build infrastructure.
+Normal and Release builds keep documentation enabled, but a valid application compile or RID publish is not invalidated by DocFX or Node.js failure. LocalGPT publishes deterministic HTML and a dependency-free versioned PDF index when the external toolchain cannot produce them. Set `RequireLocalGptDocumentationPdf=true` only when a CI policy must reject a build that cannot produce either the DocFX PDF or the fallback PDF. Set `BuildLocalGptDocumentation=false` only to bypass the complete documentation target while diagnosing build infrastructure.
 
-## Metadata fallback in 2.1.21
+## Metadata and release fallback in 2.1.23
 
-The documentation stage first gives DocFX access to the complete application output assembly set. When assembly metadata extraction still fails, the build creates a bounded API reference from `LocalGPT.xml` and runs the normal DocFX site build against those Markdown files. Debug builds therefore keep a usable application and the last published help site; builds that explicitly require a PDF continue to fail when their required output cannot be produced.
+The documentation stage first gives DocFX access to the complete application output assembly set. When metadata extraction or the DocFX site build still fails, LocalGPT generates a searchable static site directly from `LocalGPT.xml` and maintained Markdown articles. It also writes a small valid versioned PDF index without Node.js. The source help tree is copied into every RID publish after `Publish`, while unexpected documentation-script failures are emitted as warnings instead of converting a successful application compile into a failed release.

@@ -1657,6 +1657,95 @@ namespace LocalGPT.Migrations
                     b.ToTable("LocalGptProjectVersions", (string)null);
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilGameSessionRecord", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<Guid?>("ConversationId").HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("GameKey").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<string>("SessionKey").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<string>("SnapshotJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("Status").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<string>("TeamKey").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("ConversationId");
+                    b.HasIndex("SessionKey").IsUnique();
+                    b.HasIndex("GameKey", "Status", "UpdatedAtUtc");
+                    b.ToTable("CouncilGameSessionRecords", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilPromptStarterConfiguration", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<bool>("IsBuiltIn").HasColumnType("INTEGER");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<string>("Key").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<string>("PromptMessage").IsRequired().HasColumnType("TEXT");
+                    b.Property<bool>("StartsCouncilDirectly").HasColumnType("INTEGER");
+                    b.Property<string>("Summary").IsRequired().HasMaxLength(1000).HasColumnType("TEXT");
+                    b.Property<string>("TeamKeysJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("Title").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("Key").IsUnique();
+                    b.HasIndex("IsEnabled", "Title");
+                    b.ToTable("CouncilPromptStarterConfigurations", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.DocumentationBuildRecord", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("DocumentationMode").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
+                    b.Property<DateTime>("GeneratedAtUtc").HasColumnType("TEXT");
+                    b.Property<bool>("HtmlAvailable").HasColumnType("INTEGER");
+                    b.Property<string>("OutputRoot").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<bool>("PdfAvailable").HasColumnType("INTEGER");
+                    b.Property<string>("PdfMode").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
+                    b.Property<string>("ToolSource").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<string>("Version").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<string>("Warning").IsRequired().HasMaxLength(4000).HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("Version", "GeneratedAtUtc");
+                    b.ToTable("DocumentationBuildRecords", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.EmbeddedFirmwarePlanRecord", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("BoardProfileKey").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("DeviceName").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<string>("PlanJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("PlanKey").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<Guid?>("ProjectId").HasColumnType("TEXT");
+                    b.Property<string>("Status").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("PlanKey").IsUnique();
+                    b.HasIndex("ProjectId", "UpdatedAtUtc");
+                    b.ToTable("EmbeddedFirmwarePlanRecords", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.LocalizationCatalogRegistration", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("CatalogPath").IsRequired().HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("CultureName").IsRequired().HasMaxLength(40).HasColumnType("TEXT");
+                    b.Property<string>("DisplayName").IsRequired().HasMaxLength(240).HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<bool>("IsUserOverride").HasColumnType("INTEGER");
+                    b.Property<int>("MissingBaselineKeyCount").HasColumnType("INTEGER");
+                    b.Property<int>("StringCount").HasColumnType("INTEGER");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("CultureName").IsUnique();
+                    b.HasIndex("IsEnabled", "DisplayName");
+                    b.ToTable("LocalizationCatalogRegistrations", (string)null);
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.NativeCommandLogEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -1796,6 +1885,22 @@ namespace LocalGPT.Migrations
                     b.HasIndex("IsEnabled", "IsOnline", "UpdatedAtUtc");
 
                     b.ToTable("OrganicSkills", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilGameSessionRecord", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.ChatMemoryConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.EmbeddedFirmwarePlanRecord", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectBuildVerification", b =>

@@ -214,3 +214,63 @@
     font-size: .85rem;
     line-height: 1.35;
 }
+
+/* v2.1.23: persisted compiler/runtime discovery workbench. */
+.toolchain-search-roots {
+    display: grid;
+    gap: .4rem;
+    font-weight: 650;
+}
+.toolchain-search-roots textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 5.5rem;
+    padding: .65rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .55rem;
+}
+.toolchain-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+    gap: .8rem;
+}
+.toolchain-card {
+    display: grid;
+    align-content: start;
+    gap: .65rem;
+    min-width: 0;
+    padding: .9rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .65rem;
+    background: var(--bs-body-bg);
+}
+.toolchain-card header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: .75rem;
+}
+.toolchain-card h4 { margin: 0; }
+.toolchain-card code,
+.toolchain-validation-message { overflow-wrap: anywhere; }
+.toolchain-validation-message {
+    max-height: 8rem;
+    overflow: auto;
+    margin: 0;
+    padding: .55rem;
+    background: var(--bs-secondary-bg);
+    border-radius: .45rem;
+    white-space: pre-wrap;
+}
+.toolchain-default-badge {
+    padding: .25rem .5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bs-success) 20%, var(--bs-body-bg));
+}
+.toolchain-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
