@@ -9,174 +9,264 @@ import sys
 
 
 @dataclass(frozen=True)
+class Token:
+    kind: str
+    value: str
+    start: int
+    end: int
+
+
+@dataclass(frozen=True)
 class Finding:
     relative_path: str
     line: int
     message: str
 
 
-def mask_csharp(text: str) -> str:
-    """Preserve source offsets while masking comments, normal strings, chars and raw strings."""
-    output = list(text)
+_MULTI = sorted(
+    [
+        "??=", "<<=", ">>=", "?.", "??", "=>", "::", "==", "!=", "<=", ">=",
+        "&&", "||", "++", "--", "<<", ">>", "..", "+=", "-=", "*=", "/=",
+        "%=", "&=", "|=", "^=", "->",
+    ],
+    key=len,
+    reverse=True,
+)
+
+
+def tokenize(text: str) -> list[Token]:
+    tokens: list[Token] = []
     index = 0
     length = len(text)
-    state = "code"
-    raw_quotes = 0
     while index < length:
         current = text[index]
-        next_character = text[index + 1] if index + 1 < length else ""
-        if state == "code":
-            if current == "/" and next_character == "/":
-                output[index] = output[index + 1] = " "
-                index += 2
-                state = "line-comment"
-                continue
-            if current == "/" and next_character == "*":
-                output[index] = output[index + 1] = " "
-                index += 2
-                state = "block-comment"
-                continue
-            if current == '"':
+        if current.isspace():
+            index += 1
+            continue
+        if current == "/" and index + 1 < length and text[index + 1] == "/":
+            newline = text.find("\n", index + 2)
+            index = length if newline < 0 else newline + 1
+            continue
+        if current == "/" and index + 1 < length and text[index + 1] == "*":
+            closing = text.find("*/", index + 2)
+            index = length if closing < 0 else closing + 2
+            continue
+        if current in "@$" and index + 1 < length and text[index + 1] in '@$"':
+            prefix_end = index
+            while prefix_end < length and text[prefix_end] in "@$":
+                prefix_end += 1
+            if prefix_end < length and text[prefix_end] == '"':
                 quote_count = 1
-                while index + quote_count < length and text[index + quote_count] == '"':
+                while prefix_end + quote_count < length and text[prefix_end + quote_count] == '"':
                     quote_count += 1
                 if quote_count >= 3:
-                    raw_quotes = quote_count
-                    for offset in range(index, index + quote_count):
-                        output[offset] = " "
-                    index += quote_count
-                    state = "raw-string"
+                    cursor = prefix_end + quote_count
+                    marker = '"' * quote_count
+                    while cursor < length and not text.startswith(marker, cursor):
+                        cursor += 1
+                    cursor = min(length, cursor + quote_count)
+                    tokens.append(Token("string", text[index:cursor], index, cursor))
+                    index = cursor
                     continue
-                output[index] = " "
-                index += 1
-                state = "string"
+                verbatim = "@" in text[index:prefix_end]
+                cursor = prefix_end + 1
+                while cursor < length:
+                    if verbatim:
+                        if text[cursor] == '"':
+                            if cursor + 1 < length and text[cursor + 1] == '"':
+                                cursor += 2
+                                continue
+                            cursor += 1
+                            break
+                        cursor += 1
+                    else:
+                        if text[cursor] == "\\":
+                            cursor += 2
+                            continue
+                        if text[cursor] == '"':
+                            cursor += 1
+                            break
+                        cursor += 1
+                tokens.append(Token("string", text[index:cursor], index, cursor))
+                index = cursor
                 continue
-            if current == "'":
-                output[index] = " "
-                index += 1
-                state = "char"
-                continue
-            index += 1
-            continue
-        if state == "line-comment":
-            if current == "\n":
-                state = "code"
+        if current == '"':
+            quote_count = 1
+            while index + quote_count < length and text[index + quote_count] == '"':
+                quote_count += 1
+            if quote_count >= 3:
+                cursor = index + quote_count
+                marker = '"' * quote_count
+                while cursor < length and not text.startswith(marker, cursor):
+                    cursor += 1
+                cursor = min(length, cursor + quote_count)
             else:
-                output[index] = " "
-            index += 1
+                cursor = index + 1
+                while cursor < length:
+                    if text[cursor] == "\\":
+                        cursor += 2
+                        continue
+                    if text[cursor] == '"':
+                        cursor += 1
+                        break
+                    cursor += 1
+            tokens.append(Token("string", text[index:cursor], index, cursor))
+            index = cursor
             continue
-        if state == "block-comment":
-            output[index] = " "
-            if current == "*" and next_character == "/":
-                output[index + 1] = " "
-                index += 2
-                state = "code"
-            else:
-                index += 1
+        if current == "'":
+            cursor = index + 1
+            while cursor < length:
+                if text[cursor] == "\\":
+                    cursor += 2
+                    continue
+                if text[cursor] == "'":
+                    cursor += 1
+                    break
+                cursor += 1
+            tokens.append(Token("char", text[index:cursor], index, cursor))
+            index = cursor
             continue
-        if state == "string":
-            output[index] = " "
-            if current == "\\" and index + 1 < length:
-                output[index + 1] = " "
-                index += 2
-            elif current == '"':
-                index += 1
-                state = "code"
-            else:
-                index += 1
+        if current.isalpha() or current == "_":
+            cursor = index + 1
+            while cursor < length and (text[cursor].isalnum() or text[cursor] == "_"):
+                cursor += 1
+            tokens.append(Token("identifier", text[index:cursor], index, cursor))
+            index = cursor
             continue
-        if state == "char":
-            output[index] = " "
-            if current == "\\" and index + 1 < length:
-                output[index + 1] = " "
-                index += 2
-            elif current == "'":
-                index += 1
-                state = "code"
-            else:
-                index += 1
+        if current.isdigit():
+            cursor = index + 1
+            while cursor < length and (text[cursor].isalnum() or text[cursor] in "._"):
+                cursor += 1
+            tokens.append(Token("number", text[index:cursor], index, cursor))
+            index = cursor
             continue
-        if state == "raw-string":
-            output[index] = " "
-            if current == '"':
-                quote_count = 1
-                while index + quote_count < length and text[index + quote_count] == '"':
-                    quote_count += 1
-                if quote_count >= raw_quotes:
-                    for offset in range(index, min(index + quote_count, length)):
-                        output[offset] = " "
-                    index += quote_count
-                    state = "code"
-                else:
-                    index += quote_count
-            else:
-                index += 1
-    return "".join(output)
+        operator = next((candidate for candidate in _MULTI if text.startswith(candidate, index)), None)
+        if operator is not None:
+            tokens.append(Token("operator", operator, index, index + len(operator)))
+            index += len(operator)
+            continue
+        tokens.append(Token("punctuation", current, index, index + 1))
+        index += 1
+    return tokens
 
 
 def line_number(text: str, offset: int) -> int:
     return text.count("\n", 0, offset) + 1
 
 
-def next_word(masked: str, offset: int) -> tuple[str, int]:
-    index = offset
-    while index < len(masked) and masked[index].isspace():
-        index += 1
-    match = re.match(r"[A-Za-z_]\w*", masked[index:])
-    return (match.group(0) if match else "", index)
-
-
-def scan_await_expression(masked: str, offset: int) -> str:
-    """Return one awaited expression, stopping at a top-level expression boundary."""
-    index = offset
-    parentheses = 0
-    brackets = 0
-    braces = 0
-    while index < len(masked):
-        character = masked[index]
-        if character == "(":
-            parentheses += 1
-        elif character == ")":
-            if parentheses == 0:
-                break
-            parentheses -= 1
-        elif character == "[":
-            brackets += 1
-        elif character == "]":
-            if brackets == 0:
-                break
-            brackets -= 1
-        elif character == "{":
-            braces += 1
-        elif character == "}":
-            if braces == 0:
-                break
-            braces -= 1
-        elif character in ";," and parentheses == 0 and brackets == 0 and braces == 0:
-            break
-        index += 1
-    return masked[offset:index]
-
-
-def scan_foreach_header(masked: str, offset: int) -> str:
-    opening = masked.find("(", offset)
-    if opening < 0:
-        return masked[offset : min(len(masked), offset + 2000)]
+def matching_end(tokens: list[Token], index: int, opening: str, closing: str) -> int:
     depth = 0
-    index = opening
-    while index < len(masked):
-        character = masked[index]
-        if character == "(":
+    for cursor in range(index, len(tokens)):
+        value = tokens[cursor].value
+        if value == opening:
             depth += 1
-        elif character == ")":
+        elif value == closing:
             depth -= 1
             if depth == 0:
-                return masked[offset : index + 1]
-        index += 1
-    return masked[offset : min(len(masked), offset + 2000)]
+                return cursor + 1
+    return index + 1
 
 
-def iter_source_files(source_root: Path):
+def maybe_generic_end(tokens: list[Token], index: int) -> int:
+    if index >= len(tokens) or tokens[index].value != "<":
+        return index
+    depth = 0
+    for cursor in range(index, len(tokens)):
+        value = tokens[cursor].value
+        if value == "<":
+            depth += 1
+        elif value == ">":
+            depth -= 1
+            if depth == 0:
+                following = tokens[cursor + 1].value if cursor + 1 < len(tokens) else ""
+                return cursor + 1 if following in {"(", ".", "?.", "[", "!"} else index
+        elif value in {";", "{", "}"} and depth == 1:
+            return index
+    return index
+
+
+def parse_postfix(tokens: list[Token], index: int) -> int:
+    while index < len(tokens):
+        value = tokens[index].value
+        if value in {".", "?.", "::"}:
+            if index + 1 >= len(tokens):
+                return index
+            index += 2
+            index = maybe_generic_end(tokens, index)
+            continue
+        if value == "(":
+            index = matching_end(tokens, index, "(", ")")
+            continue
+        if value == "[":
+            index = matching_end(tokens, index, "[", "]")
+            continue
+        if value == "!":
+            index += 1
+            continue
+        break
+    return index
+
+
+def parse_awaited_expression(tokens: list[Token], index: int) -> int:
+    if index >= len(tokens):
+        return index
+    value = tokens[index].value
+    if value in {"+", "-", "!", "~", "^", "*", "&"}:
+        return parse_postfix(tokens, parse_awaited_expression(tokens, index + 1))
+    if value == "await":
+        return parse_postfix(tokens, parse_awaited_expression(tokens, index + 1))
+    if value == "(":
+        closing = matching_end(tokens, index, "(", ")")
+        if closing < len(tokens) and tokens[closing].value not in {
+            ".", "?.", "(", "[", "!", ";", ",", ")", "]", "}", "?", ":", "??"
+        }:
+            type_tokens = [token.value for token in tokens[index + 1 : closing - 1]]
+            if type_tokens and all(
+                re.match(r"^[A-Za-z_]\w*$", token) or token in {".", "?", "[", "]", "<", ">", ",", "::"}
+                for token in type_tokens
+            ):
+                return parse_postfix(tokens, parse_awaited_expression(tokens, closing))
+        return parse_postfix(tokens, closing)
+    if value == "new":
+        cursor = index + 1
+        angle_depth = 0
+        while cursor < len(tokens):
+            token = tokens[cursor].value
+            if token == "<":
+                angle_depth += 1
+            elif token == ">":
+                angle_depth = max(0, angle_depth - 1)
+            if angle_depth == 0 and token in {"(", "[", "{"}:
+                break
+            if angle_depth == 0 and token in {";", ",", ")", "]"}:
+                break
+            cursor += 1
+        if cursor < len(tokens) and tokens[cursor].value == "(":
+            cursor = matching_end(tokens, cursor, "(", ")")
+        while cursor < len(tokens) and tokens[cursor].value == "[":
+            cursor = matching_end(tokens, cursor, "[", "]")
+        if cursor < len(tokens) and tokens[cursor].value == "{":
+            cursor = matching_end(tokens, cursor, "{", "}")
+        return parse_postfix(tokens, cursor)
+    cursor = maybe_generic_end(tokens, index + 1)
+    return parse_postfix(tokens, cursor)
+
+
+def method_ranges(tokens: list[Token], method_name: str) -> list[tuple[int, int]]:
+    ranges: list[tuple[int, int]] = []
+    for index, token in enumerate(tokens):
+        if token.value != method_name:
+            continue
+        cursor = index + 1
+        while cursor < len(tokens) and tokens[cursor].value not in {"{", ";"}:
+            cursor += 1
+        if cursor < len(tokens) and tokens[cursor].value == "{":
+            closing = matching_end(tokens, cursor, "{", "}")
+            ranges.append((tokens[cursor].start, tokens[closing - 1].end))
+    return ranges
+
+
+def source_files(source_root: Path):
     for path in source_root.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in {".cs", ".razor"}:
             continue
@@ -194,75 +284,79 @@ def audit(source_root: Path) -> tuple[list[Finding], dict[str, int]]:
         "awaits": 0,
         "configure_false": 0,
         "configure_true": 0,
+        "configured_awaitables": 0,
         "async_disposals": 0,
         "async_streams": 0,
     }
-    configure_false_pattern = re.compile(r"\.ConfigureAwait\s*\(\s*false\s*\)")
-    configure_true_pattern = re.compile(r"\.ConfigureAwait\s*\(\s*true\s*\)")
+    configuration_pattern = re.compile(r"\.ConfigureAwait\s*\(\s*(true|false)\s*\)\s*!?\s*$")
 
-    for path in iter_source_files(source_root):
+    for path in source_files(source_root):
         text = path.read_text(encoding="utf-8-sig", errors="replace")
+        tokens = tokenize(text)
+        if not any(token.value == "await" for token in tokens):
+            continue
         relative = path.relative_to(source_root).as_posix()
-        is_renderer_source = relative.startswith("Components/")
-        masked = mask_csharp(text) if path.suffix.lower() == ".cs" else text
-        false_matches = list(configure_false_pattern.finditer(masked))
-        true_matches = list(configure_true_pattern.finditer(masked))
-        await_matches = list(re.finditer(r"\bawait\b", masked))
-        if not await_matches and not false_matches and not true_matches:
-            continue
-
+        on_after_render_ranges = method_ranges(tokens, "OnAfterRenderAsync")
         totals["files"] += 1
-        totals["awaits"] += len(await_matches)
-        totals["configure_false"] += len(false_matches)
-        totals["configure_true"] += len(true_matches)
 
-        for match in true_matches:
-            findings.append(Finding(
-                relative,
-                line_number(text, match.start()),
-                "ConfigureAwait(true) is prohibited. Components use ordinary await; context-free code uses ConfigureAwait(false).",
-            ))
-
-        if is_renderer_source:
-            for match in false_matches:
-                findings.append(Finding(
-                    relative,
-                    line_number(text, match.start()),
-                    "Renderer-owned component code must use ordinary await instead of ConfigureAwait(false).",
-                ))
-            continue
-
-        for match in await_matches:
-            word, expression_start = next_word(masked, match.end())
-            if word == "using":
-                # The async-disposal continuation is compiler-generated. Rewriting `await using var`
-                # to ConfiguredAsyncDisposable changes the local variable type and can hide members
-                # such as IServiceScope.ServiceProvider. It is an explicit, reviewed exception.
+        for index, token in enumerate(tokens):
+            if token.value != "await":
+                continue
+            totals["awaits"] += 1
+            if index + 1 >= len(tokens):
+                findings.append(Finding(relative, line_number(text, token.start), "Await token has no following expression."))
+                continue
+            following = tokens[index + 1].value
+            if following == "using":
                 totals["async_disposals"] += 1
                 continue
-            if word == "foreach":
+            if following == "foreach":
                 totals["async_streams"] += 1
-                header = scan_foreach_header(masked, expression_start)
-                if not configure_false_pattern.search(header):
+                opening = index + 2
+                while opening < len(tokens) and tokens[opening].value != "(":
+                    opening += 1
+                header_end = matching_end(tokens, opening, "(", ")") if opening < len(tokens) else opening
+                header_text = text[tokens[index + 1].start : tokens[header_end - 1].end] if header_end > opening else ""
+                if not re.search(r"\.ConfigureAwait\s*\(\s*false\s*\)", header_text):
                     findings.append(Finding(
                         relative,
-                        line_number(text, match.start()),
-                        "Context-free await foreach must configure the async enumerable with ConfigureAwait(false).",
+                        line_number(text, token.start),
+                        "Await foreach must configure its async enumerable with ConfigureAwait(false).",
                     ))
                 continue
 
-            expression = scan_await_expression(masked, expression_start)
-            if configure_false_pattern.search(expression):
+            expression_end = parse_awaited_expression(tokens, index + 1)
+            if expression_end <= index + 1:
+                findings.append(Finding(relative, line_number(text, token.start), "Could not parse awaited expression."))
                 continue
-            # A ConfiguredTaskAwaitable is already configured by the caller and has no second
-            # ConfigureAwait method. This legacy extension boundary is semantically compliant.
-            if "configuredTaskAwaitable" in expression:
+            expression = text[tokens[index + 1].start : tokens[expression_end - 1].end]
+            configuration = configuration_pattern.search(expression)
+            in_on_after_render = any(start <= token.start <= end for start, end in on_after_render_ranges)
+            if configuration is None:
+                if "configuredTaskAwaitable" in expression:
+                    totals["configured_awaitables"] += 1
+                    continue
+                findings.append(Finding(
+                    relative,
+                    line_number(text, token.start),
+                    "Every await expression must explicitly use ConfigureAwait(false), except renderer-affine OnAfterRenderAsync continuations which must use ConfigureAwait(true).",
+                ))
                 continue
-            findings.append(Finding(
-                relative,
-                line_number(text, match.start()),
-                "Context-free await must use ConfigureAwait(false).",
-            ))
+
+            uses_true = configuration.group(1) == "true"
+            totals["configure_true" if uses_true else "configure_false"] += 1
+            if in_on_after_render and not uses_true:
+                findings.append(Finding(
+                    relative,
+                    line_number(text, token.start),
+                    "OnAfterRenderAsync continuation must explicitly retain the renderer context with ConfigureAwait(true).",
+                ))
+            elif not in_on_after_render and uses_true:
+                findings.append(Finding(
+                    relative,
+                    line_number(text, token.start),
+                    "ConfigureAwait(true) is allowed only inside OnAfterRenderAsync; use ConfigureAwait(false) here.",
+                ))
 
     return findings, totals
 
@@ -288,7 +382,8 @@ def main() -> int:
         "Async continuation validation passed for "
         f"{totals['files']} source files ({totals['awaits']} await tokens, "
         f"{totals['configure_false']} ConfigureAwait(false), "
-        f"{totals['configure_true']} ConfigureAwait(true), "
+        f"{totals['configure_true']} renderer-affine ConfigureAwait(true), "
+        f"{totals['configured_awaitables']} preconfigured awaitables, "
         f"{totals['async_disposals']} reviewed await-using disposals, "
         f"{totals['async_streams']} configured async streams)."
     )

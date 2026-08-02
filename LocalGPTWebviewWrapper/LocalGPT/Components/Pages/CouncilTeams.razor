@@ -421,9 +421,9 @@
         _busy = true;
         try
         {
-            _runtimeClasses = await RuntimeClasses.GetDefinitionsAsync(includeDisabled: true);
-            _dxFunctions = await FunctionCatalog.GetEntriesAsync();
-            _teams = await TeamConfigurations.GetTeamsAsync(includeDisabled: true);
+            _runtimeClasses = await RuntimeClasses.GetDefinitionsAsync(includeDisabled: true).ConfigureAwait(false);
+            _dxFunctions = await FunctionCatalog.GetEntriesAsync().ConfigureAwait(false);
+            _teams = await TeamConfigurations.GetTeamsAsync(includeDisabled: true).ConfigureAwait(false);
             var selected = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
             if (selected is not null)
                 SelectTeam(selected);
@@ -685,13 +685,13 @@
                 Team = _editor,
                 IsEnabled = _editor.IsEnabled,
                 UserConfirmed = _confirmed
-            });
+            }).ConfigureAwait(false);
             _selectedKey = saved.Key;
             _status = $"Saved '{saved.DisplayName}' with {saved.Roles.Count} role(s) and {CalculateExpandedRoundCount(saved.WorkflowSteps)} maximum expanded round(s).";
             _hasError = false;
             Notifier.ShowSuccess(nameof(CouncilTeams), _status, "Council team saved");
             _confirmed = false;
-            await ReloadAsync();
+            await ReloadAsync().ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is System.Text.Json.JsonException or ArgumentException or InvalidOperationException)
         {

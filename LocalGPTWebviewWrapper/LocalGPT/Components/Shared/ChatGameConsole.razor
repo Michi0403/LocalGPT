@@ -111,13 +111,13 @@
     protected override async Task OnInitializedAsync()
     {
         Games.Changed += OnGameChanged;
-        snapshot = await Games.GetActiveAsync(ConversationId);
+        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
     }
 
     protected override async Task OnParametersSetAsync()
     {
         if (snapshot is null || (ConversationId is not null && snapshot.ConversationId != ConversationId))
-            snapshot = await Games.GetActiveAsync(ConversationId);
+            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -125,15 +125,15 @@
         if (!attached)
         {
             reference ??= DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference);
+            await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true);
             attached = true;
         }
         var inputEnabled = snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai };
-        await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled);
+        await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true);
     }
 
-    private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure");
-    private async Task StartDragonAsync() => await StartAsync("green-dragon", "green-dragon-runtime-story");
+    private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(false);
+    private async Task StartDragonAsync() => await StartAsync("green-dragon", "green-dragon-runtime-story").ConfigureAwait(false);
 
     private async Task StartAsync(string gameKey, string teamKey)
     {
@@ -146,9 +146,9 @@
                 ConversationId = ConversationId,
                 ControlMode = CouncilGameControlMode.Human,
                 StartedBy = "Human User"
-            });
+            }).ConfigureAwait(false);
             showControls = true;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -164,7 +164,7 @@
             snapshot.Id,
             mode,
             mode is CouncilGameControlMode.Ai or CouncilGameControlMode.Shared,
-            snapshot.AutoplayDelayMilliseconds);
+            snapshot.AutoplayDelayMilliseconds).ConfigureAwait(false);
     }
 
     private async Task ChangeAutoplayDelayAsync(ChangeEventArgs args)
@@ -174,13 +174,13 @@
             snapshot.Id,
             snapshot.ControlMode,
             snapshot.ControlMode is CouncilGameControlMode.Ai or CouncilGameControlMode.Shared,
-            delay);
+            delay).ConfigureAwait(false);
     }
 
     private void ToggleControls() => showControls = !showControls;
 
     private async Task FullscreenAsync() =>
-        await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId);
+        await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(false);
 
     [JSInvokable]
     public Task SubmitControlFromJs(string action) => SendControlAsync(action);
@@ -191,7 +191,7 @@
         var sessionId = snapshot.Id;
         var expectedTurn = snapshot.Turn;
         inputInFlight = true;
-        await InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         try
         {
             snapshot = await Games.ApplyControlAsync(new CouncilGameControlRequest
@@ -201,18 +201,18 @@
                 ExpectedTurn = expectedTurn,
                 Source = "HumanUI",
                 ActorName = "Human Player"
-            });
-            await Task.Delay(260);
+            }).ConfigureAwait(false);
+            await Task.Delay(260).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The in-chat game control {Action} was rejected.", action);
-            snapshot = await Games.GetAsync(sessionId);
+            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(false);
         }
         finally
         {
             inputInFlight = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
@@ -221,7 +221,7 @@
         if (snapshot is not null && snapshot.Id != sessionId) return;
         _ = InvokeAsync(async () =>
         {
-            snapshot = await Games.GetAsync(sessionId);
+            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(false);
             StateHasChanged();
         });
     }
@@ -231,7 +231,7 @@
         Games.Changed -= OnGameChanged;
         try
         {
-            if (attached) await JS.InvokeVoidAsync("localGptGameConsole.detach", elementId);
+            if (attached) await JS.InvokeVoidAsync("localGptGameConsole.detach", elementId).ConfigureAwait(false);
         }
         catch (JSDisconnectedException) { }
         reference?.Dispose();

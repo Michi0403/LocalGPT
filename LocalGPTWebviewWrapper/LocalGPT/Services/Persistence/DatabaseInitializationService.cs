@@ -368,7 +368,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.1.10",
+                CurrentVersion = "2.1.11",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -415,6 +415,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.10", repositoryRoot, "Scoped-lifetime diagnostics and adaptive Ollama benchmark release with zero explicit true-context continuation captures.");
         EnsureRevision(core, "main", "seed-v2.1.10", repositoryRoot,
             "Prevents diagnostics decorators from resolving scoped services through the root provider, implements the bounded local Ollama autotuner, and restores the asynchronous policy: renderer-context continuations remain implicit while context-free service continuations use ConfigureAwait(false).");
+        EnsureVersion(core, "2.1.11", repositoryRoot, "Fine-grained asynchronous continuation release with explicit ConfigureAwait(false) on context-free awaits and narrowly scoped ConfigureAwait(true) inside OnAfterRenderAsync lifecycle continuations.");
+        EnsureRevision(core, "main", "seed-v2.1.11", repositoryRoot,
+            "Corrects the 2.1.10 continuation policy by making every await expression explicit, retaining renderer affinity only in OnAfterRenderAsync, and keeping service, controller, persistence, diagnostics, background and non-lifecycle component continuations context-free.");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",

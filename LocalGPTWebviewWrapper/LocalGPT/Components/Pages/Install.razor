@@ -328,7 +328,7 @@
 
             _log = $"[{DateTime.Now:T}] {text}\n" + _log;
 
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -342,8 +342,8 @@
         try
         {
             NormalizeLocalEndpoint();
-            var (ok, msg) = await Probe.TestLocalOpenAICompatAsync(Model.ChatGPTLocalCore!, default);
-            await Append((ok ? "OK" : "FAIL") + " Local: " + msg);
+            var (ok, msg) = await Probe.TestLocalOpenAICompatAsync(Model.ChatGPTLocalCore!, default).ConfigureAwait(false);
+            await Append((ok ? "OK" : "FAIL") + " Local: " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, "Local endpoint is reachable.", "Local Test OK");
             else    Notifier.ShowWarning(toastName, msg, "Local Test Failed");
         }
@@ -351,7 +351,7 @@
         {
             Logger.LogError(ex, "TestLocal failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Local Test) " + ex.Message);
+            await Append("(Local Test) " + ex.Message).ConfigureAwait(false);
         }
     }
 
@@ -360,8 +360,8 @@
         try
         {
             NormalizeLocalEndpoint();
-            var (ok, msg) = await Probe.TryStartLocalAsync(Model.ChatGPTLocalCore!, default);
-            await Append((ok ? "Started" : "Failed") + ": " + msg);
+            var (ok, msg) = await Probe.TryStartLocalAsync(Model.ChatGPTLocalCore!, default).ConfigureAwait(false);
+            await Append((ok ? "Started" : "Failed") + ": " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, "Local server started.", "Start OK");
             else    Notifier.ShowWarning(toastName, msg, "Start Failed");
         }
@@ -369,7 +369,7 @@
         {
             Logger.LogError(ex, "StartLocal failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Start Local) " + ex.Message);
+            await Append("(Start Local) " + ex.Message).ConfigureAwait(false);
         }
     }
 
@@ -377,12 +377,12 @@
     {
         try
         {
-            var (ok, msg) = await Probe.TestOllamaAsync(Model.OllamaCore!, default);
+            var (ok, msg) = await Probe.TestOllamaAsync(Model.OllamaCore!, default).ConfigureAwait(false);
             LastConnectivityCheck = DateTimeOffset.Now;
             ConnectivityStatus = ok
                 ? $"Ollama reachable at {Model.OllamaCore?.Uri}. Selected model: {Model.OllamaCore?.ModelName}."
                 : $"Ollama not reachable at {Model.OllamaCore?.Uri}: {msg}";
-            await Append((ok ? "OK" : "FAIL") + " Ollama: " + msg);
+            await Append((ok ? "OK" : "FAIL") + " Ollama: " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, "Ollama reachable.", "Ollama Test OK");
             else    Notifier.ShowWarning(toastName, msg, "Ollama Test Failed");
         }
@@ -390,7 +390,7 @@
         {
             Logger.LogError(ex, "TestOllama failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Ollama Test) " + ex.Message);
+            await Append("(Ollama Test) " + ex.Message).ConfigureAwait(false);
         }
     }
 
@@ -400,15 +400,15 @@
         {
             if (firstRender)
             {
-                await RefreshOllamaProcessStatusAsync();
-                await RefreshConnectivityStatusAsync(showToast: false);
+                await RefreshOllamaProcessStatusAsync().ConfigureAwait(true);
+                await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(true);
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "OnAfterRenderAsync failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(OnAfterRenderAsync) " + ex.Message);
+            await Append("(OnAfterRenderAsync) " + ex.Message).ConfigureAwait(true);
         }
     }
 
@@ -418,7 +418,7 @@
         try
         {
             IsOllamaProcessBusy = true;
-            OllamaProcessStatus = await OllamaProcesses.GetStatusAsync();
+            OllamaProcessStatus = await OllamaProcesses.GetStatusAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -428,7 +428,7 @@
         finally
         {
             IsOllamaProcessBusy = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
@@ -451,9 +451,9 @@
         try
         {
             IsOllamaProcessBusy = true;
-            await InvokeAsync(StateHasChanged);
-            OllamaProcessStatus = await action(default);
-            await Append($"{operation}: {OllamaProcessStatus.Message}");
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            OllamaProcessStatus = await action(default).ConfigureAwait(false);
+            await Append($"{operation}: {OllamaProcessStatus.Message}").ConfigureAwait(false);
 
             if (OllamaProcessStatus.IsRunning)
                 Notifier.ShowSuccess(toastName, OllamaProcessStatus.Message, operation);
@@ -462,7 +462,7 @@
             else
                 Notifier.ShowWarning(toastName, OllamaProcessStatus.Message, operation);
 
-            await RefreshConnectivityStatusAsync(showToast: false);
+            await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -472,7 +472,7 @@
         finally
         {
             IsOllamaProcessBusy = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
@@ -481,15 +481,15 @@
         try
         {
             IsDiscovering = true;
-            await Append("Scanning localhost for Ollama and LM Studio...");
+            await Append("Scanning localhost for Ollama and LM Studio...").ConfigureAwait(false);
 
-            DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default);
+            DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default).ConfigureAwait(false);
             AutoSelectBestDiscoveredModel();
 
             var reachable = DiscoveredHosts.Count(h => h.IsReachable);
             var models = DiscoveredHosts.Sum(h => h.Models.Count);
 
-            await Append($"Discovery found {reachable} reachable host(s) and {models} model(s).");
+            await Append($"Discovery found {reachable} reachable host(s) and {models} model(s).").ConfigureAwait(false);
             LastConnectivityCheck = DateTimeOffset.Now;
             ConnectivityStatus = BuildConnectivityStatus(reachable, models);
 
@@ -502,7 +502,7 @@
         {
             Logger.LogError(ex, "DiscoverLocalAiHosts failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Discovery) " + ex.Message);
+            await Append("(Discovery) " + ex.Message).ConfigureAwait(false);
         }
         finally
         {
@@ -529,15 +529,15 @@
         try
         {
             IsConnectivityChecking = true;
-            await InvokeAsync(StateHasChanged);
-            DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default).ConfigureAwait(false);
             AutoSelectBestDiscoveredModel();
 
             var reachable = DiscoveredHosts.Count(host => host.IsReachable);
             var models = DiscoveredHosts.Sum(host => host.Models.Count);
             LastConnectivityCheck = DateTimeOffset.Now;
             ConnectivityStatus = BuildConnectivityStatus(reachable, models);
-            await Append($"Connectivity refresh: {ConnectivityStatus}");
+            await Append($"Connectivity refresh: {ConnectivityStatus}").ConfigureAwait(false);
 
             if (!showToast)
                 return;
@@ -554,12 +554,12 @@
             ConnectivityStatus = "Connectivity check failed: " + ex.Message;
             if (showToast)
                 Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Connectivity) " + ex.Message);
+            await Append("(Connectivity) " + ex.Message).ConfigureAwait(false);
         }
         finally
         {
             IsConnectivityChecking = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
@@ -591,7 +591,7 @@
             {
                 Model.OllamaCore.Uri = host.Endpoint;
                 Model.OllamaCore.ModelName = model.Name;
-                await Append($"Selected Ollama model {model.Name} at {host.Endpoint}.");
+                await Append($"Selected Ollama model {model.Name} at {host.Endpoint}.").ConfigureAwait(false);
             }
             else
             {
@@ -600,7 +600,7 @@
                     ? (string.Equals(host.Provider, "LM Studio", StringComparison.OrdinalIgnoreCase) ? "lm-studio" : "local-key")
                     : Model.ChatGPTLocalCore.ApiKey;
                 Model.ChatGPTLocalCore.ModelName = model.Name;
-                await Append($"Selected {host.Provider} model {model.Name} at {host.Endpoint}.");
+                await Append($"Selected {host.Provider} model {model.Name} at {host.Endpoint}.").ConfigureAwait(false);
             }
 
             Notifier.ShowSuccess(toastName, $"{host.Provider}: {model.Name}", "Model Selected");
@@ -609,7 +609,7 @@
         {
             Logger.LogError(ex, "ApplyDiscoveredModel failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Selection) " + ex.Message);
+            await Append("(Selection) " + ex.Message).ConfigureAwait(false);
         }
     }
 
@@ -661,7 +661,7 @@
         {
             Model.OllamaCore.Uri = "http://localhost:11434";
             Model.OllamaCore.ModelName = "gpt-oss:20b";
-            await Append("Selected Ollama gpt-oss:20b at http://localhost:11434.");
+            await Append("Selected Ollama gpt-oss:20b at http://localhost:11434.").ConfigureAwait(false);
             Notifier.ShowSuccess(toastName, "Ollama gpt-oss:20b selected.", "Model Selected");
         }
         catch (Exception ex)
@@ -706,8 +706,8 @@
     {
         try
         {
-            var (ok, msg) = await Probe.TestOpenAIAsync(Model.OpenAICore!, default);
-            await Append((ok ? "OK" : "FAIL") + " OpenAI: " + msg);
+            var (ok, msg) = await Probe.TestOpenAIAsync(Model.OpenAICore!, default).ConfigureAwait(false);
+            await Append((ok ? "OK" : "FAIL") + " OpenAI: " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, "OpenAI reachable.", "OpenAI Test OK");
             else    Notifier.ShowWarning(toastName, msg, "OpenAI Test Failed");
         }
@@ -715,7 +715,7 @@
         {
             Logger.LogError(ex, "TestOpenAI failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(OpenAI Test) " + ex.Message);
+            await Append("(OpenAI Test) " + ex.Message).ConfigureAwait(false);
         }
     }
 
@@ -723,8 +723,8 @@
     {
         try
         {
-            var (ok, msg) = await Probe.TestAzureAsync(Model.OpenAIServiceCore!, default);
-            await Append((ok ? "OK" : "FAIL") + " Azure: " + msg);
+            var (ok, msg) = await Probe.TestAzureAsync(Model.OpenAIServiceCore!, default).ConfigureAwait(false);
+            await Append((ok ? "OK" : "FAIL") + " Azure: " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, "Azure endpoint reachable.", "Azure Test OK");
             else    Notifier.ShowWarning(toastName, msg, "Azure Test Failed");
         }
@@ -732,7 +732,7 @@
         {
             Logger.LogError(ex, "TestAzure failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Azure Test) " + ex.Message);
+            await Append("(Azure Test) " + ex.Message).ConfigureAwait(false);
         }
     }
 
@@ -745,30 +745,30 @@
 
             var root = Opts.CurrentValue;
             ApplyModelsToConfiguration(root);
-            await Writer.SaveAsync(root);
+            await Writer.SaveAsync(root).ConfigureAwait(false);
 
             // Saving provider setup always performs one fresh local-host/model scan.
             // Any default-port Ollama or LM Studio selection discovered by that scan is
             // persisted immediately, so the next application boot uses it without a
             // separate Test Connection + Save cycle.
-            await RefreshConnectivityStatusAsync(showToast: false);
+            await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(false);
             NormalizeLocalEndpoint();
             ApplyModelsToConfiguration(root);
-            await Writer.SaveAsync(root);
+            await Writer.SaveAsync(root).ConfigureAwait(false);
 
-            await Append("Saved durable provider settings and refreshed local models.");
+            await Append("Saved durable provider settings and refreshed local models.").ConfigureAwait(false);
             Notifier.ShowSuccess(toastName, "Provider settings saved and local models refreshed.", "Saved");
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Save failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Save) " + ex.Message);
+            await Append("(Save) " + ex.Message).ConfigureAwait(false);
         }
         finally
         {
             IsSaving = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 

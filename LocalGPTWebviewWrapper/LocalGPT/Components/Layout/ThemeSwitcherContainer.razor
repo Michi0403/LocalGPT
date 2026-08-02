@@ -180,7 +180,7 @@
 
             await Themes.ThemeChangeRequestDispatcher
                 .RequestThemeChangeAsync(theme, target)
-                ;
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -203,7 +203,7 @@
 
             await Themes.ThemeChangeRequestDispatcher
                 .ResetFusionRouteAsync()
-                ;
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -226,16 +226,16 @@
                 if (target == ThemeApplicationTarget.Shell)
                 {
                     ShellThemeName = theme.Name;
-                    await ShellThemeNameChanged.InvokeAsync(theme.Name);
+                    await ShellThemeNameChanged.InvokeAsync(theme.Name).ConfigureAwait(false);
                 }
                 else
                 {
                     ComponentThemeName = theme.Name;
-                    await ComponentThemeNameChanged.InvokeAsync(theme.Name);
+                    await ComponentThemeNameChanged.InvokeAsync(theme.Name).ConfigureAwait(false);
                 }
 
                 StateHasChanged();
-            });
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -261,9 +261,9 @@
                     return;
 
                 Shown = shown;
-                await ShownChanged.InvokeAsync(shown);
+                await ShownChanged.InvokeAsync(shown).ConfigureAwait(false);
                 StateHasChanged();
-            });
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

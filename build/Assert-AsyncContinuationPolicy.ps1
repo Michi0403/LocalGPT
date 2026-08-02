@@ -37,21 +37,31 @@ Write-Warning 'Python was not found; running the reduced PowerShell continuation
 $failures = [Collections.Generic.List[string]]::new()
 $files = Get-ChildItem -LiteralPath $sourceRoot -Recurse -File | Where-Object {
     ($_.Extension -eq '.cs' -or $_.Extension -eq '.razor') -and
-    $_.FullName -notmatch '[\\/](bin|obj|Migrations)[\\/]'
+    $_.FullName -notmatch '[\/](bin|obj|Migrations)[\/]'
 }
 foreach ($file in $files) {
     $text = [IO.File]::ReadAllText($file.FullName, [Text.Encoding]::UTF8)
     $relative = $file.FullName.Substring($sourceRoot.Length).TrimStart([char[]]@('\', '/')).Replace('\', '/')
-    if ($text -match '\.ConfigureAwait\s*\(\s*true\s*\)') {
-        $failures.Add("$relative contains prohibited ConfigureAwait(true).")
+
+    if ($text -match '\.ConfigureAwait\s*\(\s*true\s*\)' -and $text -notmatch 'OnAfterRenderAsync\s*\(') {
+        $failures.Add("$relative contains ConfigureAwait(true) but no OnAfterRenderAsync lifecycle method.")
     }
-    if ($relative.StartsWith('Components/', [StringComparison]::OrdinalIgnoreCase) -and
-        $text -match '\.ConfigureAwait\s*\(\s*false\s*\)') {
-        $failures.Add("$relative captures a non-renderer continuation inside component code.")
+
+    $candidate = [regex]::Matches(
+        $text,
+        '(?ms)\bawait\s+(?!using\b|foreach\b)(?<expression>.*?)(?=;|,\s*(?:await|return|throw|[A-Za-z_][A-Za-z0-9_]*\s*=)|\r?\n\s*[}\)])')
+    foreach ($match in $candidate) {
+        $expression = [string]$match.Groups['expression'].Value
+        if ($expression -match 'configuredTaskAwaitable' -or
+            $expression -match '\.ConfigureAwait\s*\(\s*(?:true|false)\s*\)') {
+            continue
+        }
+        $line = 1 + ([regex]::Matches($text.Substring(0, $match.Index), "`n")).Count
+        $failures.Add("$relative:$line contains an await expression without explicit ConfigureAwait(true/false).")
     }
 }
 if ($failures.Count -gt 0) {
     foreach ($failure in $failures) { Write-Host "  - $failure" }
-    Fail "$($failures.Count) reduced-fallback problem(s). Install Python 3 to run the complete continuation audit."
+    Fail "$($failures.Count) reduced-fallback problem(s). Install Python 3 to run the complete syntax-aware continuation audit."
 }
-Write-Host 'Reduced PowerShell async continuation validation passed; Python 3 enables the complete context-free await audit.'
+Write-Host 'Reduced PowerShell async continuation validation passed; Python 3 enables exact per-await and lifecycle-context validation.'

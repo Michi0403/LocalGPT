@@ -17,8 +17,8 @@
                 return;
 
             _diagnosticsReference = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("localGptJavaScriptDiagnostics.bindDotNet", _diagnosticsReference);
-            await JS.InvokeVoidAsync("localGptReady.markInteractive");
+            await JS.InvokeVoidAsync("localGptJavaScriptDiagnostics.bindDotNet", _diagnosticsReference).ConfigureAwait(true);
+            await JS.InvokeVoidAsync("localGptReady.markInteractive").ConfigureAwait(true);
             ComponentActivity.RecordInformation(nameof(InteractiveStartupMarker), "InteractiveReady", "The Blazor interactive circuit attached successfully and browser diagnostics are connected.");
             Logger.LogInformation($"LocalGPT interactive UI attached successfully; JavaScript errors will be mirrored to the application logger.");
         }

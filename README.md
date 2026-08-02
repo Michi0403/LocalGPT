@@ -261,4 +261,10 @@ Version 2.1.10 prevents the method-diagnostics decorator from wrapping singleton
 
 `localgpt.models.benchmark.autotune` is now an implemented, human-confirmed DXFunction. It benchmarks only models already installed in the configured loopback Ollama runtime, uses bounded deterministic and optional peer-authored tasks, stops profile tuning when improvement falls below the chosen threshold, and can save a new model preset without silently replacing an existing preset.
 
-`ConfigureAwait(true)` is prohibited. Blazor components use ordinary `await` to preserve the renderer synchronization context. Context-free service, controller, persistence, diagnostics, and network continuations use `ConfigureAwait(false)` wherever safe.
+Version 2.1.10 initially removed explicit `ConfigureAwait(true)` captures and left renderer-owned component awaits implicit. Version 2.1.11 supersedes that continuation policy with explicit configuration on every await expression.
+
+## LocalGPT 2.1.11 explicit async continuation control
+
+Every await expression is now explicit and reviewable. Services, controllers, persistence, diagnostics, network operations, background workflows, and component methods that do not require renderer affinity use `ConfigureAwait(false)`. The only explicit `ConfigureAwait(true)` sites are inside `OnAfterRenderAsync`, where the continuation must return to the Blazor renderer before lifecycle-owned UI state is changed.
+
+The async architecture audit no longer uses broad per-file allowances. It rejects unconfigured await expressions, rejects `ConfigureAwait(true)` outside `OnAfterRenderAsync`, and rejects `ConfigureAwait(false)` inside that renderer-affine lifecycle method. `await using` remains the language-level asynchronous-disposal construct; an awaited initializer inside it is still explicitly configured. Existing `ConfiguredTaskAwaitable` values remain valid because their continuation policy was already selected by the caller.

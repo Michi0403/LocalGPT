@@ -12,7 +12,7 @@ namespace LocalGPT.Services;
 /// Ollama runtime. It never pulls models, changes global Ollama state, or overwrites an existing preset.
 /// </summary>
 public sealed class AdaptiveOllamaBenchmarkWiring(
-    IOptionsMonitor<ConfigurationRoot> configuration,
+    IOptionsMonitor<BusinessObjects.ConfigurationRoot> configuration,
     IHardwareInventoryService hardwareInventory,
     IModelPresetService modelPresets,
     ILogger<AdaptiveOllamaBenchmarkWiring> logger) : IDxAiFunctionHandler

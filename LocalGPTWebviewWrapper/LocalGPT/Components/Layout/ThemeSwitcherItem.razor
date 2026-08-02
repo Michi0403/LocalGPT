@@ -20,7 +20,7 @@
             if (Theme is null)
                 return;
 
-            await Click.InvokeAsync(Theme);
+            await Click.InvokeAsync(Theme).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

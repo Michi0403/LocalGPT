@@ -1,0 +1,53 @@
+LocalGpt(33) static review
+Application version: 2.1.11
+
+Scope
+=====
+This revision corrects the async-continuation regression introduced while preparing LocalGpt(32). Explicit ConfigureAwait calls were restored instead of being removed.
+
+Continuation policy
+===================
+- Every ordinary await expression is explicitly configured.
+- ConfigureAwait(false) is the default for services, controllers, persistence, diagnostics, networking, background work and component methods that do not require renderer affinity.
+- ConfigureAwait(true) is permitted only inside OnAfterRenderAsync.
+- await foreach sources are explicitly configured with ConfigureAwait(false).
+- await using remains C# asynchronous-disposal syntax. Awaited initializers inside await-using declarations are independently configured.
+- Two ConfiguredTaskAwaitable values remain directly awaited because their policy was already selected by the caller and the type cannot be configured twice.
+
+Measured source result
+======================
+- 122 source files containing await tokens
+- 1,840 syntax-aware await tokens
+- 1,665 ConfigureAwait(false) expressions
+- 20 ConfigureAwait(true) expressions, all inside OnAfterRenderAsync
+- 2 preconfigured ConfiguredTaskAwaitable expressions
+- 151 await-using disposal constructs
+- 2 configured await-foreach streams
+- 0 unconfigured ordinary await expressions
+- 0 ConfigureAwait(true) expressions outside OnAfterRenderAsync
+- 0 ConfigureAwait(false) expressions inside OnAfterRenderAsync
+
+Architecture changes
+====================
+- Replaced broad per-file continuation allowances with one exact syntax-aware policy.
+- Updated the reduced PowerShell fallback to reject obvious unconfigured awaits and true-context captures in files without OnAfterRenderAsync.
+- Added version 2.1.11 to the application package, runtime custom version, organic 1-Wire advertisements and additive LocalGPT Core seed history.
+- The separately maintained LocalGPT.WireProtocolVersion package was not changed.
+
+Validation performed in this environment
+========================================
+- Python async continuation audit: passed.
+- Python application architecture audit: passed.
+- JSON parsing: 19 files passed.
+- XML/project parsing: 8 files passed.
+- JavaScript syntax: 25 files passed through node --check.
+- C# lexical delimiter validation: 318 files passed.
+- No .NET SDK, Roslyn compiler, Razor generator, DevExpress build environment or PowerShell runtime is installed here.
+
+Required local verification
+===========================
+1. Restore and build LocalGPT in Visual Studio/.NET 10.
+2. Let the enabled repository architecture checks execute without removing them.
+3. Verify the Blazor lifecycle paths on Chat, Install, Drawer, InteractiveStartupMarker, ThemeJsChangeDispatcher and ChatGameConsole.
+4. Exercise normal component actions to confirm the deliberately context-free continuations do not depend on implicit renderer capture.
+5. Run the release and installer publish profiles after the Debug build succeeds.
