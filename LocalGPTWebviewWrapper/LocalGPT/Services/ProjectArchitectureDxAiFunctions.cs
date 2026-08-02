@@ -28,7 +28,7 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectArchitectureGetParameters>(request.ProjectArchitectureGetParameters);
+        var binding = json.Bind<ProjectArchitectureGetParameters>(new ProjectArchitectureGetParameters() { ProjectId = request.ProjectId});
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
