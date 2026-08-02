@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.BusinessObjects.Enums;
+using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,16 +19,19 @@ namespace LocalGPT.Logging
 
         private readonly IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory;
         private readonly IOptionsMonitor<DatabaseLoggerCoreOptions> options;
+        private readonly IDatabaseLoggerReadiness databaseLoggerReadiness;
         private readonly Channel<ApplicationLogEntry> channel;
         private readonly CancellationTokenSource stop = new();
         private readonly Task processingTask;
 
         public DatabaseLoggerProvider(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
-            IOptionsMonitor<DatabaseLoggerCoreOptions> options) 
+            IOptionsMonitor<DatabaseLoggerCoreOptions> options,
+            IDatabaseLoggerReadiness databaseLoggerReadiness)
         {
             this.dbContextFactory = dbContextFactory;
             this.options = options;
+            this.databaseLoggerReadiness = databaseLoggerReadiness;
             var queueLength = Math.Clamp(options.CurrentValue.MaxQueueLength, 100, 50000);
             channel = Channel.CreateBounded<ApplicationLogEntry>(new BoundedChannelOptions(queueLength)
             {
@@ -59,6 +63,18 @@ namespace LocalGPT.Logging
 
         private async Task ProcessQueueAsync()
         {
+            try
+            {
+                // Startup logs remain in the bounded channel until migrations and deterministic seeds
+                // have released SQLite. This prevents the logger from racing ApplicationLogs creation
+                // or taking a write lock while the initialization hosted service is saving seed data.
+                await databaseLoggerReadiness.WaitUntilReadyAsync(stop.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
             var batch = new List<ApplicationLogEntry>();
             while (!stop.IsCancellationRequested)
             {
@@ -140,6 +156,8 @@ namespace LocalGPT.Logging
         public void Dispose()
         {
             channel.Writer.TryComplete();
+            if (!databaseLoggerReadiness.IsReady)
+                stop.Cancel();
             try
             {
                 if (!processingTask.Wait(TimeSpan.FromSeconds(2)))

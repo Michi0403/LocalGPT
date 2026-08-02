@@ -17,6 +17,7 @@ public sealed class DatabaseInitializationService(
     IInitialDataCatalog catalog,
     ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
     IServiceActivityService serviceActivity,
+    IDatabaseLoggerReadiness databaseLoggerReadiness,
     IHostEnvironment hostEnvironment,
     ILogger<DatabaseInitializationService> logger) : IDatabaseInitializationService
 {
@@ -56,6 +57,7 @@ public sealed class DatabaseInitializationService(
             await RunSeedStageAsync("Council model presets", SeedCouncilModelPresetsAsync, cancellationToken).ConfigureAwait(false);
 
             initialized = true;
+            databaseLoggerReadiness.MarkReady();
             logger.LogInformation("LocalGPT database migration and initial data feed completed.");
         }
         finally
@@ -368,7 +370,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.1.12",
+                CurrentVersion = "2.1.13",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -421,6 +423,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.12", repositoryRoot, "Compiler and continuation-policy correction release with fully qualified configuration types, restored DXFunction parameter binding, exact Razor await auditing, and reviewed renderer-affine loading continuations.");
         EnsureRevision(core, "main", "seed-v2.1.12", repositoryRoot,
             "Fixes the Adaptive Ollama configuration type ambiguity, restores request.Parameters binding for project architecture and maintenance DXFunctions, repairs the PowerShell async audit, and preserves renderer context only for lifecycle or explicitly reviewed UI-loading continuations while services and controllers remain context-free.");
+        EnsureVersion(core, "2.1.13", repositoryRoot, "Compile recovery and database-logger startup isolation release that awaits configured UI actions and defers ApplicationLogs persistence until migration and deterministic seeding complete.");
+        EnsureRevision(core, "main", "seed-v2.1.13", repositoryRoot,
+            "Repairs RunRemoteKnowledgeAsync so LocalGPT compiles and adds a one-way database-logger readiness gate so startup diagnostics cannot race migration or seed SaveChangesAsync operations. The adaptive Ollama benchmark implementation and independently versioned wire protocol remain unchanged.");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",

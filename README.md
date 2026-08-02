@@ -274,3 +274,12 @@ Version 2.1.11 made ordinary await expressions explicit and initially limited `C
 Version 2.1.12 fixes the `ConfigurationRoot` type-name collision, restores project DXFunction parameter binding to `request.Parameters`, and repairs the Windows PowerShell async-policy fallback. The continuation audit now reads Razor `@code` blocks correctly and requires every ordinary await to choose a continuation policy explicitly.
 
 Context-free service, controller, persistence, networking, diagnostics, and background operations use `ConfigureAwait(false)`. Blazor lifecycle entry points may use `ConfigureAwait(true)`. Additional HTTP, SignalR, and object-domain loading helpers retain the renderer only when their exact file and method name is listed in `build/async-continuation-baseline.json` and their continuation directly applies loaded state to component fields. Background probes that marshal their final state through `InvokeAsync` remain context-free.
+
+## LocalGPT 2.1.13 compile recovery and database-logger startup isolation
+
+Version 2.1.13 changes `RunRemoteKnowledgeAsync` into an `async Task` method and awaits the configured `RunUiActionAsync` awaitable. This resolves `CS0029` without weakening the repository's explicit continuation policy. Once LocalGPT builds and emits `LocalGPT.dll`, the desktop wrapper's cascading `WMC1006`/`CS0006` missing-metadata errors disappear as well.
+
+The database-backed logger now holds startup entries in its existing bounded channel until database health checks, migration, and deterministic seeding have completed. This prevents logger `SaveChangesAsync` calls from racing schema creation or seed writes. Console, debug, file, and email providers remain available during initialization, and queued database entries flush after the one-way readiness gate opens.
+
+The adaptive Ollama benchmark/autotune implementation is unchanged in this patch release. The independently versioned `LocalGPT.WireProtocolVersion` package remains at 2.1.0.
+

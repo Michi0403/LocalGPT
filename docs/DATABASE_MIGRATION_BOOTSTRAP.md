@@ -18,10 +18,11 @@ LocalGPT must support databases created by earlier development builds that wrote
 10. Refuse partially applied ambiguous schemas and report missing markers plus the backup path.
 11. Run normal EF `MigrateAsync` for every genuinely pending migration.
 12. Seed catalog data only after migration succeeds.
+13. Open the database-logger readiness gate only after the final deterministic seed stage; queued startup diagnostics must not write `ApplicationLogs` during migration or seed saves.
 
 ## Responsibility split
 
-`DatabaseInitializationService` is the high-level hosted-operation boundary. It owns health checking, invokes compatibility preparation, runs EF migration, and seeds initial data. `DatabaseMigrationCompatibilityService` separately owns schema inspection, SQLite online backup, verified migration-history adoption, and stale-lock handling. Both are DI services with constructor-injected logging and bounded service-activity reporting; neither is static.
+`DatabaseInitializationService` is the high-level hosted-operation boundary. It owns health checking, invokes compatibility preparation, runs EF migration, and seeds initial data. `DatabaseMigrationCompatibilityService` separately owns schema inspection, SQLite online backup, verified migration-history adoption, and stale-lock handling. Both are DI services with constructor-injected logging and bounded service-activity reporting; neither is static. `DatabaseLoggerReadiness` is a separate one-way DI gate: the database logger can enqueue startup entries immediately but cannot create its persistence context until initialization opens the gate.
 
 ## Security and data-preservation rules
 
