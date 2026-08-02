@@ -31,6 +31,43 @@ function Invoke-DotNet {
     if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
 }
 
+function Resolve-ProjectVersion {
+    param([Parameter(Mandatory)][string]$ProjectPath)
+
+    [xml]$project = Get-Content -LiteralPath $ProjectPath -Raw
+    $versions = @(
+        $project.Project.PropertyGroup |
+            ForEach-Object { [string]$_.Version } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($versions.Count -eq 0) { throw "Project version was not found in $ProjectPath" }
+    return $versions[0]
+}
+
+function Assert-LocalGptDocumentationPayload {
+    param(
+        [Parameter(Mandatory)][string]$PublishFolder,
+        [Parameter(Mandatory)][string]$Version
+    )
+
+    $documentationRoot = Join-Path $PublishFolder "wwwroot\help-docs"
+    $requiredArtifacts = @(
+        (Join-Path $documentationRoot "index.html"),
+        (Join-Path $documentationRoot "documentation-status.json"),
+        (Join-Path $documentationRoot "LocalGPT.xml"),
+        (Join-Path $documentationRoot "LocalGPT-$Version.pdf")
+    )
+    foreach ($requiredArtifact in $requiredArtifacts) {
+        if (-not (Test-Path -LiteralPath $requiredArtifact -PathType Leaf)) {
+            throw "Published LocalGPT documentation is incomplete: $requiredArtifact"
+        }
+    }
+
+    Write-Host "Verified LocalGPT $Version documentation in $documentationRoot" -ForegroundColor Green
+}
+
+$appVersion = Resolve-ProjectVersion -ProjectPath $appProject
+
 function Resolve-PublishProfilePath {
     param(
         [Parameter(Mandatory)][string]$ProjectPath,
@@ -153,13 +190,16 @@ function Publish-Runtime {
     Write-Host "Publishing LocalGPT application through profile $($profile.AppProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @(
         "publish", $appProject,
+        "-c", $Configuration,
         "-p:PublishProfile=$($profile.AppProfile)",
-        "-p:RequireLocalGptDocumentationPdf=false"
+        "-p:BuildLocalGptDocumentation=true",
+        "-p:RequireLocalGptDocumentationPdf=true"
     ) -FailureMessage "LocalGPT application publish failed for $Rid."
 
     Write-Host "Publishing LocalGPT setup through profile $($profile.SetupProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @(
         "publish", $setupProject,
+        "-c", $Configuration,
         "-p:PublishProfile=$($profile.SetupProfile)"
     ) -FailureMessage "LocalGPT setup publish failed for $Rid."
 
@@ -169,6 +209,7 @@ function Publish-Runtime {
     if (-not (Test-Path (Join-Path $setupFolder $setupExecutable))) {
         throw "Published LocalGPT setup executable not found in the publish-profile output: $(Join-Path $setupFolder $setupExecutable)"
     }
+    Assert-LocalGptDocumentationPayload -PublishFolder $appFolder -Version $appVersion
 
     $requiredSetupFiles = @(
         "Default.cmd", "Install.cmd", "Update.cmd", "Start.cmd", "Start-NoBrowser.cmd",
@@ -186,6 +227,7 @@ function Publish-Runtime {
         Write-Host "Publishing the optional WinUI wrapper through profile $($profile.WrapperProfile)..." -ForegroundColor Cyan
         Invoke-DotNet -Arguments @(
             "publish", $wrapperProject,
+            "-c", $Configuration,
             "-p:PublishProfile=$($profile.WrapperProfile)"
         ) -FailureMessage "WinUI wrapper publish failed for $Rid."
         Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force

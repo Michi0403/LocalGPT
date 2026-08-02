@@ -139,38 +139,55 @@
     <!-- Append a dot so the quoted Windows argument never ends in a backslash.
          A trailing backslash before a closing quote can absorb the remaining PowerShell -File arguments. -->
     <LocalGptDocumentationRepositoryRoot>$(MSBuildThisFileDirectory).</LocalGptDocumentationRepositoryRoot>
+    <LocalGptDocumentationOutputRoot>$(TargetDir)wwwroot\help-docs</LocalGptDocumentationOutputRoot>
     <BuildLocalGptDocumentation Condition="'$(BuildLocalGptDocumentation)' == ''">true</BuildLocalGptDocumentation>
+    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == '' and '$(Configuration)' == 'Release'">true</RequireLocalGptDocumentationPdf>
     <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">false</RequireLocalGptDocumentationPdf>
     <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
   </PropertyGroup>
 
+  <!--
+    Build and publish share one documentation target. During a normal build it runs after the
+    application assembly and compiler XML exist. The publish inclusion target also depends on it,
+    so a no-build publish validates and uses the existing application build output.
+  -->
   <Target Name="BuildLocalGptDocumentation"
           AfterTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(LocalGptDocumentationScript)')" Text="LocalGPT documentation build script is missing: $(LocalGptDocumentationScript)" />
-    <Exec Condition="Exists('$(LocalGptDocumentationScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(LocalGptDocumentationRepositoryRoot)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(TargetDir)wwwroot\help-docs&quot; $(LocalGptDocumentationPdfArgument)"
+    <Error Condition="!Exists('$(TargetPath)')" Text="LocalGPT documentation cannot be generated because the application assembly is missing: $(TargetPath)" />
+    <Error Condition="!Exists('$(TargetDir)$(AssemblyName).xml')" Text="LocalGPT documentation cannot be generated because compiler XML is missing: $(TargetDir)$(AssemblyName).xml" />
+    <Message Importance="High" Text="Generating LocalGPT $(Version) documentation into $(LocalGptDocumentationOutputRoot)" />
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(LocalGptDocumentationRepositoryRoot)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; $(LocalGptDocumentationPdfArgument)"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
-          StandardErrorImportance="High"
-          IgnoreExitCode="true">
-      <Output TaskParameter="ExitCode" PropertyName="LocalGptDocumentationExitCode" />
-    </Exec>
-    <Warning Condition="'$(LocalGptDocumentationExitCode)' != '' and '$(LocalGptDocumentationExitCode)' != '0'"
-             Text="LocalGPT documentation generation returned exit code $(LocalGptDocumentationExitCode). The application build remains usable; review the documentation diagnostics above." />
+          StandardErrorImportance="High" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\index.html')" Text="LocalGPT documentation generation completed without index.html: $(LocalGptDocumentationOutputRoot)" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\documentation-status.json')" Text="LocalGPT documentation generation completed without documentation-status.json: $(LocalGptDocumentationOutputRoot)" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\LocalGPT.xml')" Text="LocalGPT documentation generation completed without LocalGPT.xml: $(LocalGptDocumentationOutputRoot)" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\LocalGPT-$(Version).pdf')" Text="LocalGPT documentation generation completed without the versioned PDF: $(LocalGptDocumentationOutputRoot)\LocalGPT-$(Version).pdf" />
   </Target>
 
-  <Target Name="CopyLocalGptDocumentationToPublish"
-          AfterTargets="Publish"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT' and '$(PublishDir)' != ''">
+  <!--
+    The files are generated after project evaluation, so the SDK's original wwwroot glob cannot
+    discover them reliably. Add the generated build-output files directly to the publish graph.
+  -->
+  <Target Name="IncludeLocalGptDocumentationInPublish"
+          AfterTargets="ComputeFilesToPublish"
+          BeforeTargets="CopyFilesToPublishDirectory"
+          DependsOnTargets="BuildLocalGptDocumentation"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <ItemGroup>
-      <LocalGptDocumentationPublishFiles Include="$(MSBuildThisFileDirectory)LocalGPTWebviewWrapper\LocalGPT\wwwroot\help-docs\**\*" />
+      <LocalGptDocumentationPublishFiles Include="$(LocalGptDocumentationOutputRoot)\**\*" />
+      <ResolvedFileToPublish Include="@(LocalGptDocumentationPublishFiles)">
+        <RelativePath>wwwroot\help-docs\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
     </ItemGroup>
-    <Copy SourceFiles="@(LocalGptDocumentationPublishFiles)"
-          DestinationFiles="@(LocalGptDocumentationPublishFiles->'$(PublishDir)wwwroot\help-docs\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true"
-          Condition="'@(LocalGptDocumentationPublishFiles)' != ''" />
+    <Error Condition="'@(LocalGptDocumentationPublishFiles)' == ''" Text="No generated LocalGPT documentation files were available for publish: $(LocalGptDocumentationOutputRoot)" />
+    <Message Importance="High" Text="Added @(LocalGptDocumentationPublishFiles->Count()) generated documentation files to the LocalGPT publish payload." />
   </Target>
 
 </Project>

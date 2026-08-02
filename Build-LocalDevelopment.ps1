@@ -19,12 +19,50 @@ $packageDirectory = Join-Path $root "packages"
 $wireVersion = "2.1.0"
 $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVersion.nupkg"
 $useProject = if ($UseWireProtocolPackage) { "false" } else { "true" }
+$documentationRoot = Join-Path (Split-Path -Parent $appProject) "wwwroot\help-docs"
+$requireDocumentationPdf = if ($Configuration -eq "Release") { "true" } else { "false" }
 
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
     & dotnet @Arguments
     if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
 }
+
+function Resolve-ProjectVersion {
+    param([Parameter(Mandatory)][string]$ProjectPath)
+
+    [xml]$project = Get-Content -LiteralPath $ProjectPath -Raw
+    $versions = @(
+        $project.Project.PropertyGroup |
+            ForEach-Object { [string]$_.Version } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($versions.Count -eq 0) { throw "Project version was not found in $ProjectPath" }
+    return $versions[0]
+}
+
+function Assert-LocalGptDocumentation {
+    param(
+        [Parameter(Mandatory)][string]$DocumentationRoot,
+        [Parameter(Mandatory)][string]$Version
+    )
+
+    $requiredArtifacts = @(
+        (Join-Path $DocumentationRoot "index.html"),
+        (Join-Path $DocumentationRoot "documentation-status.json"),
+        (Join-Path $DocumentationRoot "LocalGPT.xml"),
+        (Join-Path $DocumentationRoot "LocalGPT-$Version.pdf")
+    )
+    foreach ($requiredArtifact in $requiredArtifacts) {
+        if (-not (Test-Path -LiteralPath $requiredArtifact -PathType Leaf)) {
+            throw "The LocalGPT development build did not produce required documentation: $requiredArtifact"
+        }
+    }
+
+    Write-Host "Verified LocalGPT $Version HTML, XML, status and PDF documentation." -ForegroundColor Green
+}
+
+$appVersion = Resolve-ProjectVersion -ProjectPath $appProject
 
 if ($Clean) {
     Get-ChildItem $solutionRoot -Directory -Recurse -Force |
@@ -58,7 +96,7 @@ $appProperties = @(
 )
 Write-Host "Restoring and building LocalGPT..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $appProperties) -FailureMessage "LocalGPT application restore failed."
-Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false") + $appProperties) -FailureMessage "LocalGPT application build failed."
+Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $appProperties) -FailureMessage "LocalGPT application build failed."
 
 Write-Host "Restoring and building the installer..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments @("restore", $setupProject, "--disable-parallel", "--force-evaluate") -FailureMessage "LocalGPT installer restore failed."
@@ -72,7 +110,8 @@ $packageAppProperties = @(
 )
 Write-Host "Rebuilding LocalGPT against the package graph for WinUI metadata resolution..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $packageAppProperties) -FailureMessage "LocalGPT package-mode restore for WinUI failed."
-Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-t:Rebuild", "-maxcpucount:1", "-p:BuildProjectReferences=false") + $packageAppProperties) -FailureMessage "LocalGPT package-mode rebuild for WinUI failed."
+Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-t:Rebuild", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=true", "-p:RequireLocalGptDocumentationPdf=$requireDocumentationPdf") + $packageAppProperties) -FailureMessage "LocalGPT package-mode rebuild for WinUI failed."
+Assert-LocalGptDocumentation -DocumentationRoot $documentationRoot -Version $appVersion
 
 $wrapperProperties = @(
     "-p:Platform=$Platform",
@@ -85,4 +124,4 @@ Write-Host "Restoring and building the optional WinUI wrapper..." -ForegroundCol
 Invoke-DotNet -Arguments (@("restore", $wrapperProject, "--disable-parallel", "--force-evaluate") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper restore failed."
 Invoke-DotNet -Arguments (@("build", $wrapperProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper build failed."
 
-Write-Host "LocalGPT development build completed in protocol -> app -> installer -> wrapper order." -ForegroundColor Green
+Write-Host "LocalGPT development build completed in protocol -> app -> documentation -> installer -> wrapper order." -ForegroundColor Green

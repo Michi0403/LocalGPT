@@ -276,10 +276,19 @@ $docfxExecutable = $null
 $useManifestTool = $false
 function Invoke-LocalGptDocfx {
     param([Parameter(Mandatory)][string[]]$Arguments)
-    if ($script:useManifestTool) { & dotnet tool run docfx @Arguments }
-    else { & $script:docfxExecutable @Arguments }
-    return $LASTEXITCODE
+
+    if ($script:useManifestTool) {
+        & dotnet tool run docfx @Arguments 2>&1 | ForEach-Object { Write-Host ([string]$_) }
+    }
+    else {
+        & $script:docfxExecutable @Arguments 2>&1 | ForEach-Object { Write-Host ([string]$_) }
+    }
+
+    $exitCode = $LASTEXITCODE
+    return [int]$exitCode
 }
+
+Remove-Item -LiteralPath $siteRoot -Recurse -Force -ErrorAction SilentlyContinue
 
 Push-Location $RepositoryRoot
 try {
@@ -393,7 +402,20 @@ foreach ($publishRoot in $publishRoots) {
         toolSource = $toolSource
         warnings = @($warnings)
     }
-    $status | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $publishRoot "documentation-status.json") -Encoding utf8
+    $statusPath = Join-Path $publishRoot "documentation-status.json"
+    $status | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statusPath -Encoding utf8
+
+    $requiredArtifacts = @(
+        (Join-Path $publishRoot "index.html"),
+        (Join-Path $publishRoot "LocalGPT.xml"),
+        (Join-Path $publishRoot $pdfName),
+        $statusPath
+    )
+    foreach ($requiredArtifact in $requiredArtifacts) {
+        if (-not (Test-Path -LiteralPath $requiredArtifact -PathType Leaf)) {
+            throw "Documentation generation did not produce the required artifact: $requiredArtifact"
+        }
+    }
 }
 
 Write-Host "LocalGPT documentation generated for version $Version using $documentationMode; PDF mode: $pdfMode." -ForegroundColor Green

@@ -55,8 +55,9 @@
 	  <Compile Remove="obj\**" />
 	  <Content Remove="obj\**" />
 	  <None Remove="obj\**" />
-		
-	
+	  <!-- Generated after project evaluation and injected into publish by Directory.Build.targets. -->
+	  <Content Remove="wwwroot\help-docs\**\*" />
+	  <None Remove="wwwroot\help-docs\**\*" />
 	</ItemGroup>
 	<ItemGroup>
 		<WwwrootFiles Include="wwwroot\**\*.*" />
