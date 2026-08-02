@@ -148,7 +148,7 @@
                 StartedBy = "Human User"
             }).ConfigureAwait(true);
             showControls = true;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -191,7 +191,7 @@
         var sessionId = snapshot.Id;
         var expectedTurn = snapshot.Turn;
         inputInFlight = true;
-        await InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         try
         {
             snapshot = await Games.ApplyControlAsync(new CouncilGameControlRequest
@@ -212,7 +212,7 @@
         finally
         {
             inputInFlight = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
     }
 
@@ -231,7 +231,7 @@
         Games.Changed -= OnGameChanged;
         try
         {
-            if (attached) await JS.InvokeVoidAsync("localGptGameConsole.detach", elementId).ConfigureAwait(false);
+            if (attached) await JS.InvokeVoidAsync("localGptGameConsole.detach", elementId).ConfigureAwait(true);
         }
         catch (JSDisconnectedException) { }
         reference?.Dispose();

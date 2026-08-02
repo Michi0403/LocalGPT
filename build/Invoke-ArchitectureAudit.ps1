@@ -19,14 +19,18 @@ $pythonScript = Join-Path $PSScriptRoot 'audit_application_architecture.py'
 function Invoke-PythonAudit {
     $python = Get-Command python -ErrorAction SilentlyContinue
     if ($python) {
-        & $python.Source $pythonScript --root $root --product $product --mode $Mode
-        return $LASTEXITCODE
+        $auditOutput = @(& $python.Source $pythonScript --root $root --product $product --mode $Mode 2>&1)
+        $auditExitCode = [int]$LASTEXITCODE
+        foreach ($line in $auditOutput) { Write-Host ([string]$line) }
+        return $auditExitCode
     }
 
     $launcher = Get-Command py -ErrorAction SilentlyContinue
     if ($launcher) {
-        & $launcher.Source -3 $pythonScript --root $root --product $product --mode $Mode
-        return $LASTEXITCODE
+        $auditOutput = @(& $launcher.Source -3 $pythonScript --root $root --product $product --mode $Mode 2>&1)
+        $auditExitCode = [int]$LASTEXITCODE
+        foreach ($line in $auditOutput) { Write-Host ([string]$line) }
+        return $auditExitCode
     }
 
     return $null

@@ -4,36 +4,106 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
-public sealed class RemoteImportDxParameterReader
+public sealed class RemoteImportDxParameterReader(
+    ILogger<RemoteImportDxParameterReader> logger)
 {
-    public string String(JsonElement parameters, string name, string fallback = "") =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString() ?? fallback : fallback;
-    public bool Boolean(JsonElement parameters, string name, bool fallback = false) =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
-            ? value.GetBoolean() : fallback;
-    public int Integer(JsonElement parameters, string name, int fallback) =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var value) && value.TryGetInt32(out var parsed)
-            ? parsed : fallback;
-    public List<string> Strings(JsonElement parameters, string name) =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array
-            ? value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString() ?? string.Empty).Where(item => item.Length > 0).ToList()
-            : [];
-
-    public RemoteKnowledgeImportRequest Build(JsonElement parameters, bool preview, bool confirmed) => new()
+    public string String(JsonElement parameters, string name, string fallback = "")
     {
-        SourceUrl = String(parameters, "sourceUrl"),
-        SourceKind = String(parameters, "sourceKind", "Auto"),
-        Branch = String(parameters, "branch", "main"),
-        FileIncludeRegex = String(parameters, "fileIncludeRegex", @"(?i)\.(cs|razor|csproj|sln|json|xml|md|txt|ps1|cmd|sh|py|js|ts|tsx|css|html|php|c|h|cpp|hpp|java|kt|go|rs|sql|yml|yaml)$"),
-        MaxFiles = Integer(parameters, "maxFiles", 5000),
-        MaxLinkedPages = Integer(parameters, "maxLinkedPages", 20),
-        SaveToKnowledge = !preview && Boolean(parameters, "saveToKnowledge", true),
-        PreviewOnly = preview,
-        RoleKeys = Strings(parameters, "roleKeys"),
-        Topics = Strings(parameters, "topics"),
-        UserConfirmed = confirmed
-    };
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty(name, out var value) &&
+                   value.ValueKind == JsonValueKind.String
+                ? value.GetString() ?? fallback
+                : fallback;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading remote-import string parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
+    public bool Boolean(JsonElement parameters, string name, bool fallback = false)
+    {
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty(name, out var value) &&
+                   value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? value.GetBoolean()
+                : fallback;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading remote-import Boolean parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
+    public int Integer(JsonElement parameters, string name, int fallback)
+    {
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty(name, out var value) &&
+                   value.TryGetInt32(out var parsed)
+                ? parsed
+                : fallback;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading remote-import Int32 parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
+    public List<string> Strings(JsonElement parameters, string name)
+    {
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty(name, out var value) &&
+                   value.ValueKind == JsonValueKind.Array
+                ? value.EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String)
+                    .Select(item => item.GetString() ?? string.Empty)
+                    .Where(item => item.Length > 0)
+                    .ToList()
+                : [];
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading remote-import string-list parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
+    public RemoteKnowledgeImportRequest Build(JsonElement parameters, bool preview, bool confirmed)
+    {
+        try
+        {
+            return new RemoteKnowledgeImportRequest
+            {
+                SourceUrl = String(parameters, "sourceUrl"),
+                SourceKind = String(parameters, "sourceKind", "Auto"),
+                Branch = String(parameters, "branch", "main"),
+                FileIncludeRegex = String(parameters, "fileIncludeRegex", @"(?i)\.(cs|razor|csproj|sln|json|xml|md|txt|ps1|cmd|sh|py|js|ts|tsx|css|html|php|c|h|cpp|hpp|java|kt|go|rs|sql|yml|yaml)$"),
+                MaxFiles = Integer(parameters, "maxFiles", 5000),
+                MaxLinkedPages = Integer(parameters, "maxLinkedPages", 20),
+                SaveToKnowledge = !preview && Boolean(parameters, "saveToKnowledge", true),
+                PreviewOnly = preview,
+                RoleKeys = Strings(parameters, "roleKeys"),
+                Topics = Strings(parameters, "topics"),
+                UserConfirmed = confirmed
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Building a remote-import request from DXFunction parameters failed; parameter content was omitted.");
+            throw;
+        }
+    }
 }
 
 public sealed class InspectRemoteKnowledgeFunction(

@@ -98,13 +98,27 @@ public sealed class DatabaseInitializationService(
                 await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 return;
             }
-            catch (DbUpdateConcurrencyException exception) when (attempt < maximumAttempts)
+            catch (DbUpdateConcurrencyException exception)
             {
-                logger.LogWarning(
+                if (await TryReconcileSeedConcurrencyAsync(db, stageName, attempt, exception, cancellationToken).ConfigureAwait(false))
+                    return;
+
+                if (attempt < maximumAttempts)
+                {
+                    logger.LogWarning(
+                        exception,
+                        "Database seed stage {SeedStage} encountered a concurrency conflict on attempt {Attempt}; retrying once with a fresh DbContext.",
+                        stageName,
+                        attempt);
+                    continue;
+                }
+
+                logger.LogError(
                     exception,
-                    "Database seed stage {SeedStage} encountered a concurrency conflict on attempt {Attempt}; retrying once with a fresh DbContext.",
+                    "Database seed stage {SeedStage} retained an unresolved concurrency conflict after {AttemptCount} attempt(s); later independent stages will continue.",
                     stageName,
-                    attempt);
+                    maximumAttempts);
+                return;
             }
             catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
             {
@@ -122,9 +136,60 @@ public sealed class DatabaseInitializationService(
             }
         }
 
-        logger.LogError(
-            "Database seed stage {SeedStage} still had a concurrency conflict after a fresh-context retry; later independent stages will continue.",
-            stageName);
+    }
+
+    private async Task<bool> TryReconcileSeedConcurrencyAsync(
+        LocalGptMemoryDbContext db,
+        string stageName,
+        int attempt,
+        DbUpdateConcurrencyException exception,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var reconciledEntries = 0;
+            foreach (var entry in exception.Entries)
+            {
+                var databaseValues = await entry.GetDatabaseValuesAsync(cancellationToken).ConfigureAwait(false);
+                if (databaseValues is null)
+                {
+                    entry.State = EntityState.Detached;
+                    continue;
+                }
+
+                // Seed data never wins over a concurrently edited user row. Reload the durable row and
+                // preserve unrelated Added entries in this stage, then save only those additive changes.
+                entry.OriginalValues.SetValues(databaseValues);
+                entry.CurrentValues.SetValues(databaseValues);
+                entry.State = EntityState.Unchanged;
+                reconciledEntries++;
+            }
+
+            if (db.ChangeTracker.HasChanges())
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            logger.LogWarning(
+                exception,
+                "Database seed stage {SeedStage} reconciled {ReconciledEntryCount} concurrently changed row(s) on attempt {Attempt}; user/database values remained authoritative.",
+                stageName,
+                reconciledEntries,
+                attempt);
+            return true;
+        }
+        catch (OperationCanceledException cancellationException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(cancellationException, "Concurrency reconciliation for database seed stage {SeedStage} was cancelled.", stageName);
+            throw;
+        }
+        catch (Exception reconciliationException)
+        {
+            logger.LogWarning(
+                reconciliationException,
+                "Database seed stage {SeedStage} could not reconcile its concurrency conflict on attempt {Attempt}.",
+                stageName,
+                attempt);
+            return false;
+        }
     }
 
     private bool IsInitializedStorePresent() =>
@@ -312,7 +377,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.0.3",
+                CurrentVersion = "2.1.8",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -325,7 +390,7 @@ public sealed class DatabaseInitializationService(
             // Lossless upgrade: only fill empty built-in fields and never replace user-maintained values.
             if (string.IsNullOrWhiteSpace(core.RootPath)) core.RootPath = repositoryRoot;
             if (string.IsNullOrWhiteSpace(core.Purpose)) core.Purpose = "Human-guided, humanitarian self-development of LocalGPT.";
-            if (string.IsNullOrWhiteSpace(core.CurrentVersion) || core.CurrentVersion is "0.1.0" or "0.1.7" or "0.1.8" or "2.0.0" or "2.0.1" or "2.0.2") core.CurrentVersion = "2.0.3";
+            if (string.IsNullOrWhiteSpace(core.CurrentVersion) || core.CurrentVersion is "0.1.0" or "0.1.7" or "0.1.8" or "2.0.0" or "2.0.1" or "2.0.2" or "2.0.3" or "2.0.4") core.CurrentVersion = "2.1.8";
             core.IsArchived = false;
             core.UpdatedAtUtc = now;
         }
@@ -349,6 +414,12 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.0.3", repositoryRoot, "In-chat ASCII game console, deterministic low-latency game bootstrap, shared human/AI controls, remote knowledge imports, tolerant runtime-class resolution and batched diagnostics.");
         EnsureRevision(core, "main", "seed-v2.0.3", repositoryRoot,
             "Integrates playable ASCII game sessions into Chat, preserves one authoritative frame owner, adds confirmed GitHub/web knowledge ingestion, improves handheld controls and reduces hot-path log and stream update pressure.");
+        EnsureVersion(core, "2.0.4", repositoryRoot, "Build-policy and diagnostics correction release with renderer-safe awaits, service-owned text operations, non-disposing diagnostics proxies, business-object boundaries and concurrency-safe seed reconciliation.");
+        EnsureRevision(core, "main", "seed-v2.0.4", repositoryRoot,
+            "Addresses LocalGPT build-policy findings, preserves DI disposal ownership, moves newly introduced data models into BusinessObjects, and reconciles database seed conflicts without overwriting concurrent user edits.");
+        EnsureVersion(core, "2.1.8", repositoryRoot, "Version-alignment release that advertises LocalGPT 2.1.8 consistently through the application package, runtime context, organic 1-Wire descriptor and seeded core-project metadata.");
+        EnsureRevision(core, "main", "seed-v2.1.8", repositoryRoot,
+            "Raises the LocalGPT application version to 2.1.8 without changing the separately versioned 1-Wire protocol package or removing prior release history.");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",

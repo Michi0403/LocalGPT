@@ -14,67 +14,147 @@ public sealed class RegexPatternService(
 {
     public async Task AddOrUpdateAsync(RegexPatternDto dto)
     {
-        ArgumentNullException.ThrowIfNull(dto);
-        ArgumentException.ThrowIfNullOrWhiteSpace(dto.Name);
-        ValidatePattern(dto.Pattern, dto.Flags);
-        await databaseInitializer.InitializeAsync().ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-        var entity = await db.RegexPatterns.SingleOrDefaultAsync(item => item.Name == dto.Name).ConfigureAwait(false);
-        if (entity is null)
+        try
         {
-            entity = new RegexPattern { Name = dto.Name, CreatedOn = DateTime.UtcNow };
-            db.RegexPatterns.Add(entity);
+            ArgumentNullException.ThrowIfNull(dto);
+            ArgumentException.ThrowIfNullOrWhiteSpace(dto.Name);
+            ValidatePattern(dto.Pattern, dto.Flags);
+            await databaseInitializer.InitializeAsync().ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var entity = await db.RegexPatterns.SingleOrDefaultAsync(item => item.Name == dto.Name).ConfigureAwait(false);
+            if (entity is null)
+            {
+                entity = new RegexPattern { Name = dto.Name, CreatedOn = DateTime.UtcNow };
+                db.RegexPatterns.Add(entity);
+            }
+            entity.Pattern = dto.Pattern;
+            entity.Flags = dto.Flags;
+            entity.UpdatedOn = DateTime.UtcNow;
+            await db.SaveChangesAsync().ConfigureAwait(false);
+            logger.LogInformation("Saved regex pattern {RegexName}; pattern content omitted from logs.", dto.Name);
         }
-        entity.Pattern = dto.Pattern;
-        entity.Flags = dto.Flags;
-        entity.UpdatedOn = DateTime.UtcNow;
-        await db.SaveChangesAsync().ConfigureAwait(false);
-        logger.LogInformation("Saved regex pattern {RegexName}; pattern content omitted from logs.", dto.Name);
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Saving a regex pattern failed; pattern content was omitted from logs.");
+            throw;
+        }
     }
 
     public async Task<Regex?> GetRegexAsync(string name)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        await databaseInitializer.InitializeAsync().ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-        var pattern = await db.RegexPatterns.AsNoTracking().SingleOrDefaultAsync(item => item.Name == name).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException($"Regex '{name}' was not found.");
-        return new Regex(pattern.Pattern, ParseFlags(pattern.Flags), TimeSpan.FromSeconds(2));
+        try
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            await databaseInitializer.InitializeAsync().ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var pattern = await db.RegexPatterns.AsNoTracking().SingleOrDefaultAsync(item => item.Name == name).ConfigureAwait(false)
+                ?? throw new KeyNotFoundException($"Regex '{name}' was not found.");
+            return Compile(pattern.Pattern, pattern.Flags);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading regex pattern {RegexName} failed; pattern content was omitted from logs.", name);
+            throw;
+        }
     }
 
     public Regex Compile(string pattern, string? flags = null)
     {
-        ArgumentNullException.ThrowIfNull(pattern);
-        if (pattern.Length > 16_000)
-            throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
-        return new Regex(pattern, ParseFlags(flags), TimeSpan.FromSeconds(2));
+        try
+        {
+            return Compile(pattern, flags, TimeSpan.FromSeconds(2));
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Regex compilation failed; pattern content was omitted from logs.");
+            throw;
+        }
     }
 
-    public Task<List<RegexPattern>> ListAllAsync() => ListAllAsync(null);
+    public Regex Compile(string pattern, string? flags, TimeSpan timeout)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(pattern);
+            if (pattern.Length > 16_000)
+                throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
+            var boundedTimeout = timeout <= TimeSpan.Zero || timeout > TimeSpan.FromSeconds(30)
+                ? TimeSpan.FromSeconds(2)
+                : timeout;
+            return new Regex(pattern, ParseFlags(flags), boundedTimeout);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Regex compilation with an explicit timeout failed; pattern content was omitted from logs.");
+            throw;
+        }
+    }
+
+    public async Task<List<RegexPattern>> ListAllAsync()
+    {
+        try
+        {
+            return await ListAllAsync(null).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Listing regex patterns failed.");
+            throw;
+        }
+    }
 
     public async Task<List<RegexPattern>> ListAllAsync(int? take = null)
     {
-        await databaseInitializer.InitializeAsync().ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-        var query = db.RegexPatterns.AsNoTracking().OrderBy(item => item.Name).AsQueryable();
-        if (take.HasValue)
-            query = query.Take(Math.Clamp(take.Value, 1, 1000));
-        return await query.ToListAsync().ConfigureAwait(false);
+        try
+        {
+            await databaseInitializer.InitializeAsync().ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var query = db.RegexPatterns.AsNoTracking().OrderBy(item => item.Name).AsQueryable();
+            if (take.HasValue)
+                query = query.Take(Math.Clamp(take.Value, 1, 1000));
+            return await query.ToListAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Listing regex patterns with a bounded row count failed.");
+            throw;
+        }
     }
 
-    public Task DeleteAsync(string name) => DeleteAsync(name, confirm: false);
+    public async Task DeleteAsync(string name)
+    {
+        try
+        {
+            await DeleteAsync(name, confirm: false).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Deleting regex pattern {RegexName} failed.", name);
+            throw;
+        }
+    }
 
     public async Task DeleteAsync(string name, bool confirm = false)
     {
-        if (!confirm)
-            throw new InvalidOperationException("Deletion requires explicit confirmation.");
-        await databaseInitializer.InitializeAsync().ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-        var entity = await db.RegexPatterns.SingleOrDefaultAsync(item => item.Name == name).ConfigureAwait(false);
-        if (entity is null)
-            return;
-        db.RegexPatterns.Remove(entity);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        try
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            if (!confirm)
+                throw new InvalidOperationException("Deletion requires explicit confirmation.");
+            await databaseInitializer.InitializeAsync().ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var entity = await db.RegexPatterns.SingleOrDefaultAsync(item => item.Name == name).ConfigureAwait(false);
+            if (entity is null)
+                return;
+            db.RegexPatterns.Remove(entity);
+            await db.SaveChangesAsync().ConfigureAwait(false);
+            logger.LogInformation("Deleted regex pattern {RegexName}; pattern content was omitted from logs.", name);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Confirmed deletion of regex pattern {RegexName} failed.", name);
+            throw;
+        }
     }
 
     private void ValidatePattern(string pattern, string? flags)
@@ -82,7 +162,7 @@ public sealed class RegexPatternService(
         ArgumentNullException.ThrowIfNull(pattern);
         if (pattern.Length > 16_000)
             throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
-        _ = Compile(pattern, flags);
+        _ = Compile(pattern, flags, TimeSpan.FromSeconds(2));
     }
 
     private RegexOptions ParseFlags(string? flags)

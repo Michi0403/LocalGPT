@@ -18,15 +18,26 @@ public sealed class RemoteKnowledgeImportController(
     {
         try
         {
+            ArgumentNullException.ThrowIfNull(request);
             request.PreviewOnly = true;
             request.SaveToKnowledge = false;
             request.UserConfirmed = false;
             return Ok(await importer.ImportAsync(request, cancellationToken).ConfigureAwait(false));
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or InvalidDataException or HttpRequestException)
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or InvalidDataException or HttpRequestException)
         {
-            logger.LogWarning(ex, "Remote knowledge inspection was rejected.");
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(exception, "Remote knowledge inspection was rejected; source path and content were omitted.");
+            return BadRequest(new { error = exception.Message });
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "Remote knowledge inspection was cancelled.");
+            return Conflict(new { error = "The remote knowledge inspection was cancelled." });
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Remote knowledge inspection failed; source path and content were omitted.");
+            return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Remote knowledge inspection failed");
         }
     }
 
@@ -43,12 +54,23 @@ public sealed class RemoteKnowledgeImportController(
     {
         try
         {
+            ArgumentNullException.ThrowIfNull(request);
             return Ok(await importer.ImportAsync(request, cancellationToken).ConfigureAwait(false));
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or InvalidDataException or HttpRequestException)
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or InvalidDataException or HttpRequestException)
         {
-            logger.LogWarning(ex, "Remote knowledge import was rejected.");
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(exception, "Remote knowledge import was rejected; source path and content were omitted.");
+            return BadRequest(new { error = exception.Message });
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "Remote knowledge import was cancelled.");
+            return Conflict(new { error = "The remote knowledge import was cancelled." });
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Remote knowledge import failed; source path and content were omitted.");
+            return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Remote knowledge import failed");
         }
     }
 }

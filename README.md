@@ -230,6 +230,14 @@ Use it, inspect it, fork it, improve it, or build something entirely different f
 
 </div>
 
+## LocalGPT 2.1.8 version alignment
+
+Version 2.1.8 raises the LocalGPT application, runtime context, organic 1-Wire application advertisement, and seeded LocalGPT Core project metadata to the same release number. The independently versioned `LocalGPT.WireProtocolVersion` package remains unchanged.
+
+## LocalGPT 2.0.4 build-policy and diagnostics corrections
+
+Version 2.0.4 keeps the in-chat game and remote-import features from 2.0.3 while correcting the repository's maintained architecture boundaries: renderer-affine Razor awaits are explicit, text splitting remains service-owned, newly introduced runtime/diagnostics data models live under `BusinessObjects`, and method diagnostics no longer take disposal ownership from dependency injection. Database seed reconciliation now keeps concurrent user/database values authoritative while preserving unrelated additive seed records.
+
 ## LocalGPT 2.0.3 in-chat runtime games and knowledge imports
 
 The Council Team editor includes database-backed runtime classes and categorized best-use DXFunctions. `/Chat` now keeps one persistent ASCII game surface directly beside the conversation, with the same bounded control contract for humans and AI players:

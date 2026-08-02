@@ -25,3 +25,5 @@ public sealed class StructuredJsonTranslationResult
     public List<StructuredJsonDocument> Documents { get; set; } = [];
     public List<string> Warnings { get; set; } = [];
 }
+
+public sealed record StructuredJsonCandidate(int Start, int Length, string Json);

@@ -2,8 +2,8 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Diagnostics;
 
@@ -11,30 +11,42 @@ namespace LocalGPT.Diagnostics;
 /// Adds bounded operation diagnostics to LocalGPT interface services without logging arguments,
 /// return values, prompts, source, database rows, credentials, or other payload content.
 /// </summary>
-public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAsyncDisposable
+public class ServiceMethodLoggingDispatchProxy : DispatchProxy
 {
     private object? target;
     private ILogger? logger;
     private bool development;
-    private bool ownsTarget;
-    private int disposed;
-    private readonly ConcurrentDictionary<string, OperationBatch> operationBatches = new(StringComparer.Ordinal);
-    private readonly TimeSpan batchWindow = TimeSpan.FromSeconds(2);
-    private int BatchSize => development ? 32 : 128;
+    private readonly ConcurrentDictionary<string, ServiceOperationBatch> operationBatches = new(StringComparer.Ordinal);
+    private readonly TimeSpan batchWindow = TimeSpan.FromSeconds(30);
+    private int BatchSize => development ? 65_536 : 262_144;
 
-    public void Initialize(object serviceTarget, ILoggerFactory loggerFactory, bool isDevelopment, bool ownsServiceTarget)
+    public void Initialize(object serviceTarget, ILoggerFactory loggerFactory, bool isDevelopment)
     {
-        target = serviceTarget ?? throw new ArgumentNullException(nameof(serviceTarget));
-        ArgumentNullException.ThrowIfNull(loggerFactory);
-        logger = loggerFactory.CreateLogger(serviceTarget.GetType());
-        development = isDevelopment;
-        ownsTarget = ownsServiceTarget;
+        ILogger? initializationLogger = null;
+        try
+        {
+            ArgumentNullException.ThrowIfNull(loggerFactory);
+            initializationLogger = loggerFactory.CreateLogger<ServiceMethodLoggingDispatchProxy>();
+            target = serviceTarget ?? throw new ArgumentNullException(nameof(serviceTarget));
+            logger = loggerFactory.CreateLogger(serviceTarget.GetType());
+            development = isDevelopment;
+            initializationLogger.LogDebug(
+                "Initialized bounded service-method diagnostics for {ServiceImplementationType}; service arguments and payloads remain excluded from logs.",
+                serviceTarget.GetType().FullName);
+        }
+        catch (Exception exception)
+        {
+            (initializationLogger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance).LogError(
+                exception,
+                "Initializing a service-method diagnostics proxy failed; service arguments and payloads were omitted.");
+            throw;
+        }
     }
 
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
     {
         ArgumentNullException.ThrowIfNull(targetMethod);
-        var currentTarget = target ?? throw new ObjectDisposedException(nameof(ServiceMethodLoggingDispatchProxy));
+        var currentTarget = target ?? throw new InvalidOperationException("The service diagnostics proxy was not initialized.");
         var currentLogger = logger ?? throw new InvalidOperationException("The service diagnostics proxy was not initialized.");
         var operation = $"{currentTarget.GetType().Name}.{targetMethod.Name}";
         var stopwatch = Stopwatch.StartNew();
@@ -74,28 +86,6 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
         stopwatch.Stop();
         LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
         return result;
-    }
-
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref disposed, 1) != 0)
-            return;
-        FlushAllBatches();
-        if (ownsTarget && target is IDisposable disposable)
-            disposable.Dispose();
-        target = null;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref disposed, 1) != 0)
-            return;
-        FlushAllBatches();
-        if (ownsTarget && target is IAsyncDisposable asyncDisposable)
-            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-        else if (ownsTarget && target is IDisposable disposable)
-            disposable.Dispose();
-        target = null;
     }
 
     private object InvokeGenericObserver(
@@ -340,8 +330,8 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
         long elapsedMilliseconds,
         bool forceFlush)
     {
-        var batch = operationBatches.GetOrAdd(operation, _ => new OperationBatch());
-        OperationBatchSnapshot? snapshot = null;
+        var batch = operationBatches.GetOrAdd(operation, _ => new ServiceOperationBatch());
+        ServiceOperationBatchSnapshot? snapshot = null;
         lock (batch.SyncRoot)
         {
             var now = DateTimeOffset.UtcNow;
@@ -354,26 +344,18 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
 
             if (forceFlush || batch.Count >= BatchSize || now - batch.StartedAtUtc >= batchWindow)
             {
-                snapshot = new OperationBatchSnapshot(
+                snapshot = new ServiceOperationBatchSnapshot(
                     batch.Count,
                     batch.TotalElapsedMilliseconds,
                     batch.MaximumElapsedMilliseconds,
                     batch.StartedAtUtc,
                     now);
-                batch.Reset();
+                ResetBatch(batch);
             }
         }
 
         if (snapshot is not null)
             WriteBatch(currentLogger, operation, snapshot);
-    }
-
-    private void FlushAllBatches()
-    {
-        var currentLogger = logger;
-        if (currentLogger is null) return;
-        foreach (var operation in operationBatches.Keys)
-            FlushBatch(currentLogger, operation);
     }
 
     private void FlushBatch(ILogger currentLogger, string operation)
@@ -381,19 +363,19 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
         if (!operationBatches.TryGetValue(operation, out var batch))
             return;
 
-        OperationBatchSnapshot? snapshot = null;
+        ServiceOperationBatchSnapshot? snapshot = null;
         lock (batch.SyncRoot)
         {
             if (batch.Count > 0)
             {
                 var now = DateTimeOffset.UtcNow;
-                snapshot = new OperationBatchSnapshot(
+                snapshot = new ServiceOperationBatchSnapshot(
                     batch.Count,
                     batch.TotalElapsedMilliseconds,
                     batch.MaximumElapsedMilliseconds,
                     batch.StartedAtUtc,
                     now);
-                batch.Reset();
+                ResetBatch(batch);
             }
         }
 
@@ -401,7 +383,15 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
             WriteBatch(currentLogger, operation, snapshot);
     }
 
-    private void WriteBatch(ILogger currentLogger, string operation, OperationBatchSnapshot snapshot)
+    private void ResetBatch(ServiceOperationBatch batch)
+    {
+        batch.Count = 0;
+        batch.TotalElapsedMilliseconds = 0;
+        batch.MaximumElapsedMilliseconds = 0;
+        batch.StartedAtUtc = default;
+    }
+
+    private void WriteBatch(ILogger currentLogger, string operation, ServiceOperationBatchSnapshot snapshot)
     {
         var average = snapshot.Count == 0
             ? 0d
@@ -415,29 +405,4 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
             average,
             snapshot.MaximumElapsedMilliseconds);
     }
-
-    private sealed class OperationBatch
-    {
-        public object SyncRoot { get; } = new();
-        public int Count { get; set; }
-        public long TotalElapsedMilliseconds { get; set; }
-        public long MaximumElapsedMilliseconds { get; set; }
-        public DateTimeOffset StartedAtUtc { get; set; }
-
-        public void Reset()
-        {
-            Count = 0;
-            TotalElapsedMilliseconds = 0;
-            MaximumElapsedMilliseconds = 0;
-            StartedAtUtc = default;
-        }
-    }
-
-    private sealed record OperationBatchSnapshot(
-        int Count,
-        long TotalElapsedMilliseconds,
-        long MaximumElapsedMilliseconds,
-        DateTimeOffset StartedAtUtc,
-        DateTimeOffset EndedAtUtc);
-
 }

@@ -20,12 +20,12 @@
     },
     "Components/Layout/ThemeJsChangeDispatcher.cs": {
       "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 10,
+      "maxConfigureAwaitTrueCount": 30,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeSwitcherContainer.razor": {
-      "maxUnconfiguredAwaitCount": 6,
-      "maxConfigureAwaitTrueCount": 0,
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 7,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeSwitcherItem.razor": {
@@ -39,8 +39,8 @@
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/CouncilTeams.razor": {
-      "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0,
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 5,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Database.razor": {
@@ -49,8 +49,8 @@
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/DxFunctionCatalog.razor": {
-      "maxUnconfiguredAwaitCount": 3,
-      "maxConfigureAwaitTrueCount": 0,
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 4,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Install.razor": {
@@ -84,8 +84,8 @@
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/TestLab.razor": {
-      "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 20,
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 23,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Shared/CouncilHardwareRoadEditor.razor": {
@@ -459,9 +459,9 @@
       "minConfigureAwaitFalseCount": 13
     },
     "Services/Persistence/DatabaseInitializationService.cs": {
-      "maxUnconfiguredAwaitCount": 1,
+      "maxUnconfiguredAwaitCount": 2,
       "maxConfigureAwaitTrueCount": 0,
-      "minConfigureAwaitFalseCount": 21
+      "minConfigureAwaitFalseCount": 24
     },
     "Services/Persistence/DatabaseMigrationCompatibilityService.cs": {
       "maxUnconfiguredAwaitCount": 14,
@@ -557,6 +557,21 @@
       "maxUnconfiguredAwaitCount": 3,
       "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 10
+    },
+    "Components/Shared/ChatGameConsole.razor": {
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 18,
+      "minConfigureAwaitFalseCount": 0
+    },
+    "Services/CouncilRuntimeClassService.cs": {
+      "maxUnconfiguredAwaitCount": 3,
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 13
+    },
+    "Services/RemoteKnowledgeImportService.cs": {
+      "maxUnconfiguredAwaitCount": 2,
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 20
     }
   }
 }

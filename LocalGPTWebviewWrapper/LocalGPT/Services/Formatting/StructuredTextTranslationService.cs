@@ -29,6 +29,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     private readonly Regex protectedBlockRegex;
     private readonly Regex keyTokenRegex;
     private readonly ILogger<StructuredTextTranslationService> logger;
+    private readonly IRegexPatternService regexPatternService;
     private readonly JsonDocumentOptions documentOptions = new()
     {
         AllowTrailingCommas = true,
@@ -39,32 +40,34 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     public StructuredTextTranslationService(
         IInitialDataCatalog initialDataCatalog,
         ILocalGptRuntimePolicyDataService runtimePolicy,
+        IRegexPatternService regexPatterns,
         ILogger<StructuredTextTranslationService> logger)
     {
         this.logger = logger;
+        regexPatternService = regexPatterns;
         fencedBlockRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonFencePatternName,
             "```(?:json)?\\s*(?<json>[\\[{].*?[\\]}])\\s*```",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline,
+            "IgnoreCase|Singleline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         plainStartRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonPlainStartPatternName,
             "(?m)^\\s*(?<jsonStart>[\\[{])",
-            RegexOptions.Multiline,
+            "Multiline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         protectedBlockRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonProtectedBlockPatternName,
             @"(?:```.*?(?:```|$)|<pre\b[^>]*>.*?(?:</pre>|$)|<code\b[^>]*>.*?(?:</code>|$)|<localgpt-dx-call>.*?(?:</localgpt-dx-call>|$))",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline,
+            "IgnoreCase|Singleline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         keyTokenRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonKeyTokenPatternName,
             "(?<=[a-z0-9])(?=[A-Z])|[_\\-.]+",
-            RegexOptions.CultureInvariant,
+            "CultureInvariant|Compiled",
             runtimePolicy.RegexTimeout);
     }
 
@@ -180,14 +183,14 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         }
     }
 
-    private List<JsonCandidate> FindJsonCandidates(string text, int maximumDocuments)
+    private List<StructuredJsonCandidate> FindJsonCandidates(string text, int maximumDocuments)
     {
         var excluded = fencedBlockRegex.Matches(text)
             .Concat(protectedBlockRegex.Matches(text).Cast<Match>())
             .Select(match => (Start: match.Index, End: match.Index + match.Length))
             .OrderBy(range => range.Start)
             .ToList();
-        var candidates = new List<JsonCandidate>();
+        var candidates = new List<StructuredJsonCandidate>();
 
         foreach (Match startMatch in plainStartRegex.Matches(text))
         {
@@ -201,16 +204,16 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
                 continue;
 
             var length = end - index + 1;
-            candidates.Add(new JsonCandidate(index, length, text.Substring(index, length)));
+            candidates.Add(new StructuredJsonCandidate(index, length, text.Substring(index, length)));
         }
 
         return candidates;
     }
 
-    private static bool IsInsideExcludedRange(int index, IReadOnlyList<(int Start, int End)> excluded) =>
+    private bool IsInsideExcludedRange(int index, IReadOnlyList<(int Start, int End)> excluded) =>
         excluded.Any(range => index >= range.Start && index < range.End);
 
-    private static bool StartsStandaloneBlock(string text, int index)
+    private bool StartsStandaloneBlock(string text, int index)
     {
         var lineStart = text.LastIndexOf('\n', Math.Max(0, index - 1));
         lineStart = lineStart < 0 ? 0 : lineStart + 1;
@@ -222,7 +225,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         return true;
     }
 
-    private static bool EndsStandaloneBlock(string text, int end)
+    private bool EndsStandaloneBlock(string text, int end)
     {
         for (var cursor = end + 1; cursor < text.Length && text[cursor] is not ('\r' or '\n'); cursor++)
         {
@@ -232,7 +235,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         return true;
     }
 
-    private static bool TryFindBalancedJsonEnd(string text, int start, out int end)
+    private bool TryFindBalancedJsonEnd(string text, int start, out int end)
     {
         var stack = new Stack<char>();
         var inString = false;
@@ -342,7 +345,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         return string.Join(Environment.NewLine, lines);
     }
 
-    private static string RenderScalar(JsonElement element) => element.ValueKind switch
+    private string RenderScalar(JsonElement element) => element.ValueKind switch
     {
         JsonValueKind.String => Encode(element.GetString() ?? string.Empty),
         JsonValueKind.Number => $"`{Encode(element.GetRawText())}`",
@@ -362,7 +365,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         return string.Join(" ", parts.Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
     }
 
-    private static string BuildTranslatedBlock(string markdown, string normalizedJson, bool includeRawJson)
+    private string BuildTranslatedBlock(string markdown, string normalizedJson, bool includeRawJson)
     {
         var builder = new StringBuilder()
             .AppendLine("<details class=\"localgpt-json-translation\" open>")
@@ -383,25 +386,20 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         return builder.ToString().TrimEnd();
     }
 
-    private static Regex CreateCatalogRegex(
+    private Regex CreateCatalogRegex(
         IReadOnlyList<RegexPatternDto> patterns,
         string name,
         string fallback,
-        RegexOptions baseOptions,
+        string fallbackFlags,
         TimeSpan timeout)
     {
-        var pattern = patterns.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
-        var options = baseOptions | RegexOptions.CultureInvariant | RegexOptions.Compiled;
-        if (pattern?.Flags?.Contains("i", StringComparison.OrdinalIgnoreCase) == true)
-            options |= RegexOptions.IgnoreCase;
-        if (pattern?.Flags?.Contains("m", StringComparison.OrdinalIgnoreCase) == true)
-            options |= RegexOptions.Multiline;
-        if (pattern?.Flags?.Contains("s", StringComparison.OrdinalIgnoreCase) == true)
-            options |= RegexOptions.Singleline;
-        return new Regex(pattern?.Pattern ?? fallback, options, timeout);
+        var definition = patterns.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+        var flags = string.IsNullOrWhiteSpace(definition?.Flags)
+            ? fallbackFlags
+            : $"{fallbackFlags}|{definition.Flags}";
+        return regexPatternService.Compile(definition?.Pattern ?? fallback, flags, timeout);
     }
 
-    private static string Encode(string value) => HtmlEncoder.Default.Encode(value);
+    private string Encode(string value) => HtmlEncoder.Default.Encode(value);
 
-    private sealed record JsonCandidate(int Start, int Length, string Json);
 }

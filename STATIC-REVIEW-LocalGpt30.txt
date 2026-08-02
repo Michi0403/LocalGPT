@@ -1,0 +1,29 @@
+LocalGpt(30) / LocalGPT 2.1.8 version review
+================================================
+
+Scope
+-----
+This revision changes release/version metadata only. No service behavior, database schema, controller contract, DXFunction schema, game configuration, or protocol package implementation was changed.
+
+Updated version surfaces
+------------------------
+- LocalGPT application project package version.
+- Injected ICustomVersion application value.
+- Organic 1-Wire application-version advertisements.
+- LocalGPT Core project current-version seed and additive version/revision history.
+- Current-release wording in the deliberately unimplemented adaptive Ollama benchmark wiring.
+- README and release changelog.
+
+Intentionally unchanged
+-----------------------
+- LocalGPT.WireProtocolVersion remains at its separately maintained protocol/package version.
+- Historical 2.0.4 changelog and seed history remain present.
+
+Validation performed
+--------------------
+- Confirmed XML parsing of the changed project file.
+- Confirmed all intended current application-version surfaces report 2.1.8.
+- Confirmed the archive contains no bin/obj directories or temporary extraction files.
+- Confirmed ZIP CRC/integrity after packaging.
+
+A .NET build was not executed in this environment; the change is metadata-only and should still be verified by the normal local repository build pipeline.

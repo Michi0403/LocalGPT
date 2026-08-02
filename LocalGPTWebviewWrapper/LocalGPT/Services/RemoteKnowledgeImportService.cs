@@ -34,35 +34,67 @@ public sealed class RemoteKnowledgeImportService(
         Timeout = TimeSpan.FromMinutes(10)
     };
 
+
+    public List<string> ParseLabels(params string?[] values)
+    {
+        try
+        {
+            ThrowIfDisposed();
+            var labels = new List<string>();
+            foreach (var value in values ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    continue;
+                labels.AddRange(value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            }
+
+            var result = labels
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(64)
+                .ToList();
+            logger.LogDebug("Normalized {RemoteKnowledgeLabelCount} remote-knowledge role/topic label(s).", result.Count);
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Remote-knowledge role/topic label normalization failed; label content was omitted from logs.");
+            throw;
+        }
+    }
+
     public async Task<RemoteKnowledgeImportResult> ImportAsync(
         RemoteKnowledgeImportRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        if (!Uri.TryCreate(request.SourceUrl?.Trim(), UriKind.Absolute, out var sourceUri) ||
-            sourceUri.Scheme is not ("http" or "https"))
-            throw new ArgumentException("A public absolute http/https SourceUrl is required.", nameof(request));
-        if (!request.PreviewOnly && request.SaveToKnowledge && !request.UserConfirmed)
-            throw new InvalidOperationException("Fresh user confirmation is required before remote content is saved to Council knowledge.");
-
-        await EnsurePublicHostAsync(sourceUri, cancellationToken).ConfigureAwait(false);
-        var includeRegex = BuildIncludeRegex(request.FileIncludeRegex);
-        var maxFiles = Math.Clamp(request.MaxFiles, 1, 20_000);
-        var sourceKind = ResolveKind(request.SourceKind, sourceUri);
-        var cacheRoot = BuildCacheRoot(sourceUri);
-        Directory.CreateDirectory(cacheRoot);
-        ClearDirectory(cacheRoot);
-
-        var result = new RemoteKnowledgeImportResult
-        {
-            SourceUrl = sourceUri.AbsoluteUri,
-            SourceKind = sourceKind,
-            CacheRoot = cacheRoot,
-            AppliedTags = BuildTags(request)
-        };
-
+        Uri? sourceUri = null;
         try
         {
+            ThrowIfDisposed();
+            ArgumentNullException.ThrowIfNull(request);
+            if (!Uri.TryCreate(request.SourceUrl?.Trim(), UriKind.Absolute, out var parsedSourceUri) ||
+                parsedSourceUri.Scheme is not ("http" or "https"))
+                throw new ArgumentException("A public absolute http/https SourceUrl is required.", nameof(request));
+            sourceUri = parsedSourceUri;
+            if (!request.PreviewOnly && request.SaveToKnowledge && !request.UserConfirmed)
+                throw new InvalidOperationException("Fresh user confirmation is required before remote content is saved to Council knowledge.");
+
+            await EnsurePublicHostAsync(sourceUri, cancellationToken).ConfigureAwait(false);
+            var includeRegex = BuildIncludeRegex(request.FileIncludeRegex);
+            var maxFiles = Math.Clamp(request.MaxFiles, 1, 20_000);
+            var sourceKind = ResolveKind(request.SourceKind, sourceUri);
+            var cacheRoot = BuildCacheRoot(sourceUri);
+            Directory.CreateDirectory(cacheRoot);
+            ClearDirectory(cacheRoot);
+
+            var result = new RemoteKnowledgeImportResult
+            {
+                SourceUrl = sourceUri.AbsoluteUri,
+                SourceKind = sourceKind,
+                CacheRoot = cacheRoot,
+                AppliedTags = BuildTags(request)
+            };
+
             if (sourceKind == "GitHub")
                 await DownloadGitHubAsync(sourceUri, request, result, includeRegex, maxFiles, cancellationToken).ConfigureAwait(false);
             else
@@ -102,14 +134,20 @@ public sealed class RemoteKnowledgeImportService(
                 result.ImportedKnowledgeCount);
             return result;
         }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation(ex, "Remote knowledge import for host {SourceHost} was cancelled by the caller.", sourceUri.Host);
+            logger.LogInformation(
+                exception,
+                "Remote knowledge import for host {SourceHost} was cancelled by the caller.",
+                sourceUri?.Host ?? "unresolved");
             throw;
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            logger.LogError(ex, "Remote knowledge import failed for host {SourceHost}; URL paths and downloaded content were omitted.", sourceUri.Host);
+            logger.LogError(
+                exception,
+                "Remote knowledge import failed for host {SourceHost}; URL paths and downloaded content were omitted.",
+                sourceUri?.Host ?? "unresolved");
             throw;
         }
     }
@@ -426,36 +464,48 @@ public sealed class RemoteKnowledgeImportService(
         return CollapseWhitespace(WebUtility.HtmlDecode(RemoveTags(withoutScripts))).Trim();
     }
 
-    private IEnumerable<string> ExtractHrefValues(string html)
+    private IReadOnlyList<string> ExtractHrefValues(string html)
     {
-        var index = 0;
-        while (index < html.Length)
+        try
         {
-            var hrefIndex = html.IndexOf("href", index, StringComparison.OrdinalIgnoreCase);
-            if (hrefIndex < 0)
-                yield break;
-            var cursor = hrefIndex + 4;
-            while (cursor < html.Length && char.IsWhiteSpace(html[cursor])) cursor++;
-            if (cursor >= html.Length || html[cursor] != '=')
+            var values = new List<string>();
+            var index = 0;
+            while (index < html.Length)
             {
-                index = cursor;
-                continue;
+                var hrefIndex = html.IndexOf("href", index, StringComparison.OrdinalIgnoreCase);
+                if (hrefIndex < 0)
+                    break;
+                var cursor = hrefIndex + 4;
+                while (cursor < html.Length && char.IsWhiteSpace(html[cursor])) cursor++;
+                if (cursor >= html.Length || html[cursor] != '=')
+                {
+                    index = Math.Max(cursor, hrefIndex + 4);
+                    continue;
+                }
+                cursor++;
+                while (cursor < html.Length && char.IsWhiteSpace(html[cursor])) cursor++;
+                if (cursor >= html.Length || html[cursor] is not ('\"' or '\''))
+                {
+                    index = Math.Max(cursor, hrefIndex + 4);
+                    continue;
+                }
+                var quote = html[cursor++];
+                var valueEnd = html.IndexOf(quote, cursor);
+                if (valueEnd < 0)
+                    break;
+                var value = html[cursor..valueEnd].Trim();
+                if (value.Length > 0 && !value.StartsWith('#'))
+                    values.Add(value);
+                index = valueEnd + 1;
             }
-            cursor++;
-            while (cursor < html.Length && char.IsWhiteSpace(html[cursor])) cursor++;
-            if (cursor >= html.Length || html[cursor] is not ('\"' or '\''))
-            {
-                index = cursor;
-                continue;
-            }
-            var quote = html[cursor++];
-            var valueEnd = html.IndexOf(quote, cursor);
-            if (valueEnd < 0)
-                yield break;
-            var value = html[cursor..valueEnd].Trim();
-            if (value.Length > 0 && !value.StartsWith('#'))
-                yield return value;
-            index = valueEnd + 1;
+
+            logger.LogTrace("Extracted {RemoteHrefCount} same-page href candidate(s); HTML content was omitted.", values.Count);
+            return values;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Remote HTML href extraction failed; HTML content was omitted from logs.");
+            throw;
         }
     }
 
@@ -571,10 +621,27 @@ public sealed class RemoteKnowledgeImportService(
         return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.Equals(IPAddress.IPv6Loopback);
     }
 
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref disposeState) != 0)
+            throw new ObjectDisposedException(nameof(RemoteKnowledgeImportService));
+    }
+
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref disposeState, 1) != 0) return;
-        http.Dispose();
+        try
+        {
+            if (Interlocked.Exchange(ref disposeState, 1) != 0)
+                return;
+            http.Dispose();
+            logger.LogDebug("Disposed the remote-knowledge HTTP client.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Disposing the remote-knowledge import service failed.");
+            throw;
+        }
     }
 
 }

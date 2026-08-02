@@ -92,3 +92,48 @@ public sealed class CouncilGameSessionSnapshot
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
+
+/// <summary>
+/// Internal authoritative state for one in-chat Council game session. It is deliberately
+/// data-only so the session service owns orchestration, rendering and synchronization policy.
+/// </summary>
+public sealed class CouncilGameSessionState
+{
+    public object SyncRoot { get; } = new();
+    public Guid Id { get; set; }
+    public string GameKey { get; set; } = string.Empty;
+    public string TeamKey { get; set; } = string.Empty;
+    public Guid? ConversationId { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public string Status { get; set; } = "Running";
+    public CouncilGameControlMode ControlMode { get; set; }
+    public bool AutoplayEnabled { get; set; }
+    public int AutoplayDelayMilliseconds { get; set; } = 1200;
+    public bool HumanInputRequired { get; set; }
+    public string InputReason { get; set; } = string.Empty;
+    public string CurrentTurnOwner { get; set; } = string.Empty;
+    public long Turn { get; set; }
+    public int FrameWidth { get; set; }
+    public int FrameHeight { get; set; }
+    public string FrameText { get; set; } = string.Empty;
+    public string FrameCaption { get; set; } = string.Empty;
+    public string FrameRenderer { get; set; } = string.Empty;
+    public string FrameOwner { get; set; } = string.Empty;
+    public long FrameOwnerTurn { get; set; } = -1;
+    public List<string> LegalActions { get; set; } = [];
+    public List<RuntimeInputBindingDefinition> InputBindings { get; set; } = [];
+    public string LastAction { get; set; } = "start";
+    public string LastActionBy { get; set; } = string.Empty;
+    public int PlayerX { get; set; }
+    public int PlayerY { get; set; }
+    public double FacingRadians { get; set; }
+    public bool IsDucking { get; set; }
+    public int Health { get; set; } = 100;
+    public int Ammo { get; set; } = 24;
+    public int MuzzleFlash { get; set; }
+    public int UsePulse { get; set; }
+    public string StoryLine { get; set; } = "A bell rings once. The village waits for your choice.";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+

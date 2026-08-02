@@ -375,8 +375,8 @@
             MaxLinkedPages = 20,
             SaveToKnowledge = !previewOnly && remoteSaveToKnowledge,
             PreviewOnly = previewOnly,
-            RoleKeys = SplitRemoteLabels(string.Join(';', new[] { remoteSelectedRoleKey, remoteRoleKeys }.Where(value => !string.IsNullOrWhiteSpace(value)))),
-            Topics = SplitRemoteLabels(remoteTopics),
+            RoleKeys = RemoteKnowledgeImporter.ParseLabels(remoteSelectedRoleKey, remoteRoleKeys),
+            Topics = RemoteKnowledgeImporter.ParseLabels(remoteTopics),
             UserConfirmed = !previewOnly && remoteImportApproved
         }).ConfigureAwait(true);
         resultText = JsonSerializer.Serialize(remoteImportResult, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
@@ -403,12 +403,6 @@
         };
         ResetRemoteApproval();
     }
-
-    private List<string> SplitRemoteLabels(string value) => (value ?? string.Empty)
-        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .Take(64)
-        .ToList();
 
     private Task RunLearnBaseImportAsync()
     {
@@ -654,7 +648,7 @@
           resultText = CouncilText.PrettyPrintJson(text, Logger);
           downloadLinks = ExtractDownloadLinks(text);
           await LoadArtifactWorkspacesAsync().ConfigureAwait(true);
-      }, "RefreshWorkspaceZipAsync");
+      }, "RefreshWorkspaceZipAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {

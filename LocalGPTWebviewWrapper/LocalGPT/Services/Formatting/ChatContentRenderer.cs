@@ -166,7 +166,7 @@ public sealed class ChatContentRenderer(
     }
 
 
-    private static bool ShouldTranslateStructuredText(string text)
+    private bool ShouldTranslateStructuredText(string text)
     {
         if (text.Length > AutomaticStructuredTranslationLimit)
             return false;

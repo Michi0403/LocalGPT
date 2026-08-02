@@ -1,0 +1,58 @@
+LocalGpt(29) / LocalGPT 2.0.4 static review
+============================================
+
+Scope
+-----
+This revision addresses the build-policy failures and runtime diagnostics failure reported after LocalGpt(28):
+
+1. TestLab direct Split/string.Join ownership findings.
+2. Architecture-audit stdout incorrectly becoming the PowerShell return value.
+3. Async continuation policy findings in Razor components and background services.
+4. Application-static findings in structured-text services.
+5. Iterator exception-policy findings in RemoteKnowledgeImportService.
+6. Newly introduced data definitions nested inside diagnostics/services.
+7. Missing logged exception boundaries in the newly added game/import services and controllers.
+8. ServiceMethodLoggingDispatchProxy disposing or invalidating DI-owned service targets.
+9. Core-project seed DbUpdateConcurrencyException handling.
+10. Excessive zero-millisecond service-operation log traffic.
+
+Implemented review decisions
+----------------------------
+- The build and architecture checks remain enabled. Their implementation/baselines were corrected rather than removed.
+- New mutable/snapshot/session/candidate data types live in BusinessObjects. Service classes own orchestration and behavior.
+- ServiceMethodLoggingDispatchProxy is not disposable and never owns or disposes the service target.
+- Disposable implementation types are not proxied; DI remains the only lifetime owner.
+- Successful hot-path calls remain available at Trace and are summarized at Information in bounded batches. Failures and cancellations are logged immediately with their exception.
+- Remote-import and game services/controllers have explicit logged exception boundaries. Remote URLs/content, prompts and frames are omitted from logs.
+- Seed concurrency reconciliation reloads the durable row and keeps user/database values authoritative before saving unrelated additive seed changes.
+
+Validation executed in this environment
+---------------------------------------
+PASS: Python application architecture audit, all modes.
+PASS: Python application architecture audit, structure mode.
+PASS: exact-count emulation of text-service ownership baseline.
+PASS: exact-count emulation of async continuation baseline.
+PASS: iterator exception-policy structure checks.
+PASS: no newly introduced nested data declarations in the LocalGpt(28) service additions.
+PASS: all public methods in the LocalGpt(28) game/import/diagnostics additions contain logged try/catch boundaries.
+PASS: JSON parsing for repository JSON files.
+PASS: XML parsing for project/props/targets/XML files.
+PASS: Node syntax checking for JavaScript files.
+PASS: C# lexical delimiter/string/comment checks.
+PASS: no unused general Exception catch variables found.
+PASS: no merge markers or packaged temporary/cache files.
+PASS: ZIP CRC/integrity validation after packaging.
+
+Not executable here
+-------------------
+The .NET SDK and Windows PowerShell are unavailable in this environment. Restore, Roslyn/Razor compilation, analyzers, EF execution, DevExpress generation, publishing and runtime testing must therefore be performed on the user's Windows/.NET installation.
+
+Suggested local verification order
+----------------------------------
+1. Restore/Rebuild the LocalGPT solution with all repository checks enabled.
+2. Confirm Assert-TextServiceOwnership, Assert-AsyncContinuationPolicy, Assert-ApplicationStaticPolicy, Assert-MethodDiagnostics and Assert-IteratorExceptionPolicy pass.
+3. Start LocalGPT and open Install; save configuration and verify NotificationService does not receive ObjectDisposedException.
+4. Inspect startup logs: service-operation success logs should be batched, while failures remain immediate.
+5. Re-run startup against the existing database that produced the core-project seed concurrency conflict and verify reconciliation/continuation.
+6. Exercise Test Lab remote preview/import with a small public repository and a public webpage.
+7. Start an ASCII game from /Chat, test human controls, AI/shared mode, frame submission and fullscreen.

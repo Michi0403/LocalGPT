@@ -4,34 +4,104 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
-public sealed class CouncilGameDxParameterReader
+public sealed class CouncilGameDxParameterReader(
+    ILogger<CouncilGameDxParameterReader> logger)
 {
-    public string String(JsonElement parameters, string name, string fallback = "") =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString() ?? fallback
-            : fallback;
+    public string String(JsonElement parameters, string name, string fallback = "")
+    {
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty(name, out var value) &&
+                   value.ValueKind == JsonValueKind.String
+                ? value.GetString() ?? fallback
+                : fallback;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council game string parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
 
-    public bool Boolean(JsonElement parameters, string name, bool fallback = false) =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var value) &&
-        (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False)
-            ? value.GetBoolean()
-            : fallback;
+    public bool Boolean(JsonElement parameters, string name, bool fallback = false)
+    {
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty(name, out var value) &&
+                   value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? value.GetBoolean()
+                : fallback;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council game Boolean parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
 
-    public Guid Guid(JsonElement parameters, string name) =>
-        System.Guid.TryParse(String(parameters, name), out var value) ? value : System.Guid.Empty;
+    public Guid Guid(JsonElement parameters, string name)
+    {
+        try
+        {
+            return System.Guid.TryParse(String(parameters, name), out var value)
+                ? value
+                : System.Guid.Empty;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council game GUID parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
 
-    public long Long(JsonElement parameters, string name, long fallback = 0) =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var value) && value.TryGetInt64(out var result)
-            ? result
-            : fallback;
+    public long Long(JsonElement parameters, string name, long fallback = 0)
+    {
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty(name, out var value) &&
+                   value.TryGetInt64(out var result)
+                ? result
+                : fallback;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council game Int64 parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
 
-    public int? NullableInt(JsonElement parameters, string name) =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var value) && value.TryGetInt32(out var result)
-            ? result
-            : null;
+    public int? NullableInt(JsonElement parameters, string name)
+    {
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty(name, out var value) &&
+                   value.TryGetInt32(out var result)
+                ? result
+                : null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council game nullable Int32 parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
 
-    public int Integer(JsonElement parameters, string name, int fallback) =>
-        NullableInt(parameters, name) ?? fallback;
+    public int Integer(JsonElement parameters, string name, int fallback)
+    {
+        try
+        {
+            return NullableInt(parameters, name) ?? fallback;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council game Int32 parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
 }
 
 public sealed class StartCouncilGameFunction(

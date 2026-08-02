@@ -10,6 +10,8 @@ public interface IRegexPatternService
 
     Regex Compile(string pattern, string? flags = null);
 
+    Regex Compile(string pattern, string? flags, TimeSpan timeout);
+
     Task<List<RegexPattern>> ListAllAsync();
 
     Task<List<RegexPattern>> ListAllAsync(int? take);
