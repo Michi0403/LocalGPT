@@ -1,0 +1,10 @@
+apiRules:
+- include:
+    uidRegex: ^LocalGPT
+    type: Namespace
+- exclude:
+    uidRegex: ^LocalGPT\.Migrations
+    type: Namespace
+- exclude:
+    uidRegex: ^LocalGPT\.Components\.Account
+    type: Namespace

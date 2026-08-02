@@ -1622,3 +1622,97 @@
         grid-template-rows: auto auto minmax(16rem, 48dvh) minmax(0, 1fr) auto !important;
     }
 }
+
+/* v40: expanded configuration surfaces are modal workspaces rather than short ribbon rows.
+   This keeps the transcript usable at 100% browser zoom and gives dense 4K forms room to breathe. */
+.chat-configuration-ribbon[open],
+.chat-session-tools-ribbon[open] {
+    position: fixed !important;
+    inset: clamp(.55rem, 2.2dvh, 1.6rem) clamp(.55rem, 2.2vw, 2.2rem) !important;
+    z-index: 1180 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    border-radius: .95rem !important;
+    box-shadow:
+        0 0 0 100vmax rgba(0, 0, 0, .68),
+        0 1.4rem 4rem rgba(0, 0, 0, .45) !important;
+}
+
+.chat-configuration-ribbon[open] > summary,
+.chat-session-tools-ribbon[open] > summary {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    min-height: 3.35rem;
+    padding: .85rem 1.1rem;
+    border-bottom: 1px solid var(--localgpt-border-color);
+    background: var(--localgpt-surface-bg);
+}
+
+.chat-configuration-ribbon[open] > summary::after,
+.chat-session-tools-ribbon[open] > summary::after {
+    content: "Close";
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+    padding: .35rem .65rem;
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: .55rem;
+    color: var(--bs-body-color);
+    background: var(--bs-tertiary-bg);
+    font-size: .82rem;
+    font-weight: 800;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content,
+.chat-session-tools-ribbon[open] .chat-session-tools-content {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    max-height: none !important;
+    overflow: auto !important;
+    padding: clamp(.75rem, 1.5vw, 1.35rem) !important;
+    scrollbar-gutter: stable both-edges;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content {
+    container-type: inline-size;
+}
+
+@media (min-width: 1180px) {
+    .chat-configuration-ribbon[open] .chat-configuration-content > .chat-session-toolbar,
+    .chat-configuration-ribbon[open] .chat-configuration-content > .chat-provider-row,
+    .chat-configuration-ribbon[open] .chat-configuration-content > .council-command-center,
+    .chat-configuration-ribbon[open] .chat-configuration-content > .chat-memory-project-center,
+    .chat-configuration-ribbon[open] .chat-configuration-content > .memory-thoughts,
+    .chat-configuration-ribbon[open] .chat-configuration-content > .architecture-poll {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .chat-configuration-ribbon[open],
+    .chat-session-tools-ribbon[open] {
+        inset: .25rem !important;
+        border-radius: .65rem !important;
+    }
+
+    .chat-configuration-ribbon[open] > summary,
+    .chat-session-tools-ribbon[open] > summary {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: .7rem .8rem;
+    }
+
+    .chat-configuration-ribbon[open] > summary::after,
+    .chat-session-tools-ribbon[open] > summary::after {
+        position: absolute;
+        inset-block-start: .55rem;
+        inset-inline-end: .65rem;
+    }
+}

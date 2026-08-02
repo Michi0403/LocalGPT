@@ -1,44 +1,116 @@
 .help-page {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 1rem;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    padding: clamp(.75rem, 1.4vw, 1.5rem);
+    box-sizing: border-box;
 }
 
 .help-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(18rem, .8fr);
+    gap: 1rem;
+    align-items: center;
     margin-bottom: 1rem;
+    padding: clamp(1rem, 2vw, 1.75rem);
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: .9rem;
+    background: var(--localgpt-surface-bg);
+    box-shadow: var(--localgpt-shadow-soft);
+}
+
+.help-kicker {
+    margin: 0 0 .25rem;
+    color: var(--bs-primary);
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
 }
 
 .help-hero h1 {
-    margin-bottom: 0.35rem;
+    margin: 0 0 .45rem;
+    font-size: clamp(2rem, 3vw, 3.25rem);
 }
 
 .help-hero p {
     margin: 0;
     color: var(--bs-secondary-color);
+    line-height: 1.6;
+}
+
+.help-actions {
+    display: grid;
+    gap: .65rem;
+}
+
+.help-actions > a {
+    min-height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+    font-weight: 750;
 }
 
 .help-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
     gap: 1rem;
 }
 
 .help-panel {
-    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.24);
-    border-radius: 8px;
-    padding: 1rem;
-    background: var(--bs-body-bg);
+    min-width: 0;
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: .85rem;
+    padding: clamp(1rem, 1.35vw, 1.4rem);
+    background: var(--localgpt-surface-bg);
+    box-shadow: var(--localgpt-shadow-soft);
 }
 
 .help-panel h2 {
-    font-size: 1.1rem;
-    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
+    margin: 0 0 .55rem;
 }
 
 .help-panel p {
-    margin: 0;
+    margin: 0 0 .8rem;
+    line-height: 1.55;
+}
+
+.help-panel a {
+    font-weight: 750;
+}
+
+.help-api-panel {
+    border-color: color-mix(in srgb, var(--bs-primary) 45%, var(--localgpt-border-color));
 }
 
 .help-wide {
     margin-top: 1rem;
+}
+
+.help-wide code {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+    .help-hero {
+        grid-template-columns: 1fr;
+    }
+}
+
+.help-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .85rem;
+    color: var(--bs-secondary-color);
+    font-size: .9rem;
+}
+
+.help-status .badge {
+    font-size: .78rem;
 }

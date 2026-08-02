@@ -424,7 +424,7 @@ public sealed class OneWireMessageDispatcher(
         PeerId = "localgpt",
         DisplayName = "LocalGPT",
         Application = "LocalGPT",
-        ApplicationVersion = "2.1.17-organic-wire",
+        ApplicationVersion = "2.1.18-organic-wire",
         HostName = Environment.MachineName,
         Address = "127.0.0.1",
         ServicePort = Program.OneWirePort,

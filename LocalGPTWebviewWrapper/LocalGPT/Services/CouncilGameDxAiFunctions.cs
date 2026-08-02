@@ -112,12 +112,12 @@ public sealed class StartCouncilGameFunction(
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.start", "POST", "/api/dxai/functions/localgpt.game.session.start/invoke",
         "Starts a directly playable /Chat ASCII game session. Human and AI players receive the same control contract.",
-        "JSON parameters: gameKey ascii-doom or green-dragon; teamKey optional; conversationId optional; controlMode Human, Ai or Shared; autoplayEnabled and autoplayDelayMilliseconds optional.",
+        "JSON parameters: gameKey ascii-doom or green-dragon; teamKey optional; conversationId optional; controlMode Human, Ai or Shared; directorMode Deterministic or CouncilModelPreferred; gameDirectorModelName and creatureDirectorCount optional; autoplayEnabled and autoplayDelayMilliseconds optional.",
         "Starts only an original LocalGPT runtime-class game session. It does not execute the original DOOM engine or include commercial assets.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
-        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"autoplayEnabled":{"type":"boolean"},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000}},"additionalProperties":false}
+        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayEnabled":{"type":"boolean"},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000}},"additionalProperties":false}
         """);
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
@@ -126,6 +126,10 @@ public sealed class StartCouncilGameFunction(
         {
             var modeText = parameters.String(request.Parameters, "controlMode", "Shared");
             var mode = Enum.TryParse<CouncilGameControlMode>(modeText, true, out var parsed) ? parsed : CouncilGameControlMode.Shared;
+            var directorModeText = parameters.String(request.Parameters, "directorMode", "Deterministic");
+            var directorMode = Enum.TryParse<CouncilGameDirectorMode>(directorModeText, true, out var parsedDirectorMode)
+                ? parsedDirectorMode
+                : CouncilGameDirectorMode.Deterministic;
             var result = await games.StartAsync(new StartCouncilGameRequest
             {
                 GameKey = parameters.String(request.Parameters, "gameKey", "ascii-doom"),
@@ -134,6 +138,9 @@ public sealed class StartCouncilGameFunction(
                 ControlMode = mode,
                 AutoplayEnabled = parameters.Boolean(request.Parameters, "autoplayEnabled", mode == CouncilGameControlMode.Ai),
                 AutoplayDelayMilliseconds = parameters.Integer(request.Parameters, "autoplayDelayMilliseconds", 1200),
+                DirectorMode = directorMode,
+                GameDirectorModelName = parameters.String(request.Parameters, "gameDirectorModelName", "qwen3.5:0.8b"),
+                CreatureDirectorCount = Math.Clamp(parameters.Integer(request.Parameters, "creatureDirectorCount", 2), 1, 8),
                 StartedBy = "LocalGPT AI Council"
             }, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
@@ -178,20 +185,20 @@ public sealed class GetCouncilGameFunction(
     }
 }
 
-public sealed class ControlCouncilGameFunction(
+public sealed class PreviewCouncilGameControlFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
-    ILogger<ControlCouncilGameFunction> logger) : IDxAiFunctionHandler
+    ILogger<PreviewCouncilGameControlFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        "localgpt.game.control", "POST", "/api/dxai/functions/localgpt.game.control/invoke",
-        "Lets an AI player use exactly the same move, turn, aim, shoot, duck, use or choice action contract as the human /Chat controls.",
-        "JSON parameters: sessionId, action required; expectedTurn, aimX, aimY and actorName optional.",
-        "One bounded game control only. The function cannot send operating-system keyboard or gamepad input.",
-        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
+        "localgpt.game.control.preview", "POST", "/api/dxai/functions/localgpt.game.control.preview/invoke",
+        "Asks the authoritative GameDirector and its creature/object subdirectors to review one proposed control without advancing the game.",
+        "JSON parameters: sessionId and action required; expectedTurn, aimX, aimY, actorName, actorKind and runtimeClassKey optional.",
+        "Read-only decision preview. A later localgpt.game.control call is still required to advance the authoritative session.",
+        IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
-        {"type":"object","required":["sessionId","action"],"properties":{"sessionId":{"type":"string"},"action":{"type":"string"},"expectedTurn":{"type":"integer"},"aimX":{"type":"integer"},"aimY":{"type":"integer"},"actorName":{"type":"string"}},"additionalProperties":false}
+        {"type":"object","required":["sessionId","action"],"properties":{"sessionId":{"type":"string"},"action":{"type":"string"},"expectedTurn":{"type":"integer"},"aimX":{"type":"integer"},"aimY":{"type":"integer"},"actorName":{"type":"string"},"actorKind":{"type":"string","enum":["Player","Creature","ReactiveObject","Director"]},"runtimeClassKey":{"type":"string"}},"additionalProperties":false}
         """);
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
@@ -202,6 +209,61 @@ public sealed class ControlCouncilGameFunction(
             var action = parameters.String(request.Parameters, "action");
             if (id == Guid.Empty || string.IsNullOrWhiteSpace(action))
                 return new DxAiFunctionInvocationResult { Succeeded = false, Status = "InvalidParameters", Error = "sessionId and action are required." };
+
+            var actorKindText = parameters.String(request.Parameters, "actorKind", "Player");
+            var actorKind = Enum.TryParse<CouncilGameActorKind>(actorKindText, true, out var parsedActorKind)
+                ? parsedActorKind
+                : CouncilGameActorKind.Player;
+            var result = await games.PreviewControlAsync(new CouncilGameControlRequest
+            {
+                SessionId = id,
+                Action = action,
+                AimX = parameters.NullableInt(request.Parameters, "aimX"),
+                AimY = parameters.NullableInt(request.Parameters, "aimY"),
+                ExpectedTurn = parameters.Long(request.Parameters, "expectedTurn", -1) is var expected && expected >= 0 ? expected : null,
+                Source = "AI",
+                ActorName = parameters.String(request.Parameters, "actorName", "AI Player Controller"),
+                ActorKind = actorKind,
+                RuntimeClassKey = parameters.String(request.Parameters, "runtimeClassKey", "games.ascii.doom.player")
+            }, cancellationToken).ConfigureAwait(false);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "AI game control preview was rejected.");
+            return new DxAiFunctionInvocationResult { Succeeded = false, Status = "Rejected", Error = exception.Message };
+        }
+    }
+}
+
+public sealed class ControlCouncilGameFunction(
+    ICouncilGameSessionService games,
+    CouncilGameDxParameterReader parameters,
+    ILogger<ControlCouncilGameFunction> logger) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "localgpt.game.control", "POST", "/api/dxai/functions/localgpt.game.control/invoke",
+        "Lets an AI player use exactly the same move, turn, aim, shoot, duck, use or choice action contract as the human /Chat controls.",
+        "JSON parameters: sessionId and action required; expectedTurn, aimX, aimY, actorName, actorKind and runtimeClassKey optional.",
+        "One bounded game control only. The function cannot send operating-system keyboard or gamepad input.",
+        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
+        SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
+        ParameterSchemaJson: """
+        {"type":"object","required":["sessionId","action"],"properties":{"sessionId":{"type":"string"},"action":{"type":"string"},"expectedTurn":{"type":"integer"},"aimX":{"type":"integer"},"aimY":{"type":"integer"},"actorName":{"type":"string"},"actorKind":{"type":"string","enum":["Player","Creature","ReactiveObject","Director"]},"runtimeClassKey":{"type":"string"}},"additionalProperties":false}
+        """);
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var id = parameters.Guid(request.Parameters, "sessionId");
+            var action = parameters.String(request.Parameters, "action");
+            if (id == Guid.Empty || string.IsNullOrWhiteSpace(action))
+                return new DxAiFunctionInvocationResult { Succeeded = false, Status = "InvalidParameters", Error = "sessionId and action are required." };
+            var actorKindText = parameters.String(request.Parameters, "actorKind", "Player");
+            var actorKind = Enum.TryParse<CouncilGameActorKind>(actorKindText, true, out var parsedActorKind)
+                ? parsedActorKind
+                : CouncilGameActorKind.Player;
             var result = await games.ApplyControlAsync(new CouncilGameControlRequest
             {
                 SessionId = id,
@@ -210,7 +272,9 @@ public sealed class ControlCouncilGameFunction(
                 AimY = parameters.NullableInt(request.Parameters, "aimY"),
                 ExpectedTurn = parameters.Long(request.Parameters, "expectedTurn", -1) is var expected && expected >= 0 ? expected : null,
                 Source = "AI",
-                ActorName = parameters.String(request.Parameters, "actorName", "AI Player Controller")
+                ActorName = parameters.String(request.Parameters, "actorName", "AI Player Controller"),
+                ActorKind = actorKind,
+                RuntimeClassKey = parameters.String(request.Parameters, "runtimeClassKey", "games.ascii.doom.player")
             }, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
         }

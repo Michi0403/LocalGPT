@@ -11,6 +11,7 @@ namespace LocalGPT.Services;
 /// /Chat reactive; a single Council renderer may replace a turn's complete frame through SubmitFrameAsync.
 /// </summary>
 public sealed class CouncilGameSessionService(
+    ICouncilGameDirectorService gameDirector,
     ILogger<CouncilGameSessionService> logger) : ICouncilGameSessionService, IDisposable
 {
     private const int DefaultFrameWidth = 80;
@@ -47,6 +48,10 @@ public sealed class CouncilGameSessionService(
                     ? "AI player owns the next control step."
                     : "Your turn: use the same controls that an AI player receives.",
                 CurrentTurnOwner = request.ControlMode == CouncilGameControlMode.Ai ? "AI Player Controller" : "Human Player",
+                DirectorMode = request.DirectorMode,
+                GameDirectorModelName = request.GameDirectorModelName?.Trim() ?? string.Empty,
+                CreatureDirectorCount = Math.Clamp(request.CreatureDirectorCount, 1, 8),
+                LastDirectorDecision = "The GameDirector owns all state transitions; controllers may only submit proposals.",
                 FrameWidth = DefaultFrameWidth,
                 FrameHeight = DefaultFrameHeight,
                 LastActionBy = string.IsNullOrWhiteSpace(request.StartedBy) ? "Human User" : request.StartedBy.Trim(),
@@ -150,7 +155,7 @@ public sealed class CouncilGameSessionService(
         }
     }
 
-    public Task<CouncilGameSessionSnapshot> ApplyControlAsync(
+    public async Task<CouncilGameDirectorDecision> PreviewControlAsync(
         CouncilGameControlRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -162,24 +167,69 @@ public sealed class CouncilGameSessionService(
             if (!sessions.TryGetValue(request.SessionId, out var session))
                 throw new KeyNotFoundException($"Council game session {request.SessionId} was not found.");
 
+            CouncilGameSessionSnapshot snapshot;
+            string normalizedAction;
             lock (session.SyncRoot)
             {
                 if (request.ExpectedTurn is long expected && expected != session.Turn)
                     throw new InvalidOperationException($"The game advanced from turn {expected} to {session.Turn}; refresh before sending another control.");
                 if (session.Status != "Running")
                     throw new InvalidOperationException("The game session is not running.");
+                normalizedAction = NormalizeAction(request.Action, request.AxisX, request.AxisY);
+                snapshot = ToSnapshotUnsafe(session);
+            }
 
-                var action = NormalizeAction(request.Action, request.AxisX, request.AxisY);
-                if (!session.LegalActions.Contains(action, StringComparer.OrdinalIgnoreCase))
-                    throw new ArgumentException($"Control action '{request.Action}' is not legal for {session.GameKey}.", nameof(request));
+            return await gameDirector.EvaluateAsync(new CouncilGameDirectorContext
+            {
+                Session = snapshot,
+                Proposal = request,
+                NormalizedAction = normalizedAction,
+                DirectorMode = snapshot.DirectorMode,
+                DirectorModelName = snapshot.GameDirectorModelName
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "Previewing a Council game control was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Previewing a Council game control failed; request content was omitted.");
+            throw;
+        }
+    }
+
+    public async Task<CouncilGameSessionSnapshot> ApplyControlAsync(
+        CouncilGameControlRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var decision = await PreviewControlAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!decision.Approved)
+                throw new InvalidOperationException(decision.Reason);
+            if (!sessions.TryGetValue(request.SessionId, out var session))
+                throw new KeyNotFoundException($"Council game session {request.SessionId} was not found.");
+
+            lock (session.SyncRoot)
+            {
+                if (session.Turn != decision.ExpectedTurn)
+                    throw new InvalidOperationException($"The game advanced from turn {decision.ExpectedTurn} to {session.Turn} while the GameDirector reviewed the proposal.");
+                if (request.ExpectedTurn is long expected && expected != session.Turn)
+                    throw new InvalidOperationException($"The game advanced from turn {expected} to {session.Turn}; refresh before sending another control.");
+                if (session.Status != "Running")
+                    throw new InvalidOperationException("The game session is not running.");
 
                 session.HumanInputRequired = false;
-                session.InputReason = "Resolving the selected control through the shared human/AI control service.";
-                session.CurrentTurnOwner = "State resolver";
-                ApplyAction(session, action, request.AimX, request.AimY);
+                session.InputReason = "The GameDirector approved the proposal and is resolving one authoritative world step.";
+                session.CurrentTurnOwner = session.GameDirectorName;
+                ApplyAction(session, decision.NormalizedAction, request.AimX, request.AimY);
                 session.Turn++;
-                session.LastAction = action;
+                session.LastAction = decision.NormalizedAction;
                 session.LastActionBy = string.IsNullOrWhiteSpace(request.ActorName) ? request.Source : request.ActorName.Trim();
+                session.LastDirectorDecision = decision.Reason;
+                session.LastDirectorPredictions = decision.Predictions.Select(ClonePrediction).ToList();
                 session.FrameText = Render(session);
                 session.FrameCaption = BuildCaption(session);
                 session.FrameRenderer = "LocalGPT deterministic preview renderer";
@@ -190,24 +240,24 @@ public sealed class CouncilGameSessionService(
                 if (session.ControlMode == CouncilGameControlMode.Ai)
                 {
                     session.CurrentTurnOwner = "AI Player Controller";
-                    session.InputReason = "AI player may submit the next action through localgpt.game.control.";
+                    session.InputReason = "AI player may submit the next proposal; the GameDirector validates it before state mutation.";
                 }
                 else
                 {
                     session.CurrentTurnOwner = "Human Player";
                     session.HumanInputRequired = true;
-                    session.InputReason = "Your turn: controls are visible again after the resolved frame update.";
+                    session.InputReason = "Your turn: controls submit proposals to the GameDirector.";
                 }
             }
 
             Notify(session.Id);
             logger.LogInformation(
-                "Applied game control {Action} to session {GameSessionId} at turn {Turn} from {ControlSource}.",
+                "GameDirector approved control {Action} for session {GameSessionId} at turn {Turn} from {ControlSource}.",
                 session.LastAction,
                 session.Id,
                 session.Turn,
                 string.IsNullOrWhiteSpace(request.Source) ? "unknown" : request.Source);
-            return Task.FromResult(ToSnapshot(session));
+            return ToSnapshot(session);
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
@@ -782,42 +832,48 @@ public sealed class CouncilGameSessionService(
     private CouncilGameSessionSnapshot ToSnapshot(CouncilGameSessionState session)
     {
         lock (session.SyncRoot)
-        {
-            return new CouncilGameSessionSnapshot
-            {
-                Id = session.Id,
-                GameKey = session.GameKey,
-                TeamKey = session.TeamKey,
-                ConversationId = session.ConversationId,
-                DisplayName = session.DisplayName,
-                Status = session.Status,
-                ControlMode = session.ControlMode,
-                AutoplayEnabled = session.AutoplayEnabled,
-                AutoplayDelayMilliseconds = session.AutoplayDelayMilliseconds,
-                HumanInputRequired = session.HumanInputRequired,
-                InputReason = session.InputReason,
-                CurrentTurnOwner = session.CurrentTurnOwner,
-                Turn = session.Turn,
-                FrameWidth = session.FrameWidth,
-                FrameHeight = session.FrameHeight,
-                FrameText = session.FrameText,
-                FrameCaption = session.FrameCaption,
-                FrameRenderer = session.FrameRenderer,
-                LegalActions = session.LegalActions.ToArray(),
-                InputBindings = session.InputBindings.Select(CloneBinding).ToArray(),
-                LastAction = session.LastAction,
-                LastActionBy = session.LastActionBy,
-                PlayerX = session.PlayerX,
-                PlayerY = session.PlayerY,
-                FacingDegrees = Math.Round(NormalizeRadians(session.FacingRadians) * 180d / Math.PI, 1),
-                IsDucking = session.IsDucking,
-                Health = session.Health,
-                Ammo = session.Ammo,
-                CreatedAtUtc = session.CreatedAtUtc,
-                UpdatedAtUtc = session.UpdatedAtUtc
-            };
-        }
+            return ToSnapshotUnsafe(session);
     }
+
+    private CouncilGameSessionSnapshot ToSnapshotUnsafe(CouncilGameSessionState session) => new()
+    {
+        Id = session.Id,
+        GameKey = session.GameKey,
+        TeamKey = session.TeamKey,
+        ConversationId = session.ConversationId,
+        DisplayName = session.DisplayName,
+        Status = session.Status,
+        ControlMode = session.ControlMode,
+        AutoplayEnabled = session.AutoplayEnabled,
+        AutoplayDelayMilliseconds = session.AutoplayDelayMilliseconds,
+        HumanInputRequired = session.HumanInputRequired,
+        InputReason = session.InputReason,
+        CurrentTurnOwner = session.CurrentTurnOwner,
+        DirectorMode = session.DirectorMode,
+        GameDirectorName = session.GameDirectorName,
+        GameDirectorModelName = session.GameDirectorModelName,
+        CreatureDirectorCount = session.CreatureDirectorCount,
+        LastDirectorDecision = session.LastDirectorDecision,
+        LastDirectorPredictions = session.LastDirectorPredictions.Select(ClonePrediction).ToArray(),
+        Turn = session.Turn,
+        FrameWidth = session.FrameWidth,
+        FrameHeight = session.FrameHeight,
+        FrameText = session.FrameText,
+        FrameCaption = session.FrameCaption,
+        FrameRenderer = session.FrameRenderer,
+        LegalActions = session.LegalActions.ToArray(),
+        InputBindings = session.InputBindings.Select(CloneBinding).ToArray(),
+        LastAction = session.LastAction,
+        LastActionBy = session.LastActionBy,
+        PlayerX = session.PlayerX,
+        PlayerY = session.PlayerY,
+        FacingDegrees = Math.Round(NormalizeRadians(session.FacingRadians) * 180d / Math.PI, 1),
+        IsDucking = session.IsDucking,
+        Health = session.Health,
+        Ammo = session.Ammo,
+        CreatedAtUtc = session.CreatedAtUtc,
+        UpdatedAtUtc = session.UpdatedAtUtc
+    };
 
     private RuntimeInputBindingDefinition CloneBinding(RuntimeInputBindingDefinition binding) => new()
     {
@@ -826,6 +882,27 @@ public sealed class CouncilGameSessionService(
         KeyboardKey = binding.KeyboardKey,
         GamepadButton = binding.GamepadButton,
         Description = binding.Description
+    };
+
+    private CouncilGameSubdirectorPrediction ClonePrediction(CouncilGameSubdirectorPrediction prediction) => new()
+    {
+        DirectorKey = prediction.DirectorKey,
+        ActorKind = prediction.ActorKind,
+        RuntimeClassKey = prediction.RuntimeClassKey,
+        Prediction = prediction.Prediction,
+        ConfidencePercent = prediction.ConfidencePercent,
+        ActorInstances = prediction.ActorInstances.Select(CloneActorRuntime).ToArray()
+    };
+
+    private CouncilGameActorRuntimeDescriptor CloneActorRuntime(CouncilGameActorRuntimeDescriptor actor) => new()
+    {
+        InstanceKey = actor.InstanceKey,
+        ActorKind = actor.ActorKind,
+        RuntimeClassKey = actor.RuntimeClassKey,
+        Archetype = actor.Archetype,
+        CouncilRole = actor.CouncilRole,
+        CouncilAssignmentGroup = actor.CouncilAssignmentGroup,
+        CouncilAssignmentSlot = actor.CouncilAssignmentSlot
     };
 
     private void Notify(Guid sessionId)

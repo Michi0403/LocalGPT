@@ -312,3 +312,13 @@ Version 2.1.17 completes the workspace access-policy compiler correction with th
 OneWire Security, Human-guided Projects and Project Maintenance now use responsive full-width grids modeled after the Chat surface. The ASCII game console is opt-in, opens larger, places its guide beside the frame when space permits, and supports three fullscreen modes: whole-frame fit, width fit with vertical scrolling, and native monospace size with scrolling. The project-owned corridor remains an original LocalGPT implementation; optional upstream DOOM source import is still separately attributed and does not bundle the original engine, WAD data or commercial assets.
 
 See `CHANGELOG-v2.1.17-responsive-learnbase-and-ascii-layout.md`.
+
+## LocalGPT 2.1.18 authoritative GameDirector, generated documentation and startup correction
+
+Version 2.1.18 makes the GameDirector the final authority for every game-state transition. Human controllers, AI controllers, creature Councils and reactive map objects submit proposals; the session changes only after a turn-safe director decision. The HTTP and DXFunction surfaces include a read-only decision preview, and the runtime catalog now distinguishes director, creature and reactive-object contracts.
+
+Existing core-project seed data is loaded without tracking and only missing child records are attached for insertion. This avoids the stale tracked-row `DbUpdateConcurrencyException` seen during startup while preserving database-owned project values.
+
+Chat configuration and session-tool panels now expand into responsive viewport workspaces so dense DevExpress configuration remains usable at 100% browser zoom and on 4K displays. The former handwritten Help page now launches versioned DocFX HTML/API documentation generated from maintained articles and C# XML comments. Windows builds generate the HTML documentation and attempt `LocalGPT-2.1.18.pdf`; Release builds require the PDF unless explicitly overridden.
+
+See `CHANGELOG-v2.1.18-gamedirector-docfx-startup-and-chat-layout.md`.

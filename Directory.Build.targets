@@ -134,4 +134,24 @@
     <Exec Condition="Exists('$(SystemVariableInitializationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SystemVariableInitializationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
+  <PropertyGroup>
+    <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build\Build-Documentation.ps1</LocalGptDocumentationScript>
+    <BuildLocalGptDocumentation Condition="'$(BuildLocalGptDocumentation)' == ''">true</BuildLocalGptDocumentation>
+    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == '' and '$(Configuration)' == 'Release'">true</RequireLocalGptDocumentationPdf>
+    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">false</RequireLocalGptDocumentationPdf>
+    <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
+  </PropertyGroup>
+
+  <Target Name="BuildLocalGptDocumentation"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(LocalGptDocumentationScript)')" Text="LocalGPT documentation build script is missing: $(LocalGptDocumentationScript)" />
+    <Exec Condition="Exists('$(LocalGptDocumentationScript)')"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(MSBuildThisFileDirectory)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(TargetDir)wwwroot\help-docs&quot; $(LocalGptDocumentationPdfArgument)"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
 </Project>

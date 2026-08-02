@@ -1,0 +1,20 @@
+pdf: true
+items:
+- name: Overview
+  href: index.md
+- name: User guide
+  items:
+  - name: Chat and Council
+    href: articles/chat-and-council.md
+  - name: Embedded firmware and wiring
+    href: articles/embedded-firmware.md
+  - name: Workspaces and permissions
+    href: articles/workspaces.md
+  - name: GameDirector runtime
+    href: articles/game-director.md
+  - name: Security and local execution
+    href: articles/security.md
+  - name: Generated documentation
+    href: articles/documentation.md
+- name: API reference
+  href: api/

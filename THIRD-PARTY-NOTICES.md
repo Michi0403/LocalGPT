@@ -16,6 +16,7 @@ See `docs/DEVEXPRESS_ASSETS.md`.
 - Markdig — BSD-2-Clause license.
 - MessagePack for C# and SignalR MessagePack protocol support — MIT and applicable Microsoft package licenses.
 - SQLitePCLRaw / bundled SQLite native library — upstream package licenses and SQLite public-domain dedication apply as distributed.
+- DocFX — MIT-licensed documentation build tool restored through the repository-local .NET tool manifest. It is used to generate HTML/API documentation and a versioned PDF; it is not part of LocalGPT's runtime authority model.
 
 ## Included browser/UI assets
 

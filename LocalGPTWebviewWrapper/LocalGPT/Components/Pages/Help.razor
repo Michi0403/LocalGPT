@@ -1,57 +1,90 @@
 @page "/help"
+@inject ICustomVersion Version
+@inject IDocumentationCatalogService Documentation
 @inject ILogger<Help> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
-<PageTitle>Help</PageTitle>
+<PageTitle>Documentation</PageTitle>
 
 <main class="help-page">
     <section class="help-hero">
-        <h1>LocalGPT Help</h1>
-        <p>Use LocalGPT as a local AI workbench for Ollama, DXAiChat memory, and Minecraft Java mod building.</p>
+        <div>
+            <p class="help-kicker">LocalGPT @Version.Version</p>
+            <h1>Documentation</h1>
+            <p>The former handwritten help cards have been replaced by build-generated DocFX documentation and API reference pages sourced from maintained articles and C# XML comments.</p>
+            <div class="help-status" aria-label="Documentation status">
+                <span class="badge text-bg-@(documentationStatus.HtmlAvailable ? "success" : "warning")">HTML @(documentationStatus.HtmlAvailable ? "ready" : "not built")</span>
+                <span class="badge text-bg-@(documentationStatus.PdfAvailable ? "success" : "warning")">PDF @(documentationStatus.PdfAvailable ? "ready" : "not built")</span>
+                <span class="badge text-bg-secondary">@documentationStatus.CommentCount XML members</span>
+                @if (documentationStatus.GeneratedAtUtc is DateTime generated)
+                {
+                    <span>Generated @generated.ToLocalTime().ToString("g")</span>
+                }
+            </div>
+        </div>
+        <div class="help-actions" aria-label="Documentation actions">
+            <a class="btn btn-primary" href="/help-docs/index.html" target="_blank" rel="noopener">Open HTML documentation</a>
+            <a class="btn btn-outline-secondary" href="/api/documentation/pdf" target="_blank" rel="noopener">Download LocalGPT-@Version.Version PDF</a>
+            <a class="btn btn-outline-secondary" href="/api/documentation/status" target="_blank" rel="noopener">Build status JSON</a>
+            <a class="btn btn-outline-secondary" href="/api/documentation/comments?limit=100" target="_blank" rel="noopener">Browse XML comments</a>
+        </div>
     </section>
 
     <section class="help-grid">
         <article class="help-panel">
-            <h2>Setup</h2>
-            <p>Open Install, discover Ollama or LM Studio, select the model, and save the configuration. For local debugging, prefer Ollama with gpt-oss:20b.</p>
+            <h2>Chat and AI Council</h2>
+            <p>Provider selection, Council teams, model routes, human participation, memory and responsive configuration surfaces.</p>
+            <a href="/help-docs/articles/chat-and-council.html" target="_blank" rel="noopener">Read chapter</a>
         </article>
         <article class="help-panel">
-            <h2>Chat Memory</h2>
-            <p>DXAiChat auto-saves completed messages into SQLite. Use Save Memory before closing, Recall Latest to continue, or the memory selector to reopen older chats and former model thoughts.</p>
+            <h2>Embedded firmware</h2>
+            <p>ESP32/Arduino pin planning, transport-neutral wiring, firmware artifacts and approval-gated compiler boundaries.</p>
+            <a href="/help-docs/articles/embedded-firmware.html" target="_blank" rel="noopener">Read chapter</a>
         </article>
         <article class="help-panel">
-            <h2>AI Council</h2>
-            <p>Select two or more Ollama models to propose, critique, verify, and save a shared transcript plus a reusable council knowledge entry. Continue older council memories, inspect the member list on every step, and exclude faulty members only by user choice.</p>
+            <h2>Workspaces</h2>
+            <p>Local environments, compiler profiles, expected structures, regex policies and Approved/Warning/Danger findings.</p>
+            <a href="/help-docs/articles/workspaces.html" target="_blank" rel="noopener">Read chapter</a>
         </article>
         <article class="help-panel">
-            <h2>SQLite Database</h2>
-            <p>Open SQLite Database to edit council knowledge notes and inspect LocalGPT tables such as chat memory, former thoughts, and application logs. Use this carefully because changes apply to the live local database.</p>
+            <h2>GameDirector runtime</h2>
+            <p>Authoritative move validation, controller proposals, creature/object subdirectors and runtime-class factories.</p>
+            <a href="/help-docs/articles/game-director.html" target="_blank" rel="noopener">Read chapter</a>
         </article>
         <article class="help-panel">
-            <h2>Minecraft Builder</h2>
-            <p>Use Minecraft Mod Builder for Fabric, NeoForge, Paper plugins, or vanilla datapacks. The council can help choose the right output when the user is unsure.</p>
+            <h2>Security</h2>
+            <p>Local-first execution, untrusted inputs, bounded writes, protected transports and explicit approval boundaries.</p>
+            <a href="/help-docs/articles/security.html" target="_blank" rel="noopener">Read chapter</a>
         </article>
-        <article class="help-panel">
-            <h2>Mod Toolchain</h2>
-            <p>Install JDK 21, LocalGPT Gradle, Eclipse, and Minecraft Java Edition before full mod testing. The AI Council can help diagnose missing setup and turn blocked steps into a recovery poll.</p>
-        </article>
-        <article class="help-panel">
-            <h2>Formatting</h2>
-            <p>gpt-oss responses are cleaned before display so Harmony channel markers do not leak into the chat. Thinking appears in a collapsible section above the final answer.</p>
-        </article>
-        <article class="help-panel">
-            <h2>Grounded Reviews</h2>
-            <p>Use gpt-oss as a second reviewer with supplied facts only. Unsupported suggestions belong under Needs verification before they influence code or setup steps.</p>
-        </article>
-        <article class="help-panel">
-            <h2>Test Lab</h2>
-            <p>Run local diagnostic routes, artifact smoke tests, and learn-base imports from inside the frontend. Use it before loading heavy models and before final WebView2 smoke checks.</p>
+        <article class="help-panel help-api-panel">
+            <h2>API reference</h2>
+            <p>Public services, controllers, business contracts and runtime capabilities generated from XML documentation.</p>
+            <a href="/help-docs/api/index.html" target="_blank" rel="noopener">Open API reference</a>
         </article>
     </section>
 
     <section class="help-panel help-wide">
-        <h2>Good Minecraft Prompt Shape</h2>
-        <p>Start with the project goal, choose Fabric, NeoForge, Paper plugin, datapack, or Bedrock add-on direction, list required systems in order, name the critical path, and ask for file paths, setup checks, build commands, and performance notes.</p>
+        <h2>Build behavior</h2>
+        <p>Normal Windows builds restore the repository-local DocFX tool, generate HTML/API documentation, and attempt a versioned PDF. HTML generation requires the .NET SDK; PDF generation additionally requires Node.js. Set <code>BuildLocalGptDocumentation=false</code> to skip the documentation target for a diagnostic build, or <code>RequireLocalGptDocumentationPdf=true</code> to make a missing PDF prerequisite fail the build.</p>
     </section>
 </main>
+
+@code {
+    private LocalGptDocumentationStatus documentationStatus = new();
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            documentationStatus = Documentation.GetStatus();
+            ComponentActivity.RecordInformation(nameof(Help), nameof(OnInitialized), "The generated documentation catalog status was loaded.", "/help");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Loading generated LocalGPT documentation status failed.");
+            ComponentActivity.RecordFailure(nameof(Help), nameof(OnInitialized), exception, "/help");
+            Notifier.ShowWarning(nameof(Help), "Documentation status is unavailable; build-generated files may not exist yet.", "Documentation");
+        }
+    }
+}

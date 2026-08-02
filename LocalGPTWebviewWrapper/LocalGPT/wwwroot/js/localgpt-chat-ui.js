@@ -600,10 +600,54 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
+    function markConfigurationSurfaces(host) {
+        try {
+            if (!(host instanceof HTMLElement)) return;
+
+            document.querySelectorAll('.localgpt-chat-dialog-surface').forEach(element => {
+                if (!visible(element)) element.classList.remove('localgpt-chat-dialog-surface');
+            });
+            document.querySelectorAll('[role="dialog"]').forEach(element => {
+                if (visible(element) && element.querySelectorAll('input,textarea,select,button,[role="button"]').length > 0) {
+                    addClass(element, 'localgpt-chat-dialog-surface');
+                }
+            });
+
+            host.querySelectorAll('.localgpt-chat-settings-surface').forEach(element => {
+                if (!visible(element)) element.classList.remove('localgpt-chat-settings-surface');
+            });
+
+            const titlePattern = /^(chat\s+settings|chat\s+configuration|settings|configuration|chat-einstellungen|chatkonfiguration|einstellungen|konfiguration)$/i;
+            const hostRect = host.getBoundingClientRect();
+            const titleCandidates = [...host.querySelectorAll('h1,h2,h3,h4,h5,[role="heading"],legend,summary')];
+            for (const title of titleCandidates) {
+                if (!visible(title)) continue;
+                const text = String(title.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!titlePattern.test(text)) continue;
+
+                let candidate = null;
+                let ancestor = title.parentElement;
+                for (let depth = 0; ancestor && ancestor !== host && depth < 8; depth++, ancestor = ancestor.parentElement) {
+                    if (!visible(ancestor)) continue;
+                    const controls = ancestor.querySelectorAll('input,textarea,select,button,[role="button"]').length;
+                    const rect = ancestor.getBoundingClientRect();
+                    if (controls < 2 || rect.width < 220 || rect.height < 120) continue;
+                    if (hostRect.width > 0 && rect.width >= hostRect.width * .9) break;
+                    candidate = ancestor;
+                }
+                if (candidate) addClass(candidate, 'localgpt-chat-settings-surface');
+            }
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.markConfigurationSurfaces', error);
+            throw error;
+        }
+    }
+
     function enhance(host) {
         try {
             if (!(host instanceof HTMLElement)) return;
             markChatRoots(host);
+            markConfigurationSurfaces(host);
 
             const editor = host.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
             addClass(editor, 'localgpt-chat-textarea');
@@ -705,13 +749,18 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     }
 
     const observer = new MutationObserver(diagnostics.guard('localgpt-chat-ui.mutationObserver', records => { try {
-        if (records.some(record => { try { return (record.addedNodes.length > 0 || record.removedNodes.length > 0); } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:records.some@159', __javascriptError); throw __javascriptError; } })) scheduleApply();
+        if (records.some(record => { try { return (record.type === 'attributes' || record.addedNodes.length > 0 || record.removedNodes.length > 0); } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:records.some@159', __javascriptError); throw __javascriptError; } })) scheduleApply();
      } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:diagnostics.guard@158', __javascriptError); throw __javascriptError; }}));
 
     function start() {
         try {
             scheduleApply();
-            observer.observe(document.body, { childList: true, subtree: true });
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class', 'style', 'aria-hidden', 'open']
+            });
             window.localGptHumanDrafts = diagnostics.guardObject('localGptHumanDrafts', {
                 read(elementId) {
                     const editor = document.getElementById(String(elementId || ''));

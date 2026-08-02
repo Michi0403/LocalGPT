@@ -11,7 +11,7 @@ public sealed class CouncilRuntimeClassService(
     IDatabaseInitializationService databaseInitializer,
     ILogger<CouncilRuntimeClassService> logger) : ICouncilRuntimeClassService
 {
-    private const int CurrentSeedVersion = 3;
+    private const int CurrentSeedVersion = 4;
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -236,6 +236,32 @@ public sealed class CouncilRuntimeClassService(
                     Binding("use", "Use door or switch", "E", "A"),
                     Binding("duck", "Duck or stand", "Ctrl", "B")
                 ], ["localgpt.game.control", "localgpt.game.session.get", "localgpt.runtime-class.resolve"], [doomSource, cLanguageSource]),
+            BuildDefinition("games.ascii.doom.director", "LocalGPT.Games.AsciiDoom", "ASCII corridor GameDirector", RuntimeClassKind.Controller,
+                "The authoritative game-engine boundary. Controllers and actor Councils submit proposals; only this runtime class may approve one world-state transition.",
+                [
+                    Field("mode", "Director mode", "string", "Deterministic", RuntimeFieldInputMode.Shared, true, true),
+                    Field("modelName", "Optional low-parameter reviewer", "string", "qwen3.5:0.8b", RuntimeFieldInputMode.Shared, true, true),
+                    Field("expectedTurn", "Expected turn", "long", "0", RuntimeFieldInputMode.System, false, false),
+                    Field("decision", "Last decision", "json", "{}", RuntimeFieldInputMode.System, false, false)
+                ], [], ["localgpt.game.control.preview", "localgpt.game.control", "localgpt.game.session.get", "localgpt.runtime-class.resolve"], [cLanguageSource]),
+            BuildDefinition("games.ascii.doom.creature", "LocalGPT.Games.AsciiDoom", "ASCII corridor creature Council member", RuntimeClassKind.Actor,
+                "One creature runtime instance assigned to one bounded Council member or creature subdirector. It predicts an intent but cannot mutate authoritative state.",
+                [
+                    Field("instanceId", "Instance id", "string", "", RuntimeFieldInputMode.System, false, false),
+                    Field("archetype", "Creature archetype", "string", "patrol", RuntimeFieldInputMode.Ai, true, false),
+                    Field("councilRoleKey", "Council role key", "string", "creature-council", RuntimeFieldInputMode.System, false, false),
+                    Field("roomId", "Room", "string", "start", RuntimeFieldInputMode.System, false, false),
+                    Field("intent", "Proposed intent", "string", "observe", RuntimeFieldInputMode.Ai, true, false)
+                ], [], ["localgpt.game.control.preview", "localgpt.game.session.get", "localgpt.runtime-class.resolve"], [cLanguageSource]),
+            BuildDefinition("games.ascii.doom.reactive-object", "LocalGPT.Games.AsciiDoom", "ASCII corridor reactive map object", RuntimeClassKind.Actor,
+                "A door, switch, pickup, trigger or hazard with its own bounded runtime state. It proposes a reaction after range and trigger checks.",
+                [
+                    Field("instanceId", "Instance id", "string", "", RuntimeFieldInputMode.System, false, false),
+                    Field("objectType", "Object type", "string", "door", RuntimeFieldInputMode.Ai, true, false),
+                    Field("state", "Object state", "string", "idle", RuntimeFieldInputMode.System, false, false),
+                    Field("trigger", "Trigger contract", "string", "use-or-enter", RuntimeFieldInputMode.Shared, true, true),
+                    Field("reaction", "Proposed reaction", "string", "none", RuntimeFieldInputMode.Ai, true, false)
+                ], [], ["localgpt.game.control.preview", "localgpt.game.session.get", "localgpt.runtime-class.resolve"], [cLanguageSource]),
             BuildDefinition("games.ascii.doom.actor", "LocalGPT.Games.AsciiDoom", "ASCII DOOM world actor", RuntimeClassKind.Actor,
                 "One active enemy, ally, projectile abstraction, pickup, door or hazard owned by one Council member for the current turn.",
                 [

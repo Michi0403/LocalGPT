@@ -22,6 +22,10 @@ public interface ICouncilGameSessionService
         bool includeCompleted = false,
         CancellationToken cancellationToken = default);
 
+    Task<CouncilGameDirectorDecision> PreviewControlAsync(
+        CouncilGameControlRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<CouncilGameSessionSnapshot> ApplyControlAsync(
         CouncilGameControlRequest request,
         CancellationToken cancellationToken = default);

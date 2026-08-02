@@ -259,7 +259,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.1.17"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.1.18"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
@@ -343,6 +343,10 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IOrganicCouncilBlueprintSeedDataService, OrganicCouncilBlueprintSeedDataService>();
                 builder.Services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
                 builder.Services.AddSingleton<ICouncilLiveSessionService, CouncilLiveSessionService>();
+                builder.Services.AddSingleton<ICouncilGameActorRuntimeFactory, CouncilGameActorRuntimeFactory>();
+                builder.Services.AddSingleton<ICouncilGameSubdirector, CreatureCouncilGameSubdirector>();
+                builder.Services.AddSingleton<ICouncilGameSubdirector, ReactiveObjectCouncilGameSubdirector>();
+                builder.Services.AddSingleton<ICouncilGameDirectorService, CouncilGameDirectorService>();
                 builder.Services.AddSingleton<ICouncilGameSessionService, CouncilGameSessionService>();
                 builder.Services.AddSingleton<CouncilGameDxParameterReader>();
                 builder.Services.AddSingleton<IDeferredDxAiInvocationService, DeferredDxAiInvocationService>();
@@ -364,6 +368,8 @@ namespace LocalGPT
                 builder.Services.AddScoped<IKnowledgeRatingService, KnowledgeRatingService>();
                 builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
                 builder.Services.AddScoped<ILearnBaseKnowledgeImporterService, LearnBaseKnowledgeImporterService>();
+                builder.Services.AddSingleton<IDocumentationTranslationAdapter, DocumentationTranslationAdapter>();
+                builder.Services.AddSingleton<IDocumentationCatalogService, DocumentationCatalogService>();
                 builder.Services.AddScoped<IRemoteKnowledgeImportService, RemoteKnowledgeImportService>();
                 builder.Services.AddSingleton<RemoteImportDxParameterReader>();
                 builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();

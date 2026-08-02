@@ -413,3 +413,56 @@ html[data-localgpt-shell-theme="yeti"] {
     --bs-tertiary-bg: #f8f9fa;
     --bs-border-color: #dee2e6;
 }
+
+/* v40: DevExpress Chat configuration and modal surfaces use the viewport instead of
+   a narrow internal rail. JavaScript only marks currently visible configuration owners. */
+[data-testid="dxaichat-host"] {
+    position: relative;
+}
+
+[data-testid="dxaichat-host"] .localgpt-chat-settings-surface {
+    position: fixed !important;
+    inset: clamp(.65rem, 3dvh, 2.25rem) clamp(.65rem, 3vw, 3.25rem) !important;
+    z-index: 1240 !important;
+    box-sizing: border-box !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: min(28rem, calc(100dvh - 1.3rem)) !important;
+    max-height: none !important;
+    overflow: auto !important;
+    padding: clamp(.8rem, 1.5vw, 1.35rem) !important;
+    border: 1px solid var(--localgpt-border-color, var(--bs-border-color)) !important;
+    border-radius: .9rem !important;
+    background: var(--localgpt-surface-bg, var(--bs-body-bg)) !important;
+    box-shadow:
+        0 0 0 100vmax rgba(0, 0, 0, .66),
+        0 1.5rem 4rem rgba(0, 0, 0, .45) !important;
+    scrollbar-gutter: stable both-edges;
+}
+
+body:has([data-testid="chat-page"]) .localgpt-chat-dialog-surface {
+    box-sizing: border-box !important;
+    width: min(94vw, 100rem) !important;
+    min-width: min(42rem, 94vw) !important;
+    max-width: 94vw !important;
+    max-height: 92dvh !important;
+    overflow: auto !important;
+}
+
+@media (max-width: 760px) {
+    [data-testid="dxaichat-host"] .localgpt-chat-settings-surface {
+        inset: .25rem !important;
+        min-height: calc(100dvh - .5rem) !important;
+        padding: .7rem !important;
+        border-radius: .6rem !important;
+    }
+
+    body:has([data-testid="chat-page"]) .localgpt-chat-dialog-surface {
+        width: calc(100vw - .5rem) !important;
+        min-width: 0 !important;
+        max-width: calc(100vw - .5rem) !important;
+        max-height: calc(100dvh - .5rem) !important;
+    }
+}

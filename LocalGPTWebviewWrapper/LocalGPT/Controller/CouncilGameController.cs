@@ -79,6 +79,32 @@ public sealed class CouncilGameController(
         }
     }
 
+    [HttpPost("control/preview")]
+    public async Task<ActionResult<CouncilGameDirectorDecision>> PreviewControl(
+        [FromBody] CouncilGameControlRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await games.PreviewControlAsync(request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or KeyNotFoundException)
+        {
+            logger.LogWarning(exception, "Council game control preview was rejected for session {GameSessionId}.", request.SessionId);
+            return BadRequest(new { error = exception.Message });
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "Council game control preview was cancelled for session {GameSessionId}.", request.SessionId);
+            return Conflict(new { error = "The Council game control preview was cancelled." });
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Council game control preview failed for session {GameSessionId}; control content was omitted.", request.SessionId);
+            return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Council game control preview failed");
+        }
+    }
+
     [HttpPost("control")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Control(
         [FromBody] CouncilGameControlRequest request,

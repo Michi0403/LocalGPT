@@ -354,6 +354,7 @@ public sealed class DatabaseInitializationService(
         var repositoryRoot = ResolveRepositoryRoot(hostEnvironment.ContentRootPath);
 
         var core = await db.LocalGptProjects
+            .AsNoTracking()
             .Include(project => project.Topics)
             .Include(project => project.Versions)
             .Include(project => project.Revisions)
@@ -362,29 +363,24 @@ public sealed class DatabaseInitializationService(
             .AsSplitQuery()
             .SingleOrDefaultAsync(project => project.Id == coreProjectId, token)
             .ConfigureAwait(false);
-        if (core is null)
+        var coreIsNew = core is null;
+        core ??= new LocalGptProject
         {
-            core = new LocalGptProject
-            {
-                Id = coreProjectId,
-                Name = "LocalGPT Core",
-                Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
-                RootPath = repositoryRoot,
-                CurrentVersion = "2.1.17",
-                Status = "Active",
-                RecommendGit = true,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
-            };
-            db.LocalGptProjects.Add(core);
-        }
-        else
-        {
-            // Existing project rows are user/database authoritative. Version history, requirements and
-            // artifacts below are additive; startup seeding does not update the parent row or its
-            // concurrency token.
-            db.Entry(core).State = EntityState.Unchanged;
-        }
+            Id = coreProjectId,
+            Name = "LocalGPT Core",
+            Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
+            RootPath = repositoryRoot,
+            CurrentVersion = "2.1.18",
+            Status = "Active",
+            RecommendGit = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        var coreTopicIds = core.Topics.Select(item => item.Id).ToHashSet();
+        var coreVersionIds = core.Versions.Select(item => item.Id).ToHashSet();
+        var coreRevisionIds = core.Revisions.Select(item => item.Id).ToHashSet();
+        var coreRequirementIds = core.Requirements.Select(item => item.Id).ToHashSet();
+        var coreArtifactIds = core.Artifacts.Select(item => item.Id).ToHashSet();
 
         EnsureTopic(core, "Repository architecture and self-development",
             "Maintains the LocalGPT repository structure, source/document/debug inventories, changelogs, architecture decisions, DXFunctions, controller/service directories and user-reviewed evolution.");
@@ -438,6 +434,10 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.17", repositoryRoot, "Responsive workbench and customizable LearnBase release with the final workspace path-overload correction, full-width operational pages, optional ASCII sessions and selectable fullscreen scaling.");
         EnsureRevision(core, "main", "seed-v2.1.17", repositoryRoot,
             "Applies the string-based EndsWith workspace policy fix, adds editable LearnBase endings/regex/import modes with embedded source profiles, expands OneWire/Projects/Project Maintenance layouts, and makes the original ASCII corridor optional with side-by-side controls and Fit/Width/Native fullscreen modes.");
+        EnsureVersion(core, "2.1.18", repositoryRoot, "Authoritative GameDirector, generated XML-comment documentation, startup seed-concurrency correction and large responsive Chat configuration release.");
+        EnsureRevision(core, "main", "seed-v2.1.18", repositoryRoot,
+            "Routes every game control proposal through the GameDirector and bounded creature/object subdirectors, adds DocFX HTML/PDF output with version-enriched XML-comment APIs, seeds existing projects through additive no-tracking inserts, and expands Chat configuration surfaces for 4K and 100-percent zoom use.");
+
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",
@@ -479,7 +479,18 @@ public sealed class DatabaseInitializationService(
             "LocalGPT.WireProtocolVersion.2.0.0.nupkg",
             "application/zip", "Built from the LocalGPT protocol project and copied beside release/install artifacts for PublisherStudio and future organ plugins.");
 
+        TrackMissingProjectSeedRecords(
+            db,
+            core,
+            coreIsNew,
+            coreTopicIds,
+            coreVersionIds,
+            coreRevisionIds,
+            coreRequirementIds,
+            coreArtifactIds);
+
         var humanitarian = await db.LocalGptProjects
+            .AsNoTracking()
             .Include(project => project.Topics)
             .Include(project => project.Versions)
             .Include(project => project.Revisions)
@@ -488,27 +499,24 @@ public sealed class DatabaseInitializationService(
             .AsSplitQuery()
             .SingleOrDefaultAsync(project => project.Id == humanitarianProjectId, token)
             .ConfigureAwait(false);
-        if (humanitarian is null)
+        var humanitarianIsNew = humanitarian is null;
+        humanitarian ??= new LocalGptProject
         {
-            humanitarian = new LocalGptProject
-            {
-                Id = humanitarianProjectId,
-                Name = "Humanitarian Collaboration Workspace",
-                Purpose = "A permanent user-maintained workspace for scientific, educational, accessibility, creative and other peaceful humanitarian projects supported by LocalGPT and connected organic systems.",
-                RootPath = string.Empty,
-                CurrentVersion = "1.0",
-                Status = "Active",
-                RecommendGit = true,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
-            };
-            db.LocalGptProjects.Add(humanitarian);
-        }
-        else
-        {
-            // Preserve the complete user-maintained parent row and seed only missing child records.
-            db.Entry(humanitarian).State = EntityState.Unchanged;
-        }
+            Id = humanitarianProjectId,
+            Name = "Humanitarian Collaboration Workspace",
+            Purpose = "A permanent user-maintained workspace for scientific, educational, accessibility, creative and other peaceful humanitarian projects supported by LocalGPT and connected organic systems.",
+            RootPath = string.Empty,
+            CurrentVersion = "1.0",
+            Status = "Active",
+            RecommendGit = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        var humanitarianTopicIds = humanitarian.Topics.Select(item => item.Id).ToHashSet();
+        var humanitarianVersionIds = humanitarian.Versions.Select(item => item.Id).ToHashSet();
+        var humanitarianRevisionIds = humanitarian.Revisions.Select(item => item.Id).ToHashSet();
+        var humanitarianRequirementIds = humanitarian.Requirements.Select(item => item.Id).ToHashSet();
+        var humanitarianArtifactIds = humanitarian.Artifacts.Select(item => item.Id).ToHashSet();
         EnsureTopic(humanitarian, "Humanitarian use cases",
             "User and Council co-maintain peaceful project goals, scientific topics, constraints, evidence and external-organ capabilities without assuming one language or technology.");
         EnsureTopic(humanitarian, "User requirements, questions and reviews",
@@ -519,6 +527,39 @@ public sealed class DatabaseInitializationService(
         EnsureRequirement(humanitarian, "Ask for missing current facts",
             "When a compiler version, scientific constant, source revision, device capability or current fact is missing, ask the user or request a source-backed feed and preserve the question as project knowledge.",
             "HumanQuestion", "High");
+
+        TrackMissingProjectSeedRecords(
+            db,
+            humanitarian,
+            humanitarianIsNew,
+            humanitarianTopicIds,
+            humanitarianVersionIds,
+            humanitarianRevisionIds,
+            humanitarianRequirementIds,
+            humanitarianArtifactIds);
+    }
+
+    private void TrackMissingProjectSeedRecords(
+        LocalGptMemoryDbContext db,
+        LocalGptProject project,
+        bool isNewProject,
+        IReadOnlySet<Guid> existingTopicIds,
+        IReadOnlySet<Guid> existingVersionIds,
+        IReadOnlySet<Guid> existingRevisionIds,
+        IReadOnlySet<Guid> existingRequirementIds,
+        IReadOnlySet<Guid> existingArtifactIds)
+    {
+        if (isNewProject)
+        {
+            db.LocalGptProjects.Add(project);
+            return;
+        }
+
+        db.LocalGptProjectTopics.AddRange(project.Topics.Where(item => !existingTopicIds.Contains(item.Id)));
+        db.LocalGptProjectVersions.AddRange(project.Versions.Where(item => !existingVersionIds.Contains(item.Id)));
+        db.LocalGptProjectRevisions.AddRange(project.Revisions.Where(item => !existingRevisionIds.Contains(item.Id)));
+        db.LocalGptProjectRequirements.AddRange(project.Requirements.Where(item => !existingRequirementIds.Contains(item.Id)));
+        db.LocalGptProjectArtifacts.AddRange(project.Artifacts.Where(item => !existingArtifactIds.Contains(item.Id)));
     }
 
     private async Task SeedCouncilModelPresetsAsync(LocalGptMemoryDbContext db, CancellationToken token)

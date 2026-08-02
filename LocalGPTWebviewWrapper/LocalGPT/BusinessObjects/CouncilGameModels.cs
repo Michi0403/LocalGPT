@@ -18,6 +18,9 @@ public sealed class StartCouncilGameRequest
     public CouncilGameControlMode ControlMode { get; set; } = CouncilGameControlMode.Human;
     public bool AutoplayEnabled { get; set; }
     public int AutoplayDelayMilliseconds { get; set; } = 1200;
+    public CouncilGameDirectorMode DirectorMode { get; set; } = CouncilGameDirectorMode.Deterministic;
+    public string GameDirectorModelName { get; set; } = "qwen3.5:0.8b";
+    public int CreatureDirectorCount { get; set; } = 2;
     public string StartedBy { get; set; } = "Human User";
 }
 
@@ -31,6 +34,8 @@ public sealed class CouncilGameControlRequest
     public int? AimY { get; set; }
     public string Source { get; set; } = "Human";
     public string ActorName { get; set; } = "Human User";
+    public CouncilGameActorKind ActorKind { get; set; } = CouncilGameActorKind.Player;
+    public string RuntimeClassKey { get; set; } = "games.ascii.doom.player";
     public long? ExpectedTurn { get; set; }
 }
 
@@ -73,6 +78,12 @@ public sealed class CouncilGameSessionSnapshot
     public bool HumanInputRequired { get; set; }
     public string InputReason { get; set; } = string.Empty;
     public string CurrentTurnOwner { get; set; } = string.Empty;
+    public CouncilGameDirectorMode DirectorMode { get; set; }
+    public string GameDirectorName { get; set; } = "LocalGPT GameDirector";
+    public string GameDirectorModelName { get; set; } = string.Empty;
+    public int CreatureDirectorCount { get; set; } = 2;
+    public string LastDirectorDecision { get; set; } = string.Empty;
+    public IReadOnlyList<CouncilGameSubdirectorPrediction> LastDirectorPredictions { get; set; } = [];
     public long Turn { get; set; }
     public int FrameWidth { get; set; } = 80;
     public int FrameHeight { get; set; } = 25;
@@ -112,6 +123,12 @@ public sealed class CouncilGameSessionState
     public bool HumanInputRequired { get; set; }
     public string InputReason { get; set; } = string.Empty;
     public string CurrentTurnOwner { get; set; } = string.Empty;
+    public CouncilGameDirectorMode DirectorMode { get; set; } = CouncilGameDirectorMode.Deterministic;
+    public string GameDirectorName { get; set; } = "LocalGPT GameDirector";
+    public string GameDirectorModelName { get; set; } = string.Empty;
+    public int CreatureDirectorCount { get; set; } = 2;
+    public string LastDirectorDecision { get; set; } = string.Empty;
+    public List<CouncilGameSubdirectorPrediction> LastDirectorPredictions { get; set; } = [];
     public long Turn { get; set; }
     public int FrameWidth { get; set; }
     public int FrameHeight { get; set; }

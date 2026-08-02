@@ -361,7 +361,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
                     DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.session"]
+                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.director"]
                 },
                 new()
                 {
@@ -406,7 +406,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
                     DistinctAiAssignmentGroup = "ascii-doom-actors",
-                    RuntimeClassKeys = ["games.ascii.doom.actor"]
+                    RuntimeClassKeys = ["games.ascii.doom.actor", "games.ascii.doom.creature", "games.ascii.doom.reactive-object"]
                 },
                 new()
                 {
@@ -421,7 +421,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
                     DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.map", "games.ascii.doom.player", "games.ascii.doom.actor"]
+                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.map", "games.ascii.doom.player", "games.ascii.doom.director", "games.ascii.doom.actor", "games.ascii.doom.creature", "games.ascii.doom.reactive-object"]
                 },
                 new()
                 {
@@ -452,7 +452,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Start the directly playable in-chat ASCII corridor session by calling localgpt.game.session.start with gameKey ascii-doom and teamKey ascii-doom-council-adventure. Use the preseeded deterministic room graph immediately; do not spend a model turn inventing a large map and do not call runtime-class.list. Canonical class keys are games.ascii.doom.session, .map, .player, .controller, .actor and .frame; localgpt.runtime-class.resolve accepts case-insensitive aliases when inspection is needed. Optionally add only a compact title/objective informed by user-imported source knowledge. Never reproduce commercial WAD content or claim affiliation with the original game.
+Start the directly playable in-chat ASCII corridor session by calling localgpt.game.session.start with gameKey ascii-doom and teamKey ascii-doom-council-adventure. Use the preseeded deterministic room graph immediately; do not spend a model turn inventing a large map and do not call runtime-class.list. Canonical class keys are games.ascii.doom.session, .map, .player, .controller, .director, .actor, .creature, .reactive-object and .frame; localgpt.runtime-class.resolve accepts case-insensitive aliases when inspection is needed. Optionally add only a compact title/objective informed by user-imported source knowledge. Never reproduce commercial WAD content or claim affiliation with the original game.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = false,
@@ -573,7 +573,7 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.knowledge.list"],
+            PreferredCapabilities = ["localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control.preview", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
@@ -581,7 +581,7 @@ Runtime classes: {{RuntimeClasses}}
                 "Exactly one AI member owns and emits each complete ASCII frame after state resolution; frame-producing steps must use a single-member execution mode.",
                 "The id Software DOOM repository is an optional user-approved learning source. Do not redistribute commercial WAD data and do not require it for original generated maps.",
                 "One Council turn advances a meaningful world step and then renders once. Never simulate 35 frames per second through model calls.",
-                "Every active enemy, pickup, door or hazard is represented by a runtime-class instance; one World Actor member owns one active instance for the current turn.",
+                "Every active enemy, pickup, door or hazard is represented by a factory-created runtime-class instance; one World Actor member owns one active instance while creature and reactive-object subdirectors predict bounded consequences for the authoritative GameDirector.",
                 "Human keyboard/gamepad/text commands are optional. HumanRequired runtime fields block only the dependent next round, not the entire application."
             ]
         },

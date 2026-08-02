@@ -1,9 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>2.1.17</Version>
+    <Version>2.1.18</Version>
 	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
 	  <IncludeSymbols>True</IncludeSymbols>
 	  <SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	  <AnalysisLevel>latest</AnalysisLevel>
@@ -26,12 +28,11 @@
 		  osx-x64;
 		  osx-arm64
 	  </RuntimeIdentifiers>
-	  <GenerateDocumentationFile>True</GenerateDocumentationFile>
-	  <Authors>Michael Fleischer 2025-2026 (Michi0403)</Authors>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(UseLocalWireProtocolProject)' == 'true'">
-    <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj" GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
+    <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
+                      GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
   </ItemGroup>
   <ItemGroup Condition="'$(UseLocalWireProtocolProject)' != 'true'">
     <PackageReference Include="LocalGPT.WireProtocolVersion" Version="$(LocalGptWireProtocolVersion)" />
@@ -1289,12 +1290,15 @@
   <ItemGroup>
   </ItemGroup>
 
-  <Target Name="IncludeWireProtocolPackageForPublish" BeforeTargets="ComputeFilesToPublish" Condition="'$(IncludeWireProtocolPackageInPublish)' == 'true'">
+  <Target Name="IncludeWireProtocolPackageForPublish"
+          BeforeTargets="ComputeFilesToPublish"
+          Condition="'$(IncludeWireProtocolPackageInPublish)' == 'true'">
     <PropertyGroup>
       <WireProtocolPackageName>LocalGPT.WireProtocolVersion.$(LocalGptWireProtocolVersion).nupkg</WireProtocolPackageName>
       <WireProtocolPackage>$(LocalGptWireProtocolPackageDirectory)\$(WireProtocolPackageName)</WireProtocolPackage>
     </PropertyGroup>
-    <Error Condition="!Exists('$(WireProtocolPackage)')" Text="The RID-neutral LocalGPT 1-Wire package is missing: $(WireProtocolPackage). Run build\Publish-WireProtocolPackage.ps1 first or disable IncludeWireProtocolPackageInPublish." />
+    <Error Condition="!Exists('$(WireProtocolPackage)')"
+           Text="The RID-neutral LocalGPT 1-Wire package is missing: $(WireProtocolPackage). Run build\Publish-WireProtocolPackage.ps1 first or disable IncludeWireProtocolPackageInPublish." />
     <ItemGroup>
       <ResolvedFileToPublish Include="$(WireProtocolPackage)">
         <RelativePath>protocol/$(WireProtocolPackageName)</RelativePath>
