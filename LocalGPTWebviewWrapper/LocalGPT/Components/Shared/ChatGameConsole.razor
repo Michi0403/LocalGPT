@@ -1,0 +1,239 @@
+@using LocalGPT.BusinessObjects
+@using Microsoft.JSInterop
+@inject ICouncilGameSessionService Games
+@inject IJSRuntime JS
+@inject ILogger<ChatGameConsole> Logger
+@implements IAsyncDisposable
+
+<section id="@elementId"
+         class="chat-game-console @(snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
+         tabindex="0"
+         data-localgpt-game-console
+         data-localgpt-copyable="true"
+         aria-label="Persistent ASCII game screen">
+    <header class="chat-game-console-header">
+        <div>
+            <strong>@(snapshot?.DisplayName ?? "ASCII game console")</strong>
+            <small>@(snapshot is null ? "Start a directly playable runtime-class game." : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}")</small>
+        </div>
+        <div class="chat-game-console-actions">
+            @if (snapshot is null)
+            {
+                <button type="button" @onclick="StartDoomAsync">Play ASCII corridor</button>
+                <button type="button" @onclick="StartDragonAsync">Play Green Dragon story</button>
+            }
+            else
+            {
+                <label>
+                    <span>Control</span>
+                    <select value="@snapshot.ControlMode" @onchange="ChangeControlModeAsync">
+                        <option value="Human">Human</option>
+                        <option value="Shared">Human + AI</option>
+                        <option value="Ai">AI autoplay</option>
+                    </select>
+                </label>
+                @if (snapshot.ControlMode != CouncilGameControlMode.Human)
+                {
+                    <label>
+                        <span>AI step</span>
+                        <select value="@snapshot.AutoplayDelayMilliseconds" @onchange="ChangeAutoplayDelayAsync">
+                            <option value="500">0.5 s</option>
+                            <option value="1000">1 s</option>
+                            <option value="1500">1.5 s</option>
+                            <option value="2500">2.5 s</option>
+                            <option value="5000">5 s</option>
+                        </select>
+                    </label>
+                }
+                <button type="button" @onclick="ToggleControls">@(showControls ? "Hide controls" : "Show controls")</button>
+                <button type="button" @onclick="FullscreenAsync">Fullscreen</button>
+            }
+        </div>
+    </header>
+
+    @if (snapshot is null)
+    {
+        <div class="chat-game-console-placeholder">
+            <pre>┌──────────────────────────────────────────────────────────────────────────────┐
+│  /Chat game surface ready                                                   │
+│  One authoritative frame stays here while the conversation continues.       │
+│  Human and AI players call the same move / turn / shoot / use contract.      │
+└──────────────────────────────────────────────────────────────────────────────┘</pre>
+        </div>
+    }
+    else
+    {
+        <div class="chat-game-screen-shell">
+            <pre class="chat-game-screen" aria-live="polite">@snapshot.FrameText</pre>
+            @if (showControls && snapshot.HumanInputRequired && snapshot.ControlMode != CouncilGameControlMode.Ai && !inputInFlight)
+            {
+                <div class="chat-game-control-overlay" role="group" aria-label="Your game controls">
+                    <div class="chat-game-control-card">
+                        <strong>Your turn</strong>
+                        <span>@snapshot.InputReason</span>
+                        <div class="chat-game-touch-grid">
+                            <button type="button" class="up" data-game-action="move-forward" @onclick='@(() => SendControlAsync("move-forward"))'>▲</button>
+                            <button type="button" class="left" data-game-action="left" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</button>
+                            <button type="button" class="down" data-game-action="move-backward" @onclick='@(() => SendControlAsync("move-backward"))'>▼</button>
+                            <button type="button" class="right" data-game-action="right" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</button>
+                            <button type="button" data-game-action="turn-left" @onclick='@(() => SendControlAsync("turn-left"))'>Aim ◁</button>
+                            <button type="button" data-game-action="turn-right" @onclick='@(() => SendControlAsync("turn-right"))'>Aim ▷</button>
+                            @if (snapshot.GameKey == "ascii-doom")
+                            {
+                                <button type="button" class="primary" data-game-action="shoot" @onclick='@(() => SendControlAsync("shoot"))'>Shoot</button>
+                                <button type="button" data-game-action="duck" @onclick='@(() => SendControlAsync("duck"))'>Duck</button>
+                            }
+                            <button type="button" class="primary" data-game-action="use" @onclick='@(() => SendControlAsync("use"))'>Use</button>
+                        </div>
+                        <small>Keyboard and connected gamepads use these exact actions. The overlay briefly clears while a frame resolves.</small>
+                    </div>
+                </div>
+            }
+        </div>
+        <footer class="chat-game-console-footer">
+            <span>@snapshot.FrameCaption</span>
+            <span>Renderer: @snapshot.FrameRenderer</span>
+        </footer>
+    }
+</section>
+
+@code {
+    [Parameter] public Guid? ConversationId { get; set; }
+    [Parameter] public string SuggestedTeamKey { get; set; } = string.Empty;
+
+    private readonly string elementId = $"localgpt-game-{Guid.NewGuid():N}";
+    private CouncilGameSessionSnapshot? snapshot;
+    private DotNetObjectReference<ChatGameConsole>? reference;
+    private bool attached;
+    private bool showControls = true;
+    private bool inputInFlight;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Games.Changed += OnGameChanged;
+        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (snapshot is null || (ConversationId is not null && snapshot.ConversationId != ConversationId))
+            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!attached)
+        {
+            reference ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true);
+            attached = true;
+        }
+        var inputEnabled = snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai };
+        await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true);
+    }
+
+    private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(true);
+    private async Task StartDragonAsync() => await StartAsync("green-dragon", "green-dragon-runtime-story").ConfigureAwait(true);
+
+    private async Task StartAsync(string gameKey, string teamKey)
+    {
+        try
+        {
+            snapshot = await Games.StartAsync(new StartCouncilGameRequest
+            {
+                GameKey = gameKey,
+                TeamKey = string.IsNullOrWhiteSpace(SuggestedTeamKey) ? teamKey : SuggestedTeamKey,
+                ConversationId = ConversationId,
+                ControlMode = CouncilGameControlMode.Human,
+                StartedBy = "Human User"
+            }).ConfigureAwait(true);
+            showControls = true;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not start the in-chat game console.");
+        }
+    }
+
+    private async Task ChangeControlModeAsync(ChangeEventArgs args)
+    {
+        if (snapshot is null) return;
+        if (!Enum.TryParse<CouncilGameControlMode>(args.Value?.ToString(), true, out var mode)) return;
+        snapshot = await Games.SetControlModeAsync(
+            snapshot.Id,
+            mode,
+            mode is CouncilGameControlMode.Ai or CouncilGameControlMode.Shared,
+            snapshot.AutoplayDelayMilliseconds).ConfigureAwait(true);
+    }
+
+    private async Task ChangeAutoplayDelayAsync(ChangeEventArgs args)
+    {
+        if (snapshot is null || !int.TryParse(args.Value?.ToString(), out var delay)) return;
+        snapshot = await Games.SetControlModeAsync(
+            snapshot.Id,
+            snapshot.ControlMode,
+            snapshot.ControlMode is CouncilGameControlMode.Ai or CouncilGameControlMode.Shared,
+            delay).ConfigureAwait(true);
+    }
+
+    private void ToggleControls() => showControls = !showControls;
+
+    private async Task FullscreenAsync() =>
+        await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(true);
+
+    [JSInvokable]
+    public Task SubmitControlFromJs(string action) => SendControlAsync(action);
+
+    private async Task SendControlAsync(string action)
+    {
+        if (snapshot is null || inputInFlight) return;
+        var sessionId = snapshot.Id;
+        var expectedTurn = snapshot.Turn;
+        inputInFlight = true;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            snapshot = await Games.ApplyControlAsync(new CouncilGameControlRequest
+            {
+                SessionId = sessionId,
+                Action = action,
+                ExpectedTurn = expectedTurn,
+                Source = "HumanUI",
+                ActorName = "Human Player"
+            }).ConfigureAwait(true);
+            await Task.Delay(260).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The in-chat game control {Action} was rejected.", action);
+            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(true);
+        }
+        finally
+        {
+            inputInFlight = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnGameChanged(Guid sessionId)
+    {
+        if (snapshot is not null && snapshot.Id != sessionId) return;
+        _ = InvokeAsync(async () =>
+        {
+            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(true);
+            StateHasChanged();
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Games.Changed -= OnGameChanged;
+        try
+        {
+            if (attached) await JS.InvokeVoidAsync("localGptGameConsole.detach", elementId).ConfigureAwait(false);
+        }
+        catch (JSDisconnectedException) { }
+        reference?.Dispose();
+    }
+}

@@ -35,7 +35,7 @@ public sealed class CouncilLiveSessionService(
 
         lock (state.SyncRoot)
         {
-            state.Transcript.Append(text);
+            AppendWithBlockBoundary(state.Transcript, text);
             if (state.Transcript.Length > MaxTranscriptCharacters)
                 state.Transcript.Remove(0, state.Transcript.Length - MaxTranscriptCharacters);
             state.UpdatedAtUtc = DateTime.UtcNow;
@@ -134,6 +134,36 @@ public sealed class CouncilLiveSessionService(
         }
     }
 
+    private void AppendWithBlockBoundary(StringBuilder transcript, string text)
+    {
+        if (transcript.Length > 0 && transcript[^1] != '\n' && (StartsVisibleBlock(text) || EndsVisibleBlock(transcript)))
+            transcript.AppendLine();
+        transcript.Append(text);
+    }
+
+    private bool EndsVisibleBlock(StringBuilder transcript)
+    {
+        var length = Math.Min(transcript.Length, 24);
+        if (length == 0) return false;
+        var tail = transcript.ToString(transcript.Length - length, length).TrimEnd(' ', '\t', '\r');
+        return tail.EndsWith("</p>", StringComparison.OrdinalIgnoreCase)
+            || tail.EndsWith("</details>", StringComparison.OrdinalIgnoreCase)
+            || tail.EndsWith("</pre>", StringComparison.OrdinalIgnoreCase)
+            || tail.EndsWith("</div>", StringComparison.OrdinalIgnoreCase)
+            || tail.EndsWith("-->", StringComparison.Ordinal);
+    }
+
+    private bool StartsVisibleBlock(string text)
+    {
+        var trimmed = text.TrimStart(' ', '\t', '\r');
+        return trimmed.StartsWith("<p", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("_Council", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Council ", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("LocalGPT ", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Ollama ", StringComparison.OrdinalIgnoreCase);
+    }
+
     private void ScheduleChanged(LiveSessionState state)
     {
         if (Interlocked.Exchange(ref state.NotificationScheduled, 1) != 0)
@@ -143,7 +173,7 @@ public sealed class CouncilLiveSessionService(
         {
             try
             {
-                await Task.Delay(180).ConfigureAwait(false);
+                await Task.Delay(350).ConfigureAwait(false);
                 Interlocked.Exchange(ref state.NotificationScheduled, 0);
                 var listeners = Changed?.GetInvocationList().Cast<Action<Guid>>().ToArray() ?? [];
                 foreach (var listener in listeners)

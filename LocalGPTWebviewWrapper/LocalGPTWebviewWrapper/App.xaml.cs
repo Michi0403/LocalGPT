@@ -138,6 +138,7 @@ namespace WebView2_WinUI3_Sample
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
             {
+                Debug.WriteLine($"Existing LocalGPT health probe failed: {ex}");
                 return false;
             }
         }

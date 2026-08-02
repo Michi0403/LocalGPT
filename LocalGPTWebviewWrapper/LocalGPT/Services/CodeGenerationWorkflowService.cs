@@ -687,6 +687,7 @@ public sealed class CodeGenerationWorkflowService(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            logger.LogDebug(ex, "Could not enumerate solution files under workspace {WorkspaceRoot}.", workspaceRoot);
             return string.Empty;
         }
     }

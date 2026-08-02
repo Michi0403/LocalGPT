@@ -153,3 +153,16 @@
     word-break: break-word;
     vertical-align: top;
 }
+
+/* Grid previews deliberately stay compact; the row editor still contains the complete database value. */
+.database-grid-preview :is(td, .dxbl-grid-data-cell) {
+    max-width: 34rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    vertical-align: middle;
+}
+
+@media (max-width: 800px) {
+    .database-grid-preview :is(td, .dxbl-grid-data-cell) { max-width: 18rem; }
+}

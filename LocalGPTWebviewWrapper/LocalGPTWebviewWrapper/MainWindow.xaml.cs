@@ -1,13 +1,8 @@
-﻿using DevExpress.XtraRichEdit.Import.Html;
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.Web.WebView2.Core;
 using System;
 using System.Diagnostics;
-using WinRT.Interop;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
@@ -51,7 +46,36 @@ namespace WebView2_WinUI3_Sample
             }
             else
             {
-                SetTitle(sender);
+                try
+                {
+                    if (sender.CoreWebView2 is not null)
+                    {
+                        sender.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+                        sender.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                        sender.CoreWebView2.WebMessageReceived -= CoreWebView2_WebMessageReceived;
+                        sender.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+                    }
+                    SetTitle(sender);
+                }
+                catch (Exception exception)
+                {
+                    StatusUpdate($"Could not enable WebView developer controls: {exception}");
+                }
+            }
+        }
+
+
+        private void CoreWebView2_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
+        {
+            try
+            {
+                var message = args.TryGetWebMessageAsString();
+                if (string.Equals(message, "localgpt-open-devtools", StringComparison.Ordinal))
+                    WebView2.CoreWebView2?.OpenDevToolsWindow();
+            }
+            catch (Exception exception)
+            {
+                StatusUpdate($"Could not process a WebView host message: {exception}");
             }
         }
 
@@ -63,12 +87,13 @@ namespace WebView2_WinUI3_Sample
             //AddressBar.Text = sender.Source.ToString();
         }
 
-        private bool TryCreateUri(String potentialUri, out Uri result)
+        private bool TryCreateUri(string potentialUri, out Uri? result)
         {
             StatusUpdate("TryCreateUri");
 
-            Uri uri;
+            Uri? uri;
             if ((Uri.TryCreate(potentialUri, UriKind.Absolute, out uri) || Uri.TryCreate("http://" + potentialUri, UriKind.Absolute, out uri)) &&
+                uri is not null &&
                 (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
             {
                 result = uri;
@@ -82,7 +107,7 @@ namespace WebView2_WinUI3_Sample
             }
         }
 
-        private void SetTitle(WebView2 webView2 = null)
+        private void SetTitle(WebView2? webView2 = null)
         {
             Title = $"LocalGPT by Michi0403";
         }

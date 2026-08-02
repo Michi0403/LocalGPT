@@ -383,6 +383,7 @@ public sealed class OneWireRuntimeSecurityService(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
+            logger.LogWarning(ex, "Could not restrict 1-Wire secret file permissions at {SecretPath}; private material was not logged.", path);
             // Persistence still succeeds on filesystems that do not support Unix modes; the frontend shows the path
             // so the owner can apply platform-specific ACLs. Never write private material to logs.
         }
@@ -409,7 +410,11 @@ public sealed class OneWireRuntimeSecurityService(
             File.Delete(test);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Directory write probe failed for {DirectoryPath}.", directory);
+            return false;
+        }
     }
 
     private RuntimeSecretFile CreateSecret(DateTimeOffset createdUtc, DateTimeOffset? rotatedUtc)

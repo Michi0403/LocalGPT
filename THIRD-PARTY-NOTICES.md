@@ -24,3 +24,11 @@ See `docs/DEVEXPRESS_ASSETS.md`.
 - Other image, icon, sample, and font assets already present in the project must be reviewed for provenance before redistribution. Their presence in a working tree does not relicense them under Apache-2.0.
 
 Generated projects or artifacts may add dependencies. Review their manifests, transitive dependency notices, model licenses, and asset provenance before distribution.
+
+
+## Optional open-source learning sources and game configuration studies
+
+- `id-Software/DOOM` may be downloaded only when a user explicitly selects that optional knowledge source. LocalGPT uses it as a source-code architecture reference for an original ASCII/runtime-class configuration. The original repository's license and notices apply. Commercial DOOM data files, WADs, trademarks, artwork, sounds, levels, and the original engine runtime are not included.
+- `lotgd/lotgd` may be downloaded only when a user explicitly selects that optional knowledge source. Its own license and notices apply. LocalGPT's Green Dragon runtime story is an original configuration example and is not an official LOTGD distribution.
+
+LocalGPT is not affiliated with, endorsed by, or sponsored by id Software, ZeniMax, Bethesda, LOTGD, or their contributors. Names are used only to identify optional upstream source references selected by the user.

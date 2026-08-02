@@ -90,9 +90,7 @@ public sealed class ProjectMaintenanceController(
         }
         catch (OperationCanceledException exception)
         {
-#if DEBUG
-            logger.LogInformation(exception, "Project maintenance {Operation} was cancelled in a Debug build.", operation);
-#endif
+            logger.LogInformation(exception, "Project maintenance {Operation} was cancelled.", operation);
             return Results.Conflict(new { error = "The operation was cancelled." });
         }
         catch (Exception ex)

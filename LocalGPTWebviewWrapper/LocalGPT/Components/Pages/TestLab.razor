@@ -10,6 +10,8 @@
 @inject ILogger<TestLab> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject IRemoteKnowledgeImportService RemoteKnowledgeImporter
+@inject ICouncilTeamConfigurationService CouncilTeams
 
 <PageTitle>Test Lab</PageTitle>
 <main class="test-lab-page">
@@ -75,6 +77,69 @@
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       Enabled="@(!isBusy)"
                       Click="RunLearnBaseImportAsync" />
+        </article>
+
+        <article id="remote-knowledge" class="help-panel test-lab-panel remote-knowledge-panel">
+            <h2>GitHub / Website Knowledge</h2>
+            <p>Download a public repository or webpage into LocalGPT's bounded source cache, inspect the returned files, apply a regex/file-ending policy, and optionally pass the result into the existing learn-base database importer.</p>
+            <div class="test-lab-actions remote-source-presets" aria-label="Remote source presets">
+                <button type="button" @onclick='@(() => SelectRemoteSourcePreset("doom"))'>DOOM source</button>
+                <button type="button" @onclick='@(() => SelectRemoteSourcePreset("lotgd"))'>Green Dragon source</button>
+                <button type="button" @onclick='@(() => SelectRemoteSourcePreset("php"))'>PHP manual</button>
+                <button type="button" @onclick='@(() => SelectRemoteSourcePreset("llvm"))'>LLVM source</button>
+            </div>
+            <label class="test-lab-field">
+                <span>GitHub repository or webpage URL</span>
+                <input @bind="remoteSourceUrl" @bind:after="ResetRemoteApproval" placeholder="https://github.com/owner/repository or https://example.org/docs" />
+            </label>
+            <div class="test-lab-custom">
+                <label class="test-lab-field compact-field"><span>Source kind</span><select @bind="remoteSourceKind"><option>Auto</option><option>GitHub</option><option>Web</option></select></label>
+                <label class="test-lab-field compact-field"><span>Branch</span><input @bind="remoteBranch" /></label>
+                <label class="test-lab-field compact-field"><span>Max files</span><input type="number" min="1" max="20000" @bind="remoteMaxFiles" /></label>
+            </div>
+            <label class="test-lab-field">
+                <span>File include regex</span>
+                <input @bind="remoteFileRegex" />
+            </label>
+            <div class="test-lab-custom">
+                <label class="test-lab-field compact-field">
+                    <span>Existing Council role</span>
+                    <select @bind="remoteSelectedRoleKey">
+                        <option value="">No preset role</option>
+                        @foreach (var role in availableRemoteRoleKeys)
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </select>
+                </label>
+                <label class="test-lab-field">
+                    <span>Additional/new role keys (semicolon separated)</span>
+                    <input @bind="remoteRoleKeys" placeholder="Map Architect; ASCII Frame Renderer" />
+                </label>
+            </div>
+            <label class="test-lab-field"><span>Topics (semicolon separated)</span><input @bind="remoteTopics" placeholder="DOOM source architecture; C rendering" /></label>
+            <DxCheckBox @bind-Checked="remoteSaveToKnowledge" Text="Save compact source maps to SQLite knowledge" />
+            @if (remoteImportResult is not null)
+            {
+                <DxCheckBox @bind-Checked="remoteImportApproved" Text="I reviewed this returned-file list and approve the database import" />
+            }
+            <div class="test-lab-actions">
+                <DxButton Text="Inspect returned files" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!isBusy)" Click="PreviewRemoteKnowledgeAsync" />
+                <DxButton Text="Import reviewed source" RenderStyle="ButtonRenderStyle.Primary" RenderStyleMode="ButtonRenderStyleMode.Contained" Enabled="@(!isBusy && remoteImportResult is not null && remoteImportApproved)" Click="ImportRemoteKnowledgeAsync" />
+            </div>
+            @if (remoteImportResult is not null)
+            {
+                <p class="test-lab-muted">@remoteImportResult.DownloadedFileCount downloaded · @remoteImportResult.MatchedFileCount matched · @remoteImportResult.ImportedKnowledgeCount knowledge entries</p>
+                <details class="remote-file-preview">
+                    <summary>Returned files (@remoteImportResult.Files.Count)</summary>
+                    <div>
+                        @foreach (var file in remoteImportResult.Files.Take(200))
+                        {
+                            <span class="@(file.MatchesFilePolicy ? "matched" : "excluded")"><strong>@file.RelativePath</strong><small>@file.Length bytes · @file.Status</small></span>
+                        }
+                    </div>
+                </details>
+            }
         </article>
     </section>
 
@@ -208,6 +273,18 @@
     private string learnBaseRoot = string.Empty;
     private int maxProjects = 1;
     private bool saveToKnowledge = true;
+    private string remoteSourceUrl = "https://github.com/id-Software/DOOM";
+    private string remoteSourceKind = "Auto";
+    private string remoteBranch = "main";
+    private string remoteFileRegex = @"(?i)\.(cs|razor|csproj|sln|json|xml|md|txt|ps1|cmd|sh|py|js|ts|tsx|css|html|php|c|h|cpp|hpp|java|kt|go|rs|sql|yml|yaml)$";
+    private int remoteMaxFiles = 5000;
+    private bool remoteSaveToKnowledge = true;
+    private bool remoteImportApproved;
+    private string remoteRoleKeys = "Map Architect; ASCII Frame Renderer";
+    private string remoteSelectedRoleKey = string.Empty;
+    private List<string> availableRemoteRoleKeys = [];
+    private string remoteTopics = "open-source game architecture; runtime classes";
+    private RemoteKnowledgeImportResult? remoteImportResult;
     private LocalGptCatalogService.LearnBasePreset selectedLearnBasePreset = default!;
     private LocalGptCatalogService.LearnBaseScanProfile selectedScanProfile = default!;
     private List<LocalGptCatalogService.TestLabDownloadLink> downloadLinks = [];
@@ -223,13 +300,26 @@
         ? "Generated Source"
         : $"Generated Source - {openSourceRelativePath}";
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
         selectedLearnBasePreset = Catalog.LearnBasePresets.First();
         selectedScanProfile = Catalog.LearnBaseScanProfiles.Skip(1).FirstOrDefault() ?? Catalog.LearnBaseScanProfiles.First();
         learnBaseRoot = selectedLearnBasePreset.RootPath;
         maxProjects = selectedLearnBasePreset.RecommendedMaxProjects;
-        return Task.CompletedTask;
+        try
+        {
+            availableRemoteRoleKeys = (await CouncilTeams.GetTeamsAsync().ConfigureAwait(true))
+                .SelectMany(team => team.Roles)
+                .Select(role => role.Role)
+                .Where(role => !string.IsNullOrWhiteSpace(role))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not preload Council role choices for remote knowledge import; free-text role entry remains available.");
+        }
     }
 
     private Task RunCustomRouteAsync()
@@ -255,6 +345,70 @@
         }
 
     }
+
+    private Task PreviewRemoteKnowledgeAsync()
+    {
+        remoteImportApproved = false;
+        return RunRemoteKnowledgeAsync(previewOnly: true);
+    }
+
+    private Task ImportRemoteKnowledgeAsync()
+    {
+        if (!remoteImportApproved || remoteImportResult is null)
+        {
+            statusText = "Inspect the source and approve its returned-file list before importing.";
+            return Task.CompletedTask;
+        }
+        return RunRemoteKnowledgeAsync(previewOnly: false);
+    }
+
+    private Task RunRemoteKnowledgeAsync(bool previewOnly) => RunUiActionAsync(async () =>
+    {
+        statusText = previewOnly ? "Inspecting remote source and returned files..." : "Importing reviewed remote source...";
+        remoteImportResult = await RemoteKnowledgeImporter.ImportAsync(new RemoteKnowledgeImportRequest
+        {
+            SourceUrl = remoteSourceUrl,
+            SourceKind = remoteSourceKind,
+            Branch = remoteBranch,
+            FileIncludeRegex = remoteFileRegex,
+            MaxFiles = Math.Clamp(remoteMaxFiles, 1, 20000),
+            MaxLinkedPages = 20,
+            SaveToKnowledge = !previewOnly && remoteSaveToKnowledge,
+            PreviewOnly = previewOnly,
+            RoleKeys = SplitRemoteLabels(string.Join(';', new[] { remoteSelectedRoleKey, remoteRoleKeys }.Where(value => !string.IsNullOrWhiteSpace(value)))),
+            Topics = SplitRemoteLabels(remoteTopics),
+            UserConfirmed = !previewOnly && remoteImportApproved
+        }).ConfigureAwait(true);
+        resultText = JsonSerializer.Serialize(remoteImportResult, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
+        statusText = previewOnly
+            ? $"Inspected {remoteImportResult.DownloadedFileCount} file(s); {remoteImportResult.MatchedFileCount} match the file policy."
+            : $"Imported {remoteImportResult.ImportedKnowledgeCount} knowledge entry/entries from {remoteImportResult.MatchedFileCount} matched file(s).";
+    }, previewOnly ? "PreviewRemoteKnowledge" : "ImportRemoteKnowledge");
+
+
+    private void ResetRemoteApproval()
+    {
+        remoteImportApproved = false;
+        remoteImportResult = null;
+    }
+
+    private void SelectRemoteSourcePreset(string key)
+    {
+        (remoteSourceUrl, remoteSourceKind, remoteBranch, remoteRoleKeys, remoteTopics) = key switch
+        {
+            "lotgd" => ("https://github.com/lotgd/lotgd", "GitHub", "master", "Story Director; World Actor; NPC", "open-source text RPG architecture; runtime story events; houses and NPCs"),
+            "php" => ("https://github.com/php/doc-en", "GitHub", "master", "Knowledge Curator", "PHP language manual; documentation architecture"),
+            "llvm" => ("https://github.com/llvm/llvm-project", "GitHub", "main", "Code Analyst", "compiler architecture; C and C++ source"),
+            _ => ("https://github.com/id-Software/DOOM", "GitHub", "master", "Map Architect; ASCII Frame Renderer", "open-source DOOM source architecture; 2.5D rendering; room graph")
+        };
+        ResetRemoteApproval();
+    }
+
+    private List<string> SplitRemoteLabels(string value) => (value ?? string.Empty)
+        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(64)
+        .ToList();
 
     private Task RunLearnBaseImportAsync()
     {

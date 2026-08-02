@@ -8,6 +8,8 @@ public interface IRegexPatternService
 
     Task<Regex?> GetRegexAsync(string name);
 
+    Regex Compile(string pattern, string? flags = null);
+
     Task<List<RegexPattern>> ListAllAsync();
 
     Task<List<RegexPattern>> ListAllAsync(int? take);

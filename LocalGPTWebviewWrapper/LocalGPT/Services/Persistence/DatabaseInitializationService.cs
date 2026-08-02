@@ -41,74 +41,19 @@ public sealed class DatabaseInitializationService(
         {
             if (IsInitializedStorePresent())
                 return;
-           
+
             await databaseFileHealth.EnsureHealthyOrRecoverAsync(cancellationToken).ConfigureAwait(false);
             await migrationCompatibility.PrepareAsync(cancellationToken).ConfigureAwait(false);
+            await RunMigrationAsync(cancellationToken).ConfigureAwait(false);
 
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                await db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) 
-            {
-                logger.LogError($"Error in Migrating Async {ex.ToString()}");
-            }
-            try
-            {
-                await SeedRegexAsync(db, cancellationToken).ConfigureAwait(false);
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Error in SeedRegexAsync Async {ex.ToString()}");
-            }
-            try
-            {
-                await SeedPromptsAsync(db, cancellationToken).ConfigureAwait(false);
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Error in SeedPromptsAsync Async {ex.ToString()}");
-            }
-            try
-            {
-                await SeedVariablesAsync(db, cancellationToken).ConfigureAwait(false);
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Error in SeedVariablesAsync Async {ex.ToString()}");
-            }
-            try
-            {
-                await SeedKnowledgeAsync(db, cancellationToken).ConfigureAwait(false);
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Error in SeedKnowledgeAsync Async {ex.ToString()}");
-            }
-            try
-            {
-                await SeedCoreProjectsAsync(db, cancellationToken).ConfigureAwait(false);
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Error in SeedCoreProjectsAsync Async {ex.ToString()}");
-            }
-            try
-            {
-                await SeedCouncilModelPresetsAsync(db, cancellationToken).ConfigureAwait(false);
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Error in SeedCouncilModelPresetsAsync Async {ex.ToString()}");
-            }
+            // Each seed stage receives a fresh DbContext. A failed SaveChanges therefore cannot leave
+            // stale tracked entities behind and trigger unrelated concurrency failures in the next stage.
+            await RunSeedStageAsync("regex definitions", SeedRegexAsync, cancellationToken).ConfigureAwait(false);
+            await RunSeedStageAsync("prompt definitions", SeedPromptsAsync, cancellationToken).ConfigureAwait(false);
+            await RunSeedStageAsync("system variables", SeedVariablesAsync, cancellationToken).ConfigureAwait(false);
+            await RunSeedStageAsync("knowledge entries", SeedKnowledgeAsync, cancellationToken).ConfigureAwait(false);
+            await RunSeedStageAsync("core projects", SeedCoreProjectsAsync, cancellationToken).ConfigureAwait(false);
+            await RunSeedStageAsync("Council model presets", SeedCouncilModelPresetsAsync, cancellationToken).ConfigureAwait(false);
 
             initialized = true;
             logger.LogInformation("LocalGPT database migration and initial data feed completed.");
@@ -117,6 +62,69 @@ public sealed class DatabaseInitializationService(
         {
             gate.Release();
         }
+    }
+
+    private async Task RunMigrationAsync(CancellationToken cancellationToken)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "LocalGPT database migration was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "LocalGPT database migration failed. Deterministic seed stages were not started.");
+            throw;
+        }
+    }
+
+    private async Task RunSeedStageAsync(
+        string stageName,
+        Func<LocalGptMemoryDbContext, CancellationToken, Task> seed,
+        CancellationToken cancellationToken)
+    {
+        const int maximumAttempts = 2;
+        for (var attempt = 1; attempt <= maximumAttempts; attempt++)
+        {
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await seed(db, cancellationToken).ConfigureAwait(false);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch (DbUpdateConcurrencyException exception) when (attempt < maximumAttempts)
+            {
+                logger.LogWarning(
+                    exception,
+                    "Database seed stage {SeedStage} encountered a concurrency conflict on attempt {Attempt}; retrying once with a fresh DbContext.",
+                    stageName,
+                    attempt);
+            }
+            catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogInformation(exception, "Database seed stage {SeedStage} was cancelled.", stageName);
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "Database seed stage {SeedStage} failed on attempt {Attempt}; later independent stages will continue.",
+                    stageName,
+                    attempt);
+                return;
+            }
+        }
+
+        logger.LogError(
+            "Database seed stage {SeedStage} still had a concurrency conflict after a fresh-context retry; later independent stages will continue.",
+            stageName);
     }
 
     private bool IsInitializedStorePresent() =>
@@ -293,6 +301,7 @@ public sealed class DatabaseInitializationService(
             .Include(project => project.Revisions)
             .Include(project => project.Requirements)
             .Include(project => project.Artifacts)
+            .AsSplitQuery()
             .SingleOrDefaultAsync(project => project.Id == coreProjectId, token)
             .ConfigureAwait(false);
         if (core is null)
@@ -303,7 +312,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.0.2",
+                CurrentVersion = "2.0.3",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -316,7 +325,7 @@ public sealed class DatabaseInitializationService(
             // Lossless upgrade: only fill empty built-in fields and never replace user-maintained values.
             if (string.IsNullOrWhiteSpace(core.RootPath)) core.RootPath = repositoryRoot;
             if (string.IsNullOrWhiteSpace(core.Purpose)) core.Purpose = "Human-guided, humanitarian self-development of LocalGPT.";
-            if (string.IsNullOrWhiteSpace(core.CurrentVersion) || core.CurrentVersion is "0.1.0" or "0.1.7" or "0.1.8" or "2.0.0" or "2.0.1") core.CurrentVersion = "2.0.2";
+            if (string.IsNullOrWhiteSpace(core.CurrentVersion) || core.CurrentVersion is "0.1.0" or "0.1.7" or "0.1.8" or "2.0.0" or "2.0.1" or "2.0.2") core.CurrentVersion = "2.0.3";
             core.IsArchived = false;
             core.UpdatedAtUtc = now;
         }
@@ -337,6 +346,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.0.2", repositoryRoot, "Runtime-class and configuration release with AI-owned ASCII frames, source-informed game presets, grouped DXFunction editing and responsive structured-text streaming.");
         EnsureRevision(core, "main", "seed-v2.0.2", repositoryRoot,
             "Adds database-backed Council runtime-class definitions, ASCII DOOM and Green Dragon configuration examples, runtime input metadata, and bounded renderer work during live Council streams.");
+        EnsureVersion(core, "2.0.3", repositoryRoot, "In-chat ASCII game console, deterministic low-latency game bootstrap, shared human/AI controls, remote knowledge imports, tolerant runtime-class resolution and batched diagnostics.");
+        EnsureRevision(core, "main", "seed-v2.0.3", repositoryRoot,
+            "Integrates playable ASCII game sessions into Chat, preserves one authoritative frame owner, adds confirmed GitHub/web knowledge ingestion, improves handheld controls and reduces hot-path log and stream update pressure.");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",
@@ -384,6 +396,7 @@ public sealed class DatabaseInitializationService(
             .Include(project => project.Revisions)
             .Include(project => project.Requirements)
             .Include(project => project.Artifacts)
+            .AsSplitQuery()
             .SingleOrDefaultAsync(project => project.Id == humanitarianProjectId, token)
             .ConfigureAwait(false);
         if (humanitarian is null)
@@ -430,6 +443,21 @@ public sealed class DatabaseInitializationService(
         var presets = new[]
         {
             BuildPreset(
+                "Reactive ASCII Gameplay",
+                "Low-latency one-model-at-a-time defaults for in-chat runtime games. Auto GPU offload supports NVIDIA and AMD through Ollama without hard-coded layer guesses; a bounded benchmark team may refine a copied preset later.",
+                ["qwen3.5:0.8b", "qwen3.5:2b", "qwen3.5:4b", "llama3.2:1b", "phi3:3.8b"],
+                [
+                    Route("qwen3.5:0.8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 256, 1536, 2048, 8192, null),
+                    Route("qwen3.5:2b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 256, 2048, 4096, 12288, null),
+                    Route("qwen3.5:4b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 384, 3072, 4096, 16384, null),
+                    Route("llama3.2:1b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 256, 1536, 2048, 8192, null),
+                    Route("phi3:3.8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 384, 3072, 4096, 16384, null)
+                ],
+                isDefault: false,
+                maxParallel: 1,
+                includeMemory: false,
+                createProjectPerRun: false),
+            BuildPreset(
                 "Adaptive Mixed Hardware Council",
                 "Four-member Council with independent per-model CPU/GPU token roads. The session slider interpolates each model from its own minimum to maximum.",
                 ["gpt-oss:20b", "deepseek-r1:8b", "qwen3:8b", "gemma3:12b"],
@@ -463,7 +491,9 @@ public sealed class DatabaseInitializationService(
         string[] models,
         OneWireCouncilModelRoute[] routes,
         bool isDefault,
-        int maxParallel) => new()
+        int maxParallel,
+        bool includeMemory = true,
+        bool createProjectPerRun = true) => new()
     {
         Name = name,
         Description = description,
@@ -473,9 +503,9 @@ public sealed class DatabaseInitializationService(
         MaxOutputTokens = routes.Max(route => route.MaxOutputTokens),
         MaxContextTokens = routes.Max(route => route.MaxContextTokens),
         MaxParallelModels = maxParallel,
-        IncludeMemory = true,
+        IncludeMemory = includeMemory,
         GenerateArtifacts = false,
-        CreateProjectPerRun = true,
+        CreateProjectPerRun = createProjectPerRun,
         IsDefault = isDefault,
         IsUserApproved = true,
         CreatedAtUtc = DateTime.UtcNow,

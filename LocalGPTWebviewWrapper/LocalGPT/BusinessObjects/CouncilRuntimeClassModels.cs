@@ -64,6 +64,7 @@ public sealed class CouncilRuntimeClassDefinition
     public string Description { get; set; } = string.Empty;
     public List<RuntimeClassFieldDefinition> Fields { get; set; } = [];
     public List<RuntimeInputBindingDefinition> InputBindings { get; set; } = [];
+    public List<string> Aliases { get; set; } = [];
     public List<string> RecommendedDxFunctions { get; set; } = [];
     public List<string> SourceReferences { get; set; } = [];
     public bool IsEnabled { get; set; } = true;

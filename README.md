@@ -176,6 +176,8 @@ A downstream adopter can:
 
 LocalGPT does not promise production suitability for a specific organization. Adopters are responsible for their own security review, licensing, validation, deployment, compliance, support, and operational guarantees.
 
+For company use, the LocalGPT team strongly recommends a **DMZ-style isolation procedure**: place LocalGPT and its model/runtime services in a segmented network zone, restrict inbound and outbound traffic with operating-system and perimeter firewall rules, allow only required loopback or explicitly approved endpoints, and run the application under a dedicated least-privilege operating-system account that cannot delete or modify unrelated files. Treat imported repositories, webpages, model output, generated code, and tool requests as untrusted until reviewed.
+
 ## Contributions and support expectations
 
 Issues, technical discussion, documentation improvements, and focused pull requests may be useful, but acceptance, response time, compatibility work, and implementation are not guaranteed.
@@ -228,11 +230,15 @@ Use it, inspect it, fork it, improve it, or build something entirely different f
 
 </div>
 
-## LocalGPT 2.0.2 runtime-class game examples
+## LocalGPT 2.0.3 in-chat runtime games and knowledge imports
 
-The Council Team editor now includes database-backed runtime classes and categorized best-use DXFunctions. Two opt-in configuration examples demonstrate the intended architecture without replacing the existing Council engine:
+The Council Team editor includes database-backed runtime classes and categorized best-use DXFunctions. `/Chat` now keeps one persistent ASCII game surface directly beside the conversation, with the same bounded control contract for humans and AI players:
 
-- **ASCII DOOM Council Adventure** — a deliberately slow terminal simulation where one Council turn advances one meaningful world step and one AI member creates the complete ASCII frame.
+- **ASCII corridor Council Adventure** — a reactive, original 2.5D-style terminal simulation. A deterministic frame appears immediately, one Council turn advances one meaningful world step, and exactly one AI member may own each complete ASCII frame.
 - **Green Dragon Runtime Story** — locations, houses, NPCs, events, player state, and scene frames are separate bounded runtime-class instances coordinated by directors.
+
+The Chat surface supports keyboard, touch, gamepad, shared human/AI control, delayed AI autoplay, and fullscreen layouts suitable for desktop, tablet, and handheld devices. GitHub repositories and public webpages can be inspected from Test Lab, filtered by the database-backed source-file regex policy, reviewed as an exact returned-file list, and then passed through the existing Learn-Base importer after explicit approval. Council members receive matching inspect/import DXFunctions.
+
+These are fan-made configuration and architecture studies. LocalGPT is not affiliated with id Software, ZeniMax, Bethesda, LOTGD, or their contributors, does not ship commercial game data, WADs, trademarks, or the original game engine, and does not claim that these examples are official versions of any game.
 
 See [`docs/ASCII_RUNTIME_GAME_PRESETS.md`](docs/ASCII_RUNTIME_GAME_PRESETS.md) for the frame contract, role ownership, optional learning sources, and runtime-field behavior.

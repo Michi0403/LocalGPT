@@ -62,10 +62,8 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
-#if DEBUG
-            RecordInformation(serviceName, operation, "The service operation was cancelled in a Debug build.");
-            logger.LogInformation(exception, "Service activity {ServiceName}/{Operation} was cancelled in a Debug build.", serviceName, operation);
-#endif
+            RecordInformation(serviceName, operation, "The service operation was cancelled.");
+            logger.LogInformation(exception, "Service activity {ServiceName}/{Operation} was cancelled.", serviceName, operation);
             throw;
         }
         catch (Exception ex)
@@ -105,10 +103,8 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
-#if DEBUG
-            RecordInformation(serviceName, operation, "The service operation was cancelled in a Debug build.");
-            logger.LogInformation(exception, "Service activity {ServiceName}/{Operation} was cancelled in a Debug build.", serviceName, operation);
-#endif
+            RecordInformation(serviceName, operation, "The service operation was cancelled.");
+            logger.LogInformation(exception, "Service activity {ServiceName}/{Operation} was cancelled.", serviceName, operation);
             throw;
         }
         catch (Exception ex)

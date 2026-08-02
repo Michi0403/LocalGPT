@@ -310,7 +310,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
         {
             Key = "ascii-doom-council-adventure",
             DisplayName = "ASCII DOOM Council Adventure",
-            Purpose = "A deliberately slow, turn-based terminal adventure informed by the user-imported id Software DOOM source. It does not build a conventional 3D renderer: one meaningful world step is resolved per Council turn and exactly one AI member authors the complete Matrix-ship-style ASCII frame.",
+            Purpose = "A reactive, turn-based terminal adventure optionally informed by user-imported id Software DOOM source knowledge. It does not build a conventional 3D renderer: one meaningful world step is resolved per Council turn and exactly one AI member authors the complete Matrix-ship-style ASCII frame.",
             Roles =
             [
                 new()
@@ -364,8 +364,8 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     Expertise = "one active enemy, pickup, door, hazard or environmental object per model",
                     Responsibility = "own exactly one active runtime-class instance for the current turn and submit one bounded intent",
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
-                    MinimumAiParticipants = 2,
-                    MaximumAiParticipants = 8,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 3,
                     HumanParticipationMode = HumanParticipationMode.None,
                     PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
@@ -417,11 +417,12 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Create one original room-and-corridor map for {{TeamName}}. Use the runtime classes assigned to your role and, when available, study imported knowledge from https://github.com/id-Software/DOOM through LocalGPT knowledge/DXFunctions. Do not reproduce commercial WAD content and do not claim to execute the original engine. Establish room ids, connections, start, exit, keys, doors and initial actor slots. The map is authoritative for later turns. Make every movement step meaningful: a turn advances by the configured world step scale, not by 35 render ticks.
+Start the directly playable in-chat ASCII corridor session by calling localgpt.game.session.start with gameKey ascii-doom and teamKey ascii-doom-council-adventure. Use the preseeded deterministic room graph immediately; do not spend a model turn inventing a large map and do not call runtime-class.list. Canonical class keys are games.ascii.doom.session, .map, .player, .controller, .actor and .frame; localgpt.runtime-class.resolve accepts case-insensitive aliases when inspection is needed. Optionally add only a compact title/objective informed by user-imported source knowledge. Never reproduce commercial WAD content or claim affiliation with the original game.
 Runtime classes: {{RuntimeClasses}}
 """,
-                    IncludePriorTranscript = true,
+                    IncludePriorTranscript = false,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -435,11 +436,12 @@ Runtime classes: {{RuntimeClasses}}
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Open the terminal adventure using the generated map. Explain that this is a slow Council simulation: one command, one resolved world step, one ASCII frame. State the controls described by the player runtime class and give the immediate objective. Do not generate the frame yourself.
+Open the terminal adventure using the generated map. Explain that this is a reactive Council simulation: one command, one resolved world step, one ASCII frame. State the controls described by the player runtime class and give the immediate objective. Do not generate the frame yourself.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -458,8 +460,9 @@ Runtime classes: {{RuntimeClasses}}
 """,
                     LoopGroup = "ascii-doom-turn",
                     MaximumLoopIterations = 24,
-                    IncludePriorTranscript = true,
+                    IncludePriorTranscript = false,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -478,8 +481,9 @@ Runtime classes: {{RuntimeClasses}}
 """,
                     LoopGroup = "ascii-doom-turn",
                     MaximumLoopIterations = 24,
-                    IncludePriorTranscript = true,
+                    IncludePriorTranscript = false,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -498,8 +502,9 @@ Runtime classes: {{RuntimeClasses}}
                     LoopGroup = "ascii-doom-turn",
                     MaximumLoopIterations = 24,
                     LoopCompletionMarker = "[[GAME_COMPLETE]]",
-                    IncludePriorTranscript = true,
+                    IncludePriorTranscript = false,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -524,6 +529,7 @@ Runtime classes: {{RuntimeClasses}}
                     MaximumLoopIterations = 24,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
                     ProducesAsciiFrame = true,
                     AsciiFrameWidth = 80,
@@ -532,7 +538,7 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.runtime-class.list", "localgpt.runtime-class.get", "localgpt.knowledge.list"],
+            PreferredCapabilities = ["localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
@@ -587,7 +593,7 @@ Runtime classes: {{RuntimeClasses}}
                     Responsibility = "present the active place's description, exits and available interactions without deciding the player choice",
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
-                    MaximumAiParticipants = 4,
+                    MaximumAiParticipants = 2,
                     PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
@@ -600,8 +606,8 @@ Runtime classes: {{RuntimeClasses}}
                     Expertise = "one named NPC runtime instance per model",
                     Responsibility = "speak and act only for the owned NPC instance for this turn",
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
-                    MinimumAiParticipants = 2,
-                    MaximumAiParticipants = 8,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 3,
                     PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
@@ -615,7 +621,7 @@ Runtime classes: {{RuntimeClasses}}
                     Responsibility = "evaluate entry conditions and present bounded consequences without taking over another instance",
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
-                    MaximumAiParticipants = 6,
+                    MaximumAiParticipants = 2,
                     PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
@@ -664,11 +670,12 @@ Runtime classes: {{RuntimeClasses}}
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Create an original fantasy village/forest opening for {{TeamName}}. The optional source https://github.com/lotgd/lotgd may be studied through imported LocalGPT knowledge, but do not copy story text or require its web application at runtime. Instantiate a world, player, at least three locations, two NPCs and one dormant event using the assigned runtime classes. Do not speak for those instances after assigning ownership.
+Call localgpt.game.session.start with gameKey green-dragon and teamKey green-dragon-runtime-story so the story is immediately playable in /Chat. Use the preseeded original village scene and runtime-class keys directly; do not run discovery loops. The optional lotgd source may be studied only through user-approved knowledge, without copying story text or claiming affiliation.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -687,8 +694,9 @@ Runtime classes: {{RuntimeClasses}}
 """,
                     LoopGroup = "green-dragon-turn",
                     MaximumLoopIterations = 16,
-                    IncludePriorTranscript = true,
+                    IncludePriorTranscript = false,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -707,6 +715,7 @@ Runtime classes: {{RuntimeClasses}}
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -725,6 +734,7 @@ Runtime classes: {{RuntimeClasses}}
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -743,6 +753,7 @@ Runtime classes: {{RuntimeClasses}}
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -762,6 +773,7 @@ Runtime classes: {{RuntimeClasses}}
                     LoopCompletionMarker = "[[STORY_COMPLETE]]",
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -784,6 +796,7 @@ Runtime classes: {{RuntimeClasses}}
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
                     ProducesAsciiFrame = true,
                     AsciiFrameWidth = 80,
@@ -792,7 +805,7 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.runtime-class.list", "localgpt.runtime-class.get", "localgpt.knowledge.list"],
+            PreferredCapabilities = ["localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),

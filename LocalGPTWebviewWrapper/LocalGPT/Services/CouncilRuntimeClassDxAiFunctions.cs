@@ -38,7 +38,11 @@ public sealed class ListCouncilRuntimeClassesFunction(
             var kindFilter = GetString(request.Parameters, "kind");
             var definitions = await runtimeClasses.GetDefinitionsAsync(includeDisabled, cancellationToken).ConfigureAwait(false);
             var filtered = definitions
-                .Where(item => string.IsNullOrWhiteSpace(namespaceFilter) || item.Namespace.Contains(namespaceFilter, StringComparison.OrdinalIgnoreCase))
+                .Where(item => string.IsNullOrWhiteSpace(namespaceFilter) ||
+                    item.Namespace.Contains(namespaceFilter, StringComparison.OrdinalIgnoreCase) ||
+                    item.Key.Contains(namespaceFilter, StringComparison.OrdinalIgnoreCase) ||
+                    item.DisplayName.Contains(namespaceFilter, StringComparison.OrdinalIgnoreCase) ||
+                    item.Aliases.Any(alias => alias.Contains(namespaceFilter, StringComparison.OrdinalIgnoreCase)))
                 .Where(item => string.IsNullOrWhiteSpace(kindFilter) || item.Kind.ToString().Equals(kindFilter, StringComparison.OrdinalIgnoreCase))
                 .Select(item => new
                 {
@@ -48,6 +52,8 @@ public sealed class ListCouncilRuntimeClassesFunction(
                     Kind = item.Kind.ToString(),
                     FieldCount = item.Fields.Count,
                     InputBindingCount = item.InputBindings.Count,
+                    item.Aliases,
+                    LookupHint = $"Use localgpt.runtime-class.get with key '{item.Key}'; lookup is case/punctuation tolerant.",
                     item.IsEnabled,
                     item.SourceReferences
                 })
@@ -66,6 +72,63 @@ public sealed class ListCouncilRuntimeClassesFunction(
         parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var element) && element.ValueKind == JsonValueKind.String
             ? element.GetString() ?? string.Empty
             : string.Empty;
+}
+
+public sealed class ResolveCouncilRuntimeClassFunction(
+    ICouncilRuntimeClassService runtimeClasses,
+    ILogger<ResolveCouncilRuntimeClassFunction> logger) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "localgpt.runtime-class.resolve",
+        "POST",
+        "/api/dxai/functions/localgpt.runtime-class.resolve/invoke",
+        "Resolves a runtime-class key, namespace, display name or common alias without case or punctuation sensitivity.",
+        "JSON parameters: query required. Examples: games.ascii.doom.map, LocalGPT.Games.AsciiDoom.Map, doom map.",
+        "Read-only. Returns the canonical database-backed definition and stable key so models do not need discovery loops.",
+        IsReadOnly: true,
+        AvailableToAi: true,
+        RequiresHumanConfirmation: false,
+        SupportsDirectInvocation: true,
+        SupportsAutomaticInvocation: true,
+        Source: "DIHandler",
+        ParameterSchemaJson: """{"type":"object","required":["query"],"properties":{"query":{"type":"string","maxLength":240}},"additionalProperties":false}""");
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(
+        DxAiFunctionInvocationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var query = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("query", out var element)
+                ? element.GetString()
+                : null;
+            if (string.IsNullOrWhiteSpace(query))
+                return new DxAiFunctionInvocationResult { Succeeded = false, Status = "InvalidParameters", Error = "Parameter 'query' is required." };
+            var definition = await runtimeClasses.FindAsync(query, cancellationToken).ConfigureAwait(false);
+            if (definition is null)
+                return new DxAiFunctionInvocationResult { Succeeded = false, Status = "NotFound", Error = $"No runtime class matched '{query}'. Call localgpt.runtime-class.list without a namespace filter to inspect canonical keys." };
+            logger.LogInformation("Resolved runtime class alias {RuntimeClassAlias} to {RuntimeClassKey}.", query, definition.Key);
+            return new DxAiFunctionInvocationResult
+            {
+                Succeeded = true,
+                Status = "Completed",
+                Value = new
+                {
+                    CanonicalKey = definition.Key,
+                    definition.Namespace,
+                    definition.DisplayName,
+                    definition.Kind,
+                    definition.Aliases,
+                    Definition = definition
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not resolve a Council runtime class alias.");
+            return new DxAiFunctionInvocationResult { Succeeded = false, Status = "Failed", Error = "Runtime class resolution failed. Review LocalGPT logs." };
+        }
+    }
 }
 
 public sealed class GetCouncilRuntimeClassFunction(

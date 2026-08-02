@@ -11,7 +11,7 @@ public sealed class CouncilRuntimeClassService(
     IDatabaseInitializationService databaseInitializer,
     ILogger<CouncilRuntimeClassService> logger) : ICouncilRuntimeClassService
 {
-    private const int CurrentSeedVersion = 1;
+    private const int CurrentSeedVersion = 3;
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -52,13 +52,19 @@ public sealed class CouncilRuntimeClassService(
         try
         {
             await EnsureSeedDataAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            var normalized = key.Trim().ToLowerInvariant();
-            var row = await db.CouncilRuntimeClassConfigurations
-                .AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Key == normalized, cancellationToken)
-                .ConfigureAwait(false);
-            return row is null ? null : ToDefinition(row);
+            var normalized = NormalizeLookupToken(key);
+            var definitions = await GetDefinitionsAsync(includeDisabled: true, cancellationToken).ConfigureAwait(false);
+            return definitions
+                .Select(definition => new
+                {
+                    Definition = definition,
+                    Rank = LookupRank(definition, normalized)
+                })
+                .Where(candidate => candidate.Rank < int.MaxValue)
+                .OrderBy(candidate => candidate.Rank)
+                .ThenBy(candidate => candidate.Definition.Key.Length)
+                .Select(candidate => candidate.Definition)
+                .FirstOrDefault();
         }
         catch (Exception ex)
         {
@@ -181,7 +187,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("turn", "Turn", "int", "0", RuntimeFieldInputMode.System, false, false),
                     Field("stepScale", "World step scale", "int", "4", RuntimeFieldInputMode.Shared, true, true),
                     Field("status", "Session status", "string", "Running", RuntimeFieldInputMode.System, false, false)
-                ], [], ["localgpt.runtime-class.get", "localgpt.knowledge.list"], [doomSource, cLanguageSource]),
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.knowledge.list"], [doomSource, cLanguageSource]),
             BuildDefinition("games.ascii.doom.map", "LocalGPT.Games.AsciiDoom", "ASCII DOOM map", RuntimeClassKind.Map,
                 "A generated room-and-corridor graph kept as authoritative turn state. The Council may study the open source code, but does not require or redistribute commercial WAD data.",
                 [
@@ -190,7 +196,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("roomsJson", "Rooms", "json", "[]", RuntimeFieldInputMode.Ai, true, false),
                     Field("currentRoomId", "Current room", "string", "start", RuntimeFieldInputMode.System, false, false),
                     Field("exitRoomId", "Exit room", "string", "exit", RuntimeFieldInputMode.Ai, true, false)
-                ], [], ["localgpt.runtime-class.get"], [doomSource, cLanguageSource]),
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
             BuildDefinition("games.ascii.doom.player", "LocalGPT.Games.AsciiDoom", "ASCII DOOM player", RuntimeClassKind.Player,
                 "Player state and bounded actions. Human input is optional; required fields can block only the dependent round.",
                 [
@@ -208,7 +214,28 @@ public sealed class CouncilRuntimeClassService(
                     Binding("attack", "Attack", "Space", "RightTrigger"),
                     Binding("use", "Use", "E", "X"),
                     Binding("duck", "Duck", "Ctrl", "B")
-                ], ["localgpt.runtime-class.get"], [doomSource, cLanguageSource]),
+                ], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.control", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
+            BuildDefinition("games.ascii.doom.controller", "LocalGPT.Games.AsciiDoom", "ASCII DOOM shared controller", RuntimeClassKind.Controller,
+                "The single input contract used by both the human player and the AI Player Controller. It preserves the 2.5D x/y facing experience without a separate AI-only shortcut.",
+                [
+                    Field("action", "Action", "string", "wait", RuntimeFieldInputMode.Shared, true, true),
+                    Field("axisX", "Movement X axis", "double", "0", RuntimeFieldInputMode.Shared, true, true),
+                    Field("axisY", "Movement Y axis", "double", "0", RuntimeFieldInputMode.Shared, true, true),
+                    Field("aimX", "Aim X", "int", "0", RuntimeFieldInputMode.Shared, true, true),
+                    Field("aimY", "Aim Y", "int", "0", RuntimeFieldInputMode.Shared, true, true),
+                    Field("source", "Control source", "string", "Human", RuntimeFieldInputMode.System, false, false)
+                ],
+                [
+                    Binding("move-forward", "Move forward", "W", "LeftStickUp"),
+                    Binding("move-backward", "Move backward", "S", "LeftStickDown"),
+                    Binding("strafe-left", "Strafe left", "A", "LeftStickLeft"),
+                    Binding("strafe-right", "Strafe right", "D", "LeftStickRight"),
+                    Binding("turn-left", "Turn or aim left", "Q", "RightStickLeft"),
+                    Binding("turn-right", "Turn or aim right", "R", "RightStickRight"),
+                    Binding("shoot", "Shoot on current x/y facing ray", "Space", "RightTrigger"),
+                    Binding("use", "Use door or switch", "E", "A"),
+                    Binding("duck", "Duck or stand", "Ctrl", "B")
+                ], ["localgpt.game.control", "localgpt.game.session.get", "localgpt.runtime-class.resolve"], [doomSource, cLanguageSource]),
             BuildDefinition("games.ascii.doom.actor", "LocalGPT.Games.AsciiDoom", "ASCII DOOM world actor", RuntimeClassKind.Actor,
                 "One active enemy, ally, projectile abstraction, pickup, door or hazard owned by one Council member for the current turn.",
                 [
@@ -218,7 +245,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("roomId", "Room", "string", "start", RuntimeFieldInputMode.System, false, false),
                     Field("health", "Health", "int", "25", RuntimeFieldInputMode.System, false, false),
                     Field("intent", "Turn intent", "string", "observe", RuntimeFieldInputMode.Ai, true, false)
-                ], [], ["localgpt.runtime-class.get"], [doomSource, cLanguageSource]),
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
             BuildDefinition("games.ascii.doom.frame", "LocalGPT.Games.AsciiDoom", "ASCII DOOM frame", RuntimeClassKind.Frame,
                 "Exactly one Council member authors the complete fixed-width frame after state resolution. It is a Matrix-ship-style terminal view, not a conventional 3D game frame.",
                 [
@@ -227,7 +254,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("frameText", "ASCII frame", "string", "", RuntimeFieldInputMode.Ai, true, false),
                     Field("turn", "Turn", "int", "0", RuntimeFieldInputMode.System, false, false),
                     Field("legend", "Legend", "string", "@ player, e enemy, + door, # wall", RuntimeFieldInputMode.Ai, true, false)
-                ], [], ["localgpt.runtime-class.get"], [doomSource, cLanguageSource]),
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.frame.submit", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
             BuildDefinition("games.green-dragon.world", "LocalGPT.Games.GreenDragon", "Green Dragon world", RuntimeClassKind.World,
                 "Persistent role-play world state orchestrated by a Story Director. Locations, houses, NPCs and events remain separate runtime class instances.",
                 [
@@ -235,7 +262,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("day", "World day", "int", "1", RuntimeFieldInputMode.System, false, false),
                     Field("weather", "Weather", "string", "clear", RuntimeFieldInputMode.Ai, true, false),
                     Field("storyFlagsJson", "Story flags", "json", "{}", RuntimeFieldInputMode.System, false, false)
-                ], [], ["localgpt.runtime-class.get", "localgpt.knowledge.list"], [dragonSource, phpLanguageSource]),
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.knowledge.list"], [dragonSource, phpLanguageSource]),
             BuildDefinition("games.green-dragon.location", "LocalGPT.Games.GreenDragon", "Green Dragon location or house", RuntimeClassKind.Location,
                 "A village, forest, inn, house or other place. One Council member may act as the active location and expose its available actions.",
                 [
@@ -245,7 +272,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("description", "Description", "string", "", RuntimeFieldInputMode.Ai, true, false),
                     Field("exitsJson", "Exits", "json", "[]", RuntimeFieldInputMode.Ai, true, false),
                     Field("availableActionsJson", "Available actions", "json", "[]", RuntimeFieldInputMode.Ai, true, false)
-                ], [], ["localgpt.runtime-class.get"], [dragonSource, phpLanguageSource]),
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [dragonSource, phpLanguageSource]),
             BuildDefinition("games.green-dragon.npc", "LocalGPT.Games.GreenDragon", "Green Dragon NPC", RuntimeClassKind.Actor,
                 "One named NPC instance played by one Council member while active. The Story Director coordinates but does not overwrite the NPC's bounded decisions.",
                 [
@@ -255,7 +282,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("mood", "Mood", "string", "neutral", RuntimeFieldInputMode.Ai, true, false),
                     Field("dialogueIntent", "Dialogue intent", "string", "greet", RuntimeFieldInputMode.Ai, true, false),
                     Field("locationId", "Location", "string", "village", RuntimeFieldInputMode.System, false, false)
-                ], [], ["localgpt.runtime-class.get"], [dragonSource, phpLanguageSource]),
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [dragonSource, phpLanguageSource]),
             BuildDefinition("games.green-dragon.event", "LocalGPT.Games.GreenDragon", "Green Dragon event or encounter", RuntimeClassKind.Event,
                 "A bounded story beat, encounter or random event with explicit entry conditions, choices and completion state.",
                 [
@@ -265,7 +292,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("choicesJson", "Choices", "json", "[]", RuntimeFieldInputMode.Ai, true, false),
                     Field("selectedChoice", "Selected choice", "string", "", RuntimeFieldInputMode.HumanOptional, true, true, false, false, "1", "A"),
                     Field("completed", "Completed", "bool", "false", RuntimeFieldInputMode.System, false, false)
-                ], [], ["localgpt.runtime-class.get"], [dragonSource, phpLanguageSource]),
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [dragonSource, phpLanguageSource]),
             BuildDefinition("games.green-dragon.player", "LocalGPT.Games.GreenDragon", "Green Dragon player", RuntimeClassKind.Player,
                 "Player character and current choice. Human participation is optional unless a configured field is marked HumanRequired.",
                 [
@@ -281,7 +308,7 @@ public sealed class CouncilRuntimeClassService(
                     Binding("choice-3", "Choice 3", "3", "X"),
                     Binding("choice-4", "Choice 4", "4", "Y"),
                     Binding("look", "Look", "L", "RightStick")
-                ], ["localgpt.runtime-class.get"], [dragonSource, phpLanguageSource]),
+                ], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [dragonSource, phpLanguageSource]),
             BuildDefinition("games.green-dragon.frame", "LocalGPT.Games.GreenDragon", "Green Dragon ASCII scene", RuntimeClassKind.Frame,
                 "One AI-authored terminal scene per completed story turn, followed by concise narration and numbered choices.",
                 [
@@ -289,7 +316,7 @@ public sealed class CouncilRuntimeClassService(
                     Field("height", "Rows", "int", "25", RuntimeFieldInputMode.Shared, true, true),
                     Field("frameText", "ASCII frame", "string", "", RuntimeFieldInputMode.Ai, true, false),
                     Field("caption", "Caption", "string", "", RuntimeFieldInputMode.Ai, true, false)
-                ], [], ["localgpt.runtime-class.get"], [dragonSource, phpLanguageSource])
+                ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [dragonSource, phpLanguageSource])
         ];
     }
 
@@ -372,6 +399,7 @@ public sealed class CouncilRuntimeClassService(
         definition.Description = definition.Description?.Trim() ?? string.Empty;
         definition.Fields ??= [];
         definition.InputBindings ??= [];
+        definition.Aliases ??= [];
         definition.RecommendedDxFunctions ??= [];
         definition.SourceReferences ??= [];
         if (definition.Fields.Count > 128)
@@ -403,6 +431,7 @@ public sealed class CouncilRuntimeClassService(
             }
         }
 
+        definition.Aliases = BuildAliases(definition).ToList();
         definition.RecommendedDxFunctions = definition.RecommendedDxFunctions
             .Select(item => item?.Trim() ?? string.Empty)
             .Where(item => item.Length > 0)
@@ -413,6 +442,60 @@ public sealed class CouncilRuntimeClassService(
             .Where(item => item.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private string NormalizeLookupToken(string value) => new(
+        (value ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant()
+            .Where(char.IsLetterOrDigit)
+            .ToArray());
+
+    private int LookupRank(CouncilRuntimeClassDefinition definition, string normalized)
+    {
+        if (normalized.Length == 0) return int.MaxValue;
+        var candidates = BuildAliases(definition)
+            .Select(NormalizeLookupToken)
+            .Where(candidate => candidate.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (NormalizeLookupToken(definition.Key) == normalized) return 0;
+        if (candidates.Contains(normalized, StringComparer.Ordinal)) return 1;
+        if (candidates.Any(candidate => candidate.EndsWith(normalized, StringComparison.Ordinal))) return 2;
+        if (candidates.Any(candidate => candidate.Contains(normalized, StringComparison.Ordinal))) return 3;
+        return int.MaxValue;
+    }
+
+    private IEnumerable<string> BuildAliases(CouncilRuntimeClassDefinition definition) =>
+        BuildAliases(definition.Key, definition.Namespace, definition.DisplayName)
+            .Concat(definition.Aliases ?? [])
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+    private IEnumerable<string> BuildAliases(string key, string runtimeNamespace, string displayName)
+    {
+        var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            key,
+            runtimeNamespace,
+            displayName,
+            key.Replace('.', '-'),
+            key.Replace('.', ' '),
+            runtimeNamespace.Replace("LocalGPT.Games.", "games.", StringComparison.OrdinalIgnoreCase),
+            runtimeNamespace.Replace("LocalGPT.", string.Empty, StringComparison.OrdinalIgnoreCase)
+        };
+        if (key.StartsWith("games.ascii.doom.", StringComparison.OrdinalIgnoreCase))
+        {
+            aliases.Add("doom." + key["games.ascii.doom.".Length..]);
+            aliases.Add("ascii-doom-" + key["games.ascii.doom.".Length..]);
+            aliases.Add("LocalGPT.Games.AsciiDoom." + key["games.ascii.doom.".Length..]);
+        }
+        if (key.StartsWith("games.green-dragon.", StringComparison.OrdinalIgnoreCase))
+        {
+            aliases.Add("lotgd." + key["games.green-dragon.".Length..]);
+            aliases.Add("green-dragon-" + key["games.green-dragon.".Length..]);
+            aliases.Add("LocalGPT.Games.GreenDragon." + key["games.green-dragon.".Length..]);
+        }
+        return aliases.Where(alias => !string.IsNullOrWhiteSpace(alias));
     }
 
     private void ApplyDefinition(CouncilRuntimeClassConfiguration row, CouncilRuntimeClassDefinition definition)
@@ -443,6 +526,7 @@ public sealed class CouncilRuntimeClassService(
             Description = row.Description,
             Fields = Deserialize<List<RuntimeClassFieldDefinition>>(row.FieldsJson) ?? [],
             InputBindings = Deserialize<List<RuntimeInputBindingDefinition>>(row.InputBindingsJson) ?? [],
+            Aliases = BuildAliases(row.Key, row.Namespace, row.DisplayName).ToList(),
             RecommendedDxFunctions = Deserialize<List<string>>(row.RecommendedDxFunctionsJson) ?? [],
             SourceReferences = Deserialize<List<string>>(row.SourceReferencesJson) ?? [],
             IsEnabled = row.IsEnabled,

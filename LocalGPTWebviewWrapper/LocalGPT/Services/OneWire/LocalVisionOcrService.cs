@@ -70,9 +70,7 @@ public sealed class LocalVisionOcrService(
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
-#if DEBUG
-            logger.LogInformation(exception, "Cancelled local 1-Wire OCR at the caller's request while debugging.");
-#endif
+            logger.LogInformation(exception, "Cancelled local 1-Wire OCR at the caller's request.");
             throw;
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or HttpRequestException or JsonException or FormatException or UriFormatException)

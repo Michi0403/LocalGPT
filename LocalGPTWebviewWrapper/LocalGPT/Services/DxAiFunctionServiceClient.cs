@@ -91,9 +91,7 @@ public sealed class DxAiFunctionServiceClient(
             string? reason;
             lock (stateGate)
                 reason = cancellationReason;
-#if DEBUG
-            logger.LogInformation(exception, "DXAIFunction operation {OperationId} was cancelled by the current user while debugging.", operationId);
-#endif
+            logger.LogInformation(exception, "DXAIFunction operation {OperationId} was cancelled by the current user.", operationId);
             return new DxAiFunctionInvocationResult
             {
                 FunctionName = functionName,

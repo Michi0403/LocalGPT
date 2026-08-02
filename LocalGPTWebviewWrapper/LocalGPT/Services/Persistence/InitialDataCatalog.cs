@@ -97,6 +97,8 @@ public sealed class InitialDataCatalog(
         new("builtin.dotnet-solution-project", "Project\\(\"\\{[^}]+\\}\"\\)\\s*=\\s*\"(?<name>[^\"]+)\",\\s*\"(?<path>[^\"]+\\.csproj)\"", "i,c"),
         new("builtin.installer-port-contract", "(?i)(?:default|installer|bootstrap|webview|kestrel|listen|port)[^\\r\\n]{0,120}?(?<port>\\b(?:[1-9][0-9]{2,4})\\b)", "i,c"),
         new("builtin.onewire-capability-key", "(?i)(?:capability|skill|uiActivationKey|operationKey)[^\\r\\n]{0,80}?[\"'](?<key>[a-z0-9][a-z0-9._-]+)[\"']", "i,c"),
+        new("builtin.runtime-class-key-alias", "(?i)(?<key>(?:localgpt[._ -]+)?games?[._ -]+(?:ascii[._ -]+doom|green[._ -]+dragon)[._ -]+(?:session|map|player|controller|actor|frame|location|npc|event|house|story))", "i,c"),
+        new("builtin.remote-knowledge-source-file", "(?i)\\.(?:cs|razor|csproj|sln|json|xml|md|txt|ps1|cmd|sh|py|js|ts|tsx|css|scss|html?|php|c|h|cpp|hpp|java|kt|go|rs|sql|ya?ml)$", "i,c"),
         new("builtin.file-path-with-extension", "(?<path>(?:[A-Za-z]:)?[\\\\/A-Za-z0-9_. -]+\\.(?<extension>[A-Za-z0-9]{1,12}))", "c"),
         .. runtimePolicySeed.GetSeed().RegexPatterns.Select(item => new RegexPatternDto(item.Name, item.Pattern, item.Flags))
     ];

@@ -1,6 +1,13 @@
 # Runtime-class ASCII game presets
 
-LocalGPT 2.0.2 adds configuration examples that reuse the existing Council workflow instead of adding a second game engine.
+LocalGPT 2.0.3 adds directly playable configuration examples that reuse the existing Council workflow instead of adding a second game engine.
+
+
+## Direct /Chat play surface
+
+Both presets can start from a prompt-selected Council team or from the persistent `/Chat` game console. The 80×25 authoritative frame remains in one stable location while chat continues, with a browser-fullscreen mode and responsive sizing for tablets and handheld PCs. Human touch, keyboard and browser Gamepad API input call the same `localgpt.game.control` service and controller contract used by the AI Player Controller. Human, shared and delayed AI-autoplay modes can be switched while a session is running.
+
+The initial map/scene is deterministic and immediately available. Council members may enrich later turns, but the user no longer waits for a large Map Architect model before the first playable frame.
 
 ## ASCII DOOM Council Adventure
 

@@ -26,9 +26,7 @@ namespace LocalGPT.Services
             }
             catch (OperationCanceledException exception) when (ct.IsCancellationRequested)
             {
-#if DEBUG
-                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller while debugging.");
-#endif
+                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller.");
                 throw;
             }
             catch (OperationCanceledException ex)
@@ -105,9 +103,7 @@ namespace LocalGPT.Services
             }
             catch (OperationCanceledException exception) when (ct.IsCancellationRequested)
             {
-#if DEBUG
-                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller while debugging.");
-#endif
+                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller.");
                 throw;
             }
             catch (OperationCanceledException ex)
@@ -213,9 +209,7 @@ namespace LocalGPT.Services
             }
             catch (OperationCanceledException exception) when (ct.IsCancellationRequested)
             {
-#if DEBUG
-                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller while debugging.");
-#endif
+                serviceLogger.LogInformation(exception, "AI discovery operation was cancelled by the caller.");
                 throw;
             }
             catch (OperationCanceledException ex)

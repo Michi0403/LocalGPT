@@ -75,9 +75,7 @@ public sealed class OneWireHttpController(
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
-#if DEBUG
-            logger.LogInformation(exception, "Cancelled a LocalGPT 1-Wire HTTP/JSON request at the caller's request in a Debug build.");
-#endif
+            logger.LogInformation(exception, "Cancelled a LocalGPT 1-Wire HTTP/JSON request at the caller's request.");
             return StatusCode(499);
         }
         catch (Exception ex) when (ex is JsonException or InvalidDataException or CryptographicException or FormatException or ArgumentException)

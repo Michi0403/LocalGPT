@@ -27,9 +27,13 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         return Boolean(selection && !selection.isCollapsed && selection.toString().trim().length > 0);
      } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:hasTextSelection', __javascriptError); throw __javascriptError; }}
 
-    function shouldUseNativeContextMenu(target) { try {
-        if (!(target instanceof Element)) return hasTextSelection();
-        return Boolean(target.closest(editableSelector) || target.closest(copyableSelector) || hasTextSelection());
+    function shouldUseNativeContextMenu(target, event) { try {
+        if (event?.shiftKey || event?.ctrlKey || event?.metaKey) return true;
+        if (!(target instanceof Element)) return true;
+        if (target.closest(editableSelector) || target.closest(copyableSelector) || hasTextSelection()) return true;
+        const optedIn = localStorage.getItem('localgpt.customContextMenu') === 'true';
+        const explicitlyEnabled = Boolean(target.closest('[data-localgpt-custom-context-menu="true"]'));
+        return !(event?.altKey || optedIn || explicitlyEnabled);
      } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:shouldUseNativeContextMenu', __javascriptError); throw __javascriptError; }}
 
     function addLink(menu, label, href) { try {
@@ -110,6 +114,13 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             menu.appendChild(document.createElement('hr'));
         }
 
+        addAction(menu, 'Use native browser context menu by default', () => { try {
+            localStorage.setItem('localgpt.customContextMenu', 'false');
+         } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:native-default', __javascriptError); throw __javascriptError; }});
+        addAction(menu, 'Open browser developer tools', () => { try {
+            if (globalThis.chrome?.webview?.postMessage) globalThis.chrome.webview.postMessage('localgpt-open-devtools');
+            else console.info('Use the browser native context menu or F12 to open developer tools.');
+         } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:open-devtools', __javascriptError); throw __javascriptError; }});
         addAction(menu, document.documentElement.classList.contains('localgpt-overlays-hidden') ? 'Show helper bars' : 'Hide helper bars', () => { try {
             document.documentElement.classList.toggle('localgpt-overlays-hidden');
          } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:callback:addAction@95', __javascriptError); throw __javascriptError; }});
@@ -121,7 +132,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
 
     document.addEventListener('contextmenu', event => { try {
         const target = event.target instanceof Element ? event.target : null;
-        if (shouldUseNativeContextMenu(target)) { close(); return; }
+        if (shouldUseNativeContextMenu(target, event)) { close(); return; }
         event.preventDefault();
         const menu = buildMenu(target);
         menu.hidden = false;

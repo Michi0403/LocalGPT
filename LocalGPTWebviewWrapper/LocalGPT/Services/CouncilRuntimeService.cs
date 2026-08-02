@@ -1459,6 +1459,7 @@ namespace LocalGPT.Services
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
+                    logger.LogDebug(ex, "Could not inspect child directories while detecting a Windows documentation root at {RootPath}.", rootPath);
                     return false;
                 }
             }

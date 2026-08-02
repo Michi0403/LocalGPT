@@ -98,6 +98,7 @@ public sealed partial class CouncilChatClient(
 
         yield return councilRuntime.CreateUpdate(liveMessageMarker + introduction, logger);
         var startedAt = DateTimeOffset.UtcNow;
+        var nextHeartbeatAt = startedAt.AddSeconds(35);
         var runTask = RunCouncilInBackgroundAsync(request, liveCancellation, updates.Writer, Publish);
 
         try
@@ -109,18 +110,20 @@ public sealed partial class CouncilChatClient(
 
                 using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var dataAvailable = updates.Reader.WaitToReadAsync(waitCts.Token).AsTask();
-                var heartbeat = Task.Delay(TimeSpan.FromSeconds(20), waitCts.Token);
+                var heartbeat = Task.Delay(TimeSpan.FromSeconds(10), waitCts.Token);
                 var completed = await Task.WhenAny(runTask, dataAvailable, heartbeat).ConfigureAwait(false);
                 await waitCts.CancelAsync().ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     yield break;
 
-                if (completed == heartbeat)
+                if (completed == heartbeat && DateTimeOffset.UtcNow >= nextHeartbeatAt)
                 {
-                    var heartbeatText = $"_Council still running after {(int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds}s. Waiting for local model output..._\n\n";
+                    var elapsed = (int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds;
+                    var heartbeatText = $"_Council still running after {elapsed}s. Waiting for local model output; intermediate heartbeat updates are batched._\n\n";
                     liveSessions.Append(request.RunId, heartbeatText);
                     yield return councilRuntime.CreateUpdate(heartbeatText, logger);
+                    nextHeartbeatAt = DateTimeOffset.UtcNow.AddSeconds(60);
                 }
             }
 

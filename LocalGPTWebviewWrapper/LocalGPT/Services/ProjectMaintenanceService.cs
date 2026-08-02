@@ -602,7 +602,10 @@ public sealed class ProjectMaintenanceService(
         foreach (var customRoot in customRoots.Where(root => !string.IsNullOrWhiteSpace(root)))
         {
             try { knownRoots.Add(Path.GetFullPath(Environment.ExpandEnvironmentVariables(customRoot.Trim()))); }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                logger.LogDebug(ex, "Ignored invalid custom compiler search root; path content was omitted.");
+            }
         }
         foreach (var root in knownRoots.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
         foreach (var file in EnumerateCompilerFiles(root, specs.Select(spec => spec.Item3).ToHashSet(StringComparer.OrdinalIgnoreCase), 4))
@@ -748,6 +751,7 @@ public sealed class ProjectMaintenanceService(
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                logger.LogDebug(ex, "Could not inspect project files in directory {DirectoryPath}.", directory);
                 return string.Empty;
             }
             directory = Path.GetDirectoryName(directory);

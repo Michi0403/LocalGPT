@@ -42,6 +42,14 @@ public sealed class RegexPatternService(
         return new Regex(pattern.Pattern, ParseFlags(pattern.Flags), TimeSpan.FromSeconds(2));
     }
 
+    public Regex Compile(string pattern, string? flags = null)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        if (pattern.Length > 16_000)
+            throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
+        return new Regex(pattern, ParseFlags(flags), TimeSpan.FromSeconds(2));
+    }
+
     public Task<List<RegexPattern>> ListAllAsync() => ListAllAsync(null);
 
     public async Task<List<RegexPattern>> ListAllAsync(int? take = null)
@@ -74,7 +82,7 @@ public sealed class RegexPatternService(
         ArgumentNullException.ThrowIfNull(pattern);
         if (pattern.Length > 16_000)
             throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
-        _ = new Regex(pattern, ParseFlags(flags), TimeSpan.FromSeconds(2));
+        _ = Compile(pattern, flags);
     }
 
     private RegexOptions ParseFlags(string? flags)

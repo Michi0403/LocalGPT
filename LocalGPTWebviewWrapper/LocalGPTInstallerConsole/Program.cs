@@ -1,4 +1,4 @@
-﻿
+
 using LocalGPT.Helper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -739,7 +739,7 @@ internal static class Program
     private static void CreateWindowsUrlShortcut(
     string shortcutPath,
     string targetPath,
-      string iconPath,
+      string? iconPath,
     ILogger logger)
     {
         try
@@ -1140,6 +1140,11 @@ internal static class Program
 
             var remoteSha = await GetGitHubDefaultBranchCommitShaAsync(repo, logger)
                 .ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(remoteSha))
+            {
+                remoteSha = "unknown";
+                logger.LogWarning("GitHub did not return a commit SHA for {Repo}; the cache manifest records 'unknown'.", repo);
+            }
 
             var manifest = ReadGitHubSourceCacheManifest(manifestPath, logger);
 
@@ -1862,7 +1867,7 @@ internal static class Program
 
     }
 
-    private static HttpClient? CreateHttpClient()
+    private static HttpClient CreateHttpClient()
     {
         try
         {
@@ -1873,8 +1878,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in CreateHttpClient. {ex.ToString()}");
-            return null;
+            Console.Error.WriteLine($"Error in CreateHttpClient. {ex}");
+            throw;
         }
     }
 }

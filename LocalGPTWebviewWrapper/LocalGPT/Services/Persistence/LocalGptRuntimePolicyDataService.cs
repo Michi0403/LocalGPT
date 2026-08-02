@@ -152,14 +152,16 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     {
         try
         {
-            var definition = store.GetDefinition();
-            var timeoutRaw = definition.Values[LocalGptRuntimeValue.RegexTimeoutMilliseconds];
+            var definition = store.GetDefinition() ?? throw new InvalidDataException("The runtime policy store returned no definition.");
+            var values = definition.Values ?? throw new InvalidDataException("The runtime policy definition contains no values.");
+            if (!values.TryGetValue(LocalGptRuntimeValue.RegexTimeoutMilliseconds, out var timeoutRaw))
+                throw new InvalidDataException("RegexTimeoutMilliseconds is missing from the runtime policy definition.");
             if (!int.TryParse(timeoutRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMilliseconds) || timeoutMilliseconds <= 0)
                 throw new InvalidDataException("RegexTimeoutMilliseconds must be positive.");
 
             var timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds);
             var next = new RuntimePolicyState(
-                definition.Values.ToFrozenDictionary(),
+                values.ToFrozenDictionary(),
                 definition.Collections
                     .ToDictionary(
                         item => item.Key,

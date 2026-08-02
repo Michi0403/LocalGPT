@@ -64,6 +64,8 @@
                       Click="RefreshOllamaModelsAsync" />
             <a class="btn btn-outline-secondary" href="/onewire-security" data-enhance-nav="false"><span class="oi oi-lock-locked" aria-hidden="true"></span> 1-Wire Security</a>
             <a class="btn btn-outline-secondary" href="/council-teams" data-enhance-nav="false"><span class="oi oi-people" aria-hidden="true"></span> Council Teams</a>
+            <a class="btn btn-outline-secondary" href="/test-lab#remote-knowledge" data-enhance-nav="false"><span class="oi oi-cloud-download" aria-hidden="true"></span> Import knowledge</a>
+            <a class="btn btn-outline-secondary" href="/database" data-enhance-nav="false"><span class="oi oi-spreadsheet" aria-hidden="true"></span> Clean up data</a>
         </nav>
 
         <div class="chat-provider-row" data-testid="chat-top-controls">
@@ -404,6 +406,7 @@
         </details>
             </div>
         </details>
+        <ChatGameConsole ConversationId="@ActiveConversationId" SuggestedTeamKey="@SelectedCouncilTeamKey" />
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"

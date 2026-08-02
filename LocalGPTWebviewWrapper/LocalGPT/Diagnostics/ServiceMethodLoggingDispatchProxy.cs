@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
@@ -17,6 +18,9 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
     private bool development;
     private bool ownsTarget;
     private int disposed;
+    private readonly ConcurrentDictionary<string, OperationBatch> operationBatches = new(StringComparer.Ordinal);
+    private readonly TimeSpan batchWindow = TimeSpan.FromSeconds(2);
+    private int BatchSize => development ? 32 : 128;
 
     public void Initialize(object serviceTarget, ILoggerFactory loggerFactory, bool isDevelopment, bool ownsServiceTarget)
     {
@@ -76,6 +80,7 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0)
             return;
+        FlushAllBatches();
         if (ownsTarget && target is IDisposable disposable)
             disposable.Dispose();
         target = null;
@@ -85,6 +90,7 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0)
             return;
+        FlushAllBatches();
         if (ownsTarget && target is IAsyncDisposable asyncDisposable)
             await asyncDisposable.DisposeAsync().ConfigureAwait(false);
         else if (ownsTarget && target is IDisposable disposable)
@@ -284,27 +290,32 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
 
     private void LogStarted(ILogger currentLogger, string operation)
     {
-        if (development)
-            currentLogger.LogInformation("Service operation {Operation} started; arguments and payload content were omitted.", operation);
-        else
-            currentLogger.LogTrace("Service operation {Operation} started; arguments and payload content were omitted.", operation);
+        // Per-call diagnostics remain available at Trace, while the normal Development log receives
+        // bounded aggregate summaries. This prevents hot property getters and formatting helpers from
+        // monopolising the log pipeline without discarding call counts or timing information.
+        currentLogger.LogTrace(
+            "Service operation {Operation} started; arguments and payload content were omitted.",
+            operation);
     }
 
     private void LogCompleted(ILogger currentLogger, string operation, long elapsedMilliseconds)
     {
-        if (development)
-            currentLogger.LogInformation("Service operation {Operation} completed in {ElapsedMilliseconds} ms.", operation, elapsedMilliseconds);
-        else
-            currentLogger.LogTrace("Service operation {Operation} completed in {ElapsedMilliseconds} ms.", operation, elapsedMilliseconds);
+        currentLogger.LogTrace(
+            "Service operation {Operation} completed in {ElapsedMilliseconds} ms.",
+            operation,
+            elapsedMilliseconds);
+
+        RecordSuccessfulCall(currentLogger, operation, elapsedMilliseconds, forceFlush: false);
     }
 
     private void LogCancellation(ILogger currentLogger, string operation, long elapsedMilliseconds, OperationCanceledException exception)
     {
-        // Cancellation is expected control flow. It is emitted only by Debug builds,
-        // at Information rather than LogLevel.Debug.
-#if DEBUG
-        currentLogger.LogInformation(exception, "Service operation {Operation} was cancelled after {ElapsedMilliseconds} ms in a Debug build.", operation, elapsedMilliseconds);
-#endif
+        FlushBatch(currentLogger, operation);
+        currentLogger.LogInformation(
+            exception,
+            "Service operation {Operation} was cancelled after {ElapsedMilliseconds} ms.",
+            operation,
+            elapsedMilliseconds);
     }
 
     private void LogFailure(ILogger currentLogger, string operation, long elapsedMilliseconds, Exception exception)
@@ -315,10 +326,118 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy, IDisposable, IAs
             return;
         }
 
+        FlushBatch(currentLogger, operation);
         currentLogger.LogError(
             exception,
             "Service operation {Operation} failed after {ElapsedMilliseconds} ms; arguments, return values and payload content were omitted.",
             operation,
             elapsedMilliseconds);
     }
+
+    private void RecordSuccessfulCall(
+        ILogger currentLogger,
+        string operation,
+        long elapsedMilliseconds,
+        bool forceFlush)
+    {
+        var batch = operationBatches.GetOrAdd(operation, _ => new OperationBatch());
+        OperationBatchSnapshot? snapshot = null;
+        lock (batch.SyncRoot)
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (batch.Count == 0)
+                batch.StartedAtUtc = now;
+
+            batch.Count++;
+            batch.TotalElapsedMilliseconds += elapsedMilliseconds;
+            batch.MaximumElapsedMilliseconds = Math.Max(batch.MaximumElapsedMilliseconds, elapsedMilliseconds);
+
+            if (forceFlush || batch.Count >= BatchSize || now - batch.StartedAtUtc >= batchWindow)
+            {
+                snapshot = new OperationBatchSnapshot(
+                    batch.Count,
+                    batch.TotalElapsedMilliseconds,
+                    batch.MaximumElapsedMilliseconds,
+                    batch.StartedAtUtc,
+                    now);
+                batch.Reset();
+            }
+        }
+
+        if (snapshot is not null)
+            WriteBatch(currentLogger, operation, snapshot);
+    }
+
+    private void FlushAllBatches()
+    {
+        var currentLogger = logger;
+        if (currentLogger is null) return;
+        foreach (var operation in operationBatches.Keys)
+            FlushBatch(currentLogger, operation);
+    }
+
+    private void FlushBatch(ILogger currentLogger, string operation)
+    {
+        if (!operationBatches.TryGetValue(operation, out var batch))
+            return;
+
+        OperationBatchSnapshot? snapshot = null;
+        lock (batch.SyncRoot)
+        {
+            if (batch.Count > 0)
+            {
+                var now = DateTimeOffset.UtcNow;
+                snapshot = new OperationBatchSnapshot(
+                    batch.Count,
+                    batch.TotalElapsedMilliseconds,
+                    batch.MaximumElapsedMilliseconds,
+                    batch.StartedAtUtc,
+                    now);
+                batch.Reset();
+            }
+        }
+
+        if (snapshot is not null)
+            WriteBatch(currentLogger, operation, snapshot);
+    }
+
+    private void WriteBatch(ILogger currentLogger, string operation, OperationBatchSnapshot snapshot)
+    {
+        var average = snapshot.Count == 0
+            ? 0d
+            : (double)snapshot.TotalElapsedMilliseconds / snapshot.Count;
+        currentLogger.LogInformation(
+            "Service operation batch {Operation}: {InvocationCount} successful call(s) in {BatchDurationMilliseconds} ms; aggregate {TotalElapsedMilliseconds} ms, average {AverageElapsedMilliseconds:F2} ms, maximum {MaximumElapsedMilliseconds} ms. Arguments and payload content were omitted.",
+            operation,
+            snapshot.Count,
+            Math.Max(0, (long)(snapshot.EndedAtUtc - snapshot.StartedAtUtc).TotalMilliseconds),
+            snapshot.TotalElapsedMilliseconds,
+            average,
+            snapshot.MaximumElapsedMilliseconds);
+    }
+
+    private sealed class OperationBatch
+    {
+        public object SyncRoot { get; } = new();
+        public int Count { get; set; }
+        public long TotalElapsedMilliseconds { get; set; }
+        public long MaximumElapsedMilliseconds { get; set; }
+        public DateTimeOffset StartedAtUtc { get; set; }
+
+        public void Reset()
+        {
+            Count = 0;
+            TotalElapsedMilliseconds = 0;
+            MaximumElapsedMilliseconds = 0;
+            StartedAtUtc = default;
+        }
+    }
+
+    private sealed record OperationBatchSnapshot(
+        int Count,
+        long TotalElapsedMilliseconds,
+        long MaximumElapsedMilliseconds,
+        DateTimeOffset StartedAtUtc,
+        DateTimeOffset EndedAtUtc);
+
 }
