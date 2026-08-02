@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.1.15",
+                CurrentVersion = "2.1.17",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -432,6 +432,12 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.15", repositoryRoot, "Build-correction release for the embedded workbench that removes two unapproved iterator helpers and replaces malformed interpolated raw-string artifact generators with explicit StringBuilder output.");
         EnsureRevision(core, "main", "seed-v2.1.15", repositoryRoot,
             "Corrects the EmbeddedHardwareCatalogService iterator-policy failures and the EmbeddedFirmwarePlanningService C# syntax failures while preserving the transport-neutral ESP32/Arduino, workspace-environment, DXFunction and organic capability contracts introduced in 2.1.14.");
+        EnsureVersion(core, "2.1.16", repositoryRoot, "Build-correction release for workspace access-policy evaluation that resolves the Regex.IsMatch method-group ambiguity on .NET 10 without changing policy behavior.");
+        EnsureRevision(core, "main", "seed-v2.1.16", repositoryRoot,
+            "Resolves the .NET 10 LINQ overload ambiguity in workspace access-policy matching by wrapping Regex.IsMatch in an explicit single-argument lambda while preserving the existing bounded policy behavior.");
+        EnsureVersion(core, "2.1.17", repositoryRoot, "Responsive workbench and customizable LearnBase release with the final workspace path-overload correction, full-width operational pages, optional ASCII sessions and selectable fullscreen scaling.");
+        EnsureRevision(core, "main", "seed-v2.1.17", repositoryRoot,
+            "Applies the string-based EndsWith workspace policy fix, adds editable LearnBase endings/regex/import modes with embedded source profiles, expands OneWire/Projects/Project Maintenance layouts, and makes the original ASCII corridor optional with side-by-side controls and Fit/Width/Native fullscreen modes.");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",

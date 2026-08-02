@@ -1015,7 +1015,7 @@ public sealed class ProjectMaintenanceService(
     private void EvaluateAccessPolicyRule(WorkspaceAccessPolicyRule rule, IReadOnlyList<string> entries, string root, bool rootWriteAccess, List<WorkspacePermissionFinding> findings)
     {
         var regex = CompileRegex(rule.RelativePathRegex, nameof(rule.RelativePathRegex), @"(?!)");
-        var matches = entries.Where(regex.IsMatch).Take(100).ToArray();
+        var matches = entries.Where(entry => regex.IsMatch(entry)).Take(100).ToArray();
         if (rule.Required && matches.Length == 0)
         {
             findings.Add(new(rule.Severity, "POLICY_NO_MATCH", $"Required workspace policy '{Trim(rule.Name, 160)}' matched no file or directory."));
@@ -1023,7 +1023,7 @@ public sealed class ProjectMaintenanceService(
         }
         foreach (var relative in matches)
         {
-            var isDirectory = relative.EndsWith('/', StringComparison.Ordinal);
+            var isDirectory = relative.EndsWith("/", StringComparison.Ordinal);
             if ((rule.ExpectedEntryKind == "File" && isDirectory) || (rule.ExpectedEntryKind == "Directory" && !isDirectory))
                 findings.Add(new(rule.Severity, "POLICY_KIND", $"Workspace policy '{Trim(rule.Name, 160)}' matched the wrong entry kind.", relative));
             var fullPath = Path.GetFullPath(Path.Combine(root, relative.TrimEnd('/').Replace('/', Path.DirectorySeparatorChar)));

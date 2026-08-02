@@ -29,11 +29,12 @@ namespace LocalGPT.Services
                 var rootPath = string.IsNullOrWhiteSpace(request.RootPath)
                     ? defaultPreset?.RootPath ?? @"C:\learnbaseforlocalgpt"
                     : request.RootPath.Trim();
+                var selection = BuildSelectionPolicy(request);
                 var result = new LearnBaseImportResult
                 {
                     RootPath = rootPath,
-                    ImportMode = "Compact source-map import; stores architecture fingerprints and documentation corpus summaries, not full file contents.",
-                    FilePolicy = catalog.LearnBaseFilePolicySummary,
+                    ImportMode = "Custom compact source-map import; stores bounded architecture fingerprints and documentation corpus summaries, not complete file contents.",
+                    FilePolicy = BuildFilePolicyDescription(selection),
                     DuplicatePolicy = catalog.LearnBaseDuplicatePolicySummary
                 };
 
@@ -44,8 +45,16 @@ namespace LocalGPT.Services
                 }
 
                 await knowledgeService.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
-                await ImportLearningSourceManifestsAsync(rootPath, request, result, cancellationToken).ConfigureAwait(false);
-                await ImportKnownDocumentationCorporaAsync(rootPath, request, result, cancellationToken).ConfigureAwait(false);
+                if (request.ImportLearningSourceManifests)
+                    await ImportLearningSourceManifestsAsync(rootPath, request, selection, result, cancellationToken).ConfigureAwait(false);
+                if (request.ImportKnownDocumentationCorpora)
+                    await ImportKnownDocumentationCorporaAsync(rootPath, request, selection, result, cancellationToken).ConfigureAwait(false);
+
+                if (!request.ImportProjectArchitecture)
+                {
+                    result.ProjectCount = result.Projects.Count;
+                    return result;
+                }
 
                 var configuredProjectLimit = catalog.LearnBaseScanProfiles
                     .Select(profile => profile.MaxProjects)
@@ -62,7 +71,13 @@ namespace LocalGPT.Services
                     cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
-                        var summary = councilRuntime.BuildProjectSummary(rootPath, projectDirectory, logger);
+                        var selectedFiles = FindSelectedFiles(projectDirectory, selection, 1600, result);
+                        if (selectedFiles.Count == 0)
+                        {
+                            result.Warnings.Add($"No selected source files matched in {Path.GetFileName(projectDirectory)}.");
+                            continue;
+                        }
+                        var summary = councilRuntime.BuildProjectSummary(rootPath, projectDirectory, selectedFiles, logger);
                         if (summary is null)
                         {
                             result.Warnings.Add($"Could not build an architecture summary for {Path.GetFileName(projectDirectory)}.");
@@ -111,6 +126,7 @@ namespace LocalGPT.Services
         private async Task ImportLearningSourceManifestsAsync(
             string rootPath,
             LearnBaseImportRequest request,
+            LearnBaseSelectionPolicy selection,
             LearnBaseImportResult result,
             CancellationToken cancellationToken)
         {
@@ -144,7 +160,7 @@ namespace LocalGPT.Services
                     var include = CompileManifestRegex(manifest.IncludeRegex, @"(?i)\.(md|txt|ino|c|h|cpp|hpp|json|ya?ml)$");
                     var exclude = CompileManifestRegex(manifest.ExcludeRegex, @"(?!)");
                     var maximumFiles = Math.Clamp(manifest.MaximumFiles, 1, 20000);
-                    var maximumBytes = Math.Clamp(manifest.MaximumFileBytes, 1024, 8 * 1024 * 1024);
+                    var maximumBytes = Math.Min(selection.MaximumFileBytes, Math.Clamp(manifest.MaximumFileBytes, 1024, 8 * 1024 * 1024));
                     var matched = new List<FileInfo>();
                     var pending = new Stack<string>();
                     pending.Push(sourceRoot);
@@ -173,7 +189,7 @@ namespace LocalGPT.Services
                             var relative = Path.GetRelativePath(sourceRoot, file).Replace('\\', '/');
                             if (relative.Equals("localgpt-learning-source.json", StringComparison.OrdinalIgnoreCase) || exclude.IsMatch(relative) || !include.IsMatch(relative)) continue;
                             var info = new FileInfo(file);
-                            if (info.Length <= maximumBytes) matched.Add(info);
+                            if (info.Length <= maximumBytes && selection.Matches(relative, info.Length)) matched.Add(info);
                             if (matched.Count >= maximumFiles) break;
                         }
                     }
@@ -314,6 +330,7 @@ namespace LocalGPT.Services
         private async Task ImportKnownDocumentationCorporaAsync(
             string rootPath,
             LearnBaseImportRequest request,
+            LearnBaseSelectionPolicy selection,
             LearnBaseImportResult result,
             CancellationToken cancellationToken)
         {
@@ -323,10 +340,10 @@ namespace LocalGPT.Services
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     if (councilRuntime.LooksLikeWindowsDevDocsRoot(candidate, logger))
-                        await ImportWindowsDevDocsCorpusAsync(candidate, request, result, cancellationToken).ConfigureAwait(false);
+                        await ImportWindowsDevDocsCorpusAsync(candidate, request, selection, result, cancellationToken).ConfigureAwait(false);
 
                     if (councilRuntime.LooksLikeDotNetDocsRoot(candidate, logger))
-                        await ImportDotNetDocsCorpusAsync(candidate, request, result, cancellationToken).ConfigureAwait(false);
+                        await ImportDotNetDocsCorpusAsync(candidate, request, selection, result, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -338,15 +355,15 @@ namespace LocalGPT.Services
         private async Task ImportDotNetDocsCorpusAsync(
             string rootPath,
             LearnBaseImportRequest request,
+            LearnBaseSelectionPolicy selection,
             LearnBaseImportResult result,
             CancellationToken cancellationToken)
         {
             try
             {
-                var markdownFiles = councilRuntime.EnumerateUsefulFiles(rootPath,logger)
-                .Where(file => file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
-                .Take(8000)
-                .ToArray();
+                var markdownFiles = FindSelectedFiles(rootPath, selection, 8000, result)
+                    .Where(file => file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
                 if (markdownFiles.Length == 0)
                     return;
 
@@ -385,15 +402,15 @@ namespace LocalGPT.Services
         private async Task ImportWindowsDevDocsCorpusAsync(
             string rootPath,
             LearnBaseImportRequest request,
+            LearnBaseSelectionPolicy selection,
             LearnBaseImportResult result,
             CancellationToken cancellationToken)
         {
             try
             {
-                var markdownFiles = councilRuntime.EnumerateUsefulFiles(rootPath,logger)
-                .Where(file => file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
-                .Take(6000)
-                .ToArray();
+                var markdownFiles = FindSelectedFiles(rootPath, selection, 6000, result)
+                    .Where(file => file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
                 if (markdownFiles.Length == 0)
                     return;
 
@@ -427,6 +444,124 @@ namespace LocalGPT.Services
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ImportWindowsDevDocsCorpusAsync");
           
+            }
+        }
+
+        private LearnBaseSelectionPolicy BuildSelectionPolicy(LearnBaseImportRequest request)
+        {
+            var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var extension in request.FileExtensions ?? new List<string>())
+                AddExtension(selected, extension);
+            foreach (var extension in (request.AdditionalFileExtensions ?? string.Empty).Split(
+                         [',', ';', '\r', '\n', '\t', ' '],
+                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                AddExtension(selected, extension);
+            if (selected.Count == 0)
+            {
+                foreach (var extension in catalog.LearnBaseKnownExtensions)
+                    AddExtension(selected, extension);
+            }
+
+            return new LearnBaseSelectionPolicy(
+                selected,
+                CompileManifestRegex(request.FileIncludeRegex, @".*"),
+                CompileManifestRegex(request.FileExcludeRegex, @"(?!)"),
+                Math.Clamp(request.MaximumFileBytes, 1024, 16 * 1024 * 1024),
+                catalog.ExcludedDirectoryNames,
+                catalog.BinaryExtensions);
+        }
+
+        private void AddExtension(HashSet<string> extensions, string? value)
+        {
+            var trimmed = value?.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+                return;
+            if (trimmed.StartsWith("*.", StringComparison.Ordinal))
+                trimmed = trimmed[1..];
+            if (!trimmed.StartsWith(".", StringComparison.Ordinal))
+                trimmed = "." + trimmed;
+            extensions.Add(trimmed.ToLowerInvariant());
+        }
+
+        private string BuildFilePolicyDescription(LearnBaseSelectionPolicy selection)
+        {
+            var ordered = selection.Extensions.OrderBy(extension => extension, StringComparer.OrdinalIgnoreCase).ToArray();
+            var visible = string.Join(", ", ordered.Take(36));
+            var remainder = ordered.Length > 36 ? $" and {ordered.Length - 36} more" : string.Empty;
+            return $"Selected endings: {visible}{remainder}. Include regex: {selection.IncludeRegex}. Exclude regex: {selection.ExcludeRegex}. Maximum file size: {selection.MaximumFileBytes:N0} bytes. Binary containers and excluded build/cache folders remain inactive.";
+        }
+
+        private IReadOnlyList<FileInfo> FindSelectedFiles(
+            string rootPath,
+            LearnBaseSelectionPolicy selection,
+            int maximumFiles,
+            LearnBaseImportResult result)
+        {
+            var files = new List<FileInfo>(Math.Min(maximumFiles, 2048));
+            var pending = new Stack<string>();
+            pending.Push(rootPath);
+            while (pending.Count > 0 && files.Count < maximumFiles)
+            {
+                var current = pending.Pop();
+                string[] directories;
+                string[] currentFiles;
+                try
+                {
+                    directories = Directory.GetDirectories(current);
+                    currentFiles = Directory.GetFiles(current);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogDebug(ex, "Skipped one unreadable LearnBase directory; path omitted from logs.");
+                    continue;
+                }
+
+                foreach (var directory in directories)
+                {
+                    if (!selection.ExcludedDirectoryNames.Contains(Path.GetFileName(directory)))
+                        pending.Push(directory);
+                }
+
+                foreach (var file in currentFiles)
+                {
+                    var relative = Path.GetRelativePath(rootPath, file).Replace('\\', '/');
+                    var info = new FileInfo(file);
+                    if (selection.Matches(relative, info.Length))
+                        files.Add(info);
+                    if (files.Count >= maximumFiles)
+                        break;
+                }
+            }
+
+            if (files.Count >= maximumFiles)
+                result.Warnings.Add($"The selected-file scan stopped at the configured limit of {maximumFiles:N0} files under {Path.GetFileName(rootPath)}.");
+            return files;
+        }
+
+        private sealed class LearnBaseSelectionPolicy(
+            IReadOnlySet<string> extensions,
+            Regex includeRegex,
+            Regex excludeRegex,
+            int maximumFileBytes,
+            IReadOnlySet<string> excludedDirectoryNames,
+            IReadOnlySet<string> binaryExtensions)
+        {
+            public IReadOnlySet<string> Extensions { get; } = extensions;
+            public Regex IncludeRegex { get; } = includeRegex;
+            public Regex ExcludeRegex { get; } = excludeRegex;
+            public int MaximumFileBytes { get; } = maximumFileBytes;
+            public IReadOnlySet<string> ExcludedDirectoryNames { get; } = excludedDirectoryNames;
+            public IReadOnlySet<string> BinaryExtensions { get; } = binaryExtensions;
+
+            public bool Matches(string relativePath, long length)
+            {
+                if (length <= 0 || length > MaximumFileBytes)
+                    return false;
+                if (!IncludeRegex.IsMatch(relativePath) || ExcludeRegex.IsMatch(relativePath))
+                    return false;
+                if (BinaryExtensions.Any(extension => relativePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+                    return false;
+                return Extensions.Any(extension => relativePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
             }
         }
     }

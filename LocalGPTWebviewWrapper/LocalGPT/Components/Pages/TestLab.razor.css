@@ -145,3 +145,51 @@
 .remote-file-preview span.matched { background:color-mix(in srgb,var(--bs-success) 12%,transparent); }
 .remote-file-preview span.excluded { opacity:.68; }
 .remote-file-preview small { color:var(--bs-secondary-color); text-align:right; }
+
+
+.learnbase-panel { grid-column: 1 / -1; min-width: 0; }
+.learnbase-primary-grid,
+.learnbase-policy-grid,
+.learnbase-mode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    gap: .75rem;
+}
+.learnbase-root-field { grid-column: span 2; }
+.learnbase-policy-editor {
+    margin: .85rem 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .55rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 94%, var(--bs-primary) 6%);
+}
+.learnbase-policy-editor > summary { cursor: pointer; padding: .7rem .85rem; font-weight: 750; }
+.learnbase-policy-editor[open] > summary { border-bottom: 1px solid var(--bs-border-color); }
+.learnbase-extension-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; padding: .7rem .85rem 0; }
+.learnbase-extension-toolbar button {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .4rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    padding: .4rem .65rem;
+}
+.learnbase-extension-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: .35rem;
+    max-height: 14rem;
+    overflow: auto;
+    margin: .7rem .85rem;
+    padding: .55rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .45rem;
+    background: var(--bs-body-bg);
+    scrollbar-gutter: stable;
+}
+.learnbase-extension-grid label,
+.learnbase-mode-grid label { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+.learnbase-extension-grid code { overflow-wrap: anywhere; }
+.learnbase-policy-grid { padding: 0 .85rem .85rem; }
+.learnbase-policy-grid textarea,
+.learnbase-primary-grid input { width: 100%; min-width: 0; }
+.learnbase-mode-grid { margin: .8rem 0; }
+@media (max-width: 760px) { .learnbase-root-field { grid-column: auto; } }

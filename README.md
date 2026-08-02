@@ -297,3 +297,18 @@ Version 2.1.14 adds a Chat-first ESP32/Arduino planning slice. The AI Council ca
 The same release prepares PublisherStudio integration through a canvas-neutral wiring draft with board/pin nodes, wire connections, OpenSCAD part keys and signal-animation metadata. It also extends Project Maintenance with workspace-local environments, compiler assignment, build arguments, environment variables, expected directories, structure regexes, access-policy regexes and approved/warning/danger rights assessment.
 
 See `CHANGELOG-v2.1.14-embedded-workbench-and-workspace-environments.md` for the full API, DXFunction, organic capability, installer learning-source and safety boundary list.
+
+## LocalGPT 2.1.16 workspace policy build correction
+
+Version 2.1.16 resolves the Windows/.NET 10 compiler ambiguity in workspace access-policy evaluation. The policy matcher now uses an explicit single-argument lambda when applying `Regex.IsMatch` through LINQ, preserving the same bounded matching behavior while selecting the intended `Where(Func<string, bool>)` overload deterministically.
+
+No embedded capability, workspace contract, controller route, DXFunction, migration or security boundary was changed. See `CHANGELOG-v2.1.16-workspace-policy-linq-correction.md`.
+
+
+## LocalGPT 2.1.17 responsive workbench and customizable LearnBase
+
+Version 2.1.17 completes the workspace access-policy compiler correction with the explicit string overload `EndsWith("/", StringComparison.Ordinal)`. LearnBase imports now expose editable known file endings, additional endings, include/exclude regexes, per-file size limits, and independent manifest/documentation/project-summary modes. The source profile includes modern .NET, Python, C/C++, Arduino/ESP32, device-tree, HDL, Fritzing text parts, KiCad, OpenSCAD, web and build formats; binary containers such as `.fzz` remain excluded from text parsing.
+
+OneWire Security, Human-guided Projects and Project Maintenance now use responsive full-width grids modeled after the Chat surface. The ASCII game console is opt-in, opens larger, places its guide beside the frame when space permits, and supports three fullscreen modes: whole-frame fit, width fit with vertical scrolling, and native monospace size with scrolling. The project-owned corridor remains an original LocalGPT implementation; optional upstream DOOM source import is still separately attributed and does not bundle the original engine, WAD data or commercial assets.
+
+See `CHANGELOG-v2.1.17-responsive-learnbase-and-ascii-layout.md`.

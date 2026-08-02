@@ -126,6 +126,7 @@ public enum LocalGptRuntimeCollection
     ExcludedDirectoryNames,
     BinaryExtensions,
     SourceExtensions,
+    LearnBaseKnownExtensions,
     ArtifactTextExtensions,
     KnowledgeFiles,
     AllowedUploadExtensions,

@@ -1,0 +1,24 @@
+LocalGPT 2.1.17 / LocalGpt(39) targeted static review
+
+Scope
+- Workspace access-policy char/string overload correction.
+- LearnBase selectable source endings, regex policy, import switches and binary-container guard.
+- Responsive OneWire Security, Human-guided Projects and Project Maintenance layouts.
+- Optional ASCII console, side-by-side guide and selectable fullscreen scaling.
+- Version, seed history, README and changelog alignment.
+
+Checks performed in the available environment
+- Repository async continuation audit passed for 133 source files: 1,989 await tokens, 1,707 ConfigureAwait(false), 124 renderer-affine ConfigureAwait(true), 2 preconfigured awaitables, 154 reviewed await-using disposals and 2 configured async streams.
+- Repository application architecture audit passed.
+- Text-service ownership policy was emulated against the maintained baseline with zero new findings.
+- System-variable initialization policy was emulated against the maintained baseline with zero new findings.
+- Iterator exception policy was emulated against the maintained baseline with zero new findings.
+- 22 JSON and 7 XML/project files parsed successfully.
+- 357 C# files passed lexical comment, string and delimiter closure checks.
+- The modified game-console JavaScript passed node --check.
+- LearnBase binary guards prevent known binary containers, including Fritzing bundles, from being opened as source text.
+- Version history retains 2.1.16 and appends 2.1.17.
+- Package content was checked for bin, obj, .vs, .pio, node_modules, compiled assemblies, symbols, object files, firmware images and font files before archive creation.
+
+Environment limitation
+- The pinned .NET 10 SDK and licensed DevExpress package feed are not available in this container. A Windows/.NET 10 rebuild remains the authoritative semantic compilation and UI runtime validation.

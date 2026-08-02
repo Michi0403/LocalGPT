@@ -6,6 +6,45 @@
     };
     const states = new Map();
 
+
+    function applyScale(state) {
+        try {
+            if (!state?.element) return;
+            const screen = state.element.querySelector('.chat-game-screen');
+            const viewport = state.element.querySelector('.chat-game-screen-viewport');
+            const scaleMode = state.element.dataset.scaleMode || 'fit';
+            const scaledMode = scaleMode === 'fit' || scaleMode === 'width';
+            const isFullscreen = document.fullscreenElement === state.element;
+            if (!(screen instanceof HTMLElement) || !(viewport instanceof HTMLElement) || !scaledMode || !isFullscreen) {
+                state.element.style.removeProperty('--localgpt-game-fit-font-size');
+                return;
+            }
+
+            state.element.style.setProperty('--localgpt-game-fit-font-size', '16px');
+            const naturalWidth = Math.max(1, screen.scrollWidth);
+            const naturalHeight = Math.max(1, screen.scrollHeight);
+            const availableWidth = Math.max(1, viewport.clientWidth - 12);
+            const availableHeight = Math.max(1, viewport.clientHeight - 12);
+            const widthScale = availableWidth / naturalWidth;
+            const heightScale = availableHeight / naturalHeight;
+            const scale = scaleMode === 'width' ? widthScale : Math.min(widthScale, heightScale);
+            const fontSize = Math.max(4, Math.min(36, 16 * scale));
+            state.element.style.setProperty('--localgpt-game-fit-font-size', `${fontSize.toFixed(2)}px`);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.applyScale', error);
+        }
+    }
+
+    function requestScale(state) {
+        try {
+            if (!state) return;
+            if (state.scaleFrame) cancelAnimationFrame(state.scaleFrame);
+            state.scaleFrame = requestAnimationFrame(() => applyScale(state));
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.requestScale', error);
+        }
+    }
+
     const keyActions = new Map([
         ['KeyW', 'move-forward'], ['ArrowUp', 'move-forward'],
         ['KeyS', 'move-backward'], ['ArrowDown', 'move-backward'],
@@ -78,9 +117,11 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), frame:0, abort:new AbortController() };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), frame:0, scaleFrame:0, abort:new AbortController() };
                 states.set(id, state);
                 element.addEventListener('pointerdown', () => element.focus({ preventScroll:true }), { signal:state.abort.signal });
+                document.addEventListener('fullscreenchange', () => requestScale(state), { signal:state.abort.signal });
+                window.addEventListener('resize', () => requestScale(state), { signal:state.abort.signal });
                 element.addEventListener('keydown', event => {
                     if (event.code === 'KeyF' && !event.repeat) {
                         event.preventDefault();
@@ -109,6 +150,8 @@
                 if (!state) return;
                 state.abort.abort();
                 if (state.frame) cancelAnimationFrame(state.frame);
+                if (state.scaleFrame) cancelAnimationFrame(state.scaleFrame);
+                state.element.style.removeProperty('--localgpt-game-fit-font-size');
                 states.delete(id);
             } catch (error) { diagnostics.report('localgpt-game-console.detach', error); }
         },
@@ -125,6 +168,16 @@
                 }
             } catch (error) { diagnostics.report('localgpt-game-console.setEnabled', error); }
         },
+        setScaleMode(id, mode) {
+            try {
+                const state = states.get(id);
+                const element = state?.element || document.getElementById(id);
+                if (!(element instanceof HTMLElement)) return;
+                const requested = String(mode || '').toLowerCase();
+                element.dataset.scaleMode = requested === 'native' ? 'native' : requested === 'width' ? 'width' : 'fit';
+                if (state) requestScale(state);
+            } catch (error) { diagnostics.report('localgpt-game-console.setScaleMode', error); }
+        },
         async fullscreen(id) {
             try {
                 const element = document.getElementById(id);
@@ -132,6 +185,7 @@
                 if (document.fullscreenElement === element) await document.exitFullscreen();
                 else await element.requestFullscreen({ navigationUI:'hide' });
                 element.focus({ preventScroll:true });
+                requestScale(states.get(id));
             } catch (error) { diagnostics.report('localgpt-game-console.fullscreen', error); }
         }
     };

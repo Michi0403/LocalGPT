@@ -1569,3 +1569,56 @@
     background: transparent;
     font: inherit;
 }
+
+/* v39: optional ASCII games do not reserve the conversation viewport until the user opens them. */
+.chat-primary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+}
+
+.main-container.chat-game-visible,
+.main-container.chat-session-active.chat-game-visible {
+    grid-template-rows: auto auto minmax(18rem, 54dvh) minmax(0, 1fr) auto !important;
+}
+
+.chat-game-ribbon {
+    grid-row: 3;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.chat-game-ribbon ::deep .chat-game-console {
+    height: 100%;
+    margin: 0;
+}
+
+.chat-game-ribbon ::deep .chat-game-stage {
+    min-height: 0;
+    height: 100%;
+}
+
+.chat-game-visible #localgpt-chat-host,
+.chat-session-active.chat-game-visible #localgpt-chat-host {
+    grid-row: 4;
+}
+
+.chat-game-visible .chat-session-tools-ribbon {
+    grid-row: 5;
+}
+
+@media (max-height: 820px) {
+    .main-container.chat-game-visible,
+    .main-container.chat-session-active.chat-game-visible {
+        grid-template-rows: auto auto minmax(16rem, 44dvh) minmax(0, 1fr) auto !important;
+    }
+}
+
+@media (max-width: 680px) {
+    .chat-primary-actions > * { flex: 1 1 12rem; }
+    .main-container.chat-game-visible,
+    .main-container.chat-session-active.chat-game-visible {
+        grid-template-rows: auto auto minmax(16rem, 48dvh) minmax(0, 1fr) auto !important;
+    }
+}

@@ -35,7 +35,7 @@
 
 <PageTitle>AI Chat</PageTitle>
 
-<div class="main-container @(IsLiveCouncilInteractionAvailable ? "chat-session-active" : string.Empty)" data-testid="chat-page">
+<div class="main-container @(IsLiveCouncilInteractionAvailable ? "chat-session-active" : string.Empty) @(showGameConsole ? "chat-game-visible" : string.Empty)" data-testid="chat-page">
     @if (ChatClientProvider is not null)
     {
         <ToastWrapper Name="@toastName" />
@@ -46,6 +46,12 @@
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       IconCssClass="oi oi-plus"
                       Click="ClearHistoryAsync" />
+            <DxButton Text="@(showGameConsole ? "Hide ASCII games" : "Show ASCII games")"
+                      CssClass="localgpt-rounded-action"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      IconCssClass="oi oi-monitor"
+                      Click="ToggleGameConsole" />
         </div>
         <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
             <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation.">
@@ -406,7 +412,12 @@
         </details>
             </div>
         </details>
-        <ChatGameConsole ConversationId="@ActiveConversationId" SuggestedTeamKey="@SelectedCouncilTeamKey" />
+        @if (showGameConsole)
+        {
+            <section class="chat-game-ribbon" aria-label="Optional ASCII game console">
+                <ChatGameConsole ConversationId="@ActiveConversationId" SuggestedTeamKey="@SelectedCouncilTeamKey" />
+            </section>
+        }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
@@ -599,6 +610,7 @@
     int LimitedGpuLayers { get; set; } = 20;
     string OllamaEndpoint { get; set; } = string.Empty;
     bool GenerateCouncilArtifacts { get; set; }
+    bool showGameConsole;
     bool IncludeCouncilMemory { get; set; } = true;
     string? DiagnosticRequestedSessionName { get; set; }
     string? DiagnosticOllamaEndpoint { get; set; }
@@ -733,6 +745,8 @@
     DotNetObjectReference<Chat>? chatInteropReference;
 
 
+
+    private void ToggleGameConsole() => showGameConsole = !showGameConsole;
 
     protected override async Task OnInitializedAsync()
     {

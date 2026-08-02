@@ -1044,22 +1044,40 @@ namespace LocalGPT.Services
             try
             {
                 var files = EnumerateUsefulFiles(projectDirectory, logger).Take(1600).ToArray();
+                return BuildProjectSummary(rootPath, projectDirectory, files, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error in BuildProjectSummary rootPath {RootPath} projectDirectory {ProjectDirectory}", rootPath, projectDirectory);
+                return null;
+            }
+        }
+
+        public LearnBaseProjectSummary? BuildProjectSummary(
+            string rootPath,
+            string projectDirectory,
+            IReadOnlyList<FileInfo> selectedFiles,
+            ILogger logger)
+        {
+            try
+            {
+                var files = selectedFiles.Take(1600).ToArray();
                 var sourceFiles = files
-                    .Where(file => catalog.SourceExtensions.Contains(file.Extension))
+                    .Where(file => !catalog.BinaryExtensions.Contains(file.Extension))
                     .ToArray();
                 var binaryCount = files.Count(file => catalog.BinaryExtensions.Contains(file.Extension));
                 var textSamples = sourceFiles
                     .Where(file => file.Length is > 0 and < 256_000)
                     .Take(80)
                     .Select(filter => ReadSmallText(filter, logger))
-                    .Where(text => !string.IsNullOrWhiteSpace(text))
+                    .Where(content => !string.IsNullOrWhiteSpace(content))
                     .ToArray();
                 var pathSamples = sourceFiles
                     .Take(700)
                     .Select(file => Path.GetRelativePath(projectDirectory, file.FullName).Replace('\\', '/'));
                 var combined = string.Join("\n", textSamples.Concat(pathSamples));
 
-                var summary = new LearnBaseProjectSummary
+                return new LearnBaseProjectSummary
                 {
                     Name = text.RedactSensitiveName(Path.GetFileName(projectDirectory), logger),
                     SourcePath = projectDirectory,
@@ -1071,12 +1089,10 @@ namespace LocalGPT.Services
                     PackageReferences = string.Join(", ", text.ExtractPackageReferences(combined, logger).Take(24)),
                     ImportantFiles = BuildImportantFileList(rootPath, projectDirectory, sourceFiles, logger)
                 };
-
-                return summary;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in BuildProjectSummary rootPath {rootPath?.ToString()} projectDirectory {projectDirectory?.ToString()}");
+                logger.LogError(ex, "Error in BuildProjectSummary rootPath {RootPath} projectDirectory {ProjectDirectory}", rootPath, projectDirectory);
                 return null;
             }
         }

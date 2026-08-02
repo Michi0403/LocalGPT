@@ -7,6 +7,22 @@ namespace LocalGPT.BusinessObjects
         public int MaxProjects { get; set; } = 40;
 
         public bool SaveToKnowledge { get; set; } = true;
+
+        public List<string> FileExtensions { get; set; } = [];
+
+        public string AdditionalFileExtensions { get; set; } = string.Empty;
+
+        public string FileIncludeRegex { get; set; } = string.Empty;
+
+        public string FileExcludeRegex { get; set; } = string.Empty;
+
+        public int MaximumFileBytes { get; set; } = 1_048_576;
+
+        public bool ImportLearningSourceManifests { get; set; } = true;
+
+        public bool ImportKnownDocumentationCorpora { get; set; } = true;
+
+        public bool ImportProjectArchitecture { get; set; } = true;
     }
 
     public sealed class LearnBaseImportResult

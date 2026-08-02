@@ -1,0 +1,60 @@
+LocalGPT 2.1.16 / LocalGpt(38) targeted static review
+=====================================================
+
+Purpose
+-------
+This patch release addresses the Windows/.NET 10 semantic compiler finding
+reported after the 2.1.15 iterator and generated-artifact corrections.
+
+Reported failure addressed
+--------------------------
+ProjectMaintenanceService.EvaluateAccessPolicyRule used:
+
+    entries.Where(regex.IsMatch)
+
+Regex.IsMatch exposes overloads that can match both the ordinary and indexed
+Enumerable.Where predicate shapes during method-group conversion. The .NET 10
+compiler therefore reported CS0121 at ProjectMaintenanceService.cs:1018.
+
+Resolution
+----------
+The matcher now uses an explicit one-argument lambda:
+
+    entries.Where(entry => regex.IsMatch(entry))
+
+This deterministically selects Where(Func<string, bool>). The existing regex,
+100-entry bound, permission findings, severities and access-policy behavior are
+unchanged.
+
+Version/history handling
+------------------------
+- LocalGPT project/runtime version advanced to 2.1.16.
+- Organic-wire application advertisement advanced to 2.1.16-organic-wire.
+- The 2.1.15 seed history remains present.
+- A new seed-v2.1.16 release/revision entry was appended.
+
+Targeted validation completed in this packaging environment
+-----------------------------------------------------------
+- Confirmed the explicit lambda exists at the reported call site.
+- Confirmed no C# or Razor source retains a .Where(<regex>.IsMatch) method group.
+- Parsed 22 JSON files successfully.
+- Parsed 7 XML/project/targets/configuration files successfully.
+- Inspected 357 C# files and 31 Razor files for the targeted ambiguity shape.
+- No unresolved Git conflict markers were found.
+- No bin, obj, .pio, DLL, EXE, PDB, OBJ or firmware BIN output is included.
+- Compared against LocalGpt(37): functional source behavior changed only at the
+  reported LINQ call; other differences are version alignment and release notes.
+
+Existing user-side validation evidence
+--------------------------------------
+Before reaching CS0121, the Windows build passed localization, operational
+ diagnostics, InteractiveServer render-mode, async-continuation, architecture,
+text-service ownership, iterator-exception and system-variable initialization
+validation. This patch does not alter the code paths audited by those checks.
+
+Limitations
+-----------
+This packaging environment does not contain the pinned .NET 10 SDK, Windows
+WebView2 workload, DevExpress dependencies or the user's package-feed setup.
+A real Windows restore/build is therefore not claimed here. The user's next
+Windows build remains the authoritative semantic compiler validation.

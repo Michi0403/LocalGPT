@@ -1367,6 +1367,13 @@ namespace LocalGPT.Controller
             string? rootPath,
             int? maxProjects,
             bool? saveToKnowledge,
+            string? fileExtensions,
+            string? includeRegex,
+            string? excludeRegex,
+            int? maximumFileBytes,
+            bool? importLearningSourceManifests,
+            bool? importKnownDocumentationCorpora,
+            bool? importProjectArchitecture,
             [FromServices] ILearnBaseKnowledgeImporterService importer,
             [FromQuery] bool userConfirmed,
             CancellationToken ct)
@@ -1382,7 +1389,14 @@ namespace LocalGPT.Controller
                   ? @"C:\learnbaseforlocalgpt"
                   : rootPath,
                     MaxProjects = maxProjects ?? 40,
-                    SaveToKnowledge = saveToKnowledge != false
+                    SaveToKnowledge = saveToKnowledge != false,
+                    AdditionalFileExtensions = fileExtensions ?? string.Empty,
+                    FileIncludeRegex = includeRegex ?? string.Empty,
+                    FileExcludeRegex = excludeRegex ?? string.Empty,
+                    MaximumFileBytes = maximumFileBytes ?? 1_048_576,
+                    ImportLearningSourceManifests = importLearningSourceManifests != false,
+                    ImportKnownDocumentationCorpora = importKnownDocumentationCorpora != false,
+                    ImportProjectArchitecture = importProjectArchitecture != false
                 }, ct).ConfigureAwait(false));
             }
             catch (Exception ex)

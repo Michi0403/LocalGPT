@@ -10,6 +10,7 @@
          tabindex="0"
          data-localgpt-game-console
          data-localgpt-copyable="true"
+         data-scale-mode="@fullscreenScaleMode.ToLowerInvariant()"
          aria-label="Persistent ASCII game screen">
     <header class="chat-game-console-header">
         <div>
@@ -45,7 +46,15 @@
                         </select>
                     </label>
                 }
-                <button type="button" @onclick="ToggleControls">@(showControls ? "Hide controls" : "Show controls")</button>
+                <label>
+                    <span>Fullscreen scale</span>
+                    <select value="@fullscreenScaleMode" @onchange="ChangeFullscreenScaleModeAsync">
+                        <option value="Fit">Fit whole frame</option>
+                        <option value="Width">Fit width + vertical scroll</option>
+                        <option value="Native">Native size + scroll</option>
+                    </select>
+                </label>
+                <button type="button" @onclick="ToggleControls">@(showControls ? "Hide guide" : "Show guide")</button>
                 <button type="button" @onclick="FullscreenAsync">Fullscreen</button>
             }
         </div>
@@ -63,11 +72,13 @@
     }
     else
     {
-        <div class="chat-game-screen-shell">
-            <pre class="chat-game-screen" aria-live="polite">@snapshot.FrameText</pre>
-            @if (showControls && snapshot.HumanInputRequired && snapshot.ControlMode != CouncilGameControlMode.Ai && !inputInFlight)
+        <div class="chat-game-stage @(ShowControlGuide ? "has-guide" : "screen-only")">
+            <div class="chat-game-screen-viewport">
+                <pre class="chat-game-screen" aria-live="polite">@snapshot.FrameText</pre>
+            </div>
+            @if (ShowControlGuide)
             {
-                <div class="chat-game-control-overlay" role="group" aria-label="Your game controls">
+                <aside class="chat-game-control-guide" role="group" aria-label="Your game controls">
                     <div class="chat-game-control-card">
                         <strong>Your turn</strong>
                         <span>@snapshot.InputReason</span>
@@ -85,9 +96,9 @@
                             }
                             <button type="button" class="primary" data-game-action="use" @onclick='@(() => SendControlAsync("use"))'>Use</button>
                         </div>
-                        <small>Keyboard and connected gamepads use these exact actions. The overlay briefly clears while a frame resolves.</small>
+                        <small>Keyboard and connected gamepads use these exact actions. Fit mode scales the frame in fullscreen; Native mode keeps the original monospace size and enables scrolling.</small>
                     </div>
-                </div>
+                </aside>
             }
         </div>
         <footer class="chat-game-console-footer">
@@ -107,6 +118,8 @@
     private bool attached;
     private bool showControls = true;
     private bool inputInFlight;
+    private string fullscreenScaleMode = "Fit";
+    private bool ShowControlGuide => snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && showControls && !inputInFlight;
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,6 +143,7 @@
         }
         var inputEnabled = snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai };
         await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+        await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
     private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(false);
@@ -178,6 +192,15 @@
     }
 
     private void ToggleControls() => showControls = !showControls;
+
+    private async Task ChangeFullscreenScaleModeAsync(ChangeEventArgs args)
+    {
+        var requestedMode = args.Value?.ToString();
+        fullscreenScaleMode = string.Equals(requestedMode, "Native", StringComparison.OrdinalIgnoreCase)
+            ? "Native"
+            : string.Equals(requestedMode, "Width", StringComparison.OrdinalIgnoreCase) ? "Width" : "Fit";
+        await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(false);
+    }
 
     private async Task FullscreenAsync() =>
         await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(false);
