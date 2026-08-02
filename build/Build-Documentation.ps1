@@ -135,7 +135,14 @@ function New-LocalGptXmlFallbackApi {
         $prefixes = @("M:$typeName.", "P:$typeName.", "F:$typeName.", "E:$typeName.")
         $owned = @($members | Where-Object {
             $memberName = $_.GetAttribute("name")
-            ($prefixes | Where-Object { $memberName.StartsWith($_, [System.StringComparison]::Ordinal) }).Count -gt 0
+            $isOwned = $false
+            foreach ($prefix in $prefixes) {
+                if ($memberName.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+                    $isOwned = $true
+                    break
+                }
+            }
+            $isOwned
         } | Sort-Object { $_.GetAttribute("name") })
         if ($owned.Count -eq 0) {
             $typeLines.Add("No compiler XML member entries were emitted for this type.")

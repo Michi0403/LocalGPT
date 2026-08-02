@@ -1372,5 +1372,6 @@
   "Word.workspace": "workspace",
   "Word.write": "write",
   "Word.yes": "yes",
-  "Word.zoom": "zoom"
+  "Word.zoom": "zoom",
+  "Install.Onboarding.DirectStarterHint": "Direct Council starter: opens a fresh AI Council chat and submits the maintained starter prompt automatically."
 }

@@ -815,6 +815,61 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                         throw error;
                     }
                 },
+                prepareDirectCouncilStarter() {
+                    try {
+                        document.querySelectorAll('.chat-configuration-ribbon[open], .chat-session-tools-ribbon[open]')
+                            .forEach(element => element.removeAttribute('open'));
+                        document.documentElement.style.removeProperty('overflow');
+                        document.body?.style.removeProperty('overflow');
+                        return true;
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.prepareDirectCouncilStarter', error);
+                        return false;
+                    }
+                },
+                async submitPrompt(value) {
+                    try {
+                        const text = String(value ?? '').trim();
+                        if (!text) return false;
+                        for (let attempt = 0; attempt < 24; attempt++) {
+                            const host = document.querySelector(hostSelector);
+                            const editor = host?.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
+                            if (host instanceof HTMLElement && editor instanceof HTMLElement) {
+                                if (editor instanceof HTMLTextAreaElement || editor instanceof HTMLInputElement) {
+                                    const prototype = editor instanceof HTMLTextAreaElement
+                                        ? HTMLTextAreaElement.prototype
+                                        : HTMLInputElement.prototype;
+                                    const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+                                    if (setter) setter.call(editor, text); else editor.value = text;
+                                } else {
+                                    editor.textContent = text;
+                                }
+                                editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+                                editor.dispatchEvent(new Event('change', { bubbles: true }));
+                                await new Promise(resolve => setTimeout(resolve, 60));
+                                const send = [...host.querySelectorAll('button,[role="button"]')].find(button => {
+                                    if (!(button instanceof HTMLElement) || !visible(button)) return false;
+                                    const valueMarker = marker(button);
+                                    return /send|submit|paper-plane|arrow-right/i.test(valueMarker)
+                                        && !/attach|upload|file|paperclip|clip|stop|cancel|abort|square/i.test(valueMarker);
+                                });
+                                if (send instanceof HTMLButtonElement && !send.disabled) {
+                                    send.click();
+                                    return true;
+                                }
+                                if (send instanceof HTMLElement && send.getAttribute('aria-disabled') !== 'true') {
+                                    send.click();
+                                    return true;
+                                }
+                            }
+                            await new Promise(resolve => setTimeout(resolve, 125));
+                        }
+                        return false;
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.submitPrompt', error);
+                        return false;
+                    }
+                },
                 clearLiveUserMessages() {
                     try {
                         document.querySelectorAll(hostSelector).forEach(host => {

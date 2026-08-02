@@ -723,6 +723,7 @@ internal static class Program
             Directory.CreateDirectory(targetDirectory);
 
             var localGptRoot = GetLocalGptInstallRoot(logger);
+            RemoveDuplicateLocalGptShortcuts(targetDirectory, shortcuts, localGptRoot, logger);
             var iconPath = FindLocalGptIcon(logger);
 
             foreach (var shortcut in shortcuts)
@@ -743,6 +744,119 @@ internal static class Program
             throw;
         }
     }
+    /// <summary>
+    /// Removes duplicate or legacy LocalGPT desktop/start-menu shortcuts only when their resolved target is inside the active LocalGPT AppData installation.
+    /// </summary>
+    /// <param name="targetDirectory">Desktop or Start Menu directory being provisioned.</param>
+    /// <param name="shortcuts">Canonical shortcut set about to be written.</param>
+    /// <param name="localGptRoot">Active LocalGPT installation root.</param>
+    /// <param name="logger">Installer diagnostics.</param>
+    private static void RemoveDuplicateLocalGptShortcuts(
+        string targetDirectory,
+        IReadOnlyCollection<ShortcutDefinition> shortcuts,
+        string localGptRoot,
+        ILogger logger)
+    {
+        try
+        {
+            if (!Directory.Exists(targetDirectory) || string.IsNullOrWhiteSpace(localGptRoot))
+                return;
+
+            var canonical = shortcuts
+                .Select(shortcut => Path.GetFullPath(Path.Combine(targetDirectory, Path.ChangeExtension(shortcut.ShortcutName, ".url"))))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var candidate in Directory.EnumerateFiles(targetDirectory, "LocalGPT*", SearchOption.TopDirectoryOnly))
+            {
+                var extension = Path.GetExtension(candidate);
+                if (!extension.Equals(".url", StringComparison.OrdinalIgnoreCase)
+                    && !extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var fullCandidate = Path.GetFullPath(candidate);
+                if (canonical.Contains(fullCandidate))
+                    continue;
+                if (!TryResolveShortcutTarget(fullCandidate, logger, out var resolvedTarget))
+                    continue;
+                if (!IsPathInside(localGptRoot, resolvedTarget))
+                    continue;
+
+                File.Delete(fullCandidate);
+                logger.LogInformation("Removed duplicate LocalGPT shortcut {ShortcutPath} targeting {TargetPath}.", fullCandidate, resolvedTarget);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Duplicate LocalGPT shortcut cleanup could not complete in {TargetDirectory}.", targetDirectory);
+        }
+    }
+
+    /// <summary>Resolves a Windows URL or shell-link shortcut target without trusting its display name.</summary>
+    /// <param name="shortcutPath">Shortcut file path.</param>
+    /// <param name="logger">Installer diagnostics.</param>
+    /// <param name="targetPath">Resolved local target path.</param>
+    /// <returns>True when a local target was resolved.</returns>
+    private static bool TryResolveShortcutTarget(string shortcutPath, ILogger logger, out string targetPath)
+    {
+        targetPath = string.Empty;
+        try
+        {
+            if (Path.GetExtension(shortcutPath).Equals(".url", StringComparison.OrdinalIgnoreCase))
+            {
+                var urlLine = File.ReadLines(shortcutPath)
+                    .FirstOrDefault(line => line.StartsWith("URL=", StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrWhiteSpace(urlLine))
+                    return false;
+                var rawUrl = urlLine[4..].Trim();
+                if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var uri) || !uri.IsFile)
+                    return false;
+                targetPath = Path.GetFullPath(uri.LocalPath);
+                return true;
+            }
+
+            var shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType is null)
+                return false;
+            object? shell = null;
+            object? shortcut = null;
+            try
+            {
+                shell = Activator.CreateInstance(shellType);
+                if (shell is null)
+                    return false;
+                shortcut = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [shortcutPath]);
+                if (shortcut is null)
+                    return false;
+                var resolved = shortcut.GetType().InvokeMember("TargetPath", BindingFlags.GetProperty, null, shortcut, null) as string;
+                if (string.IsNullOrWhiteSpace(resolved))
+                    return false;
+                targetPath = Path.GetFullPath(resolved);
+                return true;
+            }
+            finally
+            {
+                if (shortcut is not null && Marshal.IsComObject(shortcut)) Marshal.FinalReleaseComObject(shortcut);
+                if (shell is not null && Marshal.IsComObject(shell)) Marshal.FinalReleaseComObject(shell);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Could not resolve shortcut target for {ShortcutPath}.", shortcutPath);
+            return false;
+        }
+    }
+
+    /// <summary>Returns whether one path is equal to or contained by a configured root.</summary>
+    /// <param name="root">Configured LocalGPT root.</param>
+    /// <param name="candidate">Resolved shortcut target.</param>
+    /// <returns>True when the candidate is inside the root.</returns>
+    private static bool IsPathInside(string root, string candidate)
+    {
+        var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var normalizedCandidate = Path.GetFullPath(candidate);
+        return normalizedCandidate.Equals(normalizedRoot.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+            || normalizedCandidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void CreateWindowsUrlShortcut(
     string shortcutPath,
     string targetPath,

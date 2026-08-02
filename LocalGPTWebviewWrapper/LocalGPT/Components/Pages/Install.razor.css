@@ -203,3 +203,14 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* v2.1.22: direct Council starters are explicitly distinguished from passive links. */
+.installer-direct-starter-hint {
+    display: block;
+    padding: .5rem .6rem;
+    border-left: .25rem solid var(--bs-primary);
+    border-radius: .35rem;
+    background: color-mix(in srgb, var(--bs-primary) 10%, var(--bs-body-bg));
+    font-size: .85rem;
+    line-height: 1.35;
+}

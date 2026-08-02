@@ -280,7 +280,8 @@
                             <h4>@quickStart.DisplayName</h4>
                             <p>@quickStart.Description</p>
                             <small>Team: @quickStart.CouncilTeamKey<br />Preset: @quickStart.ModelPresetName</small>
-                            <DxButton Text='@T("Install.Onboarding.OpenInChat", "Open in Chat")' RenderStyle="ButtonRenderStyle.Primary" Click="@(() => NavigateToRoute(quickStart.Route))" />
+                            <span class="installer-direct-starter-hint">@T("Install.Onboarding.DirectStarterHint", "Direct Council starter: opens a fresh AI Council chat and submits the maintained starter prompt automatically.")</span>
+                            <DxButton Text='@T("Install.Onboarding.OpenInChat", "Open in Chat")' RenderStyle="ButtonRenderStyle.Primary" Click="@(() => OpenQuickStartInChat(quickStart))" />
                         </article>
                     }
                 </div>
@@ -624,6 +625,22 @@
 
     /// <summary>Opens the editable Council-team catalog.</summary>
     private void OpenCouncilTeams() => NavigateToRoute("/council-teams");
+
+    /// <summary>Opens one direct Council starter through a fresh full Chat navigation.</summary>
+    /// <param name="quickStart">Selected maintained quick-start descriptor.</param>
+    private void OpenQuickStartInChat(CouncilQuickStart quickStart)
+    {
+        ArgumentNullException.ThrowIfNull(quickStart);
+        try
+        {
+            Nav.NavigateTo(quickStart.Route, forceLoad: true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Installer direct Council starter navigation failed for {StarterKey}.", quickStart.Key);
+            Notifier.ShowError(toastName, "The selected Council starter could not be opened.", "Council starter");
+        }
+    }
 
     /// <summary>Navigates to one application-relative installer destination.</summary>
     /// <param name="route">Application-relative route.</param>

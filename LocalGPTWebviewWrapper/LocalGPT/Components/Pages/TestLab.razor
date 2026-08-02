@@ -160,11 +160,20 @@
                 </label>
             </div>
             <label class="test-lab-field"><span>Topics (semicolon separated)</span><input @bind="remoteTopics" placeholder="DOOM source architecture; C rendering" /></label>
-            <DxCheckBox @bind-Checked="remoteSaveToKnowledge" Text="Save compact source maps to SQLite knowledge" />
-            @if (remoteImportResult is not null)
-            {
-                <DxCheckBox @bind-Checked="remoteImportApproved" Text="I reviewed this returned-file list and approve the database import" />
-            }
+            <div class="remote-import-options" role="group" aria-label="Remote knowledge import selections">
+                <label class="remote-import-option">
+                    <DxCheckBox @bind-Checked="remoteSaveToKnowledge" />
+                    <span><strong>Save to Council knowledge</strong><small>Enable this to write compact source maps into the SQLite knowledge database.</small></span>
+                </label>
+                @if (remoteImportResult is not null)
+                {
+                    <label class="remote-import-option remote-import-approval">
+                        <DxCheckBox @bind-Checked="remoteImportApproved" />
+                        <span><strong>Approve reviewed import</strong><small>Click this after checking the returned-file list. Import remains disabled until approval is selected.</small></span>
+                    </label>
+                }
+            </div>
+            <p class="test-lab-selection-hint">Select the options above deliberately. Database import requires the review approval checkbox after a preview.</p>
             <div class="test-lab-actions">
                 <DxButton Text="Inspect returned files" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!isBusy)" Click="PreviewRemoteKnowledgeAsync" />
                 <DxButton Text="Import reviewed source" RenderStyle="ButtonRenderStyle.Primary" RenderStyleMode="ButtonRenderStyleMode.Contained" Enabled="@(!isBusy && remoteImportResult is not null && remoteImportApproved)" Click="ImportRemoteKnowledgeAsync" />

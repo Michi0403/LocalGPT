@@ -145,7 +145,7 @@
     <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
   </PropertyGroup>
 
-  <!--<Target Name="BuildLocalGptDocumentation"
+  <Target Name="BuildLocalGptDocumentation"
           AfterTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(LocalGptDocumentationScript)')" Text="LocalGPT documentation build script is missing: $(LocalGptDocumentationScript)" />
@@ -155,6 +155,6 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>-->
+  </Target>
 
 </Project>

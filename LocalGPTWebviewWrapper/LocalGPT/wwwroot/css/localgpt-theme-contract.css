@@ -466,3 +466,29 @@ body:has([data-testid="chat-page"]) .localgpt-chat-dialog-surface {
         max-height: calc(100dvh - .5rem) !important;
     }
 }
+
+/* v2.1.22: form-heavy DevExpress modals use the available viewport. Chat configuration keeps its existing dedicated contract. */
+body [role="dialog"]:has(input, textarea, select):not(.localgpt-chat-settings-surface) {
+    box-sizing: border-box !important;
+    width: min(94vw, 88rem) !important;
+    min-width: min(42rem, 94vw) !important;
+    max-width: 94vw !important;
+    max-height: 92dvh !important;
+}
+body [role="dialog"]:has(input, textarea, select):not(.localgpt-chat-settings-surface) > *,
+body [role="dialog"]:has(input, textarea, select):not(.localgpt-chat-settings-surface) form {
+    max-width: none !important;
+}
+body [role="dialog"]:has(input, textarea, select):not(.localgpt-chat-settings-surface) [class*="content" i] {
+    max-height: calc(92dvh - 7rem) !important;
+    overflow: auto !important;
+    scrollbar-gutter: stable;
+}
+@media (max-width: 760px) {
+    body [role="dialog"]:has(input, textarea, select):not(.localgpt-chat-settings-surface) {
+        width: calc(100vw - .5rem) !important;
+        min-width: 0 !important;
+        max-width: calc(100vw - .5rem) !important;
+        max-height: calc(100dvh - .5rem) !important;
+    }
+}

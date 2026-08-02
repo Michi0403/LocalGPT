@@ -145,12 +145,12 @@ public sealed class FirstRunOnboardingService(
     /// <returns>The immutable quick-start catalog.</returns>
     private IReadOnlyList<CouncilQuickStart> CreateQuickStarts() =>
     [
-        QuickStart("benchmark", "Benchmark installed models", "Runs the bounded benchmark council and lets code-curator roles compare installed Ollama models.", "adaptive-model-benchmark", "Benchmark Candidate Pool"),
-        QuickStart("game", "Fast GameDirector council", "Uses small models while the deterministic GameDirector remains authoritative.", "game-director-runtime", "Fast Game Council (Low-B)"),
-        QuickStart("csharp", "Modern C# host team", "Plans and verifies a hosted .NET solution through architecture, implementation, regex, build and curator rounds.", "csharp-modern-host-development", "Code Curator Council"),
-        QuickStart("powershell", "PowerShell build-system team", "Uses LocalGPT's repository-validation round order as the reference workflow.", "powershell-build-development", "Code Curator Council"),
-        QuickStart("java", "Java hosted application team", "Builds Maven or Gradle services with bounded project and compiler policies.", "java-hosted-development", "Code Curator Council"),
-        QuickStart("minecraft", "Minecraft development team", "Routes datapack, scripting and Java-mod work to separate roles and verification rounds.", "minecraft-development", "Code Curator Council")
+        QuickStart("benchmark", "Benchmark installed models", "Runs the bounded benchmark council and lets code-curator roles compare installed Ollama models.", "adaptive-model-benchmark", "Benchmark Candidate Pool", "benchmark-council-start"),
+        QuickStart("game", "Fast GameDirector council", "Uses small models while the deterministic GameDirector remains authoritative.", "game-director-runtime", "Fast Game Council (Low-B)", "game-director-council-start"),
+        QuickStart("csharp", "Modern C# host team", "Plans and verifies a hosted .NET solution through architecture, implementation, regex, build and curator rounds.", "csharp-modern-host-development", "Code Curator Council", "csharp-host-council-start"),
+        QuickStart("powershell", "PowerShell build-system team", "Uses LocalGPT's repository-validation round order as the reference workflow.", "powershell-build-development", "Code Curator Council", "powershell-build-council-start"),
+        QuickStart("java", "Java hosted application team", "Builds Maven or Gradle services with bounded project and compiler policies.", "java-hosted-development", "Code Curator Council", "java-hosted-council-start"),
+        QuickStart("minecraft", "Minecraft development team", "Routes datapack, scripting and Java-mod work to separate roles and verification rounds.", "minecraft-development", "Code Curator Council", "minecraft-development-council-start")
     ];
 
     /// <summary>
@@ -161,8 +161,9 @@ public sealed class FirstRunOnboardingService(
     /// <param name="description">Short workload description.</param>
     /// <param name="teamKey">Seeded council-team key.</param>
     /// <param name="presetName">Seeded model-preset name.</param>
+    /// <param name="starterPromptKey">Stable prompt key submitted after the Council chat is ready.</param>
     /// <returns>The configured quick-start record.</returns>
-    private CouncilQuickStart QuickStart(string key, string displayName, string description, string teamKey, string presetName) =>
-        new(key, displayName, description, teamKey, presetName,
-            $"/chat?team={Uri.EscapeDataString(teamKey)}&preset={Uri.EscapeDataString(presetName)}");
+    private CouncilQuickStart QuickStart(string key, string displayName, string description, string teamKey, string presetName, string starterPromptKey) =>
+        new(key, displayName, description, teamKey, presetName, starterPromptKey,
+            $"/chat?team={Uri.EscapeDataString(teamKey)}&preset={Uri.EscapeDataString(presetName)}&starter={Uri.EscapeDataString(starterPromptKey)}&autoStartCouncil=true&newCouncil=true");
 }

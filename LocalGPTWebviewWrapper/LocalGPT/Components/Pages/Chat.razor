@@ -1,5 +1,5 @@
 @rendermode InteractiveServer
-@page "/Chat"
+@page "/chat"
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
 @using System.Text.Json
@@ -257,7 +257,7 @@
         <div class="memory-toolbar council-team-toolbar" aria-label="AI Council team and heartbeat configuration" data-testid="council-team-picker">
             <label title="Selects the database-backed roles, prompts and heartbeat workflow for the next AI Council run.">
                 <span>Council team</span>
-                <select @bind="SelectedCouncilTeamKey">
+                <select value="@SelectedCouncilTeamKey" @onchange="OnCouncilTeamChanged">
                     @foreach (var team in CouncilTeams)
                     {
                         <option value="@team.Key">@team.DisplayName</option>
@@ -267,6 +267,24 @@
             <span class="memory-status">Roles, preparation prompts and heartbeat scripts are stored in SQLite and can be adjusted without replacing compiled services.</span>
             <a class="btn btn-outline-secondary btn-sm" href="/council-teams" data-enhance-nav="false">Edit teams and workflow</a>
         </div>
+        @if (CouncilStarterSuggestions.Count > 0)
+        {
+            <section class="council-direct-starters" aria-label="Direct Council starter prompts">
+                <header>
+                    <strong>Direct Council starters</strong>
+                    <small>These prompts switch to AI Council, start a fresh Council chat and submit the selected pre-prompt automatically.</small>
+                </header>
+                <div class="council-direct-starter-grid">
+                    @foreach (var starter in CouncilStarterSuggestions)
+                    {
+                        <button type="button" class="council-direct-starter" @onclick="() => StartCouncilPromptAsync(starter, startFresh: true)">
+                            <strong>@starter.Title</strong>
+                            <span>@starter.Text</span>
+                        </button>
+                    }
+                </div>
+            </section>
+        }
         </details>
         <details id="localgpt-memory-controls" class="chat-memory-project-center">
             <summary title="Open saved memory and project-version controls.">
@@ -628,7 +646,12 @@
     string ArchitecturePollNotes { get; set; } = string.Empty;
     bool AllowCouncilToChooseSandboxDetails { get; set; }
     string ArchitecturePollStatus { get; set; } = string.Empty;
+    List<PromptSuggestion> AllPromptSuggestions { get; set; } = new();
     List<PromptSuggestion> PromptSuggestions { get; set; } = new();
+    IReadOnlyList<PromptSuggestion> CouncilStarterSuggestions => AllPromptSuggestions
+        .Where(item => item.StartsCouncilDirectly && item.IsAvailableForTeam(SelectedCouncilTeamKey))
+        .OrderBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+        .ToList();
     List<ChatMemoryConversationSummary> SavedConversations { get; set; } = new();
     List<ChatMemoryThought> RecentThoughts { get; set; } = new();
     List<MultiModelCouncilModelCandidate> OllamaCandidates { get; set; } = new();
@@ -697,6 +720,17 @@
     [Parameter]
     [SupplyParameterFromQuery(Name = "preset")]
     public string? RequestedModelPresetName { get; set; }
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "starter")]
+    public string? RequestedCouncilStarterKey { get; set; }
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "autoStartCouncil")]
+    public bool AutoStartCouncilStarter { get; set; }
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "newCouncil")]
+    public bool StartNewCouncilChat { get; set; }
+    bool directCouncilStarterDispatched;
+    bool directCouncilStarterDispatching;
     Guid? SelectedCouncilRunId { get; set; }
     Guid? RejoinCouncilRunId { get; set; }
     Guid? AttachedLiveCouncilRunId { get; set; }
@@ -778,8 +812,9 @@
             ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions.FirstOrDefault() ?? string.Empty;
 
             await LoadDatabaseBackedDefaultsAsync().ConfigureAwait(false);
+            AllPromptSuggestions = Catalog.GetSuggestion();
             await LoadCouncilTeamsAsync().ConfigureAwait(false);
-            PromptSuggestions = Catalog.GetSuggestion();
+            RefreshPromptSuggestions();
             await LoadChatProjectsAsync().ConfigureAwait(false);
             await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
@@ -818,6 +853,28 @@
             SelectedCouncilTeamKey = requestedTeam;
         else if (CouncilTeams.All(team => !string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
             SelectedCouncilTeamKey = CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
+        RefreshPromptSuggestions();
+    }
+
+    /// <summary>Applies a user-selected Council team and refreshes its connected pre-prompts.</summary>
+    /// <param name="args">Select change event containing the requested team key.</param>
+    private void OnCouncilTeamChanged(ChangeEventArgs args)
+    {
+        var requested = Convert.ToString(args.Value)?.Trim();
+        if (!string.IsNullOrWhiteSpace(requested) && CouncilTeams.Any(team => string.Equals(team.Key, requested, StringComparison.OrdinalIgnoreCase)))
+            SelectedCouncilTeamKey = requested;
+        RefreshPromptSuggestions();
+        SavePreparationConfiguration();
+    }
+
+    /// <summary>Filters the DevExpress prompt suggestions to generic prompts plus prompts connected to the selected team.</summary>
+    private void RefreshPromptSuggestions()
+    {
+        PromptSuggestions = AllPromptSuggestions
+            .Where(item => item.TeamKeys.Count == 0 || item.IsAvailableForTeam(SelectedCouncilTeamKey))
+            .OrderByDescending(item => item.StartsCouncilDirectly)
+            .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task LoadDatabaseBackedDefaultsAsync()
@@ -905,6 +962,8 @@
             {
                 interactiveAttached = true;
                 chatInteropReference ??= DotNetObjectReference.Create(this);
+                if (AutoStartCouncilStarter || !string.IsNullOrWhiteSpace(RequestedCouncilStarterKey))
+                    await JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").ConfigureAwait(false);
                 Logger.LogInformation($"Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
                 ComponentActivity.RecordInformation(nameof(Chat), "InteractiveAttach", "The Chat page attached to the interactive circuit and is waiting for its chat control.");
                 ScheduleChatRuntimeActivation();
@@ -1280,8 +1339,105 @@
         if (DiagnosticCouncilModelNames.Count > 0)
             modelStatus = $"Diagnostic council model override: {string.Join(", ", DiagnosticCouncilModelNames)}. LocalGPT will not auto-select a different council member for this run.";
 
+        if (AutoStartCouncilStarter && !directCouncilStarterDispatched && !directCouncilStarterDispatching)
+            _ = InvokeAsync(AutoStartRequestedCouncilPromptAsync);
+
         if (showToast)
             Notifier.ShowSuccess(toastName, modelStatus, "Ollama models refreshed");
+    }
+
+    /// <summary>Finds and starts the direct Council prompt requested by the installer or home-page route.</summary>
+    /// <returns>A task that completes after the prompt is submitted or a visible fallback is prepared.</returns>
+    private async Task AutoStartRequestedCouncilPromptAsync()
+    {
+        if (directCouncilStarterDispatched || directCouncilStarterDispatching || string.IsNullOrWhiteSpace(RequestedCouncilStarterKey))
+            return;
+        directCouncilStarterDispatching = true;
+        try
+        {
+            var starter = AllPromptSuggestions.FirstOrDefault(item =>
+                item.StartsCouncilDirectly && string.Equals(item.Key, RequestedCouncilStarterKey.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (starter is null)
+            {
+                modelStatus = $"Council starter '{RequestedCouncilStarterKey}' was not found. Select a maintained starter below.";
+                return;
+            }
+            await StartCouncilPromptAsync(starter, StartNewCouncilChat).ConfigureAwait(false);
+        }
+        finally
+        {
+            directCouncilStarterDispatching = false;
+        }
+    }
+
+    /// <summary>Selects AI Council, optionally clears the Council chat, and submits one maintained team pre-prompt.</summary>
+    /// <param name="starter">Maintained direct Council starter prompt.</param>
+    /// <param name="startFresh">Whether to create a fresh Council chat before submission.</param>
+    /// <returns>A task that completes after browser submission or composer fallback.</returns>
+    private async Task StartCouncilPromptAsync(PromptSuggestion starter, bool startFresh)
+    {
+        ArgumentNullException.ThrowIfNull(starter);
+        if (ChatClientProvider is null || DxAiChat is null)
+        {
+            modelStatus = "AI Council is still initializing. Retry the starter after local-model discovery completes.";
+            return;
+        }
+
+        var councilSession = ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
+            session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase));
+        if (councilSession is null)
+        {
+            modelStatus = "The AI Council chat session is not available yet. Refresh local models and retry.";
+            return;
+        }
+
+        var requestedTeam = starter.TeamKeys.FirstOrDefault(teamKey =>
+            CouncilTeams.Any(team => string.Equals(team.Key, teamKey, StringComparison.OrdinalIgnoreCase)));
+        if (!string.IsNullOrWhiteSpace(requestedTeam))
+        {
+            SelectedCouncilTeamKey = requestedTeam;
+            RefreshPromptSuggestions();
+        }
+
+        ChatClientProvider.SelectedSession = councilSession;
+        hasUserSelectedSession = true;
+        if (startFresh)
+        {
+            councilSession.Messages.Clear();
+            ActiveConversationId = null;
+            SessionContext.SetConversation(null);
+            SelectedConversation = null;
+            FeedbackTargets.Clear();
+            SavedFeedback.Clear();
+            SelectedFeedbackSortOrder = null;
+            FeedbackComment = string.Empty;
+            feedbackStatus = string.Empty;
+            lastSavedSignature = string.Empty;
+            RejoinCouncilRunId = null;
+            AttachedLiveCouncilRunId = null;
+            SelectedCouncilRunId = null;
+            ownsLiveCouncilStream = false;
+            lastAttachedLiveCouncilUpdatedAtUtc = default;
+            LoadCouncilRunConfiguration(null);
+            await JS.InvokeVoidAsync("localGptChatUi.clearLiveUserMessages").ConfigureAwait(false);
+        }
+
+        DxAiChat.LoadMessages(councilSession.Messages);
+        SavePreparationConfiguration();
+        var submitted = await JS.InvokeAsync<bool>("localGptChatUi.submitPrompt", starter.PromptMessage).ConfigureAwait(false);
+        directCouncilStarterDispatched = submitted;
+        if (submitted)
+        {
+            modelStatus = $"Started '{starter.Title}' with Council team '{SelectedCouncilTeamKey}'.";
+            ComponentActivity.RecordInformation(nameof(Chat), "DirectCouncilStarter", $"Started maintained Council prompt {starter.Key}.");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("localGptChatUi.restoreComposerDraft", starter.PromptMessage).ConfigureAwait(false);
+            modelStatus = $"Prepared '{starter.Title}' in the composer. Press Send to start the Council run.";
+            Notifier.ShowWarning(toastName, modelStatus, "Council starter prepared");
+        }
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
     private void RebuildDynamicSessions()
@@ -1342,10 +1498,14 @@
             var explicitlyRequestedDiagnostic = !string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName);
             var configuredOllamaUnavailable = !explicitlyRequestedDiagnostic && IsUnavailableConfiguredOllamaSession(preservedSelection);
 
-            ChatClientProvider.SelectedSession = configuredOllamaUnavailable
-                ? SelectReachableFallbackSession()
-                : preservedSelection
-                    ?? SelectReachableFallbackSession();
+            var directCouncilSession = AutoStartCouncilStarter || !string.IsNullOrWhiteSpace(RequestedCouncilStarterKey)
+                ? councilSession
+                : null;
+            ChatClientProvider.SelectedSession = directCouncilSession
+                ?? (configuredOllamaUnavailable
+                    ? SelectReachableFallbackSession()
+                    : preservedSelection
+                        ?? SelectReachableFallbackSession());
 
             if (configuredOllamaUnavailable && ChatClientProvider.SelectedSession is not null)
             {

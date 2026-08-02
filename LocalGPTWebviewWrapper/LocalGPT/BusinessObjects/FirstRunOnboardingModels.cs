@@ -33,14 +33,16 @@ public sealed record OnboardingInstallerProfile(
 /// <param name="Description">Explanation of the intended round and resource profile.</param>
 /// <param name="CouncilTeamKey">Seeded council-team key selected by the route.</param>
 /// <param name="ModelPresetName">Seeded model-preset name selected by the route.</param>
-/// <param name="Route">Application-relative Chat route containing the requested team and preset.</param>
-[DocumentationUpdated("2.1.20")]
+/// <param name="StarterPromptKey">Stable prompt key submitted by the direct Council starter.</param>
+/// <param name="Route">Application-relative Chat route containing the requested team, preset and starter prompt.</param>
+[DocumentationUpdated("2.1.22")]
 public sealed record CouncilQuickStart(
     string Key,
     string DisplayName,
     string Description,
     string CouncilTeamKey,
     string ModelPresetName,
+    string StarterPromptKey,
     string Route);
 
 /// <summary>
