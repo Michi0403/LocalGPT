@@ -18,9 +18,21 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Owns deterministic Council prompt reconstruction, source/artifact generation helpers and shared runtime formatting operations.
+    /// </summary>
+    /// <param name="text">Provides maintained normalization and source-generation text operations.</param>
+    /// <param name="catalog">Provides maintained runtime limits and defaults.</param>
+    /// <param name="serviceLogger">Writes bounded runtime diagnostics.</param>
+    [DocumentationUpdated("2.1.20")]
     public sealed class CouncilRuntimeService(CouncilTextService text, LocalGptCatalogService catalog, ILogger<CouncilRuntimeService> serviceLogger)
     {
-        public string CreatePaperGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context,ILogger logger)
+        /// <summary>Creates Gradle properties for a Paper server plugin workspace.</summary>
+        /// <param name="request">Minecraft build request containing target versions and description.</param>
+        /// <param name="context">Normalized generated-project context.</param>
+        /// <param name="logger">Writes bounded generation diagnostics.</param>
+        /// <returns>The generated Gradle properties text, or an empty string when generation fails.</returns>
+        public string CreatePaperGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context, ILogger logger)
         {
             try
             {
@@ -48,6 +60,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the create common gradle properties operation.</summary>
+        /// <param name="request">Input value for request.</param>
+        /// <param name="context">Input value for context.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string CreateCommonGradleProperties(MinecraftModBuildRequest request, WorkspaceContext context, ILogger logger)
         {
             try
@@ -86,6 +103,11 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the resolve dependency versions operation.</summary>
+        /// <param name="request">Input value for request.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <param name="loaderOverride">Input value for loaderOverride.</param>
+        /// <returns>The operation result.</returns>
         public MinecraftDependencyVersionInfo ResolveDependencyVersions(
           MinecraftModBuildRequest request, 
           ILogger logger,
@@ -108,6 +130,11 @@ namespace LocalGPT.Services
         }
           
 
+        /// <summary>Executes the create fallback dependency version info operation.</summary>
+        /// <param name="request">Input value for request.</param>
+        /// <param name="loaderOverride">Input value for loaderOverride.</param>
+        /// <param name="failureReason">Input value for failureReason.</param>
+        /// <returns>The operation result.</returns>
         private MinecraftDependencyVersionInfo CreateFallbackDependencyVersionInfo(
             MinecraftModBuildRequest request,
             string? loaderOverride,
@@ -135,6 +162,10 @@ namespace LocalGPT.Services
                 Source: "LocalGPT defensive fallback; verify versions with the official loader and Minecraft sources before release.");
         }
 
+        /// <summary>Executes the create build local script operation.</summary>
+        /// <param name="request">Input value for request.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string CreateBuildLocalScript(MinecraftModBuildRequest request, ILogger logger)
         {
             try
@@ -185,6 +216,11 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the create datapack mcmeta operation.</summary>
+        /// <param name="request">Input value for request.</param>
+        /// <param name="context">Input value for context.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string CreateDatapackMcmeta(MinecraftModBuildRequest request, WorkspaceContext context, ILogger logger)
         {
             try
@@ -205,6 +241,13 @@ namespace LocalGPT.Services
             }
         }
        
+        /// <summary>Executes the write datapack function async operation.</summary>
+        /// <param name="context">Input value for context.</param>
+        /// <param name="functionPath">Input value for functionPath.</param>
+        /// <param name="content">Input value for content.</param>
+        /// <param name="cancellationToken">Input value for cancellationToken.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>A task that completes when the operation finishes.</returns>
         public async Task WriteDatapackFunctionAsync(
     WorkspaceContext context,
     string functionPath,
@@ -223,6 +266,9 @@ namespace LocalGPT.Services
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "WriteDatapackFunctionAsync");
             }
         }
+        /// <summary>Executes the known dependency version info versions operation.</summary>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public List<CatalogEntry> KnownDependencyVersionInfoVersions (ILogger logger)
         {
             try
@@ -286,6 +332,13 @@ namespace LocalGPT.Services
                 return new() ;
             }
         }
+        /// <summary>Executes the resolve minecraft dependency version info operation.</summary>
+        /// <param name="loader">Input value for loader.</param>
+        /// <param name="minecraftVersion">Input value for minecraftVersion.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <param name="javaVersion">Input value for javaVersion.</param>
+        /// <param name="gradleVersion">Input value for gradleVersion.</param>
+        /// <returns>The operation result.</returns>
         public MinecraftDependencyVersionInfo ResolveMinecraftDependencyVersionInfo(
     string? loader,
     string? minecraftVersion,
@@ -363,6 +416,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the minecraft datapack version info resolve operation.</summary>
+        /// <param name="minecraftVersion">Input value for minecraftVersion.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public MinecraftDatapackVersionInfo MinecraftDatapackVersionInfoResolve(string? minecraftVersion, ILogger logger)
         {
             try
@@ -412,6 +469,9 @@ namespace LocalGPT.Services
                     Source: "LocalGPT defensive fallback after version-resolution failure.");
             }
         }
+        /// <summary>Executes the minecraft datapack version known versions operation.</summary>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public List< MinecraftDatapackVersionInfo> MinecraftDatapackVersionKnownVersions (ILogger logger)
         {
             try
@@ -435,6 +495,13 @@ namespace LocalGPT.Services
                 return new();
             }
         }
+        /// <summary>Executes the minecraft datapack version info known operation.</summary>
+        /// <param name="version">Input value for version.</param>
+        /// <param name="packFormat">Input value for packFormat.</param>
+        /// <param name="functionRegistryFolder">Input value for functionRegistryFolder.</param>
+        /// <param name="notes">Input value for notes.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public MinecraftDatapackVersionInfo MinecraftDatapackVersionInfoKnown(string version, string packFormat, string functionRegistryFolder, string notes, ILogger logger) 
         {
             try
@@ -463,6 +530,9 @@ namespace LocalGPT.Services
                     Source: "LocalGPT defensive fallback after curated metadata construction failure.");
             }
         }
+        /// <summary>Executes the find repository root operation.</summary>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         private string? FindRepositoryRoot(ILogger<BuildDebugInventoryService> logger)
         {
             try
@@ -494,6 +564,10 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the build manual expected lane operation.</summary>
+        /// <param name="task">Input value for task.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public EngineeringBenchmarkLaneResult BuildManualExpectedLane(BenchmarkTaskDefinition task, ILogger logger)
         {
             try
@@ -526,6 +600,11 @@ namespace LocalGPT.Services
                 };
             }
         }
+        /// <summary>Executes the not run lane operation.</summary>
+        /// <param name="laneName">Input value for laneName.</param>
+        /// <param name="notes">Input value for notes.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public EngineeringBenchmarkLaneResult NotRunLane(string laneName, string notes, ILogger logger)
         {
             try
@@ -548,6 +627,12 @@ namespace LocalGPT.Services
                 };
             }
         }
+        /// <summary>Executes the score architecture operation.</summary>
+        /// <param name="task">Input value for task.</param>
+        /// <param name="zipEntries">Input value for zipEntries.</param>
+        /// <param name="artifacts">Input value for artifacts.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public int ScoreArchitecture(
     BenchmarkTaskDefinition task,
     HashSet<string> zipEntries,
@@ -574,6 +659,11 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the score wrong template risk operation.</summary>
+        /// <param name="task">Input value for task.</param>
+        /// <param name="zipEntries">Input value for zipEntries.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public int ScoreWrongTemplateRisk(BenchmarkTaskDefinition task, HashSet<string> zipEntries, ILogger logger)
         {
             try
@@ -591,6 +681,13 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the score buildability operation.</summary>
+        /// <param name="task">Input value for task.</param>
+        /// <param name="artifacts">Input value for artifacts.</param>
+        /// <param name="buildChecks">Input value for buildChecks.</param>
+        /// <param name="validateBuildableArtifacts">Input value for validateBuildableArtifacts.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public int ScoreBuildability(
       BenchmarkTaskDefinition task,
       IReadOnlyList<CouncilArtifact> artifacts,
@@ -623,6 +720,10 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the read zip entries safe operation.</summary>
+        /// <param name="artifact">Input value for artifact.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<string> ReadZipEntriesSafe(CouncilArtifact artifact, ILogger logger)
         {
 
@@ -643,6 +744,10 @@ namespace LocalGPT.Services
                 return new List<string>();
             }
         }
+        /// <summary>Executes the sum scores operation.</summary>
+        /// <param name="lane">Input value for lane.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public int SumScores(EngineeringBenchmarkLaneResult lane, ILogger logger)
         {
             try
@@ -663,6 +768,10 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the read small text operation.</summary>
+        /// <param name="file">Input value for file.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string ReadSmallText(FileInfo file, ILogger logger)
         {
             try
@@ -675,6 +784,12 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the add if operation.</summary>
+        /// <param name="text">Input value for text.</param>
+        /// <param name="signals">Input value for signals.</param>
+        /// <param name="label">Input value for label.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <param name="needles">Input value for needles.</param>
         public void AddIf(string text, List<string> signals, string label, ILogger logger, params string[] needles)
         {
             try
@@ -688,6 +803,11 @@ namespace LocalGPT.Services
 
             }
         }
+        /// <summary>Executes the build windows dev docs entries operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="markdownFiles">Input value for markdownFiles.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<CouncilKnowledgeEntry> BuildWindowsDevDocsEntries(
             string rootPath,
             IReadOnlyList<FileInfo> markdownFiles, ILogger logger)
@@ -790,6 +910,11 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the build dot net docs entries operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="markdownFiles">Input value for markdownFiles.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<CouncilKnowledgeEntry> BuildDotNetDocsEntries(
      string rootPath,
      IReadOnlyList<FileInfo> markdownFiles, ILogger logger)
@@ -907,6 +1032,10 @@ namespace LocalGPT.Services
                 return new List<CouncilKnowledgeEntry>();
             }
         }
+        /// <summary>Executes the to knowledge entry operation.</summary>
+        /// <param name="summary">Input value for summary.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public CouncilKnowledgeEntry? ToKnowledgeEntry(LearnBaseProjectSummary summary, ILogger logger)
         {
             try
@@ -959,6 +1088,12 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>Executes the build windows docs path samples operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="markdownFiles">Input value for markdownFiles.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <param name="needles">Input value for needles.</param>
+        /// <returns>The operation result.</returns>
         public string BuildWindowsDocsPathSamples(
             string rootPath,
             IReadOnlyList<FileInfo> markdownFiles,
@@ -984,6 +1119,13 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the stamp source metadata operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="files">Input value for files.</param>
+        /// <param name="now">Input value for now.</param>
+        /// <param name="entries">Input value for entries.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<CouncilKnowledgeEntry> StampSourceMetadata(
     string rootPath,
     IReadOnlyList<FileInfo> files,
@@ -1012,6 +1154,10 @@ namespace LocalGPT.Services
                 return new List<CouncilKnowledgeEntry>();
             }
         }
+        /// <summary>Executes the enumerate documentation corpus candidates operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The resulting sequence.</returns>
         public IEnumerable<string> EnumerateDocumentationCorpusCandidates(string rootPath, ILogger logger)
         {
             try
@@ -1039,6 +1185,11 @@ namespace LocalGPT.Services
 
             }
         }
+        /// <summary>Executes the build project summary operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="projectDirectory">Input value for projectDirectory.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public LearnBaseProjectSummary? BuildProjectSummary(string rootPath, string projectDirectory, ILogger logger)
         {
             try
@@ -1053,6 +1204,12 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the build project summary operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="projectDirectory">Input value for projectDirectory.</param>
+        /// <param name="selectedFiles">Input value for selectedFiles.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public LearnBaseProjectSummary? BuildProjectSummary(
             string rootPath,
             string projectDirectory,
@@ -1096,6 +1253,12 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>Executes the build docs path samples operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="markdownFiles">Input value for markdownFiles.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <param name="needles">Input value for needles.</param>
+        /// <returns>The operation result.</returns>
         public string BuildDocsPathSamples(
             string rootPath,
             IReadOnlyList<FileInfo> markdownFiles,
@@ -1127,6 +1290,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the compute corpus hash operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="files">Input value for files.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string ComputeCorpusHash(string rootPath, IReadOnlyList<FileInfo> files, ILogger logger)
         {
             try
@@ -1152,6 +1320,10 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the build documentation corpus candidates operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The resulting sequence.</returns>
         public IEnumerable<string> BuildDocumentationCorpusCandidates(string rootPath, ILogger logger)
         {
             try
@@ -1169,6 +1341,10 @@ namespace LocalGPT.Services
 
             }
         }
+        /// <summary>Executes the try get latest source date utc operation.</summary>
+        /// <param name="sourcePath">Input value for sourcePath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public DateTime? TryGetLatestSourceDateUtc(string sourcePath, ILogger logger)
         {
             try
@@ -1183,6 +1359,10 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>Executes the enumerate useful files operation.</summary>
+        /// <param name="directory">Input value for directory.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The resulting sequence.</returns>
         public IEnumerable<FileInfo> EnumerateUsefulFiles(string directory, ILogger logger)
         {
             try
@@ -1227,6 +1407,10 @@ namespace LocalGPT.Services
 
             }
         }
+        /// <summary>Executes the compute summary hash operation.</summary>
+        /// <param name="summary">Input value for summary.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string ComputeSummaryHash(LearnBaseProjectSummary summary, ILogger logger)
         {
             try
@@ -1249,6 +1433,12 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the infer architecture operation.</summary>
+        /// <param name="projectDirectory">Input value for projectDirectory.</param>
+        /// <param name="files">Input value for files.</param>
+        /// <param name="combined">Input value for combined.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string InferArchitecture(string projectDirectory, IReadOnlyList<FileInfo> files, string combined, ILogger logger)
         {
             try
@@ -1337,6 +1527,11 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the infer protocols and components operation.</summary>
+        /// <param name="combined">Input value for combined.</param>
+        /// <param name="files">Input value for files.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string InferProtocolsAndComponents(string combined, IReadOnlyList<FileInfo> files, ILogger logger)
         {
             try
@@ -1381,6 +1576,12 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the build important file list operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="projectDirectory">Input value for projectDirectory.</param>
+        /// <param name="sourceFiles">Input value for sourceFiles.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string BuildImportantFileList(string rootPath, string projectDirectory, IReadOnlyList<FileInfo> sourceFiles, ILogger logger)
         {
             try
@@ -1400,6 +1601,10 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the enumerate nested architecture roots operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The resulting sequence.</returns>
         public IEnumerable<string> EnumerateNestedArchitectureRoots(string rootPath, ILogger logger)
         {
             try
@@ -1423,6 +1628,10 @@ namespace LocalGPT.Services
                 logger.LogInformation($"Ended EnumerateNestedArchitectureRoots rootPath {rootPath?.ToString()}");
             }
         }
+        /// <summary>Executes the safe enumerate directories operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The resulting sequence.</returns>
         public IEnumerable<string> SafeEnumerateDirectories(string rootPath, ILogger logger)
         {
             try
@@ -1435,6 +1644,10 @@ namespace LocalGPT.Services
                 return new List<string>();
             }
         }
+        /// <summary>Executes the safe enumerate directory infos operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The resulting sequence.</returns>
         public IEnumerable<DirectoryInfo> SafeEnumerateDirectoryInfos(string rootPath, ILogger logger)
         {
             try
@@ -1451,6 +1664,10 @@ namespace LocalGPT.Services
                 return new List<DirectoryInfo>();
             }
         }
+        /// <summary>Executes the looks like windows dev docs root operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool LooksLikeWindowsDevDocsRoot(string rootPath, ILogger logger)
         {
             try
@@ -1484,6 +1701,10 @@ namespace LocalGPT.Services
                 return false;
             }
         }
+        /// <summary>Executes the looks like dot net docs root operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool LooksLikeDotNetDocsRoot(string rootPath, ILogger logger)
         {
             try
@@ -1507,6 +1728,10 @@ namespace LocalGPT.Services
                 return false;
             }
         }
+        /// <summary>Executes the looks like architecture root operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool LooksLikeArchitectureRoot(string rootPath, ILogger logger)
         {
             try
@@ -1543,6 +1768,10 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the create stable guid operation.</summary>
+        /// <param name="value">Input value for value.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public Guid CreateStableGuid(string value, ILogger logger)
         {
             try
@@ -1556,6 +1785,10 @@ namespace LocalGPT.Services
                 return Guid.Empty;
             }
         }
+        /// <summary>Executes the build tags operation.</summary>
+        /// <param name="summary">Input value for summary.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string BuildTags(LearnBaseProjectSummary summary, ILogger logger)
         {
             try
@@ -1575,6 +1808,10 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the build tasks operation.</summary>
+        /// <param name="taskSet">Input value for taskSet.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<BenchmarkTaskDefinition> BuildTasks(string taskSet, ILogger logger)
         {
             try
@@ -1595,6 +1832,10 @@ namespace LocalGPT.Services
                 return new List<BenchmarkTaskDefinition>();
             }
         }
+        /// <summary>Executes the get configured ollama providers operation.</summary>
+        /// <param name="options">Input value for options.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The resulting sequence.</returns>
         public IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders(AICoreOptions options, ILogger<ChatClientFactory> logger)
         {
             try
@@ -1619,6 +1860,13 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the copy debug file async operation.</summary>
+        /// <param name="file">Input value for file.</param>
+        /// <param name="sourceArea">Input value for sourceArea.</param>
+        /// <param name="captureRoot">Input value for captureRoot.</param>
+        /// <param name="cancellationToken">Input value for cancellationToken.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>A task that completes with the operation result.</returns>
         public async Task<string> CopyDebugFileAsync(FileInfo file, string sourceArea, string captureRoot, CancellationToken cancellationToken, ILogger<BuildDebugInventoryService> logger)
         {
             try
@@ -1638,6 +1886,10 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the has real api key operation.</summary>
+        /// <param name="apiKey">Input value for apiKey.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool HasRealApiKey(string? apiKey, ILogger<ChatClientFactory> logger)
         {
             try
@@ -1677,6 +1929,9 @@ namespace LocalGPT.Services
                 logger.LogInformation($"Finished GetSearchRoots");
             }
         }
+        /// <summary>Executes the read runtime server base url operation.</summary>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string ReadRuntimeServerBaseUrl(ILogger logger)
         {
             try
@@ -1700,6 +1955,10 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the first text operation.</summary>
+        /// <param name="logger">Input value for logger.</param>
+        /// <param name="values">Input value for values.</param>
+        /// <returns>The operation result.</returns>
         public string FirstText(ILogger<AiConnectivityProbe> logger, params string?[] values)
         {
             try
@@ -1714,62 +1973,57 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Reconstructs a bounded DXAiChat prompt without recursively feeding complete prior Council transcripts back into later runs.
+        /// </summary>
+        /// <param name="messages">Current DXAiChat message history.</param>
+        /// <param name="logger">Writes bounded prompt-reconstruction diagnostics.</param>
+        /// <returns>The compact Council prompt containing user turns and at most the latest cleaned assistant consensus.</returns>
         public string BuildPrompt(IEnumerable<ChatMessage> messages, ILogger logger)
         {
             try
             {
-                var builder = new StringBuilder()
-               .AppendLine("Answer this DXAiChat conversation as the LocalGPT AI Council.")
-               .AppendLine("Use the selected members, preserve user intent, and include a concise consensus.")
-               .AppendLine();
-
-                foreach (var message in messages.Where(message => message.Role != ChatRole.System))
+                var history = messages
+                    .Where(message => message.Role != ChatRole.System && !string.IsNullOrWhiteSpace(message.Text))
+                    .ToList();
+                var latestAssistantIndex = history.FindLastIndex(message => message.Role == ChatRole.Assistant);
+                var normalizedHistory = new List<(ChatRole Role, string Text)>();
+                var seenUserTurns = new HashSet<string>(StringComparer.Ordinal);
+                for (var index = 0; index < history.Count; index++)
                 {
-                    var text = message.Text?.Trim();
-                    if (string.IsNullOrWhiteSpace(text))
+                    var message = history[index];
+                    if (message.Role == ChatRole.Assistant && index != latestAssistantIndex)
                         continue;
 
-                    if (message.Role == ChatRole.Assistant)
+                    var normalized = NormalizeCouncilHistoryText(
+                        message.Text ?? string.Empty,
+                        message.Role == ChatRole.Assistant,
+                        logger);
+                    if (string.IsNullOrWhiteSpace(normalized))
+                        continue;
+                    if (message.Role == ChatRole.User && !seenUserTurns.Add(normalized))
+                        continue;
+                    normalizedHistory.Add((message.Role, normalized));
+                }
+
+                const int maximumUserTurns = 12;
+                var retainedUserTurns = normalizedHistory.Count(item => item.Role == ChatRole.User);
+                var usersToSkip = Math.Max(0, retainedUserTurns - maximumUserTurns);
+                var builder = new StringBuilder()
+                    .AppendLine("Answer this DXAiChat conversation as the LocalGPT AI Council.")
+                    .AppendLine("Use the selected members, preserve user intent, and include a concise consensus.")
+                    .AppendLine();
+                foreach (var item in normalizedHistory)
+                {
+                    if (item.Role == ChatRole.User && usersToSkip > 0)
                     {
-                        // DXAiChat stores the complete streamed Council response in chat history.
-                        // Reusing that raw value would feed live member output, status messages and
-                        // process panels into the next Council request. Preserve only the previous
-                        // consensus when the message is a formatted Council result.
-                        var resultMarker = text.LastIndexOf("# AI Council Result", StringComparison.OrdinalIgnoreCase);
-                        var consensusMarker = resultMarker >= 0
-                            ? text.IndexOf("## Consensus", resultMarker, StringComparison.OrdinalIgnoreCase)
-                            : -1;
-                        if (consensusMarker >= 0)
-                        {
-                            var consensusStart = consensusMarker + "## Consensus".Length;
-                            var consensusEnd = new[]
-                            {
-                                text.IndexOf("\n## Continue Action", consensusStart, StringComparison.OrdinalIgnoreCase),
-                                text.IndexOf("\n## Generated Artifact Links", consensusStart, StringComparison.OrdinalIgnoreCase)
-                            }
-                            .Where(index => index >= 0)
-                            .DefaultIfEmpty(-1)
-                            .Min();
-                            text = (consensusEnd >= 0 ? text[consensusStart..consensusEnd] : text[consensusStart..]).Trim();
-                        }
-                        else
-                        {
-                            text = Regex.Replace(
-                                text,
-                                @"<p\s+class=""localgpt-stream-status""[^>]*>.*?</p>\s*|<!--localgpt-council-stream-complete:[a-f0-9]{32}-->",
-                                string.Empty,
-                                RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-                                TimeSpan.FromSeconds(2)).Trim();
-                        }
-                    }
-
-                    if (string.IsNullOrWhiteSpace(text))
+                        usersToSkip--;
                         continue;
-
+                    }
                     builder
-                        .Append(message.Role == ChatRole.Assistant ? "Previous assistant consensus" : "User")
+                        .Append(item.Role == ChatRole.Assistant ? "Previous assistant consensus" : "User")
                         .AppendLine(":")
-                        .AppendLine(text)
+                        .AppendLine(item.Text)
                         .AppendLine();
                 }
 
@@ -1784,6 +2038,186 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+
+        /// <summary>
+        /// Removes LocalGPT-owned rendering panels and recursive Council wrapper text from one chat-history item.
+        /// </summary>
+        /// <param name="value">Raw stored chat text.</param>
+        /// <param name="assistantMessage">Whether the item is an assistant response.</param>
+        /// <param name="logger">Writes bounded normalization diagnostics.</param>
+        /// <returns>Plain Markdown suitable for inclusion in a later Council prompt.</returns>
+        private string NormalizeCouncilHistoryText(string value, bool assistantMessage, ILogger logger)
+        {
+            try
+            {
+                var normalized = value.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
+                normalized = assistantMessage
+                    ? ExtractLatestAssistantConsensus(normalized)
+                    : ExtractInnermostUserRequest(normalized);
+                normalized = StripLocalGptRenderingPanels(normalized);
+                normalized = Regex.Replace(
+                    normalized,
+                    @"<!--localgpt-council-stream-complete:[a-f0-9]{32}-->|<p\s+class=""localgpt-stream-status""[^>]*>.*?</p>",
+                    string.Empty,
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(2));
+                normalized = WebUtility.HtmlDecode(normalized);
+                normalized = RepairUnbalancedMarkdownFence(normalized);
+                normalized = Regex.Replace(
+                    normalized,
+                    @"(?m)^[ \t]+$",
+                    string.Empty,
+                    RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(2));
+                normalized = Regex.Replace(
+                    normalized,
+                    @"\n{4,}",
+                    "\n\n\n",
+                    RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(2)).Trim();
+
+                const int maximumHistoryCharacters = 32_000;
+                return normalized.Length <= maximumHistoryCharacters
+                    ? normalized
+                    : normalized[^maximumHistoryCharacters..];
+            }
+            catch (RegexMatchTimeoutException exception)
+            {
+                logger.LogWarning(exception, "Council chat-history cleanup timed out; a bounded plain-text fallback will be used.");
+                var fallback = WebUtility.HtmlDecode(value).Trim();
+                return fallback.Length <= 8_000 ? fallback : fallback[^8_000..];
+            }
+        }
+
+        /// <summary>
+        /// Removes a lone trailing fence or closes a lone opening fence so one history item cannot break later Markdown.
+        /// </summary>
+        /// <param name="value">Normalized history Markdown.</param>
+        /// <returns>Markdown with balanced fenced-code delimiters.</returns>
+        private string RepairUnbalancedMarkdownFence(string value)
+        {
+            var matches = Regex.Matches(
+                value,
+                @"(?m)^[ \t]*(?<fence>`{3,})[^\r\n]*$",
+                RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(2));
+            if (matches.Count == 0 || matches.Count % 2 == 0)
+                return value;
+
+            var finalMatch = matches[^1];
+            if (string.IsNullOrWhiteSpace(value[(finalMatch.Index + finalMatch.Length)..]))
+                return value.Remove(finalMatch.Index, finalMatch.Length).TrimEnd();
+
+            var openingFence = matches[0].Groups["fence"].Value;
+            return value.TrimEnd() + Environment.NewLine + openingFence;
+        }
+
+        /// <summary>
+        /// Extracts the last user-authored body when an older Council wrapper was accidentally persisted as user text.
+        /// </summary>
+        /// <param name="value">Stored user message text.</param>
+        /// <returns>The innermost user request without generated Council wrapper headings.</returns>
+        private string ExtractInnermostUserRequest(string value)
+        {
+            if (!value.Contains("AI Council request:", StringComparison.OrdinalIgnoreCase) &&
+                !value.Contains("Answer this DXAiChat conversation", StringComparison.OrdinalIgnoreCase))
+                return value;
+
+            var matches = Regex.Matches(
+                value,
+                @"(?ms)^User:\s*(?<body>.*?)(?=^Previous assistant consensus:|^User:|\z)",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(2));
+            var candidate = matches
+                .Select(match => match.Groups["body"].Value.Trim())
+                .LastOrDefault(body => !string.IsNullOrWhiteSpace(body) &&
+                    !body.StartsWith("AI Council request:", StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(candidate))
+                return candidate;
+
+            return Regex.Replace(
+                value,
+                @"(?im)^(?:AI Council request:|Council members:.*|Answer this DXAiChat conversation.*|Use the selected members.*)\s*$",
+                string.Empty,
+                RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(2)).Trim();
+        }
+
+        /// <summary>
+        /// Keeps only the latest visible consensus/final-answer section from a stored assistant Council response.
+        /// </summary>
+        /// <param name="value">Stored assistant response text.</param>
+        /// <returns>The latest final section or the original value when no known heading exists.</returns>
+        private string ExtractLatestAssistantConsensus(string value)
+        {
+            var markers = new[]
+            {
+                "\n## Consensus\n",
+                "\n## Final Answer\n",
+                "\n## Final council answer\n",
+                "\n### Final Answer\n"
+            };
+            var markerIndex = -1;
+            var markerLength = 0;
+            foreach (var marker in markers)
+            {
+                var index = value.LastIndexOf(marker, StringComparison.OrdinalIgnoreCase);
+                if (index <= markerIndex)
+                    continue;
+                markerIndex = index;
+                markerLength = marker.Length;
+            }
+
+            var result = markerIndex >= 0 ? value[(markerIndex + markerLength)..] : value;
+            var boundaries = new[]
+            {
+                "\n## Continue Action",
+                "\n## Generated Artifact Links",
+                "\n## User Decision Poll",
+                "\n## User decision poll",
+                "\n## Artifacts"
+            };
+            var boundary = boundaries
+                .Select(item => result.IndexOf(item, StringComparison.OrdinalIgnoreCase))
+                .Where(index => index >= 0)
+                .DefaultIfEmpty(-1)
+                .Min();
+            return (boundary >= 0 ? result[..boundary] : result).Trim();
+        }
+
+        /// <summary>
+        /// Removes LocalGPT-owned details/pre panels so model thinking and live process markup never become later prompt content.
+        /// </summary>
+        /// <param name="value">Stored response text containing optional LocalGPT markup.</param>
+        /// <returns>Response text without controlled rendering panels or orphaned panel tags.</returns>
+        private string StripLocalGptRenderingPanels(string value)
+        {
+            var result = value;
+            const string controlledPanelPattern = @"<details\s+class=""(?:model-thinking(?:\s+open)?|council-step(?:\s+council-live)?|council-prompt)""[^>]*>.*?</details>";
+            for (var pass = 0; pass < 6; pass++)
+            {
+                var cleaned = Regex.Replace(
+                    result,
+                    controlledPanelPattern,
+                    string.Empty,
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(2));
+                if (string.Equals(cleaned, result, StringComparison.Ordinal))
+                    break;
+                result = cleaned;
+            }
+
+            return Regex.Replace(
+                result,
+                @"</?(?:details|summary|pre)(?:\s[^>]*)?>",
+                string.Empty,
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(2));
+        }
+        /// <summary>Executes the format step progress operation.</summary>
+        /// <param name="step">Input value for step.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string FormatStepProgress(MultiModelCouncilStep step, ILogger logger)
         {
             try
@@ -1819,6 +2253,10 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the create update operation.</summary>
+        /// <param name="text">Input value for text.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public ChatResponseUpdate CreateUpdate(string text, ILogger logger)
         {
             try
@@ -1834,6 +2272,15 @@ namespace LocalGPT.Services
                     [new TextContent("The AI Council produced an update that could not be rendered. Review LocalGPT logs.")]);
             }
         }
+        /// <summary>Executes the build summary operation.</summary>
+        /// <param name="relativePath">Input value for relativePath.</param>
+        /// <param name="length">Input value for length.</param>
+        /// <param name="kind">Input value for kind.</param>
+        /// <param name="includedInPrompt">Input value for includedInPrompt.</param>
+        /// <param name="note">Input value for note.</param>
+        /// <param name="excerpt">Input value for excerpt.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public AnalyzedUploadFile? BuildSummary(
     string relativePath,
     long length,
@@ -1861,6 +2308,14 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the build binary summary operation.</summary>
+        /// <param name="relativePath">Input value for relativePath.</param>
+        /// <param name="length">Input value for length.</param>
+        /// <param name="kind">Input value for kind.</param>
+        /// <param name="includedInPrompt">Input value for includedInPrompt.</param>
+        /// <param name="note">Input value for note.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public AnalyzedUploadFile? BuildBinarySummary(
             string relativePath,
             long length,
@@ -1880,6 +2335,10 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>Executes the sanitize for prompt operation.</summary>
+        /// <param name="text">Input value for text.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string SanitizeForPrompt(string text, ILogger logger)
         {
             try
@@ -1896,6 +2355,11 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>Executes the analyze bytes operation.</summary>
+        /// <param name="relativePath">Input value for relativePath.</param>
+        /// <param name="bytes">Input value for bytes.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public AnalyzedUploadFile? AnalyzeBytes(string relativePath, byte[] bytes, ILogger logger)
         {
             try
@@ -1940,6 +2404,14 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>Executes the build context markdown operation.</summary>
+        /// <param name="workspaceName">Input value for workspaceName.</param>
+        /// <param name="root">Input value for root.</param>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="analyzedFiles">Input value for analyzedFiles.</param>
+        /// <param name="warnings">Input value for warnings.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string BuildContextMarkdown(
             string workspaceName,
             string root,
@@ -2029,6 +2501,11 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the resolve workspace file operation.</summary>
+        /// <param name="workspace">Input value for workspace.</param>
+        /// <param name="relativePath">Input value for relativePath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string? ResolveWorkspaceFile(string workspace, string relativePath, ILogger logger)
         {
             try
@@ -2051,6 +2528,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the is inside root operation.</summary>
+        /// <param name="root">Input value for root.</param>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool IsInsideRoot(string root, string path, ILogger logger)
         {
             try
@@ -2068,6 +2550,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the build workspace name operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="files">Input value for files.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string BuildWorkspaceName(
             string prompt,
             IReadOnlyList<ChatUploadWorkspaceInputFile> files, ILogger logger)
@@ -2096,6 +2583,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the is zip operation.</summary>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool IsZip(string path, ILogger logger)
         {
             try
@@ -2110,6 +2601,10 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>Executes the is text like operation.</summary>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool IsTextLike(string path, ILogger logger)
         {
             try
@@ -2123,6 +2618,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the determine file kind operation.</summary>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string DetermineFileKind(string path, ILogger logger)
         {
             try
@@ -2142,6 +2641,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the looks like text operation.</summary>
+        /// <param name="bytes">Input value for bytes.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool LooksLikeText(byte[] bytes, ILogger logger)
         {
             try
@@ -2170,6 +2673,10 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the multi model council service build log markdown operation.</summary>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string MultiModelCouncilServiceBuildLogMarkdown(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -2246,6 +2753,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the multi model council service build user poll operation.</summary>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public CouncilUserPoll? MultiModelCouncilServiceBuildUserPoll(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -2321,6 +2832,11 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service build implementation path poll operation.</summary>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="failedModels">Input value for failedModels.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public CouncilUserPoll? MultiModelCouncilServiceBuildImplementationPathPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
         {
             try
@@ -2367,6 +2883,11 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service build ai host setup poll operation.</summary>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="failedModels">Input value for failedModels.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public CouncilUserPoll? MultiModelCouncilServiceBuildAiHostSetupPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
         {
             try
@@ -2415,6 +2936,11 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service build frustration poll operation.</summary>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="failedModels">Input value for failedModels.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public CouncilUserPoll? MultiModelCouncilServiceBuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
         {
             try
@@ -2455,6 +2981,10 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service is frustrated prompt operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool MultiModelCouncilServiceIsFrustratedPrompt(string prompt, ILogger logger)
         {
             try
@@ -2498,6 +3028,10 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service needs implementation path decision operation.</summary>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool MultiModelCouncilServiceNeedsImplementationPathDecision(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -2523,6 +3057,10 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service needs ai host setup decision operation.</summary>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool MultiModelCouncilServiceNeedsAiHostSetupDecision(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -2544,6 +3082,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the multi model council service is development request operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool MultiModelCouncilServiceIsDevelopmentRequest(string prompt, ILogger logger)
         {
             try
@@ -2560,6 +3102,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the multi model council service has explicit artifact intent operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool MultiModelCouncilServiceHasExplicitArtifactIntent(string prompt, ILogger logger)
         {
             try
@@ -2579,6 +3125,10 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>Executes the multi model council service requires user decision before artifacts operation.</summary>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool MultiModelCouncilServiceRequiresUserDecisionBeforeArtifacts(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -2597,6 +3147,10 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service user granted safe sandbox choice operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool MultiModelCouncilServiceUserGrantedSafeSandboxChoice(string prompt, ILogger logger)
         {
             try
@@ -2614,6 +3168,10 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service should generate safe sandbox artifact without blocking operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool MultiModelCouncilServiceShouldGenerateSafeSandboxArtifactWithoutBlocking(string prompt, ILogger logger)
         {
             try
@@ -2635,6 +3193,10 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the multi model council service count implementation area hits operation.</summary>
+        /// <param name="text">Input value for text.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public int MultiModelCouncilServiceCountImplementationAreaHits(string text, ILogger logger)
         {
             try
@@ -2680,6 +3242,11 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the ollama thinking chat client ensure success or throw async operation.</summary>
+        /// <param name="response">Input value for response.</param>
+        /// <param name="cancellationToken">Input value for cancellationToken.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>A task that completes when the operation finishes.</returns>
         public async Task OllamaThinkingChatClientEnsureSuccessOrThrowAsync(HttpResponseMessage response, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -2700,6 +3267,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the ollama thinking chat client read error body async operation.</summary>
+        /// <param name="response">Input value for response.</param>
+        /// <param name="cancellationToken">Input value for cancellationToken.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>A task that completes with the operation result.</returns>
         public async Task<string> OllamaThinkingChatClientReadErrorBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -2721,6 +3293,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the ollama thinking chat client create streaming update operation.</summary>
+        /// <param name="text">Input value for text.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public ChatResponseUpdate? OllamaThinkingChatClientCreateStreamingUpdate(string text, ILogger logger)
         {
             try
@@ -2735,6 +3311,10 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>Executes the ollama thinking chat client create streaming status update operation.</summary>
+        /// <param name="text">Input value for text.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public ChatResponseUpdate? OllamaThinkingChatClientCreateStreamingStatusUpdate(string text, ILogger logger)
         {
             try
@@ -2748,6 +3328,12 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the append dev express imports async operation.</summary>
+        /// <param name="builder">Input value for builder.</param>
+        /// <param name="root">Input value for root.</param>
+        /// <param name="cancellationToken">Input value for cancellationToken.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>A task that completes when the operation finishes.</returns>
         public async Task AppendDevExpressImportsAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -2778,6 +3364,12 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the append dev express registrations async operation.</summary>
+        /// <param name="builder">Input value for builder.</param>
+        /// <param name="root">Input value for root.</param>
+        /// <param name="cancellationToken">Input value for cancellationToken.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>A task that completes when the operation finishes.</returns>
         public async Task AppendDevExpressRegistrationsAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -2808,6 +3400,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>Executes the append loaded dev express assemblies operation.</summary>
+        /// <param name="builder">Input value for builder.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void AppendLoadedDevExpressAssemblies(StringBuilder builder, ILogger logger)
         {
             try
@@ -2833,6 +3428,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>Executes the find repository root operation.</summary>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string? FindRepositoryRoot(ILogger logger)
         {
             try
@@ -2865,6 +3463,9 @@ namespace LocalGPT.Services
             }
             
         }
+        /// <summary>Executes the create chat upload smoke zip operation.</summary>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public byte[] CreateChatUploadSmokeZip( ILogger logger)
         {
             try
@@ -2941,6 +3542,11 @@ namespace LocalGPT.Services
                 return new byte[0];
             }
         }
+        /// <summary>Executes the write zip entry operation.</summary>
+        /// <param name="archive">Input value for archive.</param>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="content">Input value for content.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void WriteZipEntry(ZipArchive archive, string path, string content, ILogger logger)
         {
             try
@@ -2955,6 +3561,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the get request base url operation.</summary>
+        /// <param name="httpContext">Input value for httpContext.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string GetRequestBaseUrl(HttpContext httpContext, ILogger logger)
         {
             try
@@ -2970,6 +3580,11 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>Executes the enumerate artifact workspaces operation.</summary>
+        /// <param name="artifactRoot">Input value for artifactRoot.</param>
+        /// <param name="take">Input value for take.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<ArtifactWorkspaceSummary> EnumerateArtifactWorkspaces(string artifactRoot, int take, ILogger logger)
         {
             try
@@ -2992,6 +3607,12 @@ namespace LocalGPT.Services
                 return new List<ArtifactWorkspaceSummary>();
             }
         }
+        /// <summary>Executes the datapack reference comparison missing operation.</summary>
+        /// <param name="generatedZipPath">Input value for generatedZipPath.</param>
+        /// <param name="referenceZipPath">Input value for referenceZipPath.</param>
+        /// <param name="summary">Input value for summary.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public DatapackReferenceComparison? DatapackReferenceComparisonMissing(string generatedZipPath, string referenceZipPath, string summary, ILogger logger)
         {
             try
@@ -3026,6 +3647,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the build datapack reference comparison operation.</summary>
+        /// <param name="workspaceRoot">Input value for workspaceRoot.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public DatapackReferenceComparison? BuildDatapackReferenceComparison(string workspaceRoot, ILogger logger)
         {
             try
@@ -3120,6 +3745,10 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>Executes the read zip file entries operation.</summary>
+        /// <param name="zipPath">Input value for zipPath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string[] ReadZipFileEntries(string zipPath, ILogger logger)
         {
             try
@@ -3139,6 +3768,10 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the normalize reference datapack entry operation.</summary>
+        /// <param name="entry">Input value for entry.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string NormalizeReferenceDatapackEntry(string entry, ILogger logger)
         {
             try
@@ -3157,6 +3790,10 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>Executes the is mc function path operation.</summary>
+        /// <param name="entry">Input value for entry.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool IsMcFunctionPath(string entry, ILogger logger)
         {
             try
@@ -3169,6 +3806,11 @@ namespace LocalGPT.Services
                 return false;
             }
         }
+        /// <summary>Executes the build artifact workspace summary operation.</summary>
+        /// <param name="artifactRoot">Input value for artifactRoot.</param>
+        /// <param name="workspacePath">Input value for workspacePath.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public ArtifactWorkspaceSummary? BuildArtifactWorkspaceSummary(string artifactRoot, string workspacePath, ILogger logger)
         {
             try
@@ -3200,6 +3842,11 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the enumerate workspace text files operation.</summary>
+        /// <param name="workspaceRoot">Input value for workspaceRoot.</param>
+        /// <param name="take">Input value for take.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public List<ArtifactWorkspaceFileSummary> EnumerateWorkspaceTextFiles(string workspaceRoot, int take, ILogger logger)
         {
             try
@@ -3229,6 +3876,11 @@ namespace LocalGPT.Services
             }
            
         }
+        /// <summary>Executes the resolve artifact workspace operation.</summary>
+        /// <param name="artifactRoot">Input value for artifactRoot.</param>
+        /// <param name="workspaceName">Input value for workspaceName.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string? ResolveArtifactWorkspace(string artifactRoot, string workspaceName, ILogger logger)
         {
             try
@@ -3256,6 +3908,12 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>Executes the resolve workspace text file operation.</summary>
+        /// <param name="workspaceRoot">Input value for workspaceRoot.</param>
+        /// <param name="relativePath">Input value for relativePath.</param>
+        /// <param name="allowMissing">Input value for allowMissing.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string? ResolveWorkspaceTextFile(string workspaceRoot, string relativePath, bool allowMissing, ILogger logger)
         {
             try
@@ -3284,6 +3942,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the is supported artifact text file operation.</summary>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool IsSupportedArtifactTextFile(string path, ILogger logger)
         {
             try
@@ -3297,6 +3959,13 @@ namespace LocalGPT.Services
                 return false;
             }
         }
+        /// <summary>Executes the read guidance docs async operation.</summary>
+        /// <param name="env">Input value for env.</param>
+        /// <param name="relativePaths">Input value for relativePaths.</param>
+        /// <param name="fallbackBriefing">Input value for fallbackBriefing.</param>
+        /// <param name="cancellationToken">Input value for cancellationToken.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>A task that completes with the operation result.</returns>
         public async Task<IResult> ReadGuidanceDocsAsync(
             IWebHostEnvironment env,
             IReadOnlyList<string> relativePaths,
@@ -3351,6 +4020,11 @@ namespace LocalGPT.Services
                 return Results.InternalServerError("The guidance documents could not be read. See local application logs for technical details.");
             }
         }
+        /// <summary>Executes the limit prompt size operation.</summary>
+        /// <param name="messages">Input value for messages.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <param name="forcedMaxPromptCharacters">Input value for forcedMaxPromptCharacters.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<ChatMessage> LimitPromptSize(IReadOnlyList<ChatMessage> messages, ILogger logger, int? forcedMaxPromptCharacters = null)
         {
             try
@@ -3412,8 +4086,15 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the estimate text length operation.</summary>
+        /// <param name="message">Input value for message.</param>
+        /// <returns>The operation result.</returns>
         public int EstimateTextLength(ChatMessage message) => message.Text?.Length ?? 0;
 
+        /// <summary>Executes the try is supported ollama mode operation.</summary>
+        /// <param name="mode">Input value for mode.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool? TryIsSupportedOllamaMode(string mode,ILogger logger)
         {
             try
@@ -3430,6 +4111,12 @@ namespace LocalGPT.Services
 
         }
        
+        /// <summary>Executes the is blazor frontend target operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="finalAnswer">Input value for finalAnswer.</param>
+        /// <param name="targetArea">Input value for targetArea.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool? IsBlazorFrontendTarget(string prompt, string finalAnswer, string targetArea, ILogger logger)
         {
             try
@@ -3445,6 +4132,11 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>Executes the is whole solution target operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="finalAnswer">Input value for finalAnswer.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool? IsWholeSolutionTarget(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -3460,6 +4152,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the is ai host experiment target operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="finalAnswer">Input value for finalAnswer.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool? IsAiHostExperimentTarget(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -3474,6 +4171,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the is advice only prompt operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool? IsAdviceOnlyPrompt(string prompt, ILogger logger)
         {
             try
@@ -3491,6 +4192,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the detect solution archetype operation.</summary>
+        /// <param name="prompt">Input value for prompt.</param>
+        /// <param name="finalAnswer">Input value for finalAnswer.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public GeneratedSolutionArchetype? DetectSolutionArchetype(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -3514,6 +4220,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>Executes the validate generated datapack workspace operation.</summary>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void ValidateGeneratedDatapackWorkspace(string rootPath, ILogger logger)
         {
             try
@@ -3567,6 +4276,11 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>Executes the add directory to zip operation.</summary>
+        /// <param name="archive">Input value for archive.</param>
+        /// <param name="rootPath">Input value for rootPath.</param>
+        /// <param name="directoryPath">Input value for directoryPath.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void AddDirectoryToZip(ZipArchive archive, string rootPath, string directoryPath, ILogger logger)
         {
             try
@@ -3587,6 +4301,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the add file to zip operation.</summary>
+        /// <param name="archive">Input value for archive.</param>
+        /// <param name="filePath">Input value for filePath.</param>
+        /// <param name="entryName">Input value for entryName.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void AddFileToZip(ZipArchive archive, string filePath, string entryName, ILogger logger)
         {
             try
@@ -3602,6 +4321,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the copy directory operation.</summary>
+        /// <param name="sourceDirectory">Input value for sourceDirectory.</param>
+        /// <param name="destinationDirectory">Input value for destinationDirectory.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void CopyDirectory(string sourceDirectory, string destinationDirectory, ILogger logger)
         {
             try
@@ -3630,6 +4353,14 @@ namespace LocalGPT.Services
 
     
 
+        /// <summary>Executes the archetype page operation.</summary>
+        /// <param name="fileName">Input value for fileName.</param>
+        /// <param name="route">Input value for route.</param>
+        /// <param name="title">Input value for title.</param>
+        /// <param name="summary">Input value for summary.</param>
+        /// <param name="areas">Input value for areas.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public GeneratedArchetypePage ArchetypePage(
             string fileName,
             string route,
@@ -3652,6 +4383,12 @@ namespace LocalGPT.Services
             }
          
         }
+        /// <summary>Executes the write text async operation.</summary>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="content">Input value for content.</param>
+        /// <param name="cancellationToken">Input value for cancellationToken.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>A task that completes when the operation finishes.</returns>
         public Task WriteTextAsync(string path, string content, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -3666,6 +4403,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the generate archetype pages operation.</summary>
+        /// <param name="archetype">Input value for archetype.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<GeneratedArchetypePage> GenerateArchetypePages(GeneratedSolutionArchetype archetype, ILogger logger)
         {
             try
@@ -3706,6 +4447,11 @@ namespace LocalGPT.Services
             }
            
         }
+        /// <summary>Executes the extract dynamic promise modules operation.</summary>
+        /// <param name="request">Input value for request.</param>
+        /// <param name="result">Input value for result.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public IReadOnlyList<GeneratedPromiseModule> ExtractDynamicPromiseModules(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result, ILogger logger)
@@ -3789,6 +4535,10 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>Executes the sort knowledge entries operation.</summary>
+        /// <param name="entries">Input value for entries.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public List<CouncilKnowledgeEntry> SortKnowledgeEntries(IEnumerable<CouncilKnowledgeEntry> entries, ILogger logger)
         {
             try
@@ -3807,6 +4557,10 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the copy knowledge entry operation.</summary>
+        /// <param name="entry">Input value for entry.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public CouncilKnowledgeEntry? CopyKnowledgeEntry(CouncilKnowledgeEntry entry,ILogger logger)
         {
             try
@@ -3846,6 +4600,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the build knowledge review summary operation.</summary>
+        /// <param name="entries">Input value for entries.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string BuildKnowledgeReviewSummary(IReadOnlyCollection<CouncilKnowledgeEntry> entries, ILogger logger)
         {
             try
@@ -3865,6 +4623,11 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>Executes the get council model load priority randomisator operation.</summary>
+        /// <param name="maxPriority">Input value for maxPriority.</param>
+        /// <param name="modelName">Input value for modelName.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public int? GetCouncilModelLoadPriorityRandomisator(int maxPriority, string modelName, ILogger logger)
         {
             try
@@ -3882,6 +4645,10 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>Executes the knowledge review priority operation.</summary>
+        /// <param name="entry">Input value for entry.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public int? KnowledgeReviewPriority(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -3907,6 +4674,10 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>Executes the is dynamic session operation.</summary>
+        /// <param name="session">Input value for session.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public bool? IsDynamicSession(ChatClientSession session, ILogger logger)
         {
             try
@@ -3923,6 +4694,10 @@ namespace LocalGPT.Services
         }
        
 
+        /// <summary>Executes the order council models for load operation.</summary>
+        /// <param name="modelNames">Input value for modelNames.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The resulting sequence.</returns>
         public IEnumerable<string>? OrderCouncilModelsForLoad(IEnumerable<string> modelNames, ILogger logger)
         {
             try
@@ -3939,6 +4714,10 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Executes the build dynamic session name operation.</summary>
+        /// <param name="candidate">Input value for candidate.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string BuildDynamicSessionName(MultiModelCouncilModelCandidate candidate, ILogger logger)
         {
             try
@@ -3954,6 +4733,10 @@ namespace LocalGPT.Services
         }
   
 
+        /// <summary>Executes the build candidate label operation.</summary>
+        /// <param name="candidate">Input value for candidate.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string BuildCandidateLabel(MultiModelCouncilModelCandidate candidate, ILogger logger)
         {
             try
@@ -3969,6 +4752,10 @@ namespace LocalGPT.Services
         }
            
 
+        /// <summary>Executes the build candidate title operation.</summary>
+        /// <param name="candidate">Input value for candidate.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public string BuildCandidateTitle(MultiModelCouncilModelCandidate candidate, ILogger logger)
         {
             try
@@ -3988,6 +4775,12 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>Executes the validate solution artifact contract operation.</summary>
+        /// <param name="solutionRoot">Input value for solutionRoot.</param>
+        /// <param name="projectName">Input value for projectName.</param>
+        /// <param name="archetype">Input value for archetype.</param>
+        /// <param name="logger">Input value for logger.</param>
+        /// <returns>The operation result.</returns>
         public ArtifactContractReport? ValidateSolutionArtifactContract(
             string solutionRoot,
             string projectName,
@@ -4102,6 +4895,10 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the validate ai host artifact contract operation.</summary>
+        /// <param name="solutionRoot">Input value for solutionRoot.</param>
+        /// <param name="projectName">Input value for projectName.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void ValidateAiHostArtifactContract(string solutionRoot, string projectName, ILogger logger)
         {
             try
@@ -4199,6 +4996,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Executes the validate generation contract json operation.</summary>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void ValidateGenerationContractJson(string path, ILogger logger)
         {
             try
@@ -4236,6 +5036,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>Executes the validate generation manifest json operation.</summary>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void ValidateGenerationManifestJson(string path, ILogger logger)
         {
             try
@@ -4255,6 +5058,11 @@ namespace LocalGPT.Services
        
         }
 
+        /// <summary>Executes the require json property operation.</summary>
+        /// <param name="root">Input value for root.</param>
+        /// <param name="propertyName">Input value for propertyName.</param>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void RequireJsonProperty(JsonElement root, string propertyName, string path, ILogger logger)
         {
             try
@@ -4270,6 +5078,11 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>Executes the require non empty json array operation.</summary>
+        /// <param name="root">Input value for root.</param>
+        /// <param name="propertyName">Input value for propertyName.</param>
+        /// <param name="path">Input value for path.</param>
+        /// <param name="logger">Input value for logger.</param>
         public void RequireNonEmptyJsonArray(JsonElement root, string propertyName, string path, ILogger logger)
         {
             try

@@ -1,6 +1,6 @@
-﻿# LocalGPT documentation
+# LocalGPT documentation
 
-**Version 2.1.19**
+**Version 2.1.20**
 
 This documentation is generated during LocalGPT builds from maintained articles and the XML documentation emitted beside `LocalGPT.dll`.
 
@@ -16,5 +16,4 @@ LocalGPT is a local-first AI workbench for chat, configurable AI Councils, knowl
 - [Generated documentation and XML comments](articles/documentation.md)
 - [API reference](api/index.md)
 
-The generated PDF is named `LocalGPT-2.1.19.pdf`.
-
+The generated PDF is named `LocalGPT-2.1.20.pdf`.

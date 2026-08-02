@@ -6,13 +6,26 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services.Formatting;
 
+/// <summary>
+/// Creates stateful response formatters that normalize PlainText, think-tag and Harmony streams into one safe Markdown surface.
+/// </summary>
+/// <param name="loggerFactory">Creates the per-formatter diagnostic logger.</param>
+/// <param name="runtimePolicy">Provides database-owned tags, limits and regular expressions.</param>
+/// <param name="catalog">Resolves the configured protocol profile.</param>
+/// <param name="logger">Writes bounded formatter-factory diagnostics.</param>
+[DocumentationUpdated("2.1.20")]
 public sealed class ChatResponseFormatterFactory(
     ILoggerFactory loggerFactory,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     IChatProtocolProfileCatalog catalog,
     ILogger<ChatResponseFormatterFactory> logger) : IChatResponseFormatterFactory
 {
-
+    /// <summary>
+    /// Creates a new independent formatter for one streamed response.
+    /// </summary>
+    /// <param name="protocol">Requested provider response protocol.</param>
+    /// <param name="missingFinalAnswerNotice">Optional visible fallback shown when only thinking was emitted.</param>
+    /// <returns>A stateful formatter that must be used for only one response stream.</returns>
     public IChatResponseFormatter Create(ChatResponseProtocol protocol, string? missingFinalAnswerNotice = null)
     {
         try
@@ -35,6 +48,16 @@ public sealed class ChatResponseFormatterFactory(
     }
 }
 
+/// <summary>
+/// Parses one provider response stream and emits HTML-safe Markdown plus LocalGPT-owned disclosure panels.
+/// </summary>
+/// <param name="protocol">Initial protocol selection.</param>
+/// <param name="protocolProfile">Normalization profile for the selected protocol.</param>
+/// <param name="catalog">Resolves protocol profiles when automatic detection switches modes.</param>
+/// <param name="configuredMissingFinalAnswerNotice">Optional missing-final-answer message.</param>
+/// <param name="runtimePolicy">Provides maintained response tags, regexes and look-behind limits.</param>
+/// <param name="logger">Writes bounded stream-parser diagnostics.</param>
+[DocumentationUpdated("2.1.20")]
 internal sealed class ChatResponseFormatter(
     ChatResponseProtocol protocol,
     IChatProtocolProfile protocolProfile,
@@ -44,11 +67,17 @@ internal sealed class ChatResponseFormatter(
     ILogger<ChatResponseFormatter> logger)
     : IChatResponseFormatter
 {
+    /// <summary>Gets the maintained Harmony analysis-channel extraction pattern.</summary>
     private Regex HarmonyThinkingRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyThinking);
+    /// <summary>Gets the maintained Harmony final-channel extraction pattern.</summary>
     private Regex HarmonyFinalRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyFinal);
+    /// <summary>Gets the maintained pattern used to remove Harmony control markers.</summary>
     private Regex HarmonyMarkerRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyMarker);
+    /// <summary>Gets the configured opening think tag.</summary>
     private string ThinkStartTag => runtimePolicy.GetString(LocalGptRuntimeValue.FormattingThinkStartTag);
+    /// <summary>Gets the configured closing think tag.</summary>
     private string ThinkEndTag => runtimePolicy.GetString(LocalGptRuntimeValue.FormattingThinkEndTag);
+    /// <summary>Gets the number of trailing characters retained while a streamed tag may be incomplete.</summary>
     private int TagLookbehindLength => runtimePolicy.GetInt(LocalGptRuntimeValue.FormattingTagLookbehindLength);
 
     private readonly string missingFinalAnswerNotice = string.IsNullOrWhiteSpace(configuredMissingFinalAnswerNotice)
@@ -67,6 +96,9 @@ internal sealed class ChatResponseFormatter(
     private bool thinkingBlockOpen;
     private bool harmonyProtocolDetected;
 
+    /// <summary>Appends a provider-owned thinking delta to the current disclosure panel.</summary>
+    /// <param name="text">Raw thinking delta.</param>
+    /// <returns>Zero or more incremental Markdown/HTML fragments for the chat renderer.</returns>
     public IEnumerable<string> AppendThinking(string text)
     {
         try
@@ -90,6 +122,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Appends a visible provider delta and auto-detects Harmony or think-tag framing when configured.</summary>
+    /// <param name="text">Raw visible/content delta.</param>
+    /// <returns>Zero or more incremental safe-Markdown fragments.</returns>
     public IEnumerable<string> AppendContent(string text)
     {
         try
@@ -144,7 +179,7 @@ internal sealed class ChatResponseFormatter(
                         foreach (var chunk in CloseThinkingBlock())
                             yield return chunk;
                         emittedVisibleContent = true;
-                        yield return text;
+                        yield return EncodeModelMarkdown(text);
                         yield break;
                     }
 
@@ -158,6 +193,8 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Flushes buffered tags/channels and emits a fallback when the provider supplied thinking without a final answer.</summary>
+    /// <returns>The final renderer fragments for the response.</returns>
     public IEnumerable<string> Complete()
     {
         try
@@ -187,6 +224,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Buffers Harmony content until channel markers can be parsed safely.</summary>
+    /// <param name="text">Raw Harmony stream delta.</param>
+    /// <returns>Incremental analysis/final fragments ready for rendering.</returns>
     private IEnumerable<string> AppendHarmonyContent(string text)
     {
         try
@@ -224,6 +264,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Parses plain text containing optional configured think tags.</summary>
+    /// <param name="text">Normalized provider content.</param>
+    /// <returns>Incremental thinking or visible fragments.</returns>
     private IEnumerable<string> AppendTaggedContent(string text)
     {
         try
@@ -263,7 +306,7 @@ internal sealed class ChatResponseFormatter(
                                 foreach (var chunk in CloseThinkingBlock())
                                     yield return chunk;
                                 emittedVisibleContent = true;
-                                yield return current[..startIndex];
+                                yield return EncodeModelMarkdown(current[..startIndex]);
                             }
                             contentBuffer.Remove(0, startIndex + ThinkStartTag.Length);
                             foreach (var chunk in OpenThinkingBlock())
@@ -279,7 +322,7 @@ internal sealed class ChatResponseFormatter(
                         foreach (var chunk in CloseThinkingBlock())
                             yield return chunk;
                         emittedVisibleContent = true;
-                        yield return current[..flushLength];
+                        yield return EncodeModelMarkdown(current[..flushLength]);
                         contentBuffer.Remove(0, flushLength);
                     }
     
@@ -290,6 +333,8 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Flushes any incomplete think-tag buffer at end of stream.</summary>
+    /// <returns>The remaining safe renderer fragments.</returns>
     private IEnumerable<string> CompleteTaggedContent()
     {
         try
@@ -306,7 +351,7 @@ internal sealed class ChatResponseFormatter(
                             foreach (var chunk in CloseThinkingBlock())
                                 yield return chunk;
                             emittedVisibleContent = true;
-                            yield return current;
+                            yield return EncodeModelMarkdown(current);
                         }
                     }
                     foreach (var chunk in CloseThinkingBlock())
@@ -320,6 +365,8 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Flushes the Harmony buffer and closes any open disclosure panel.</summary>
+    /// <returns>The remaining safe renderer fragments.</returns>
     private IEnumerable<string> CompleteHarmonyContent()
     {
         try
@@ -361,6 +408,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Finds the first Harmony start or channel marker.</summary>
+    /// <param name="text">Candidate provider text.</param>
+    /// <returns>The zero-based marker index, or -1 when no marker is present.</returns>
     private int FindHarmonyMarkerIndex(string text)
     {
         try
@@ -382,6 +432,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Extracts and emits only newly observed Harmony analysis and final content.</summary>
+    /// <param name="raw">Complete buffered Harmony text.</param>
+    /// <returns>New renderer fragments since the preceding call.</returns>
     private IEnumerable<string> EmitHarmonyDeltas(string raw)
     {
         try
@@ -403,7 +456,7 @@ internal sealed class ChatResponseFormatter(
                     foreach (var chunk in CloseThinkingBlock())
                         yield return chunk;
                     emittedVisibleContent = true;
-                    yield return final[emittedHarmonyFinalLength..];
+                    yield return EncodeModelMarkdown(final[emittedHarmonyFinalLength..]);
                     emittedHarmonyFinalLength = final.Length;
     
         }
@@ -413,6 +466,10 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Concatenates channel content captured by a maintained Harmony regex.</summary>
+    /// <param name="regex">Channel extraction regex.</param>
+    /// <param name="raw">Complete buffered provider text.</param>
+    /// <returns>Channel text with Harmony control markers removed.</returns>
     private string ExtractHarmonyText(Regex regex, string raw)
     {
         try
@@ -430,6 +487,8 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Opens the LocalGPT-owned model-thinking disclosure once.</summary>
+    /// <returns>An opening fragment, or no fragment when already open.</returns>
     private IEnumerable<string> OpenThinkingBlock()
     {
         try
@@ -438,7 +497,7 @@ internal sealed class ChatResponseFormatter(
                     if (thinkingBlockOpen)
                         yield break;
                     thinkingBlockOpen = true;
-                    yield return "<details class=\"model-thinking open\"><summary>Model thinking</summary><pre>";
+                    yield return "<details class=\"model-thinking open\"><summary>Model thinking</summary>\n\n";
     
         }
         finally
@@ -447,6 +506,8 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Closes the LocalGPT-owned model-thinking disclosure once.</summary>
+    /// <returns>A closing fragment, or no fragment when already closed.</returns>
     private IEnumerable<string> CloseThinkingBlock()
     {
         try
@@ -455,7 +516,7 @@ internal sealed class ChatResponseFormatter(
                     if (!thinkingBlockOpen)
                         yield break;
                     thinkingBlockOpen = false;
-                    yield return "</pre></details>\n\n";
+                    yield return "\n\n</details>\n\n";
     
         }
         finally
@@ -464,6 +525,8 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
+    /// <summary>Emits the configured missing-final-answer notice at most once.</summary>
+    /// <returns>The fallback notice or no fragment when already emitted.</returns>
     private IEnumerable<string> EmitMissingFinalNotice()
     {
         try
@@ -482,7 +545,20 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
-    private int GetSafeFlushLength(string current) {
+
+    /// <summary>
+    /// Encodes raw model HTML while preserving Markdown punctuation and physical line breaks.
+    /// LocalGPT-owned details panels are emitted separately by the formatter and cannot be forged by a model.
+    /// </summary>
+    /// <param name="text">Raw model-generated visible text.</param>
+    /// <returns>HTML-safe Markdown text suitable for the shared Markdig rendering path.</returns>
+    private string EncodeModelMarkdown(string text) => WebUtility.HtmlEncode(text);
+
+    /// <summary>Calculates how much buffered text can be emitted without splitting a possible think tag.</summary>
+    /// <param name="current">Current content buffer.</param>
+    /// <returns>The safe prefix length.</returns>
+    private int GetSafeFlushLength(string current)
+    {
         try
         {
             logger.LogTrace($"Entering ChatResponseFormatter.GetSafeFlushLength.");

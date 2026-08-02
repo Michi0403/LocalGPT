@@ -2,10 +2,18 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Creates the maintained strongly typed system-variable definitions and their deterministic seed values.
+/// </summary>
+[DocumentationUpdated("2.1.20")]
 public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionService
 {
     private readonly ILogger<SystemVariableDefinitionService> _logger;
 
+    /// <summary>
+    /// Initializes every maintained system-variable definition.
+    /// </summary>
+    /// <param name="logger">Writes bounded initialization diagnostics.</param>
     public SystemVariableDefinitionService(ILogger<SystemVariableDefinitionService> logger)
     {
         _logger = logger;
@@ -31,6 +39,7 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
             CouncilDxMaximumCallsPerStep = new SystemVariableDefinition<int>("CouncilDxMaximumCallsPerStep", 3);
             CouncilDxMaximumParameterCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumParameterCharacters", 24000);
             CouncilDxMaximumResultCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumResultCharacters", 32000);
+            FirstRunOnboardingCompleted = new SystemVariableDefinition<bool>("FirstRunOnboardingCompleted", false);
             LegacyCouncilResourceLoadPercent = 30;
             InitialValues =
             [
@@ -53,7 +62,8 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
                 ToInitialVariable(RegexMatchTimeoutMilliseconds),
                 ToInitialVariable(CouncilDxMaximumCallsPerStep),
                 ToInitialVariable(CouncilDxMaximumParameterCharacters),
-                ToInitialVariable(CouncilDxMaximumResultCharacters)
+                ToInitialVariable(CouncilDxMaximumResultCharacters),
+                ToInitialVariable(FirstRunOnboardingCompleted)
             ];
             _logger.LogInformation($"Initialized {InitialValues.Count} LocalGPT system-variable definitions and seed defaults.");
         }
@@ -64,29 +74,59 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
         }
     }
 
+    /// <summary>Gets the default maximum output-token definition.</summary>
     public SystemVariableDefinition<int> DefaultMaxOutputTokens { get; }
+    /// <summary>Gets the default maximum prompt-character definition.</summary>
     public SystemVariableDefinition<int> DefaultMaxPromptCharacters { get; }
+    /// <summary>Gets the maximum bootstrap-character definition.</summary>
     public SystemVariableDefinition<int> MaxBootstrapCharacters { get; }
+    /// <summary>Gets the default maximum parallel-model definition.</summary>
     public SystemVariableDefinition<int> DefaultMaxParallelModels { get; }
+    /// <summary>Gets the legacy heavy-model GPU-layer default.</summary>
     public SystemVariableDefinition<int> DefaultHeavyModelGpuLayers { get; }
+    /// <summary>Gets the default Council resource-load percentage definition.</summary>
     public SystemVariableDefinition<int> DefaultCouncilResourceLoadPercent { get; }
+    /// <summary>Gets the default Council critique-round definition.</summary>
     public SystemVariableDefinition<int> DefaultCouncilCritiqueRounds { get; }
+    /// <summary>Gets the minimum context-token definition.</summary>
     public SystemVariableDefinition<int> MinContextTokens { get; }
+    /// <summary>Gets the default context-token definition.</summary>
     public SystemVariableDefinition<int> DefaultContextTokens { get; }
+    /// <summary>Gets the maximum context-token definition.</summary>
     public SystemVariableDefinition<int> MaxContextTokens { get; }
+    /// <summary>Gets the minimum output-token definition.</summary>
     public SystemVariableDefinition<int> MinOutputTokens { get; }
+    /// <summary>Gets the maximum output-token definition.</summary>
     public SystemVariableDefinition<int> MaxOutputTokens { get; }
+    /// <summary>Gets the default loopback Ollama endpoint definition.</summary>
     public SystemVariableDefinition<string> DefaultOllamaEndpoint { get; }
+    /// <summary>Gets the provider-selection policy definition.</summary>
     public SystemVariableDefinition<string> ProviderSelectionPolicy { get; }
+    /// <summary>Gets the repository knowledge seed-version definition.</summary>
     public SystemVariableDefinition<int> RepositoryKnowledgeSeedVersion { get; }
+    /// <summary>Gets the Council defaults migration-version definition.</summary>
     public SystemVariableDefinition<int> CouncilDefaultsVersion { get; }
+    /// <summary>Gets the regular-expression timeout definition.</summary>
     public SystemVariableDefinition<int> RegexMatchTimeoutMilliseconds { get; }
+    /// <summary>Gets the maximum DXFunction calls per Council step definition.</summary>
     public SystemVariableDefinition<int> CouncilDxMaximumCallsPerStep { get; }
+    /// <summary>Gets the maximum DXFunction parameter-character definition.</summary>
     public SystemVariableDefinition<int> CouncilDxMaximumParameterCharacters { get; }
+    /// <summary>Gets the maximum DXFunction result-character definition.</summary>
     public SystemVariableDefinition<int> CouncilDxMaximumResultCharacters { get; }
+    /// <summary>Gets the persisted first-run onboarding completion flag definition.</summary>
+    public SystemVariableDefinition<bool> FirstRunOnboardingCompleted { get; }
+    /// <summary>Gets the former hard-coded Council resource-load percentage.</summary>
     public int LegacyCouncilResourceLoadPercent { get; }
+    /// <summary>Gets the deterministic initial variable list.</summary>
     public IReadOnlyList<InitialVariable> InitialValues { get; }
 
+    /// <summary>
+    /// Converts one strongly typed definition into the persistence seed representation.
+    /// </summary>
+    /// <typeparam name="T">Definition value type.</typeparam>
+    /// <param name="definition">Definition to convert.</param>
+    /// <returns>The persistence-ready initial variable.</returns>
     private InitialVariable ToInitialVariable<T>(SystemVariableDefinition<T> definition)
     {
         try

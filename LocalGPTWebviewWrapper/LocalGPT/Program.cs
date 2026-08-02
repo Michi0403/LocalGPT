@@ -217,7 +217,7 @@ namespace LocalGPT
             catch (Exception ex)
             {
                 logger.LogError(ex, "Application configuration setup failed.");
-                ///*TryAppendStartupTrace*/(ex.ToString(), logger);
+                // TryAppendStartupTrace(ex.ToString(), logger);
             }
            
         }
@@ -259,7 +259,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.1.19"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.1.20"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
@@ -297,6 +297,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IRegexPatternService, RegexPatternService>();
                 builder.Services.AddScoped<IPromptConfigService, PromptConfigService>();
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
+                builder.Services.AddScoped<IFirstRunOnboardingService, FirstRunOnboardingService>();
 
                 var configuredDatabasePath = builder.Configuration[$"{LocalGptDatabaseOptions.SectionName}:Path"];
                 var memoryDbPath = string.IsNullOrWhiteSpace(configuredDatabasePath)

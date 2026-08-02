@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.1.19",
+            CurrentVersion = "2.1.20",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -440,6 +440,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.19", repositoryRoot, "Documentation-build invocation correction release that preserves generated DocFX HTML/PDF output while making Windows PowerShell parameter passing deterministic.");
         EnsureRevision(core, "main", "seed-v2.1.19", repositoryRoot,
             "Prevents the trailing repository-root backslash from absorbing DocFX build arguments, normalizes all documentation input paths, and retains the 2.1.18 GameDirector, startup, translator and responsive Chat behavior.");
+        EnsureVersion(core, "2.1.20", repositoryRoot, "First-run councils, recursive-prompt cleanup, canonical Harmony/Markdown rendering and resilient DocFX/XML-documentation release.");
+        EnsureRevision(core, "main", "seed-v2.1.20", repositoryRoot,
+            "Adds visible benchmark, GameDirector and language-specific development teams; introduces installer/documentation quick starts; prevents full Council transcripts and model-owned HTML from being recursively reinjected; and makes DocFX restore failures non-fatal for diagnostic builds while maintaining XML-commented changed APIs.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",
@@ -611,7 +614,54 @@ public sealed class DatabaseInitializationService(
                     Route("deepseek-r1:8b", OneWireHardwareKind.Cpu, 0, "CPU", 512, 8192, 4096, 98304, 0)
                 ],
                 isDefault: false,
-                maxParallel: 3)
+                maxParallel: 3),
+            BuildPreset(
+                "Fast Game Council (Low-B)",
+                "Small low-latency models for player controllers, creature/object subdirectors and GameDirector review. The deterministic runtime remains authoritative.",
+                ["qwen3.5:0.8b", "qwen3.5:2b", "llama3.2:1b", "codegemma:2b"],
+                [
+                    Route("qwen3.5:0.8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 128, 1024, 2048, 8192, null),
+                    Route("qwen3.5:2b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 192, 1536, 4096, 12288, null),
+                    Route("llama3.2:1b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 128, 1024, 2048, 8192, null),
+                    Route("codegemma:2b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 192, 1536, 4096, 12288, null)
+                ],
+                isDefault: false,
+                maxParallel: 2,
+                includeMemory: false,
+                createProjectPerRun: false),
+            BuildPreset(
+                "Code Curator Council",
+                "Coder, architecture and independent review models for C#, PowerShell, Java and Minecraft development teams.",
+                ["qwen3-coder:30b", "deepseek-coder-v2:16b", "deepseek-coder:6.7b", "codegemma:7b", "qwen3:8b"],
+                [
+                    Route("qwen3-coder:30b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 1024, 24576, 8192, 131072, null),
+                    Route("deepseek-coder-v2:16b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 768, 16384, 8192, 98304, null),
+                    Route("deepseek-coder:6.7b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 12288, 4096, 65536, null),
+                    Route("codegemma:7b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 12288, 4096, 65536, null),
+                    Route("qwen3:8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 12288, 4096, 65536, null)
+                ],
+                isDefault: false,
+                maxParallel: 3),
+            BuildPreset(
+                "Benchmark Candidate Pool",
+                "Broad installed-model candidate list for the adaptive benchmark Council. Missing models are ignored until the user installs them.",
+                ["qwen3.5:0.8b", "qwen3.5:2b", "qwen3.5:4b", "qwen3:8b", "qwen3-coder:30b", "deepseek-coder:6.7b", "deepseek-coder-v2:16b", "codegemma:7b", "llama3.2:1b", "phi3:3.8b"],
+                [
+                    Route("qwen3.5:0.8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 128, 1024, 2048, 8192, null),
+                    Route("qwen3.5:2b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 192, 1536, 4096, 12288, null),
+                    Route("qwen3.5:4b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 256, 3072, 4096, 16384, null),
+                    Route("qwen3:8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 384, 4096, 8192, 32768, null),
+                    Route("qwen3-coder:30b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 8192, 8192, 65536, null),
+                    Route("deepseek-coder:6.7b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 384, 4096, 4096, 32768, null),
+                    Route("deepseek-coder-v2:16b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 6144, 8192, 49152, null),
+                    Route("codegemma:7b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 384, 4096, 4096, 32768, null),
+                    Route("llama3.2:1b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 128, 1024, 2048, 8192, null),
+                    Route("phi3:3.8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 256, 3072, 4096, 16384, null)
+                ],
+                isDefault: false,
+                maxParallel: 1,
+                includeMemory: false,
+                createProjectPerRun: false)
         };
         foreach (var preset in presets.Where(item => !existing.Contains(item.Name)))
             db.CouncilModelPresets.Add(preset);

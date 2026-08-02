@@ -6,9 +6,15 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Owns the first-run council-team seed model. Runtime edits remain database-owned by CouncilTeamConfigurationService.
 /// </summary>
+/// <param name="logger">Writes bounded seed-catalog diagnostics.</param>
+[DocumentationUpdated("2.1.20")]
 public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCouncilBlueprintSeedDataService> logger)
     : IOrganicCouncilBlueprintSeedDataService
 {
+    /// <summary>
+    /// Creates the maintained system council-team definitions for first-run and seed evolution.
+    /// </summary>
+    /// <returns>The complete immutable default team catalog.</returns>
     public IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeams()
     {
         var teams = CreateDefaultTeamsCore();
@@ -16,6 +22,10 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
         return teams;
     }
 
+    /// <summary>
+    /// Builds the default team catalog without logging or database side effects.
+    /// </summary>
+    /// <returns>The default team definitions.</returns>
     private IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeamsCore() =>
     [
         new()
@@ -33,6 +43,12 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
             PreferredCapabilities = ["project context", "knowledge", "regex", "eyes", "hands"],
             ArchitectureContracts = DefaultArchitectureContracts()
         },
+        CreateAdaptiveBenchmarkTeam(),
+        CreateGameDirectorRuntimeTeam(),
+        CreateCSharpModernHostDevelopmentTeam(),
+        CreatePowerShellBuildDevelopmentTeam(),
+        CreateJavaHostedDevelopmentTeam(),
+        CreateMinecraftDevelopmentTeam(),
         new()
         {
             Key = "embedded-firmware-wiring",
@@ -900,6 +916,294 @@ Original learning request:
         }
     ];
 
+
+    /// <summary>
+    /// Creates the bounded installed-model benchmark council used by first-run onboarding and Chat quick starts.
+    /// </summary>
+    /// <returns>The seeded adaptive benchmark team definition.</returns>
+    private OrganicCouncilTeamDefinition CreateAdaptiveBenchmarkTeam() => new()
+    {
+        Key = "adaptive-model-benchmark",
+        DisplayName = "Adaptive Ollama Benchmark Council",
+        Purpose = "Benchmarks user-selected models already installed in loopback Ollama, compares speed and answer value, and lets independent code-curator members recommend a new preset without overwriting an existing one.",
+        Roles =
+        [
+            new() { Role = "Benchmark Director", Expertise = "bounded benchmark design, fairness, reproducibility and hardware-road constraints", Responsibility = "define the candidate set and ensure every model receives equivalent tasks and limits" },
+            new() { Role = "Task Curator", Expertise = "small checkable C#, PowerShell, Java, Minecraft and ASCII-game tasks", Responsibility = "prepare deterministic tasks with explicit acceptance evidence rather than subjective style prompts" },
+            new() { Role = "Code Curator", Expertise = "Qwen/DeepSeek/code-model review, correctness, maintainability and generated-artifact quality", Responsibility = "score candidate answers independently and explain good or bad generation value" },
+            new() { Role = "Performance Analyst", Expertise = "latency, token throughput, context/output budgets, CPU/GPU routing and timeout evidence", Responsibility = "compare speed and resource behavior without treating the fastest incomplete answer as the winner" },
+            new() { Role = "Preset Synthesizer", Expertise = "LocalGPT model presets and safe parameter ranges", Responsibility = "recommend a new named preset while preserving all existing presets and requiring user confirmation before save" }
+        ],
+        PreferredCapabilities =
+        [
+            "localgpt.models.benchmark.autotune",
+            "localgpt.time_state.now",
+            "localgpt.onboarding.status",
+            "localgpt.learning.snapshot",
+            "localgpt.knowledge.list"
+        ],
+        WorkflowSteps =
+        [
+            Step("benchmark-preflight", "Benchmark preflight", 10, "Preparation", "Benchmark Director", """
+Inspect the installed-model and hardware evidence. Select only models the user explicitly included or that are already installed. Define equal output/context/time limits, deterministic task categories and the new-preset name. Do not download, start, stop or remove models.
+""", "LeaderSingle"),
+            Step("benchmark-task-design", "Deterministic task design", 20, "Task design", "Task Curator", """
+Create a compact task matrix covering at least one architecture/code task and one structured reasoning task. Every task needs a checkable acceptance shape and must fit the configured low-risk benchmark budget. Do not include secrets, repositories outside the approved workspace or destructive commands.
+""", "AllMembersSequential"),
+            Step("benchmark-execution", "Run installed-model benchmark", 30, "Execution", "Benchmark Director", """
+Use localgpt.models.benchmark.autotune with the exact installed candidate set and reviewed limits. This is the only benchmark execution step. Preserve generated-text privacy in logs and do not save a preset unless the current user explicitly requested it.
+""", "LeaderSingle", canUseOrganicFunctions: true),
+            Step("benchmark-curation", "Independent code curation", 40, "Review", "Code Curator", """
+Review the returned bounded results independently. Compare correctness, completeness, architecture quality, instruction following and obvious hallucination risk. Explain why each result is good, bad or inconclusive. Do not change the benchmark measurements.
+""", "AllMembersParallel"),
+            Step("benchmark-performance", "Performance analysis", 50, "Review", "Performance Analyst", """
+Compare first-token/total latency, throughput, timeout behavior, context/output limits and hardware roads. Penalize incomplete or invalid output even when it is fast. Separate measured facts from inferred hardware explanations.
+""", "AllMembersSequential"),
+            Step("benchmark-preset", "Preset recommendation", 60, "Synthesis", "Preset Synthesizer", """
+Synthesize one recommended model/preset configuration plus alternatives for low-latency games and higher-value development. State the evidence and unresolved uncertainty. Existing presets must remain untouched; any new preset save remains a separate user-confirmed action.
+""", "LeaderSingle", producesFinalAnswer: true)
+        ],
+        MainRoundInstructionTemplate = "Treat benchmark measurements as evidence, not reputation. Code curators judge answer value independently; the Benchmark Director remains responsible for fairness and the Preset Synthesizer may only recommend a new preset.",
+        ArchitectureContracts =
+        [
+            .. DefaultArchitectureContracts(),
+            "Benchmark only models already installed at the configured loopback Ollama endpoint.",
+            "Every candidate receives equivalent bounded tasks and runtime limits; failed or incomplete answers remain visible in the result.",
+            "Code-curator judgments and measured performance are separate evidence streams.",
+            "A benchmark may create a new user-approved preset but never overwrites an existing preset."
+        ]
+    };
+
+    /// <summary>
+    /// Creates a low-latency game council in which the deterministic GameDirector remains the authoritative engine.
+    /// </summary>
+    /// <returns>The seeded GameDirector runtime team definition.</returns>
+    private OrganicCouncilTeamDefinition CreateGameDirectorRuntimeTeam() => new()
+    {
+        Key = "game-director-runtime",
+        DisplayName = "GameDirector Runtime Council",
+        Purpose = "Runs low-latency game rounds where controllers, creatures, reactive map objects and optional subdirectors propose actions while the deterministic GameDirector validates and commits the authoritative next state.",
+        Roles =
+        [
+            new() { Role = "GameDirector", Expertise = "authoritative state transitions, collision/rule validation, turn ordering and deterministic replay", Responsibility = "accept, reject or normalize every proposed action and publish the only canonical state" },
+            new() { Role = "Player Controller", Expertise = "bounded movement, aiming, interaction and user-intent translation", Responsibility = "propose one controller action without mutating game state" },
+            new() { Role = "Creature Subdirector", Expertise = "creature prediction, tactical intent and species-specific behavior factories", Responsibility = "coordinate creature proposals while leaving movement and damage decisions to the GameDirector" },
+            new() { Role = "Reactive Object Subdirector", Expertise = "doors, switches, hazards, pickups, triggers and map-object factories", Responsibility = "propose object reactions caused by the canonical state or accepted player action" },
+            new() { Role = "Runtime Verifier", Expertise = "state hashes, turn IDs, deterministic replay and frame consistency", Responsibility = "reject stale proposals and verify that rendered frames match the committed state" }
+        ],
+        PreferredCapabilities = ["localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control.preview", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.runtime-class.resolve"],
+        WorkflowSteps =
+        [
+            Step("game-intent", "Collect controller intent", 10, "Intent", "Player Controller", "Propose exactly one bounded player action for the current turn. Do not move actors or mutate map state directly.", "LeaderSingle"),
+            Step("game-creature-prediction", "Predict creature intents", 20, "Prediction", "Creature Subdirector", "Use creature runtime classes and the latest canonical state to propose bounded intents for each active creature. Do not assign final positions, hits or damage.", "AllMembersParallel"),
+            Step("game-object-reactions", "Predict reactive objects", 30, "Prediction", "Reactive Object Subdirector", "Evaluate doors, switches, hazards, pickups and triggers as factory-created runtime objects. Propose reactions only; do not commit them.", "AllMembersSequential"),
+            Step("game-director-commit", "Validate and commit turn", 40, "Authority", "GameDirector", "Validate every proposal against turn ID, rules, collisions, cooldowns and canonical state. Commit one authoritative next state or explain each rejection. The model is an adviser; deterministic engine rules win.", "LeaderSingle"),
+            Step("game-state-verification", "Verify state and frame", 50, "Verification", "Runtime Verifier", "Verify the committed state hash, actor/object identities and frame continuity. Reject stale or contradictory output before the next turn.", "LeaderSingle", producesFinalAnswer: true)
+        ],
+        MainRoundInstructionTemplate = "Every actor and object proposes; only the GameDirector commits. Low-B models are recommended for latency, but the user-selected model preset controls assignments.",
+        ArchitectureContracts =
+        [
+            .. DefaultArchitectureContracts(),
+            "Player controllers, AI creatures and reactive map objects never mutate canonical state directly.",
+            "Creature and object subdirectors predict intents for factory-created runtime classes; the GameDirector validates and commits them.",
+            "Every proposal carries a turn/revision identity so stale output can be rejected deterministically.",
+            "The rendered ASCII frame is a view of committed state, not a second source of truth."
+        ]
+    };
+
+    /// <summary>
+    /// Creates the modern hosted C# development team based on LocalGPT's PowerShell validation order.
+    /// </summary>
+    /// <returns>The seeded C# development team definition.</returns>
+    private OrganicCouncilTeamDefinition CreateCSharpModernHostDevelopmentTeam() => CreateDevelopmentTeam(
+        "csharp-modern-host-development",
+        "Modern C# Host Development Team",
+        "Builds maintainable .NET hosted applications with DI, controllers, DXFunctions, project structure, regex ownership and repository validation rounds.",
+        "C#/.NET structure and RegEx analyst",
+        ".NET host architect",
+        "C# implementation developer",
+        "dotnet build/test engineer",
+        "C# code curator",
+        [".sln", ".slnx", ".csproj", ".cs", ".razor", ".json", ".props", ".targets"],
+        "Use a modern Generic Host or ASP.NET Core WebApplication host, explicit DI lifetimes, options binding, controllers/services behind interfaces, cancellation, structured logging and bounded workspace execution.",
+        "dotnet restore/build/test plus LocalGPT architecture, async, iterator, localization, text-ownership and system-variable policy guards.");
+
+    /// <summary>
+    /// Creates a PowerShell build-system development team that mirrors LocalGPT's repository guard sequence.
+    /// </summary>
+    /// <returns>The seeded PowerShell development team definition.</returns>
+    private OrganicCouncilTeamDefinition CreatePowerShellBuildDevelopmentTeam() => CreateDevelopmentTeam(
+        "powershell-build-development",
+        "PowerShell Build-System Development Team",
+        "Designs PowerShell modules and repository build automation by following LocalGPT's proven preflight, policy, build, verification and release-handoff sequence.",
+        "PowerShell syntax and RegEx analyst",
+        "Build-pipeline architect",
+        "PowerShell module developer",
+        "Pester and process-integration engineer",
+        "PowerShell code curator",
+        [".ps1", ".psm1", ".psd1", ".ps1xml", ".json", ".yml", ".yaml", ".cmd"],
+        "Prefer advanced functions, CmdletBinding, explicit parameters, strict mode, approved verbs, structured errors, bounded native-process invocation and deterministic exit codes.",
+        "Run parse validation, PSScriptAnalyzer/Pester when installed, repository policy scripts and a dry-run path before any consequential command.");
+
+    /// <summary>
+    /// Creates a Java hosted-application development team with Maven/Gradle project and regex roles.
+    /// </summary>
+    /// <returns>The seeded Java development team definition.</returns>
+    private OrganicCouncilTeamDefinition CreateJavaHostedDevelopmentTeam() => CreateDevelopmentTeam(
+        "java-hosted-development",
+        "Java Hosted Application Development Team",
+        "Builds Java services with Maven or Gradle, explicit package boundaries, controller/service adapters, tests, regex policies and reviewable artifact generation.",
+        "Java structure and RegEx analyst",
+        "Java host architect",
+        "Java implementation developer",
+        "Maven/Gradle test engineer",
+        "Java code curator",
+        ["pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", ".java", ".properties", ".xml", ".json", ".yml"],
+        "Choose Maven or Gradle explicitly, keep controllers thin, use service interfaces/adapters, structured configuration, cancellation/interruption boundaries and testable dependency injection.",
+        "Run wrapper-based compile/test/package commands only inside an approved workspace and verify dependency, package, test-report and artifact paths.");
+
+    /// <summary>
+    /// Creates a Minecraft development team with distinct datapack, scripting and Java-mod roles.
+    /// </summary>
+    /// <returns>The seeded Minecraft development team definition.</returns>
+    private OrganicCouncilTeamDefinition CreateMinecraftDevelopmentTeam() => CreateDevelopmentTeam(
+        "minecraft-development",
+        "Minecraft Development Team",
+        "Routes Bedrock datapack/scripting and Java-mod work to distinct specialists while preserving manifests, namespaces, pack formats, project regexes and bounded build verification.",
+        "Minecraft pack and RegEx analyst",
+        "Minecraft architecture lead",
+        "Minecraft implementation developer",
+        "Minecraft validation/build engineer",
+        "Minecraft code and content curator",
+        ["manifest.json", "pack.mcmeta", ".mcfunction", ".json", ".js", ".ts", ".java", ".gradle", ".properties", ".lang"],
+        "Determine Bedrock add-on, datapack, scripting API, Fabric/Forge/NeoForge or mixed target before generation. Keep namespaces, UUIDs, pack formats, mappings and version compatibility explicit.",
+        "Validate JSON/manifests/functions first, then run the selected wrapper/compiler and inspect the generated pack/mod artifact without launching Minecraft automatically.");
+
+    /// <summary>
+    /// Creates one language-specific development council using the maintained repository round order.
+    /// </summary>
+    /// <param name="key">Stable council-team key.</param>
+    /// <param name="displayName">Human-readable team name.</param>
+    /// <param name="purpose">Team purpose shown in Chat and the team editor.</param>
+    /// <param name="regexRole">Role responsible for project syntax and regex evidence.</param>
+    /// <param name="architectRole">Role responsible for host and solution architecture.</param>
+    /// <param name="implementationRole">Role responsible for bounded source changes.</param>
+    /// <param name="buildRole">Role responsible for compiler and test evidence.</param>
+    /// <param name="curatorRole">Role responsible for final code and maintainability review.</param>
+    /// <param name="expectedFiles">Representative files used to guide project-structure policies.</param>
+    /// <param name="architectureInstruction">Language-specific architecture boundary.</param>
+    /// <param name="buildInstruction">Language-specific build and verification boundary.</param>
+    /// <returns>The configured development team definition.</returns>
+    private OrganicCouncilTeamDefinition CreateDevelopmentTeam(
+        string key,
+        string displayName,
+        string purpose,
+        string regexRole,
+        string architectRole,
+        string implementationRole,
+        string buildRole,
+        string curatorRole,
+        IReadOnlyList<string> expectedFiles,
+        string architectureInstruction,
+        string buildInstruction) => new()
+    {
+        Key = key,
+        DisplayName = displayName,
+        Purpose = purpose,
+        Roles =
+        [
+            new() { Role = regexRole, Expertise = $"project discovery, syntax, file-ending ownership and regex validation for {string.Join(", ", expectedFiles)}", Responsibility = "map current structure, expected files and safe include/exclude regexes before implementation" },
+            new() { Role = architectRole, Expertise = "modern hosted application architecture, interfaces, controllers, services, adapters and dependency injection", Responsibility = "define a current-to-target solution plan and preserve existing contracts" },
+            new() { Role = implementationRole, Expertise = "bounded source implementation and project-file maintenance", Responsibility = "apply only the approved milestone and keep generated artifacts reviewable" },
+            new() { Role = buildRole, Expertise = "compiler discovery, restore/build/test diagnostics and workspace rights", Responsibility = "run or interpret the approved build workflow and report the first root failure" },
+            new() { Role = curatorRole, Expertise = "correctness, maintainability, architecture policy, security boundaries and release notes", Responsibility = "perform the independent final review and block unresolved danger findings" }
+        ],
+        PreferredCapabilities =
+        [
+            "project.architecture.get",
+            "project.maintenance.get",
+            "project.files.scan",
+            "project.file.patterns.save",
+            "project.workspace.environment.assess",
+            "project.revision.build.verify",
+            "project.revision.council-review",
+            "project.revision.ready.approve",
+            "localgpt.regex.list",
+            "localgpt.regex.test",
+            "localgpt.regex.upsert",
+            "localgpt.knowledge.remote.inspect",
+            "localgpt.knowledge.remote.import"
+        ],
+        WorkflowSteps =
+        [
+            Step("development-preflight", "Repository and compiler preflight", 10, "Preparation", regexRole, $"""
+Inspect the selected project/revision and workspace. Map expected files ({string.Join(", ", expectedFiles)}), existing include/exclude regexes, compiler/tool paths, rights findings and the first reproducible failure. Do not write files or execute a compiler without the required current approval.
+""", "LeaderSingle", canUseOrganicFunctions: true),
+            Step("development-architecture", "Current-to-target architecture", 20, "Planning", architectRole, $"""
+Produce a concise current-to-target host and project plan. {architectureInstruction} Identify controllers, DXFunctions, service interfaces, adapters/decorators, persistence boundaries, configuration, logs, tests and versioned documentation. Preserve user-edited contracts.
+""", "LeaderSingle"),
+            Step("development-implementation", "Bounded implementation proposals", 30, "Implementation", implementationRole, "Propose or generate only the approved milestone. Keep each file attributable to the project/revision, follow the selected regex/file policy, add XML/API documentation and do not smuggle execution into generation.", "AllMembersSequential"),
+            Step("development-policy-audit", "Regex and architecture policy audit", 40, "Policy", regexRole, "Run the maintained regex tests and repository policy reasoning against the proposed files. Report exact paths and first violations. Generic reusable rules are preferred over product-specific exceptions.", "AllMembersParallel", canUseOrganicFunctions: true),
+            Step("development-build", "Build and test evidence", 50, "Verification", buildRole, $"""
+{buildInstruction} Separate restore, compile, test and packaging failures. Report the first root error and treat later errors as possible cascades. Never claim success without current output.
+""", "LeaderSingle", canUseOrganicFunctions: true),
+            Step("development-curation", "Independent code curator review", 60, "Review", curatorRole, "Review correctness, modern architecture, lifecycle/threading, error handling, security boundaries, tests, documentation and changelog. Classify findings as Approved, Warning or Danger and require concrete fixes for every Danger item.", "AllMembersParallel"),
+            Step("development-release", "Release synthesis", 70, "Synthesis", architectRole, "Synthesize implemented changes, evidence, unresolved warnings, version/changelog updates and the exact next user-approved action. Do not approve readiness while a Danger finding or failed build remains.", "LeaderSingle", producesFinalAnswer: true)
+        ],
+        MainRoundInstructionTemplate = "Follow the repository build-system order: discover and normalize inputs, plan architecture, implement a bounded milestone, run regex/policy checks, inspect build/test evidence, perform independent curation, then synthesize a release handoff.",
+        ArchitectureContracts =
+        [
+            .. DefaultArchitectureContracts(),
+            architectureInstruction,
+            buildInstruction,
+            $"Expected project evidence includes: {string.Join(", ", expectedFiles)}.",
+            "Controllers remain transport boundaries, DXFunctions remain explicit AI-callable contracts, and implementation logic stays in injected services.",
+            "Every consequential build, script or write remains workspace-bound and user-approved; Council rounds may propose and review but do not create unattended loops."
+        ]
+    };
+
+    /// <summary>
+    /// Creates one maintained council workflow step with conservative defaults.
+    /// </summary>
+    /// <param name="key">Stable workflow-step key.</param>
+    /// <param name="displayName">Human-readable round name.</param>
+    /// <param name="sortOrder">Execution ordering value.</param>
+    /// <param name="phase">Workflow phase label.</param>
+    /// <param name="role">Role assigned to the step.</param>
+    /// <param name="prompt">Step-specific prompt template.</param>
+    /// <param name="executionMode">Council execution mode.</param>
+    /// <param name="canUseOrganicFunctions">Whether the round may request registered functions.</param>
+    /// <param name="producesFinalAnswer">Whether the round produces the visible final answer.</param>
+    /// <returns>The configured workflow step.</returns>
+    private CouncilWorkflowStepDefinition Step(
+        string key,
+        string displayName,
+        int sortOrder,
+        string phase,
+        string role,
+        string prompt,
+        string executionMode,
+        bool canUseOrganicFunctions = false,
+        bool producesFinalAnswer = false) => new()
+    {
+        Key = key,
+        DisplayName = displayName,
+        SortOrder = sortOrder,
+        Phase = phase,
+        Role = role,
+        PromptTemplate = prompt,
+        ExecutionMode = executionMode,
+        IncludePriorTranscript = true,
+        IsEnabled = true,
+        CanUseOrganicFunctions = canUseOrganicFunctions,
+        ProducesFinalAnswer = producesFinalAnswer,
+        UseBuiltInBehavior = false
+    };
+
+    /// <summary>
+    /// Creates architecture contracts shared by every seeded council team.
+    /// </summary>
+    /// <returns>The shared architecture-contract list.</returns>
     private List<string> DefaultArchitectureContracts() =>
     [
         "New .NET organ plugins use the existing namespace/service/domain architecture, intentional Singleton/Scoped/Transient lifetimes and structured ILogger<T> logging.",

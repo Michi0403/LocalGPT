@@ -19,7 +19,7 @@ public sealed class DocumentationUpdatedAttribute : Attribute
 /// <summary>
 /// Describes the generated LocalGPT documentation artifacts available to the running application.
 /// </summary>
-[DocumentationUpdated("2.1.19")]
+[DocumentationUpdated("2.1.20")]
 public sealed class LocalGptDocumentationStatus
 {
     /// <summary>Gets or sets the LocalGPT application version represented by the documentation.</summary>
@@ -59,7 +59,7 @@ public sealed class LocalGptDocumentationStatus
 /// <summary>
 /// Represents one compiler-generated XML documentation member after localization adaptation and version enrichment.
 /// </summary>
-[DocumentationUpdated("2.1.19")]
+[DocumentationUpdated("2.1.20")]
 public sealed class LocalGptDocumentationComment
 {
     /// <summary>Gets or sets the stable XML documentation member identifier.</summary>

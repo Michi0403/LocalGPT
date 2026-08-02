@@ -73,6 +73,9 @@
     ],
     "Components/Pages/MinecraftModBuilder.razor": [
       "RunUiActionAsync"
+    ],
+    "Components/Pages/Index.razor": [
+      "CompleteOnboardingAsync"
     ]
   }
 }

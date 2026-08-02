@@ -691,6 +691,12 @@
     [Parameter]
     [SupplyParameterFromQuery(Name = "rejoinCouncilRunId")]
     public Guid? RequestedRejoinCouncilRunId { get; set; }
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "team")]
+    public string? RequestedCouncilTeamKey { get; set; }
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "preset")]
+    public string? RequestedModelPresetName { get; set; }
     Guid? SelectedCouncilRunId { get; set; }
     Guid? RejoinCouncilRunId { get; set; }
     Guid? AttachedLiveCouncilRunId { get; set; }
@@ -807,7 +813,10 @@
         CouncilTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
         if (CouncilTeams.Count == 0)
             return;
-        if (CouncilTeams.All(team => !string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
+        var requestedTeam = string.IsNullOrWhiteSpace(RequestedCouncilTeamKey) ? null : RequestedCouncilTeamKey.Trim();
+        if (requestedTeam is not null && CouncilTeams.Any(team => string.Equals(team.Key, requestedTeam, StringComparison.OrdinalIgnoreCase)))
+            SelectedCouncilTeamKey = requestedTeam;
+        else if (CouncilTeams.All(team => !string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
             SelectedCouncilTeamKey = CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
     }
 
@@ -1856,16 +1865,27 @@
         try
         {
             ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
-            var preparation = CouncilRunConfigurations.GetPreparation();
-            if (preparation is not null && DiagnosticCouncilModelNames.Count == 0)
+            var requestedPreset = string.IsNullOrWhiteSpace(RequestedModelPresetName)
+                ? null
+                : ModelPresets.FirstOrDefault(item => string.Equals(item.Name, RequestedModelPresetName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (requestedPreset is not null && DiagnosticCouncilModelNames.Count == 0)
             {
-                ApplyPreparationConfiguration(preparation);
+                ApplyModelPreset(requestedPreset);
+                modelStatus = $"Loaded quick-start model preset '{requestedPreset.Name}'.";
             }
             else
             {
-                var defaultPreset = ModelPresets.FirstOrDefault(item => item.IsDefault);
-                if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
-                    ApplyModelPreset(defaultPreset);
+                var preparation = CouncilRunConfigurations.GetPreparation();
+                if (preparation is not null && DiagnosticCouncilModelNames.Count == 0)
+                {
+                    ApplyPreparationConfiguration(preparation);
+                }
+                else
+                {
+                    var defaultPreset = ModelPresets.FirstOrDefault(item => item.IsDefault);
+                    if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
+                        ApplyModelPreset(defaultPreset);
+                }
             }
         }
         catch (Exception ex)

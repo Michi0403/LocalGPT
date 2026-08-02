@@ -10,13 +10,18 @@ namespace LocalGPT.Services;
 /// Database-owned council team/workflow configuration. System defaults are seeded and merged without
 /// overwriting user-edited prompts, roles, capabilities or workflow scripts.
 /// </summary>
+/// <param name="dbContextFactory">Creates isolated persistence contexts.</param>
+/// <param name="databaseInitializer">Ensures migrations and prerequisite seed data are ready.</param>
+/// <param name="seedData">Creates maintained default team definitions.</param>
+/// <param name="logger">Writes bounded configuration diagnostics.</param>
+[DocumentationUpdated("2.1.20")]
 public sealed class CouncilTeamConfigurationService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     IOrganicCouncilBlueprintSeedDataService seedData,
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
-    private const int CurrentSeedVersion = 15;
+    private const int CurrentSeedVersion = 16;
     private const int MaxRoles = 100;
     private const int MaxWorkflowSteps = 100;
     private const int MaxExpandedWorkflowSteps = 100;
@@ -31,6 +36,7 @@ public sealed class CouncilTeamConfigurationService(
     ];
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<OrganicCouncilTeamDefinition>> GetTeamsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
     {
         await EnsureSeededAsync(cancellationToken).ConfigureAwait(false);
@@ -42,6 +48,7 @@ public sealed class CouncilTeamConfigurationService(
         return rows.Select(ToDefinition).ToList();
     }
 
+    /// <inheritdoc />
     public async Task<OrganicCouncilTeamDefinition?> FindTeamAsync(string? key, CancellationToken cancellationToken = default)
     {
         var normalized = string.IsNullOrWhiteSpace(key) ? "general" : key.Trim().ToLowerInvariant();
@@ -53,6 +60,7 @@ public sealed class CouncilTeamConfigurationService(
         return row is null ? null : ToDefinition(row);
     }
 
+    /// <inheritdoc />
     public async Task<OrganicCouncilTeamDefinition> SaveAsync(SaveCouncilTeamConfigurationRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -94,6 +102,9 @@ public sealed class CouncilTeamConfigurationService(
         return ToDefinition(row);
     }
 
+    /// <summary>Applies missing seed teams and seed-version updates without replacing user-modified definitions.</summary>
+    /// <param name="cancellationToken">Cancels the asynchronous seed operation.</param>
+    /// <returns>A task that completes when the catalog is current.</returns>
     private async Task EnsureSeededAsync(CancellationToken cancellationToken)
     {
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -155,6 +166,8 @@ public sealed class CouncilTeamConfigurationService(
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Normalizes one source-controlled seed definition before database comparison.</summary>
+    /// <param name="team">Seed definition to normalize in place.</param>
     private void NormalizeSeedDefaults(OrganicCouncilTeamDefinition team)
     {
         team.ExpertPreparationPromptTemplate = string.IsNullOrWhiteSpace(team.ExpertPreparationPromptTemplate)
@@ -245,6 +258,8 @@ Original user request:
         team.WorkflowSteps = team.WorkflowSteps.OrderBy(step => step.SortOrder).ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    /// <summary>Normalizes and validates a user-confirmed editable team definition.</summary>
+    /// <param name="team">Definition to validate in place.</param>
     private void NormalizeAndValidateUserDefinition(OrganicCouncilTeamDefinition team)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(team.Key);
@@ -389,6 +404,8 @@ Original user request:
         team.ArchitectureContracts = team.ArchitectureContracts.Select(value => value?.Trim() ?? string.Empty).Where(value => value.Length > 0).ToList();
     }
 
+    /// <summary>Rejects role-count references that form cycles.</summary>
+    /// <param name="roles">Normalized role definitions.</param>
     private void ValidateRoleCountReferenceCycles(IReadOnlyList<OrganicCouncilRoleDefinition> roles)
     {
         var byName = roles
@@ -408,6 +425,8 @@ Original user request:
         }
     }
 
+    /// <summary>Validates distinct-model assignment groups against participant bounds.</summary>
+    /// <param name="roles">Normalized role definitions.</param>
     private void ValidateDistinctAssignmentGroups(IReadOnlyList<OrganicCouncilRoleDefinition> roles)
     {
         foreach (var group in roles
@@ -423,6 +442,8 @@ Original user request:
         }
     }
 
+    /// <summary>Normalizes loop-group names and loop bounds.</summary>
+    /// <param name="steps">Workflow steps to normalize.</param>
     private void NormalizeLoopGroups(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
     {
         foreach (var group in steps
@@ -435,6 +456,8 @@ Original user request:
         }
     }
 
+    /// <summary>Validates workflow loop-group consistency and completion markers.</summary>
+    /// <param name="steps">Normalized workflow steps.</param>
     private void ValidateLoopGroups(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
     {
         var ordered = steps
@@ -470,6 +493,9 @@ Original user request:
         }
     }
 
+    /// <summary>Calculates the maximum number of runtime rounds after loop expansion.</summary>
+    /// <param name="steps">Normalized workflow steps.</param>
+    /// <returns>The bounded maximum expanded-round count.</returns>
     private int CalculateMaximumExpandedRounds(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
     {
         var ordered = steps
@@ -502,6 +528,9 @@ Original user request:
         return total;
     }
 
+    /// <summary>Normalizes and validates one workflow execution-mode string.</summary>
+    /// <param name="value">Requested execution mode.</param>
+    /// <returns>The canonical supported execution mode.</returns>
     private string NormalizeExecutionMode(string? value)
     {
         var candidate = string.IsNullOrWhiteSpace(value) ? "AllMembersParallel" : value.Trim();
@@ -517,6 +546,9 @@ Original user request:
             $"Execution mode '{candidate}' is not supported. Use {string.Join(", ", SupportedExecutionModes.OrderBy(mode => mode, StringComparer.OrdinalIgnoreCase))}.");
     }
 
+    /// <summary>Copies a normalized definition into its persistence row.</summary>
+    /// <param name="row">Target persistence row.</param>
+    /// <param name="definition">Normalized source definition.</param>
     private void ApplyDefinition(CouncilTeamConfiguration row, OrganicCouncilTeamDefinition definition)
     {
         row.Key = definition.Key.Trim().ToLowerInvariant();
@@ -531,6 +563,9 @@ Original user request:
         row.MainRoundInstructionTemplate = definition.MainRoundInstructionTemplate;
     }
 
+    /// <summary>Converts one persistence row into a runtime team definition.</summary>
+    /// <param name="row">Source persistence row.</param>
+    /// <returns>The runtime definition.</returns>
     private OrganicCouncilTeamDefinition ToDefinition(CouncilTeamConfiguration row) => new()
     {
         Key = row.Key,
@@ -548,7 +583,15 @@ Original user request:
         IsUserModified = row.IsUserModified
     };
 
+    /// <summary>Serializes one bounded configuration value with the maintained web defaults.</summary>
+    /// <typeparam name="T">Value type.</typeparam>
+    /// <param name="value">Value to serialize.</param>
+    /// <returns>JSON text.</returns>
     private string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
+    /// <summary>Deserializes one optional configuration value.</summary>
+    /// <typeparam name="T">Requested result type.</typeparam>
+    /// <param name="json">Stored JSON text.</param>
+    /// <returns>The deserialized value, or default when the payload is blank or invalid.</returns>
     private T? Deserialize<T>(string json)
     {
         try

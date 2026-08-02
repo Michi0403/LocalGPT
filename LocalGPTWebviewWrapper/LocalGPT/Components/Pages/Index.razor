@@ -1,12 +1,94 @@
+@rendermode InteractiveServer
 @page "/"
 @inject NavigationUrlService NavigationUrls
+@inject IFirstRunOnboardingService Onboarding
 @inject ILogger<Index> Logger
-@inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
 <PageTitle>Welcome</PageTitle>
 
 <div class="main-content">
+    @if (_onboarding is { IsCompleted: false })
+    {
+        <section class="first-run-onboarding" aria-labelledby="first-run-title">
+            <header>
+                <div>
+                    <span class="first-run-kicker">LOCALGPT @_onboarding.Version FIRST START</span>
+                    <h1 id="first-run-title">Prepare models, knowledge and a council quick start</h1>
+                    <p>Install only the models and official Git sources you need. LocalGPT has already seeded the benchmark, game and development teams; the links below open them directly in Chat.</p>
+                </div>
+                <button type="button" class="btn btn-outline-secondary" @onclick="CompleteOnboardingAsync" disabled="@_onboardingBusy">I reviewed this setup</button>
+            </header>
+
+            <div class="first-run-status-grid">
+                <article class="first-run-status-card @(_onboarding.LocalAiReachable ? "approved" : "warning")">
+                    <strong>@(_onboarding.LocalAiReachable ? "Local AI detected" : "Local AI setup required")</strong>
+                    <span>@(_onboarding.InstalledModels.Count) installed model(s) discovered</span>
+                    <a href="@NavigationUrls.GetUrl(_onboarding.InstallerRoute, ToggledSidebar)">Open installer and provider setup</a>
+                </article>
+                <article class="first-run-status-card approved">
+                    <strong>@_onboarding.CouncilTeamKeys.Count council team(s) ready</strong>
+                    <span>Includes benchmark, GameDirector and language-specific development workflows.</span>
+                    <a href="@NavigationUrls.GetUrl(_onboarding.CouncilTeamsRoute, ToggledSidebar)">Inspect council teams</a>
+                </article>
+                <article class="first-run-status-card approved">
+                    <strong>Generated documentation</strong>
+                    <span>Open the versioned DocFX HTML/API reference and PDF status.</span>
+                    <a href="@NavigationUrls.GetUrl(_onboarding.DocumentationRoute, ToggledSidebar)">Open documentation</a>
+                </article>
+            </div>
+
+            @if (_onboarding.Warnings.Count > 0)
+            {
+                <div class="first-run-warnings">
+                    @foreach (var warning in _onboarding.Warnings)
+                    {
+                        <span>⚠ @warning</span>
+                    }
+                </div>
+            }
+
+            <div class="first-run-section-grid">
+                <section>
+                    <h2>Installer profiles</h2>
+                    @foreach (var profile in _onboarding.InstallerProfiles)
+                    {
+                        <details class="first-run-profile">
+                            <summary>@profile.DisplayName</summary>
+                            <p>@profile.Purpose</p>
+                            <code>@profile.Command</code>
+                            @if (profile.Models.Count > 0)
+                            {
+                                <small>Models: @profile.ModelSummary</small>
+                            }
+                            @if (profile.Repositories.Count > 0)
+                            {
+                                <small>Knowledge sources: @profile.RepositorySummary</small>
+                            }
+                        </details>
+                    }
+                </section>
+                <section>
+                    <h2>Council quick starts</h2>
+                    <div class="first-run-quickstarts">
+                        @foreach (var quickStart in _onboarding.QuickStarts)
+                        {
+                            <a class="first-run-quickstart" href="@NavigationUrls.GetUrl(quickStart.Route, ToggledSidebar)" data-enhance-nav="false">
+                                <strong>@quickStart.DisplayName</strong>
+                                <span>@quickStart.Description</span>
+                                <small>@quickStart.CouncilTeamKey · @quickStart.ModelPresetName</small>
+                            </a>
+                        }
+                    </div>
+                </section>
+            </div>
+        </section>
+    }
+    else if (_onboardingBusy)
+    {
+        <div class="first-run-loading" role="status">Inspecting first-run readiness…</div>
+    }
+
     <DxGridLayout CssClass="welcome-gridlayout" RowSpacing="3rem">
         <Rows>
             <DxGridLayoutRow Height="auto" Areas="header"></DxGridLayoutRow>
@@ -17,53 +99,39 @@
                 <Template>
                     <div class="title-header-text">Hello World!</div>
                     <div class="title-content-text">Welcome to your LocalChatGPT</div>
-                    <div class="title-content-text">You can connect different Cloud and Local AI Models, before you can't open the "Chat" Module from the navigation'</div>
-                    <div class="title-content-text">Go to Install first, then you can choose the AI Model in the AI Components.</div>
-
+                    <div class="title-content-text">Configure at least one local or cloud AI provider before starting Chat.</div>
+                    <div class="title-content-text">The installer, generated documentation and seeded Council teams remain available from the cards below.</div>
                 </Template>
             </DxGridLayoutItem>
             <DxGridLayoutItem Area="cards" CssClass="welcome-cards">
                 <Template>
-            
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/chat", ToggledSidebar)">
-                        <svg class="welcome-card-img" alt="chat card">
-                            <use href="images/aichat-card.svg"></use>
-                        </svg>
-                        <div class="welcome-card-text">Local ChatGPT</div>
-                        <div class="welcome-card-back"></div>
+                        <svg class="welcome-card-img" alt="chat card"><use href="images/aichat-card.svg"></use></svg>
+                        <div class="welcome-card-text">Local ChatGPT</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/model-council", ToggledSidebar)">
-                        <svg class="welcome-card-img" alt="AI council card">
-                            <use href="images/model-council-card.svg"></use>
-                        </svg>
-                        <div class="welcome-card-text">AI Council</div>
-                        <div class="welcome-card-back"></div>
+                        <svg class="welcome-card-img" alt="AI council card"><use href="images/model-council-card.svg"></use></svg>
+                        <div class="welcome-card-text">AI Council</div><div class="welcome-card-back"></div>
+                    </NavLink>
+                    <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/council-teams", ToggledSidebar)">
+                        <img class="welcome-card-img" src="images/Information.svg" alt="council teams card" />
+                        <div class="welcome-card-text">Council Teams & Workflows</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/minecraft-mod-builder", ToggledSidebar)">
-                        <svg class="welcome-card-img" alt="minecraft mod builder card">
-                            <use href="images/minecraft-mod-builder-card.svg"></use>
-                        </svg>
-                        <div class="welcome-card-text">Minecraft Mod Builder</div>
-                        <div class="welcome-card-back"></div>
+                        <svg class="welcome-card-img" alt="minecraft mod builder card"><use href="images/minecraft-mod-builder-card.svg"></use></svg>
+                        <div class="welcome-card-text">Minecraft Mod Builder</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/test-lab", ToggledSidebar)">
                         <img class="welcome-card-img" src="images/Information.svg" alt="test lab card" />
-                        <div class="welcome-card-text">Test Lab</div>
-                        <div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">Test Lab</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/install", ToggledSidebar)">
-                        <svg class="welcome-card-img" alt="install card">
-                            <use href="images/installation-card.svg"></use>
-                        </svg>
-                        <div class="welcome-card-text">Install - Configure AI Connectivity</div>
-                        <div class="welcome-card-back"></div>
+                        <svg class="welcome-card-img" alt="install card"><use href="images/installation-card.svg"></use></svg>
+                        <div class="welcome-card-text">Install - Configure AI Connectivity</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/help", ToggledSidebar)">
-                        <svg class="welcome-card-img" alt="help card">
-                            <use href="images/help-card.svg"></use>
-                        </svg>
-                        <div class="welcome-card-text">Help</div>
-                        <div class="welcome-card-back"></div>
+                        <svg class="welcome-card-img" alt="help card"><use href="images/help-card.svg"></use></svg>
+                        <div class="welcome-card-text">Documentation</div><div class="welcome-card-back"></div>
                     </NavLink>
                 </Template>
             </DxGridLayoutItem>
@@ -72,10 +140,53 @@
 </div>
 
 @code {
-    protected override void OnInitialized()
+    private FirstRunOnboardingStatus? _onboarding;
+    private bool _onboardingBusy = true;
+
+    /// <summary>
+    /// Loads the first-run guide and bounded loopback model-discovery state before rendering the page.
+    /// </summary>
+    /// <returns>A task that completes after the onboarding status has been loaded.</returns>
+    protected override async Task OnInitializedAsync()
     {
         ComponentActivity.RecordInformation(nameof(Index), "PageVisible", "The LocalGPT home page is visible.", "/");
         Logger.LogInformation("LocalGPT home page initialized.");
+        try
+        {
+            _onboarding = await Onboarding.GetStatusAsync(refreshConnectivity: true).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "The first-run onboarding status could not be loaded.");
+        }
+        finally
+        {
+            _onboardingBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Persists the user's explicit dismissal of the first-run guide.
+    /// </summary>
+    /// <returns>A task that completes after the completion flag and UI state are updated.</returns>
+    private async Task CompleteOnboardingAsync()
+    {
+        if (_onboarding is null)
+            return;
+        _onboardingBusy = true;
+        try
+        {
+            await Onboarding.CompleteAsync(userConfirmed: true).ConfigureAwait(true);
+            _onboarding.IsCompleted = true;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "The first-run onboarding completion flag could not be saved.");
+        }
+        finally
+        {
+            _onboardingBusy = false;
+        }
     }
 
     [SupplyParameterFromQuery(Name = NavigationUrlService.ToggleSidebarName)]

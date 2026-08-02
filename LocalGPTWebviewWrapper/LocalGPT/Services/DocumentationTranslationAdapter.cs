@@ -9,7 +9,7 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Bridges compiler-generated XML comments to the existing LocalGPT localization service without changing that service's contract.
 /// </summary>
-[DocumentationUpdated("2.1.19")]
+[DocumentationUpdated("2.1.20")]
 public sealed class DocumentationTranslationAdapter(
     ILocalGptLocalizationService localization,
     ILogger<DocumentationTranslationAdapter> logger) : IDocumentationTranslationAdapter

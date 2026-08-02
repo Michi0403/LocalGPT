@@ -9,7 +9,7 @@ LocalGPT documentation is built from two maintained sources:
 
 ## Build outputs
 
-A Windows LocalGPT build restores the repository-local DocFX tool, generates API metadata and HTML, and then attempts PDF generation. The PDF name contains the application version, for example `LocalGPT-2.1.19.pdf`.
+A Windows LocalGPT build restores the repository-local DocFX tool, generates API metadata and HTML, and then attempts PDF generation. The PDF name contains the application version, for example `LocalGPT-2.1.20.pdf`.
 
 The running application exposes:
 

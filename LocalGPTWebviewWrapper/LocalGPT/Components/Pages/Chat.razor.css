@@ -1716,3 +1716,23 @@
         inset-inline-end: .65rem;
     }
 }
+
+/* v2.1.20: model analysis and final answers share the same Markdown renderer.
+   Thinking stays collapsible, but headings/lists/tables are no longer trapped in a raw PRE block. */
+.demo-chat ::deep .model-thinking > :not(summary) {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.demo-chat ::deep .model-thinking > p:first-of-type,
+.demo-chat ::deep .model-thinking > h1:first-of-type,
+.demo-chat ::deep .model-thinking > h2:first-of-type,
+.demo-chat ::deep .model-thinking > h3:first-of-type {
+    margin-top: .65rem;
+}
+
+.demo-chat ::deep .model-thinking table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+}

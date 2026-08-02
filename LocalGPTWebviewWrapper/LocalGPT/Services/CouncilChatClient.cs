@@ -9,6 +9,18 @@ using System.Threading.Channels;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Adapts the multi-model Council runtime to the Microsoft.Extensions.AI chat-client contract.
+/// </summary>
+/// <param name="serviceScopeFactory">Creates scoped Council execution dependencies.</param>
+/// <param name="requestFactory">Creates the current user-configured Council request.</param>
+/// <param name="logger">Writes bounded chat and Council diagnostics.</param>
+/// <param name="councilRuntime">Builds prompts, updates and bounded runtime text.</param>
+/// <param name="councilText">Provides maintained Council text parsing and validation.</param>
+/// <param name="catalog">Provides maintained limits and display defaults.</param>
+/// <param name="liveSessions">Owns detachable live Council-session state.</param>
+/// <param name="downloadUrlResolver">Optionally maps generated artifact routes for the current host.</param>
+[DocumentationUpdated("2.1.20")]
 public sealed partial class CouncilChatClient(
     IServiceScopeFactory serviceScopeFactory,
     Func<MultiModelCouncilRequest> requestFactory,
@@ -21,6 +33,11 @@ public sealed partial class CouncilChatClient(
 {
 
 
+    /// <summary>Runs one non-streaming Council request and returns its formatted assistant response.</summary>
+    /// <param name="messages">Current chat history.</param>
+    /// <param name="options">Optional Microsoft.Extensions.AI chat options.</param>
+    /// <param name="cancellationToken">Cancels the Council operation.</param>
+    /// <returns>A task that completes with the formatted Council chat response.</returns>
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -47,6 +64,11 @@ public sealed partial class CouncilChatClient(
         
     }
 
+    /// <summary>Starts or attaches to a live Council run and streams bounded response updates.</summary>
+    /// <param name="messages">Current chat history.</param>
+    /// <param name="options">Optional Microsoft.Extensions.AI chat options.</param>
+    /// <param name="cancellationToken">Detaches this stream when canceled; explicit session controls own run cancellation.</param>
+    /// <returns>An asynchronous sequence of Council response updates.</returns>
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -139,6 +161,12 @@ public sealed partial class CouncilChatClient(
         }
     }
 
+    /// <summary>Executes the Council in an isolated scope while publishing updates to the detachable live session.</summary>
+    /// <param name="request">Prepared Council request.</param>
+    /// <param name="cancellationToken">Cancels the owned live run.</param>
+    /// <param name="writer">Completes the attached update channel.</param>
+    /// <param name="publish">Publishes one bounded visible update.</param>
+    /// <returns>A task that completes with the Council result, or null when canceled/failed.</returns>
     private async Task<MultiModelCouncilResult?> RunCouncilInBackgroundAsync(
         MultiModelCouncilRequest request,
         CancellationToken cancellationToken,
@@ -180,12 +208,21 @@ public sealed partial class CouncilChatClient(
         }
     }
 
+    /// <summary>Returns no additional keyed service from this adapter.</summary>
+    /// <param name="serviceType">Requested service type.</param>
+    /// <param name="serviceKey">Optional service key.</param>
+    /// <returns>Always null because dependencies are provided through constructor injection.</returns>
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
+    /// <summary>Completes adapter disposal; owned services are managed by dependency injection.</summary>
     public void Dispose()
     {
     }
 
+    /// <summary>Runs a non-streaming Council request in an isolated service scope.</summary>
+    /// <param name="messages">Current chat history.</param>
+    /// <param name="cancellationToken">Cancels the Council run.</param>
+    /// <returns>A task that completes with formatted result Markdown.</returns>
     private async Task<string> RunCouncilAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
     {
         try
@@ -215,6 +252,9 @@ public sealed partial class CouncilChatClient(
        
     }
 
+    /// <summary>Creates the configured Council request and replaces its prompt with bounded normalized chat history.</summary>
+    /// <param name="messages">Current chat history.</param>
+    /// <returns>The prepared request, or null when request creation fails.</returns>
     private MultiModelCouncilRequest? CreateRequest(IEnumerable<ChatMessage> messages)
     {
         try
@@ -232,6 +272,9 @@ public sealed partial class CouncilChatClient(
     }
 
  
+    /// <summary>Resolves one generated artifact route against the current host when necessary.</summary>
+    /// <param name="downloadUrl">Absolute or application-relative download URL.</param>
+    /// <returns>The resolved URL, or an empty string when resolution fails.</returns>
     public string ResolveDownloadUrl(string downloadUrl)
     {
         try
@@ -251,6 +294,10 @@ public sealed partial class CouncilChatClient(
         }
     }
 
+    /// <summary>Formats one Council result as canonical safe Markdown for DXAiChat.</summary>
+    /// <param name="result">Completed Council result.</param>
+    /// <param name="includeProcess">Whether to include per-step process disclosures.</param>
+    /// <returns>Formatted Markdown with warnings, consensus and artifact links.</returns>
     public string FormatResult(MultiModelCouncilResult result, bool includeProcess)
     {
         try
@@ -290,8 +337,9 @@ public sealed partial class CouncilChatClient(
             var warnings = result.Warnings
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            var finalAnswer = result.FinalAnswer.Trim();
-            if (councilText.LooksLikelyTruncated(finalAnswer, logger))
+            var rawFinalAnswer = result.FinalAnswer.Trim();
+            var finalAnswer = EncodeModelMarkdown(rawFinalAnswer);
+            if (councilText.LooksLikelyTruncated(rawFinalAnswer, logger))
             {
                 warnings.Add("The final answer looks like it may have stopped mid-generation. Use the continuation prompt below to resume from the last section instead of starting over.");
             }
@@ -330,7 +378,7 @@ public sealed partial class CouncilChatClient(
                     {
                         builder.AppendLine("**Error:**")
                             .AppendLine()
-                            .AppendLine(step.Error.Trim())
+                            .AppendLine(EncodeModelMarkdown(step.Error.Trim()))
                             .AppendLine();
                     }
 
@@ -338,7 +386,7 @@ public sealed partial class CouncilChatClient(
                     {
                         builder.AppendLine("**Visible answer:**")
                             .AppendLine()
-                            .AppendLine(step.VisibleContent.Trim())
+                            .AppendLine(EncodeModelMarkdown(step.VisibleContent.Trim()))
                             .AppendLine();
                     }
 
@@ -347,9 +395,9 @@ public sealed partial class CouncilChatClient(
                         builder
                             .AppendLine("<details class=\"model-thinking\">")
                             .AppendLine("<summary>Model thinking</summary>")
-                            .AppendLine("<pre>")
-                            .AppendLine(WebUtility.HtmlEncode(step.Thinking.Trim()))
-                            .AppendLine("</pre>")
+                            .AppendLine()
+                            .AppendLine(EncodeModelMarkdown(step.Thinking.Trim()))
+                            .AppendLine()
                             .AppendLine("</details>")
                             .AppendLine();
                     }
@@ -363,7 +411,7 @@ public sealed partial class CouncilChatClient(
                 .AppendLine(finalAnswer)
                 .AppendLine();
 
-            if (councilText.LooksLikelyTruncated(finalAnswer, logger))
+            if (councilText.LooksLikelyTruncated(rawFinalAnswer, logger))
             {
                 builder
                     .AppendLine("## Continue Action")
@@ -417,5 +465,13 @@ public sealed partial class CouncilChatClient(
             return string.Empty;
         }
     }
+
+    /// <summary>
+    /// Canonicalizes model-owned text as HTML-safe Markdown so copied LocalGPT panel tags cannot affect the chat DOM.
+    /// </summary>
+    /// <param name="value">Model-generated Markdown or previously encoded model text.</param>
+    /// <returns>Single-encoded Markdown that preserves headings, lists, tables and physical line breaks.</returns>
+    private string EncodeModelMarkdown(string value) =>
+        WebUtility.HtmlEncode(WebUtility.HtmlDecode(value));
 
 }

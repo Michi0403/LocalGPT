@@ -330,3 +330,13 @@ Version 2.1.19 corrects the Windows command-line boundary between MSBuild and `B
 The existing XML-comment catalog, translator adapter, Help launcher, HTML/API documentation and versioned PDF behavior remain unchanged. Successful PDF output is named `LocalGPT-2.1.19.pdf`.
 
 See `CHANGELOG-v2.1.19-docfx-argument-correction.md`.
+
+## LocalGPT 2.1.20 onboarding, development councils and canonical chat rendering
+
+Version 2.1.20 adds a persisted first-run guide that points users to the installer, generated documentation, the editable Council-team catalog and direct Chat quick starts. Source-controlled seed data now includes an adaptive installed-model benchmark Council, a low-latency GameDirector Council, and development teams for modern hosted C#, PowerShell build automation, Java services and Minecraft projects. Their rounds follow the repository's maintained order: preflight and regex discovery, architecture, bounded implementation, policy audit, build/test evidence, independent curation and release synthesis.
+
+Council prompt reconstruction now keeps unique recent user turns plus only the latest cleaned assistant consensus. LocalGPT-owned process/thinking panels and accidentally nested Council wrappers are removed before history is sent to a model. Provider-owned HTML is encoded while Markdown remains available to the common renderer, so Harmony, think-tag and plain-text models use the same heading, list, table and line-break path without being able to forge LocalGPT disclosure panels.
+
+The documentation build unblocks repository-local DocFX inputs before restore, can reuse or install an isolated DocFX tool, and no longer makes a diagnostic Debug build unusable merely because documentation tooling could not be restored. New and changed onboarding, Council, formatting and configuration contracts include XML summaries, primary-constructor parameter descriptions, property documentation, method parameter documentation and return/Task descriptions.
+
+See `CHANGELOG-v2.1.20-onboarding-development-teams-and-chat-formatting.md`.

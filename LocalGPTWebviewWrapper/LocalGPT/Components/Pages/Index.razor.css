@@ -64,3 +64,71 @@
     border-radius: 1rem;
     z-index: -2;
 }
+.first-run-onboarding {
+    margin: 1.25rem;
+    padding: clamp(1rem, 2vw, 2rem);
+    border: 1px solid color-mix(in srgb, var(--localgpt-accent, #b020f0) 45%, transparent);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--localgpt-panel, #303030) 92%, transparent);
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .2);
+}
+
+.first-run-onboarding > header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.first-run-kicker {
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    opacity: .75;
+}
+
+.first-run-onboarding h1 { margin: .25rem 0 .5rem; }
+.first-run-onboarding h2 { font-size: 1.05rem; margin: 0 0 .75rem; }
+
+.first-run-status-grid,
+.first-run-section-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.first-run-status-card,
+.first-run-profile,
+.first-run-quickstart {
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: .75rem;
+    background: rgba(0,0,0,.16);
+}
+
+.first-run-status-card {
+    display: grid;
+    gap: .35rem;
+    padding: 1rem;
+}
+
+.first-run-status-card.approved { border-left: .35rem solid #4ecb71; }
+.first-run-status-card.warning { border-left: .35rem solid #f0b441; }
+.first-run-status-card a,
+.first-run-quickstart { color: var(--localgpt-link, #dc7cff); }
+
+.first-run-warnings { display: grid; gap: .25rem; margin-top: .75rem; color: #f0c36a; }
+.first-run-profile { padding: .75rem 1rem; margin-bottom: .65rem; }
+.first-run-profile summary { cursor: pointer; font-weight: 700; }
+.first-run-profile code,
+.first-run-profile small { display: block; margin-top: .5rem; overflow-wrap: anywhere; }
+
+.first-run-quickstarts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: .75rem; }
+.first-run-quickstart { display: grid; gap: .35rem; padding: .9rem; text-decoration: none; }
+.first-run-quickstart span, .first-run-quickstart small { color: var(--bs-body-color, #eee); }
+.first-run-loading { margin: 1.25rem; padding: 1rem; }
+
+@media (max-width: 720px) {
+    .first-run-onboarding { margin: .75rem; }
+}
