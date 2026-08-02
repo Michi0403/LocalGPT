@@ -259,7 +259,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.0.1"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.0.2"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
@@ -385,6 +385,7 @@ namespace LocalGPT
                 logger.LogInformation("Registered {DxAiFunctionHandlerCount} DI-backed DXAIFunction handler(s).", dxAiHandlerTypes.Count);
                 builder.Services.AddScoped<IProjectOrganicContextService, ProjectOrganicContextService>();
                 builder.Services.AddScoped<ICouncilTeamConfigurationService, CouncilTeamConfigurationService>();
+                builder.Services.AddScoped<ICouncilRuntimeClassService, CouncilRuntimeClassService>();
                 builder.Services.AddScoped<IOrganicCouncilBlueprintService, OrganicCouncilBlueprintService>();
                 builder.Services.Configure<OneWireOptions>(builder.Configuration.GetSection(OneWireOptions.SectionName));
                 builder.Services.AddSingleton<IOneWireEnvelopeCodec, OneWireEnvelopeCodec>();

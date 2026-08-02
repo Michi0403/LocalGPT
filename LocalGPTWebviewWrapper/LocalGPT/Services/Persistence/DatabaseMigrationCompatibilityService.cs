@@ -182,6 +182,16 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
                 Column("HumanCollaborationRequests", "TargetMembersText"),
                 Column("HumanCollaborationRequests", "RequestedCouncilRound"),
                 Column("HumanCollaborationRequests", "RequestedCouncilPhase")
+            ]),
+        new(
+            "20260802010000_AddCouncilRuntimeClasses",
+            "10.0.10",
+            [
+                Table("CouncilRuntimeClassConfigurations"),
+                Column("CouncilRuntimeClassConfigurations", "Key"),
+                Column("CouncilRuntimeClassConfigurations", "FieldsJson"),
+                Column("CouncilRuntimeClassConfigurations", "InputBindingsJson"),
+                Column("CouncilRuntimeClassConfigurations", "SourceReferencesJson")
             ])
     ];
 

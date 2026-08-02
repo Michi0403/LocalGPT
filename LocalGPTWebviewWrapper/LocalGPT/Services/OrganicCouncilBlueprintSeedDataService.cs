@@ -308,6 +308,503 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
         },
         new()
         {
+            Key = "ascii-doom-council-adventure",
+            DisplayName = "ASCII DOOM Council Adventure",
+            Purpose = "A deliberately slow, turn-based terminal adventure informed by the user-imported id Software DOOM source. It does not build a conventional 3D renderer: one meaningful world step is resolved per Council turn and exactly one AI member authors the complete Matrix-ship-style ASCII frame.",
+            Roles =
+            [
+                new()
+                {
+                    Role = "Game Director",
+                    Expertise = "turn orchestration, pacing, player-facing narration and completion rules",
+                    Responsibility = "open the session, preserve authoritative state and coordinate every role without taking over their owned decisions",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    HumanParticipationMode = HumanParticipationMode.None,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "ascii-doom",
+                    RuntimeClassKeys = ["games.ascii.doom.session"]
+                },
+                new()
+                {
+                    Role = "Map Architect",
+                    Expertise = "room graphs, corridors, keys, doors, exits and source-informed level logic",
+                    Responsibility = "generate and maintain the authoritative room graph before play; never redraw the screen",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    HumanParticipationMode = HumanParticipationMode.None,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "ascii-doom",
+                    RuntimeClassKeys = ["games.ascii.doom.map"]
+                },
+                new()
+                {
+                    Role = "Player Controller",
+                    Expertise = "human/AI command interpretation, keyboard and gamepad action mapping",
+                    Responsibility = "accept one optional human action or choose one conservative autonomous action; never resolve its outcome",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    HumanParticipationMode = HumanParticipationMode.Optional,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "ascii-doom",
+                    RuntimeClassKeys = ["games.ascii.doom.player"]
+                },
+                new()
+                {
+                    Role = "World Actor",
+                    Expertise = "one active enemy, pickup, door, hazard or environmental object per model",
+                    Responsibility = "own exactly one active runtime-class instance for the current turn and submit one bounded intent",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 2,
+                    MaximumAiParticipants = 8,
+                    HumanParticipationMode = HumanParticipationMode.None,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "ascii-doom-actors",
+                    RuntimeClassKeys = ["games.ascii.doom.actor"]
+                },
+                new()
+                {
+                    Role = "State Judge",
+                    Expertise = "deterministic turn resolution, health, inventory, positions and legal actions",
+                    Responsibility = "resolve the player and actor intents once, update the authoritative state and reject invented outcomes",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    HumanParticipationMode = HumanParticipationMode.None,
+                    PerformanceMode = CouncilRolePerformanceMode.TaskSpecialist,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "ascii-doom",
+                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.map", "games.ascii.doom.player", "games.ascii.doom.actor"]
+                },
+                new()
+                {
+                    Role = "ASCII Frame Renderer",
+                    Expertise = "fixed-width terminal composition and stable spatial continuity",
+                    Responsibility = "author the one complete ASCII frame after state resolution; never alter game state",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    HumanParticipationMode = HumanParticipationMode.None,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "ascii-doom",
+                    RuntimeClassKeys = ["games.ascii.doom.frame"]
+                }
+            ],
+            WorkflowSteps =
+            [
+                new()
+                {
+                    Key = "doom-world-bootstrap",
+                    DisplayName = "Generate source-informed level",
+                    SortOrder = 10,
+                    Phase = "World bootstrap",
+                    Role = "Map Architect",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+{{RolePerformanceInstruction}}
+{{RoleBoundaryInstruction}}
+Create one original room-and-corridor map for {{TeamName}}. Use the runtime classes assigned to your role and, when available, study imported knowledge from https://github.com/id-Software/DOOM through LocalGPT knowledge/DXFunctions. Do not reproduce commercial WAD content and do not claim to execute the original engine. Establish room ids, connections, start, exit, keys, doors and initial actor slots. The map is authoritative for later turns. Make every movement step meaningful: a turn advances by the configured world step scale, not by 35 render ticks.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "doom-director-opening",
+                    DisplayName = "Director opening",
+                    SortOrder = 20,
+                    Phase = "Opening",
+                    Role = "Game Director",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+{{RolePerformanceInstruction}}
+{{RoleBoundaryInstruction}}
+Open the terminal adventure using the generated map. Explain that this is a slow Council simulation: one command, one resolved world step, one ASCII frame. State the controls described by the player runtime class and give the immediate objective. Do not generate the frame yourself.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "doom-player-command",
+                    DisplayName = "Player command",
+                    SortOrder = 30,
+                    Phase = "Player intent",
+                    Role = "Player Controller",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+{{RolePerformanceInstruction}}
+{{RoleBoundaryInstruction}}
+This is loop {{LoopIteration}}/{{LoopMaximumIterations}}. Read the latest authoritative state and the newest human message. Translate a matching keyboard/gamepad/text cue into exactly one legal player intent. Human input is optional; when no current cue exists choose one conservative autonomous action so play continues. Do not resolve damage, movement success, enemy reactions or the frame.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "ascii-doom-turn",
+                    MaximumLoopIterations = 24,
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "doom-world-actors",
+                    DisplayName = "World actor intents",
+                    SortOrder = 40,
+                    Phase = "Actor intents",
+                    Role = "World Actor",
+                    ExecutionMode = "AllMembersParallel",
+                    PromptTemplate = """
+{{RolePerformanceInstruction}}
+{{RoleBoundaryInstruction}}
+Own one active world-actor runtime instance only. Based on the current room and player intent, emit one bounded intent for that instance. Do not impersonate another actor, resolve results, move the player or render the frame. Inactive actors state that they remain dormant.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "ascii-doom-turn",
+                    MaximumLoopIterations = 24,
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "doom-state-resolution",
+                    DisplayName = "Resolve one large world step",
+                    SortOrder = 50,
+                    Phase = "State resolution",
+                    Role = "State Judge",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+{{RoleBoundaryInstruction}}
+Resolve exactly one meaningful world step from the current authoritative state, the player intent and all active actor intents. Update positions, health, inventory, doors and completion flags once. Reject duplicated or invented actions. Publish a compact canonical state block for the renderer and director. Do not draw ASCII. If the exit objective is completed, include exactly [[GAME_COMPLETE]].
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "ascii-doom-turn",
+                    MaximumLoopIterations = 24,
+                    LoopCompletionMarker = "[[GAME_COMPLETE]]",
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "doom-ascii-frame",
+                    DisplayName = "One AI builds the ASCII frame",
+                    SortOrder = 60,
+                    Phase = "ASCII frame",
+                    Role = "ASCII Frame Renderer",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+{{RolePerformanceInstruction}}
+{{RoleBoundaryInstruction}}
+Render the latest canonical state as one complete 80x25 Matrix-ship-style terminal frame. You alone own this frame. Preserve room geometry and glyph positions from the prior frame unless the resolved state changed them. Do not alter state, invent actions or split the frame across models. Output exactly:
+[[ASCII_FRAME width=80 height=25]]
+<the complete fixed-width frame>
+[[/ASCII_FRAME]]
+Then add at most three short lines: HUD, what changed, and available legal actions.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "ascii-doom-turn",
+                    MaximumLoopIterations = 24,
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    ProducesFinalAnswer = true,
+                    ProducesAsciiFrame = true,
+                    AsciiFrameWidth = 80,
+                    AsciiFrameHeight = 25,
+                    WorldStepScale = 4,
+                    UseBuiltInBehavior = false
+                }
+            ],
+            PreferredCapabilities = ["localgpt.runtime-class.list", "localgpt.runtime-class.get", "localgpt.knowledge.list"],
+            ArchitectureContracts =
+            [
+                .. DefaultArchitectureContracts(),
+                "This is a turn-based ASCII Council interpretation, not a traditional real-time 3D engine and not a claim that the original C executable is running.",
+                "Exactly one AI member owns and emits each complete ASCII frame after state resolution; frame-producing steps must use a single-member execution mode.",
+                "The id Software DOOM repository is an optional user-approved learning source. Do not redistribute commercial WAD data and do not require it for original generated maps.",
+                "One Council turn advances a meaningful world step and then renders once. Never simulate 35 frames per second through model calls.",
+                "Every active enemy, pickup, door or hazard is represented by a runtime-class instance; one World Actor member owns one active instance for the current turn.",
+                "Human keyboard/gamepad/text commands are optional. HumanRequired runtime fields block only the dependent next round, not the entire application."
+            ]
+        },
+        new()
+        {
+            Key = "green-dragon-runtime-story",
+            DisplayName = "Green Dragon Runtime Story",
+            Purpose = "A configuration-first role-play example inspired by the open-source Legend of the Green Dragon project. Directors orchestrate a persistent world while locations, houses, NPCs and events are runtime-class instances acted by bounded Council members; one AI renders the terminal scene per story turn.",
+            Roles =
+            [
+                new()
+                {
+                    Role = "Story Director",
+                    Expertise = "chapter pacing, continuity, quests and player-facing narration",
+                    Responsibility = "coordinate the story without speaking for owned NPC, event, location or player instances",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "green-dragon",
+                    RuntimeClassKeys = ["games.green-dragon.world"]
+                },
+                new()
+                {
+                    Role = "Player Traveller",
+                    Expertise = "one bounded player choice per story turn",
+                    Responsibility = "use a current human choice when supplied or choose autonomously; never narrate the outcome",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    HumanParticipationMode = HumanParticipationMode.Optional,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "green-dragon",
+                    RuntimeClassKeys = ["games.green-dragon.player"]
+                },
+                new()
+                {
+                    Role = "Location or House Actor",
+                    Expertise = "one active village, forest, inn, house or room instance per model",
+                    Responsibility = "present the active place's description, exits and available interactions without deciding the player choice",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 4,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "green-dragon-objects",
+                    RuntimeClassKeys = ["games.green-dragon.location"]
+                },
+                new()
+                {
+                    Role = "NPC Actor",
+                    Expertise = "one named NPC runtime instance per model",
+                    Responsibility = "speak and act only for the owned NPC instance for this turn",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 2,
+                    MaximumAiParticipants = 8,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "green-dragon-objects",
+                    RuntimeClassKeys = ["games.green-dragon.npc"]
+                },
+                new()
+                {
+                    Role = "Event Actor",
+                    Expertise = "one encounter, random event or story beat runtime instance per model",
+                    Responsibility = "evaluate entry conditions and present bounded consequences without taking over another instance",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 6,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "green-dragon-objects",
+                    RuntimeClassKeys = ["games.green-dragon.event"]
+                },
+                new()
+                {
+                    Role = "Story State Keeper",
+                    Expertise = "canonical world state, flags, health, gold, location and event completion",
+                    Responsibility = "resolve one story turn from owned intents and publish the canonical state",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    PerformanceMode = CouncilRolePerformanceMode.TaskSpecialist,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "green-dragon",
+                    RuntimeClassKeys = ["games.green-dragon.world", "games.green-dragon.player", "games.green-dragon.location", "games.green-dragon.npc", "games.green-dragon.event"]
+                },
+                new()
+                {
+                    Role = "ASCII Scene Renderer",
+                    Expertise = "one fixed-width terminal scene per completed story turn",
+                    Responsibility = "render the canonical state without changing it",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "green-dragon",
+                    RuntimeClassKeys = ["games.green-dragon.frame"]
+                }
+            ],
+            WorkflowSteps =
+            [
+                new()
+                {
+                    Key = "dragon-world-opening",
+                    DisplayName = "Create world and opening",
+                    SortOrder = 10,
+                    Phase = "World opening",
+                    Role = "Story Director",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+{{RolePerformanceInstruction}}
+{{RoleBoundaryInstruction}}
+Create an original fantasy village/forest opening for {{TeamName}}. The optional source https://github.com/lotgd/lotgd may be studied through imported LocalGPT knowledge, but do not copy story text or require its web application at runtime. Instantiate a world, player, at least three locations, two NPCs and one dormant event using the assigned runtime classes. Do not speak for those instances after assigning ownership.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "dragon-player-choice",
+                    DisplayName = "Player choice",
+                    SortOrder = 20,
+                    Phase = "Player intent",
+                    Role = "Player Traveller",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+{{RolePerformanceInstruction}}
+{{RoleBoundaryInstruction}}
+Story turn {{LoopIteration}}/{{LoopMaximumIterations}}. Use a current human numbered/text/gamepad choice when present; otherwise choose one reasonable action autonomously. Emit exactly one player intent. Do not narrate its result or another role's response.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "green-dragon-turn",
+                    MaximumLoopIterations = 16,
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "dragon-location-response",
+                    DisplayName = "Location and house response",
+                    SortOrder = 30,
+                    Phase = "Location intent",
+                    Role = "Location or House Actor",
+                    ExecutionMode = "AllMembersParallel",
+                    PromptTemplate = """
+Own one active location/house instance. React to the player intent only from that place's saved fields. State available exits/interactions; do not control NPCs, events, player state or the final scene.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "green-dragon-turn",
+                    MaximumLoopIterations = 16,
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "dragon-npc-response",
+                    DisplayName = "NPC responses",
+                    SortOrder = 40,
+                    Phase = "NPC intents",
+                    Role = "NPC Actor",
+                    ExecutionMode = "AllMembersParallel",
+                    PromptTemplate = """
+Own exactly one named NPC runtime instance. Emit one line or bounded action consistent with its fields and current location. Do not impersonate other NPCs, decide event outcomes or update canonical state.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "green-dragon-turn",
+                    MaximumLoopIterations = 16,
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "dragon-event-response",
+                    DisplayName = "Event responses",
+                    SortOrder = 50,
+                    Phase = "Event intents",
+                    Role = "Event Actor",
+                    ExecutionMode = "AllMembersParallel",
+                    PromptTemplate = """
+Own one event runtime instance. Check its trigger against the current state and player intent. If active, present one bounded event contribution and legal choices; otherwise remain dormant. Do not resolve the whole turn.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "green-dragon-turn",
+                    MaximumLoopIterations = 16,
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "dragon-state-resolution",
+                    DisplayName = "Resolve story turn",
+                    SortOrder = 60,
+                    Phase = "State resolution",
+                    Role = "Story State Keeper",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+Resolve the current player, location, NPC and event intents once. Publish the canonical player/world/location/event state and a concise list of legal next choices. Do not render the scene. When the configured chapter objective is genuinely complete, include exactly [[STORY_COMPLETE]].
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "green-dragon-turn",
+                    MaximumLoopIterations = 16,
+                    LoopCompletionMarker = "[[STORY_COMPLETE]]",
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    UseBuiltInBehavior = false
+                },
+                new()
+                {
+                    Key = "dragon-ascii-scene",
+                    DisplayName = "One AI builds the ASCII scene",
+                    SortOrder = 70,
+                    Phase = "ASCII scene",
+                    Role = "ASCII Scene Renderer",
+                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = """
+Render the latest canonical state as one complete 80x25 terminal scene. You alone own the frame. Preserve spatial continuity from the previous frame and do not alter story state. Output exactly:
+[[ASCII_FRAME width=80 height=25]]
+<the complete fixed-width scene>
+[[/ASCII_FRAME]]
+Then add concise narration and numbered legal choices.
+Runtime classes: {{RuntimeClasses}}
+""",
+                    LoopGroup = "green-dragon-turn",
+                    MaximumLoopIterations = 16,
+                    IncludePriorTranscript = true,
+                    CanUseOrganicFunctions = true,
+                    ProducesFinalAnswer = true,
+                    ProducesAsciiFrame = true,
+                    AsciiFrameWidth = 80,
+                    AsciiFrameHeight = 25,
+                    WorldStepScale = 1,
+                    UseBuiltInBehavior = false
+                }
+            ],
+            PreferredCapabilities = ["localgpt.runtime-class.list", "localgpt.runtime-class.get", "localgpt.knowledge.list"],
+            ArchitectureContracts =
+            [
+                .. DefaultArchitectureContracts(),
+                "Locations, houses, NPCs and events are separate runtime-class instances. Active Council members act only as the instance assigned to them.",
+                "The Story Director orchestrates continuity but does not overwrite bounded choices owned by player, NPC, location or event roles.",
+                "Exactly one AI member renders the complete ASCII scene after canonical state resolution.",
+                "The lotgd repository is an optional user-approved learning source and configuration example; copied source/story content is not required for runtime play.",
+                "Human input is optional unless a runtime field is explicitly HumanRequired; such a gate blocks only the dependent round."
+            ]
+        },
+        new()
+        {
             Key = "learning-round",
             DisplayName = "Learning Round",
             Purpose = "A database-grounded council preset that studies LocalGPT chat memory, logs, knowledge, regex definitions and verified project facts, then stores only bounded model-suggested learning evidence for later review.",

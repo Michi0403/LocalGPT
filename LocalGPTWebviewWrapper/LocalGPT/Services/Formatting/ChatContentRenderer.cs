@@ -16,6 +16,8 @@ public sealed class ChatContentRenderer(
     IStructuredTextTranslationService structuredText,
     ILogger<ChatContentRenderer> logger) : IChatContentRenderer
 {
+    private const int AutomaticStructuredTranslationLimit = 120_000;
+
     private readonly Regex HarmonyMarkerRegex = new(
         @"<\|[^>]+\|>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
@@ -56,6 +58,10 @@ public sealed class ChatContentRenderer(
         @"</pre>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    private readonly Regex AsciiFrameRegex = new(
+        @"\[\[ASCII_FRAME(?:\s+(?<attributes>[^\]]+))?\]\]\s*(?<frame>.*?)\s*\[\[/ASCII_FRAME\]\]",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.Singleline,
+        runtimePolicy.RegexTimeout);
 
     private readonly MarkdownPipeline markdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
@@ -95,7 +101,13 @@ public sealed class ChatContentRenderer(
             // preserving valid surrogate pairs and every other character.
             var text = SanitizeInvalidUnicode(content);
             text = HarmonyMarkerRegex.Replace(text, string.Empty);
-            text = structuredText.TranslatePlainJsonBlocksToMarkdown(text);
+            text = RenderAsciiFrames(text);
+            // The renderer is called for every streaming snapshot. Re-scanning a large, still-live
+            // Council transcript for balanced JSON on every token can monopolize the Blazor circuit
+            // and make Stop appear unresponsive. Keep automatic translation bounded and defer large
+            // or active streams to the explicit structured-text controller/DXFunctions.
+            if (ShouldTranslateStructuredText(text))
+                text = structuredText.TranslatePlainJsonBlocksToMarkdown(text);
             text = ThinkingDetailsStartRegex.Replace(
                 text,
                 "<details class=\"model-thinking\">");
@@ -150,6 +162,42 @@ public sealed class ChatContentRenderer(
                 ex,
                 "Chat content normalization failed. LocalGPT will retain a sanitized snapshot; message content was omitted from logs.");
             return SanitizeInvalidUnicode(content ?? string.Empty).Trim();
+        }
+    }
+
+
+    private static bool ShouldTranslateStructuredText(string text)
+    {
+        if (text.Length > AutomaticStructuredTranslationLimit)
+            return false;
+
+        return !text.Contains(
+            "<details class=\"council-step council-live\"",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string RenderAsciiFrames(string text)
+    {
+        try
+        {
+            return AsciiFrameRegex.Replace(text, match =>
+            {
+                var frame = match.Groups["frame"].Value
+                    .Replace("\r\n", "\n", StringComparison.Ordinal)
+                    .Trim('\n', '\r');
+                var attributes = match.Groups["attributes"].Value.Trim();
+                var encodedFrame = HtmlEncoder.Default.Encode(frame);
+                var encodedAttributes = HtmlEncoder.Default.Encode(attributes);
+                var label = string.IsNullOrWhiteSpace(attributes)
+                    ? "ASCII game frame"
+                    : $"ASCII game frame ({encodedAttributes})";
+                return $"<pre class=\"localgpt-ascii-frame\" role=\"img\" aria-label=\"{label}\"><code>{encodedFrame}</code></pre>";
+            });
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            logger.LogWarning(ex, "ASCII frame marker parsing timed out; the original markers remain visible.");
+            return text;
         }
     }
 

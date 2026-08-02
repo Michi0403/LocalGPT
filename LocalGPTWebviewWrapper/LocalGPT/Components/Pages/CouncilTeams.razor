@@ -1,6 +1,8 @@
 @rendermode InteractiveServer
 @page "/council-teams"
 @inject ICouncilTeamConfigurationService TeamConfigurations
+@inject ICouncilRuntimeClassService RuntimeClasses
+@inject IDxAiFunctionCatalogService FunctionCatalog
 @inject ILogger<CouncilTeams> Logger
 @inject CouncilTextService CouncilText
 @inject IComponentActivityService ComponentActivity
@@ -58,6 +60,27 @@
                 <label><span>Display name</span><input class="form-control" @bind="_editor.DisplayName" /></label>
                 <label class="wide"><span>Purpose</span><textarea class="form-control" rows="3" @bind="_editor.Purpose"></textarea></label>
             </div>
+
+            <details class="council-best-use-functions">
+                <summary>Best-use DXFunctions (@_editor.PreferredCapabilities.Count selected)</summary>
+                <p class="hint">Select the functions this team should prefer. The list is grouped by function namespace; entries recommended by assigned runtime classes are marked.</p>
+                @foreach (var group in AvailableDxFunctions.GroupBy(FunctionNamespace).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    <fieldset class="council-runtime-class-group">
+                        <legend>@group.Key</legend>
+                        @foreach (var entry in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
+                        {
+                            var recommended = RecommendedRuntimeFunctions.Contains(entry.FunctionName);
+                            <label class="form-check council-runtime-class-option">
+                                <input class="form-check-input" type="checkbox"
+                                       checked="@_editor.PreferredCapabilities.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
+                                       @onchange="args => TogglePreferredCapability(entry.FunctionName, args)" />
+                                <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName@(recommended ? " · runtime-class recommendation" : string.Empty)</small></span>
+                            </label>
+                        }
+                    </fieldset>
+                }
+            </details>
 
             <section class="council-structure-section">
                 <header>
@@ -166,6 +189,52 @@
                                 <input class="form-control" list="council-role-names" @bind="role.PairedRole" placeholder="Optional role name" />
                             </label>
                         </div>
+                        <details class="wide council-runtime-class-picker">
+                            <summary>Runtime classes (@role.RuntimeClassKeys.Count selected)</summary>
+                            <p class="hint">Assign database-backed runtime classes to this role. Every field remains visible with AI/human ownership, blocking behavior and keyboard/gamepad bindings.</p>
+                            @foreach (var group in _runtimeClasses.GroupBy(item => item.Namespace).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+                            {
+                                <fieldset class="council-runtime-class-group">
+                                    <legend>@group.Key</legend>
+                                    @foreach (var runtimeClass in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
+                                    {
+                                        <label class="form-check council-runtime-class-option">
+                                            <input class="form-check-input" type="checkbox"
+                                                   checked="@role.RuntimeClassKeys.Contains(runtimeClass.Key, StringComparer.OrdinalIgnoreCase)"
+                                                   @onchange="args => ToggleRuntimeClass(roleIndex, runtimeClass.Key, args)" />
+                                            <span><strong>@runtimeClass.DisplayName</strong> <small>@runtimeClass.Key · @runtimeClass.Kind</small></span>
+                                        </label>
+                                    }
+                                </fieldset>
+                            }
+                            @foreach (var runtimeClass in RuntimeClassesFor(role))
+                            {
+                                <article class="council-runtime-class-preview">
+                                    <header><strong>@runtimeClass.DisplayName</strong><small>@runtimeClass.Key</small></header>
+                                    <p>@runtimeClass.Description</p>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle">
+                                            <thead><tr><th>Field</th><th>Type/default</th><th>Input</th><th>AI</th><th>Human</th><th>Blocks next round</th><th>Keyboard</th><th>Gamepad</th></tr></thead>
+                                            <tbody>
+                                            @foreach (var field in runtimeClass.Fields)
+                                            {
+                                                <tr>
+                                                    <td><strong>@field.DisplayName</strong><br /><small>@field.Name</small></td>
+                                                    <td>@field.DataType<br /><small>@field.DefaultValue</small></td>
+                                                    <td>@field.InputMode</td>
+                                                    <td>@(field.AiAssignable ? "yes" : "no")</td>
+                                                    <td>@(field.HumanAssignable ? "yes" : "no")</td>
+                                                    <td>@(field.BlocksNextRoundUntilHumanInput ? "required gate" : "no")</td>
+                                                    <td>@field.KeyboardKey</td>
+                                                    <td>@field.GamepadButton</td>
+                                                </tr>
+                                            }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </article>
+                            }
+                        </details>
                         <p class="wide council-role-policy-help">@RolePolicyExplanation(role) @RolePerformanceExplanation(role) @RoleBoundaryExplanation(role) @RoleLanguageExplanation(role) @RoleCoordinationExplanation(role)</p>
                         <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveRole(roleIndex)">Remove role</button>
                     </article>
@@ -182,7 +251,7 @@
                 <header>
                     <div>
                         <h2>Rounds and workflow</h2>
-                        <p>Each enabled step is a council round. Its role name links to the matching role policy above. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
+                        <p>Each enabled step is a council round. Its role name links to the matching role policy above. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{RuntimeClasses}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddWorkflowStep">Add round</button>
                 </header>
@@ -235,6 +304,13 @@
                                 <span>Loop completion marker (optional)</span>
                                 <input class="form-control" @bind="step.LoopCompletionMarker" placeholder="Example: [[TOURNAMENT_COMPLETE]]" disabled="@(string.IsNullOrWhiteSpace(step.LoopGroup))" />
                             </label>
+                            @if (step.ProducesAsciiFrame)
+                            {
+                                <label><span>ASCII frame width</span><input class="form-control" type="number" min="20" max="240" @bind="step.AsciiFrameWidth" /></label>
+                                <label><span>ASCII frame height</span><input class="form-control" type="number" min="8" max="120" @bind="step.AsciiFrameHeight" /></label>
+                                <label><span>World step scale</span><input class="form-control" type="number" min="1" max="1000" @bind="step.WorldStepScale" /></label>
+                                <div class="wide alert alert-info mb-0">Exactly one AI must own the complete frame. Use LeaderSingle, RoundRobinSingle or AssignedModelSingle and emit <code>[[ASCII_FRAME]]...[[/ASCII_FRAME]]</code>.</div>
+                            }
                             <label class="wide"><span>Round prompt</span><textarea class="form-control council-script" rows="7" @bind="step.PromptTemplate"></textarea></label>
                         </div>
                         <div class="council-step-options">
@@ -243,6 +319,7 @@
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesFinalAnswer" /><span>Can become final answer</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.RequiresHumanCheckpoint" /><span>Respect human gate before round</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.CanUseOrganicFunctions" /><span>Allow DX/organic function requests</span></label>
+                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesAsciiFrame" /><span>Produces one AI-owned ASCII frame</span></label>
                         </div>
                     </article>
                 }
@@ -268,8 +345,8 @@
             <div class="council-team-savebar">
                 <span class="council-expanded-count">@EnabledRoundCount enabled step(s), up to @ExpandedRoundCount expanded round(s)</span>
                 <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_editor.IsEnabled" /><span>Enabled</span></label>
-                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_confirmed" /><span>I reviewed this social structure and its prompts</span></label>
-                <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@(_busy || !_confirmed)">Save reviewed team</button>
+                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_confirmed" @bind:after="ReviewConfirmationChanged" /><span>I reviewed this social structure and its prompts</span></label>
+                <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@_busy">Save reviewed team</button>
             </div>
         </section>
     </section>
@@ -315,6 +392,8 @@
         (CouncilRoleLanguageMode.English, "English")
     ];
     private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
+    private IReadOnlyList<CouncilRuntimeClassDefinition> _runtimeClasses = [];
+    private IReadOnlyList<DxAiFunctionCatalogEntry> _dxFunctions = [];
     private OrganicCouncilTeamDefinition _editor = new();
     private string _selectedKey = string.Empty;
     private string _rolesJson = "[]";
@@ -328,6 +407,12 @@
 
     private int EnabledRoundCount => _editor.WorkflowSteps.Count(step => step.IsEnabled);
     private int ExpandedRoundCount => CalculateExpandedRoundCount(_editor.WorkflowSteps);
+    private IEnumerable<DxAiFunctionCatalogEntry> AvailableDxFunctions => _dxFunctions
+        .Where(entry => entry.IsAvailable && entry.IsEnabled && !string.IsNullOrWhiteSpace(entry.FunctionName));
+    private HashSet<string> RecommendedRuntimeFunctions => _runtimeClasses
+        .Where(runtimeClass => _editor.Roles.Any(role => role.RuntimeClassKeys.Contains(runtimeClass.Key, StringComparer.OrdinalIgnoreCase)))
+        .SelectMany(runtimeClass => runtimeClass.RecommendedDxFunctions)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
@@ -336,6 +421,8 @@
         _busy = true;
         try
         {
+            _runtimeClasses = await RuntimeClasses.GetDefinitionsAsync(includeDisabled: true);
+            _dxFunctions = await FunctionCatalog.GetEntriesAsync();
             _teams = await TeamConfigurations.GetTeamsAsync(includeDisabled: true);
             var selected = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
             if (selected is not null)
@@ -525,6 +612,12 @@
             role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;
             role.MatchAiParticipantCountToRole = role.MatchAiParticipantCountToRole?.Trim() ?? string.Empty;
             role.PairedRole = role.PairedRole?.Trim() ?? string.Empty;
+            role.RuntimeClassKeys ??= [];
+            role.RuntimeClassKeys = role.RuntimeClassKeys
+                .Select(value => value?.Trim().ToLowerInvariant() ?? string.Empty)
+                .Where(value => value.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         for (var index = 0; index < _editor.WorkflowSteps.Count; index++)
@@ -538,6 +631,9 @@
                 ? 1
                 : Math.Clamp(step.MaximumLoopIterations, 1, 100);
             step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
+            step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
+            step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
+            step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
         }
     }
 
@@ -569,6 +665,14 @@
 
     private async Task SaveAsync()
     {
+        if (!_confirmed)
+        {
+            _status = "Review the team and check the confirmation box before saving.";
+            _hasError = true;
+            Notifier.ShowWarning(nameof(CouncilTeams), _status, "Review required");
+            return;
+        }
+
         _busy = true;
         try
         {
@@ -603,6 +707,60 @@
         }
     }
 
+
+    private void ReviewConfirmationChanged()
+    {
+        _status = _confirmed
+            ? "Review confirmed. The Save reviewed team button is ready."
+            : "Review confirmation cleared.";
+        _hasError = false;
+    }
+
+    private void TogglePreferredCapability(string functionName, ChangeEventArgs args)
+    {
+        _editor.PreferredCapabilities ??= [];
+        var enabled = args.Value is bool value && value;
+        _editor.PreferredCapabilities.RemoveAll(item => string.Equals(item, functionName, StringComparison.OrdinalIgnoreCase));
+        if (enabled)
+            _editor.PreferredCapabilities.Add(functionName);
+        _editor.PreferredCapabilities = _editor.PreferredCapabilities
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _capabilitiesJson = Serialize(_editor.PreferredCapabilities);
+        _confirmed = false;
+    }
+
+    private static string FunctionNamespace(DxAiFunctionCatalogEntry entry)
+    {
+        var name = entry.FunctionName?.Trim() ?? string.Empty;
+        var separator = name.LastIndexOf('.');
+        return separator > 0 ? name[..separator] : entry.Kind;
+    }
+
+    private void ToggleRuntimeClass(int roleIndex, string key, ChangeEventArgs args)
+    {
+        if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
+            return;
+        var role = _editor.Roles[roleIndex];
+        role.RuntimeClassKeys ??= [];
+        var enabled = args.Value is bool value && value;
+        role.RuntimeClassKeys.RemoveAll(item => string.Equals(item, key, StringComparison.OrdinalIgnoreCase));
+        if (enabled)
+            role.RuntimeClassKeys.Add(key);
+        role.RuntimeClassKeys = role.RuntimeClassKeys
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _confirmed = false;
+    }
+
+    private IReadOnlyList<CouncilRuntimeClassDefinition> RuntimeClassesFor(OrganicCouncilRoleDefinition role) =>
+        _runtimeClasses
+            .Where(item => role.RuntimeClassKeys.Contains(item.Key, StringComparer.OrdinalIgnoreCase))
+            .OrderBy(item => item.Namespace, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private OrganicCouncilRoleDefinition? FindRolePolicy(string? roleName) =>
         _editor.Roles.FirstOrDefault(role =>

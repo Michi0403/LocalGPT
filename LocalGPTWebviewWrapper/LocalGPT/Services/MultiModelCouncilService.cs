@@ -1993,7 +1993,8 @@ namespace LocalGPT.Services
                 team.Roles.Select(role =>
                     $"- {role.Role}: {role.Expertise}. Responsibility: {role.Responsibility}. " +
                     $"AI assignment: {DescribeConfiguredRoleAiPolicy(role)}. Human participation: {role.HumanParticipationMode}. " +
-                    $"Performance: {role.PerformanceMode}. Boundary: {role.BoundaryMode}. Language: {role.LanguageMode}."));
+                    $"Performance: {role.PerformanceMode}. Boundary: {role.BoundaryMode}. Language: {role.LanguageMode}. " +
+                    $"Runtime classes: {(role.RuntimeClassKeys.Count == 0 ? "none" : string.Join(", ", role.RuntimeClassKeys))}."));
             var boundedTranscript = transcript.Length <= 160000 ? transcript : transcript[^160000..];
             var boundedPreviousStep = previousStep.Length <= 80000 ? previousStep : previousStep[^80000..];
             var roleMembers = roleAssignment.AiParticipants.Count == 0
@@ -2001,6 +2002,9 @@ namespace LocalGPT.Services
                 : string.Join(", ", roleAssignment.AiParticipants);
             var roleExpertise = roleAssignment.Definition?.Expertise ?? string.Empty;
             var roleResponsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
+            var runtimeClasses = roleAssignment.Definition?.RuntimeClassKeys is { Count: > 0 } keys
+                ? string.Join(", ", keys)
+                : "No runtime classes are assigned to this role.";
             var performanceMode = roleAssignment.Definition?.PerformanceMode ?? CouncilRolePerformanceMode.TaskSpecialist;
             var boundaryMode = roleAssignment.Definition?.BoundaryMode ?? CouncilRoleBoundaryMode.Bounded;
             var languageMode = roleAssignment.Definition?.LanguageMode ?? CouncilRoleLanguageMode.ModelChoice;
@@ -2040,6 +2044,7 @@ namespace LocalGPT.Services
                 .Replace("{{HumanParticipationInstruction}}", humanParticipationInstruction, StringComparison.Ordinal)
                 .Replace("{{RoleExpertise}}", roleExpertise, StringComparison.Ordinal)
                 .Replace("{{RoleResponsibility}}", roleResponsibility, StringComparison.Ordinal)
+                .Replace("{{RuntimeClasses}}", runtimeClasses, StringComparison.Ordinal)
                 .Replace("{{PairedParticipant}}", pairedParticipants, StringComparison.Ordinal)
                 .Replace("{{PairedRole}}", pairedRole, StringComparison.Ordinal)
                 .Replace("{{RolePairings}}", rolePairingSummary, StringComparison.Ordinal)

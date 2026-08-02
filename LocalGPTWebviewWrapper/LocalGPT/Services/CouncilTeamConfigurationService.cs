@@ -16,7 +16,7 @@ public sealed class CouncilTeamConfigurationService(
     IOrganicCouncilBlueprintSeedDataService seedData,
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
-    private const int CurrentSeedVersion = 10;
+    private const int CurrentSeedVersion = 11;
     private const int MaxRoles = 100;
     private const int MaxWorkflowSteps = 100;
     private const int MaxExpandedWorkflowSteps = 100;
@@ -216,6 +216,12 @@ Original user request:
             role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;
             role.MatchAiParticipantCountToRole = role.MatchAiParticipantCountToRole?.Trim() ?? string.Empty;
             role.PairedRole = role.PairedRole?.Trim() ?? string.Empty;
+            role.RuntimeClassKeys ??= [];
+            role.RuntimeClassKeys = role.RuntimeClassKeys
+                .Select(value => value?.Trim().ToLowerInvariant() ?? string.Empty)
+                .Where(value => value.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, MaxAiParticipantsPerRole);
             role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, role.MinimumAiParticipants, MaxAiParticipantsPerRole);
         }
@@ -229,6 +235,11 @@ Original user request:
                 ? 1
                 : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
             step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
+            step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
+            step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
+            step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
+            if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequential")
+                step.ExecutionMode = "LeaderSingle";
         }
         NormalizeLoopGroups(team.WorkflowSteps);
         team.WorkflowSteps = team.WorkflowSteps.OrderBy(step => step.SortOrder).ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase).ToList();
@@ -265,6 +276,12 @@ Original user request:
             role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;
             role.MatchAiParticipantCountToRole = role.MatchAiParticipantCountToRole?.Trim() ?? string.Empty;
             role.PairedRole = role.PairedRole?.Trim() ?? string.Empty;
+            role.RuntimeClassKeys ??= [];
+            role.RuntimeClassKeys = role.RuntimeClassKeys
+                .Select(value => value?.Trim().ToLowerInvariant() ?? string.Empty)
+                .Where(value => value.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             if (!Enum.IsDefined(typeof(CouncilRoleAiSelectionMode), role.AiSelectionMode))
                 role.AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected;
@@ -345,6 +362,11 @@ Original user request:
                 ? 1
                 : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
             step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
+            step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
+            step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
+            step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
+            if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequential")
+                throw new InvalidOperationException($"ASCII frame step '{step.DisplayName}' must use a single-member execution mode so one AI owns the complete frame.");
             if (string.IsNullOrWhiteSpace(step.LoopGroup) && !string.IsNullOrWhiteSpace(step.LoopCompletionMarker))
                 throw new InvalidOperationException($"Workflow step '{step.DisplayName}' defines a loop completion marker without a loop group.");
         }

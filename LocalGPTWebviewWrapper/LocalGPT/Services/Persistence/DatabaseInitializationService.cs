@@ -303,7 +303,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.0.1",
+                CurrentVersion = "2.0.2",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -316,7 +316,7 @@ public sealed class DatabaseInitializationService(
             // Lossless upgrade: only fill empty built-in fields and never replace user-maintained values.
             if (string.IsNullOrWhiteSpace(core.RootPath)) core.RootPath = repositoryRoot;
             if (string.IsNullOrWhiteSpace(core.Purpose)) core.Purpose = "Human-guided, humanitarian self-development of LocalGPT.";
-            if (string.IsNullOrWhiteSpace(core.CurrentVersion) || core.CurrentVersion is "0.1.0" or "0.1.7" or "0.1.8" or "2.0.0") core.CurrentVersion = "2.0.1";
+            if (string.IsNullOrWhiteSpace(core.CurrentVersion) || core.CurrentVersion is "0.1.0" or "0.1.7" or "0.1.8" or "2.0.0" or "2.0.1") core.CurrentVersion = "2.0.2";
             core.IsArchived = false;
             core.UpdatedAtUtc = now;
         }
@@ -334,6 +334,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.0.1", repositoryRoot, "Build-fix release for the unified LocalGPT and PublisherStudio organic suite; retains packaged 1-Wire contracts, configurable introductions, time/state diagnostics and frontend-authoritative paired workflows.");
         EnsureRevision(core, "main", "seed-v2.0.1", repositoryRoot,
             "Version 2 organic-suite seed. Retains prior project history while adding protocol-package, pairing, introduction and state-awareness requirements.");
+        EnsureVersion(core, "2.0.2", repositoryRoot, "Runtime-class and configuration release with AI-owned ASCII frames, source-informed game presets, grouped DXFunction editing and responsive structured-text streaming.");
+        EnsureRevision(core, "main", "seed-v2.0.2", repositoryRoot,
+            "Adds database-backed Council runtime-class definitions, ASCII DOOM and Green Dragon configuration examples, runtime input metadata, and bounded renderer work during live Council streams.");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",

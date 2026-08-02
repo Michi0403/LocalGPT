@@ -35,6 +35,7 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<ProjectOrganicSkillLink> ProjectOrganicSkillLinks => Set<ProjectOrganicSkillLink>();
         public DbSet<CouncilMemberOrganicSkillLink> CouncilMemberOrganicSkillLinks => Set<CouncilMemberOrganicSkillLink>();
         public DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations => Set<CouncilTeamConfiguration>();
+        public DbSet<CouncilRuntimeClassConfiguration> CouncilRuntimeClassConfigurations => Set<CouncilRuntimeClassConfiguration>();
         public DbSet<ProjectWorkspaceRoot> ProjectWorkspaceRoots => Set<ProjectWorkspaceRoot>();
         public DbSet<ProjectCompilerInstallation> ProjectCompilerInstallations => Set<ProjectCompilerInstallation>();
         public DbSet<LocalGptProjectTrackedFile> LocalGptProjectTrackedFiles => Set<LocalGptProjectTrackedFile>();
@@ -498,6 +499,23 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.ResultSummary).HasMaxLength(8000).IsRequired();
                 entity.HasIndex(item => item.ApprovalRequestId).IsUnique();
                 entity.HasIndex(item => new { item.CouncilRunId, item.Status, item.CreatedAtUtc });
+            });
+
+            modelBuilder.Entity<CouncilRuntimeClassConfiguration>(entity =>
+            {
+                entity.ToTable("CouncilRuntimeClassConfigurations");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Key).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Namespace).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.Kind).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.Description).IsRequired();
+                entity.Property(item => item.FieldsJson).IsRequired();
+                entity.Property(item => item.InputBindingsJson).IsRequired();
+                entity.Property(item => item.RecommendedDxFunctionsJson).IsRequired();
+                entity.Property(item => item.SourceReferencesJson).IsRequired();
+                entity.HasIndex(item => item.Key).IsUnique();
+                entity.HasIndex(item => new { item.Namespace, item.Kind, item.IsEnabled });
             });
 
             modelBuilder.Entity<ProjectWorkspaceRoot>(entity =>

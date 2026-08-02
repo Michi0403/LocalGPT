@@ -2086,6 +2086,10 @@ Common examples:
   localgpt-setup --pull-models --range RTX3060
   localgpt-setup --install-localgpt --force-delete
   localgpt-setup --setup-learning-base --repo Michi0403/LocalGPT --force-delete
+  localgpt-setup --setup-learning-base --repo id-Software/DOOM
+  localgpt-setup --setup-learning-base --repo lotgd/lotgd
+  localgpt-setup --setup-learning-base --repo php/doc-en
+  localgpt-setup --setup-learning-base --repo llvm/llvm-project
   localgpt-setup --import-recommended --force-delete
   localgpt-setup --all --range Slim --force-delete
 
@@ -2096,7 +2100,7 @@ Options:
   --install-localgpt         Download and install latest LocalGPT Windows release.
   --setup-learning-base      Prepare/import repositories into the learning base path.
   --import-recommended       Import the hardcoded recommended repository list.
-  --repo <owner/repo>         Import one extra GitHub repository. Can be repeated.
+  --repo <owner/repo>         Import one user-selected GitHub repository. Can be repeated; nothing in these examples is pulled automatically.
   --learnbase <path>          Learning base target path. Default: C:\learnbaseforlocalgpt.
   --start-localgpt           Start LocalGPT.exe from %LOCALAPPDATA%\LocalGPT.
   --localgpt-zip <path>      Override LocalGPT ZIP download path.

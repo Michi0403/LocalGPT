@@ -73,6 +73,7 @@ public sealed class OrganicCouncilRoleDefinition
     public string DistinctAiAssignmentGroup { get; set; } = string.Empty;
     public string MatchAiParticipantCountToRole { get; set; } = string.Empty;
     public string PairedRole { get; set; } = string.Empty;
+    public List<string> RuntimeClassKeys { get; set; } = [];
 }
 
 public class ProjectOrganicContext
@@ -118,6 +119,10 @@ public sealed class CouncilWorkflowStepDefinition
     public bool IsEnabled { get; set; } = true;
     public bool RequiresHumanCheckpoint { get; set; }
     public bool CanUseOrganicFunctions { get; set; } = true;
+    public bool ProducesAsciiFrame { get; set; }
+    public int AsciiFrameWidth { get; set; } = 80;
+    public int AsciiFrameHeight { get; set; } = 25;
+    public int WorldStepScale { get; set; } = 1;
 }
 
 public sealed class CouncilTeamConfiguration

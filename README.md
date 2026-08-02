@@ -227,3 +227,12 @@ See [`docs/PROJECT_IDENTITY.md`](docs/PROJECT_IDENTITY.md).
 Use it, inspect it, fork it, improve it, or build something entirely different from it.
 
 </div>
+
+## LocalGPT 2.0.2 runtime-class game examples
+
+The Council Team editor now includes database-backed runtime classes and categorized best-use DXFunctions. Two opt-in configuration examples demonstrate the intended architecture without replacing the existing Council engine:
+
+- **ASCII DOOM Council Adventure** — a deliberately slow terminal simulation where one Council turn advances one meaningful world step and one AI member creates the complete ASCII frame.
+- **Green Dragon Runtime Story** — locations, houses, NPCs, events, player state, and scene frames are separate bounded runtime-class instances coordinated by directors.
+
+See [`docs/ASCII_RUNTIME_GAME_PRESETS.md`](docs/ASCII_RUNTIME_GAME_PRESETS.md) for the frame contract, role ownership, optional learning sources, and runtime-field behavior.

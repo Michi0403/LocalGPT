@@ -17,6 +17,10 @@
         <div class="dx-catalog-actions">
             <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
             <button type="button" class="btn btn-primary" @onclick="SynchronizeAsync" disabled="@_busy">Synchronize runtime catalog</button>
+            @if (_viewMode == "Grid")
+            {
+                <button type="button" class="btn btn-outline-primary" @onclick="SaveVisibleAsync" disabled="@_busy">Save visible/edited grid policies</button>
+            }
         </div>
     </header>
 
@@ -42,64 +46,145 @@
             <input class="form-check-input" type="checkbox" @bind="_onlyExposed" />
             <span>Only exposed to 1-Wire</span>
         </label>
+        <label>
+            <span>View</span>
+            <select class="form-select" @bind="_viewMode">
+                <option value="Cards">Cards</option>
+                <option value="Grid">Mass-edit DXGrid</option>
+            </select>
+        </label>
+        <label class="form-check dx-inline-check">
+            <input class="form-check-input" type="checkbox" @bind="_groupCardsByNamespace" disabled="@(_viewMode != "Cards")" />
+            <span>Group cards by namespace</span>
+        </label>
     </section>
 
-    <section class="dx-catalog-grid" aria-busy="@_busy">
-        @foreach (var entry in FilteredEntries)
+    @if (_viewMode == "Grid")
+    {
+        <section class="dx-catalog-mass-grid" aria-busy="@_busy">
+            <DxGrid Data="@FilteredEntriesList"
+                    KeyFieldName="@nameof(DxAiFunctionCatalogEntry.CatalogKey)"
+                    PageSize="25"
+                    ShowFilterRow="true"
+                    HighlightRowOnHover="true"
+                    CssClass="dx-function-grid">
+                <Columns>
+                    <DxGridDataColumn FieldName="@nameof(DxAiFunctionCatalogEntry.DisplayName)" Caption="Function" MinWidth="220" />
+                    <DxGridDataColumn FieldName="@nameof(DxAiFunctionCatalogEntry.FunctionName)" Caption="Runtime name" MinWidth="220" />
+                    <DxGridDataColumn FieldName="@nameof(DxAiFunctionCatalogEntry.Kind)" Caption="Kind" Width="150px" />
+                    <DxGridDataColumn FieldName="@nameof(DxAiFunctionCatalogEntry.Purpose)" Caption="Purpose" MinWidth="300" />
+                    <DxGridDataColumn Caption="Enabled" Width="95px">
+                        <CellDisplayTemplate Context="cell">
+                            @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
+                            <input class="form-check-input" type="checkbox" @bind="entry.IsEnabled" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="AI chat" Width="95px">
+                        <CellDisplayTemplate Context="cell">
+                            @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
+                            <input class="form-check-input" type="checkbox" @bind="entry.ExposeToAiChat" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="1-Wire" Width="95px">
+                        <CellDisplayTemplate Context="cell">
+                            @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
+                            <input class="form-check-input" type="checkbox" @bind="entry.ExposeToOneWire" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="Remote" Width="95px">
+                        <CellDisplayTemplate Context="cell">
+                            @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
+                            <input class="form-check-input" type="checkbox" @bind="entry.AllowRemoteInvocation" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="Frontend" Width="105px">
+                        <CellDisplayTemplate Context="cell">
+                            @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
+                            <input class="form-check-input" type="checkbox" @bind="entry.RequiresFrontendConfirmation" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="Action" Width="105px">
+                        <CellDisplayTemplate Context="cell">
+                            @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => SaveAsync(entry)" @onclick:stopPropagation="true" disabled="@_busy">Save</button>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                </Columns>
+            </DxGrid>
+        </section>
+    }
+    else
+    {
+        @foreach (var group in CardGroups)
         {
-            <article class="dx-catalog-card @(entry.ExposeToOneWire ? "is-exposed" : string.Empty)">
-                <header>
-                    <div>
-                        <strong>@entry.DisplayName</strong>
-                        <small>@entry.Kind · @entry.FunctionName</small>
-                    </div>
-                    <span class="badge @(entry.IsAvailable ? "text-bg-success" : "text-bg-secondary")">@(entry.IsAvailable ? "available" : "missing")</span>
-                </header>
-                <p>@entry.Purpose</p>
-                <details>
-                    <summary>Runtime contract</summary>
-                    <dl>
-                        <dt>Route</dt><dd>@entry.Method @entry.Route</dd>
-                        <dt>Source</dt><dd>@entry.Source</dd>
-                        <dt>Catalog key</dt><dd><code>@entry.CatalogKey</code></dd>
-                        <dt>Parameters</dt><dd><pre>@entry.ParameterSchemaJson</pre></dd>
-                    </dl>
-                </details>
-                <div class="dx-policy-grid">
-                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.IsEnabled" /><span>Enabled</span></label>
-                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.ExposeToAiChat" /><span>Reveal to AI chat</span></label>
-                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.ExposeToOneWire" /><span>Reveal to linked app</span></label>
-                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.AllowRemoteInvocation" /><span>Allow linked invocation</span></label>
-                    <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.RequiresFrontendConfirmation" /><span>Require this frontend</span></label>
-                    <label>
-                        <span>Frontend editor</span>
-                        <select class="form-select" @bind="entry.InteractionEditor">
-                            @foreach (var editor in Enum.GetValues<OneWireInteractionEditor>())
-                            {
-                                <option value="@editor">@editor</option>
-                            }
-                        </select>
-                    </label>
-                    <label class="wide">
-                        <span>Allowed peer IDs JSON (empty array = any explicitly connected peer)</span>
-                        <input class="form-control" @bind="entry.AllowedPeerIdsJson" />
-                    </label>
+            <section class="dx-catalog-namespace-group">
+                @if (_groupCardsByNamespace)
+                {
+                    <h2>@group.Key</h2>
+                }
+                <div class="dx-catalog-grid" aria-busy="@_busy">
+                    @foreach (var entry in group)
+                    {
+                        <article class="dx-catalog-card @(entry.ExposeToOneWire ? "is-exposed" : string.Empty)">
+                            <header>
+                                <div>
+                                    <strong>@entry.DisplayName</strong>
+                                    <small>@entry.Kind · @entry.FunctionName</small>
+                                </div>
+                                <span class="badge @(entry.IsAvailable ? "text-bg-success" : "text-bg-secondary")">@(entry.IsAvailable ? "available" : "missing")</span>
+                            </header>
+                            <p>@entry.Purpose</p>
+                            <details>
+                                <summary>Runtime contract</summary>
+                                <dl>
+                                    <dt>Namespace</dt><dd>@FunctionNamespace(entry)</dd>
+                                    <dt>Route</dt><dd>@entry.Method @entry.Route</dd>
+                                    <dt>Source</dt><dd>@entry.Source</dd>
+                                    <dt>Catalog key</dt><dd><code>@entry.CatalogKey</code></dd>
+                                    <dt>Parameters</dt><dd><pre>@entry.ParameterSchemaJson</pre></dd>
+                                </dl>
+                            </details>
+                            <div class="dx-policy-grid">
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.IsEnabled" /><span>Enabled</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.ExposeToAiChat" /><span>Reveal to AI chat</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.ExposeToOneWire" /><span>Reveal to linked app</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.AllowRemoteInvocation" /><span>Allow linked invocation</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.RequiresFrontendConfirmation" /><span>Require this frontend</span></label>
+                                <label>
+                                    <span>Frontend editor</span>
+                                    <select class="form-select" @bind="entry.InteractionEditor">
+                                        @foreach (var editor in Enum.GetValues<OneWireInteractionEditor>())
+                                        {
+                                            <option value="@editor">@editor</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label class="wide">
+                                    <span>Allowed peer IDs JSON (empty array = any explicitly connected peer)</span>
+                                    <input class="form-control" @bind="entry.AllowedPeerIdsJson" />
+                                </label>
+                            </div>
+                            <footer>
+                                <span>@(entry.RequiresFrontendConfirmation ? "Receiving frontend is authoritative" : "May run under saved user policy")</span>
+                                <button type="button" class="btn btn-outline-primary" @onclick="() => SaveAsync(entry)" disabled="@_busy">Save policy</button>
+                            </footer>
+                        </article>
+                    }
                 </div>
-                <footer>
-                    <span>@(entry.RequiresFrontendConfirmation ? "Receiving frontend is authoritative" : "May run under saved user policy")</span>
-                    <button type="button" class="btn btn-outline-primary" @onclick="() => SaveAsync(entry)" disabled="@_busy">Save policy</button>
-                </footer>
-            </article>
+            </section>
         }
-    </section>
+    }
 </main>
 
 @code {
     private List<DxAiFunctionCatalogEntry> _entries = [];
+    private readonly HashSet<string> _dirtyGridCatalogKeys = new(StringComparer.OrdinalIgnoreCase);
     private string _filter = string.Empty;
     private string _kindFilter = string.Empty;
     private string _status = string.Empty;
     private bool _onlyExposed;
+    private bool _groupCardsByNamespace = true;
+    private string _viewMode = "Cards";
     private bool _busy;
     private bool _hasError;
 
@@ -111,8 +196,16 @@
             entry.FunctionName.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
             entry.Purpose.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
             entry.Route.Contains(_filter, StringComparison.OrdinalIgnoreCase))
-        .OrderBy(entry => entry.Kind)
+        .OrderBy(entry => FunctionNamespace(entry), StringComparer.OrdinalIgnoreCase)
+        .ThenBy(entry => entry.Kind)
         .ThenBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<DxAiFunctionCatalogEntry> FilteredEntriesList => FilteredEntries.ToList();
+
+    private IEnumerable<IGrouping<string, DxAiFunctionCatalogEntry>> CardGroups =>
+        FilteredEntries.GroupBy(
+            entry => _groupCardsByNamespace ? FunctionNamespace(entry) : "All functions",
+            StringComparer.OrdinalIgnoreCase);
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
@@ -122,6 +215,7 @@
         try
         {
             _entries = (await Catalog.GetEntriesAsync()).Select(Clone).ToList();
+            _dirtyGridCatalogKeys.Clear();
             _status = $"Loaded {_entries.Count} database-backed function and service policies.";
             _hasError = false;
             Notifier.ShowInfo(nameof(DxFunctionCatalog), _status, "DX function catalog");
@@ -142,6 +236,7 @@
         try
         {
             _entries = (await Catalog.SynchronizeAsync()).Select(Clone).ToList();
+            _dirtyGridCatalogKeys.Clear();
             _status = $"Synchronized {_entries.Count} runtime descriptors. Existing user exposure and confirmation choices were preserved.";
             _hasError = false;
             Notifier.ShowSuccess(nameof(DxFunctionCatalog), _status, "Catalog synchronized");
@@ -175,6 +270,7 @@
             });
             var index = _entries.FindIndex(item => item.CatalogKey == saved.CatalogKey);
             if (index >= 0) _entries[index] = Clone(saved);
+            _dirtyGridCatalogKeys.Remove(saved.CatalogKey);
             _status = $"Saved policy for {saved.DisplayName}.";
             _hasError = false;
             Notifier.ShowSuccess(nameof(DxFunctionCatalog), _status, "Policy saved");
@@ -187,6 +283,74 @@
             Notifier.ShowError(nameof(DxFunctionCatalog), ex.Message, "DX function catalog");
         }
         finally { _busy = false; }
+    }
+
+    private async Task SaveVisibleAsync()
+    {
+        var visible = FilteredEntriesList
+            .Concat(_entries.Where(entry => _dirtyGridCatalogKeys.Contains(entry.CatalogKey)))
+            .GroupBy(entry => entry.CatalogKey, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+        if (visible.Count == 0)
+        {
+            _status = "No visible policies to save.";
+            _hasError = false;
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            for (var index = 0; index < visible.Count; index++)
+            {
+                var entry = visible[index];
+                var saved = await Catalog.SavePolicyAsync(new DxAiFunctionCatalogSaveRequest
+                {
+                    CatalogKey = entry.CatalogKey,
+                    IsEnabled = entry.IsEnabled,
+                    ExposeToAiChat = entry.ExposeToAiChat,
+                    ExposeToOneWire = entry.ExposeToOneWire,
+                    AllowRemoteInvocation = entry.AllowRemoteInvocation,
+                    RequiresFrontendConfirmation = entry.RequiresFrontendConfirmation,
+                    InteractionEditor = entry.InteractionEditor,
+                    AllowedPeerIdsJson = entry.AllowedPeerIdsJson,
+                    UpdatedBy = "LocalGPT frontend mass edit"
+                });
+                var sourceIndex = _entries.FindIndex(item => item.CatalogKey == saved.CatalogKey);
+                if (sourceIndex >= 0)
+                    _entries[sourceIndex] = Clone(saved);
+            }
+            foreach (var entry in visible)
+                _dirtyGridCatalogKeys.Remove(entry.CatalogKey);
+            _status = $"Saved {visible.Count} visible or edited function policies from the DXGrid.";
+            _hasError = false;
+            Notifier.ShowSuccess(nameof(DxFunctionCatalog), _status, "DXGrid policies saved");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not save the visible DX function policies as a mass edit.");
+            _status = ex.Message;
+            _hasError = true;
+            Notifier.ShowError(nameof(DxFunctionCatalog), ex.Message, "DXGrid save failed");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void MarkGridEntryDirty(DxAiFunctionCatalogEntry entry)
+    {
+        if (!string.IsNullOrWhiteSpace(entry.CatalogKey))
+            _dirtyGridCatalogKeys.Add(entry.CatalogKey);
+    }
+
+    private static string FunctionNamespace(DxAiFunctionCatalogEntry entry)
+    {
+        var name = entry.FunctionName?.Trim() ?? string.Empty;
+        var separator = name.LastIndexOf('.');
+        return separator > 0 ? name[..separator] : entry.Kind;
     }
 
     private DxAiFunctionCatalogEntry Clone(DxAiFunctionCatalogEntry entry) => new()
