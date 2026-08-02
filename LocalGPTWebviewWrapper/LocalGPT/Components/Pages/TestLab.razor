@@ -362,7 +362,7 @@
         return RunRemoteKnowledgeAsync(previewOnly: false);
     }
 
-    private Task RunRemoteKnowledgeAsync(bool previewOnly) => RunUiActionAsync(async () =>
+    private async Task RunRemoteKnowledgeAsync(bool previewOnly) => await RunUiActionAsync(async () =>
     {
         statusText = previewOnly ? "Inspecting remote source and returned files..." : "Importing reviewed remote source...";
         remoteImportResult = await RemoteKnowledgeImporter.ImportAsync(new RemoteKnowledgeImportRequest
