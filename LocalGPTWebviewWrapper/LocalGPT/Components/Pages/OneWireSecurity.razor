@@ -138,12 +138,12 @@
                 "localGptOneWireSecurity.renderQr",
                 "localgpt-security-otp-qr",
                 _otpUri,
-                "LocalGPT Authenticator enrollment").ConfigureAwait(false);
+                "LocalGPT Authenticator enrollment").ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             await JS.InvokeVoidAsync(
                 "localGptOneWireSecurity.renderQr",
                 "localgpt-security-ticket-qr",
                 _pairingTicketJson,
-                "LocalGPT public 1-Wire pairing ticket").ConfigureAwait(false);
+                "LocalGPT public 1-Wire pairing ticket").ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             Logger.LogDebug("Rendered current 1-Wire pairing QR material.");
         }
         catch (OperationCanceledException) when (isDisposed)
@@ -227,8 +227,12 @@
     private async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         var state = await LoadSecurityStateAsync(cancellationToken).ConfigureAwait(false);
-        _status = state.Status;
-        _trustedPeers = state.TrustedPeers;
+        await InvokeAsync(() =>
+        {
+            _status = state.Status;
+            _trustedPeers = state.TrustedPeers;
+            StateHasChanged();
+        }).ConfigureAwait(false);
     }
 
     private async Task CreateAsync() => await RunAsync(async cancellationToken =>

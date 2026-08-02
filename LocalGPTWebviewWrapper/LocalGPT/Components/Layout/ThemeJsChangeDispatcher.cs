@@ -54,7 +54,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         if (!firstRender)
             return;
 
-        await _changeGate.WaitAsync().ConfigureAwait(true);
+        await _changeGate.WaitAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
         try
         {
             Themes.ThemeChangeRequestDispatcher = this;
@@ -64,12 +64,12 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             Themes.SetActiveShellTheme(fallbackShellTheme);
             Themes.SetActiveComponentTheme(fallbackComponentTheme);
             await DevExpressThemeChangeService
-                .SetTheme(fallbackComponentTheme.DevExpressTheme).ConfigureAwait(true)
+                .SetTheme(fallbackComponentTheme.DevExpressTheme).ConfigureAwait(true) /* renderer-affine lifecycle continuation */
                 ;
 
-            await EnsureModuleAsync().ConfigureAwait(true);
+            await EnsureModuleAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             var browserState = await _module!
-                .InvokeAsync<BrowserThemeState?>("readThemeState").ConfigureAwait(true)
+                .InvokeAsync<BrowserThemeState?>("readThemeState").ConfigureAwait(true) /* renderer-affine lifecycle continuation */
                 ;
 
             var shellTheme = Themes.GetThemeOrDefault(
@@ -80,15 +80,15 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             Themes.SetActiveShellTheme(shellTheme);
             Themes.SetActiveComponentTheme(componentTheme);
             await DevExpressThemeChangeService
-                .SetTheme(componentTheme.DevExpressTheme).ConfigureAwait(true)
+                .SetTheme(componentTheme.DevExpressTheme).ConfigureAwait(true) /* renderer-affine lifecycle continuation */
                 ;
 
             Themes.ReplaceFusionRoute(ConvertBrowserFusionRoute(browserState?.FusionRoute));
             Themes.EnsureFusionRouteSeeded();
-            await PersistFusionRouteAsync().ConfigureAwait(true);
-            await ApplyClientThemeStateAsync().ConfigureAwait(true);
-            await NotifyLoadedAsync(shellTheme, ThemeApplicationTarget.Shell).ConfigureAwait(true);
-            await NotifyLoadedAsync(componentTheme, ThemeApplicationTarget.Components).ConfigureAwait(true);
+            await PersistFusionRouteAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            await ApplyClientThemeStateAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            await NotifyLoadedAsync(shellTheme, ThemeApplicationTarget.Shell).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            await NotifyLoadedAsync(componentTheme, ThemeApplicationTarget.Components).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
 
             ComponentActivity.RecordInformation(
                 nameof(ThemeJsChangeDispatcher),
@@ -113,7 +113,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             _changeGate.Release();
         }
 
-        await base.OnAfterRenderAsync(firstRender).ConfigureAwait(true);
+        await base.OnAfterRenderAsync(firstRender).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
     public async Task RequestThemeChangeAsync(Theme theme, ThemeApplicationTarget target)

@@ -258,15 +258,15 @@
 
     async Task LoadAsync() => await RunAsync(async () =>
     {
-        projectSummaries = (await Projects.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
-        workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList();
-        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
+        projectSummaries = (await Projects.GetProjectsAsync(includeArchived: false).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+        workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+        compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
         if (selectedProjectId is Guid id)
         {
-            selectedProject = await Projects.GetProjectAsync(id).ConfigureAwait(false);
-            trackedFiles = (await Maintenance.GetTrackedFilesAsync(id, selectedRevisionId).ConfigureAwait(false)).ToList();
+            selectedProject = await Projects.GetProjectAsync(id).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(id, selectedRevisionId).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
         }
-    }, T("ProjectMaintenance.LoadFailed", "Could not load project maintenance settings.")).ConfigureAwait(false);
+    }, T("ProjectMaintenance.LoadFailed", "Could not load project maintenance settings.")).ConfigureAwait(true) /* renderer-affine loading continuation */;
 
     async Task SelectProjectAsync()
     {
@@ -318,10 +318,10 @@
         if (selectedProjectId is not Guid projectId) { trackedFiles = []; return; }
         await RunAsync(async () =>
         {
-            trackedFiles = (await Maintenance.GetTrackedFilesAsync(projectId, selectedRevisionId).ConfigureAwait(false)).ToList();
+            trackedFiles = (await Maintenance.GetTrackedFilesAsync(projectId, selectedRevisionId).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
             selectedTrackedFileId = null;
             selectedTrackedFile = null;
-        }, T("ProjectMaintenance.FileMetadataLoadFailed", "Could not load tracked file metadata.")).ConfigureAwait(false);
+        }, T("ProjectMaintenance.FileMetadataLoadFailed", "Could not load tracked file metadata.")).ConfigureAwait(true) /* renderer-affine loading continuation */;
     }
 
     async Task SaveWorkspaceAsync() => await RunAsync(async () =>
@@ -441,10 +441,10 @@
     async Task RunAsync(Func<Task> action, string errorText)
     {
         busy = true;
-        try { await action().ConfigureAwait(false); }
+        try { await action().ConfigureAwait(true) /* renderer-affine loading continuation */; }
         catch (OperationCanceledException) { Logger.LogInformation("Project maintenance UI operation was cancelled."); Notifier.ShowWarning(ToastName, T("Common.Cancelled", "The operation was cancelled."), T("Common.CancelledTitle", "Cancelled")); }
         catch (Exception ex) { Logger.LogError(ex, "Project maintenance UI operation failed; project paths and source content were omitted from logs."); Notifier.ShowError(ToastName, errorText, T("Common.Error", "Error")); }
-        finally { busy = false; await InvokeAsync(StateHasChanged).ConfigureAwait(false); }
+        finally { busy = false; await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */; }
     }
 
     string T(string key, string fallback) => Localization.Get(key, fallback: fallback);

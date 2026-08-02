@@ -111,13 +111,13 @@
     protected override async Task OnInitializedAsync()
     {
         Games.Changed += OnGameChanged;
-        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
+        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
     protected override async Task OnParametersSetAsync()
     {
         if (snapshot is null || (ConversationId is not null && snapshot.ConversationId != ConversationId))
-            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
+            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -125,11 +125,11 @@
         if (!attached)
         {
             reference ??= DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true);
+            await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             attached = true;
         }
         var inputEnabled = snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai };
-        await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true);
+        await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
     private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(false);

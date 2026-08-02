@@ -43,8 +43,21 @@ foreach ($file in $files) {
     $text = [IO.File]::ReadAllText($file.FullName, [Text.Encoding]::UTF8)
     $relative = $file.FullName.Substring($sourceRoot.Length).TrimStart([char[]]@('\', '/')).Replace('\', '/')
 
-    if ($text -match '\.ConfigureAwait\s*\(\s*true\s*\)' -and $text -notmatch 'OnAfterRenderAsync\s*\(') {
-        $failures.Add("$relative contains ConfigureAwait(true) but no OnAfterRenderAsync lifecycle method.")
+    $trueMatches = [regex]::Matches($text, '\.ConfigureAwait\s*\(\s*true\s*\)')
+    foreach ($trueMatch in $trueMatches) {
+        $isComponent = $relative.StartsWith('Components/', [StringComparison]::OrdinalIgnoreCase)
+        $lineStart = $text.LastIndexOf("`n", [Math]::Max(0, $trueMatch.Index - 1)) + 1
+        $lineEnd = $text.IndexOf("`n", $trueMatch.Index)
+        if ($lineEnd -lt 0) { $lineEnd = $text.Length }
+        $lineText = $text.Substring($lineStart, $lineEnd - $lineStart)
+        $hasReviewedMarker = $lineText -match 'renderer-affine (?:lifecycle|loading) continuation'
+        if (-not $isComponent) {
+            $failures.Add("${relative}: ConfigureAwait(true) appears outside Components; context-free application code must use ConfigureAwait(false).")
+        }
+        elseif (-not $hasReviewedMarker) {
+            $line = 1 + ([regex]::Matches($text.Substring(0, $trueMatch.Index), "`n")).Count
+            $failures.Add("${relative}:$line contains ConfigureAwait(true) without an exact renderer-affine lifecycle/loading review marker.")
+        }
     }
 
     $candidate = [regex]::Matches(
@@ -57,11 +70,11 @@ foreach ($file in $files) {
             continue
         }
         $line = 1 + ([regex]::Matches($text.Substring(0, $match.Index), "`n")).Count
-        $failures.Add("$relative:$line contains an await expression without explicit ConfigureAwait(true/false).")
+        $failures.Add("${relative}:$line contains an await expression without explicit ConfigureAwait(true/false).")
     }
 }
 if ($failures.Count -gt 0) {
     foreach ($failure in $failures) { Write-Host "  - $failure" }
     Fail "$($failures.Count) reduced-fallback problem(s). Install Python 3 to run the complete syntax-aware continuation audit."
 }
-Write-Host 'Reduced PowerShell async continuation validation passed; Python 3 enables exact per-await and lifecycle-context validation.'
+Write-Host 'Reduced PowerShell async continuation validation passed; Python 3 enables exact Razor code-block, per-await, lifecycle and renderer-affinity validation.'

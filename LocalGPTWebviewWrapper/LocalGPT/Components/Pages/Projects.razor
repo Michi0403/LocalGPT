@@ -471,18 +471,18 @@
     protected override async Task OnInitializedAsync()
     {
         ResetRequestEditors();
-        await LoadProjectsAsync().ConfigureAwait(false);
+        await LoadProjectsAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
     async Task LoadProjectsAsync()
     {
         await RunUiActionAsync(async () =>
         {
-            ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
+            ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
 
             if (SelectedProject is not null)
-                SelectedProject = await ProjectService.GetProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
-        }, "Load projects").ConfigureAwait(false);
+                SelectedProject = await ProjectService.GetProjectAsync(SelectedProject.Project.Id).ConfigureAwait(true) /* renderer-affine loading continuation */;
+        }, "Load projects").ConfigureAwait(true) /* renderer-affine loading continuation */;
     }
 
     void NewProject()
@@ -687,8 +687,8 @@
 
     async Task RefreshSelectedProjectAsync(Guid projectId)
     {
-        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
-        SelectedProject = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
+        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+        SelectedProject = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(true) /* renderer-affine loading continuation */;
         if (SelectedProject is not null)
         {
             var project = SelectedProject.Project;
@@ -715,7 +715,7 @@
         ComponentActivity.RecordInformation(nameof(Projects), operation, "The project UI operation started.");
         try
         {
-            await action().ConfigureAwait(false);
+            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
             ComponentActivity.RecordInformation(nameof(Projects), operation, "The project UI operation completed.");
         }
         catch (OperationCanceledException)
@@ -733,7 +733,7 @@
         finally
         {
             isBusy = false;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
     }
 }

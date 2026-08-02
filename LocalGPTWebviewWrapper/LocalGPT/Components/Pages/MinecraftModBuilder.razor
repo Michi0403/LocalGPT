@@ -532,7 +532,7 @@
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return string.Empty;
         }
-    } 
+    }
 
     IEnumerable<string> ParseCouncilModels() =>
         councilModels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -556,7 +556,7 @@
             Logger.LogError(ex, "LoadLivingCitiesPrompt failed: {Message} ", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
-       
+
     }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
@@ -566,7 +566,7 @@
         ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation started.");
         try
         {
-            await action().ConfigureAwait(false);
+            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
             ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation completed.");
         }
         catch (OperationCanceledException)

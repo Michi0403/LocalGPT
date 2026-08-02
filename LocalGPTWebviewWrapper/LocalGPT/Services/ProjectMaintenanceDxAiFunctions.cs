@@ -22,7 +22,7 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
     {
         try
         {
-            var binding = json.Bind<ProjectMaintenanceGetParameters>(request.ProjectMaintenanceGetParameters);
+            var binding = json.Bind<ProjectMaintenanceGetParameters>(request.Parameters);
             if (!binding.Succeeded)
                 return json.InvalidParameters(binding.Error);
             var parameters = binding.Value;
@@ -61,7 +61,7 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonSe
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRevisionWorkspaceRegisterParameters>(request.ProjectRevisionWorkspaceRegisterParameters);
+        var binding = json.Bind<ProjectRevisionWorkspaceRegisterParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -88,7 +88,7 @@ public sealed class ScanProjectFilesFunction(IDxAiFunctionJsonService json, IPro
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectFilesScanParameters>(request.ProjectFilesScanParameters);
+        var binding = json.Bind<ProjectFilesScanParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var p = binding.Value;
@@ -110,7 +110,7 @@ public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService jso
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectFilePatternsSaveParameters>(request.ProjectFilePatternsSaveParameters);
+        var binding = json.Bind<ProjectFilePatternsSaveParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -132,7 +132,7 @@ public sealed class VerifyProjectRevisionBuildFunction(IDxAiFunctionJsonService 
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRevisionBuildVerifyParameters>(request.ProjectRevisionBuildVerifyParameters);
+        var binding = json.Bind<ProjectRevisionBuildVerifyParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var p = binding.Value;
@@ -153,7 +153,7 @@ public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonSer
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectCouncilBuildReviewRecordParameters>(request.ProjectCouncilBuildReviewRecordParameters);
+        var binding = json.Bind<ProjectCouncilBuildReviewRecordParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var p = binding.Value;
@@ -174,7 +174,7 @@ public sealed class ApproveProjectRevisionReadyFunction(IDxAiFunctionJsonService
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRevisionApproveParameters>(request.ProjectRevisionApproveParameters);
+        var binding = json.Bind<ProjectRevisionApproveParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var p = binding.Value;

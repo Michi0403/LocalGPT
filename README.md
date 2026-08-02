@@ -263,8 +263,14 @@ Version 2.1.10 prevents the method-diagnostics decorator from wrapping singleton
 
 Version 2.1.10 initially removed explicit `ConfigureAwait(true)` captures and left renderer-owned component awaits implicit. Version 2.1.11 supersedes that continuation policy with explicit configuration on every await expression.
 
-## LocalGPT 2.1.11 explicit async continuation control
+## LocalGPT 2.1.11 explicit async continuation control (superseded)
 
-Every await expression is now explicit and reviewable. Services, controllers, persistence, diagnostics, network operations, background workflows, and component methods that do not require renderer affinity use `ConfigureAwait(false)`. The only explicit `ConfigureAwait(true)` sites are inside `OnAfterRenderAsync`, where the continuation must return to the Blazor renderer before lifecycle-owned UI state is changed.
+Version 2.1.11 made ordinary await expressions explicit and initially limited `ConfigureAwait(true)` to `OnAfterRenderAsync`. That rule was too narrow for renderer-owned initialization and parameter-loading chains. Version 2.1.12 supersedes it with exact lifecycle and individually reviewed helper continuations while retaining `ConfigureAwait(false)` as the application-wide default.
 
-The async architecture audit no longer uses broad per-file allowances. It rejects unconfigured await expressions, rejects `ConfigureAwait(true)` outside `OnAfterRenderAsync`, and rejects `ConfigureAwait(false)` inside that renderer-affine lifecycle method. `await using` remains the language-level asynchronous-disposal construct; an awaited initializer inside it is still explicitly configured. Existing `ConfiguredTaskAwaitable` values remain valid because their continuation policy was already selected by the caller.
+`await using` remains the language-level asynchronous-disposal construct; awaited resource initializers are still explicitly configured. Existing `ConfiguredTaskAwaitable` values remain valid because their continuation policy was already selected by the caller.
+
+## LocalGPT 2.1.12 compiler and renderer-continuation corrections
+
+Version 2.1.12 fixes the `ConfigurationRoot` type-name collision, restores project DXFunction parameter binding to `request.Parameters`, and repairs the Windows PowerShell async-policy fallback. The continuation audit now reads Razor `@code` blocks correctly and requires every ordinary await to choose a continuation policy explicitly.
+
+Context-free service, controller, persistence, networking, diagnostics, and background operations use `ConfigureAwait(false)`. Blazor lifecycle entry points may use `ConfigureAwait(true)`. Additional HTTP, SignalR, and object-domain loading helpers retain the renderer only when their exact file and method name is listed in `build/async-continuation-baseline.json` and their continuation directly applies loaded state to component fields. Background probes that marshal their final state through `InvokeAsync` remain context-free.

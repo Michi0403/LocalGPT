@@ -1,0 +1,25 @@
+LocalGpt(34) static review
+Application version: 2.1.12
+
+Addressed local compiler/build reports
+- AdaptiveOllamaBenchmarkWiring uses global::LocalGPT.BusinessObjects.ConfigurationRoot.
+- Install.razor uses the fully qualified LocalGPT configuration root.
+- Project architecture, debug inspection and project maintenance DXFunctions bind from request.Parameters.
+- Assert-AsyncContinuationPolicy.ps1 uses ${relative}:$line and no longer triggers the Windows PowerShell invalid-variable-reference parser error.
+- OneWireSecurity retains renderer affinity for QR rendering in OnAfterRenderAsync, satisfying the maintained operational-diagnostics contract.
+
+Continuation review
+- The Python audit extracts Razor @code/@functions regions and checks awaits that the previous markup tokenizer could miss.
+- Every ordinary await is explicitly configured.
+- ConfigureAwait(false) is the default for services, controllers, persistence, networking, diagnostics, background work and non-renderer component work.
+- ConfigureAwait(true) is rejected outside Components and is accepted only in OnInitializedAsync, OnParametersSetAsync, OnAfterRenderAsync, or exact renderer-affine loading helper methods listed in build/async-continuation-baseline.json.
+- Current static count: 1,919 await tokens; 1,641 ConfigureAwait(false); 123 reviewed ConfigureAwait(true); 2 preconfigured awaitables; 151 await-using disposals; 2 configured async streams.
+
+Validation available in this environment
+1. python3 build/audit_async_continuations.py --source-root LocalGPTWebviewWrapper/LocalGPT
+2. python3 build/audit_application_architecture.py --root . --product localgpt --mode all
+3. JSON/XML parsing, JavaScript syntax, C#/Razor lexical checks, merge-marker scan, archive hygiene and unzip integrity.
+
+Not available here
+- .NET 10 SDK, DevExpress packages/build targets, Windows PowerShell, Razor generation, EF migration execution and Windows WebView packaging.
+- The user's local Build/Rebuild remains the authoritative compiler validation.

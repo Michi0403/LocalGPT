@@ -28,7 +28,7 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectArchitectureGetParameters>(new ProjectArchitectureGetParameters() { ProjectId = request.ProjectId});
+        var binding = json.Bind<ProjectArchitectureGetParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -70,7 +70,7 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRevisionSaveParameters>(request.ProjectRevisionSaveParameters);
+        var binding = json.Bind<ProjectRevisionSaveParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -103,7 +103,7 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRequirementSaveParameters>(request.ProjectRequirementSaveParameters);
+        var binding = json.Bind<ProjectRequirementSaveParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -136,7 +136,7 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectArtifactSaveParameters>(request.ProjectArtifactSaveParameters);
+        var binding = json.Bind<ProjectArtifactSaveParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;

@@ -2,7 +2,7 @@
 @page "/install"
 @using LocalGPT.BusinessObjects.Enums
 @inject CouncilTextService CouncilText
-@inject IOptionsMonitor<ConfigurationRoot> Opts
+@inject IOptionsMonitor<LocalGPT.BusinessObjects.ConfigurationRoot> Opts
 @inject IConfigurationWriter Writer
 @inject IAiConnectivityProbe Probe
 @inject IOllamaProcessService OllamaProcesses
@@ -400,15 +400,15 @@
         {
             if (firstRender)
             {
-                await RefreshOllamaProcessStatusAsync().ConfigureAwait(true);
-                await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(true);
+                await RefreshOllamaProcessStatusAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "OnAfterRenderAsync failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(OnAfterRenderAsync) " + ex.Message).ConfigureAwait(true);
+            await Append("(OnAfterRenderAsync) " + ex.Message).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
         }
     }
 
@@ -418,7 +418,7 @@
         try
         {
             IsOllamaProcessBusy = true;
-            OllamaProcessStatus = await OllamaProcesses.GetStatusAsync().ConfigureAwait(false);
+            OllamaProcessStatus = await OllamaProcesses.GetStatusAsync().ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
         catch (Exception ex)
         {
@@ -428,7 +428,7 @@
         finally
         {
             IsOllamaProcessBusy = false;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
     }
 
@@ -529,15 +529,15 @@
         try
         {
             IsConnectivityChecking = true;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
-            DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default).ConfigureAwait(true) /* renderer-affine loading continuation */;
             AutoSelectBestDiscoveredModel();
 
             var reachable = DiscoveredHosts.Count(host => host.IsReachable);
             var models = DiscoveredHosts.Sum(host => host.Models.Count);
             LastConnectivityCheck = DateTimeOffset.Now;
             ConnectivityStatus = BuildConnectivityStatus(reachable, models);
-            await Append($"Connectivity refresh: {ConnectivityStatus}").ConfigureAwait(false);
+            await Append($"Connectivity refresh: {ConnectivityStatus}").ConfigureAwait(true) /* renderer-affine loading continuation */;
 
             if (!showToast)
                 return;
@@ -554,12 +554,12 @@
             ConnectivityStatus = "Connectivity check failed: " + ex.Message;
             if (showToast)
                 Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            await Append("(Connectivity) " + ex.Message).ConfigureAwait(false);
+            await Append("(Connectivity) " + ex.Message).ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
         finally
         {
             IsConnectivityChecking = false;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
     }
 
@@ -652,7 +652,7 @@
             Logger.LogError(ex, "AutoSelectBestDiscoveredModel failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
-        
+
     }
 
     private async Task UseOllamaGptOss20b()
@@ -772,7 +772,7 @@
         }
     }
 
-    private void ApplyModelsToConfiguration(ConfigurationRoot root)
+    private void ApplyModelsToConfiguration(LocalGPT.BusinessObjects.ConfigurationRoot root)
     {
         root.AICore ??= new AICoreOptions();
         root.AICore.ChatGPTLocalCore = Model.ChatGPTLocalCore;

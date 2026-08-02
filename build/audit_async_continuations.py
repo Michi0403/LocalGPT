@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import argparse
+import json
 import re
 import sys
 
@@ -253,17 +254,165 @@ def parse_awaited_expression(tokens: list[Token], index: int) -> int:
 
 
 def method_ranges(tokens: list[Token], method_name: str) -> list[tuple[int, int]]:
+    """Return declaration body ranges for one method name, excluding invocation sites."""
     ranges: list[tuple[int, int]] = []
     for index, token in enumerate(tokens):
-        if token.value != method_name:
+        if token.value != method_name or index + 1 >= len(tokens) or tokens[index + 1].value != "(":
             continue
-        cursor = index + 1
-        while cursor < len(tokens) and tokens[cursor].value not in {"{", ";"}:
+        if index > 0 and tokens[index - 1].value in {".", "?.", "new", "nameof"}:
+            continue
+
+        parameter_end = matching_end(tokens, index + 1, "(", ")")
+        if parameter_end <= index + 2:
+            continue
+        cursor = parameter_end
+        # Skip nullable/constraint tokens until the declaration body or expression body starts.
+        while cursor < len(tokens) and tokens[cursor].value not in {"{", "=>", ";"}:
+            if tokens[cursor].value in {".", "?."}:
+                break
             cursor += 1
-        if cursor < len(tokens) and tokens[cursor].value == "{":
+        if cursor >= len(tokens):
+            continue
+        if tokens[cursor].value == "{":
             closing = matching_end(tokens, cursor, "{", "}")
             ranges.append((tokens[cursor].start, tokens[closing - 1].end))
+        elif tokens[cursor].value == "=>":
+            ending = cursor + 1
+            nesting = 0
+            while ending < len(tokens):
+                value = tokens[ending].value
+                if value in {"(", "[", "{"}:
+                    nesting += 1
+                elif value in {")", "]", "}"}:
+                    nesting = max(0, nesting - 1)
+                elif value == ";" and nesting == 0:
+                    ranges.append((tokens[cursor].start, tokens[ending].end))
+                    break
+                ending += 1
     return ranges
+
+
+
+
+def find_matching_brace_in_source(text: str, opening_index: int) -> int:
+    depth = 0
+    index = opening_index
+    length = len(text)
+    state = "code"
+    raw_quote_count = 0
+    while index < length:
+        current = text[index]
+        following = text[index + 1] if index + 1 < length else ""
+        if state == "line_comment":
+            if current == "\n":
+                state = "code"
+            index += 1
+            continue
+        if state == "block_comment":
+            if current == "*" and following == "/":
+                state = "code"
+                index += 2
+            else:
+                index += 1
+            continue
+        if state == "string":
+            if current == "\\":
+                index += 2
+                continue
+            if current == '"':
+                state = "code"
+            index += 1
+            continue
+        if state == "verbatim_string":
+            if current == '"':
+                if following == '"':
+                    index += 2
+                    continue
+                state = "code"
+            index += 1
+            continue
+        if state == "char":
+            if current == "\\":
+                index += 2
+                continue
+            if current == "'":
+                state = "code"
+            index += 1
+            continue
+        if state == "raw_string":
+            marker = '"' * raw_quote_count
+            if text.startswith(marker, index):
+                state = "code"
+                index += raw_quote_count
+            else:
+                index += 1
+            continue
+
+        if current == "/" and following == "/":
+            state = "line_comment"
+            index += 2
+            continue
+        if current == "/" and following == "*":
+            state = "block_comment"
+            index += 2
+            continue
+        if current == "@" and following == '"':
+            state = "verbatim_string"
+            index += 2
+            continue
+        if current in {"$", "@"}:
+            cursor = index
+            while cursor < length and text[cursor] in {"$", "@"}:
+                cursor += 1
+            quote_count = 0
+            while cursor + quote_count < length and text[cursor + quote_count] == '"':
+                quote_count += 1
+            if quote_count >= 3:
+                state = "raw_string"
+                raw_quote_count = quote_count
+                index = cursor + quote_count
+                continue
+            if quote_count == 1:
+                state = "verbatim_string" if "@" in text[index:cursor] else "string"
+                index = cursor + 1
+                continue
+        if current == '"':
+            quote_count = 1
+            while index + quote_count < length and text[index + quote_count] == '"':
+                quote_count += 1
+            if quote_count >= 3:
+                state = "raw_string"
+                raw_quote_count = quote_count
+                index += quote_count
+            else:
+                state = "string"
+                index += 1
+            continue
+        if current == "'":
+            state = "char"
+            index += 1
+            continue
+        if current == "{":
+            depth += 1
+        elif current == "}":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+        index += 1
+    return length
+
+
+def csharp_regions(path: Path, text: str) -> list[tuple[str, int]]:
+    if path.suffix.lower() != ".razor":
+        return [(text, 0)]
+    regions: list[tuple[str, int]] = []
+    for match in re.finditer(r"(?m)^\s*@(code|functions)\s*\{", text):
+        opening = text.find("{", match.start(), match.end())
+        if opening < 0:
+            continue
+        end = find_matching_brace_in_source(text, opening)
+        regions.append((text[opening + 1 : max(opening + 1, end - 1)], opening + 1))
+    return regions
 
 
 def source_files(source_root: Path):
@@ -289,77 +438,129 @@ def audit(source_root: Path) -> tuple[list[Finding], dict[str, int]]:
         "async_streams": 0,
     }
     configuration_pattern = re.compile(r"\.ConfigureAwait\s*\(\s*(true|false)\s*\)\s*!?\s*$")
+    baseline_path = source_root.parents[1] / "build" / "async-continuation-baseline.json"
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8-sig"))
+    lifecycle_names = tuple(baseline.get(
+        "rendererAffineLifecycleMethods",
+        ("OnInitializedAsync", "OnParametersSetAsync", "OnAfterRenderAsync"),
+    ))
+    helper_methods_by_file = {
+        str(relative): tuple(methods)
+        for relative, methods in baseline.get("rendererAffineHelperMethods", {}).items()
+    }
+    discovered_helper_methods: dict[str, set[str]] = {
+        relative: set() for relative in helper_methods_by_file
+    }
+
+    for relative in helper_methods_by_file:
+        if not (source_root / relative).is_file():
+            findings.append(Finding(relative, 1, "Renderer-affine helper baseline references a missing component file."))
 
     for path in source_files(source_root):
         text = path.read_text(encoding="utf-8-sig", errors="replace")
-        tokens = tokenize(text)
-        if not any(token.value == "await" for token in tokens):
-            continue
         relative = path.relative_to(source_root).as_posix()
-        on_after_render_ranges = method_ranges(tokens, "OnAfterRenderAsync")
-        totals["files"] += 1
+        regions = csharp_regions(path, text)
+        if not regions:
+            continue
+        file_has_await = False
+        is_component = relative.startswith("Components/")
 
-        for index, token in enumerate(tokens):
-            if token.value != "await":
+        for region_text, region_offset in regions:
+            tokens = tokenize(region_text)
+            if not any(token.value == "await" for token in tokens):
                 continue
-            totals["awaits"] += 1
-            if index + 1 >= len(tokens):
-                findings.append(Finding(relative, line_number(text, token.start), "Await token has no following expression."))
-                continue
-            following = tokens[index + 1].value
-            if following == "using":
-                totals["async_disposals"] += 1
-                continue
-            if following == "foreach":
-                totals["async_streams"] += 1
-                opening = index + 2
-                while opening < len(tokens) and tokens[opening].value != "(":
-                    opening += 1
-                header_end = matching_end(tokens, opening, "(", ")") if opening < len(tokens) else opening
-                header_text = text[tokens[index + 1].start : tokens[header_end - 1].end] if header_end > opening else ""
-                if not re.search(r"\.ConfigureAwait\s*\(\s*false\s*\)", header_text):
+            file_has_await = True
+            lifecycle_ranges: list[tuple[int, int]] = []
+            for lifecycle_name in lifecycle_names:
+                lifecycle_ranges.extend(method_ranges(tokens, lifecycle_name))
+            renderer_loading_ranges: list[tuple[int, int]] = []
+            for helper_name in helper_methods_by_file.get(relative, ()):
+                helper_ranges = method_ranges(tokens, helper_name)
+                if helper_ranges:
+                    discovered_helper_methods.setdefault(relative, set()).add(helper_name)
+                    renderer_loading_ranges.extend(helper_ranges)
+
+            for index, token in enumerate(tokens):
+                if token.value != "await":
+                    continue
+                totals["awaits"] += 1
+                absolute_start = region_offset + token.start
+                current_line = line_number(text, absolute_start)
+                if index + 1 >= len(tokens):
+                    findings.append(Finding(relative, current_line, "Await token has no following expression."))
+                    continue
+
+                following = tokens[index + 1].value
+                if following == "using":
+                    totals["async_disposals"] += 1
+                    continue
+                if following == "foreach":
+                    totals["async_streams"] += 1
+                    opening = index + 2
+                    while opening < len(tokens) and tokens[opening].value != "(":
+                        opening += 1
+                    header_end = matching_end(tokens, opening, "(", ")") if opening < len(tokens) else opening
+                    header_text = region_text[tokens[index + 1].start : tokens[header_end - 1].end] if header_end > opening else ""
+                    if not re.search(r"\.ConfigureAwait\s*\(\s*false\s*\)", header_text):
+                        findings.append(Finding(
+                            relative,
+                            current_line,
+                            "Await foreach must configure its async enumerable with ConfigureAwait(false).",
+                        ))
+                    continue
+
+                expression_end = parse_awaited_expression(tokens, index + 1)
+                if expression_end <= index + 1:
+                    findings.append(Finding(relative, current_line, "Could not parse awaited expression."))
+                    continue
+                expression = region_text[tokens[index + 1].start : tokens[expression_end - 1].end]
+                configuration = configuration_pattern.search(expression)
+                if configuration is None:
+                    if "configuredTaskAwaitable" in expression:
+                        totals["configured_awaitables"] += 1
+                        continue
                     findings.append(Finding(
                         relative,
-                        line_number(text, token.start),
-                        "Await foreach must configure its async enumerable with ConfigureAwait(false).",
+                        current_line,
+                        "Every ordinary await expression must explicitly use ConfigureAwait(true/false).",
                     ))
-                continue
-
-            expression_end = parse_awaited_expression(tokens, index + 1)
-            if expression_end <= index + 1:
-                findings.append(Finding(relative, line_number(text, token.start), "Could not parse awaited expression."))
-                continue
-            expression = text[tokens[index + 1].start : tokens[expression_end - 1].end]
-            configuration = configuration_pattern.search(expression)
-            in_on_after_render = any(start <= token.start <= end for start, end in on_after_render_ranges)
-            if configuration is None:
-                if "configuredTaskAwaitable" in expression:
-                    totals["configured_awaitables"] += 1
                     continue
-                findings.append(Finding(
-                    relative,
-                    line_number(text, token.start),
-                    "Every await expression must explicitly use ConfigureAwait(false), except renderer-affine OnAfterRenderAsync continuations which must use ConfigureAwait(true).",
-                ))
-                continue
 
-            uses_true = configuration.group(1) == "true"
-            totals["configure_true" if uses_true else "configure_false"] += 1
-            if in_on_after_render and not uses_true:
-                findings.append(Finding(
-                    relative,
-                    line_number(text, token.start),
-                    "OnAfterRenderAsync continuation must explicitly retain the renderer context with ConfigureAwait(true).",
-                ))
-            elif not in_on_after_render and uses_true:
-                findings.append(Finding(
-                    relative,
-                    line_number(text, token.start),
-                    "ConfigureAwait(true) is allowed only inside OnAfterRenderAsync; use ConfigureAwait(false) here.",
-                ))
+                uses_true = configuration.group(1) == "true"
+                totals["configure_true" if uses_true else "configure_false"] += 1
+                if not uses_true:
+                    continue
+
+                in_lifecycle = any(start <= token.start <= end for start, end in lifecycle_ranges)
+                in_renderer_loading_helper = any(
+                    start <= token.start <= end for start, end in renderer_loading_ranges
+                )
+                if not is_component:
+                    findings.append(Finding(
+                        relative,
+                        current_line,
+                        "ConfigureAwait(true) is forbidden outside Components; use ConfigureAwait(false).",
+                    ))
+                elif not in_lifecycle and not in_renderer_loading_helper:
+                    findings.append(Finding(
+                        relative,
+                        current_line,
+                        "ConfigureAwait(true) is allowed only in a Blazor lifecycle method or an exact renderer-affine loading helper listed in async-continuation-baseline.json.",
+                    ))
+
+        if file_has_await:
+            totals["files"] += 1
+
+    for relative, expected_methods in helper_methods_by_file.items():
+        discovered = discovered_helper_methods.get(relative, set())
+        for missing_method in sorted(set(expected_methods) - discovered):
+            findings.append(Finding(
+                relative,
+                1,
+                f"Renderer-affine helper baseline method '{missing_method}' was not found as a method declaration.",
+            ))
 
     return findings, totals
-
 
 def main() -> int:
     parser = argparse.ArgumentParser()

@@ -368,7 +368,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.1.11",
+                CurrentVersion = "2.1.12",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -418,6 +418,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.11", repositoryRoot, "Fine-grained asynchronous continuation release with explicit ConfigureAwait(false) on context-free awaits and narrowly scoped ConfigureAwait(true) inside OnAfterRenderAsync lifecycle continuations.");
         EnsureRevision(core, "main", "seed-v2.1.11", repositoryRoot,
             "Corrects the 2.1.10 continuation policy by making every await expression explicit, retaining renderer affinity only in OnAfterRenderAsync, and keeping service, controller, persistence, diagnostics, background and non-lifecycle component continuations context-free.");
+        EnsureVersion(core, "2.1.12", repositoryRoot, "Compiler and continuation-policy correction release with fully qualified configuration types, restored DXFunction parameter binding, exact Razor await auditing, and reviewed renderer-affine loading continuations.");
+        EnsureRevision(core, "main", "seed-v2.1.12", repositoryRoot,
+            "Fixes the Adaptive Ollama configuration type ambiguity, restores request.Parameters binding for project architecture and maintenance DXFunctions, repairs the PowerShell async audit, and preserves renderer context only for lifecycle or explicitly reviewed UI-loading continuations while services and controllers remain context-free.");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",

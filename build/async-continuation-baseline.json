@@ -1,10 +1,78 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "sourceRoot": "LocalGPTWebviewWrapper/LocalGPT",
-  "policy": "Every await expression is explicitly configured. ConfigureAwait(false) is mandatory for services, controllers, persistence, diagnostics, background work and component methods that do not require renderer affinity. ConfigureAwait(true) is allowed only inside OnAfterRenderAsync. await using remains a language-level asynchronous-disposal construct; an awaited initializer inside it must still be explicitly configured. Existing ConfiguredTaskAwaitable values are already configured by their caller.",
+  "policy": "Every ordinary await expression is explicitly configured. ConfigureAwait(false) is the mandatory default for services, controllers, persistence, diagnostics, networking, background workflows and component work that does not require renderer affinity. ConfigureAwait(true) is limited to Blazor lifecycle methods and the exact renderer-affine loading helpers listed below.",
   "requiredDefault": "ConfigureAwait(false)",
-  "rendererAffineMethod": "OnAfterRenderAsync",
-  "rendererAffineRequirement": "ConfigureAwait(true)",
+  "rendererAffineLifecycleMethods": [
+    "OnInitializedAsync",
+    "OnParametersSetAsync",
+    "OnAfterRenderAsync"
+  ],
   "maxUnconfiguredAwaitExpressionCount": 0,
-  "maxConfigureAwaitTrueOutsideRendererAffineMethod": 0
+  "maxConfigureAwaitTrueOutsideComponents": 0,
+  "awaitForeachRequirement": "ConfigureAwait(false)",
+  "awaitUsingPolicy": "Language-level asynchronous disposal is reviewed separately; awaited resource initializers remain explicitly configured.",
+  "rendererAffineHelperMethods": {
+    "Components/Layout/HumanCollaborationInbox.razor": [
+      "RefreshAsync",
+      "RunHumanUiOperationAsync"
+    ],
+    "Components/Pages/ProjectMaintenance.razor": [
+      "LoadAsync",
+      "RefreshTrackedFilesAsync",
+      "RunAsync"
+    ],
+    "Components/Pages/Database.razor": [
+      "LoadSelectedTableAsync",
+      "LoadTableAsync",
+      "RefreshAllAsync",
+      "RefreshTablesOnlyAsync",
+      "RunUiActionAsync"
+    ],
+    "Components/Pages/ModelCouncil.razor": [
+      "LoadCandidatesAsync",
+      "LoadProjectsAsync",
+      "LoadSavedCouncilConversationsAsync",
+      "RunUiActionAsync"
+    ],
+    "Components/Pages/DxFunctionCatalog.razor": [
+      "ReloadAsync"
+    ],
+    "Components/Pages/Projects.razor": [
+      "LoadProjectsAsync",
+      "RefreshSelectedProjectAsync",
+      "RunUiActionAsync"
+    ],
+    "Components/Pages/CouncilTeams.razor": [
+      "ReloadAsync"
+    ],
+    "Components/Pages/Chat.razor": [
+      "AttachToLiveCouncilSessionAsync",
+      "LoadChatProjectsAsync",
+      "LoadCouncilTeamsAsync",
+      "LoadDatabaseBackedDefaultsAsync",
+      "LoadLatestConversationIntoSessionAsync",
+      "LoadModelPresetsAsync",
+      "LoadSavedConversationAsync",
+      "LoadSelectedChatProjectDetailsAsync",
+      "MigrateCouncilDefaultsAsync",
+      "RefreshHumanCollaborationAsync",
+      "RefreshMemoryAsync",
+      "RunUiActionAsync"
+    ],
+    "Components/Pages/Install.razor": [
+      "RefreshOllamaProcessStatusAsync",
+      "RefreshConnectivityStatusAsync"
+    ],
+    "Components/Pages/TestLab.razor": [
+      "LoadArtifactWorkspacesAsync",
+      "LoadSelectedWorkspaceFilesAsync",
+      "OpenWorkspaceFileAsync",
+      "RefreshWorkspaceZipAsync",
+      "RunUiActionAsync"
+    ],
+    "Components/Pages/MinecraftModBuilder.razor": [
+      "RunUiActionAsync"
+    ]
+  }
 }

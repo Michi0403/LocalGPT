@@ -579,9 +579,9 @@
     {
         try
         {
-            await LoadCandidatesAsync().ConfigureAwait(false);
-            await LoadSavedCouncilConversationsAsync().ConfigureAwait(false);
-            await LoadProjectsAsync().ConfigureAwait(false);
+            await LoadCandidatesAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            await LoadSavedCouncilConversationsAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            await LoadProjectsAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
         }
         catch (Exception ex)
         {
@@ -597,7 +597,7 @@
         {
             await RunUiActionAsync(async () =>
        {
-           Candidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false)).ToList();
+           Candidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
 
            if (SelectedModels.Count == 0)
            {
@@ -608,7 +608,7 @@
            statusText = Candidates.Count == 0
                ? "No Ollama models found."
                : $"Found {Candidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s); {Candidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) are currently offline.";
-       }, "LoadCandidatesAsync").ConfigureAwait(false);
+       }, "LoadCandidatesAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
         catch (Exception ex)
         {
@@ -659,7 +659,7 @@
     {
         try
         {
-            await LoadSavedCouncilConversationsAsync(showStatus: true).ConfigureAwait(false); ;
+            await LoadSavedCouncilConversationsAsync(showStatus: true).ConfigureAwait(true) /* renderer-affine loading continuation */; ;
         }
         catch (Exception ex)
         {
@@ -675,7 +675,7 @@
         {
             await RunUiActionAsync(async () =>
        {
-           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100).ConfigureAwait(false))
+           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100).ConfigureAwait(true) /* renderer-affine loading continuation */)
                .Where(conversation => conversation.ProviderName.StartsWith("AI Council", StringComparison.OrdinalIgnoreCase))
                .ToList();
 
@@ -685,7 +685,7 @@
 
            if (showStatus)
                statusText = $"Loaded {SavedCouncilConversations.Count} saved council conversation(s).";
-       }, "LoadSavedCouncilConversationsAsync").ConfigureAwait(false);
+       }, "LoadSavedCouncilConversationsAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
         catch (Exception ex)
         {
@@ -697,10 +697,10 @@
 
     async Task LoadProjectsAsync()
     {
-        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
+        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: false).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
 
         if (Request.ProjectId is Guid projectId)
-            SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
+            SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(true) /* renderer-affine loading continuation */;
     }
 
     async Task SelectProjectAsync(ChangeEventArgs args)
@@ -712,13 +712,13 @@
         if (!Guid.TryParse(Convert.ToString(args.Value), out var projectId))
         {
             Request.ProjectId = null;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
             return;
         }
 
         Request.ProjectId = projectId;
         SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
-        await InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
     void SelectProjectTopic(ChangeEventArgs args)
@@ -948,7 +948,7 @@
         BuildApprovedReview = false;
         isBusy = true;
         statusText = "Executing the exact approved change review in the bounded artifact workspace...";
-        await InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
 
         try
         {
@@ -998,7 +998,7 @@
         {
             isBusy = false;
             BuildApprovedReview = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
@@ -1011,7 +1011,7 @@
         isBusy = true;
         BuildApprovedReview = false;
         statusText = "Rejecting the current change review...";
-        await InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
 
         try
         {
@@ -1038,7 +1038,7 @@
         finally
         {
             isBusy = false;
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
@@ -1058,7 +1058,7 @@
             return string.Empty;
         }
     }
- 
+
 
 
     void ExcludeModel(string modelName)
@@ -1082,7 +1082,7 @@
             Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
-       
+
     }
 
     void ApplyPollOption(CouncilUserPollOption option)
@@ -1133,7 +1133,7 @@
             Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
-        
+
     }
 
     async Task RunUiActionAsync(Func<Task> action, string operation)
@@ -1143,7 +1143,7 @@
         ComponentActivity.RecordInformation(nameof(ModelCouncil), operation, "The AI Council UI operation started.");
         try
         {
-            await action().ConfigureAwait(false);
+            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
             ComponentActivity.RecordInformation(nameof(ModelCouncil), operation, "The AI Council UI operation completed.");
         }
         catch (OperationCanceledException)
