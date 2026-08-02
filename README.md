@@ -322,3 +322,11 @@ Existing core-project seed data is loaded without tracking and only missing chil
 Chat configuration and session-tool panels now expand into responsive viewport workspaces so dense DevExpress configuration remains usable at 100% browser zoom and on 4K displays. The former handwritten Help page now launches versioned DocFX HTML/API documentation generated from maintained articles and C# XML comments. Windows builds generate the HTML documentation and attempt `LocalGPT-2.1.18.pdf`; Release builds require the PDF unless explicitly overridden.
 
 See `CHANGELOG-v2.1.18-gamedirector-docfx-startup-and-chat-layout.md`.
+
+## LocalGPT 2.1.19 documentation build correction
+
+Version 2.1.19 corrects the Windows command-line boundary between MSBuild and `Build-Documentation.ps1`. The repository-root argument no longer ends in a backslash inside quotes, so PowerShell receives `AssemblyPath`, `XmlDocumentationPath`, `Version`, and `OutputWebRoot` as separate parameters. The script normalizes all paths before DocFX runs and emits a bounded input summary for diagnostics.
+
+The existing XML-comment catalog, translator adapter, Help launcher, HTML/API documentation and versioned PDF behavior remain unchanged. Successful PDF output is named `LocalGPT-2.1.19.pdf`.
+
+See `CHANGELOG-v2.1.19-docfx-argument-correction.md`.

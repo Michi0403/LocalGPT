@@ -10,6 +10,17 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+# Normalize every path immediately. This also collapses the repository-root "\."
+# suffix used by MSBuild to avoid Windows trailing-backslash argument parsing.
+$RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
+$AssemblyPath = [IO.Path]::GetFullPath($AssemblyPath)
+$XmlDocumentationPath = [IO.Path]::GetFullPath($XmlDocumentationPath)
+if (-not [string]::IsNullOrWhiteSpace($OutputWebRoot)) {
+    $OutputWebRoot = [IO.Path]::GetFullPath($OutputWebRoot)
+}
+
+Write-Host "LocalGPT documentation input: repository=$RepositoryRoot; assembly=$AssemblyPath; xml=$XmlDocumentationPath; version=$Version"
+
 $docsRoot = Join-Path $RepositoryRoot "docs"
 $inputRoot = Join-Path $docsRoot "input"
 $siteRoot = Join-Path $docsRoot "_site"

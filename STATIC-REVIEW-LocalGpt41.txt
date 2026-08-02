@@ -1,0 +1,50 @@
+LocalGPT 2.1.19 static review
+================================
+
+Scope
+-----
+Source candidate: LocalGpt(41)
+Baseline: LocalGpt(40) / LocalGPT 2.1.18
+Observed Windows build result: LocalGPT.dll and LocalGPT.xml were produced, then the AfterTargets=Build documentation invocation failed because PowerShell bound only RepositoryRoot and reported AssemblyPath, XmlDocumentationPath, and Version as missing.
+Review environment: Linux container without dotnet, PowerShell, Windows WebView, DevExpress build tools, or DocFX execution.
+
+Implemented correction
+----------------------
+1. Directory.Build.targets no longer quotes a repository-root value ending in a backslash.
+   LocalGptDocumentationRepositoryRoot appends a terminal dot, producing an equivalent Windows path ending in "\\.".
+   This prevents the native command-line parser from treating the root's final backslash as part of the closing quote boundary.
+2. Build-Documentation.ps1 normalizes RepositoryRoot, AssemblyPath, XmlDocumentationPath, and OutputWebRoot immediately with IO.Path.GetFullPath.
+3. The script prints a bounded input summary before validating files and invoking DocFX.
+4. Existing DocFX HTML/API generation, optional Debug PDF behavior, required Release PDF behavior, Help status API, XML-comment catalog, and translation adapter remain intact.
+
+Version alignment
+-----------------
+Application/package version: 2.1.19
+Runtime CustomVersion: 2.1.19
+Organic application advertisement: 2.1.19-organic-wire
+DocFX metadata/PDF label: 2.1.19 / LocalGPT-2.1.19.pdf
+Seed history: prior entries retained; seed-v2.1.19 appended
+WireProtocol package version: unchanged
+
+Executed validation
+-------------------
+- Async continuation audit passed for 134 source files:
+  1994 await tokens, 1712 ConfigureAwait(false), 124 renderer-affine ConfigureAwait(true),
+  2 preconfigured awaitables, 154 reviewed await-using disposals, 2 configured async streams.
+- Application architecture audit passed.
+- Parsed 24 JSON files.
+- Parsed 7 XML/project files, including Directory.Build.targets.
+- Parsed 2 YAML files.
+- JavaScript syntax passed through Node.js for 25 .js/.mjs files.
+- Lexical C# delimiter validation passed for 357 files.
+- Verified the documentation target uses LocalGptDocumentationRepositoryRoot and no longer passes MSBuildThisFileDirectory directly as the quoted RepositoryRoot argument.
+- Verified path normalization statements exist for all mandatory documentation inputs.
+- Verified package, runtime, organic, seed, DocFX metadata, and PDF-name version alignment.
+- Confirmed no bin, obj, .pio, docs/_site, docs/input, DLL, EXE, PDB, OBJ, or firmware BIN output is present.
+
+Validation boundary
+-------------------
+No semantic .NET 10 compilation, PowerShell parameter binding, DocFX tool restore, HTML generation,
+PDF generation, Windows WebView rendering, or DevExpress runtime test could be performed here.
+The user's next Windows build is the authoritative confirmation. If it reaches DocFX but fails later,
+the new bounded input line will distinguish argument binding from tool restore, metadata, HTML, Node, or PDF failures.

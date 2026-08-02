@@ -136,6 +136,9 @@
 
   <PropertyGroup>
     <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build\Build-Documentation.ps1</LocalGptDocumentationScript>
+    <!-- Append a dot so the quoted Windows argument never ends in a backslash.
+         A trailing backslash before a closing quote can absorb the remaining PowerShell -File arguments. -->
+    <LocalGptDocumentationRepositoryRoot>$(MSBuildThisFileDirectory).</LocalGptDocumentationRepositoryRoot>
     <BuildLocalGptDocumentation Condition="'$(BuildLocalGptDocumentation)' == ''">true</BuildLocalGptDocumentation>
     <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == '' and '$(Configuration)' == 'Release'">true</RequireLocalGptDocumentationPdf>
     <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">false</RequireLocalGptDocumentationPdf>
@@ -147,7 +150,7 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(LocalGptDocumentationScript)')" Text="LocalGPT documentation build script is missing: $(LocalGptDocumentationScript)" />
     <Exec Condition="Exists('$(LocalGptDocumentationScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(MSBuildThisFileDirectory)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(TargetDir)wwwroot\help-docs&quot; $(LocalGptDocumentationPdfArgument)"
+          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(LocalGptDocumentationRepositoryRoot)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(TargetDir)wwwroot\help-docs&quot; $(LocalGptDocumentationPdfArgument)"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"

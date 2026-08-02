@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.1.18",
+            CurrentVersion = "2.1.19",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -437,6 +437,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.18", repositoryRoot, "Authoritative GameDirector, generated XML-comment documentation, startup seed-concurrency correction and large responsive Chat configuration release.");
         EnsureRevision(core, "main", "seed-v2.1.18", repositoryRoot,
             "Routes every game control proposal through the GameDirector and bounded creature/object subdirectors, adds DocFX HTML/PDF output with version-enriched XML-comment APIs, seeds existing projects through additive no-tracking inserts, and expands Chat configuration surfaces for 4K and 100-percent zoom use.");
+        EnsureVersion(core, "2.1.19", repositoryRoot, "Documentation-build invocation correction release that preserves generated DocFX HTML/PDF output while making Windows PowerShell parameter passing deterministic.");
+        EnsureRevision(core, "main", "seed-v2.1.19", repositoryRoot,
+            "Prevents the trailing repository-root backslash from absorbing DocFX build arguments, normalizes all documentation input paths, and retains the 2.1.18 GameDirector, startup, translator and responsive Chat behavior.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",
