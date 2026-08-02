@@ -1,5 +1,9 @@
 <div align="center">
 
+Windows64 Installer https://github.com/Michi0403/LocalGPT/releases/download/v2.1.21/LocalGPTInstallerConsole.exe
+For linux and MacOs you need to wire it yourself
+I deployd it all selfcontained so you don't need to install anything.
+
 # LocalGPT
 
 ### Garage-built for personal use. Open for everyone. Powerful enough for much more.
