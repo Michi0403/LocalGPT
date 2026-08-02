@@ -165,6 +165,9 @@ public sealed class DiscoverProjectCompilersRequest
     /// <summary>Gets or sets additional absolute directories that LocalGPT may inspect.</summary>
     public List<string> CustomSearchRoots { get; set; } = [];
 
+    /// <summary>Gets or sets optional newline-delimited search roots for UI and HTTP clients.</summary>
+    public string CustomSearchRootsText { get; set; } = string.Empty;
+
     /// <summary>Gets or sets whether detected executable profiles are persisted in the project database.</summary>
     public bool SaveDiscovered { get; set; } = true;
 

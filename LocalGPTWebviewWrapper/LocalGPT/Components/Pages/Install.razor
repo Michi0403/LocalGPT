@@ -664,13 +664,9 @@
             IsToolchainBusy = true;
             ToolchainStatus = T("Install.Toolchains.Discovering", "Discovering toolchains...");
             await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine discovery status */;
-            var roots = ToolchainSearchRoots
-                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
             var discovered = await ProjectMaintenance.DiscoverCompilerInstallationsAsync(new DiscoverProjectCompilersRequest
             {
-                CustomSearchRoots = roots,
+                CustomSearchRootsText = ToolchainSearchRoots,
                 SaveDiscovered = true,
                 UserConfirmed = true
             }).ConfigureAwait(true) /* renderer-affine discovery result */;

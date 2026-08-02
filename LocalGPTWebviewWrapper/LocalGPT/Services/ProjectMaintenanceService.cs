@@ -299,8 +299,9 @@ public sealed class ProjectMaintenanceService(
         RequireConfirmation(request.UserConfirmed, "discovering and saving compiler installations");
         try
         {
+            var searchRoots = NormalizeCompilerSearchRoots(request);
             var candidates = await Task.Run(
-                () => DiscoverCompilerCandidates(request.CustomSearchRoots, cancellationToken).Take(MaxCompilerCandidates).ToList(),
+                () => DiscoverCompilerCandidates(searchRoots, cancellationToken).Take(MaxCompilerCandidates).ToList(),
                 cancellationToken).ConfigureAwait(false);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -849,20 +850,79 @@ public sealed class ProjectMaintenanceService(
 
     private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth, CancellationToken cancellationToken)
     {
-        var pending = new Queue<(string Path, int Depth)>();
-        pending.Enqueue((root, 0));
-        while (pending.Count > 0)
+        var visitedDirectoryCount = 0;
+        var matchedFileCount = 0;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var current = pending.Dequeue();
-            IEnumerable<string> files;
-            try { files = Directory.EnumerateFiles(current.Path); } catch { continue; }
-            foreach (var file in files) if (names.Contains(Path.GetFileName(file))) yield return Path.GetFullPath(file);
-            if (current.Depth >= maxDepth) continue;
-            IEnumerable<string> dirs;
-            try { dirs = Directory.EnumerateDirectories(current.Path); } catch { continue; }
-            foreach (var dir in dirs) pending.Enqueue((dir, current.Depth + 1));
+            var pending = new Queue<(string Path, int Depth)>();
+            pending.Enqueue((root, 0));
+            while (pending.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var current = pending.Dequeue();
+                visitedDirectoryCount++;
+                foreach (var file in GetCompilerFiles(current.Path, current.Depth))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!names.Contains(Path.GetFileName(file)))
+                        continue;
+
+                    matchedFileCount++;
+                    yield return Path.GetFullPath(file);
+                }
+
+                if (current.Depth >= maxDepth)
+                    continue;
+
+                foreach (var directory in GetCompilerDirectories(current.Path, current.Depth))
+                    pending.Enqueue((directory, current.Depth + 1));
+            }
         }
+        finally
+        {
+            logger.LogDebug(
+                "Compiler search traversal completed or was disposed after visiting {DirectoryCount} directory entries and matching {CompilerFileCount} files; path content was omitted.",
+                visitedDirectoryCount,
+                matchedFileCount);
+        }
+    }
+
+    private IReadOnlyList<string> GetCompilerFiles(string directory, int searchDepth)
+    {
+        try
+        {
+            return Directory.GetFiles(directory);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(exception, "Skipped an inaccessible compiler search directory at depth {SearchDepth}; path content was omitted.", searchDepth);
+            return [];
+        }
+    }
+
+    private IReadOnlyList<string> GetCompilerDirectories(string directory, int searchDepth)
+    {
+        try
+        {
+            return Directory.GetDirectories(directory);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(exception, "Skipped child-directory discovery at compiler search depth {SearchDepth}; path content was omitted.", searchDepth);
+            return [];
+        }
+    }
+
+    private IReadOnlyList<string> NormalizeCompilerSearchRoots(DiscoverProjectCompilersRequest request)
+    {
+        var textRoots = (request.CustomSearchRootsText ?? string.Empty)
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return (request.CustomSearchRoots ?? [])
+            .Concat(textRoots)
+            .Where(root => !string.IsNullOrWhiteSpace(root))
+            .Select(root => root.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)

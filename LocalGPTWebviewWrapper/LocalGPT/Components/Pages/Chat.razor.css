@@ -1782,36 +1782,73 @@
 .chat-configuration-ribbon:not([open]),
 .chat-session-tools-ribbon:not([open]) { box-shadow: none !important; }
 
-/* v2.1.23: Running-session tools use a compact responsive workspace. The dialog
-   grows with its controls, scrolls only when necessary and never leaves a viewport-sized
-   empty layer over the chat. Chat configuration keeps its separate full-workspace rules. */
+/* Running-session tools use the same full modal workspace as Chat configuration.
+   Wrapped controls remain visible instead of being trapped in a short nested scroller. */
 .chat-session-tools-ribbon[open] {
-    inset: clamp(.55rem, 2dvh, 1.35rem) clamp(.55rem, 2vw, 1.75rem) auto !important;
+    position: fixed !important;
+    inset: clamp(.55rem, 2.2dvh, 1.6rem) clamp(.55rem, 2.2vw, 2.2rem) !important;
     display: grid !important;
-    grid-template-rows: auto minmax(0, auto) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
     width: auto !important;
     height: auto !important;
     min-height: 0 !important;
-    max-height: min(72dvh, 28rem) !important;
+    max-height: none !important;
+    overflow: hidden !important;
 }
+
 .chat-session-tools-ribbon[open] .chat-session-tools-content {
     display: block !important;
-    height: auto !important;
+    min-width: 0 !important;
     min-height: 0 !important;
-    max-height: calc(min(72dvh, 28rem) - 3.5rem) !important;
+    height: 100% !important;
+    max-height: none !important;
     overflow: auto !important;
-    align-content: start;
+    padding: clamp(.75rem, 1.5vw, 1.35rem) !important;
+    scrollbar-gutter: stable both-edges;
 }
+
 .chat-session-tools-ribbon[open] .human-live-contribution {
-    align-items: end;
-    min-height: 0 !important;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    align-items: stretch;
+    max-height: none !important;
+    overflow: visible !important;
 }
+
+.chat-session-tools-ribbon[open] .human-live-contribution > label,
+.chat-session-tools-ribbon[open] .human-live-contribution > .memory-status,
+.chat-session-tools-ribbon[open] .human-live-contribution > .badge {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.chat-session-tools-ribbon[open] .human-live-contribution input,
+.chat-session-tools-ribbon[open] .human-live-contribution select {
+    width: 100%;
+    min-width: 0;
+}
+
+.chat-session-tools-ribbon[open] ::deep .localgpt-rounded-action {
+    width: 100%;
+    min-width: 0;
+    height: auto !important;
+    white-space: normal !important;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.chat-session-tools-ribbon[open] ::deep .localgpt-rounded-action * {
+    white-space: normal !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 760px) {
     .chat-session-tools-ribbon[open] {
-        inset: .25rem .25rem auto !important;
-        max-height: calc(100dvh - .5rem) !important;
+        inset: .25rem !important;
     }
-    .chat-session-tools-ribbon[open] .chat-session-tools-content {
-        max-height: calc(100dvh - 4rem) !important;
+
+    .chat-session-tools-ribbon[open] .human-live-contribution {
+        grid-template-columns: 1fr;
     }
 }

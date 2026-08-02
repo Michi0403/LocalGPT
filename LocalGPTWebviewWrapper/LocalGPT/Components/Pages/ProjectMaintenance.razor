@@ -428,7 +428,7 @@
 
     async Task DiscoverCompilersAsync() => await RunAsync(async () =>
     {
-        var request = new DiscoverProjectCompilersRequest { UserConfirmed = true, SaveDiscovered = true, CustomSearchRoots = customCompilerRoots.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() };
+        var request = new DiscoverProjectCompilersRequest { UserConfirmed = true, SaveDiscovered = true, CustomSearchRootsText = customCompilerRoots };
         await Maintenance.DiscoverCompilerInstallationsAsync(request).ConfigureAwait(false);
         compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
         Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerDiscoveryComplete", "Compiler discovery completed."), T("Common.Completed", "Completed"));
