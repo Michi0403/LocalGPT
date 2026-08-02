@@ -127,7 +127,7 @@ namespace LocalGPT.Services
             }
         }
         private async Task<EngineeringBenchmarkLaneResult?> RunLocalGptLaneAsync(
-            LocalGptCatalogService.BenchmarkTaskDefinition task,
+            BenchmarkTaskDefinition task,
             EngineeringBenchmarkRequest request,
             CancellationToken cancellationToken, ILogger logger)
         {

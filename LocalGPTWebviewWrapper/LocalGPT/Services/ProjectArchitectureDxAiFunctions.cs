@@ -28,7 +28,7 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<Parameters>(request.Parameters);
+        var binding = json.Bind<ProjectArchitectureGetParameters>(request.ProjectArchitectureGetParameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -47,7 +47,6 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
         });
     }
 
-    private sealed class Parameters { public Guid ProjectId { get; set; } }
 }
 
 public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
@@ -71,7 +70,7 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<Parameters>(request.Parameters);
+        var binding = json.Bind<ProjectRevisionSaveParameters>(request.ProjectRevisionSaveParameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -81,11 +80,6 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
         return json.Success(revision);
     }
 
-    private sealed class Parameters
-    {
-        public Guid ProjectId { get; set; }
-        public SaveProjectRevisionRequest Request { get; set; } = new();
-    }
 }
 
 public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json,
@@ -109,7 +103,7 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<Parameters>(request.Parameters);
+        var binding = json.Bind<ProjectRequirementSaveParameters>(request.ProjectRequirementSaveParameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -119,11 +113,6 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
         return json.Success(requirement);
     }
 
-    private sealed class Parameters
-    {
-        public Guid ProjectId { get; set; }
-        public SaveProjectRequirementRequest Request { get; set; } = new();
-    }
 }
 
 public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
@@ -147,7 +136,7 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<Parameters>(request.Parameters);
+        var binding = json.Bind<ProjectArtifactSaveParameters>(request.ProjectArtifactSaveParameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -171,9 +160,4 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
         });
     }
 
-    private sealed class Parameters
-    {
-        public Guid ProjectId { get; set; }
-        public SaveProjectArtifactRequest Request { get; set; } = new();
-    }
 }

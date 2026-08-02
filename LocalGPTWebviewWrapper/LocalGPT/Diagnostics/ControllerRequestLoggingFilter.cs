@@ -40,7 +40,7 @@ public sealed class ControllerRequestLoggingFilter(
 
         try
         {
-            var executed = await next();
+            var executed = await next().ConfigureAwait(false);
             if (executed.Exception is not null && !executed.ExceptionHandled)
             {
                 logger.LogError(

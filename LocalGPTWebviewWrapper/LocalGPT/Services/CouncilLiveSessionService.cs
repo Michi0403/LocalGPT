@@ -9,7 +9,7 @@ public sealed class CouncilLiveSessionService(
     ILogger<CouncilLiveSessionService> logger) : ICouncilLiveSessionService
 {
     private const int MaxTranscriptCharacters = 2_000_000;
-    private readonly ConcurrentDictionary<Guid, LiveSessionState> sessions = new();
+    private readonly ConcurrentDictionary<Guid, CouncilLiveSessionState> sessions = new();
 
     public event Action<Guid>? Changed;
 
@@ -19,7 +19,7 @@ public sealed class CouncilLiveSessionService(
         string userMessage,
         string initialTranscript)
     {
-        var state = new LiveSessionState(runId, councilMembers, userMessage, initialTranscript);
+        var state = new CouncilLiveSessionState(runId, councilMembers, userMessage, initialTranscript);
         if (sessions.TryGetValue(runId, out var previous))
             previous.Dispose();
         sessions[runId] = state;
@@ -105,7 +105,7 @@ public sealed class CouncilLiveSessionService(
             .OrderByDescending(summary => summary.UpdatedAtUtc)
             .ToList();
 
-    private CouncilLiveSessionSnapshot CreateSnapshot(LiveSessionState state)
+    private CouncilLiveSessionSnapshot CreateSnapshot(CouncilLiveSessionState state)
     {
         lock (state.SyncRoot)
         {
@@ -121,7 +121,7 @@ public sealed class CouncilLiveSessionService(
         }
     }
 
-    private CouncilLiveSessionSummary CreateSummary(LiveSessionState state)
+    private CouncilLiveSessionSummary CreateSummary(CouncilLiveSessionState state)
     {
         lock (state.SyncRoot)
         {
@@ -164,7 +164,7 @@ public sealed class CouncilLiveSessionService(
             || trimmed.StartsWith("Ollama ", StringComparison.OrdinalIgnoreCase);
     }
 
-    private void ScheduleChanged(LiveSessionState state)
+    private void ScheduleChanged(CouncilLiveSessionState state)
     {
         if (Interlocked.Exchange(ref state.NotificationScheduled, 1) != 0)
             return;
@@ -196,32 +196,4 @@ public sealed class CouncilLiveSessionService(
         });
     }
 
-    private sealed class LiveSessionState : IDisposable
-    {
-        public LiveSessionState(
-            Guid runId,
-            IReadOnlyList<string> councilMembers,
-            string userMessage,
-            string initialTranscript)
-        {
-            RunId = runId;
-            CouncilMembers = councilMembers.ToArray();
-            UserMessage = userMessage ?? string.Empty;
-            Transcript = new StringBuilder(initialTranscript ?? string.Empty);
-        }
-
-        public object SyncRoot { get; } = new();
-        public Guid RunId { get; }
-        public IReadOnlyList<string> CouncilMembers { get; }
-        public string UserMessage { get; }
-        public List<string> AdditionalUserMessages { get; } = [];
-        public StringBuilder Transcript { get; }
-        public CancellationTokenSource Cancellation { get; } = new();
-        public DateTime StartedAtUtc { get; } = DateTime.UtcNow;
-        public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
-        public bool IsRunning { get; set; } = true;
-        public int NotificationScheduled;
-
-        public void Dispose() => Cancellation.Dispose();
-    }
 }

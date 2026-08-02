@@ -138,12 +138,12 @@
                 "localGptOneWireSecurity.renderQr",
                 "localgpt-security-otp-qr",
                 _otpUri,
-                "LocalGPT Authenticator enrollment").ConfigureAwait(true);
+                "LocalGPT Authenticator enrollment");
             await JS.InvokeVoidAsync(
                 "localGptOneWireSecurity.renderQr",
                 "localgpt-security-ticket-qr",
                 _pairingTicketJson,
-                "LocalGPT public 1-Wire pairing ticket").ConfigureAwait(true);
+                "LocalGPT public 1-Wire pairing ticket");
             Logger.LogDebug("Rendered current 1-Wire pairing QR material.");
         }
         catch (OperationCanceledException) when (isDisposed)
@@ -169,7 +169,7 @@
             // Read runtime state outside the renderer dispatcher. The previous implementation
             // wrapped the entire security I/O sequence in InvokeAsync, which could monopolize the
             // circuit until the timeout fired. Only the final state assignment belongs on the UI.
-            var state = await LoadSecurityStateAsync(cancellationToken).ConfigureAwait(true);
+            var state = await LoadSecurityStateAsync(cancellationToken);
             await InvokeAsync(() =>
             {
                 _status = state.Status;
@@ -177,7 +177,7 @@
                 Logger.LogInformation("1-Wire Security page initialized with {TrustedPeerCount} trusted peer(s).", _trustedPeers.Count);
                 ComponentActivity.RecordInformation(nameof(OneWireSecurity), nameof(InitializeAfterRenderAsync), "The 1-Wire Security runtime state finished loading after the interactive shell rendered.");
                 StateHasChanged();
-            }).ConfigureAwait(true);
+            });
         }
         catch (OperationCanceledException) when (!isDisposed)
         {
@@ -192,7 +192,7 @@
                 ComponentActivity.RecordWarning(nameof(OneWireSecurity), nameof(InitializeAfterRenderAsync), "Runtime security initialization timed out without blocking the UI.");
                 Notifier.ShowWarning("OneWireSecurityToasts", _status.Warning, "1-Wire Security timeout");
                 StateHasChanged();
-            }).ConfigureAwait(true);
+            });
         }
         catch (ObjectDisposedException) when (isDisposed)
         {
@@ -211,7 +211,7 @@
                 ComponentActivity.RecordFailure(nameof(OneWireSecurity), nameof(InitializeAfterRenderAsync), ex);
                 Notifier.ShowError("OneWireSecurityToasts", _status.Warning, "1-Wire Security");
                 StateHasChanged();
-            }).ConfigureAwait(true);
+            });
         }
     }
 
@@ -219,51 +219,51 @@
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(8));
-        var status = await Security.GetStatusAsync(timeoutCts.Token).ConfigureAwait(true);
-        var peers = await Security.GetTrustedPeersAsync(timeoutCts.Token).ConfigureAwait(true);
+        var status = await Security.GetStatusAsync(timeoutCts.Token);
+        var peers = await Security.GetTrustedPeersAsync(timeoutCts.Token);
         return (status, peers);
     }
 
     private async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        var state = await LoadSecurityStateAsync(cancellationToken).ConfigureAwait(true);
+        var state = await LoadSecurityStateAsync(cancellationToken);
         _status = state.Status;
         _trustedPeers = state.TrustedPeers;
     }
 
     private async Task CreateAsync() => await RunAsync(async cancellationToken =>
     {
-        await Security.EnsureCreatedAsync(cancellationToken).ConfigureAwait(true);
+        await Security.EnsureCreatedAsync(cancellationToken);
         Notifier.ShowSuccess("OneWireSecurityToasts", "Runtime 1-Wire identity created.", "1-Wire Security");
-    }, "CreateIdentity", "Could not create the runtime 1-Wire identity.").ConfigureAwait(true);
+    }, "CreateIdentity", "Could not create the runtime 1-Wire identity.");
 
     private async Task CreatePairingMaterialAsync() => await RunAsync(async cancellationToken =>
     {
-        await Security.EnsureCreatedAsync(cancellationToken).ConfigureAwait(true);
-        _otpUri = await Security.GetOtpAuthUriAsync(cancellationToken).ConfigureAwait(true);
-        var ticket = await Security.CreatePairingTicketAsync(TimeSpan.FromMinutes(15), cancellationToken).ConfigureAwait(true);
+        await Security.EnsureCreatedAsync(cancellationToken);
+        _otpUri = await Security.GetOtpAuthUriAsync(cancellationToken);
+        var ticket = await Security.CreatePairingTicketAsync(TimeSpan.FromMinutes(15), cancellationToken);
         _pairingTicketJson = JsonSerializer.Serialize(ticket, JsonOptions);
         _renderQr = true;
         Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created.", "1-Wire Security");
-    }, "CreatePairingMaterial", "Could not create 1-Wire pairing material.").ConfigureAwait(true);
+    }, "CreatePairingMaterial", "Could not create 1-Wire pairing material.");
 
     private async Task RegenerateAsync() => await RunAsync(async cancellationToken =>
     {
         if (!_allowReset)
             return;
-        await Security.RegenerateAsync(cancellationToken).ConfigureAwait(true);
+        await Security.RegenerateAsync(cancellationToken);
         ClearMaterial();
         Notifier.ShowWarning("OneWireSecurityToasts", "The LocalGPT runtime identity was regenerated. Previous encrypted trust is invalid.", "1-Wire trust reset");
-    }, "RegenerateIdentity", "Could not regenerate the runtime 1-Wire identity.").ConfigureAwait(true);
+    }, "RegenerateIdentity", "Could not regenerate the runtime 1-Wire identity.");
 
     private async Task DeleteAsync() => await RunAsync(async cancellationToken =>
     {
         if (!_allowReset)
             return;
-        await Security.DeleteAsync(cancellationToken).ConfigureAwait(true);
+        await Security.DeleteAsync(cancellationToken);
         ClearMaterial();
         Notifier.ShowWarning("OneWireSecurityToasts", "The LocalGPT runtime identity and local trust bindings were deleted.", "1-Wire trust reset");
-    }, "DeleteIdentity", "Could not delete the runtime 1-Wire identity.").ConfigureAwait(true);
+    }, "DeleteIdentity", "Could not delete the runtime 1-Wire identity.");
 
     private async Task EstablishTrustAsync() => await RunAsync(async cancellationToken =>
     {
@@ -274,7 +274,7 @@
             Ticket = ticket,
             MfaCode = _mfaCode.Trim(),
             ValidForMinutes = _validForMinutes
-        }, cancellationToken).ConfigureAwait(true);
+        }, cancellationToken);
         if (!accepted)
         {
             Notifier.ShowWarning("OneWireSecurityToasts", "The current LocalGPT MFA code was not accepted.", "1-Wire trust");
@@ -282,13 +282,13 @@
         }
         _mfaCode = string.Empty;
         Notifier.ShowSuccess("OneWireSecurityToasts", $"Trusted {ticket.DisplayName} for the selected validity period.", "1-Wire trust");
-    }, "EstablishTrust", "Could not establish trust for the remote 1-Wire peer.").ConfigureAwait(true);
+    }, "EstablishTrust", "Could not establish trust for the remote 1-Wire peer.");
 
     private async Task RevokeAsync(string peerId) => await RunAsync(async cancellationToken =>
     {
-        await Security.RevokeTrustAsync(peerId, cancellationToken).ConfigureAwait(true);
+        await Security.RevokeTrustAsync(peerId, cancellationToken);
         Notifier.ShowWarning("OneWireSecurityToasts", $"Trust for {peerId} was revoked.", "1-Wire trust");
-    }, "RevokeTrust", "Could not revoke the selected 1-Wire trust binding.").ConfigureAwait(true);
+    }, "RevokeTrust", "Could not revoke the selected 1-Wire trust binding.");
 
     private async Task RunAsync(Func<CancellationToken, Task> action, string operation, string message)
     {
@@ -301,8 +301,8 @@
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
         try
         {
-            await action(timeoutCts.Token).ConfigureAwait(true);
-            await RefreshAsync(timeoutCts.Token).ConfigureAwait(true);
+            await action(timeoutCts.Token);
+            await RefreshAsync(timeoutCts.Token);
             ComponentActivity.RecordInformation(nameof(OneWireSecurity), operation, "The runtime 1-Wire Security UI operation completed.");
         }
         catch (OperationCanceledException) when (!isDisposed)

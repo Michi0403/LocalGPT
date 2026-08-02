@@ -214,7 +214,7 @@
         _busy = true;
         try
         {
-            _entries = (await Catalog.GetEntriesAsync().ConfigureAwait(true)).Select(Clone).ToList();
+            _entries = (await Catalog.GetEntriesAsync()).Select(Clone).ToList();
             _dirtyGridCatalogKeys.Clear();
             _status = $"Loaded {_entries.Count} database-backed function and service policies.";
             _hasError = false;
@@ -235,7 +235,7 @@
         _busy = true;
         try
         {
-            _entries = (await Catalog.SynchronizeAsync().ConfigureAwait(true)).Select(Clone).ToList();
+            _entries = (await Catalog.SynchronizeAsync()).Select(Clone).ToList();
             _dirtyGridCatalogKeys.Clear();
             _status = $"Synchronized {_entries.Count} runtime descriptors. Existing user exposure and confirmation choices were preserved.";
             _hasError = false;
@@ -267,7 +267,7 @@
                 InteractionEditor = entry.InteractionEditor,
                 AllowedPeerIdsJson = entry.AllowedPeerIdsJson,
                 UpdatedBy = "LocalGPT frontend user"
-            }).ConfigureAwait(true);
+            });
             var index = _entries.FindIndex(item => item.CatalogKey == saved.CatalogKey);
             if (index >= 0) _entries[index] = Clone(saved);
             _dirtyGridCatalogKeys.Remove(saved.CatalogKey);
@@ -316,7 +316,7 @@
                     InteractionEditor = entry.InteractionEditor,
                     AllowedPeerIdsJson = entry.AllowedPeerIdsJson,
                     UpdatedBy = "LocalGPT frontend mass edit"
-                }).ConfigureAwait(true);
+                });
                 var sourceIndex = _entries.FindIndex(item => item.CatalogKey == saved.CatalogKey);
                 if (sourceIndex >= 0)
                     _entries[sourceIndex] = Clone(saved);

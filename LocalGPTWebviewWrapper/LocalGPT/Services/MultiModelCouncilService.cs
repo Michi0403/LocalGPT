@@ -6,7 +6,6 @@ using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
-using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
@@ -42,33 +41,6 @@ namespace LocalGPT.Services
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : IMultiModelCouncilService
     {
-        private sealed record CouncilRoleRuntimeAssignment(
-            string RoleName,
-            OrganicCouncilRoleDefinition? Definition,
-            IReadOnlyList<string> AiParticipants)
-        {
-            public HumanParticipationMode HumanParticipationMode =>
-                Definition?.HumanParticipationMode ?? global::LocalGPT.BusinessObjects.HumanParticipationMode.None;
-
-            public string AiSelectionDescription => HumanParticipationMode == global::LocalGPT.BusinessObjects.HumanParticipationMode.HumanOnly
-                ? "no AI members (human-only role)"
-                : Definition is null || Definition.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected
-                    ? $"all {AiParticipants.Count} selected AI member(s)"
-                    : $"{AiParticipants.Count} deterministic-random AI member(s)";
-        }
-
-        private sealed record CouncilParticipantPairing(
-            string RoleName,
-            string Participant,
-            string PairedRoleName,
-            string PairedParticipant);
-
-        private sealed record ConfiguredWorkflowExecutionState(
-            int Round,
-            int ExpandedStepIndex,
-            string PreviousStep,
-            string FallbackAnswer,
-            string FinalAnswer);
 
         public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
         {
@@ -3759,7 +3731,7 @@ namespace LocalGPT.Services
                             MaxOutputTokens = maxOutputTokens,
                             Temperature = 0.1f
                         },
-                        cancellationToken).WithCancellation(cancellationToken))
+                        cancellationToken).WithCancellation(cancellationToken).ConfigureAwait(false))
                     {
                         builder.Append(update.Text);
                         streamUpdate?.Invoke(update.Text);

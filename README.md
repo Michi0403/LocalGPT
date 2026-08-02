@@ -230,6 +230,10 @@ Use it, inspect it, fork it, improve it, or build something entirely different f
 
 </div>
 
+## LocalGPT 2.1.9 Adaptive benchmark wiring compile fix
+
+Version 2.1.9 adds the missing `LocalGPT.Interfaces` import to `AdaptiveOllamaBenchmarkWiring`, allowing its `IDxAiFunctionHandler` contract to resolve during compilation. The empirical Ollama autotuner remains an explicit `NotImplementedException` boundary until it can be validated on real target hardware. The independently versioned `LocalGPT.WireProtocolVersion` package remains unchanged.
+
 ## LocalGPT 2.1.8 version alignment
 
 Version 2.1.8 raises the LocalGPT application, runtime context, organic 1-Wire application advertisement, and seeded LocalGPT Core project metadata to the same release number. The independently versioned `LocalGPT.WireProtocolVersion` package remains unchanged.
@@ -250,3 +254,11 @@ The Chat surface supports keyboard, touch, gamepad, shared human/AI control, del
 These are fan-made configuration and architecture studies. LocalGPT is not affiliated with id Software, ZeniMax, Bethesda, LOTGD, or their contributors, does not ship commercial game data, WADs, trademarks, or the original game engine, and does not claim that these examples are official versions of any game.
 
 See [`docs/ASCII_RUNTIME_GAME_PRESETS.md`](docs/ASCII_RUNTIME_GAME_PRESETS.md) for the frame contract, role ownership, optional learning sources, and runtime-field behavior.
+
+## LocalGPT 2.1.10 scoped diagnostics and adaptive Ollama benchmark
+
+Version 2.1.10 prevents the method-diagnostics decorator from wrapping singleton registrations, so a singleton proxy can no longer attempt to resolve scoped services from the root provider. `IRegexPatternService` is registered as a singleton because its implementation is stateless and creates short-lived database contexts through `IDbContextFactory`.
+
+`localgpt.models.benchmark.autotune` is now an implemented, human-confirmed DXFunction. It benchmarks only models already installed in the configured loopback Ollama runtime, uses bounded deterministic and optional peer-authored tasks, stops profile tuning when improvement falls below the chosen threshold, and can save a new model preset without silently replacing an existing preset.
+
+`ConfigureAwait(true)` is prohibited. Blazor components use ordinary `await` to preserve the renderer synchronization context. Context-free service, controller, persistence, diagnostics, and network continuations use `ConfigureAwait(false)` wherever safe.

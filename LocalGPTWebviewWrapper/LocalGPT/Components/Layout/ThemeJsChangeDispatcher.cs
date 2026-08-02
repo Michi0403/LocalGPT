@@ -54,7 +54,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         if (!firstRender)
             return;
 
-        await _changeGate.WaitAsync().ConfigureAwait(true);
+        await _changeGate.WaitAsync();
         try
         {
             Themes.ThemeChangeRequestDispatcher = this;
@@ -65,12 +65,12 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             Themes.SetActiveComponentTheme(fallbackComponentTheme);
             await DevExpressThemeChangeService
                 .SetTheme(fallbackComponentTheme.DevExpressTheme)
-                .ConfigureAwait(true);
+                ;
 
-            await EnsureModuleAsync().ConfigureAwait(true);
+            await EnsureModuleAsync();
             var browserState = await _module!
                 .InvokeAsync<BrowserThemeState?>("readThemeState")
-                .ConfigureAwait(true);
+                ;
 
             var shellTheme = Themes.GetThemeOrDefault(
                 browserState?.ShellThemeName ?? fallbackShellTheme.Name);
@@ -81,14 +81,14 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             Themes.SetActiveComponentTheme(componentTheme);
             await DevExpressThemeChangeService
                 .SetTheme(componentTheme.DevExpressTheme)
-                .ConfigureAwait(true);
+                ;
 
             Themes.ReplaceFusionRoute(ConvertBrowserFusionRoute(browserState?.FusionRoute));
             Themes.EnsureFusionRouteSeeded();
-            await PersistFusionRouteAsync().ConfigureAwait(true);
-            await ApplyClientThemeStateAsync().ConfigureAwait(true);
-            await NotifyLoadedAsync(shellTheme, ThemeApplicationTarget.Shell).ConfigureAwait(true);
-            await NotifyLoadedAsync(componentTheme, ThemeApplicationTarget.Components).ConfigureAwait(true);
+            await PersistFusionRouteAsync();
+            await ApplyClientThemeStateAsync();
+            await NotifyLoadedAsync(shellTheme, ThemeApplicationTarget.Shell);
+            await NotifyLoadedAsync(componentTheme, ThemeApplicationTarget.Components);
 
             ComponentActivity.RecordInformation(
                 nameof(ThemeJsChangeDispatcher),
@@ -113,7 +113,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             _changeGate.Release();
         }
 
-        await base.OnAfterRenderAsync(firstRender).ConfigureAwait(true);
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     public async Task RequestThemeChangeAsync(Theme theme, ThemeApplicationTarget target)
@@ -121,10 +121,10 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         ArgumentNullException.ThrowIfNull(theme);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _changeGate.WaitAsync().ConfigureAwait(true);
+        await _changeGate.WaitAsync();
         try
         {
-            await EnsureModuleAsync().ConfigureAwait(true);
+            await EnsureModuleAsync();
 
             var previousShellTheme = Themes.ActiveShellTheme;
             var previousComponentTheme = Themes.ActiveComponentTheme;
@@ -134,7 +134,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                 {
                     await DevExpressThemeChangeService
                         .SetTheme(theme.DevExpressTheme)
-                        .ConfigureAwait(true);
+                        ;
                     Themes.SetActiveComponentTheme(theme);
                 }
                 else
@@ -142,10 +142,10 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                     Themes.SetActiveShellTheme(theme);
                 }
 
-                await ApplyClientThemeStateAsync().ConfigureAwait(true);
+                await ApplyClientThemeStateAsync();
                 Themes.RecordFusionStep(target, theme);
-                await PersistFusionRouteAsync().ConfigureAwait(true);
-                await NotifyLoadedAsync(theme, target).ConfigureAwait(true);
+                await PersistFusionRouteAsync();
+                await NotifyLoadedAsync(theme, target);
 
                 ComponentActivity.RecordInformation(
                     nameof(ThemeJsChangeDispatcher),
@@ -163,7 +163,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                         previousShellTheme,
                         previousComponentTheme,
                         ex)
-                    .ConfigureAwait(true);
+                    ;
             }
         }
         catch (JSDisconnectedException)
@@ -189,17 +189,17 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _changeGate.WaitAsync().ConfigureAwait(true);
+        await _changeGate.WaitAsync();
         try
         {
-            await EnsureModuleAsync().ConfigureAwait(true);
+            await EnsureModuleAsync();
             Themes.ResetFusionRouteToCurrentSelection();
             await _module!
                 .InvokeVoidAsync(
                     "resetFusionRoute",
                     Themes.ActiveShellTheme.Name,
                     Themes.ActiveComponentTheme.Name)
-                .ConfigureAwait(true);
+                ;
 
             ComponentActivity.RecordInformation(
                 nameof(ThemeJsChangeDispatcher),
@@ -240,7 +240,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                 .AbsoluteUri;
             var importedModule = await JsRuntime
                 .InvokeAsync<IJSObjectReference>("import", themeModuleUri)
-                .ConfigureAwait(true);
+                ;
             _module = importedModule
                 ?? throw new InvalidOperationException("The theme JavaScript module import returned no module reference.");
         }
@@ -256,7 +256,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     {
         try
         {
-            await EnsureModuleAsync().ConfigureAwait(true);
+            await EnsureModuleAsync();
             await _module!
                 .InvokeVoidAsync(
                     "applyThemeState",
@@ -266,7 +266,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                     Themes.ActiveComponentTheme.Name,
                     null,
                     null)
-                .ConfigureAwait(true);
+                ;
         }
         catch (Exception ex)
         {
@@ -280,10 +280,10 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     {
         try
         {
-            await EnsureModuleAsync().ConfigureAwait(true);
+            await EnsureModuleAsync();
             await _module!
                 .InvokeVoidAsync("persistFusionRoute", Themes.FusionRoute)
-                .ConfigureAwait(true);
+                ;
         }
         catch (JSDisconnectedException)
         {
@@ -334,7 +334,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             {
                 await Themes.ThemeLoadNotifier
                     .NotifyThemeLoadedAsync(theme, target)
-                    .ConfigureAwait(true);
+                    ;
             }
         }
         catch (Exception ex)
@@ -356,7 +356,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             {
                 await DevExpressThemeChangeService
                     .SetTheme(previousComponentTheme.DevExpressTheme)
-                    .ConfigureAwait(true);
+                    ;
                 Themes.SetActiveComponentTheme(previousComponentTheme);
             }
             else
@@ -364,11 +364,11 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
                 Themes.SetActiveShellTheme(previousShellTheme);
             }
 
-            await ApplyClientThemeStateAsync().ConfigureAwait(true);
+            await ApplyClientThemeStateAsync();
             await NotifyLoadedAsync(
                     target == ThemeApplicationTarget.Shell ? previousShellTheme : previousComponentTheme,
                     target)
-                .ConfigureAwait(true);
+                ;
 
             Logger.LogError(
                 originalException,
@@ -409,7 +409,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             {
                 try
                 {
-                    await _module.DisposeAsync().ConfigureAwait(true);
+                    await _module.DisposeAsync();
                 }
                 catch (JSDisconnectedException)
                 {
@@ -454,17 +454,5 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
-    private sealed class BrowserThemeState
-    {
-        public string? ShellThemeName { get; set; }
-        public string? ComponentThemeName { get; set; }
-        public List<BrowserThemeFusionStep>? FusionRoute { get; set; }
-    }
 
-    private sealed class BrowserThemeFusionStep
-    {
-        public int Sequence { get; set; }
-        public string? Target { get; set; }
-        public string? ThemeName { get; set; }
-    }
 }

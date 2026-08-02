@@ -7,7 +7,6 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {

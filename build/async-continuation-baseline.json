@@ -1,91 +1,91 @@
 {
   "schemaVersion": 2,
   "sourceRoot": "LocalGPTWebviewWrapper/LocalGPT",
-  "policy": "Renderer-affine Components must never use ConfigureAwait(false). Services/controllers keep their reviewed ConfigureAwait(false) minimum; new unconfigured or ConfigureAwait(true) continuations require deliberate baseline review.",
+  "policy": "ConfigureAwait(true) is prohibited. Renderer-affine Components use ordinary await so Blazor retains its synchronization context and must never use ConfigureAwait(false). Services/controllers use ConfigureAwait(false) wherever the continuation does not require a context; reviewed legacy unconfigured awaits remain bounded.",
   "files": {
     "Components/InteractiveStartupMarker.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 2,
+      "maxUnconfiguredAwaitCount": 2,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/Drawer.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 1,
+      "maxUnconfiguredAwaitCount": 1,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/HumanCollaborationInbox.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 13,
+      "maxUnconfiguredAwaitCount": 13,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeJsChangeDispatcher.cs": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 30,
+      "maxUnconfiguredAwaitCount": 30,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeSwitcherContainer.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 7,
+      "maxUnconfiguredAwaitCount": 7,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Layout/ThemeSwitcherItem.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 1,
+      "maxUnconfiguredAwaitCount": 1,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Chat.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 96,
+      "maxUnconfiguredAwaitCount": 95,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/CouncilTeams.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 5,
+      "maxUnconfiguredAwaitCount": 5,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Database.razor": {
-      "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 30,
+      "maxUnconfiguredAwaitCount": 31,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/DxFunctionCatalog.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 4,
+      "maxUnconfiguredAwaitCount": 4,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Install.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 45,
+      "maxUnconfiguredAwaitCount": 45,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/MinecraftModBuilder.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 14,
+      "maxUnconfiguredAwaitCount": 14,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/ModelCouncil.razor": {
-      "maxUnconfiguredAwaitCount": 6,
-      "maxConfigureAwaitTrueCount": 19,
+      "maxUnconfiguredAwaitCount": 25,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/OneWireSecurity.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 25,
+      "maxUnconfiguredAwaitCount": 25,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/ProjectMaintenance.razor": {
-      "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 43,
+      "maxUnconfiguredAwaitCount": 44,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/Projects.razor": {
-      "maxUnconfiguredAwaitCount": 1,
-      "maxConfigureAwaitTrueCount": 30,
+      "maxUnconfiguredAwaitCount": 31,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Pages/TestLab.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 23,
+      "maxUnconfiguredAwaitCount": 23,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Components/Shared/CouncilHardwareRoadEditor.razor": {
@@ -559,8 +559,8 @@
       "minConfigureAwaitFalseCount": 10
     },
     "Components/Shared/ChatGameConsole.razor": {
-      "maxUnconfiguredAwaitCount": 0,
-      "maxConfigureAwaitTrueCount": 18,
+      "maxUnconfiguredAwaitCount": 18,
+      "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 0
     },
     "Services/CouncilRuntimeClassService.cs": {
@@ -572,6 +572,11 @@
       "maxUnconfiguredAwaitCount": 2,
       "maxConfigureAwaitTrueCount": 0,
       "minConfigureAwaitFalseCount": 20
+    },
+    "Services/AdaptiveOllamaBenchmarkWiring.cs": {
+      "maxUnconfiguredAwaitCount": 0,
+      "maxConfigureAwaitTrueCount": 0,
+      "minConfigureAwaitFalseCount": 15
     }
   }
 }

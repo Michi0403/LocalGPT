@@ -147,34 +147,25 @@ public sealed class DatabaseInitializationService(
     {
         try
         {
-            var reconciledEntries = 0;
+            cancellationToken.ThrowIfCancellationRequested();
+            var conflictingEntryCount = exception.Entries.Count;
+
+            // Never issue a second SaveChanges from the failed DbContext. EF still owns the original
+            // modification batch and another save can repeat the same stale concurrency predicate.
+            // A fresh context on the next bounded attempt reloads durable rows and applies only missing,
+            // additive seed records. Existing user rows remain authoritative.
             foreach (var entry in exception.Entries)
-            {
-                var databaseValues = await entry.GetDatabaseValuesAsync(cancellationToken).ConfigureAwait(false);
-                if (databaseValues is null)
-                {
-                    entry.State = EntityState.Detached;
-                    continue;
-                }
-
-                // Seed data never wins over a concurrently edited user row. Reload the durable row and
-                // preserve unrelated Added entries in this stage, then save only those additive changes.
-                entry.OriginalValues.SetValues(databaseValues);
-                entry.CurrentValues.SetValues(databaseValues);
-                entry.State = EntityState.Unchanged;
-                reconciledEntries++;
-            }
-
-            if (db.ChangeTracker.HasChanges())
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                entry.State = EntityState.Detached;
+            db.ChangeTracker.Clear();
 
             logger.LogWarning(
                 exception,
-                "Database seed stage {SeedStage} reconciled {ReconciledEntryCount} concurrently changed row(s) on attempt {Attempt}; user/database values remained authoritative.",
+                "Database seed stage {SeedStage} discarded {ConflictingEntryCount} stale tracked seed row(s) on attempt {Attempt}; a fresh DbContext will retry additive seed work without overwriting durable user values.",
                 stageName,
-                reconciledEntries,
+                conflictingEntryCount,
                 attempt);
-            return true;
+            await Task.CompletedTask.ConfigureAwait(false);
+            return false;
         }
         catch (OperationCanceledException cancellationException) when (cancellationToken.IsCancellationRequested)
         {
@@ -185,7 +176,7 @@ public sealed class DatabaseInitializationService(
         {
             logger.LogWarning(
                 reconciliationException,
-                "Database seed stage {SeedStage} could not reconcile its concurrency conflict on attempt {Attempt}.",
+                "Database seed stage {SeedStage} could not clear stale tracked seed rows on attempt {Attempt}.",
                 stageName,
                 attempt);
             return false;
@@ -377,7 +368,7 @@ public sealed class DatabaseInitializationService(
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.1.8",
+                CurrentVersion = "2.1.10",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -387,12 +378,10 @@ public sealed class DatabaseInitializationService(
         }
         else
         {
-            // Lossless upgrade: only fill empty built-in fields and never replace user-maintained values.
-            if (string.IsNullOrWhiteSpace(core.RootPath)) core.RootPath = repositoryRoot;
-            if (string.IsNullOrWhiteSpace(core.Purpose)) core.Purpose = "Human-guided, humanitarian self-development of LocalGPT.";
-            if (string.IsNullOrWhiteSpace(core.CurrentVersion) || core.CurrentVersion is "0.1.0" or "0.1.7" or "0.1.8" or "2.0.0" or "2.0.1" or "2.0.2" or "2.0.3" or "2.0.4") core.CurrentVersion = "2.1.8";
-            core.IsArchived = false;
-            core.UpdatedAtUtc = now;
+            // Existing project rows are user/database authoritative. Version history, requirements and
+            // artifacts below are additive; startup seeding does not update the parent row or its
+            // concurrency token.
+            db.Entry(core).State = EntityState.Unchanged;
         }
 
         EnsureTopic(core, "Repository architecture and self-development",
@@ -420,6 +409,12 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.8", repositoryRoot, "Version-alignment release that advertises LocalGPT 2.1.8 consistently through the application package, runtime context, organic 1-Wire descriptor and seeded core-project metadata.");
         EnsureRevision(core, "main", "seed-v2.1.8", repositoryRoot,
             "Raises the LocalGPT application version to 2.1.8 without changing the separately versioned 1-Wire protocol package or removing prior release history.");
+        EnsureVersion(core, "2.1.9", repositoryRoot, "Compile-fix release that restores the AdaptiveOllamaBenchmarkWiring interface import while retaining the explicit unimplemented benchmark boundary.");
+        EnsureRevision(core, "main", "seed-v2.1.9", repositoryRoot,
+            "Adds the missing LocalGPT.Interfaces namespace import required by AdaptiveOllamaBenchmarkWiring and advances the application patch version without changing the separately versioned 1-Wire protocol package.");
+        EnsureVersion(core, "2.1.10", repositoryRoot, "Scoped-lifetime diagnostics and adaptive Ollama benchmark release with zero explicit true-context continuation captures.");
+        EnsureRevision(core, "main", "seed-v2.1.10", repositoryRoot,
+            "Prevents diagnostics decorators from resolving scoped services through the root provider, implements the bounded local Ollama autotuner, and restores the asynchronous policy: renderer-context continuations remain implicit while context-free service continuations use ConfigureAwait(false).");
 
         EnsureRequirement(core, "Preflight database and capability audit",
             "Before every Council run, fill deterministic database gaps, inspect the current project/topic context, publish the DXFunction and organic-skill directories, then ask exact user questions for missing current facts instead of guessing.",
@@ -488,9 +483,8 @@ public sealed class DatabaseInitializationService(
         }
         else
         {
-            if (string.IsNullOrWhiteSpace(humanitarian.Purpose)) humanitarian.Purpose = "User-maintained humanitarian collaboration workspace.";
-            humanitarian.IsArchived = false;
-            humanitarian.UpdatedAtUtc = now;
+            // Preserve the complete user-maintained parent row and seed only missing child records.
+            db.Entry(humanitarian).State = EntityState.Unchanged;
         }
         EnsureTopic(humanitarian, "Humanitarian use cases",
             "User and Council co-maintain peaceful project goals, scientific topics, constraints, evidence and external-organ capabilities without assuming one language or technology.");
@@ -625,14 +619,14 @@ public sealed class DatabaseInitializationService(
     private void EnsureVersion(LocalGptProject project, string version, string path, string notes)
     {
         if (project.Versions.Any(item => string.Equals(item.Version, version, StringComparison.OrdinalIgnoreCase))) return;
-        foreach (var existing in project.Versions) existing.IsCurrent = false;
+        var hasCurrentVersion = project.Versions.Any(existing => existing.IsCurrent);
         project.Versions.Add(new LocalGptProjectVersion
         {
             ProjectId = project.Id,
             Version = version,
             Notes = notes,
             PathSnapshot = path,
-            IsCurrent = true,
+            IsCurrent = !hasCurrentVersion,
             IsUserConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         });
@@ -641,7 +635,7 @@ public sealed class DatabaseInitializationService(
     private void EnsureRevision(LocalGptProject project, string branch, string revision, string root, string summary)
     {
         if (project.Revisions.Any(item => string.Equals(item.BranchName, branch, StringComparison.OrdinalIgnoreCase) && string.Equals(item.RevisionName, revision, StringComparison.OrdinalIgnoreCase))) return;
-        foreach (var existing in project.Revisions) existing.IsCurrent = false;
+        var hasCurrentRevision = project.Revisions.Any(existing => existing.IsCurrent);
         project.Revisions.Add(new LocalGptProjectRevision
         {
             ProjectId = project.Id,
@@ -650,7 +644,7 @@ public sealed class DatabaseInitializationService(
             Summary = summary,
             ProjectStructureJson = JsonSerializer.Serialize(new { RootPath = root, Seeded = true, Version = revision }),
             CreatedBy = "LocalGPT deterministic seed",
-            IsCurrent = true,
+            IsCurrent = !hasCurrentRevision,
             IsUserApproved = true,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow

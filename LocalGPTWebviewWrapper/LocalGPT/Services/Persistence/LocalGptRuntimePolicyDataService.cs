@@ -10,7 +10,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
 {
     private readonly ILocalGptRuntimePolicyStoreService store;
     private readonly ILogger<LocalGptRuntimePolicyDataService> logger;
-    private RuntimePolicyState state = null!;
+    private LocalGptRuntimePolicyState state = null!;
 
     public LocalGptRuntimePolicyDataService(ILocalGptRuntimePolicyStoreService store, ILogger<LocalGptRuntimePolicyDataService> logger)
     {
@@ -160,7 +160,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
                 throw new InvalidDataException("RegexTimeoutMilliseconds must be positive.");
 
             var timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds);
-            var next = new RuntimePolicyState(
+            var next = new LocalGptRuntimePolicyState(
                 values.ToFrozenDictionary(),
                 definition.Collections
                     .ToDictionary(
@@ -201,7 +201,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
-    private LocalGptRuntimePolicySnapshot CreateSnapshot(RuntimePolicyState current)
+    private LocalGptRuntimePolicySnapshot CreateSnapshot(LocalGptRuntimePolicyState current)
     {
         try
         {
@@ -253,9 +253,4 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             throw;
         }
     }
-
-    private sealed record RuntimePolicyState(
-        FrozenDictionary<LocalGptRuntimeValue, string> Values,
-        FrozenDictionary<LocalGptRuntimeCollection, FrozenSet<string>> Collections,
-        FrozenDictionary<LocalGptRuntimePattern, Regex> Patterns);
 }

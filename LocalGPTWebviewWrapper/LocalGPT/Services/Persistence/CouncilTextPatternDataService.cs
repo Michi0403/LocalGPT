@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,7 @@ public sealed class CouncilTextPatternDataService(
     ILogger<CouncilTextPatternDataService> logger) : ICouncilTextPatternDataService
 {
     private readonly object _sync = new();
-    private readonly Dictionary<string, CachedPattern> _cache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, CouncilTextCachedPattern> _cache = new(StringComparer.Ordinal);
 
     public Regex FormerThoughtBreakPattern => GetRequired(nameof(FormerThoughtBreakPattern));
     public Regex FormerThoughtCodeWrapperPattern => GetRequired(nameof(FormerThoughtCodeWrapperPattern));
@@ -106,7 +107,7 @@ public sealed class CouncilTextPatternDataService(
                     row.Pattern,
                     ParseFlags(flags),
                     TimeSpan.FromMilliseconds(timeoutMilliseconds));
-                _cache[name] = new CachedPattern(row.Pattern, flags, timeoutMilliseconds, compiled);
+                _cache[name] = new CouncilTextCachedPattern(row.Pattern, flags, timeoutMilliseconds, compiled);
                 logger.LogDebug($"Loaded Council text regex {{RegexName}} from the database-backed catalog; pattern content omitted.", name);
                 return compiled;
             }
@@ -139,8 +140,6 @@ public sealed class CouncilTextPatternDataService(
             throw;
         }
     }
-
-    private sealed record CachedPattern(string Pattern, string Flags, int TimeoutMilliseconds, Regex Regex);
 
     private RegexOptions ParseFlags(string? flags)
     {

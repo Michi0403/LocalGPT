@@ -918,8 +918,6 @@ public sealed class CodeGenerationWorkflowService(
         return copiedAny;
     }
 
-    private sealed record ReviewedSourceArtifact(string RelativePath, string FullPath);
-
     private string BuildLibrarySource(CodeGenerationOutputSpec output) => $$"""
     namespace {{output.RootNamespace}};
 

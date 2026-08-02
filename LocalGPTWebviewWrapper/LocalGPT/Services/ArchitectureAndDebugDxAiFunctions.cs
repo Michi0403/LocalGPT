@@ -87,7 +87,7 @@ public sealed class InspectDebugArtifactFunction(
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Debug-artifact inspection DXFunction started; file path content was omitted.");
-        var binding = json.Bind<Parameters>(request.Parameters);
+        var binding = json.Bind<InspectDebugArtifactParameters>(request.InspectDebugArtifactParameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -96,8 +96,4 @@ public sealed class InspectDebugArtifactFunction(
         return json.Success(result);
     }
 
-    private sealed class Parameters
-    {
-        public string FilePath { get; set; } = string.Empty;
-    }
 }

@@ -764,9 +764,9 @@ public sealed class ProjectMaintenanceService(
         var hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
         return Convert.ToHexString(hash);
     }
-    private async Task<TrackedSourceState> CaptureTrackedSourceStateAsync(IReadOnlyList<LocalGptProjectTrackedFile> files, bool requireStoredHashMatch, CancellationToken cancellationToken)
+    private async Task<ProjectTrackedSourceState> CaptureTrackedSourceStateAsync(IReadOnlyList<LocalGptProjectTrackedFile> files, bool requireStoredHashMatch, CancellationToken cancellationToken)
     {
-        var entries = new List<SourceManifestEntry>(files.Count);
+        var entries = new List<ProjectSourceManifestEntry>(files.Count);
         foreach (var file in files.OrderBy(item => item.ProjectRelativePath, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -775,12 +775,12 @@ public sealed class ProjectMaintenanceService(
             if (requireStoredHashMatch && !string.Equals(hash, file.ContentHash, StringComparison.Ordinal))
                 throw new InvalidOperationException($"Tracked file '{file.ProjectRelativePath}' changed after the last approved scan. Rescan before building or approving the revision.");
             var size = new FileInfo(file.AbsolutePath).Length;
-            entries.Add(new SourceManifestEntry(file.ProjectRelativePath.Replace('\\', '/'), hash, size));
+            entries.Add(new ProjectSourceManifestEntry(file.ProjectRelativePath.Replace('\\', '/'), hash, size));
         }
         var canonical = string.Join("\n", entries.Select(item => item.RelativePath + "|" + item.ContentHash + "|" + item.SizeBytes));
         var hashValue = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
         var manifestJson = JsonSerializer.Serialize(new { SourceHash = hashValue, Files = entries }, new JsonSerializerOptions { WriteIndented = true });
-        return new TrackedSourceState(hashValue, manifestJson, entries);
+        return new ProjectTrackedSourceState(hashValue, manifestJson, entries);
     }
 
     private bool IsPathInside(string root, string path)
@@ -790,9 +790,6 @@ public sealed class ProjectMaintenanceService(
         var normalizedPath = Path.GetFullPath(path);
         return normalizedPath.StartsWith(normalizedRoot, comparison) || string.Equals(Path.TrimEndingDirectorySeparator(normalizedPath), Path.TrimEndingDirectorySeparator(root), comparison);
     }
-
-    private sealed record SourceManifestEntry(string RelativePath, string ContentHash, long SizeBytes);
-    private sealed record TrackedSourceState(string Hash, string ManifestJson, IReadOnlyList<SourceManifestEntry> Entries);
 
     private bool RegexMatches(string pattern, string input) => !string.IsNullOrWhiteSpace(pattern) && CompileRegex(pattern, nameof(pattern), @"(?!)").IsMatch(input ?? string.Empty);
     private Regex CompileRegex(string? pattern, string parameter, string fallback)

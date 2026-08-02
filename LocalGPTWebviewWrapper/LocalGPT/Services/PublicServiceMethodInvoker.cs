@@ -120,7 +120,7 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Configured public-service DXFunction invocation started; parameter content was omitted.");
-        var payload = request.Parameters.Deserialize<InvocationParameters>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
+        var payload = request.Parameters.Deserialize<PublicServiceMethodInvocationParameters>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
             ?? throw new JsonException("catalogKey is required.");
         var result = await invoker.InvokeAsync(new PublicServiceMethodInvocationRequest
         {
@@ -132,9 +132,4 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
     }
 
-    private sealed class InvocationParameters
-    {
-        public string CatalogKey { get; set; } = string.Empty;
-        public JsonElement Parameters { get; set; }
-    }
 }

@@ -253,7 +253,7 @@
 
     private HumanCollaborationSnapshot snapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
     private HumanCouncilParticipantProfile profile = new();
-    private readonly Dictionary<Guid, RequestEditor> editors = [];
+    private readonly Dictionary<Guid, HumanCollaborationRequestEditor> editors = [];
     private readonly CancellationTokenSource lifetimeCts = new();
     private bool isOpen;
     private bool approvalBarVisible = true;
@@ -274,7 +274,7 @@
     protected override async Task OnInitializedAsync()
     {
         Collaboration.Changed += OnCollaborationChanged;
-        await RefreshAsync().ConfigureAwait(true);
+        await RefreshAsync();
     }
 
     private void TogglePanel()
@@ -302,7 +302,7 @@
     {
         try
         {
-            snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80).ConfigureAwait(true);
+            snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80);
             if (!profileDirty)
             {
                 profile = new HumanCouncilParticipantProfile
@@ -319,8 +319,8 @@
                 };
             }
             foreach (var request in PendingRequests)
-                editors.TryAdd(request.Id, new RequestEditor(request.PrefillText, string.Empty));
-            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+                editors.TryAdd(request.Id, new HumanCollaborationRequestEditor(request.PrefillText, string.Empty));
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
@@ -338,17 +338,17 @@
                 RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox));
-            profile = await Collaboration.SaveProfileAsync(profile).ConfigureAwait(true);
+            profile = await Collaboration.SaveProfileAsync(profile);
             profileDirty = false;
             statusText = profile.IsEnabled ? "Human council participation is enabled." : "Human council participation is disabled.";
             Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Participant profile");
-        }).ConfigureAwait(true);
+        });
     }
 
     private async Task SubmitContributionAsync(Guid runId)
     {
         var editorId = GetContributionEditorId(runId);
-        var content = await JS.InvokeAsync<string>("localGptHumanDrafts.read", editorId).ConfigureAwait(true);
+        var content = await JS.InvokeAsync<string>("localGptHumanDrafts.read", editorId);
         if (string.IsNullOrWhiteSpace(content))
         {
             statusText = "Write a Council contribution before adding it to the next heartbeat.";
@@ -362,11 +362,11 @@
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox),
                 councilRunId: runId);
-            await Collaboration.QueueContributionAsync(runId, content).ConfigureAwait(true);
-            await JS.InvokeVoidAsync("localGptHumanDrafts.clear", editorId).ConfigureAwait(true);
+            await Collaboration.QueueContributionAsync(runId, content);
+            await JS.InvokeVoidAsync("localGptHumanDrafts.clear", editorId);
             statusText = "Your contribution will enter the next council heartbeat without stopping the current work.";
             Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Council contribution queued");
-        }).ConfigureAwait(true);
+        });
     }
 
     private async Task ResolveAsync(HumanCollaborationRequest request, bool? approved)
@@ -382,10 +382,10 @@
                 request.CouncilRunId);
             var resolved = await Collaboration.ResolveRequestAsync(
                 request.Id,
-                new HumanDecisionSubmission(approved, editor.Response, editor.Reason)).ConfigureAwait(true);
+                new HumanDecisionSubmission(approved, editor.Response, editor.Reason));
             statusText = resolved is null ? "The request no longer exists." : $"Request marked {resolved.Status}.";
             Notifier.ShowInfo("HumanCollaborationToasts", statusText, "Human decision recorded");
-        }).ConfigureAwait(true);
+        });
     }
 
     private async Task RunHumanUiOperationAsync(string operation, Func<Task> action)
@@ -396,8 +396,8 @@
         statusText = string.Empty;
         try
         {
-            await action().ConfigureAwait(true);
-            await RefreshAsync().ConfigureAwait(true);
+            await action();
+            await RefreshAsync();
             ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), operation, "The trusted local human UI operation completed.");
         }
         catch (Exception ex)
@@ -415,11 +415,11 @@
         }
     }
 
-    private RequestEditor GetEditor(HumanCollaborationRequest request)
+    private HumanCollaborationRequestEditor GetEditor(HumanCollaborationRequest request)
     {
         if (!editors.TryGetValue(request.Id, out var editor))
         {
-            editor = new RequestEditor(request.PrefillText, string.Empty);
+            editor = new HumanCollaborationRequestEditor(request.PrefillText, string.Empty);
             editors[request.Id] = editor;
         }
         return editor;
@@ -471,9 +471,4 @@
         GC.SuppressFinalize(this);
     }
 
-    private sealed class RequestEditor(string response, string reason)
-    {
-        public string Response { get; set; } = response;
-        public string Reason { get; set; } = reason;
-    }
 }

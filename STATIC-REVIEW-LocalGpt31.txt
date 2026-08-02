@@ -1,0 +1,21 @@
+LocalGpt(31) / LocalGPT 2.1.9 static review
+
+Targeted correction
+- Added `using LocalGPT.Interfaces;` to Services/AdaptiveOllamaBenchmarkWiring.cs so IDxAiFunctionHandler resolves from the intended interface namespace.
+- Preserved the explicit NotImplementedException for the unverified empirical Ollama benchmark.
+
+Version alignment
+- LocalGPT application package: 2.1.9
+- Injected ICustomVersion: 2.1.9
+- Organic 1-Wire application advertisement: 2.1.9-organic-wire
+- Seeded LocalGPT Core current version/history: 2.1.9
+- LocalGPT.WireProtocolVersion: unchanged
+
+Validation available in this environment
+- Verified the new namespace import is present exactly once.
+- Verified intended current application version surfaces use 2.1.9.
+- Verified historical 2.1.8 seed/changelog data remains present.
+- Verified no merge markers were introduced.
+- Verified ZIP integrity after packaging.
+
+A .NET SDK/compiler is unavailable in this environment. The user's local build remains authoritative.

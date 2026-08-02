@@ -8,7 +8,7 @@ public sealed class CouncilRunConfigurationService(
     ICouncilHardwareRoadPlanner hardwareRoadPlanner,
     ILogger<CouncilRunConfigurationService> logger) : ICouncilRunConfigurationService
 {
-    private readonly ConcurrentDictionary<Guid, RunState> runs = new();
+    private readonly ConcurrentDictionary<Guid, CouncilRunState> runs = new();
     private readonly object preparationSyncRoot = new();
     private CouncilPreparationConfiguration? preparationConfiguration;
 
@@ -23,7 +23,7 @@ public sealed class CouncilRunConfigurationService(
 
         var state = runs.GetOrAdd(
             request.RunId,
-            _ => new RunState(
+            _ => new CouncilRunState(
                 request.RunId,
                 participants,
                 request.ModelRoutes.Select(CloneRoute),
@@ -234,22 +234,22 @@ public sealed class CouncilRunConfigurationService(
         CancellationToken cancellationToken = default)
     {
         if (!runs.TryGetValue(runId, out var state))
-            return new ModelRequestLease(fallbackPlan, revision: 0, isEnabled: true, release: null);
+            return new CouncilModelRequestLease(fallbackPlan, revision: 0, isEnabled: true, release: null);
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            PlanCandidate candidate;
+            CouncilRunPlanCandidate candidate;
             Task waitTask;
             lock (state.SyncRoot)
             {
                 if (!state.IsRunning)
-                    return new ModelRequestLease(fallbackPlan, state.Revision, isEnabled: true, release: null);
+                    return new CouncilModelRequestLease(fallbackPlan, state.Revision, isEnabled: true, release: null);
 
                 candidate = BuildCandidateLocked(state, modelName, fallbackPlan);
                 if (!candidate.IsEnabled)
-                    return new ModelRequestLease(candidate.Plan, candidate.Revision, isEnabled: false, release: null);
+                    return new CouncilModelRequestLease(candidate.Plan, candidate.Revision, isEnabled: false, release: null);
 
                 var laneKey = state.AllowParallelHardwareRoads
                     ? candidate.Plan.LaneKey
@@ -261,7 +261,7 @@ public sealed class CouncilRunConfigurationService(
                 if (activeCount < laneCapacity)
                 {
                     state.ActiveLaneCounts[laneKey] = activeCount + 1;
-                    return new ModelRequestLease(
+                    return new CouncilModelRequestLease(
                         candidate.Plan,
                         candidate.Revision,
                         isEnabled: true,
@@ -299,8 +299,8 @@ public sealed class CouncilRunConfigurationService(
         Changed?.Invoke(runId);
     }
 
-    private PlanCandidate BuildCandidateLocked(
-        RunState state,
+    private CouncilRunPlanCandidate BuildCandidateLocked(
+        CouncilRunState state,
         string modelName,
         CouncilHardwareRoadPlan fallbackPlan)
     {
@@ -317,10 +317,10 @@ public sealed class CouncilRunConfigurationService(
         var plan = plans.TryGetValue(modelName, out var configuredPlan)
             ? configuredPlan
             : fallbackPlan;
-        return new PlanCandidate(plan, state.Revision, isEnabled);
+        return new CouncilRunPlanCandidate(plan, state.Revision, isEnabled);
     }
 
-    private void Release(RunState state, string laneKey)
+    private void Release(CouncilRunState state, string laneKey)
     {
         lock (state.SyncRoot)
         {
@@ -333,7 +333,7 @@ public sealed class CouncilRunConfigurationService(
         }
     }
 
-    private void PulseLocked(RunState state)
+    private void PulseLocked(CouncilRunState state)
     {
         var previous = state.ChangeSignal;
         state.ChangeSignal = CreateSignal();
@@ -343,7 +343,7 @@ public sealed class CouncilRunConfigurationService(
     private TaskCompletionSource<bool> CreateSignal() =>
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    private CouncilRunConfigurationSnapshot CreateSnapshotLocked(RunState state) =>
+    private CouncilRunConfigurationSnapshot CreateSnapshotLocked(CouncilRunState state) =>
         new(
             state.RunId,
             state.Revision,
@@ -420,66 +420,4 @@ public sealed class CouncilRunConfigurationService(
         IsEnabled = route.IsEnabled,
         MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
     };
-
-    private sealed class RunState
-    {
-        public RunState(
-            Guid runId,
-            IEnumerable<string> participants,
-            IEnumerable<OneWireCouncilModelRoute> modelRoutes,
-            int resourceLoadPercent,
-            int requestedMaxOutputTokens,
-            int requestedMaxContextTokens,
-            int? fallbackOllamaNumGpu,
-            bool allowParallelHardwareRoads)
-        {
-            RunId = runId;
-            Participants = participants.ToList();
-            ModelRoutes = modelRoutes.ToList();
-            ResourceLoadPercent = Math.Clamp((int)Math.Round(resourceLoadPercent / 5d) * 5, 0, 100);
-            RequestedMaxOutputTokens = Math.Max(1, requestedMaxOutputTokens);
-            RequestedMaxContextTokens = Math.Max(256, requestedMaxContextTokens);
-            FallbackOllamaNumGpu = fallbackOllamaNumGpu;
-            AllowParallelHardwareRoads = allowParallelHardwareRoads;
-            ChangeSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        }
-
-        public object SyncRoot { get; } = new();
-        public Guid RunId { get; }
-        public long Revision { get; set; } = 1;
-        public List<string> Participants { get; set; }
-        public List<OneWireCouncilModelRoute> ModelRoutes { get; set; }
-        public int ResourceLoadPercent { get; set; }
-        public int RequestedMaxOutputTokens { get; set; }
-        public int RequestedMaxContextTokens { get; set; }
-        public int? FallbackOllamaNumGpu { get; set; }
-        public bool AllowParallelHardwareRoads { get; set; }
-        public int CurrentRound { get; set; } = -1;
-        public string CurrentPhase { get; set; } = "Preparing";
-        public bool IsRoundSkipRequested { get; set; }
-        public bool IsRunning { get; set; } = true;
-        public Dictionary<string, int> ActiveLaneCounts { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public TaskCompletionSource<bool> ChangeSignal { get; set; }
-        public CancellationTokenSource RoundCancellation { get; set; } = new();
-    }
-
-    private sealed class ModelRequestLease(
-        CouncilHardwareRoadPlan plan,
-        long revision,
-        bool isEnabled,
-        Action? release) : ICouncilModelRequestLease
-    {
-        private Action? releaseAction = release;
-
-        public CouncilHardwareRoadPlan Plan { get; } = plan;
-        public long Revision { get; } = revision;
-        public bool IsEnabled { get; } = isEnabled;
-
-        public void Dispose() => Interlocked.Exchange(ref releaseAction, null)?.Invoke();
-    }
-
-    private sealed record PlanCandidate(
-        CouncilHardwareRoadPlan Plan,
-        long Revision,
-        bool IsEnabled);
 }

@@ -1,0 +1,64 @@
+LocalGpt(32) static review
+Application version: 2.1.10
+Review date: 2026-08-02
+
+Implemented
+===========
+1. Scoped/root-provider diagnostics correction
+   - ServiceMethodDiagnosticsRegistration no longer decorates singleton registrations.
+   - IDxAiFunctionHandler registrations are excluded because the DX registry and handlers already own invocation/exception logging.
+   - Disposable implementations remain DI-owned and are not proxied.
+   - IRegexPatternService is a stateless singleton backed by IDbContextFactory-created contexts.
+   - Proxy construction and lifetime-selection methods own logged exception boundaries.
+
+2. Adaptive Ollama benchmark
+   - localgpt.models.benchmark.autotune is implemented; no NotImplementedException remains in maintained C#/Razor source.
+   - Requires fresh human confirmation.
+   - Uses only an HTTP(S) loopback Ollama endpoint and only models returned by /api/tags; it never pulls a model.
+   - Applies bounded model/profile/task counts and per-call timeouts.
+   - Uses deterministic tasks plus an optional task authored by one installed model for its peers.
+   - Stops tuning the current model when the next profile improves by less than the configured threshold (default 5 percent), then continues with the next model.
+   - Can create a new user-approved CouncilModelPreset and does not overwrite an existing preset.
+
+3. Async continuation policy
+   - Maintained C#/Razor source contains zero ConfigureAwait(true) calls.
+   - Blazor components use ordinary await so renderer affinity is retained.
+   - Context-free services, controllers, persistence, diagnostics and network code use ConfigureAwait(false).
+   - await-using disposal remains a reviewed language boundary where changing the local to ConfiguredAsyncDisposable would hide members used by the method.
+   - The build guard now performs lexical Python validation and has a reduced PowerShell fallback.
+
+4. Business-object ownership
+   - Diagnostics batch state, Council runtime state, DXFunction parameter DTOs, LocalGptCatalog DTOs, persistence state, OneWire secret-file shape, theme state and UI editor/feedback state are under BusinessObjects.
+   - No nested class/record/struct/enum declaration remains outside BusinessObjects in maintained C#/Razor source according to the static parser used for this review.
+
+5. Database startup seeding
+   - Existing project rows remain database/user authoritative and are tracked as unchanged.
+   - Version/revision/requirement/artifact seed operations are additive.
+   - A failed concurrency context is cleared and discarded; retry uses a fresh DbContext rather than issuing a second SaveChanges with stale predicates.
+
+Static validation completed here
+================================
+- Application architecture audit: passed (static, methods, runtime ownership and structure).
+- Async continuation audit: passed for 128 files, 1918 await tokens, 1354 ConfigureAwait(false), zero ConfigureAwait(true), 151 reviewed await-using disposals and 2 configured async streams.
+- Text-service ownership delta: zero new findings.
+- Iterator exception-policy delta: zero new findings.
+- JSON parsing: passed for 19 files.
+- XML/project parsing: passed for 7 files.
+- JavaScript syntax: passed for 25 files with node --check.
+- C# lexical brace and top-level duplicate-type checks: passed for 318 maintained C# files.
+- No NotImplementedException, LocalGptCatalogService nested-type qualification, or merge marker was found in maintained application source.
+- No bin, obj, __pycache__, .pyc or .pyo content is intentionally packaged.
+
+Not available in this environment
+=================================
+There is no .NET SDK, Windows PowerShell, Razor compiler, DevExpress build toolchain, EF migration runtime, Ollama runtime or target GPU here. Therefore restore, C# semantic compilation, Razor generation, dependency-injection validation, EF startup seeding and empirical Ollama benchmarking were not executed. The local Windows build remains authoritative.
+
+Recommended local verification order
+====================================
+1. Build LocalGPT.WireProtocolVersion.
+2. Build LocalGPT without disabling architecture checks.
+3. Confirm startup reaches listener initialization without "Cannot resolve scoped service ... from root provider".
+4. Confirm the DXFunction catalog discovers the adaptive benchmark handler.
+5. Run localgpt.models.benchmark.autotune first with persistPreset=false and one small installed model.
+6. Repeat with persistPreset=true and verify a new preset is created without modifying existing presets.
+7. Run startup twice against the existing database and inspect the core-project seed stage for concurrency warnings.

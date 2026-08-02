@@ -52,7 +52,7 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ReadTableParameters>(request.Parameters);
+        var binding = json.Bind<SqliteTableReadParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -79,11 +79,6 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
         name.Contains("parametersjson", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("payloadjson", StringComparison.OrdinalIgnoreCase);
 
-    private sealed class ReadTableParameters
-    {
-        public string TableName { get; set; } = string.Empty;
-        public int Take { get; set; } = 50;
-    }
 }
 
 public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
@@ -110,7 +105,7 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ReadTableParameters>(request.Parameters);
+        var binding = json.Bind<SqliteTableReadParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -120,11 +115,6 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
         return json.Success(snapshot);
     }
 
-    private sealed class ReadTableParameters
-    {
-        public string TableName { get; set; } = string.Empty;
-        public int Take { get; set; } = 50;
-    }
 }
 
 public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
@@ -151,7 +141,7 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<UpsertParameters>(request.Parameters);
+        var binding = json.Bind<SqliteRowUpsertParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -174,12 +164,6 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
         return json.Success(new { parameters.TableName, Operation = "Inserted" });
     }
 
-    private sealed class UpsertParameters
-    {
-        public string TableName { get; set; } = string.Empty;
-        public long? RowId { get; set; }
-        public Dictionary<string, string?> Values { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-    }
 }
 
 public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
@@ -206,7 +190,7 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<DeleteParameters>(request.Parameters);
+        var binding = json.Bind<SqliteRowDeleteParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -216,11 +200,6 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
         return json.Success(new { parameters.TableName, parameters.RowId, Operation = "Deleted" });
     }
 
-    private sealed class DeleteParameters
-    {
-        public string TableName { get; set; } = string.Empty;
-        public long RowId { get; set; }
-    }
 }
 
 public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService json,
@@ -247,7 +226,7 @@ public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService j
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ImportParameters>(request.Parameters);
+        var binding = json.Bind<ProjectTextDocumentImportParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -267,10 +246,4 @@ public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService j
         });
     }
 
-    private sealed class ImportParameters
-    {
-        public Guid ProjectId { get; set; }
-        public Guid? RevisionId { get; set; }
-        public string FilePath { get; set; } = string.Empty;
-    }
 }

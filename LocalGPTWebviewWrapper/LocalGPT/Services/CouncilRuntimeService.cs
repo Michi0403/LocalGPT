@@ -15,7 +15,6 @@ using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
@@ -2955,7 +2954,7 @@ namespace LocalGPT.Services
         }
 
 
-        public IReadOnlyList<LocalGptCatalogService.ArtifactWorkspaceSummary> EnumerateArtifactWorkspaces(string artifactRoot, int take, ILogger logger)
+        public IReadOnlyList<ArtifactWorkspaceSummary> EnumerateArtifactWorkspaces(string artifactRoot, int take, ILogger logger)
         {
             try
             {
@@ -2966,7 +2965,7 @@ namespace LocalGPT.Services
                     .EnumerateDirectories(artifactRoot)
                     .Select(path => BuildArtifactWorkspaceSummary(artifactRoot, path, logger))
                     .Where(summary => summary is not null)
-                    .Cast<LocalGptCatalogService.ArtifactWorkspaceSummary>()
+                    .Cast<ArtifactWorkspaceSummary>()
                     .OrderByDescending(summary => summary.LastWriteTimeUtc)
                     .Take(Math.Clamp(take, 1, 100))
                     .ToList();
@@ -2974,7 +2973,7 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, $"EnumerateArtifactWorkspaces artifactRoot {artifactRoot.ToString()} take {take.ToString()}");
-                return new List<LocalGptCatalogService.ArtifactWorkspaceSummary>();
+                return new List<ArtifactWorkspaceSummary>();
             }
         }
         public DatapackReferenceComparison? DatapackReferenceComparisonMissing(string generatedZipPath, string referenceZipPath, string summary, ILogger logger)
@@ -3011,7 +3010,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public LocalGptCatalogService.DatapackReferenceComparison? BuildDatapackReferenceComparison(string workspaceRoot, ILogger logger)
+        public DatapackReferenceComparison? BuildDatapackReferenceComparison(string workspaceRoot, ILogger logger)
         {
             try
             {
@@ -3076,7 +3075,7 @@ namespace LocalGPT.Services
                 "Generated zip has root pack.mcmeta/load/tick tags; reference keeps those under a top-level folder, so it is useful as a design benchmark but less install-ready as a zip."
             });
 
-                return new LocalGptCatalogService.DatapackReferenceComparison(
+                return new DatapackReferenceComparison(
                     GeneratedZipPath: generatedZip,
                     ReferenceZipPath: referenceZip,
                     ReferenceExists: true,
@@ -3154,7 +3153,7 @@ namespace LocalGPT.Services
                 return false;
             }
         }
-        public LocalGptCatalogService.ArtifactWorkspaceSummary? BuildArtifactWorkspaceSummary(string artifactRoot, string workspacePath, ILogger logger)
+        public ArtifactWorkspaceSummary? BuildArtifactWorkspaceSummary(string artifactRoot, string workspacePath, ILogger logger)
         {
             try
             {
@@ -3169,7 +3168,7 @@ namespace LocalGPT.Services
                     .Order(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                return new LocalGptCatalogService.ArtifactWorkspaceSummary(
+                return new ArtifactWorkspaceSummary(
                     directory.Name,
                     directory.FullName,
                     directory.LastWriteTimeUtc,
@@ -3185,7 +3184,7 @@ namespace LocalGPT.Services
             }
 
         }
-        public List<LocalGptCatalogService.ArtifactWorkspaceFileSummary> EnumerateWorkspaceTextFiles(string workspaceRoot, int take, ILogger logger)
+        public List<ArtifactWorkspaceFileSummary> EnumerateWorkspaceTextFiles(string workspaceRoot, int take, ILogger logger)
         {
             try
             {
@@ -3198,7 +3197,7 @@ namespace LocalGPT.Services
                 .Select(path =>
                 {
                     var info = new FileInfo(path);
-                    return new LocalGptCatalogService.ArtifactWorkspaceFileSummary(
+                    return new ArtifactWorkspaceFileSummary(
                         text.ToForwardSlash(Path.GetRelativePath(workspaceRoot, path),logger),
                         info.Length,
                         info.LastWriteTimeUtc);
@@ -3476,20 +3475,20 @@ namespace LocalGPT.Services
             }
         }
 
-        public LocalGptCatalogService.GeneratedSolutionArchetype? DetectSolutionArchetype(string prompt, string finalAnswer, ILogger logger)
+        public GeneratedSolutionArchetype? DetectSolutionArchetype(string prompt, string finalAnswer, ILogger logger)
         {
             try
             {
                 if (catalog.AiHostExperimentPattern.IsMatch(prompt))
-                    return LocalGptCatalogService.GeneratedSolutionArchetype.AiHost;
+                    return GeneratedSolutionArchetype.AiHost;
                 if (catalog.LocalGptReplacementPattern.IsMatch(prompt))
-                    return LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt;
+                    return GeneratedSolutionArchetype.LocalGpt;
                 if (catalog.TacosPortalPattern.IsMatch(prompt))
-                    return LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal;
+                    return GeneratedSolutionArchetype.TacosPortal;
                 if (catalog.BotBackendPattern.IsMatch(prompt))
-                    return LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend;
+                    return GeneratedSolutionArchetype.BotBackend;
 
-                return LocalGptCatalogService.GeneratedSolutionArchetype.Generic;
+                return GeneratedSolutionArchetype.Generic;
             }
             catch (Exception ex)
             {
@@ -3615,7 +3614,7 @@ namespace LocalGPT.Services
 
     
 
-        public LocalGptCatalogService.GeneratedArchetypePage ArchetypePage(
+        public GeneratedArchetypePage ArchetypePage(
             string fileName,
             string route,
             string title,
@@ -3624,14 +3623,14 @@ namespace LocalGPT.Services
         {
             try
             {
-                return new LocalGptCatalogService.GeneratedArchetypePage(
+                return new GeneratedArchetypePage(
              fileName,
              text.GenerateArchetypePageRazor(route, title, summary, areas, logger));
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not generate archetype page {FileName} for route {Route}.", fileName, route);
-                return new LocalGptCatalogService.GeneratedArchetypePage(
+                return new GeneratedArchetypePage(
                     string.IsNullOrWhiteSpace(fileName) ? "GeneratedPage.razor" : fileName,
                     $"@page \"{route}\"{Environment.NewLine}<PageTitle>{title}</PageTitle>{Environment.NewLine}<h1>{title}</h1>{Environment.NewLine}<p>Page generation failed. Review LocalGPT logs and regenerate this page.</p>");
             }
@@ -3651,13 +3650,13 @@ namespace LocalGPT.Services
             }
         }
 
-        public IReadOnlyList<LocalGptCatalogService.GeneratedArchetypePage> GenerateArchetypePages(LocalGptCatalogService.GeneratedSolutionArchetype archetype, ILogger logger)
+        public IReadOnlyList<GeneratedArchetypePage> GenerateArchetypePages(GeneratedSolutionArchetype archetype, ILogger logger)
         {
             try
             {
                 return archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt =>
+                    GeneratedSolutionArchetype.LocalGpt =>
                     [
                         ArchetypePage("Chat.razor", "/chat", "DXAiChat", "Chat surface with model routing, uploads, artifact links, visible progress, and memory-aware continuation.", ["Model selection", "Council mode", "File context", "Artifact downloads"],logger),
                     ArchetypePage("ModelCouncil.razor", "/model-council", "AI Council", "Multi-model review surface for feedback talks, polls, missing features, source requests, and implementation artifacts.", ["Minimum two members", "Sequential scheduling", "Poll gate", "Feedback log"],logger),
@@ -3666,7 +3665,7 @@ namespace LocalGPT.Services
                     ArchetypePage("TestLab.razor", "/test-lab", "Test Lab", "Frontend-accessible diagnostics for API smoke checks, benchmark routes, artifact downloads, and WebView2 workflows.", ["Health", "DXAiFunctions", "Replacement benchmark", "Council feedback"],logger),
                     ArchetypePage("Install.razor", "/install", "Install", "Model host discovery, Ollama/LM Studio status, model pull planning, runtime checks, and setup guidance.", ["Ollama status", "LM Studio status", "Model downloads", "Java/.NET checks"],logger)
                     ],
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal =>
+                    GeneratedSolutionArchetype.TacosPortal =>
                     [
                         ArchetypePage("TelegramIngestion.razor", "/telegram-ingestion", "Telegram Ingestion", "Event-ingestion boundary with update handling, command routing, idempotency, retries, and sanitized bot service wiring.", ["Update handler", "Command router", "Idempotency", "Retry queue"],logger),
                     ArchetypePage("Persistence.razor", "/persistence", "Persistence", "Normalized domain persistence with EF/SQLite or provider-specific backend, explicit DTO/service boundaries, and migration notes.", ["Business objects", "DbContext", "DTO boundaries", "Migration safety"],logger),
@@ -3674,7 +3673,7 @@ namespace LocalGPT.Services
                     ArchetypePage("Admin.razor", "/admin", "Admin", "DevExpress CRUD/admin workbench with roles, audit log, validation, custom security, and operational settings.", ["Users", "Roles", "Audit", "Settings"],logger),
                     ArchetypePage("ClientShells.razor", "/client-shells", "Client Shells", "Host map for Blazor server, optional WASM client, WinUI/WebView2 wrapper, package boundaries, and debug/deploy notes.", ["Server host", "WASM client", "WinUI/WebView2", "Package diagnostics"],logger)
                     ],
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend =>
+                    GeneratedSolutionArchetype.BotBackend =>
                     [
                         ArchetypePage("Webhooks.razor", "/webhooks", "Webhooks", "Inbound message and event receiver surface with validation, idempotency, and retry diagnostics.", ["Ingress", "Signature check", "Idempotency", "Dead letters"],logger),
                     ArchetypePage("Conversations.razor", "/conversations", "Conversations", "Conversation-state workbench with memory, moderation, handoff, and compact transcript review.", ["Memory", "Moderation", "Handoff", "Transcript"],logger),
@@ -3687,18 +3686,18 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in GenerateArchetypePages archetype:{archetype.ToString()}");
-                return new List<LocalGptCatalogService.GeneratedArchetypePage>();
+                return new List<GeneratedArchetypePage>();
             }
            
         }
-        public IReadOnlyList<LocalGptCatalogService.GeneratedPromiseModule> ExtractDynamicPromiseModules(
+        public IReadOnlyList<GeneratedPromiseModule> ExtractDynamicPromiseModules(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result, ILogger logger)
         {
             try
             {
                 var textInner = $"{request.Prompt} {result.FinalAnswer}";
-                var modules = new List<LocalGptCatalogService.GeneratedPromiseModule>();
+                var modules = new List<GeneratedPromiseModule>();
 
                 void AddIf(bool condition, string title, string summary, IReadOnlyList<string> areas)
                 {
@@ -3707,7 +3706,7 @@ namespace LocalGPT.Services
 
                     var route = "/" + text.ToKebabRoute(title,logger);
                     var fileName = $"{text.ToPascalIdentifier(title, logger)}.razor";
-                    modules.Add(new LocalGptCatalogService.GeneratedPromiseModule(fileName, route, title, summary, areas));
+                    modules.Add(new GeneratedPromiseModule(fileName, route, title, summary, areas));
                 }
 
                 AddIf(
@@ -3769,7 +3768,7 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "ExtractDynamicPromiseModules");
-                return new List<LocalGptCatalogService.GeneratedPromiseModule>();
+                return new List<GeneratedPromiseModule>();
             }
            
         }
@@ -3973,14 +3972,14 @@ namespace LocalGPT.Services
         }
 
 
-        public LocalGptCatalogService.ArtifactContractReport? ValidateSolutionArtifactContract(
+        public ArtifactContractReport? ValidateSolutionArtifactContract(
             string solutionRoot,
             string projectName,
-            LocalGptCatalogService.GeneratedSolutionArchetype archetype,ILogger logger)
+            GeneratedSolutionArchetype archetype,ILogger logger)
         {
             try
             {
-                var isAiHostLab = archetype == LocalGptCatalogService.GeneratedSolutionArchetype.AiHost;
+                var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
                 var requiredFiles = new List<string>
             {
                 $"{projectName}.sln",
@@ -4037,7 +4036,7 @@ namespace LocalGPT.Services
                 if (isAiHostLab)
                 {
                     ValidateAiHostArtifactContract(solutionRoot, projectName, logger);
-                    return new LocalGptCatalogService.ArtifactContractReport(
+                    return new ArtifactContractReport(
                         "Source-contract prototype",
                         "AI-host source contract validated",
                         [
@@ -4050,9 +4049,9 @@ namespace LocalGPT.Services
                         "AI-host routes, settings, navigation, and native-runner source markers were checked before zipping; runtime behavior is still unproven.");
                 }
 
-                if (archetype == LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt)
+                if (archetype == GeneratedSolutionArchetype.LocalGpt)
                 {
-                    return new LocalGptCatalogService.ArtifactContractReport(
+                    return new ArtifactContractReport(
                         "Static LocalGPT-style prototype",
                         "Missing LocalGPT runtime contract",
                         [
@@ -4069,7 +4068,7 @@ namespace LocalGPT.Services
                         "LocalGPT-like source files were generated, but the artifact must not be treated as a working LocalGPT replacement.");
                 }
 
-                return new LocalGptCatalogService.ArtifactContractReport(
+                return new ArtifactContractReport(
                     "Generated solution prototype",
                     "Generated files validated",
                     [

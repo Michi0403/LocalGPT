@@ -83,9 +83,8 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 
 public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry> logger) : IOneWireConnectionRegistry
 {
-    private sealed record ConnectionRegistration(Guid Id, Func<OneWireEnvelope, CancellationToken, Task> Sender);
 
-    private readonly ConcurrentDictionary<string, ConnectionRegistration> senders = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, OneWireConnectionRegistration> senders = new(StringComparer.OrdinalIgnoreCase);
     private readonly object registrationGate = new();
 
     public void Register(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender) =>
@@ -95,7 +94,7 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ArgumentNullException.ThrowIfNull(sender);
-        var registration = new ConnectionRegistration(Guid.NewGuid(), sender);
+        var registration = new OneWireConnectionRegistration(Guid.NewGuid(), sender);
         lock (registrationGate)
             senders[peerId] = registration;
         logger.LogInformation("Registered live 1-Wire connection {ConnectionId} for {PeerId}.", registration.Id, peerId);
@@ -104,7 +103,7 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
 
     public void Unregister(string peerId)
     {
-        ConnectionRegistration? removed = null;
+        OneWireConnectionRegistration? removed = null;
         lock (registrationGate)
             senders.TryRemove(peerId, out removed);
         if (removed is not null)
@@ -113,7 +112,7 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
 
     public bool Unregister(string peerId, Guid registrationId)
     {
-        ConnectionRegistration? removed = null;
+        OneWireConnectionRegistration? removed = null;
         lock (registrationGate)
         {
             if (!senders.TryGetValue(peerId, out var current) || current.Id != registrationId)

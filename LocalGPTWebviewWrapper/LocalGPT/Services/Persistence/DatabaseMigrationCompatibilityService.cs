@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using Microsoft.Data.Sqlite;
 
@@ -14,7 +15,7 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     private readonly IServiceActivityService serviceActivity;
     private readonly ILogger<DatabaseMigrationCompatibilityService> logger;
     private readonly TimeSpan abandonedMigrationLockAge = TimeSpan.FromMinutes(10);
-    private readonly MigrationSignature[] legacyMigrationSignatures;
+    private readonly DatabaseMigrationSignature[] legacyMigrationSignatures;
 
     public DatabaseMigrationCompatibilityService(
         IDatabaseFileHealthService databaseFileHealth,
@@ -35,7 +36,7 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
             cancellationToken,
             "Legacy migration compatibility inspection completed.");
 
-    private MigrationSignature[] CreateLegacyMigrationSignatures() =>
+    private DatabaseMigrationSignature[] CreateLegacyMigrationSignatures() =>
     [
         new(
             "20260616222639_Initial",
@@ -224,13 +225,13 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         {
             var state = EvaluateSignature(signature, schema);
             var markedApplied = appliedMigrations.Contains(signature.Id);
-            if (markedApplied && state == SignatureState.Complete)
+            if (markedApplied && state == DatabaseMigrationSignatureState.Complete)
                 continue;
 
-            if (state == SignatureState.Missing && !markedApplied)
+            if (state == DatabaseMigrationSignatureState.Missing && !markedApplied)
                 break; // EF will apply this and every later migration in normal order.
 
-            if (state == SignatureState.Complete && !markedApplied)
+            if (state == DatabaseMigrationSignatureState.Complete && !markedApplied)
             {
                 backupPath ??= await CreateCompatibilityBackupAsync(connection, cancellationToken).ConfigureAwait(false);
                 await InsertMigrationHistoryAsync(connection, signature, cancellationToken).ConfigureAwait(false);
@@ -239,7 +240,7 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
                 continue;
             }
 
-            if (state == SignatureState.Partial && IsSupportedApplicationLogsBootstrap(signature, schema) && !markedApplied)
+            if (state == DatabaseMigrationSignatureState.Partial && IsSupportedApplicationLogsBootstrap(signature, schema) && !markedApplied)
             {
                 backupPath ??= await CreateCompatibilityBackupAsync(connection, cancellationToken).ConfigureAwait(false);
                 logger.LogInformation(
@@ -258,7 +259,7 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
             {
                 schema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
                 state = EvaluateSignature(signature, schema);
-                if (state == SignatureState.Complete)
+                if (state == DatabaseMigrationSignatureState.Complete)
                 {
                     if (!markedApplied)
                     {
@@ -532,20 +533,20 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         !tableName.StartsWith("__EF", StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(tableName, "__LocalGptIntegrityProbe", StringComparison.OrdinalIgnoreCase);
 
-    private SignatureState EvaluateSignature(
-        MigrationSignature signature,
+    private DatabaseMigrationSignatureState EvaluateSignature(
+        DatabaseMigrationSignature signature,
         IReadOnlyDictionary<string, HashSet<string>> schema)
     {
         var presentCount = signature.Requirements.Count(requirement => RequirementExists(requirement, schema));
         if (presentCount == 0)
-            return SignatureState.Missing;
+            return DatabaseMigrationSignatureState.Missing;
         return presentCount == signature.Requirements.Length
-            ? SignatureState.Complete
-            : SignatureState.Partial;
+            ? DatabaseMigrationSignatureState.Complete
+            : DatabaseMigrationSignatureState.Partial;
     }
 
     private bool RequirementExists(
-        SchemaRequirement requirement,
+        DatabaseSchemaRequirement requirement,
         IReadOnlyDictionary<string, HashSet<string>> schema)
     {
         if (!schema.TryGetValue(requirement.TableName, out var columns))
@@ -554,7 +555,7 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 
     private bool IsSupportedApplicationLogsBootstrap(
-        MigrationSignature signature,
+        DatabaseMigrationSignature signature,
         IReadOnlyDictionary<string, HashSet<string>> schema)
     {
         if (!string.Equals(signature.Id, "20260616222639_Initial", StringComparison.Ordinal))
@@ -708,7 +709,7 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 
     private async Task InsertMigrationHistoryAsync(
         SqliteConnection connection,
-        MigrationSignature signature,
+        DatabaseMigrationSignature signature,
         CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -723,21 +724,6 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     private string QuoteSqliteIdentifier(string identifier) =>
         "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 
-    private SchemaRequirement Table(string tableName) => new(tableName, null);
-    private SchemaRequirement Column(string tableName, string columnName) => new(tableName, columnName);
-
-
-    private sealed record MigrationSignature(
-        string Id,
-        string ProductVersion,
-        SchemaRequirement[] Requirements);
-
-    private sealed record SchemaRequirement(string TableName, string? ColumnName);
-
-    private enum SignatureState
-    {
-        Missing,
-        Partial,
-        Complete
-    }
+    private DatabaseSchemaRequirement Table(string tableName) => new(tableName, null);
+    private DatabaseSchemaRequirement Column(string tableName, string columnName) => new(tableName, columnName);
 }

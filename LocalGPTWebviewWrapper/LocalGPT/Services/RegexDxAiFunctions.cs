@@ -38,7 +38,7 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Regex catalog list DXFunction started.");
-        var parameters = Deserialize<ListParameters>(request.Parameters);
+        var parameters = Deserialize<RegexPatternListParameters>(request.Parameters);
         var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, 5000)).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(parameters.Prefix))
             rows = rows.Where(item => item.Name.StartsWith(parameters.Prefix.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
@@ -53,7 +53,6 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
         }).ToList());
     }
 
-    private sealed class ListParameters { public int Take { get; set; } = 5000; public string Prefix { get; set; } = string.Empty; }
     private T Deserialize<T>(JsonElement element) where T : new() => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
         ? new T()
         : element.Deserialize<T>(JsonOptions) ?? new T();

@@ -19,9 +19,9 @@ namespace LocalGPT.Controller
             {
                 var result = new Dictionary<string, object>
         {
-            { "RegexPatterns", await db.RegexPatterns.Take(take).ToListAsync<RegexPattern>() },
-            { "Prompts",       await db.Prompts.Take(take).ToListAsync<PromptConfig>() },
-            { "SystemVariables", await db.SystemVariables.Take(take).ToListAsync<SystemVariable>() }
+            { "RegexPatterns", await db.RegexPatterns.Take(take).ToListAsync<RegexPattern>().ConfigureAwait(false) },
+            { "Prompts",       await db.Prompts.Take(take).ToListAsync<PromptConfig>().ConfigureAwait(false) },
+            { "SystemVariables", await db.SystemVariables.Take(take).ToListAsync<SystemVariable>().ConfigureAwait(false) }
         };
                 return Ok(result);
             }
@@ -38,7 +38,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                var entity = await db.Set<object>().FindAsync(id);
+                var entity = await db.Set<object>().FindAsync(id).ConfigureAwait(false);
                 if (entity == null) return NotFound($"No entry with Id {id}");
                 return Ok(entity);
             }

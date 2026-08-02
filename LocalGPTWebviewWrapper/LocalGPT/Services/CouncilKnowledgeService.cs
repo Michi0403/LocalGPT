@@ -233,7 +233,7 @@ namespace LocalGPT.Services
                 try
                 {
                     await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-                    await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                    await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                     var entries = await db.CouncilKnowledgeEntries
                         .Where(entry => ids.Contains(entry.Id))
                         .ToListAsync(cancellationToken).ConfigureAwait(false);

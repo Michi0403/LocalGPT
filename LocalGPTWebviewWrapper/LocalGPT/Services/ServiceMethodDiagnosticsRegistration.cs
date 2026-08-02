@@ -6,8 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Decorates LocalGPT interface services with bounded method-level operational logging.
-/// ThemeService remains deliberately untouched because its compatibility constructor is concrete and UI-owned.
+/// Decorates scoped and transient LocalGPT interface services with bounded method-level operational logging.
+/// Singleton services remain DI-owned and use their explicit service logging so the decorator can never
+/// resolve a scoped dependency from the root provider.
 /// </summary>
 public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
 {
@@ -37,7 +38,7 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
             }
 
             logger.LogInformation(
-                "Enabled bounded method-level diagnostics for {ServiceDescriptorCount} LocalGPT interface service registration(s); disposable implementations and ThemeService were excluded.",
+                "Enabled bounded method-level diagnostics for {ServiceDescriptorCount} scoped/transient LocalGPT interface service registration(s); singleton, disposable, high-frequency and ThemeService registrations were excluded.",
                 decorated);
         }
         catch (Exception exception)
@@ -49,62 +50,100 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
 
     private bool ShouldDecorate(ServiceDescriptor descriptor)
     {
-        var serviceType = descriptor.ServiceType;
-        if (descriptor.IsKeyedService || serviceType.ContainsGenericParameters)
-            return false;
-        if (typeof(IDisposable).IsAssignableFrom(serviceType) || typeof(IAsyncDisposable).IsAssignableFrom(serviceType))
-            return false;
-        if (!serviceType.IsInterface || serviceType.Namespace?.StartsWith("LocalGPT.Interfaces", StringComparison.Ordinal) != true)
-            return false;
-        if (serviceType.GetMethods().Any(method => method.ReturnType.IsByRef || method.GetParameters().Any(parameter => parameter.ParameterType.IsByRef)))
-            return false;
-        if (serviceType == typeof(IServiceActivityService) || serviceType == typeof(IComponentActivityService))
-            return false;
-        if (IsHighFrequencyReadService(serviceType))
-            return false;
-        if (serviceType.Name.Contains("Theme", StringComparison.OrdinalIgnoreCase))
-            return false;
-        if (descriptor.ImplementationType is not null &&
-            (typeof(IDisposable).IsAssignableFrom(descriptor.ImplementationType) ||
-             typeof(IAsyncDisposable).IsAssignableFrom(descriptor.ImplementationType)))
-            return false;
-        return true;
+        try
+        {
+            var serviceType = descriptor.ServiceType;
+            if (descriptor.IsKeyedService || serviceType.ContainsGenericParameters)
+                return false;
+            if (descriptor.Lifetime == ServiceLifetime.Singleton)
+                return false;
+            if (typeof(IDisposable).IsAssignableFrom(serviceType) || typeof(IAsyncDisposable).IsAssignableFrom(serviceType))
+                return false;
+            if (!serviceType.IsInterface || serviceType.Namespace?.StartsWith("LocalGPT.Interfaces", StringComparison.Ordinal) != true)
+                return false;
+            if (serviceType.GetMethods().Any(method => method.ReturnType.IsByRef || method.GetParameters().Any(parameter => parameter.ParameterType.IsByRef)))
+                return false;
+            if (serviceType == typeof(IServiceActivityService) ||
+                serviceType == typeof(IComponentActivityService) ||
+                serviceType == typeof(IDxAiFunctionHandler))
+            {
+                return false;
+            }
+            if (IsHighFrequencyReadService(serviceType))
+                return false;
+            if (serviceType.Name.Contains("Theme", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (descriptor.ImplementationType is not null &&
+                (typeof(IDisposable).IsAssignableFrom(descriptor.ImplementationType) ||
+                 typeof(IAsyncDisposable).IsAssignableFrom(descriptor.ImplementationType)))
+            {
+                return false;
+            }
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Evaluating a service registration for method diagnostics failed.");
+            throw;
+        }
     }
 
-    private bool IsHighFrequencyReadService(Type serviceType) =>
-        serviceType == typeof(ILocalGptRuntimePolicyDataService) ||
-        serviceType == typeof(ICouncilLiveSessionService) ||
-        serviceType == typeof(IDxAiFunctionJsonService) ||
-        serviceType == typeof(IChatContentRenderer) ||
-        serviceType == typeof(IChatResponseFormatter) ||
-        serviceType == typeof(IChatResponseFormatterFactory) ||
-        serviceType == typeof(IChatProtocolResolver) ||
-        serviceType == typeof(IChatProtocolProfileCatalog) ||
-        serviceType == typeof(IChatProtocolTextService) ||
-        serviceType == typeof(IChatProtocolProfile);
+    private bool IsHighFrequencyReadService(Type serviceType)
+    {
+        try
+        {
+            return serviceType == typeof(ILocalGptRuntimePolicyDataService) ||
+                serviceType == typeof(IStructuredTextTranslationService) ||
+                serviceType == typeof(ICouncilLiveSessionService) ||
+                serviceType == typeof(IDxAiFunctionJsonService) ||
+                serviceType == typeof(IChatContentRenderer) ||
+                serviceType == typeof(IChatResponseFormatter) ||
+                serviceType == typeof(IChatResponseFormatterFactory) ||
+                serviceType == typeof(IChatProtocolResolver) ||
+                serviceType == typeof(IChatProtocolProfileCatalog) ||
+                serviceType == typeof(IChatProtocolTextService) ||
+                serviceType == typeof(IChatProtocolProfile);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Evaluating a high-frequency service exclusion failed for {ServiceType}.", serviceType.FullName);
+            throw;
+        }
+    }
 
     private object CreateProxy(IServiceProvider provider, ServiceDescriptor descriptor, bool isDevelopment)
     {
-        // Disposable implementation types are excluded above. Factory/instance registrations remain
-        // owned by DI; non-disposable implementation types can be safely wrapped without a proxy lifetime.
-        var target = descriptor.ImplementationInstance
-            ?? descriptor.ImplementationFactory?.Invoke(provider)
-            ?? ActivatorUtilities.CreateInstance(provider, descriptor.ImplementationType
-                ?? throw new InvalidOperationException($"Service descriptor {descriptor.ServiceType} has no implementation."));
-
-        if (target is IDisposable or IAsyncDisposable)
+        try
         {
-            logger.LogDebug(
-                "Skipped method-diagnostics proxy creation for disposable implementation {ServiceImplementationType}; DI retains disposal ownership.",
-                target.GetType().FullName);
-            return target;
-        }
+            // Singleton and disposable registrations are excluded above. The provider passed here therefore
+            // represents the active scoped/transient resolution boundary, never the root singleton provider.
+            var target = descriptor.ImplementationInstance
+                ?? descriptor.ImplementationFactory?.Invoke(provider)
+                ?? ActivatorUtilities.CreateInstance(provider, descriptor.ImplementationType
+                    ?? throw new InvalidOperationException($"Service descriptor {descriptor.ServiceType} has no implementation."));
 
-        var proxy = DispatchProxy.Create(descriptor.ServiceType, typeof(ServiceMethodLoggingDispatchProxy));
-        ((ServiceMethodLoggingDispatchProxy)proxy).Initialize(
-            target,
-            provider.GetRequiredService<ILoggerFactory>(),
-            isDevelopment);
-        return proxy;
+            if (target is IDisposable or IAsyncDisposable)
+            {
+                logger.LogDebug(
+                    "Skipped method-diagnostics proxy creation for disposable implementation {ServiceImplementationType}; DI retains disposal ownership.",
+                    target.GetType().FullName);
+                return target;
+            }
+
+            var proxy = DispatchProxy.Create(descriptor.ServiceType, typeof(ServiceMethodLoggingDispatchProxy));
+            ((ServiceMethodLoggingDispatchProxy)proxy).Initialize(
+                target,
+                provider.GetRequiredService<ILoggerFactory>(),
+                isDevelopment);
+            return proxy;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "Creating a bounded method-diagnostics proxy failed for {ServiceType}; no service arguments were logged.",
+                descriptor.ServiceType.FullName);
+            throw;
+        }
     }
 }

@@ -13,7 +13,7 @@ namespace LocalGPT.Controller
             try
             {
                 var patternName = "HelpMessage";
-                var message = await regexSvc.GetRegexAsync(patternName);
+                var message = await regexSvc.GetRegexAsync(patternName).ConfigureAwait(false);
 
                 return Ok(new { content = message });
             }

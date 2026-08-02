@@ -138,7 +138,7 @@ namespace LocalGPT.Services
                 await EnsureDatabaseFileAsync(cancellationToken).ConfigureAwait(false);
                 await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(connection);
-                await sqliteUtility.EnsureValidTableAsync(connection, tableName, cancellationToken);
+                await sqliteUtility.EnsureValidTableAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
 
                 var columns = await sqliteUtility.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
                 var editableColumns = columns

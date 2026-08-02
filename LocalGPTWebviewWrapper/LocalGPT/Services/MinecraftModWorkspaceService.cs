@@ -2,7 +2,6 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Text;
 using System.Text.RegularExpressions;
-using static LocalGPT.Services.LocalGptCatalogService;
 
 namespace LocalGPT.Services
 {
@@ -58,7 +57,7 @@ namespace LocalGPT.Services
                 await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? councilText.CreateFabricMainClass(context) : councilText.CreateFabricEmptyMainClass(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
                     await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), councilText.CreateLivingCitiesReportClass(context.PackageName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.MetadataPath, councilText.CreateFabricMetadata(request, context), catalog.Utf8NoBom, cancellationToken);
+                await File.WriteAllTextAsync(context.MetadataPath, councilText.CreateFabricMetadata(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
                     await WriteCommonResourceFilesAsync(request, context, cancellationToken).ConfigureAwait(false);
                 await WriteBuildHelperAsync(request, context, cancellationToken).ConfigureAwait(false);
@@ -223,7 +222,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private LocalGptCatalogService.WorkspaceLayout CreateWorkspaceLayout(MinecraftModBuildRequest request)
+        private WorkspaceLayout CreateWorkspaceLayout(MinecraftModBuildRequest request)
         {
             try
             {

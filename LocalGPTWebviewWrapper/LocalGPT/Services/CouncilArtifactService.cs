@@ -132,7 +132,7 @@ namespace LocalGPT.Services
             {
                 var text = $"{request.Prompt} {result.FinalAnswer}";
                 var minecraftVersion = councilText.ExtractMinecraftVersion(text, logger);
-                var identity = councilText.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger) ?? new LocalGptCatalogService.MinecraftDatapackArtifactIdentity(string.Empty, string.Empty, string.Empty, string.Empty);
+                var identity = councilText.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger) ?? new MinecraftDatapackArtifactIdentity(string.Empty, string.Empty, string.Empty, string.Empty);
                 var requestModel = new MinecraftModBuildRequest
                 {
                     ProjectName = identity.ProjectName,
@@ -290,13 +290,13 @@ namespace LocalGPT.Services
             try
             {
                 var archetype = councilRuntime.DetectSolutionArchetype(request.Prompt, result.FinalAnswer, logger);
-                var isAiHostLab = archetype == LocalGptCatalogService.GeneratedSolutionArchetype.AiHost;
+                var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
                 var projectPrefix = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "AiHostLab",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "LocalGPTApp",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "TacosPortal",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "BotBackend",
+                    GeneratedSolutionArchetype.AiHost => "AiHostLab",
+                    GeneratedSolutionArchetype.LocalGpt => "LocalGPTApp",
+                    GeneratedSolutionArchetype.TacosPortal => "TacosPortal",
+                    GeneratedSolutionArchetype.BotBackend => "BotBackend",
                     _ => "LocalGptLab"
                 };
                 var runSuffix = result.RunId.ToString("N")[..8];
@@ -331,17 +331,17 @@ namespace LocalGPT.Services
                 await councilRuntime.WriteTextAsync(Path.Combine(projectRoot, "appsettings.json"), councilText.GenerateSolutionAppSettings(isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(componentsRoot, "App.razor"), catalog.GenerateSolutionAppRazor, cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(componentsRoot, "Routes.razor"), catalog.GenerateSolutionRoutesRazor, cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), councilText.GenerateSolutionNavigationRazor(archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), councilText.GenerateSolutionIndexRazor(request, result, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), councilText.GenerateSolutionDashboardRazor(request, result, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(componentsRoot, "GeneratedNavigation.razor"), councilText.GenerateSolutionNavigationRazor(archetype ?? GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "Index.razor"), councilText.GenerateSolutionIndexRazor(request, result, archetype ?? GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedDashboard.razor"), councilText.GenerateSolutionDashboardRazor(request, result, archetype ?? GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "GeneratedKnowledgeTable.razor"), councilText.GenerateSolutionKnowledgeTableRazor(isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, "SourceFidelity.razor"), catalog.GenerateSourceFidelityRazor, cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(
                     Path.Combine(pagesRoot, isAiHostLab ? "ApiConsole.razor" : "ImplementationPlan.razor"),
                     councilText.GenerateSolutionDetailRazor(request, result, isAiHostLab, logger),
-                    cancellationToken, logger);
+                    cancellationToken, logger).ConfigureAwait(false);
 
-                foreach (var page in councilRuntime.GenerateArchetypePages(archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger))
+                foreach (var page in councilRuntime.GenerateArchetypePages(archetype ?? GeneratedSolutionArchetype.Generic, logger))
                     await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, page.FileName), page.Source, cancellationToken, logger).ConfigureAwait(false);
                 foreach (var module in promiseModules)
                     await councilRuntime.WriteTextAsync(Path.Combine(pagesRoot, module.FileName), councilText.GeneratePromiseModuleRazor(module, logger), cancellationToken, logger).ConfigureAwait(false);
@@ -359,7 +359,7 @@ namespace LocalGPT.Services
                 }
 
                 await councilRuntime.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedHealthSummaryService.cs"), councilText.GenerateSolutionService(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedSourceFidelityService.cs"), councilText.GenerateSourceFidelityService(projectName, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedSourceFidelityService.cs"), councilText.GenerateSourceFidelityService(projectName, archetype ?? GeneratedSolutionArchetype.Generic, logger), cancellationToken, logger).ConfigureAwait(false);
                 if (isAiHostLab)
                     await councilRuntime.WriteTextAsync(Path.Combine(servicesRoot, "GeneratedAiHostArchitectureServices.cs"), councilText.GenerateAiHostArchitectureServices(projectName, logger), cancellationToken, logger).ConfigureAwait(false);
 
@@ -371,13 +371,13 @@ namespace LocalGPT.Services
                 await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "README.md"), councilText.GenerateSolutionReadme(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "PROJECT_INDEX.md"), councilText.GenerateSolutionProjectIndex(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "ARCHITECTURE.md"), councilText.GenerateSolutionArchitectureDoc(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), councilText.GenerateSourceFidelityDoc(projectName, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "SOURCE_FIDELITY.md"), councilText.GenerateSourceFidelityDoc(projectName, archetype ?? GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "PROMISE_MAP.md"), councilText.GeneratePromiseMapDoc(projectName, request, result, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "DESIGN_REVIEW.md"), councilText.GenerateDesignReviewDoc(projectName, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
+                await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "DESIGN_REVIEW.md"), councilText.GenerateDesignReviewDoc(projectName, archetype ?? GeneratedSolutionArchetype.Generic, promiseModules, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "BUILD_AND_RUN.md"), councilText.GenerateSolutionBuildAndRunDoc(projectName, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, ".localgpt-generation.json"), councilText.GenerateLocalGptGenerationJson(projectName, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
                 await councilRuntime.WriteTextAsync(Path.Combine(solutionRoot, "LocalGPT.GenerationManifest.json"), councilText.GenerateSolutionManifest(projectName, solutionGuid, request, result, isAiHostLab, logger), cancellationToken, logger).ConfigureAwait(false);
-                var contract = councilRuntime.ValidateSolutionArtifactContract(solutionRoot, projectName, archetype ?? LocalGptCatalogService.GeneratedSolutionArchetype.Generic, logger) ?? new LocalGptCatalogService.ArtifactContractReport(string.Empty, string.Empty, new List<string>(), new List<string>(), string.Empty);
+                var contract = councilRuntime.ValidateSolutionArtifactContract(solutionRoot, projectName, archetype ?? GeneratedSolutionArchetype.Generic, logger) ?? new ArtifactContractReport(string.Empty, string.Empty, new List<string>(), new List<string>(), string.Empty);
 
                 var zipName = $"{projectName}-{runSuffix}.zip";
                 var zipPath = Path.Combine(ArtifactRoot, zipName);

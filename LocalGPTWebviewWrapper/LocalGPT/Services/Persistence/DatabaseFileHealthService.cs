@@ -252,11 +252,4 @@ public sealed class DatabaseFileHealthService(
             logger.LogWarning(ex, "Could not delete the SQLite recovery marker for {DatabasePath}.", DatabasePath);
         }
     }
-
-    private enum DatabaseProbeResult
-    {
-        Healthy,
-        Corrupt,
-        Inconclusive
-    }
 }

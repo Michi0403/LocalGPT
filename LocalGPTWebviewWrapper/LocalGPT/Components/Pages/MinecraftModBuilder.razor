@@ -252,10 +252,10 @@
         {
             await RunUiActionAsync(async () =>
        {
-           await CreateWorkspaceCoreAsync().ConfigureAwait(true);
+           await CreateWorkspaceCoreAsync();
            if (workspace is not null)
                Notifier.ShowSuccess(toastName, workspace.RootPath, "Workspace created");
-       }, "CreateWorkspaceAsync").ConfigureAwait(true);
+       }, "CreateWorkspaceAsync");
         }
         catch (Exception ex)
         {
@@ -270,11 +270,11 @@
         {
             await RunUiActionAsync(async () =>
        {
-           await CreateWorkspaceCoreAsync().ConfigureAwait(true);
-           await RunCommandCoreAsync().ConfigureAwait(true);
+           await CreateWorkspaceCoreAsync();
+           await RunCommandCoreAsync();
            if (lastCommandResult?.Succeeded == true && !string.IsNullOrWhiteSpace(artifactDownloadUrl))
                Notifier.ShowSuccess(toastName, artifactFileName ?? "Datapack ZIP", "Datapack ZIP ready");
-       }, "CreateDatapackZipAsync").ConfigureAwait(true);
+       }, "CreateDatapackZipAsync");
         }
         catch (Exception ex)
         {
@@ -289,7 +289,7 @@
     {
         try
         {
-            workspace = await WorkspaceService.CreateWorkspaceAsync(request).ConfigureAwait(true);
+            workspace = await WorkspaceService.CreateWorkspaceAsync(request);
             ClearDownloadArtifact();
             lastCommandResult = null;
             commandFileName = "powershell.exe";
@@ -321,9 +321,9 @@
                 new ChatMessage(ChatRole.User, CreatePlanningPrompt())
                 };
 
-                var response = await ChatClient.GetResponseAsync(messages).ConfigureAwait(true);
+                var response = await ChatClient.GetResponseAsync(messages);
                 aiPlan = response.Text;
-            }, "GeneratePlanAsync").ConfigureAwait(true);
+            }, "GeneratePlanAsync");
         }
         catch (Exception ex)
         {
@@ -352,12 +352,12 @@
                OllamaNumGpu = useCpuOnlyCouncil ? 0 : null,
                IncludeMemory = true,
                SaveToMemory = true
-           }).ConfigureAwait(true);
+           });
 
            lastCouncilResult = result;
            aiPlan = result.FinalAnswer;
            Notifier.ShowSuccess(toastName, "Council plan saved to log and memory.", "AI Council complete");
-       }, "GenerateCouncilPlanAsync").ConfigureAwait(true);
+       }, "GenerateCouncilPlanAsync");
         }
         catch (Exception ex)
         {
@@ -379,12 +379,12 @@
 
             await RunUiActionAsync(async () =>
             {
-                await RunCommandCoreAsync().ConfigureAwait(true);
+                await RunCommandCoreAsync();
                 if (lastCommandResult?.Succeeded == true)
                     Notifier.ShowSuccess(toastName, "Command finished successfully.", "Command complete");
                 else
                     Notifier.ShowError(toastName, $"Exit code {lastCommandResult?.ExitCode.ToString() ?? "unknown"}", "Command failed");
-            }, "RunCommandAsync").ConfigureAwait(true);
+            }, "RunCommandAsync");
         }
         catch (Exception ex)
         {
@@ -406,7 +406,7 @@
                 commandFileName,
                 commandArguments,
                 workspace.RootPath,
-                userConfirmed: true).ConfigureAwait(true);
+                userConfirmed: true);
             ArgumentNullException.ThrowIfNull(lastCommandResult);
             if (lastCommandResult.Succeeded)
             {
@@ -566,7 +566,7 @@
         ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation started.");
         try
         {
-            await action().ConfigureAwait(true);
+            await action();
             ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation completed.");
         }
         catch (OperationCanceledException)

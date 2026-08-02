@@ -338,7 +338,7 @@ public sealed class ListCodeGenerationReviewsFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ListParameters>(request.Parameters);
+        var binding = json.Bind<CodeGenerationReviewListParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -347,11 +347,6 @@ public sealed class ListCodeGenerationReviewsFunction(
         return json.Success(reviews);
     }
 
-    private sealed class ListParameters
-    {
-        public Guid? ProjectId { get; set; }
-        public int Take { get; set; } = 20;
-    }
 
 }
 
@@ -391,7 +386,7 @@ public sealed class GetCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<GetParameters>(request.Parameters);
+        var binding = json.Bind<CodeGenerationReviewGetParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -406,10 +401,6 @@ public sealed class GetCodeGenerationReviewFunction(
         };
     }
 
-    private sealed class GetParameters
-    {
-        public Guid ReviewId { get; set; }
-    }
 }
 
 public sealed class CreateCodeGenerationReviewFunction(
@@ -639,7 +630,7 @@ public sealed class ExecuteCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ExecuteParameters>(request.Parameters);
+        var binding = json.Bind<CodeGenerationReviewExecuteParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -653,11 +644,6 @@ public sealed class ExecuteCodeGenerationReviewFunction(
         return new DxAiFunctionInvocationResult { Succeeded = result.Status is CodeGenerationReviewStatuses.Generated or CodeGenerationReviewStatuses.BuildPassed, Status = result.Status, Value = result };
     }
 
-    private sealed class ExecuteParameters
-    {
-        public Guid ReviewId { get; set; }
-        public ExecuteCodeGenerationReviewRequest Request { get; set; } = new();
-    }
 }
 
 public sealed class RejectCodeGenerationReviewFunction(
@@ -715,7 +701,7 @@ public sealed class RejectCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<RejectParameters>(request.Parameters);
+        var binding = json.Bind<CodeGenerationReviewRejectParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -727,11 +713,6 @@ public sealed class RejectCodeGenerationReviewFunction(
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };
     }
 
-    private sealed class RejectParameters
-    {
-        public Guid ReviewId { get; set; }
-        public RejectCodeGenerationReviewRequest Request { get; set; } = new();
-    }
 }
 
 public sealed class ListLocalGptProjectsFunction(
@@ -766,15 +747,14 @@ public sealed class ListLocalGptProjectsFunction(
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new ListParameters()
-            : request.Parameters.Deserialize<ListParameters>(JsonOptions) ?? new ListParameters();
+            ? new LocalGptProjectListParameters()
+            : request.Parameters.Deserialize<LocalGptProjectListParameters>(JsonOptions) ?? new LocalGptProjectListParameters();
         var values = await projects.GetProjectsAsync(parameters.IncludeArchived, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("DXAIFunction listed {ProjectCount} LocalGPT project record(s).", values.Count);
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = values };
     }
 
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private sealed class ListParameters { public bool IncludeArchived { get; set; } }
 }
 
 public sealed class GetLocalGptProjectFunction(
@@ -813,7 +793,7 @@ public sealed class GetLocalGptProjectFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<GetParameters>(request.Parameters);
+        var binding = json.Bind<LocalGptProjectGetParameters>(request.Parameters);
         if (!binding.Succeeded)
             return json.InvalidParameters(binding.Error);
         var parameters = binding.Value;
@@ -828,7 +808,6 @@ public sealed class GetLocalGptProjectFunction(
         };
     }
 
-    private sealed class GetParameters { public Guid ProjectId { get; set; } }
 }
 
 public sealed class ListRecentApplicationLogsFunction(
@@ -876,8 +855,8 @@ public sealed class ListRecentApplicationLogsFunction(
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new ListParameters()
-            : request.Parameters.Deserialize<ListParameters>(JsonOptions) ?? new ListParameters();
+            ? new RecentApplicationLogListParameters()
+            : request.Parameters.Deserialize<RecentApplicationLogListParameters>(JsonOptions) ?? new RecentApplicationLogListParameters();
         var level = Enum.TryParse<LogLevel>(parameters.MinimumLevel, true, out var parsed) ? parsed : LogLevel.Warning;
         var entries = await applicationLogs.GetRecentAsync(level, Math.Clamp(parameters.Take, 1, 50), cancellationToken).ConfigureAwait(false);
         var safeEntries = entries.Select(entry => new
@@ -897,11 +876,6 @@ public sealed class ListRecentApplicationLogsFunction(
 
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     private string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "...";
-    private sealed class ListParameters
-    {
-        public string MinimumLevel { get; set; } = "Warning";
-        public int Take { get; set; } = 12;
-    }
 }
 
 public sealed class ListCouncilKnowledgeFunction(
@@ -941,8 +915,8 @@ public sealed class ListCouncilKnowledgeFunction(
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new ListParameters()
-            : request.Parameters.Deserialize<ListParameters>(JsonOptions) ?? new ListParameters();
+            ? new CouncilKnowledgeListParameters()
+            : request.Parameters.Deserialize<CouncilKnowledgeListParameters>(JsonOptions) ?? new CouncilKnowledgeListParameters();
         var entries = await knowledge.GetEntriesAsync(parameters.IncludeArchived, Math.Clamp(parameters.Take, 1, 30), cancellationToken).ConfigureAwait(false);
         var summaries = entries.Select(entry => new
         {
@@ -965,11 +939,6 @@ public sealed class ListCouncilKnowledgeFunction(
 
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     private string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "...";
-    private sealed class ListParameters
-    {
-        public bool IncludeArchived { get; set; }
-        public int Take { get; set; } = 8;
-    }
 }
 
 public sealed class ListChatMemoryConversationsFunction(
@@ -1006,15 +975,14 @@ public sealed class ListChatMemoryConversationsFunction(
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new ListParameters()
-            : request.Parameters.Deserialize<ListParameters>(JsonOptions) ?? new ListParameters();
+            ? new ChatMemoryConversationListParameters()
+            : request.Parameters.Deserialize<ChatMemoryConversationListParameters>(JsonOptions) ?? new ChatMemoryConversationListParameters();
         var entries = await memory.GetConversationsAsync(Math.Clamp(parameters.Take, 1, 50), cancellationToken).ConfigureAwait(false);
         logger.LogInformation("DXAIFunction listed {ConversationCount} chat-memory conversation summary row(s).", entries.Count);
         return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = entries };
     }
 
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private sealed class ListParameters { public int Take { get; set; } = 12; }
 }
 
 
@@ -1078,8 +1046,8 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
         CancellationToken cancellationToken = default)
     {
         var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new RequestParameters()
-            : request.Parameters.Deserialize<RequestParameters>(JsonOptions) ?? new RequestParameters();
+            ? new HumanCollaborationRequestParameters()
+            : request.Parameters.Deserialize<HumanCollaborationRequestParameters>(JsonOptions) ?? new HumanCollaborationRequestParameters();
         if (string.IsNullOrWhiteSpace(parameters.Title) || string.IsNullOrWhiteSpace(parameters.Description))
             throw new JsonException("title and description are required.");
 
@@ -1182,21 +1150,6 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
         };
     }
 
-    private sealed class RequestParameters
-    {
-        public string Kind { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string RequestedRole { get; set; } = "Human collaborator";
-        public string ResponsePrompt { get; set; } = "Your response";
-        public string[]? SuggestedResponses { get; set; }
-        public string PrefillText { get; set; } = string.Empty;
-        public bool AllowFreeText { get; set; } = true;
-        public string QuestionScope { get; set; } = "Member";
-        public string Gate { get; set; } = "None";
-        public string[]? TargetMembers { get; set; }
-        public bool RequiredBeforeCompletion { get; set; }
-    }
 
     private string NormalizeQuestionScope(string? value)
     {

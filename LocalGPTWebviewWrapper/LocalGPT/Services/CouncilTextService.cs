@@ -22,7 +22,6 @@ using System.Reactive;
 using System.Security.AccessControl;
 using System.ServiceModel.Channels;
 using System.Text;
-using static LocalGPT.Services.LocalGptCatalogService;
 namespace LocalGPT.Services
 {
     
@@ -1697,7 +1696,7 @@ namespace LocalGPT.Services
         }
 
 
-        public string? BuildOllamaDetails(LocalGptCatalogService.OllamaModelDetails? details, ILogger<AiConnectivityProbe> logger)
+        public string? BuildOllamaDetails(OllamaModelDetails? details, ILogger<AiConnectivityProbe> logger)
         {
             try
             {
@@ -3186,13 +3185,13 @@ namespace LocalGPT.Services
            
         }
 
-        public string GenerateSourceFidelityService(string projectName, LocalGptCatalogService.GeneratedSolutionArchetype archetype, ILogger logger)
+        public string GenerateSourceFidelityService(string projectName, GeneratedSolutionArchetype archetype, ILogger logger)
         {
             try
             {
                 var rows = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => """
+                    GeneratedSolutionArchetype.LocalGpt => """
                         new(
                             "DXAiChat workbench",
                             "Original LocalGPT centers user work in DXAiChat with model selection, council mode, uploads, memory, visible progress, and artifact links.",
@@ -3224,7 +3223,7 @@ namespace LocalGPT.Services
                             "Represented",
                             "Components/Pages/Install.razor and Components/Pages/TestLab.razor.")
                 """,
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => """
+                    GeneratedSolutionArchetype.TacosPortal => """
                         new(
                             "Multi-host topology",
                             "Original TacosPortalOpen is a multi-project .NET/Blazor system with core library, server host, WASM/client option, and WinUI/WebView2 wrapper boundaries.",
@@ -3256,7 +3255,7 @@ namespace LocalGPT.Services
                             "Represented",
                             "Components/Pages/Admin.razor.")
                 """,
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => """
+                    GeneratedSolutionArchetype.AiHost => """
                         new(
                             "Provider-compatible routes",
                             "AI-host-shaped requests need /api/version, /api/tags, /api/ps, /api/chat, /api/generate, embeddings, and OpenAI-compatible routes.",
@@ -3282,7 +3281,7 @@ namespace LocalGPT.Services
                             "Represented",
                             "Services/GeneratedAiHostArchitectureServices.cs.")
                 """,
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => """
+                    GeneratedSolutionArchetype.BotBackend => """
                         new(
                             "Webhook ingress",
                             "Bot backend requests need signed/idempotent event intake and retry/dead-letter diagnostics.",
@@ -4769,20 +4768,20 @@ namespace LocalGPT.Services
         }
         public string GenerateSourceFidelityDoc(
             string projectName,
-            LocalGptCatalogService.GeneratedSolutionArchetype archetype,
-            IReadOnlyList<LocalGptCatalogService.GeneratedPromiseModule> promiseModules, ILogger logger)
+            GeneratedSolutionArchetype archetype,
+            IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
         {
             try
             {
                 var expectedShape = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt =>
+                    GeneratedSolutionArchetype.LocalGpt =>
                         "A LocalGPT replacement must look and behave like a local-first AI workbench: DXAiChat, AI Council, SQLite memory/knowledge, artifact downloads, Minecraft builder, Install, Test Lab, diagnostics, and visible model/runtime status.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal =>
+                    GeneratedSolutionArchetype.TacosPortal =>
                         "A TacosPortalOpen replacement must preserve the multi-host/event-ingestion architecture: core/shared services, Telegram or message ingestion, normalized persistence, workers, notifications, DevExpress admin/security, optional WASM client, and WinUI/WebView2 wrapper boundaries. It is not accepted as a generic restaurant ordering portal.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost =>
+                    GeneratedSolutionArchetype.AiHost =>
                         "An AI-host replacement must expose provider-compatible API routes, catalog/download/running-model UX, chat/API console, logs, settings, templates, hardware policy, runner/plugin boundaries, and direct local model-file inference without upstream proxying.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend =>
+                    GeneratedSolutionArchetype.BotBackend =>
                         "A bot backend replacement must expose webhook ingress, conversation state, command routing, moderation/retry queues, settings/logs, optional Python interop, and permission gates.",
                     _ =>
                         "A generic generated solution must still show which source behaviors are represented, stubbed, or out of scope."
@@ -4838,7 +4837,7 @@ namespace LocalGPT.Services
             string projectName,
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            IReadOnlyList<LocalGptCatalogService.GeneratedPromiseModule> promiseModules, ILogger logger)
+            IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
         {
             try
             {
@@ -4889,8 +4888,8 @@ namespace LocalGPT.Services
 
         public string GenerateDesignReviewDoc(
             string projectName,
-             LocalGptCatalogService.GeneratedSolutionArchetype archetype,
-            IReadOnlyList<LocalGptCatalogService.GeneratedPromiseModule> promiseModules, ILogger logger)
+             GeneratedSolutionArchetype archetype,
+            IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
         {
             try
             {
@@ -5468,7 +5467,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public LocalGptCatalogService.MinecraftDatapackArtifactIdentity? BuildMinecraftDatapackArtifactIdentity(string text, string timestamp, ILogger logger)
+        public MinecraftDatapackArtifactIdentity? BuildMinecraftDatapackArtifactIdentity(string text, string timestamp, ILogger logger)
         {
             try
             {
@@ -5480,7 +5479,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(modId))
                     modId = "prompted_datapack";
 
-                return new LocalGptCatalogService.MinecraftDatapackArtifactIdentity(
+                return new MinecraftDatapackArtifactIdentity(
                     $"{projectName}Council{timestamp.Replace("-", string.Empty, StringComparison.Ordinal)}",
                     modId,
                     $"com.localgpt.{modId.Replace("_", string.Empty, StringComparison.Ordinal)}",
@@ -5589,35 +5588,35 @@ namespace LocalGPT.Services
         }
 
         public string GenerateSolutionNavigationRazor(
-             LocalGptCatalogService.GeneratedSolutionArchetype archetype,
-            IReadOnlyList<LocalGptCatalogService.GeneratedPromiseModule> promiseModules, ILogger logger)
+             GeneratedSolutionArchetype archetype,
+            IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
         {
             try
             {
-                var isAiHostLab = archetype == LocalGptCatalogService.GeneratedSolutionArchetype.AiHost;
+                var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
                 var labName = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
+                    GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
                     _ => "LocalGPT Generation Lab"
                 };
                 var catalogHref = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "/models",
+                    GeneratedSolutionArchetype.AiHost => "/models",
                     _ => "/knowledge"
                 };
                 var catalogText = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "Model Catalog",
+                    GeneratedSolutionArchetype.AiHost => "Model Catalog",
                     _ => "Knowledge"
                 };
                 var detailHref = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "/api-console",
+                    GeneratedSolutionArchetype.AiHost => "/api-console",
                     _ => "/implementation-plan"
                 };
                 var detailText = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "API Console",
+                    GeneratedSolutionArchetype.AiHost => "API Console",
                     _ => "Implementation Plan"
                 };
                 var aiHostLinks = isAiHostLab
@@ -5666,7 +5665,7 @@ namespace LocalGPT.Services
                     : string.Empty;
                 var archetypeLinks = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => """
+                    GeneratedSolutionArchetype.LocalGpt => """
                     <a href="/chat">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
@@ -5693,7 +5692,7 @@ namespace LocalGPT.Services
                         <span>Test Lab</span>
                     </a>
                 """,
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => """
+                    GeneratedSolutionArchetype.TacosPortal => """
                     <a href="/telegram-ingestion">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/dashboard-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/dashboard-solid.svg" alt="" aria-hidden="true" />
@@ -5720,7 +5719,7 @@ namespace LocalGPT.Services
                         <span>Client Shells</span>
                     </a>
                 """,
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => """
+                    GeneratedSolutionArchetype.BotBackend => """
                     <a href="/webhooks">
                         <img class="generated-nav-icon generated-nav-icon-line" src="/icons/nav/detail-line.svg" alt="" aria-hidden="true" />
                         <img class="generated-nav-icon generated-nav-icon-solid" src="/icons/nav/detail-solid.svg" alt="" aria-hidden="true" />
@@ -5787,7 +5786,7 @@ namespace LocalGPT.Services
             }
         }
 
-        public string BuildPromiseNavigationLinks(IReadOnlyList<LocalGptCatalogService.GeneratedPromiseModule> promiseModules, ILogger logger)
+        public string BuildPromiseNavigationLinks(IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
         {
             try
             {
@@ -5819,63 +5818,63 @@ namespace LocalGPT.Services
         public string GenerateSolutionIndexRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            LocalGptCatalogService.GeneratedSolutionArchetype archetype, ILogger logger)
+            GeneratedSolutionArchetype archetype, ILogger logger)
         {
             try
             {
-                var isAiHostLab = archetype == LocalGptCatalogService.GeneratedSolutionArchetype.AiHost;
+                var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
                 var isAiHostLiteral = isAiHostLab ? "true" : "false";
                 var title = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "Bot Backend Control Plane",
+                    GeneratedSolutionArchetype.AiHost => "AI Host Control Plane",
+                    GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench",
+                    GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations",
+                    GeneratedSolutionArchetype.BotBackend => "Bot Backend Control Plane",
                     _ => "LocalGPT Feature Generation Lab"
                 };
                 var subtitle = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "A DevExpress Blazor shell for provider-compatible API routes, model cataloging, endpoint checks, and external runner boundaries.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "A local-first AI workbench with DXAiChat, AI Council, SQLite memory, artifact downloads, Minecraft generation, setup, and test-lab surfaces.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "A server-interactive operations portal with menu, orders, reservations, admin CRUD, notifications, and a simple bot backend boundary.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "A compact bot backend with webhooks, conversation state, moderation/retry queues, Python interop boundaries, and operator settings.",
+                    GeneratedSolutionArchetype.AiHost => "A DevExpress Blazor shell for provider-compatible API routes, model cataloging, endpoint checks, and external runner boundaries.",
+                    GeneratedSolutionArchetype.LocalGpt => "A local-first AI workbench with DXAiChat, AI Council, SQLite memory, artifact downloads, Minecraft generation, setup, and test-lab surfaces.",
+                    GeneratedSolutionArchetype.TacosPortal => "A server-interactive operations portal with menu, orders, reservations, admin CRUD, notifications, and a simple bot backend boundary.",
+                    GeneratedSolutionArchetype.BotBackend => "A compact bot backend with webhooks, conversation state, moderation/retry queues, Python interop boundaries, and operator settings.",
                     _ => "A LocalGPT/TacosPortalOpen-style sandbox for AI Council feature requests, implementation planning, knowledge-backed generation, and artifact review."
                 };
                 var primaryHref = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "/api-console",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "/chat",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "/orders",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "/webhooks",
+                    GeneratedSolutionArchetype.AiHost => "/api-console",
+                    GeneratedSolutionArchetype.LocalGpt => "/chat",
+                    GeneratedSolutionArchetype.TacosPortal => "/orders",
+                    GeneratedSolutionArchetype.BotBackend => "/webhooks",
                     _ => "/implementation-plan"
                 };
                 var primaryLabel = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "Open API console",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "Open DXAiChat",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "Open orders",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "Open webhooks",
+                    GeneratedSolutionArchetype.AiHost => "Open API console",
+                    GeneratedSolutionArchetype.LocalGpt => "Open DXAiChat",
+                    GeneratedSolutionArchetype.TacosPortal => "Open orders",
+                    GeneratedSolutionArchetype.BotBackend => "Open webhooks",
                     _ => "Open implementation plan"
                 };
                 var secondaryHref = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "/models",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "/model-council",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "/menu",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "/conversations",
+                    GeneratedSolutionArchetype.AiHost => "/models",
+                    GeneratedSolutionArchetype.LocalGpt => "/model-council",
+                    GeneratedSolutionArchetype.TacosPortal => "/menu",
+                    GeneratedSolutionArchetype.BotBackend => "/conversations",
                     _ => "/knowledge"
                 };
                 var secondaryLabel = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "Review model catalog",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "Review AI Council",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "Review menu",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "Review conversations",
+                    GeneratedSolutionArchetype.AiHost => "Review model catalog",
+                    GeneratedSolutionArchetype.LocalGpt => "Review AI Council",
+                    GeneratedSolutionArchetype.TacosPortal => "Review menu",
+                    GeneratedSolutionArchetype.BotBackend => "Review conversations",
                     _ => "Review knowledge table"
                 };
                 var kicker = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "AI host lab",
+                    GeneratedSolutionArchetype.AiHost => "AI host lab",
                     _ => "LocalGPT lab"
                 };
                 var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 500, logger), logger);
@@ -5953,28 +5952,28 @@ namespace LocalGPT.Services
         public string GenerateSolutionDashboardRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
-            LocalGptCatalogService.GeneratedSolutionArchetype archetype, ILogger logger)
+            GeneratedSolutionArchetype archetype, ILogger logger)
         {
             try
             {
-                var isAiHostLab = archetype == LocalGptCatalogService.GeneratedSolutionArchetype.AiHost;
+                var isAiHostLab = archetype == GeneratedSolutionArchetype.AiHost;
                 var isAiHostLiteral = isAiHostLab ? "true" : "false";
                 var requestSummary = EscapeCSharpString(TrimForCodeComment(request.Prompt, 700, logger), logger);
                 var consensusSummary = EscapeCSharpString(TrimForCodeComment(result.FinalAnswer, 900, logger), logger);
                 var title = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "AI Host Dashboard",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench Dashboard",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations Dashboard",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "Bot Backend Dashboard",
+                    GeneratedSolutionArchetype.AiHost => "AI Host Dashboard",
+                    GeneratedSolutionArchetype.LocalGpt => "LocalGPT Workbench Dashboard",
+                    GeneratedSolutionArchetype.TacosPortal => "TacosPortal Operations Dashboard",
+                    GeneratedSolutionArchetype.BotBackend => "Bot Backend Dashboard",
                     _ => "LocalGPT Generation Dashboard"
                 };
                 var subtitle = archetype switch
                 {
-                    LocalGptCatalogService.GeneratedSolutionArchetype.AiHost => "Track API compatibility, model catalog readiness, runner adapter boundaries, and endpoint-test status.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.LocalGpt => "Track model connectivity, Council health, SQLite memory, generated artifacts, Minecraft builder readiness, and frontend test status.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.TacosPortal => "Track order throughput, kitchen state, menu publishing, reservations, admin CRUD, and bot notification boundaries.",
-                    LocalGptCatalogService.GeneratedSolutionArchetype.BotBackend => "Track webhook health, queue state, conversation memory, retry policy, Python interop, and operator approvals.",
+                    GeneratedSolutionArchetype.AiHost => "Track API compatibility, model catalog readiness, runner adapter boundaries, and endpoint-test status.",
+                    GeneratedSolutionArchetype.LocalGpt => "Track model connectivity, Council health, SQLite memory, generated artifacts, Minecraft builder readiness, and frontend test status.",
+                    GeneratedSolutionArchetype.TacosPortal => "Track order throughput, kitchen state, menu publishing, reservations, admin CRUD, and bot notification boundaries.",
+                    GeneratedSolutionArchetype.BotBackend => "Track webhook health, queue state, conversation memory, retry policy, Python interop, and operator approvals.",
                     _ => "Track AI Council feature-generation readiness, knowledge grounding, artifact review, and integration safety."
                 };
                 return $$"""
@@ -6488,7 +6487,7 @@ namespace LocalGPT.Services
 
         }
 
-        public string GeneratePromiseModuleRazor(LocalGptCatalogService.GeneratedPromiseModule module, ILogger logger)
+        public string GeneratePromiseModuleRazor(GeneratedPromiseModule module, ILogger logger)
         {
             try
             {

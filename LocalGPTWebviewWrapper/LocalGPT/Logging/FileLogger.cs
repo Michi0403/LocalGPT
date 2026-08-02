@@ -13,7 +13,7 @@ namespace LocalGPT.Logging
         private readonly BlockingCollection<string> _logQueue = new();
         private readonly Thread _loggingThread;
         private bool _disposed = false;
-        private readonly NullScope nullScope = new();
+        private readonly LoggerNullScope nullScope = new();
 
         public FileLogger(string categoryName, IOptionsMonitor<FileLoggerCoreOptions> optionsSnapshot)
         {
@@ -125,9 +125,5 @@ namespace LocalGPT.Logging
             _logQueue.Dispose();
         }
 
-        private class NullScope : IDisposable
-        {
-            public void Dispose() { }
-        }
     }
 }

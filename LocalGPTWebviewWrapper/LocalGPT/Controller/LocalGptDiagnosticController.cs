@@ -284,7 +284,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await RunEnsureCreateAsyncOnce(memory, null, null);
+                await RunEnsureCreateAsyncOnce(memory, null, null).ConfigureAwait(false);
                 var conversations = await memory.GetConversationsAsync(20, ct).ConfigureAwait(false);
                 var thoughts = await memory.GetRecentThoughtsAsync(5, ct).ConfigureAwait(false);
 
@@ -392,7 +392,7 @@ namespace LocalGPT.Controller
         {
             try
             {
-                await RunEnsureCreateAsyncOnce(null, null, knowledge);
+                await RunEnsureCreateAsyncOnce(null, null, knowledge).ConfigureAwait(false);
                 var entries = await knowledge.GetEntriesAsync(includeArchived == true, take ?? 50, ct).ConfigureAwait(false);
                 return Results.Ok(new
                 {
@@ -616,7 +616,7 @@ namespace LocalGPT.Controller
         [HumanApprovalRequired("artifact.workspace.file.write", "Write generated workspace file", "Write the reviewed text content to one bounded file inside a generated artifact workspace.", "High", "Source workspace reviewer")]
         public async Task<IResult> PostArtifactWorkspaceWorkspaceNameFile(
             string workspaceName,
-            [FromBody] LocalGptCatalogService.ArtifactWorkspaceFileSaveRequest request,
+            [FromBody] ArtifactWorkspaceFileSaveRequest request,
             [FromServices] ICouncilArtifactService artifacts,
             [FromQuery] bool userConfirmed,
             CancellationToken ct)

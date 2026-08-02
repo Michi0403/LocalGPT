@@ -7,7 +7,7 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     ILogger<AmbientLocalGptContext> logger)
     : IAmbientLocalGptContext, ILocalHumanInteractionContext, IHumanApprovalExecutionContext
 {
-    private readonly AsyncLocal<ContextHolder?> CurrentHolder = new();
+    private readonly AsyncLocal<AmbientLocalGptContextHolder?> CurrentHolder = new();
     private readonly AmbientLocalGptContextSnapshot Fallback = new(
         "ambient-unset",
         vocabulary.Get().ActorSystem,
@@ -20,7 +20,7 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         var prior = CurrentHolder.Value;
-        CurrentHolder.Value = new ContextHolder(snapshot);
+        CurrentHolder.Value = new AmbientLocalGptContextHolder(snapshot);
         var loggingScope = logger.BeginScope(new Dictionary<string, object?>
         {
             ["LocalGptCorrelationId"] = snapshot.CorrelationId,
@@ -32,7 +32,7 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
             ["LocalGptApprovalRequestId"] = snapshot.ApprovalRequestId,
             ["LocalGptContextSource"] = snapshot.Source
         });
-        return new PopScope(this, prior, loggingScope);
+        return new AmbientLocalGptContextPopScope(holder => CurrentHolder.Value = holder, prior, loggingScope);
     }
 
     public IDisposable PushSystem(string source, string? correlationId = null) => Push(new AmbientLocalGptContextSnapshot(
@@ -103,27 +103,5 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
         return normalized[..Math.Min(normalized.Length, maxLength)];
     }
 
-    private sealed class ContextHolder(AmbientLocalGptContextSnapshot snapshot)
-    {
-        public AmbientLocalGptContextSnapshot Snapshot { get; } = snapshot;
-    }
 
-    private sealed class PopScope(AmbientLocalGptContext owner, ContextHolder? prior, IDisposable? loggingScope) : IDisposable
-    {
-        private readonly AmbientLocalGptContext context = owner;
-        private ContextHolder? priorHolder = prior;
-        private IDisposable? activeLoggingScope = loggingScope;
-        private bool disposed;
-
-        public void Dispose()
-        {
-            if (disposed)
-                return;
-            disposed = true;
-            activeLoggingScope?.Dispose();
-            activeLoggingScope = null;
-            context.CurrentHolder.Value = priorHolder;
-            priorHolder = null;
-        }
-    }
 }

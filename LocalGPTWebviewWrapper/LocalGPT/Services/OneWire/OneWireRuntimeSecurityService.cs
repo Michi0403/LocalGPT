@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.WireProtocol;
 using System.Security.Cryptography;
@@ -24,7 +25,7 @@ public sealed class OneWireRuntimeSecurityService(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter() }
     };
-    private RuntimeSecretFile? cached;
+    private OneWireRuntimeSecretFile? cached;
     private string? resolvedPath;
 
     public async Task<OneWireRuntimeSecurityStatus> GetStatusAsync(CancellationToken cancellationToken = default)
@@ -341,7 +342,7 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
-    private async Task<RuntimeSecretFile?> LoadCoreAsync(bool createWhenMissing, CancellationToken cancellationToken)
+    private async Task<OneWireRuntimeSecretFile?> LoadCoreAsync(bool createWhenMissing, CancellationToken cancellationToken)
     {
         if (cached is not null) return cached;
         var path = ResolveSecretPath();
@@ -355,14 +356,14 @@ public sealed class OneWireRuntimeSecurityService(
             return created;
         }
         var json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-        var file = JsonSerializer.Deserialize<RuntimeSecretFile>(json, jsonOptions)
+        var file = JsonSerializer.Deserialize<OneWireRuntimeSecretFile>(json, jsonOptions)
             ?? throw new JsonException("The LocalGPT 1-Wire secret file is empty.");
         ValidateSecret(file);
         cached = file;
         return file;
     }
 
-    private async Task PersistCoreAsync(RuntimeSecretFile file, CancellationToken cancellationToken)
+    private async Task PersistCoreAsync(OneWireRuntimeSecretFile file, CancellationToken cancellationToken)
     {
         ValidateSecret(file);
         var path = ResolveSecretPath();
@@ -417,14 +418,14 @@ public sealed class OneWireRuntimeSecurityService(
         }
     }
 
-    private RuntimeSecretFile CreateSecret(DateTimeOffset createdUtc, DateTimeOffset? rotatedUtc)
+    private OneWireRuntimeSecretFile CreateSecret(DateTimeOffset createdUtc, DateTimeOffset? rotatedUtc)
     {
         using var agreement = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
         using var signing = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var agreementPublic = agreement.ExportSubjectPublicKeyInfo();
         var signingPublic = signing.ExportSubjectPublicKeyInfo();
         var fingerprint = Convert.ToHexString(SHA256.HashData([.. agreementPublic, .. signingPublic]));
-        return new RuntimeSecretFile
+        return new OneWireRuntimeSecretFile
         {
             SchemaVersion = SchemaVersion,
             PeerId = "localgpt",
@@ -441,7 +442,7 @@ public sealed class OneWireRuntimeSecurityService(
         };
     }
 
-    private void ValidateSecret(RuntimeSecretFile file)
+    private void ValidateSecret(OneWireRuntimeSecretFile file)
     {
         if (file.SchemaVersion != SchemaVersion || string.IsNullOrWhiteSpace(file.RootSecret) ||
             string.IsNullOrWhiteSpace(file.KeyAgreementPrivateKey) || string.IsNullOrWhiteSpace(file.SigningPrivateKey) ||
@@ -449,7 +450,7 @@ public sealed class OneWireRuntimeSecurityService(
             throw new CryptographicException("The runtime 1-Wire secret file is incomplete or uses an unsupported schema.");
     }
 
-    private OneWireRuntimeSecurityStatus CreateStatus(RuntimeSecretFile file) => new()
+    private OneWireRuntimeSecurityStatus CreateStatus(OneWireRuntimeSecretFile file) => new()
     {
         HasSecret = true,
         SecretPath = ResolveSecretPath(),
@@ -461,7 +462,7 @@ public sealed class OneWireRuntimeSecurityService(
         MfaEnrolled = !string.IsNullOrWhiteSpace(file.MfaSeed)
     };
 
-    private OneWireSecurityDescriptor CreatePublicDescriptor(RuntimeSecretFile file) => new()
+    private OneWireSecurityDescriptor CreatePublicDescriptor(OneWireRuntimeSecretFile file) => new()
     {
         HasRuntimeSecret = true,
         KeyId = file.KeyId,
@@ -509,7 +510,7 @@ public sealed class OneWireRuntimeSecurityService(
     private byte[] BuildAssociatedData(OneWireEnvelope envelope) => Encoding.UTF8.GetBytes(
         $"{envelope.ProtocolVersion}|{envelope.MessageId:N}|{envelope.CorrelationId:N}|{envelope.SourcePeerId}|{envelope.TargetPeerId}|{envelope.MessageType}|{envelope.CapabilityKey}");
 
-    private byte[] DerivePeerKey(RuntimeSecretFile file, OneWireTrustedPeerDescriptor peer, string sourcePeerId, string targetPeerId)
+    private byte[] DerivePeerKey(OneWireRuntimeSecretFile file, OneWireTrustedPeerDescriptor peer, string sourcePeerId, string targetPeerId)
     {
         using var local = ECDiffieHellman.Create();
         local.ImportPkcs8PrivateKey(Convert.FromBase64String(file.KeyAgreementPrivateKey), out _);
@@ -616,20 +617,4 @@ public sealed class OneWireRuntimeSecurityService(
         MfaVerifiedUntilUtc = peer.MfaVerifiedUntilUtc
     };
 
-    private sealed class RuntimeSecretFile
-    {
-        public int SchemaVersion { get; set; }
-        public string PeerId { get; set; } = string.Empty;
-        public DateTimeOffset CreatedUtc { get; set; }
-        public DateTimeOffset? RotatedUtc { get; set; }
-        public string RootSecret { get; set; } = string.Empty;
-        public string KeyId { get; set; } = string.Empty;
-        public string Fingerprint { get; set; } = string.Empty;
-        public string KeyAgreementPrivateKey { get; set; } = string.Empty;
-        public string KeyAgreementPublicKey { get; set; } = string.Empty;
-        public string SigningPrivateKey { get; set; } = string.Empty;
-        public string SigningPublicKey { get; set; } = string.Empty;
-        public string MfaSeed { get; set; } = string.Empty;
-        public List<OneWireTrustedPeerDescriptor> TrustedPeers { get; set; } = [];
-    }
 }

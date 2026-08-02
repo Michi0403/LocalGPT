@@ -21,14 +21,14 @@ namespace LocalGPT.Controller
             {
                 object result = table.ToLower() switch
                 {
-                    "regexpatterns" => await db.RegexPatterns.Take(take).ToListAsync(),
-                    "prompts" => await db.Prompts.Take(take).ToListAsync(),
-                    "systemvariables" => await db.SystemVariables.Take(take).ToListAsync(),
-                    "conversations" => await db.Conversations.Take(take).ToListAsync(),
-                    "messages" => await db.Messages.Take(take).ToListAsync(),
-                    "applicationlogs" => await db.ApplicationLogs.Take(take).ToListAsync(),
-                    "councilknowledgeentries" => await db.CouncilKnowledgeEntries.Take(take).ToListAsync(),
-                    "nativecommandlogs" => await db.NativeCommandLogs.Take(take).ToListAsync(),
+                    "regexpatterns" => await db.RegexPatterns.Take(take).ToListAsync().ConfigureAwait(false),
+                    "prompts" => await db.Prompts.Take(take).ToListAsync().ConfigureAwait(false),
+                    "systemvariables" => await db.SystemVariables.Take(take).ToListAsync().ConfigureAwait(false),
+                    "conversations" => await db.Conversations.Take(take).ToListAsync().ConfigureAwait(false),
+                    "messages" => await db.Messages.Take(take).ToListAsync().ConfigureAwait(false),
+                    "applicationlogs" => await db.ApplicationLogs.Take(take).ToListAsync().ConfigureAwait(false),
+                    "councilknowledgeentries" => await db.CouncilKnowledgeEntries.Take(take).ToListAsync().ConfigureAwait(false),
+                    "nativecommandlogs" => await db.NativeCommandLogs.Take(take).ToListAsync().ConfigureAwait(false),
                     _ => throw new ArgumentException("Invalid table name")
                 };
 
@@ -48,10 +48,10 @@ namespace LocalGPT.Controller
             {
                 var result = new Dictionary<string, object>
         {
-            { "RegexPatterns", await db.RegexPatterns.ToListAsync<RegexPattern>() },
-            { "Prompts", await db.Prompts.Where(p => p.Language == "en").ToListAsync<PromptConfig>() },
-            { "SystemVariables", await db.SystemVariables.ToListAsync<SystemVariable>() },
-               { "CouncilKnowledgeEntries", await db.CouncilKnowledgeEntries.ToListAsync<CouncilKnowledgeEntry>() }
+            { "RegexPatterns", await db.RegexPatterns.ToListAsync<RegexPattern>().ConfigureAwait(false) },
+            { "Prompts", await db.Prompts.Where(p => p.Language == "en").ToListAsync<PromptConfig>().ConfigureAwait(false) },
+            { "SystemVariables", await db.SystemVariables.ToListAsync<SystemVariable>().ConfigureAwait(false) },
+               { "CouncilKnowledgeEntries", await db.CouncilKnowledgeEntries.ToListAsync<CouncilKnowledgeEntry>().ConfigureAwait(false) }
         };
                 return Ok(result);
             }
