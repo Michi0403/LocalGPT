@@ -10,6 +10,8 @@
 @inject ILogger<Install> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject IFirstRunOnboardingService Onboarding
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <PageTitle>AI Setup</PageTitle>
 
@@ -248,6 +250,105 @@
             </DxFormLayoutTabPages>
         </DxFormLayout>
 
+        <section class="installer-workbench-card" aria-labelledby="onboarding-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <h3 id="onboarding-heading">@T("Install.Onboarding.Title", "Setup guide, benchmark council and quick starts")</h3>
+                    <p>@T("Install.Onboarding.PersistentHelp", "The guide remains available here after it has been reviewed. It does not disappear when completion is recorded.")</p>
+                </div>
+                <div class="top-container">
+                    <DxButton Text='@T("Install.Onboarding.OpenDocumentation", "Open documentation")' Click="OpenDocumentation" />
+                    <DxButton Text='@T("Install.Onboarding.EditTeams", "Edit Council teams")' Click="OpenCouncilTeams" />
+                    <DxButton Text='@T("Install.Onboarding.Refresh", "Refresh setup guide")' Enabled="@(!IsOnboardingLoading)" Click="RefreshOnboardingAsync" />
+                </div>
+            </div>
+            @if (OnboardingStatus is null)
+            {
+                <p>@T("Install.Onboarding.Loading", "Loading installer profiles and Council quick starts...")</p>
+            }
+            else
+            {
+                <div class="installer-status-line">
+                    <strong>@T("Install.Onboarding.ReviewStatus", "Review status:")</strong> @(OnboardingStatus.IsCompleted ? T("Install.Onboarding.Reviewed", "Reviewed — available for reopening") : T("Install.Onboarding.NotReviewed", "Not reviewed"))
+                    <span>@T("Install.Onboarding.DetectedModels", "Detected models:") @OnboardingStatus.InstalledModels.Count</span>
+                    <span>@T("Install.Onboarding.CouncilTeams", "Council teams:") @OnboardingStatus.CouncilTeamKeys.Count</span>
+                </div>
+                <div class="installer-quickstart-grid">
+                    @foreach (var quickStart in OnboardingStatus.QuickStarts)
+                    {
+                        <article class="installer-quickstart-card">
+                            <h4>@quickStart.DisplayName</h4>
+                            <p>@quickStart.Description</p>
+                            <small>Team: @quickStart.CouncilTeamKey<br />Preset: @quickStart.ModelPresetName</small>
+                            <DxButton Text='@T("Install.Onboarding.OpenInChat", "Open in Chat")' RenderStyle="ButtonRenderStyle.Primary" Click="@(() => NavigateToRoute(quickStart.Route))" />
+                        </article>
+                    }
+                </div>
+                <details class="installer-profile-details" open="@(!OnboardingStatus.IsCompleted)">
+                    <summary>@T("Install.Onboarding.InstallerProfiles", "Installer profiles and recommended models/repositories")</summary>
+                    <div class="installer-quickstart-grid">
+                        @foreach (var profile in OnboardingStatus.InstallerProfiles)
+                        {
+                            <article class="installer-quickstart-card">
+                                <h4>@profile.DisplayName</h4>
+                                <p>@profile.Purpose</p>
+                                <code>@profile.Command</code>
+                                <small>@T("Install.Onboarding.Models", "Models:") @(string.IsNullOrWhiteSpace(profile.ModelSummary) ? T("Install.Onboarding.None", "none") : profile.ModelSummary)</small>
+                                <small>@T("Install.Onboarding.Repositories", "Repositories:") @profile.RepositorySummary</small>
+                            </article>
+                        }
+                    </div>
+                </details>
+                @if (!OnboardingStatus.IsCompleted)
+                {
+                    <DxButton Text='@T("Install.Onboarding.MarkReviewed", "I reviewed this setup guide")' RenderStyle="ButtonRenderStyle.Success" Enabled="@(!IsOnboardingLoading)" Click="CompleteOnboardingAsync" />
+                }
+            }
+        </section>
+
+        <section class="installer-workbench-card" aria-labelledby="localization-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <h3 id="localization-heading">@T("Install.Localization.Title", "Languages and localization catalogs")</h3>
+                    <p>@T("Install.Localization.Description", "English and German are shipped defaults. Any valid .NET culture can be added as a persistent JSON catalog; missing keys fall back to English.")</p>
+                </div>
+            </div>
+            <div class="localization-catalog-list">
+                @foreach (var catalog in LocalizationCatalogs)
+                {
+                    <span class="localization-catalog-pill">
+                        @catalog.DisplayName (@catalog.Culture) · @catalog.StringCount strings
+                        @if (catalog.HasUserOverride)
+                        {
+                            <strong>@T("Install.Localization.UserOverride", "user override")</strong>
+                        }
+                    </span>
+                }
+            </div>
+            <div class="localization-import-grid">
+                <label>
+                    @T("Install.Localization.CultureName", "Culture name")
+                    <input @bind="LocalizationCulture" placeholder="fr-FR" autocomplete="off" />
+                </label>
+                <label class="localization-file-input">
+                    @T("Install.Localization.JsonFile", "Language JSON file")
+                    <InputFile OnChange="ImportLocalizationFileAsync" accept=".json,application/json" disabled="@IsLocalizationImporting" />
+                </label>
+                <label class="localization-overwrite">
+                    <input type="checkbox" @bind="OverwriteLocalizationCatalog" />
+                    @T("Install.Localization.Overwrite", "Replace an existing user catalog for this culture")
+                </label>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(LocalizationImportStatus))
+            {
+                <div class="installer-status-line">
+                    <span>@LocalizationImportStatus</span>
+                    <DxButton Text='@T("Install.Localization.Activate", "Activate selected language")' Click="ActivateSelectedCulture" />
+                </div>
+            }
+            <p class="field-help">@T("Install.Localization.FormatHelp", "Catalog format: a flat JSON object. User catalogs are stored under the current user's LocalGPT application-data directory and survive rebuilds.") <code>{ "Nav.Home": "Accueil", "Nav.Chat": "Discussion IA" }</code></p>
+        </section>
+
         <DxMemo Rows="8" ReadOnly="true" @bind-Text="_log" CssClass="w-full" />
     </div>
 </div>
@@ -263,6 +364,13 @@
     private bool IsConnectivityChecking;
     private bool IsSaving;
     private bool IsOllamaProcessBusy;
+    private bool IsOnboardingLoading;
+    private bool IsLocalizationImporting;
+    private bool OverwriteLocalizationCatalog;
+    private string LocalizationCulture = "fr-FR";
+    private string LocalizationImportStatus = string.Empty;
+    private FirstRunOnboardingStatus? OnboardingStatus;
+    private IReadOnlyList<LocalizationCatalogDescriptor> LocalizationCatalogs = Array.Empty<LocalizationCatalogDescriptor>();
     private OllamaProcessStatus OllamaProcessStatus = new(false, false, null, Array.Empty<OllamaProcessInfo>(), string.Empty, "Ollama process status not checked yet.");
     private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify Ollama or LM Studio.";
     private DateTimeOffset? LastConnectivityCheck;
@@ -270,6 +378,8 @@
     private List<OllamaCoreOptions> AdditionalOllamaModels => Model.OllamaCores;
     private bool HasReachableAiHost => DiscoveredHosts.Any(host => host.IsReachable);
     private string ConnectivityAlertCss => HasReachableAiHost ? "alert alert-success" : "alert alert-warning";
+    /// <summary>Resolves one installer UI string with a maintained fallback.</summary>
+    private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
 
     protected override void OnInitialized()
     {
@@ -400,6 +510,8 @@
         {
             if (firstRender)
             {
+                LocalizationCatalogs = Localization.GetCatalogs();
+                await RefreshOnboardingAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
                 await RefreshOllamaProcessStatusAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
                 await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             }
@@ -412,6 +524,121 @@
         }
     }
 
+
+
+    /// <summary>Refreshes the persistent installer guide and Council quick-start catalog.</summary>
+    private async Task RefreshOnboardingAsync()
+    {
+        try
+        {
+            IsOnboardingLoading = true;
+            OnboardingStatus = await Onboarding.GetStatusAsync(refreshConnectivity: false).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not load the persistent installer onboarding surface.");
+            Notifier.ShowError(toastName, "The setup guide could not be loaded. Review LocalGPT logs.", "Setup guide");
+        }
+        finally
+        {
+            IsOnboardingLoading = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Records that the guide was reviewed without hiding it from Install.</summary>
+    private async Task CompleteOnboardingAsync()
+    {
+        try
+        {
+            IsOnboardingLoading = true;
+            await Onboarding.CompleteAsync(userConfirmed: true).ConfigureAwait(false);
+            OnboardingStatus = await Onboarding.GetStatusAsync(refreshConnectivity: false).ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, "The setup guide was marked reviewed and remains available on Install.", "Setup reviewed");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not record the onboarding review state.");
+            Notifier.ShowError(toastName, "The setup review state could not be saved.", "Setup guide");
+        }
+        finally
+        {
+            IsOnboardingLoading = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Validates and imports one user-selected localization JSON file.</summary>
+    /// <param name="args">Selected browser file.</param>
+    private async Task ImportLocalizationFileAsync(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            IsLocalizationImporting = true;
+            LocalizationImportStatus = string.Empty;
+            var file = args.File;
+            if (string.IsNullOrWhiteSpace(LocalizationCulture))
+                LocalizationCulture = Path.GetFileNameWithoutExtension(file.Name);
+            await using var stream = file.OpenReadStream(4 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync().ConfigureAwait(false);
+            var validation = Localization.ValidateCatalog(LocalizationCulture, json);
+            if (!validation.IsValid)
+            {
+                LocalizationImportStatus = Localization.FormatValidationErrors(validation);
+                Notifier.ShowWarning(toastName, LocalizationImportStatus, "Language catalog rejected");
+                return;
+            }
+
+            var imported = await Localization.ImportCatalogAsync(
+                validation.Culture,
+                json,
+                OverwriteLocalizationCatalog).ConfigureAwait(false);
+            LocalizationCatalogs = Localization.GetCatalogs();
+            LocalizationCulture = imported.Culture;
+            LocalizationImportStatus = $"Imported {imported.StringCount} strings for {imported.Culture}. {imported.MissingBaselineKeyCount} missing baseline keys use English fallback.";
+            Notifier.ShowSuccess(toastName, LocalizationImportStatus, "Language catalog imported");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Localization catalog import failed; submitted text was omitted from logs.");
+            LocalizationImportStatus = exception.Message;
+            Notifier.ShowError(toastName, "The language catalog could not be imported. " + exception.Message, "Language catalog");
+        }
+        finally
+        {
+            IsLocalizationImporting = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Activates the selected imported culture and reloads Install through the localization controller.</summary>
+    private void ActivateSelectedCulture()
+    {
+        var route = $"/api/localization/select?culture={Uri.EscapeDataString(LocalizationCulture)}&returnUrl={Uri.EscapeDataString("/install")}";
+        Nav.NavigateTo(route, forceLoad: true);
+    }
+
+    /// <summary>Opens the generated documentation route.</summary>
+    private void OpenDocumentation() => NavigateToRoute("/help");
+
+    /// <summary>Opens the editable Council-team catalog.</summary>
+    private void OpenCouncilTeams() => NavigateToRoute("/council-teams");
+
+    /// <summary>Navigates to one application-relative installer destination.</summary>
+    /// <param name="route">Application-relative route.</param>
+    private void NavigateToRoute(string route)
+    {
+        try
+        {
+            Nav.NavigateTo(route, forceLoad: false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Installer navigation failed for route {Route}.", route);
+            Notifier.ShowError(toastName, "The requested LocalGPT page could not be opened.", "Navigation");
+        }
+    }
 
     private async Task RefreshOllamaProcessStatusAsync()
     {

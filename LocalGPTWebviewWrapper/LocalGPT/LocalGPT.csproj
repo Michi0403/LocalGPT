@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>2.1.20</Version>
+    <Version>2.1.21</Version>
 	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -90,6 +90,7 @@
 	  <PackageReference Include="DevExpress.AIIntegration.OpenAI" Version="25.2.*" />
   </ItemGroup>
   <ItemGroup>
+      <Content Update="Localization\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 	  <Content Update="appsettings.Development.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="PreserveNewest" />
 	  <Content Update="appsettings.json" CopyToOutputDirectory="Always" CopyToPublishDirectory="PreserveNewest" />
 	  <Content Update="wwwroot\about.txt">

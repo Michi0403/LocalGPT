@@ -150,9 +150,9 @@
     }
 }
 
-.language-switcher { margin-left: auto; display: inline-flex; gap: .25rem; align-items: center; }
-.language-switcher a { min-width: 2.5rem; min-height: 2.5rem; display: inline-grid; place-items: center; border: 1px solid var(--bs-border-color); border-radius: .45rem; color: var(--bs-body-color); text-decoration: none; font-weight: 700; }
-.language-switcher a:hover { background: var(--bs-primary); color: var(--bs-white, #fff); }
+.language-switcher { margin-left: auto; display: inline-flex; align-items: center; max-width: min(22rem, 45vw); }
+.language-switcher select { min-height: 2.5rem; max-width: 100%; border: 1px solid var(--bs-border-color); border-radius: .45rem; color: var(--bs-body-color); background: var(--bs-body-bg); padding: .35rem 2rem .35rem .65rem; font-weight: 650; }
+.language-switcher select:focus { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
 
 
 /* final15: collaboration and Council tools live in a dedicated edge rail. The rail itself

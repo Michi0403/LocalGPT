@@ -82,3 +82,124 @@
     .ollama-process-actions { display: grid; grid-template-columns: 1fr; }
     .ollama-process-actions ::deep .provider-action-button { width: 100% !important; }
 }
+
+/* v2.1.21: persistent setup, Council quick starts and open language catalogs. */
+.installer-workbench-card {
+    display: grid;
+    gap: 1rem;
+    width: 100%;
+    padding: clamp(1rem, 1.5vw, 1.5rem);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .8rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg));
+}
+
+.installer-card-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.installer-card-heading h3,
+.installer-quickstart-card h4 {
+    margin: 0;
+}
+
+.installer-card-heading p,
+.installer-quickstart-card p {
+    margin: .35rem 0 0;
+}
+
+.installer-status-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem 1.25rem;
+    align-items: center;
+    padding: .7rem .85rem;
+    border-radius: .55rem;
+    background: var(--bs-secondary-bg);
+}
+
+.installer-quickstart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: .8rem;
+}
+
+.installer-quickstart-card {
+    display: grid;
+    align-content: start;
+    gap: .65rem;
+    min-width: 0;
+    padding: .9rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .65rem;
+    background: var(--bs-body-bg);
+}
+
+.installer-quickstart-card code,
+.installer-quickstart-card small {
+    overflow-wrap: anywhere;
+}
+
+.installer-profile-details summary {
+    cursor: pointer;
+    font-weight: 700;
+    margin-bottom: .8rem;
+}
+
+.localization-catalog-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.localization-catalog-pill {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    align-items: center;
+    padding: .45rem .65rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    background: var(--bs-body-bg);
+}
+
+.localization-import-grid {
+    display: grid;
+    grid-template-columns: minmax(12rem, .55fr) minmax(18rem, 1.2fr) minmax(16rem, 1fr);
+    gap: .8rem;
+    align-items: end;
+}
+
+.localization-import-grid label {
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+    font-weight: 650;
+}
+
+.localization-import-grid input[type="text"],
+.localization-import-grid input:not([type]) {
+    width: 100%;
+    min-height: 2.55rem;
+    padding: .45rem .6rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .45rem;
+}
+
+.localization-overwrite {
+    grid-template-columns: auto 1fr !important;
+    align-items: center;
+    font-weight: 500 !important;
+}
+
+@media (max-width: 900px) {
+    .localization-import-grid {
+        grid-template-columns: 1fr;
+    }
+}

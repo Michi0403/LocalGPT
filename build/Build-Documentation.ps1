@@ -22,6 +22,7 @@ Write-Host "LocalGPT documentation input: repository=$RepositoryRoot; assembly=$
 $docsRoot = Join-Path $RepositoryRoot "docs"
 $inputRoot = Join-Path $docsRoot "input"
 $siteRoot = Join-Path $docsRoot "_site"
+$apiRoot = Join-Path $docsRoot "api"
 $sourceWebRoot = Join-Path $RepositoryRoot "LocalGPTWebviewWrapper\LocalGPT\wwwroot\help-docs"
 $configPath = Join-Path $docsRoot "docfx.json"
 $manifestPath = Join-Path $RepositoryRoot ".config\dotnet-tools.json"
@@ -54,8 +55,16 @@ if (-not [string]::IsNullOrWhiteSpace($OutputWebRoot)) {
     if (-not $publishRoots.Contains($resolvedOutputWebRoot)) { $publishRoots.Add($resolvedOutputWebRoot) }
 }
 
+Remove-Item -LiteralPath $inputRoot -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $inputRoot -Force | Out-Null
 Remove-Item -LiteralPath $siteRoot -Recurse -Force -ErrorAction SilentlyContinue
+$assemblyDirectory = Split-Path -Parent $AssemblyPath
+Get-ChildItem -LiteralPath $assemblyDirectory -Filter "*.dll" -File -ErrorAction SilentlyContinue | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $inputRoot $_.Name) -Force
+}
+Get-ChildItem -LiteralPath $assemblyDirectory -Filter "*.xml" -File -ErrorAction SilentlyContinue | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $inputRoot $_.Name) -Force
+}
 Copy-Item -LiteralPath $AssemblyPath -Destination (Join-Path $inputRoot "LocalGPT.dll") -Force
 Copy-Item -LiteralPath $XmlDocumentationPath -Destination (Join-Path $inputRoot "LocalGPT.xml") -Force
 
@@ -84,6 +93,86 @@ function Invoke-LocalGptDocfx {
         & $script:docfxExecutable @Arguments
     }
     return $LASTEXITCODE
+}
+
+function ConvertTo-LocalGptMarkdownText {
+    param([AllowNull()][object]$Node)
+    if ($null -eq $Node) { return "" }
+    $text = [string]$Node.InnerText
+    return ([regex]::Replace($text, '\s+', ' ')).Trim()
+}
+
+function New-LocalGptXmlFallbackApi {
+    param(
+        [Parameter(Mandatory)][string]$XmlPath,
+        [Parameter(Mandatory)][string]$Destination,
+        [Parameter(Mandatory)][string]$DocumentationVersion
+    )
+
+    Remove-Item -LiteralPath $Destination -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    [xml]$xml = Get-Content -LiteralPath $XmlPath -Raw
+    $members = @($xml.SelectNodes("/doc/members/member"))
+    $types = @($members | Where-Object { $_.GetAttribute("name") -like 'T:*' } | Sort-Object { $_.GetAttribute("name") })
+    $indexLines = [System.Collections.Generic.List[string]]::new()
+    $indexLines.Add("# LocalGPT API reference")
+    $indexLines.Add("")
+    $indexLines.Add("Generated from compiler XML comments for LocalGPT $DocumentationVersion.")
+    $indexLines.Add("")
+
+    $typeIndex = 0
+    foreach ($type in $types) {
+        $typeIndex++
+        $typeName = $type.GetAttribute("name").Substring(2)
+        $safeName = "type-{0:D5}" -f $typeIndex
+        $summary = ConvertTo-LocalGptMarkdownText ($type.SelectSingleNode("summary"))
+        $typeLines = [System.Collections.Generic.List[string]]::new()
+        $typeLines.Add("# ``$typeName``")
+        $typeLines.Add("")
+        if (-not [string]::IsNullOrWhiteSpace($summary)) { $typeLines.Add($summary); $typeLines.Add("") }
+        $typeLines.Add("## Members")
+        $typeLines.Add("")
+        $prefixes = @("M:$typeName.", "P:$typeName.", "F:$typeName.", "E:$typeName.")
+        $owned = @($members | Where-Object {
+            $memberName = $_.GetAttribute("name")
+            ($prefixes | Where-Object { $memberName.StartsWith($_, [System.StringComparison]::Ordinal) }).Count -gt 0
+        } | Sort-Object { $_.GetAttribute("name") })
+        if ($owned.Count -eq 0) {
+            $typeLines.Add("No compiler XML member entries were emitted for this type.")
+        }
+        else {
+            foreach ($member in $owned) {
+                $memberName = $member.GetAttribute("name")
+                $memberSummary = ConvertTo-LocalGptMarkdownText ($member.SelectSingleNode("summary"))
+                $typeLines.Add("### ``$memberName``")
+                $typeLines.Add("")
+                if (-not [string]::IsNullOrWhiteSpace($memberSummary)) { $typeLines.Add($memberSummary) } else { $typeLines.Add("No summary was emitted.") }
+                $parameters = @($member.SelectNodes("param"))
+                if ($parameters.Count -gt 0) {
+                    $typeLines.Add("")
+                    $typeLines.Add("**Parameters**")
+                    foreach ($parameter in $parameters) {
+                        $parameterText = ConvertTo-LocalGptMarkdownText $parameter
+                        $typeLines.Add("- ``$($parameter.GetAttribute("name"))`` - $parameterText")
+                    }
+                }
+                $returns = ConvertTo-LocalGptMarkdownText ($member.SelectSingleNode("returns"))
+                if (-not [string]::IsNullOrWhiteSpace($returns)) {
+                    $typeLines.Add("")
+                    $typeLines.Add("**Returns:** $returns")
+                }
+                $typeLines.Add("")
+            }
+        }
+        Set-Content -LiteralPath (Join-Path $Destination ($safeName + ".md")) -Value $typeLines -Encoding utf8
+        $indexLines.Add("- [$typeName]($safeName.md)")
+    }
+
+    if ($types.Count -eq 0) {
+        $indexLines.Add("No type documentation entries were emitted by the compiler.")
+    }
+    Set-Content -LiteralPath (Join-Path $Destination "index.md") -Value $indexLines -Encoding utf8
+    Write-Warning "DocFX metadata extraction failed; generated a compiler-XML API reference fallback instead."
 }
 
 Push-Location $RepositoryRoot
@@ -131,8 +220,33 @@ try {
         }
     }
 
-    if ((Invoke-LocalGptDocfx -Arguments @("metadata", $configPath)) -ne 0) { throw "DocFX API metadata generation failed." }
-    if ((Invoke-LocalGptDocfx -Arguments @("build", $configPath)) -ne 0) { throw "DocFX HTML/API documentation build failed." }
+    Remove-Item -LiteralPath $apiRoot -Recurse -Force -ErrorAction SilentlyContinue
+    $metadataExitCode = Invoke-LocalGptDocfx -Arguments @("metadata", $configPath)
+    if ($metadataExitCode -ne 0) {
+        New-LocalGptXmlFallbackApi -XmlPath $XmlDocumentationPath -Destination $apiRoot -DocumentationVersion $Version
+    }
+
+    $buildExitCode = Invoke-LocalGptDocfx -Arguments @("build", $configPath)
+    if ($buildExitCode -ne 0) {
+        $message = "DocFX HTML/API documentation build failed. The application assembly remains usable and the previous published documentation is preserved."
+        if ($RequirePdf) { throw $message }
+        Write-Warning $message
+        foreach ($publishRoot in $publishRoots) {
+            New-Item -ItemType Directory -Path $publishRoot -Force | Out-Null
+            [ordered]@{
+                version = $Version
+                generatedAtUtc = [DateTime]::UtcNow.ToString("O")
+                htmlAvailable = Test-Path -LiteralPath (Join-Path $publishRoot "index.html")
+                pdfAvailable = Test-Path -LiteralPath (Join-Path $publishRoot $pdfName)
+                pdfFileName = $pdfName
+                xmlDocumentationFileName = "LocalGPT.xml"
+                docfxVersion = "2.78.5"
+                toolSource = if ($useManifestTool) { "manifest" } else { "isolated-tool-path" }
+                warning = $message
+            } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $publishRoot "documentation-status.json") -Encoding utf8
+        }
+        return
+    }
 
     $node = Get-Command node -ErrorAction SilentlyContinue
     $nodeMajor = 0
@@ -154,6 +268,7 @@ try {
 }
 finally {
     Pop-Location
+    Remove-Item -LiteralPath $inputRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $pdf = Get-ChildItem -LiteralPath $siteRoot -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue |

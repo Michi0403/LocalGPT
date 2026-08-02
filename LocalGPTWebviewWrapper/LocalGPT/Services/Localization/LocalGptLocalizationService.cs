@@ -1,57 +1,115 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
+using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services.Localization;
 
+/// <summary>
+/// Reads built-in localization catalogs and persistent user-supplied culture overrides.
+/// </summary>
+[DocumentationUpdated("2.1.21")]
 public interface ILocalGptLocalizationService
 {
+    /// <summary>Gets all cultures represented by built-in or user catalogs.</summary>
     IReadOnlyList<string> GetAvailableCultures();
+
+    /// <summary>Gets effective catalog descriptors for installer and diagnostic surfaces.</summary>
+    IReadOnlyList<LocalizationCatalogDescriptor> GetCatalogs();
+
+    /// <summary>Gets the effective strings for a culture after English fallback and user overrides are merged.</summary>
     IReadOnlyDictionary<string, string> GetStrings(string? culture = null);
+
+    /// <summary>Gets one localized value with English and caller-provided fallback behavior.</summary>
     string Get(string key, string? culture = null, string? fallback = null);
+
+    /// <summary>Validates a user localization JSON dictionary without writing it.</summary>
+    /// <param name="culture">Requested .NET culture name, for example fr-FR.</param>
+    /// <param name="json">UTF-8 JSON object containing string keys and values.</param>
+    /// <returns>The validation result, including missing baseline keys.</returns>
+    LocalizationCatalogValidationResult ValidateCatalog(string culture, string json);
+
+    /// <summary>Formats validation errors for a UI or API status surface.</summary>
+    /// <param name="validation">Validation result containing zero or more errors.</param>
+    /// <returns>A single bounded human-readable error sentence.</returns>
+    string FormatValidationErrors(LocalizationCatalogValidationResult validation);
+
+    /// <summary>Validates and atomically imports a persistent user localization catalog.</summary>
+    /// <param name="culture">Requested .NET culture name.</param>
+    /// <param name="json">JSON object containing string keys and values.</param>
+    /// <param name="overwrite">Allows replacement of an existing user catalog.</param>
+    /// <param name="cancellationToken">Cancels the asynchronous file write.</param>
+    /// <returns>A task that completes with the durable import result.</returns>
+    Task<LocalizationCatalogImportResult> ImportCatalogAsync(string culture, string json, bool overwrite, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Implements open LocalGPT localization catalogs with English fallback, built-in defaults and persistent user overrides.
+/// </summary>
+/// <param name="environment">Provides the application content root containing built-in catalogs.</param>
+/// <param name="logger">Writes bounded catalog discovery and validation diagnostics.</param>
+[DocumentationUpdated("2.1.21")]
 public sealed class LocalGptLocalizationService(
     IWebHostEnvironment environment,
     ILogger<LocalGptLocalizationService> logger) : ILocalGptLocalizationService
 {
-    private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> cache = new(StringComparer.OrdinalIgnoreCase);
-    private string LocalizationPath => Path.Combine(environment.ContentRootPath, "Localization");
+    /// <summary>Maximum accepted UTF-8 catalog size.</summary>
+    private const int MaximumCatalogBytes = 4 * 1024 * 1024;
 
+    /// <summary>Maximum accepted localization entry count.</summary>
+    private const int MaximumCatalogEntries = 20000;
+
+    /// <summary>Caches effective merged catalogs by normalized culture name.</summary>
+    private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> cache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets the application directory containing shipped localization catalogs.</summary>
+    private string BuiltInLocalizationPath => Path.Combine(environment.ContentRootPath, "Localization");
+
+    /// <summary>Gets the persistent per-user directory containing imported catalog overrides.</summary>
+    private string UserLocalizationPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "LocalGPT",
+        "Localization");
+
+    /// <inheritdoc />
     public IReadOnlyList<string> GetAvailableCultures()
     {
         try
         {
-            if (!Directory.Exists(LocalizationPath))
-            {
-                logger.LogWarning("LocalGPT localization directory {LocalizationPath} does not exist; using en-US only.", LocalizationPath);
-                return ["en-US"];
-            }
-
-            var cultures = Directory.EnumerateFiles(LocalizationPath, "*.json", SearchOption.TopDirectoryOnly)
-                .Select(Path.GetFileNameWithoutExtension)
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Cast<string>()
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            logger.LogDebug("Discovered {CultureCount} LocalGPT localization catalogs in {LocalizationPath}.", cultures.Length, LocalizationPath);
-            if (cultures.Length == 0) return ["en-US"];
-            return cultures;
+            var cultures = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "en-US", "de-DE" };
+            AddCatalogCultures(BuiltInLocalizationPath, cultures);
+            AddCatalogCultures(UserLocalizationPath, cultures);
+            return cultures.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogWarning(ex, "Could not enumerate LocalGPT localization catalogs in {LocalizationPath}; using en-US only.", LocalizationPath);
-            return ["en-US"];
+            logger.LogWarning(ex, "Could not enumerate LocalGPT localization catalogs; using built-in defaults.");
+            return ["de-DE", "en-US"];
         }
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<LocalizationCatalogDescriptor> GetCatalogs()
+    {
+        return GetAvailableCultures()
+            .Select(culture => new LocalizationCatalogDescriptor(
+                culture,
+                File.Exists(GetBuiltInCatalogPath(culture)),
+                File.Exists(GetUserCatalogPath(culture)),
+                GetStrings(culture).Count,
+                GetCultureDisplayName(culture)))
+            .ToArray();
+    }
+
+    /// <inheritdoc />
     public IReadOnlyDictionary<string, string> GetStrings(string? culture = null)
     {
         var normalized = NormalizeCulture(culture);
         return cache.GetOrAdd(normalized, Load);
     }
 
+    /// <inheritdoc />
     public string Get(string key, string? culture = null, string? fallback = null)
     {
         if (string.IsNullOrWhiteSpace(key)) return fallback ?? string.Empty;
@@ -60,55 +118,212 @@ public sealed class LocalGptLocalizationService(
         return fallback ?? key;
     }
 
+    /// <inheritdoc />
+    public LocalizationCatalogValidationResult ValidateCatalog(string culture, string json)
+    {
+        var result = new LocalizationCatalogValidationResult();
+        try
+        {
+            result.Culture = NormalizeRequiredCulture(culture);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                result.Errors.Add("The localization catalog is empty.");
+                return result;
+            }
+            if (Encoding.UTF8.GetByteCount(json) > MaximumCatalogBytes)
+            {
+                result.Errors.Add($"The localization catalog exceeds {MaximumCatalogBytes / 1024 / 1024} MiB.");
+                return result;
+            }
+
+            var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            if (data is null)
+            {
+                result.Errors.Add("The localization catalog must be a JSON object containing string keys and values.");
+                return result;
+            }
+            if (data.Count > MaximumCatalogEntries)
+                result.Errors.Add($"The localization catalog exceeds {MaximumCatalogEntries} entries.");
+
+            var invalidKeys = data.Keys.Count(string.IsNullOrWhiteSpace);
+            if (invalidKeys > 0)
+                result.Errors.Add("Localization keys may not be empty or whitespace.");
+            var normalizedKeys = data.Keys
+                .Where(key => !string.IsNullOrWhiteSpace(key))
+                .Select(key => key.Trim())
+                .ToArray();
+            if (normalizedKeys.Distinct(StringComparer.OrdinalIgnoreCase).Count() != normalizedKeys.Length)
+                result.Errors.Add("Localization keys must remain unique after trimming and case-insensitive comparison.");
+
+            result.StringCount = data.Count - invalidKeys;
+            var baseline = LoadCatalogFile(GetBuiltInCatalogPath("en-US"));
+            result.MissingBaselineKeyCount = baseline.Keys.Count(key => !data.ContainsKey(key));
+            if (result.MissingBaselineKeyCount > 0)
+                result.Warnings.Add($"{result.MissingBaselineKeyCount} English baseline key(s) are absent and will use fallback text.");
+            if (result.StringCount == 0)
+                result.Errors.Add("The localization catalog contains no usable strings.");
+
+            result.IsValid = result.Errors.Count == 0;
+        }
+        catch (CultureNotFoundException)
+        {
+            result.Errors.Add("The supplied culture name is not recognized by the installed .NET runtime.");
+        }
+        catch (JsonException exception)
+        {
+            logger.LogInformation(exception, "A user localization catalog failed JSON validation.");
+            result.Errors.Add("The localization catalog is not a valid string-to-string JSON object.");
+        }
+        return result;
+    }
+
+    /// <inheritdoc />
+    public string FormatValidationErrors(LocalizationCatalogValidationResult validation)
+    {
+        ArgumentNullException.ThrowIfNull(validation);
+        return validation.Errors.Count == 0
+            ? "The localization catalog did not provide a validation error."
+            : string.Join(" ", validation.Errors.Take(20));
+    }
+
+    /// <inheritdoc />
+    public async Task<LocalizationCatalogImportResult> ImportCatalogAsync(string culture, string json, bool overwrite, CancellationToken cancellationToken = default)
+    {
+        var validation = ValidateCatalog(culture, json);
+        if (!validation.IsValid)
+            throw new InvalidDataException(string.Join(" ", validation.Errors));
+
+        Directory.CreateDirectory(UserLocalizationPath);
+        var destination = GetUserCatalogPath(validation.Culture);
+        if (File.Exists(destination) && !overwrite)
+            throw new IOException($"A user localization catalog for {validation.Culture} already exists. Enable overwrite to replace it.");
+
+        var parsed = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+            ?? throw new InvalidDataException("The localization catalog contained no dictionary.");
+        var normalized = parsed
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Key))
+            .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(pair => pair.Key.Trim(), pair => pair.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+        var serialized = JsonSerializer.Serialize(normalized, new JsonSerializerOptions { WriteIndented = true });
+        var temporary = destination + ".tmp-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            await File.WriteAllTextAsync(temporary, serialized, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+            File.Move(temporary, destination, overwrite);
+        }
+        finally
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
+
+        if (string.Equals(validation.Culture, "en-US", StringComparison.OrdinalIgnoreCase))
+            cache.Clear();
+        else
+            cache.TryRemove(validation.Culture, out _);
+        logger.LogInformation("Imported a persistent LocalGPT localization catalog for culture {Culture} with {StringCount} entries.", validation.Culture, normalized.Count);
+        return new LocalizationCatalogImportResult(validation.Culture, normalized.Count, validation.MissingBaselineKeyCount);
+    }
+
+    /// <summary>Loads one effective culture catalog with English fallback and user overrides.</summary>
+    /// <param name="culture">Normalized culture name.</param>
+    /// <returns>The immutable effective string dictionary.</returns>
     private IReadOnlyDictionary<string, string> Load(string culture)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        Merge(Path.Combine(LocalizationPath, "en-US.json"), result, "en-US");
+        Merge(GetBuiltInCatalogPath("en-US"), result, "en-US built-in");
+        Merge(GetUserCatalogPath("en-US"), result, "en-US user override");
         if (!string.Equals(culture, "en-US", StringComparison.OrdinalIgnoreCase))
-            Merge(Path.Combine(LocalizationPath, culture + ".json"), result, culture);
-
+        {
+            Merge(GetBuiltInCatalogPath(culture), result, culture + " built-in");
+            Merge(GetUserCatalogPath(culture), result, culture + " user override");
+        }
         logger.LogDebug("Loaded {StringCount} LocalGPT localization strings for culture {Culture}.", result.Count, culture);
         return result;
     }
 
-    private void Merge(string path, IDictionary<string, string> result, string culture)
+    /// <summary>Merges one optional catalog file into an effective catalog.</summary>
+    /// <param name="path">Catalog file path.</param>
+    /// <param name="result">Mutable effective catalog.</param>
+    /// <param name="source">Diagnostic source label.</param>
+    private void Merge(string path, IDictionary<string, string> result, string source)
     {
-        if (!File.Exists(path))
-        {
-            logger.LogWarning("LocalGPT localization catalog {CatalogPath} for culture {Culture} is missing.", path, culture);
-            return;
-        }
+        foreach (var pair in LoadCatalogFile(path)) result[pair.Key] = pair.Value;
+        if (File.Exists(path)) logger.LogDebug("Merged LocalGPT localization source {Source}.", source);
+    }
 
+    /// <summary>Reads one JSON catalog without throwing for missing or invalid optional files.</summary>
+    /// <param name="path">Catalog file path.</param>
+    /// <returns>The parsed dictionary or an empty dictionary.</returns>
+    private IReadOnlyDictionary<string, string> LoadCatalogFile(string path)
+    {
+        if (!File.Exists(path)) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             using var stream = File.OpenRead(path);
             var data = JsonSerializer.Deserialize<Dictionary<string, string>>(stream);
-            if (data is null)
-            {
-                logger.LogWarning("LocalGPT localization catalog {CatalogPath} for culture {Culture} contained no dictionary.", path, culture);
-                return;
-            }
-
-            foreach (var pair in data.Where(pair => !string.IsNullOrWhiteSpace(pair.Key)))
-                result[pair.Key] = pair.Value ?? string.Empty;
+            return data is null
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(data, StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            logger.LogWarning(ex, "Could not load LocalGPT localization catalog {CatalogPath} for culture {Culture}.", path, culture);
+            logger.LogWarning(ex, "Could not load LocalGPT localization catalog {CatalogPath}.", path);
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
     }
 
+    /// <summary>Adds valid culture names represented by JSON files in one directory.</summary>
+    /// <param name="directory">Directory to inspect.</param>
+    /// <param name="cultures">Destination culture set.</param>
+    private void AddCatalogCultures(string directory, ISet<string> cultures)
+    {
+        if (!Directory.Exists(directory)) return;
+        foreach (var path in Directory.EnumerateFiles(directory, "*.json", SearchOption.TopDirectoryOnly))
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+            try { cultures.Add(NormalizeRequiredCulture(name)); }
+            catch (CultureNotFoundException) { logger.LogWarning("Ignored localization file with unknown culture name {FileName}.", Path.GetFileName(path)); }
+        }
+    }
+
+    /// <summary>Normalizes an optional culture and falls back to English for unknown values.</summary>
+    /// <param name="culture">Requested culture or null for the current UI culture.</param>
+    /// <returns>A normalized supported culture name or en-US.</returns>
     private string NormalizeCulture(string? culture)
     {
         var requested = string.IsNullOrWhiteSpace(culture) ? CultureInfo.CurrentUICulture.Name : culture.Trim();
-        try
-        {
-            return CultureInfo.GetCultureInfo(requested).Name;
-        }
+        try { return CultureInfo.GetCultureInfo(requested).Name; }
         catch (CultureNotFoundException ex)
         {
             logger.LogDebug(ex, "Unknown LocalGPT UI culture {RequestedCulture}; falling back to en-US.", requested);
             return "en-US";
         }
     }
+
+    /// <summary>Normalizes a required culture name and rejects unknown cultures.</summary>
+    /// <param name="culture">Required .NET culture name.</param>
+    /// <returns>The normalized culture name.</returns>
+    private string NormalizeRequiredCulture(string culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture)) throw new CultureNotFoundException(nameof(culture));
+        return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+    }
+
+    /// <summary>Resolves a culture display name for installer presentation.</summary>
+    /// <param name="culture">Normalized culture name.</param>
+    /// <returns>The runtime display name or the original culture string.</returns>
+    private string GetCultureDisplayName(string culture)
+    {
+        try { return CultureInfo.GetCultureInfo(culture).DisplayName; }
+        catch (CultureNotFoundException) { return culture; }
+    }
+
+    /// <summary>Builds the shipped catalog path for a culture.</summary>
+    /// <param name="culture">Normalized culture name.</param>
+    /// <returns>The built-in JSON path.</returns>
+    private string GetBuiltInCatalogPath(string culture) => Path.Combine(BuiltInLocalizationPath, culture + ".json");
+    /// <summary>Builds the persistent user catalog path for a culture.</summary>
+    /// <param name="culture">Normalized culture name.</param>
+    /// <returns>The user JSON path.</returns>
+    private string GetUserCatalogPath(string culture) => Path.Combine(UserLocalizationPath, culture + ".json");
 }

@@ -20,3 +20,7 @@ The running application exposes:
 - `/api/documentation/pdf` for the current versioned PDF.
 
 Release builds require the PDF by default. Set `RequireLocalGptDocumentationPdf=false` only for a deliberate diagnostic build. Set `BuildLocalGptDocumentation=false` to bypass the complete documentation target while diagnosing build infrastructure.
+
+## Metadata fallback in 2.1.21
+
+The documentation stage first gives DocFX access to the complete application output assembly set. When assembly metadata extraction still fails, the build creates a bounded API reference from `LocalGPT.xml` and runs the normal DocFX site build against those Markdown files. Debug builds therefore keep a usable application and the last published help site; builds that explicitly require a PDF continue to fail when their required output cannot be produced.

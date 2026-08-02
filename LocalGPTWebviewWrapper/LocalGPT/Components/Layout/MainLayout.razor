@@ -7,6 +7,7 @@
 @inject ILogger<MainLayout> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <div class="page" data-testid="main-layout">
     <Drawer DrawerHeader="drawerHeader"
@@ -34,8 +35,13 @@
                         </NavLink>
                     }
                     <div class="language-switcher" aria-label="Language">
-                        <a href="@CultureUrl("en-US")" lang="en">EN</a>
-                        <a href="@CultureUrl("de-DE")" lang="de">DE</a>
+                        <label for="localgpt-language-select" class="visually-hidden">Language</label>
+                        <select id="localgpt-language-select" value="@System.Globalization.CultureInfo.CurrentUICulture.Name" @onchange="ChangeCulture">
+                            @foreach (var culture in Localization.GetAvailableCultures())
+                            {
+                                <option value="@culture">@CultureLabel(culture)</option>
+                            }
+                        </select>
                     </div>
                 </div>
                 <SafeErrorBoundary @key="NavigationManager.Uri" Area="MainLayout" ToastName="ComponentSafetyToasts">
@@ -82,6 +88,29 @@
             Notifier.ShowError("ComponentSafetyToasts", "The layout could not apply its navigation state. See local logs for details.", "Layout error");
         }
     }
+
+    /// <summary>Persists and reloads the culture selected from the open catalog list.</summary>
+    private void ChangeCulture(ChangeEventArgs args)
+    {
+        var culture = args.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(culture)) return;
+        NavigationManager.NavigateTo(CultureUrl(culture), forceLoad: true);
+    }
+
+    /// <summary>Creates a native-language label for one culture option.</summary>
+    private string CultureLabel(string culture)
+    {
+        try
+        {
+            var info = System.Globalization.CultureInfo.GetCultureInfo(culture);
+            return $"{info.NativeName} ({info.Name})";
+        }
+        catch (System.Globalization.CultureNotFoundException)
+        {
+            return culture;
+        }
+    }
+
     private string CultureUrl(string culture)
     {
         try

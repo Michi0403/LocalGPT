@@ -340,3 +340,11 @@ Council prompt reconstruction now keeps unique recent user turns plus only the l
 The documentation build unblocks repository-local DocFX inputs before restore, can reuse or install an isolated DocFX tool, and no longer makes a diagnostic Debug build unusable merely because documentation tooling could not be restored. New and changed onboarding, Council, formatting and configuration contracts include XML summaries, primary-constructor parameter descriptions, property documentation, method parameter documentation and return/Task descriptions.
 
 See `CHANGELOG-v2.1.20-onboarding-development-teams-and-chat-formatting.md`.
+
+## LocalGPT 2.1.21 persistent setup and open localization
+
+Version 2.1.21 keeps the benchmark/development onboarding surface permanently available under `/install`, even after it was marked reviewed. The installer also imports validated user localization JSON catalogs while English and German remain built-in fallbacks. Request localization accepts every culture known to the installed .NET runtime, and the global selector is generated from the catalogs actually installed for the current user.
+
+The documentation build now stages referenced assemblies for DocFX metadata extraction and falls back to a compiler-XML Markdown API catalog when metadata extraction is unavailable. Diagnostic builds preserve the last generated documentation instead of failing after the application assembly already compiled.
+
+See `CHANGELOG-v2.1.21-docfx-installer-onboarding-and-open-localization.md`.

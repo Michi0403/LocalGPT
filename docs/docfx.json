@@ -19,7 +19,8 @@
                                                     "toc.yml",
                                                     "articles/**.md",
                                                     "articles/**/toc.yml",
-                                                    "api/**.yml"
+                                                    "api/**.yml",
+                                                    "api/**.md"
                                                 ]
                                   }
                               ],
@@ -37,11 +38,11 @@
                                ],
                   "globalMetadata":  {
                                          "_appName":  "LocalGPT",
-                                         "_appTitle":  "LocalGPT 2.1.20 Documentation",
+                                         "_appTitle":  "LocalGPT 2.1.21 Documentation",
                                          "_enableSearch":  true,
                                          "_disableContribution":  true,
                                          "pdf":  true,
-                                         "localgptVersion":  "2.1.20"
+                                         "localgptVersion":  "2.1.21"
                                      }
               }
 }

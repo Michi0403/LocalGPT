@@ -259,7 +259,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.1.20"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.1.21"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
@@ -653,7 +653,13 @@ namespace LocalGPT
                 builder.Services.AddSingleton<LocalGPT.Services.Localization.ILocalGptLocalizationService, LocalGPT.Services.Localization.LocalGptLocalizationService>();
                 builder.Services.Configure<RequestLocalizationOptions>(options =>
                 {
-                    var cultures = new[] { new CultureInfo("en-US"), new CultureInfo("de-DE") };
+                    // Accept every culture known to the installed .NET runtime. LocalGPT catalogs remain
+                    // opt-in files; missing keys continue to fall back through en-US.
+                    var cultures = CultureInfo.GetCultures(CultureTypes.AllCultures)
+                        .Where(culture => !string.IsNullOrWhiteSpace(culture.Name))
+                        .GroupBy(culture => culture.Name, StringComparer.OrdinalIgnoreCase)
+                        .Select(group => group.First())
+                        .ToArray();
                     options.DefaultRequestCulture = new RequestCulture("en-US");
                     options.SupportedCultures = cultures;
                     options.SupportedUICultures = cultures;
