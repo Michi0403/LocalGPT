@@ -284,6 +284,12 @@ The database-backed logger now holds startup entries in its existing bounded cha
 The adaptive Ollama benchmark/autotune implementation is unchanged in this patch release. The independently versioned `LocalGPT.WireProtocolVersion` package remains at 2.1.0.
 
 
+## LocalGPT 2.1.15 embedded workbench build correction
+
+Version 2.1.15 corrects the first Windows/.NET build findings from the 2.1.14 embedded-workbench release. `EmbeddedHardwareCatalogService` now returns concrete read-only lists instead of introducing new `yield` iterators that violate the repository's logged try/finally iterator policy. `EmbeddedFirmwarePlanningService` now builds Arduino sketches, PlatformIO configuration and wiring Markdown through explicit `StringBuilder` output instead of malformed interpolated multiline raw strings.
+
+No embedded capability, controller route, DXFunction, workspace model, migration or safety boundary was removed. The release is a compile/policy correction over 2.1.14. See `CHANGELOG-v2.1.15-embedded-build-correction.md`.
+
 ## LocalGPT 2.1.14 embedded workbench contracts and workspace environments
 
 Version 2.1.14 adds a Chat-first ESP32/Arduino planning slice. The AI Council can use source-controlled board profiles and transport-neutral protocol descriptors to propose GPIO assignments, validate a wiring graph, generate a small reviewable Arduino/PlatformIO artifact set, preview an edge telemetry packet and explain the optional protected LocalGPT logical 1-Wire bridge. Physical 1-Wire is treated as one possible sensor bus rather than a mandatory architecture.

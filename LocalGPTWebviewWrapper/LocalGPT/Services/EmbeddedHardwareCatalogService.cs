@@ -96,13 +96,14 @@ public sealed class EmbeddedHardwareCatalogService(
 
     public EmbeddedPublisherWorkbenchContract GetPublisherWorkbenchContract() => new();
 
-    private IEnumerable<string> GetProfileDirectories()
+    private IReadOnlyList<string> GetProfileDirectories()
     {
         var contentDirectory = Path.Combine(environment.ContentRootPath, "Configuration", "EmbeddedBoards");
-        yield return contentDirectory;
         var outputDirectory = Path.Combine(AppContext.BaseDirectory, "Configuration", "EmbeddedBoards");
+        var directories = new List<string> { contentDirectory };
         if (!string.Equals(contentDirectory, outputDirectory, StringComparison.OrdinalIgnoreCase))
-            yield return outputDirectory;
+            directories.Add(outputDirectory);
+        return directories;
     }
 
     private void Normalize(EmbeddedBoardProfile profile)
@@ -164,30 +165,34 @@ public sealed class EmbeddedHardwareCatalogService(
         SafetyNote = safetyNote
     };
 
-    private IEnumerable<EmbeddedBoardProfile> CreateFallbackProfiles()
+    private IReadOnlyList<EmbeddedBoardProfile> CreateFallbackProfiles()
     {
-        yield return new EmbeddedBoardProfile
+        return new List<EmbeddedBoardProfile>
         {
-            Key = "esp32-family-generic",
-            DisplayName = "ESP32 family (generic review profile)",
-            Family = "ESP32",
-            Framework = "Arduino",
-            PlatformIoBoard = "esp32dev",
-            LogicVoltage = 3.3,
-            Status = "NeedsBoardReview",
-            SupportedProtocols = [EmbeddedProtocolKeys.DigitalGpio, EmbeddedProtocolKeys.AnalogAdc, EmbeddedProtocolKeys.Pwm, EmbeddedProtocolKeys.PhysicalOneWire, EmbeddedProtocolKeys.I2c, EmbeddedProtocolKeys.Spi, EmbeddedProtocolKeys.Uart, EmbeddedProtocolKeys.SerialJsonLines],
-            Notes = ["Fallback profile only. Select or import the exact board profile before compile or flash."]
-        };
-        yield return new EmbeddedBoardProfile
-        {
-            Key = "arduino-family-generic",
-            DisplayName = "Arduino-compatible board (generic review profile)",
-            Family = "Arduino",
-            Framework = "Arduino",
-            LogicVoltage = 5.0,
-            Status = "NeedsBoardReview",
-            SupportedProtocols = [EmbeddedProtocolKeys.DigitalGpio, EmbeddedProtocolKeys.AnalogAdc, EmbeddedProtocolKeys.Pwm, EmbeddedProtocolKeys.PhysicalOneWire, EmbeddedProtocolKeys.I2c, EmbeddedProtocolKeys.Spi, EmbeddedProtocolKeys.Uart, EmbeddedProtocolKeys.SerialJsonLines],
-            Notes = ["Fallback profile only. Operating voltage and pin capabilities vary by board."]
+            new()
+            {
+                Key = "esp32-family-generic",
+                DisplayName = "ESP32 family (generic review profile)",
+                Family = "ESP32",
+                Framework = "Arduino",
+                PlatformIoBoard = "esp32dev",
+                LogicVoltage = 3.3,
+                Status = "NeedsBoardReview",
+                SupportedProtocols = [EmbeddedProtocolKeys.DigitalGpio, EmbeddedProtocolKeys.AnalogAdc, EmbeddedProtocolKeys.Pwm, EmbeddedProtocolKeys.PhysicalOneWire, EmbeddedProtocolKeys.I2c, EmbeddedProtocolKeys.Spi, EmbeddedProtocolKeys.Uart, EmbeddedProtocolKeys.SerialJsonLines],
+                Notes = ["Fallback profile only. Select or import the exact board profile before compile or flash."]
+            },
+            new()
+            {
+                Key = "arduino-family-generic",
+                DisplayName = "Arduino-compatible board (generic review profile)",
+                Family = "Arduino",
+                Framework = "Arduino",
+                LogicVoltage = 5.0,
+                Status = "NeedsBoardReview",
+                SupportedProtocols = [EmbeddedProtocolKeys.DigitalGpio, EmbeddedProtocolKeys.AnalogAdc, EmbeddedProtocolKeys.Pwm, EmbeddedProtocolKeys.PhysicalOneWire, EmbeddedProtocolKeys.I2c, EmbeddedProtocolKeys.Spi, EmbeddedProtocolKeys.Uart, EmbeddedProtocolKeys.SerialJsonLines],
+                Notes = ["Fallback profile only. Operating voltage and pin capabilities vary by board."]
+            }
         };
     }
+
 }
