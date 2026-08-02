@@ -1,3 +1,5 @@
+using LocalGPT.BusinessObjects;
+
 namespace LocalGPT.Interfaces;
 
 /// <summary>

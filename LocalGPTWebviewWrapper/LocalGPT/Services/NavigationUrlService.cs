@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using System.Web;
 
 namespace LocalGPT.Services;
