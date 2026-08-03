@@ -14,9 +14,11 @@ LocalGPT is a local-first AI workbench for chat, configurable AI Councils, knowl
 - [GameDirector runtime](articles/game-director.md)
 - [Security and local execution](articles/security.md)
 - [Generated documentation and XML comments](articles/documentation.md)
-- [Complete API reference](api/index.md)
+- <a href="api/index.html">Complete API reference</a>
 
 The generated PDF is named `LocalGPT-2.2.2.pdf` and follows the same complete table of contents, including the XML-generated API reference.
+
+<a class="btn btn-primary" href="LocalGPT-2.2.2.pdf" download>ðŸ¾ Download the complete Kawaii PDF</a>
 
 
 

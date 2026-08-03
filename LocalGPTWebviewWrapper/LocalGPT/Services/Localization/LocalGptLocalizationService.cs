@@ -202,7 +202,10 @@ public sealed class LocalGptLocalizationService(
                 string.Equals(pair.Key, "ui-culture", StringComparison.OrdinalIgnoreCase))
                 continue;
             foreach (var value in pair.Value)
+            {
+                if (value is null) continue;
                 result = QueryHelpers.AddQueryString(result, pair.Key, value);
+            }
         }
         if (!string.IsNullOrWhiteSpace(culture))
         {

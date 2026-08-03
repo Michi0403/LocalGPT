@@ -16,7 +16,7 @@
             <p>The former handwritten help cards have been replaced by build-generated DocFX documentation and API reference pages sourced from maintained articles and C# XML comments.</p>
             <div class="help-status" aria-label="Documentation status">
                 <span class="badge text-bg-@(documentationStatus.HtmlAvailable ? "success" : "warning")">HTML @(documentationStatus.HtmlAvailable ? "ready" : "not built")</span>
-                <span class="badge text-bg-@(documentationStatus.PdfAvailable ? "success" : "warning")">PDF @(documentationStatus.PdfAvailable ? "ready" : "not built")</span>
+                <span class="badge text-bg-@(documentationStatus.PdfAvailable ? "success" : "warning")">PDF @(documentationStatus.PdfAvailable ? "ready" : "not included")</span>
                 <span class="badge text-bg-secondary">@documentationStatus.CommentCount XML members</span>
                 @if (documentationStatus.GeneratedAtUtc is DateTime generated)
                 {

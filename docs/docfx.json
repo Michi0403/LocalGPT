@@ -26,6 +26,7 @@
           "articles/**/toc.yml",
           "api/**/*.yml",
           "api/**/*.md",
+          "guide/**/*.md",
           "guide/toc.yml",
           "pdf/toc.yml"
         ],
@@ -48,7 +49,8 @@
     "output": "_site",
     "template": [
       "default",
-      "modern"
+      "modern",
+      "templates/localgpt"
     ],
     "globalMetadata": {
       "_appName": "LocalGPT",

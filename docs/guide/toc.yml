@@ -1,6 +1,6 @@
 items:
-- name: Overview
-  href: ../index.md
+- name: Documentation home
+  href: index.md
   expanded: true
 - name: User guide
   expanded: true

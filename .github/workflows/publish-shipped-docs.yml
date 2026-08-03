@@ -1,0 +1,85 @@
+name: Publish shipped LocalGPT documentation
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag whose shipped documentation should be published
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out publishing helpers
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            tag="$RELEASE_EVENT_TAG"
+          else
+            tag="$REQUESTED_TAG"
+          fi
+          test -n "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Publishing documentation shipped in release $tag"
+
+      - name: Download release ZIP packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.zip' \
+            --dir release-assets
+          find release-assets -maxdepth 1 -type f -name '*.zip' -print
+
+      - name: Extract the complete shipped help-docs tree
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/extract-shipped-docs.py \
+            --assets release-assets \
+            --output pages-artifact \
+            --version "$RELEASE_TAG"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload generated DocFX site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages-artifact
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

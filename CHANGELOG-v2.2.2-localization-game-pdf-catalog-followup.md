@@ -10,3 +10,6 @@ This patch follows the already published 2.2.1 release. It keeps every frontend 
 - Keeps GitHub Pages API navigation on the generated `api/index.html` output.
 - Preserves the compact Kawaii DocFX presentation, recursive installed-documentation lookup, responsive Test Lab workspaces and architecture/static-policy compliance.
 - Leaves the independently versioned `LocalGPT.WireProtocolVersion` package at version 2.1.0.
+- Publishes the exact documentation payload shipped in a tagged release through GitHub Pages Actions instead of exposing the `docs` source tree or raw DocFX TOC fragments.
+- Adds a dedicated DocFX custom template so the HTML website receives the same Kawaii palette as the PDF, plus reduced-motion-aware stars, paws, cats, dogs, shimmer and interaction animations.
+- Routes the root Documentation and API entries to real landing pages and labels a missing PDF as “not included” rather than “not built.”

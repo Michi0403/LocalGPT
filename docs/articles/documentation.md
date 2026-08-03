@@ -22,6 +22,14 @@ The running application exposes:
 - `/api/documentation/comment?memberId=...` for one stable compiler member ID;
 - `/api/documentation/pdf` for the current versioned PDF.
 
+## GitHub Pages publication
+
+GitHub Pages publishes the exact `wwwroot/help-docs` tree shipped inside a tagged LocalGPT release. The `Publish shipped LocalGPT documentation` workflow extracts that complete site, including the generated API hierarchy, Kawaii template assets, PDF, status metadata, and `.nojekyll` marker, then deploys it through GitHub Pages Actions. This keeps the website and installed application on the same reviewed documentation build without requiring DevExpress packages on the Pages runner.
+
+Repository Markdown, `toc.yml`, generated API YAML, and `_site` have different responsibilities. GitHub Pages must not serve the `docs` source directory directly. In particular, generated `toc.html` files are navigation fragments consumed by DocFX; they are not standalone reader pages. The root navigation therefore points to `guide/index.html` and `api/index.html`, while the API overview tells readers to use its grouped sidebar instead of linking to a raw TOC fragment.
+
+For repository setup, select **GitHub Actions** as the Pages source. Publishing a release deploys its shipped documentation automatically; `workflow_dispatch` can republish an existing release tag.
+
 ## Required toolchain
 
 HTML and API generation require the .NET SDK and the repository-local DocFX tool. Complete PDF generation normally uses the Microsoft Edge installation included with supported Windows systems. Google Chrome or Chromium can be selected through `LOCALGPT_DOCUMENTATION_BROWSER`. Node.js 20 or later is only required when the secondary DocFX PDF route must be used.
