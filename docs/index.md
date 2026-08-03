@@ -19,3 +19,4 @@ LocalGPT is a local-first AI workbench for chat, configurable AI Councils, knowl
 The generated PDF is named `LocalGPT-2.1.23.pdf` and follows the same complete table of contents, including the XML-generated API reference.
 
 
+

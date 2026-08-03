@@ -155,7 +155,12 @@ $wrapperProperties = @(
 if ($UseWireProtocolPackage) { $wrapperProperties += "-p:RestorePackagesPath=$packageRestoreCache" }
 Write-Host "Restoring and building the optional WinUI wrapper..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $wrapperProject, "--disable-parallel", "--force-evaluate") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper restore failed."
-Invoke-DotNet -Arguments (@("build", $wrapperProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper build failed."
+# The WinUI XAML compiler resolves protocol types through LocalGPT's transitive project reference.
+# Release publish builds that graph normally; the previous development-only BuildProjectReferences=false
+# skipped the architecture-specific protocol target and left the compiler looking for
+# bin\$Platform\$Configuration\net10.0\LocalGPT.WireProtocolVersion.dll. Keep documentation
+# disabled for this dependency pass, but allow MSBuild to materialize the complete reference graph.
+Invoke-DotNet -Arguments (@("build", $wrapperProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=true", "-p:BuildLocalGptDocumentation=false") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper build failed."
 
 $dependencyMode = if ($UseWireProtocolPackage) { "package" } else { "source project" }
 Write-Host "LocalGPT development build completed in protocol -> app ($dependencyMode graph) -> installer -> documentation -> wrapper order." -ForegroundColor Green
