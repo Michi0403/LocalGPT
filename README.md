@@ -1,5 +1,7 @@
 <div align="center">
 
+https://michi0403.github.io/LocalGPT/
+
 # LocalGPT
 
 ### Garage-built for personal use. Open for everyone. Powerful enough for much more.
