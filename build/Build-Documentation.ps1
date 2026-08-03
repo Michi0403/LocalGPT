@@ -1110,11 +1110,138 @@ body { margin: 0 !important; max-width: none !important; }
 .localgpt-print-content .localgpt-api-member-panel--properties .localgpt-api-member-item,
 .localgpt-print-content .localgpt-api-member-panel--events .localgpt-api-member-item,
 .localgpt-print-content .localgpt-api-member-panel--operators .localgpt-api-member-item { break-inside: avoid-page; page-break-inside: avoid; }
-@media print { .localgpt-print-document { box-shadow: none !important; } }
+/* Compact kawaii print surface: cute vectors and text glyphs, never a page-sized raster background. */
+body::before, body::after { content: none !important; display: none !important; }
+html, body { background: #fff0f8 !important; color: #51285d !important; }
+.localgpt-print-cover {
+  background: #ec4899 !important;
+  border: 2px solid #ffffff;
+  border-radius: 16pt;
+  box-sizing: border-box;
+  color: #ffffff !important;
+  padding: 20mm;
+  position: relative;
+}
+.localgpt-print-cover::after {
+  color: rgba(255,255,255,.95);
+  content: "✦ ･ﾟ✧ 🐾 🐱 🐶 ✧･ﾟ ✦";
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 15pt;
+  letter-spacing: .16em;
+  margin-top: 16pt;
+}
+.localgpt-print-cover::before,
+.localgpt-print-cover h1,
+.localgpt-print-cover p { color: #ffffff !important; text-shadow: none !important; }
+.localgpt-print-toc {
+  background: #fff8fc !important;
+  border: 1px solid #f3c8df;
+  border-radius: 10pt;
+  box-sizing: border-box;
+  padding: 10pt 12pt;
+}
+.localgpt-print-toc > h1,
+.localgpt-print-toc-section > h2 {
+  background: #d946ef !important;
+  border: 0 !important;
+  border-radius: 7pt;
+  color: #ffffff !important;
+  padding: 5pt 8pt;
+}
+.localgpt-print-toc-section > h2 { background: #8b5cf6 !important; }
+.localgpt-print-toc-namespace { background: #fff7fb !important; border-color: #efc6df !important; }
+.localgpt-print-toc-namespace h3,
+.localgpt-print-toc-kind h4 {
+  background: #ec4899 !important;
+  border-radius: 5pt;
+  color: #ffffff !important;
+  padding: 3pt 5pt;
+}
+.localgpt-print-toc-kind h4 { background: var(--localgpt-api-kind-accent) !important; }
+.localgpt-print-document {
+  background: #fffafd !important;
+  border: 1px solid #f1c9df;
+  border-radius: 9pt;
+  box-shadow: none !important;
+  box-sizing: border-box;
+  padding: 7pt 8pt 9pt;
+  position: relative;
+}
+.localgpt-print-document::before {
+  color: #d946ef;
+  content: "✦ ･ﾟ✧ 🐾 🐱 🐶 ✧･ﾟ ✦";
+  display: block;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 7.5pt;
+  letter-spacing: .09em;
+  margin: 0 0 4pt;
+  text-align: right;
+}
+.localgpt-print-source { border-bottom-color: #efb8d5 !important; color: #7a477f !important; }
+.localgpt-print-api-breadcrumb span:first-child,
+.localgpt-print-workspace-header span:first-child { color: #c026d3 !important; }
+.localgpt-print-content h1 {
+  background: #ec4899 !important;
+  border: 0 !important;
+  border-radius: 7pt;
+  color: #ffffff !important;
+  padding: 6pt 8pt !important;
+  text-shadow: none !important;
+}
+.localgpt-print-api-namespace .localgpt-print-content h1 { background: #8b5cf6 !important; }
+.localgpt-print-content h2 {
+  background: #fff0f8 !important;
+  border-left-color: #ec4899 !important;
+  border-radius: 0 5pt 5pt 0;
+  color: #6b2d72 !important;
+}
+.localgpt-print-content h3,
+.localgpt-print-content h4,
+.localgpt-print-content h5 { color: #6b2d72 !important; }
+.localgpt-print-content pre { background: #fff7fb !important; border-color: #ecc7dc !important; border-left-color: #8b5cf6 !important; }
+.localgpt-print-content th { background: #fce7f3 !important; color: #652d6e !important; }
+.localgpt-print-content tbody tr:nth-child(even) { background: #fff8fc !important; }
+.localgpt-print-content blockquote { background: #fdf2f8 !important; border-left-color: #ec4899 !important; }
+.localgpt-print-content a { color: #a21caf !important; }
+.localgpt-print-content .localgpt-api-member-panel {
+  background: #fff8fc !important;
+  border-color: #ecc7dc !important;
+  border-left-color: var(--localgpt-api-accent) !important;
+  box-shadow: none !important;
+}
+.localgpt-print-content .localgpt-api-member-panel > h2 {
+  background: var(--localgpt-api-accent) !important;
+  border-radius: 0 !important;
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+.localgpt-print-content .localgpt-api-member-panel > h2::after {
+  color: #ffffff !important;
+  content: "  🐱 🐶 ✨" !important;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+.localgpt-print-content .localgpt-api-member-icon,
+.localgpt-print-content .localgpt-api-member-count {
+  background: #ffffff !important;
+  border-color: rgba(255,255,255,.75) !important;
+  color: #7e2f75 !important;
+}
+.localgpt-print-content .localgpt-api-member-panel-body,
+.localgpt-print-content .localgpt-api-member-item { background: #fffdfd !important; }
+.localgpt-print-content .localgpt-api-neko-note {
+  background: #fce7f3 !important;
+  border-color: #efb8d5 !important;
+  color: #6b2d72 !important;
+}
+@media print {
+  html, body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  body::before, body::after { content: none !important; display: none !important; }
+  .localgpt-print-document { box-shadow: none !important; }
+}
 </style>
 '@
     [void]$builder.AppendLine($printStyles)
-    [void]$builder.AppendLine('</head><body>')
+    [void]$builder.AppendLine('</head><body class="localgpt-print-book">')
     [void]$builder.AppendLine('<section class="localgpt-print-cover">')
     [void]$builder.AppendLine("<h1>LocalGPT $Version</h1>")
     [void]$builder.AppendLine('<p>A cozy, complete guide to LocalGPT product behavior, architecture, operations, and XML-generated API details.</p>')
@@ -1244,11 +1371,23 @@ function Invoke-LocalGptBrowserPdf {
                 "--disable-gpu",
                 "--disable-extensions",
                 "--disable-dev-shm-usage",
+                "--disable-background-mode",
+                "--disable-background-networking",
+                "--disable-background-timer-throttling",
+                "--disable-component-update",
+                "--disable-renderer-backgrounding",
+                "--disable-sync",
+                "--disable-breakpad",
+                "--disable-crash-reporter",
+                "--no-service-autorun",
                 "--no-first-run",
                 "--no-default-browser-check",
                 "--allow-file-access-from-files",
+                "--hide-scrollbars",
                 "--run-all-compositor-stages-before-draw",
-                "--virtual-time-budget=30000",
+                "--virtual-time-budget=180000",
+                "--js-flags=--max-old-space-size=4096",
+                "--disable-features=BackForwardCache,CalculateNativeWinOcclusion,MediaRouter,OptimizationHints,Translate,msEdgeStartupBoost,msEdgeBackgroundMode",
                 "--print-to-pdf-no-header",
                 "--no-pdf-header-footer",
                 "--user-data-dir=$profileRoot",
@@ -1268,13 +1407,30 @@ function Invoke-LocalGptBrowserPdf {
                 $safeLine = [regex]::Replace([string]$line, '(?i)\berror\s*:', 'diagnostic:')
                 if (-not [string]::IsNullOrWhiteSpace($safeLine)) { $diagnostics.Add($safeLine) }
             }
-            for ($attempt = 0; $attempt -lt 120; $attempt++) {
+            $lastObservedLength = -1L
+            $stableLengthChecks = 0
+            for ($attempt = 0; $attempt -lt 360; $attempt++) {
                 $pdfFile = Get-Item -LiteralPath $PdfPath -ErrorAction SilentlyContinue
-                if ($null -ne $pdfFile -and $pdfFile.Length -gt 0) { break }
+                if ($null -ne $pdfFile -and $pdfFile.Length -gt 0) {
+                    if ($pdfFile.Length -eq $lastObservedLength) {
+                        $stableLengthChecks++
+                    }
+                    else {
+                        $lastObservedLength = [long]$pdfFile.Length
+                        $stableLengthChecks = 0
+                    }
+                    if ($stableLengthChecks -ge 4) { break }
+                }
                 Start-Sleep -Milliseconds 500
             }
-            if ($exitCode -eq 0 -and (Test-Path -LiteralPath $PdfPath -PathType Leaf)) {
-                return [pscustomobject]@{ Succeeded = $true; ExitCode = $exitCode; Diagnostics = @($diagnostics); HeadlessMode = $headlessMode }
+            if (Test-Path -LiteralPath $PdfPath -PathType Leaf) {
+                $pdfFile = Get-Item -LiteralPath $PdfPath -ErrorAction SilentlyContinue
+                if ($null -ne $pdfFile -and $pdfFile.Length -gt 0) {
+                    if ($exitCode -ne 0) {
+                        $diagnostics.Add("The browser returned exit code $exitCode after writing a PDF candidate; the candidate will be validated by LocalGPT.")
+                    }
+                    return [pscustomobject]@{ Succeeded = $true; ExitCode = $exitCode; Diagnostics = @($diagnostics); HeadlessMode = $headlessMode }
+                }
             }
         }
         finally {

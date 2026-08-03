@@ -966,3 +966,62 @@ article a,
     background: #fffdfd !important;
   }
 }
+
+/* Compact PDF override: preserve the kawaii palette without rasterizing a fixed star field on every page. */
+@media print {
+  body::before,
+  body::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff0f8 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .content article,
+  .article article,
+  article.content,
+  article[role="main"] {
+    background: #fffafd !important;
+    border-color: #f1c9df !important;
+    box-shadow: none !important;
+  }
+
+  article h1,
+  article .localgpt-api-member-panel > h2,
+  .localgpt-api-kind-navigation-heading {
+    background-image: none !important;
+    box-shadow: none !important;
+    color: #fff !important;
+    text-shadow: none !important;
+  }
+
+  article h1 {
+    background-color: #ec4899 !important;
+  }
+
+  .localgpt-api-kind-navigation-heading {
+    background-color: var(--localgpt-kind-accent) !important;
+  }
+
+  article .localgpt-api-member-panel > h2 {
+    background-color: var(--localgpt-api-accent) !important;
+  }
+
+  article .localgpt-api-member-panel,
+  article .localgpt-api-member-panel-body,
+  article .localgpt-api-member-item,
+  .localgpt-api-neko-note {
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  article .localgpt-api-member-panel > h2::after {
+    color: #fff !important;
+    content: "  🐱 🐶 ✨";
+  }
+}
