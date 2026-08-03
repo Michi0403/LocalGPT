@@ -9,6 +9,13 @@ public enum HumanCollaborationBoundary
     Completion
 }
 
+public enum HumanApprovalReuseScope
+{
+    ExactRequestOnce,
+    CurrentApplicationSession,
+    PersistentUntilChanged
+}
+
 public sealed class HumanCollaborationRequest
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -40,6 +47,10 @@ public sealed class HumanCollaborationRequest
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? DecidedAtUtc { get; set; }
     public DateTime? ConsumedAtUtc { get; set; }
+    public HumanApprovalReuseScope ApprovalReuseScope { get; set; } = HumanApprovalReuseScope.ExactRequestOnce;
+    public bool ConsumeApproval { get; set; } = true;
+    public Guid? ApprovalSessionId { get; set; }
+    public int DecisionVersion { get; set; }
     public int EarliestCouncilRound { get; set; }
     public bool RequiredBeforeCompletion { get; set; }
     public bool IsSensitive { get; set; }
@@ -133,7 +144,9 @@ public sealed record HumanApprovalGateResult(
 public sealed record HumanDecisionSubmission(
     bool? Approved,
     string Response,
-    string Reason);
+    string Reason,
+    HumanApprovalReuseScope ReuseScope = HumanApprovalReuseScope.ExactRequestOnce,
+    bool ConsumeApproval = true);
 
 public sealed record HumanCouncilRunSnapshot(
     Guid RunId,

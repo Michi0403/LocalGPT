@@ -1,4 +1,4 @@
-/* Keep the built-in DocFX modern template. These overrides only align typography and PDF printing with Microsoft Learn. */
+/* Keep DocFX's built-in default + modern templates and only refine LocalGPT typography and print output. */
 :root {
   --bs-font-sans-serif: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --bs-link-color-rgb: 0, 103, 184;
@@ -12,6 +12,18 @@
 
 body {
   font-family: var(--bs-font-sans-serif);
+  line-height: 1.55;
+}
+
+article {
+  max-width: 92ch;
+}
+
+article h1,
+article h2,
+article h3,
+article h4 {
+  scroll-margin-top: 5rem;
 }
 
 article pre,
@@ -19,22 +31,557 @@ article code {
   font-family: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
 }
 
+article pre {
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: .25rem;
+}
+
+article table {
+  font-size: .94rem;
+}
+
+article th {
+  white-space: nowrap;
+}
+
+@page {
+  size: A4 landscape;
+  margin: 9mm 10mm 11mm;
+}
+
 @media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #242424 !important;
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    font-size: 9.35pt;
+    line-height: 1.36;
+  }
+
   .navbar,
   .toc-offcanvas,
   .affix,
   .contribution,
-  .pagination {
+  .pagination,
+  .action-list,
+  .tabGroup > ul,
+  button {
     display: none !important;
   }
 
-  article {
+  main,
+  article,
+  .content,
+  .markdown {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: auto !important;
     max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  pre,
-  table,
-  blockquote {
+  article h1 {
+    font-size: 20pt;
+    line-height: 1.15;
+    margin: 0 0 9pt;
+  }
+
+  article h2 {
+    font-size: 15pt;
+    line-height: 1.2;
+    margin: 14pt 0 6pt;
+  }
+
+  article h3 {
+    font-size: 11.5pt;
+    line-height: 1.25;
+    margin: 11pt 0 5pt;
+  }
+
+  article h4,
+  article h5 {
+    font-size: 9.8pt;
+    margin: 9pt 0 4pt;
+  }
+
+  article h1,
+  article h2,
+  article h3,
+  article h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  article p,
+  article ul,
+  article ol,
+  article dl {
+    margin-top: 4pt;
+    margin-bottom: 6pt;
+  }
+
+  article dl {
+    column-gap: 9pt;
+    display: grid;
+    grid-template-columns: minmax(9rem, 18%) 1fr;
+    row-gap: 3pt;
+  }
+
+  article dt {
+    break-after: avoid;
+    color: #0067b8;
+    font-weight: 650;
+  }
+
+  article dd {
+    margin: 0;
+    min-width: 0;
+  }
+
+  article p,
+  article li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  article li {
+    margin: 1.5pt 0;
+  }
+
+  article pre,
+  article code {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  article pre {
+    background: #f6f6f6 !important;
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    break-inside: auto;
+    font-size: 7.8pt;
+    line-height: 1.28;
+    margin: 6pt 0 8pt;
+    padding: 6pt 7pt !important;
+  }
+
+  article code {
+    font-size: .92em;
+  }
+
+  article table {
+    border-collapse: collapse;
+    break-inside: auto;
+    font-size: 8.3pt;
+    table-layout: auto;
+    width: 100% !important;
+  }
+
+  article thead {
+    display: table-header-group;
+  }
+
+  article th,
+  article td {
+    border: 1px solid #dedede;
+    padding: 3pt 4pt !important;
+    vertical-align: top;
+    white-space: normal;
+  }
+
+  article tr,
+  article img,
+  article blockquote {
     break-inside: avoid;
+  }
+
+  article img {
+    height: auto !important;
+    max-height: 176mm !important;
+    max-width: 100% !important;
+    object-fit: contain;
+  }
+
+  article a {
+    color: #0065b3 !important;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+  }
+
+  article a::after {
+    content: none !important;
+  }
+
+  details,
+  details > *,
+  .tabGroup > section {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+
+
+/* Microsoft Learn-style API section treatment without separating every member into
+   its own HTML document. A class remains a single readable page, while its major
+   member categories are visually distinct and addressable from the left TOC. */
+article h2#constructors,
+article h2#fields,
+article h2#properties,
+article h2#methods,
+article h2#events,
+article h2#operators,
+article h2#explicit-interface-implementations,
+article h2#extension-methods {
+  border-bottom: 1px solid var(--bs-border-color, #d1d1d1);
+  border-left: .25rem solid rgb(var(--bs-primary-rgb));
+  margin-top: 2rem;
+  padding: .35rem 0 .45rem .75rem;
+}
+
+article h2#constructors + .table-responsive,
+article h2#fields + .table-responsive,
+article h2#properties + .table-responsive,
+article h2#methods + .table-responsive,
+article h2#events + .table-responsive,
+article h2#operators + .table-responsive {
+  margin-top: .75rem;
+}
+
+article .table-responsive > table {
+  border: 1px solid var(--bs-border-color, #d1d1d1);
+}
+
+article .table-responsive > table > thead > tr > th {
+  background: var(--bs-tertiary-bg, #f3f2f1);
+  font-weight: 600;
+}
+
+/* Detailed API navigation: keep DocFX's nested namespace/type tree and add the
+   same-page member groups that Microsoft Learn exposes as Properties, Methods,
+   Events, and related sections. The build script inserts these links into the
+   generated api/toc.html after DocFX renders the site. */
+.localgpt-api-member-groups {
+  border-left: 1px solid var(--bs-border-color, #d1d1d1);
+  margin: .1rem 0 .35rem .75rem;
+  padding-left: .5rem;
+}
+
+.localgpt-api-member-groups .nav-link {
+  color: var(--bs-secondary-color, #605e5c);
+  font-size: .78rem;
+  line-height: 1.2;
+  padding: .16rem .35rem;
+}
+
+.localgpt-api-member-groups .nav-link:hover,
+.localgpt-api-member-groups .nav-link:focus {
+  color: rgb(var(--bs-link-color-rgb));
+  text-decoration: underline;
+}
+
+@media print {
+  .localgpt-api-member-groups {
+    display: none !important;
+  }
+
+  article h1 {
+    border-bottom: 1px solid #d2d0ce;
+    padding-bottom: 6pt;
+  }
+
+  article h2 {
+    border-left: 3px solid #0067b8;
+    padding-left: 7pt;
+  }
+
+  article pre {
+    border-left: 4px solid #0078d4;
+  }
+
+  article thead th {
+    background: #f3f2f1 !important;
+  }
+
+  article tbody tr:nth-child(even) {
+    background: #faf9f8 !important;
+  }
+}
+
+/* LocalGPT 2026 API cards ---------------------------------------------------
+   Keep DocFX's Microsoft Learn information architecture, but make same-page
+   member groups easier to scan. Icons are presentation-only and never alter
+   compiler XML comments, signatures, or generated API text. */
+article .localgpt-api-member-panel {
+  --localgpt-api-accent: #0f6cbd;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--localgpt-api-accent) 4%, var(--bs-body-bg, #fff)) 0,
+      var(--bs-body-bg, #fff) 5.25rem);
+  border: 1px solid color-mix(in srgb, var(--localgpt-api-accent) 24%, var(--bs-border-color, #d1d1d1));
+  border-radius: 1rem;
+  box-shadow:
+    0 .15rem .45rem color-mix(in srgb, var(--localgpt-api-accent) 7%, transparent),
+    0 .75rem 1.8rem color-mix(in srgb, #111827 7%, transparent);
+  isolation: isolate;
+  margin: 1.6rem 0;
+  overflow: hidden;
+  position: relative;
+}
+
+article .localgpt-api-member-panel::before {
+  background: linear-gradient(90deg,
+    var(--localgpt-api-accent),
+    color-mix(in srgb, var(--localgpt-api-accent) 42%, #fff),
+    transparent 88%);
+  content: "";
+  height: .22rem;
+  inset: 0 0 auto;
+  position: absolute;
+  z-index: 2;
+}
+
+article .localgpt-api-member-panel > h2 {
+  align-items: center;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--localgpt-api-accent) 12%, var(--bs-body-bg, #fff)),
+    color-mix(in srgb, var(--localgpt-api-accent) 3%, var(--bs-body-bg, #fff)) 70%);
+  border: 0 !important;
+  display: flex;
+  gap: .7rem;
+  line-height: 1.2;
+  margin: 0 !important;
+  padding: 1rem 1.1rem .9rem !important;
+}
+
+article .localgpt-api-member-icon {
+  align-items: center;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, .85), transparent 45%),
+    color-mix(in srgb, var(--localgpt-api-accent) 17%, var(--bs-body-bg, #fff));
+  border: 1px solid color-mix(in srgb, var(--localgpt-api-accent) 34%, transparent);
+  border-radius: .72rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .55),
+    0 .2rem .55rem color-mix(in srgb, var(--localgpt-api-accent) 16%, transparent);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 1.05rem;
+  height: 2.15rem;
+  justify-content: center;
+  width: 2.15rem;
+}
+
+article .localgpt-api-member-count {
+  background: color-mix(in srgb, var(--bs-body-bg, #fff) 88%, var(--localgpt-api-accent));
+  border: 1px solid color-mix(in srgb, var(--localgpt-api-accent) 25%, var(--bs-border-color, #d1d1d1));
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--localgpt-api-accent) 75%, var(--bs-body-color, #242424));
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: auto;
+  min-width: 1.75rem;
+  padding: .38rem .55rem;
+  text-align: center;
+}
+
+article .localgpt-api-member-panel-body {
+  padding: .35rem 1.05rem 1rem;
+}
+
+article .localgpt-api-member-item {
+  background: color-mix(in srgb, var(--bs-body-bg, #fff) 96%, var(--localgpt-api-accent));
+  border: 1px solid transparent;
+  border-radius: .78rem;
+  margin: .65rem 0;
+  padding: .78rem .88rem .68rem;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+article .localgpt-api-member-item:hover {
+  border-color: color-mix(in srgb, var(--localgpt-api-accent) 23%, transparent);
+  box-shadow: 0 .35rem .9rem color-mix(in srgb, var(--localgpt-api-accent) 9%, transparent);
+  transform: translateY(-1px);
+}
+
+article .localgpt-api-member-item > h3 {
+  color: color-mix(in srgb, var(--localgpt-api-accent) 78%, var(--bs-body-color, #242424));
+  font-size: 1.06rem;
+  margin: 0 0 .6rem;
+  padding: 0;
+}
+
+article .localgpt-api-member-item-body > :first-child {
+  margin-top: 0;
+}
+
+article .localgpt-api-member-item-body > :last-child {
+  margin-bottom: 0;
+}
+
+article .localgpt-api-member-item pre,
+article .localgpt-api-member-item .codewrapper {
+  border-radius: .65rem;
+}
+
+article .localgpt-api-member-panel--constructors { --localgpt-api-accent: #7c3aed; }
+article .localgpt-api-member-panel--fields { --localgpt-api-accent: #d97706; }
+article .localgpt-api-member-panel--properties { --localgpt-api-accent: #0891b2; }
+article .localgpt-api-member-panel--methods { --localgpt-api-accent: #2563eb; }
+article .localgpt-api-member-panel--events { --localgpt-api-accent: #db2777; }
+article .localgpt-api-member-panel--operators { --localgpt-api-accent: #ea580c; }
+article .localgpt-api-member-panel--explicit-interface-implementations { --localgpt-api-accent: #0f766e; }
+article .localgpt-api-member-panel--extension-methods { --localgpt-api-accent: #16a34a; }
+
+/* Detailed left navigation with compact icon and count pills. */
+.localgpt-api-member-groups {
+  border-left: 1px solid color-mix(in srgb, var(--bs-primary-rgb) 24%, var(--bs-border-color, #d1d1d1));
+  margin: .18rem 0 .45rem .85rem;
+  padding: .08rem 0 .08rem .48rem;
+}
+
+.localgpt-api-member-groups .nav-link {
+  align-items: center;
+  border-radius: .42rem;
+  display: flex;
+  gap: .38rem;
+  min-width: 0;
+  padding: .22rem .36rem;
+  text-decoration: none;
+}
+
+.localgpt-api-member-groups .nav-link:hover,
+.localgpt-api-member-groups .nav-link:focus-visible {
+  background: color-mix(in srgb, rgb(var(--bs-primary-rgb)) 8%, transparent);
+  text-decoration: none;
+}
+
+.localgpt-api-member-nav-icon {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 1.15rem;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: .78rem;
+  justify-content: center;
+}
+
+.localgpt-api-member-nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.localgpt-api-member-nav-count {
+  background: var(--bs-tertiary-bg, #f3f2f1);
+  border-radius: 999px;
+  color: var(--bs-secondary-color, #605e5c);
+  flex: 0 0 auto;
+  font-size: .62rem;
+  font-weight: 700;
+  min-width: 1.25rem;
+  padding: .12rem .3rem;
+  text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  article .localgpt-api-member-panel {
+    border-radius: .78rem;
+    margin: 1.2rem 0;
+  }
+
+  article .localgpt-api-member-panel > h2 {
+    padding: .82rem .85rem .75rem !important;
+  }
+
+  article .localgpt-api-member-panel-body {
+    padding: .25rem .72rem .75rem;
+  }
+
+  article .localgpt-api-member-item {
+    padding: .68rem .7rem .6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  article .localgpt-api-member-item {
+    transition: none;
+  }
+}
+
+@media print {
+  article .localgpt-api-member-panel {
+    background: #fff !important;
+    border: 1px solid #cfd8e3;
+    border-left: 4px solid var(--localgpt-api-accent);
+    border-radius: 7pt;
+    box-shadow: none !important;
+    break-inside: auto;
+    margin: 10pt 0 12pt;
+    overflow: hidden;
+  }
+
+  article .localgpt-api-member-panel::before {
+    display: none;
+  }
+
+  article .localgpt-api-member-panel > h2 {
+    background: color-mix(in srgb, var(--localgpt-api-accent) 9%, #fff) !important;
+    border: 0 !important;
+    font-size: 13pt;
+    margin: 0 !important;
+    padding: 6.5pt 8pt !important;
+  }
+
+  article .localgpt-api-member-icon {
+    background: color-mix(in srgb, var(--localgpt-api-accent) 15%, #fff) !important;
+    border-radius: 5pt;
+    box-shadow: none !important;
+    font-size: 11pt;
+    height: 20pt;
+    width: 20pt;
+  }
+
+  article .localgpt-api-member-count {
+    background: #fff !important;
+    font-size: 7pt;
+    padding: 2pt 5pt;
+  }
+
+  article .localgpt-api-member-panel-body {
+    padding: 4pt 8pt 7pt;
+  }
+
+  article .localgpt-api-member-item,
+  article .localgpt-api-member-item:hover {
+    background: #fff !important;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: none !important;
+    margin: 0;
+    padding: 6pt 0 3pt;
+    transform: none;
+  }
+
+  article .localgpt-api-member-item:first-child {
+    border-top: 0;
+  }
+
+  article .localgpt-api-member-panel--constructors .localgpt-api-member-item,
+  article .localgpt-api-member-panel--fields .localgpt-api-member-item,
+  article .localgpt-api-member-panel--properties .localgpt-api-member-item,
+  article .localgpt-api-member-panel--events .localgpt-api-member-item,
+  article .localgpt-api-member-panel--operators .localgpt-api-member-item {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
   }
 }

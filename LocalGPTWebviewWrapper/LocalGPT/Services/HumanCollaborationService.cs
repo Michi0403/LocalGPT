@@ -18,6 +18,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     private const int MaxTextLength = 1_000_000;
     private readonly SemaphoreSlim databaseGate = new(1, 1);
     private readonly ConcurrentDictionary<Guid, HumanCouncilRunSnapshot> activeRuns = new();
+    private readonly Guid approvalSessionId = Guid.NewGuid();
 
     public event Action? Changed;
     public event Action<HumanCouncilContribution>? DirectUserMessageQueued;
@@ -97,65 +98,71 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         try
         {
             using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            var existing = await db.HumanCollaborationRequests
-                .Where(item => item.CorrelationId == request.CorrelationId && item.OperationKey == request.OperationKey)
-                .OrderByDescending(item => item.RequestedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken)
+            var normalizedOperationKey = Normalize(request.OperationKey, 180);
+            var normalizedCorrelationId = Normalize(request.CorrelationId, 180);
+            var normalizedFingerprint = Normalize(request.ParameterFingerprint, 128);
+            var candidateQuery = db.HumanCollaborationRequests
+                .Where(item => item.OperationKey == normalizedOperationKey && item.RequestKind == requestKind);
+            candidateQuery = string.IsNullOrWhiteSpace(normalizedFingerprint)
+                ? candidateQuery.Where(item => item.CorrelationId == normalizedCorrelationId)
+                : candidateQuery.Where(item => item.ParameterFingerprint == normalizedFingerprint);
+            var candidates = await candidateQuery
+                .OrderByDescending(item => item.UpdatedAtUtc)
+                .Take(24)
+                .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
+            var existing = candidates.FirstOrDefault(IsReusableDecision);
 
             if (existing is not null)
             {
-                if (!string.IsNullOrWhiteSpace(request.ParameterFingerprint) &&
-                    !string.Equals(existing.ParameterFingerprint, request.ParameterFingerprint, StringComparison.Ordinal))
+                if (existing.Status == vocabulary.Get().HumanStatusPending)
                 {
-                    logger.LogWarning(
-                        "A retry for operation {OperationKey} did not match the approved parameter fingerprint; a new review is required.",
-                        existing.OperationKey);
-                    existing = null;
+                    return new HumanApprovalGateResult(
+                        false,
+                        false,
+                        existing.Id,
+                        existing.Status,
+                        "The exact operation is already waiting in the Human Collaboration Inbox.",
+                        CorrelationId: existing.CorrelationId);
                 }
-                else if ((existing.Status == vocabulary.Get().HumanStatusApproved || existing.Status == vocabulary.Get().HumanStatusAnswered) && existing.ConsumedAtUtc is null)
+
+                var resolvedStatus = existing.Status;
+                var declined = resolvedStatus == vocabulary.Get().HumanStatusDeclined;
+                if (existing.ConsumeApproval)
                 {
-                    var resolvedStatus = existing.Status;
                     existing.Status = vocabulary.Get().HumanStatusConsumed;
                     existing.ConsumedAtUtc = DateTime.UtcNow;
                     existing.UpdatedAtUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                     NotifyChanged();
-                    logger.LogInformation("Consumed human approval {RequestId} for operation {OperationKey}.", existing.Id, existing.OperationKey);
-                    return new HumanApprovalGateResult(
-                        true,
-                        false,
-                        existing.Id,
-                        existing.Status,
-                        resolvedStatus == vocabulary.Get().HumanStatusAnswered
-                            ? "The human-provided interaction value was consumed for this exact operation."
-                            : "The queued human approval was consumed for this exact operation.",
-                        existing.DecisionReason,
-                        existing.CorrelationId,
-                        existing.UserResponse);
+                    logger.LogInformation("Consumed saved human decision {RequestId} for operation {OperationKey}.", existing.Id, existing.OperationKey);
                 }
-                else if (existing.Status == vocabulary.Get().HumanStatusDeclined)
+                else
                 {
-                    return new HumanApprovalGateResult(
-                        false,
-                        true,
+                    logger.LogInformation(
+                        "Reused saved human decision {RequestId} for operation {OperationKey} under scope {ReuseScope}.",
                         existing.Id,
-                        existing.Status,
-                        "The human declined this operation.",
-                        existing.DecisionReason,
-                        existing.CorrelationId,
-                        existing.UserResponse);
+                        existing.OperationKey,
+                        existing.ApprovalReuseScope);
                 }
-                else if (existing.Status == vocabulary.Get().HumanStatusPending)
-                {
-                    return new HumanApprovalGateResult(
-                        false,
-                        false,
-                        existing.Id,
-                        existing.Status,
-                        "The operation is waiting in the Human Collaboration Inbox.",
-                        CorrelationId: existing.CorrelationId);
-                }
+
+                return new HumanApprovalGateResult(
+                    !declined,
+                    declined,
+                    existing.Id,
+                    existing.Status,
+                    declined
+                        ? existing.ConsumeApproval
+                            ? "The saved human decline was consumed for this exact operation."
+                            : "The saved human decision declines this exact operation. Edit the decision in Approvals & team to change it."
+                        : resolvedStatus == vocabulary.Get().HumanStatusAnswered
+                            ? "The saved human-provided interaction value was reused for this exact operation."
+                            : existing.ConsumeApproval
+                                ? "The saved human approval was consumed for this exact operation."
+                                : "The saved human approval was reused for this exact operation.",
+                    existing.DecisionReason,
+                    existing.CorrelationId,
+                    existing.UserResponse);
             }
 
             if (requestKind != vocabulary.Get().HumanRequestApproval)
@@ -185,9 +192,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             var entity = new HumanCollaborationRequest
             {
                 CouncilRunId = request.CouncilRunId,
-                CorrelationId = Normalize(request.CorrelationId, 180),
-                OperationKey = Normalize(request.OperationKey, 180),
-                ParameterFingerprint = Normalize(request.ParameterFingerprint, 128),
+                CorrelationId = normalizedCorrelationId,
+                OperationKey = normalizedOperationKey,
+                ParameterFingerprint = normalizedFingerprint,
                 RequestKind = requestKind,
                 Title = Normalize(request.Title, 240, "Human decision requested"),
                 Description = Normalize(request.Description, 2000),
@@ -207,6 +214,8 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                 RequiredBeforeCompletion = gateMode == "Completion",
                 IsSensitive = request.IsSensitive,
                 AllowFreeText = request.AllowFreeText,
+                ApprovalReuseScope = GetDefaultReuseScope(requestKind, request.RiskLevel),
+                ConsumeApproval = GetDefaultConsumeApproval(requestKind, request.RiskLevel),
                 Status = vocabulary.Get().HumanStatusPending,
                 RequestedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
@@ -245,7 +254,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         HumanDecisionSubmission submission,
         CancellationToken cancellationToken = default)
     {
-        EnsureTrustedHumanInteraction("resolve a collaboration request");
+        EnsureTrustedHumanInteraction("save a collaboration decision");
         await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -253,37 +262,47 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             var request = await db.HumanCollaborationRequests
                 .SingleOrDefaultAsync(item => item.Id == requestId, cancellationToken)
                 .ConfigureAwait(false);
-            if (request is null || request.Status != vocabulary.Get().HumanStatusPending)
-                return request;
+            if (request is null)
+                return null;
 
-            if (request.RequestKind == vocabulary.Get().HumanRequestApproval && submission.Approved is null)
+            var isApproval = request.RequestKind == vocabulary.Get().HumanRequestApproval;
+            if (isApproval && submission.Approved is null)
                 throw new InvalidOperationException("Approval requests require an explicit approve or decline decision.");
-            if (request.RequestKind == vocabulary.Get().HumanRequestApproval &&
-                submission.Approved == false &&
-                string.IsNullOrWhiteSpace(submission.Reason))
+            if (isApproval && !Enum.IsDefined(typeof(HumanApprovalReuseScope), submission.ReuseScope))
+                throw new InvalidOperationException("The selected approval reuse scope is invalid.");
+            if (isApproval && submission.Approved == false && string.IsNullOrWhiteSpace(submission.Reason))
                 throw new InvalidOperationException("A decline reason is required so the LocalGPT team can adapt its next step.");
-            if (request.RequestKind != vocabulary.Get().HumanRequestApproval &&
-                string.IsNullOrWhiteSpace(submission.Response))
+            if (!isApproval && string.IsNullOrWhiteSpace(submission.Response))
                 throw new InvalidOperationException("Feedback and guidance requests require a response.");
 
+            var previousStatus = request.Status;
             request.UserResponse = NormalizeMultiline(submission.Response, MaxTextLength);
             request.DecisionReason = NormalizeMultiline(submission.Reason, 2000);
             request.DecisionBy = Normalize(ambientContext.Current.ActorDisplayName, 120, "Human User");
             request.DecisionByProfileId = ambientContext.Current.HumanProfileId ?? runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId);
             request.DecidedAtUtc = DateTime.UtcNow;
             request.UpdatedAtUtc = DateTime.UtcNow;
-            request.Status = request.RequestKind == vocabulary.Get().HumanRequestApproval
+            request.ConsumedAtUtc = null;
+            request.DecisionVersion = Math.Max(1, request.DecisionVersion + 1);
+            request.ApprovalReuseScope = isApproval
+                ? submission.ReuseScope
+                : HumanApprovalReuseScope.ExactRequestOnce;
+            request.ConsumeApproval = !isApproval || submission.ConsumeApproval;
+            request.ApprovalSessionId = request.ApprovalReuseScope == HumanApprovalReuseScope.CurrentApplicationSession
+                ? approvalSessionId
+                : null;
+            request.Status = isApproval
                 ? submission.Approved == true
                     ? vocabulary.Get().HumanStatusApproved
                     : vocabulary.Get().HumanStatusDeclined
                 : vocabulary.Get().HumanStatusAnswered;
 
-            if (request.RequestKind == vocabulary.Get().HumanRequestApproval && submission.Approved == false)
+            if (isApproval && submission.Approved == false && previousStatus != vocabulary.Get().HumanStatusDeclined)
             {
                 db.HumanCollaborationRequests.Add(new HumanCollaborationRequest
                 {
                     CouncilRunId = request.CouncilRunId,
-                    CorrelationId = $"decline-feedback:{request.Id:N}",
+                    CorrelationId = $"decline-feedback:{request.Id:N}:{request.DecisionVersion}",
                     OperationKey = "human.decline.feedback",
                     ParameterFingerprint = request.ParameterFingerprint,
                     RequestKind = vocabulary.Get().HumanRequestGuidance,
@@ -304,7 +323,8 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                     EarliestCouncilRound = Math.Max(0, request.EarliestCouncilRound),
                     RequiredBeforeCompletion = false,
                     IsSensitive = false,
-                    AllowFreeText = false
+                    AllowFreeText = false,
+                    DecisionVersion = 1
                 });
             }
 
@@ -312,12 +332,14 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             NotifyChanged();
             componentActivity.RecordInformation(
                 "HumanCollaboration",
-                "RequestResolved",
-                $"The local human resolved a {request.RequestKind.ToLowerInvariant()} request with status {request.Status}.");
+                previousStatus == vocabulary.Get().HumanStatusPending ? "RequestResolved" : "DecisionUpdated",
+                $"The local human saved a {request.RequestKind.ToLowerInvariant()} decision with status {request.Status} and version {request.DecisionVersion}.");
             logger.LogInformation(
-                "Human resolved collaboration request {RequestId} with status {Status}; response content was omitted from logs.",
+                "Human saved collaboration request {RequestId} decision version {DecisionVersion} with status {Status} and reuse scope {ReuseScope}; response content was omitted from logs.",
                 request.Id,
-                request.Status);
+                request.DecisionVersion,
+                request.Status,
+                request.ApprovalReuseScope);
             return request;
         }
         finally
@@ -780,6 +802,42 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             _ => false
         };
     }
+
+    private bool IsReusableDecision(HumanCollaborationRequest request)
+    {
+        if (request.Status == vocabulary.Get().HumanStatusPending)
+            return true;
+        if (request.Status != vocabulary.Get().HumanStatusApproved &&
+            request.Status != vocabulary.Get().HumanStatusAnswered &&
+            request.Status != vocabulary.Get().HumanStatusDeclined)
+            return false;
+
+        return request.ApprovalReuseScope switch
+        {
+            HumanApprovalReuseScope.CurrentApplicationSession =>
+                request.ApprovalSessionId == approvalSessionId &&
+                (!request.ConsumeApproval || request.ConsumedAtUtc is null),
+            HumanApprovalReuseScope.PersistentUntilChanged =>
+                !request.ConsumeApproval || request.ConsumedAtUtc is null,
+            _ => request.ConsumedAtUtc is null
+        };
+    }
+
+    private HumanApprovalReuseScope GetDefaultReuseScope(string requestKind, string? riskLevel)
+    {
+        if (requestKind != vocabulary.Get().HumanRequestApproval)
+            return HumanApprovalReuseScope.ExactRequestOnce;
+        return IsHighImpactRisk(riskLevel)
+            ? HumanApprovalReuseScope.ExactRequestOnce
+            : HumanApprovalReuseScope.CurrentApplicationSession;
+    }
+
+    private bool GetDefaultConsumeApproval(string requestKind, string? riskLevel) =>
+        requestKind != vocabulary.Get().HumanRequestApproval || IsHighImpactRisk(riskLevel);
+
+    private bool IsHighImpactRisk(string? riskLevel) =>
+        string.Equals(riskLevel, "High", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(riskLevel, "Critical", StringComparison.OrdinalIgnoreCase);
 
     private string NormalizeQuestionScope(string? value)
     {

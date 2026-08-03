@@ -20,6 +20,7 @@ $appProject = Join-Path $solutionRoot "LocalGPT\LocalGPT.csproj"
 $setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole\LocalGPTInstallerConsole.csproj"
 $wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj"
 $wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
+$documentationScript = Join-Path $root "build\Build-Documentation.ps1"
 $wirePackageName = "LocalGPT.WireProtocolVersion.$WireProtocolVersion.nupkg"
 $wirePackage = Join-Path $packageDirectory $wirePackageName
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
@@ -48,16 +49,14 @@ function Resolve-ProjectVersion {
 
 function Assert-LocalGptDocumentationPayload {
     param(
-        [Parameter(Mandatory)][string]$PublishFolder,
+        [Parameter(Mandatory)][string]$DocumentationRoot,
         [Parameter(Mandatory)][string]$Version
     )
-
-    $documentationRoot = Join-Path $PublishFolder "wwwroot\help-docs"
     $requiredArtifacts = @(
-        (Join-Path $documentationRoot "index.html"),
-        (Join-Path $documentationRoot "documentation-status.json"),
-        (Join-Path $documentationRoot "LocalGPT.xml"),
-        (Join-Path $documentationRoot "LocalGPT-$Version.pdf")
+        (Join-Path $DocumentationRoot "index.html"),
+        (Join-Path $DocumentationRoot "documentation-status.json"),
+        (Join-Path $DocumentationRoot "LocalGPT.xml"),
+        (Join-Path $DocumentationRoot "LocalGPT-$Version.pdf")
     )
     foreach ($requiredArtifact in $requiredArtifacts) {
         if (-not (Test-Path -LiteralPath $requiredArtifact -PathType Leaf)) {
@@ -65,19 +64,65 @@ function Assert-LocalGptDocumentationPayload {
         }
     }
 
-    $statusPath = Join-Path $documentationRoot "documentation-status.json"
+    $statusPath = Join-Path $DocumentationRoot "documentation-status.json"
     $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
     if ([string]$status.documentationMode -ne "docfx") { throw "Published LocalGPT documentation did not use the DocFX modern site." }
-    if ([string]$status.pdfMode -ne "docfx") { throw "Published LocalGPT documentation does not contain the complete DocFX PDF." }
+    if ([string]$status.pdfMode -notin @("html-browser-print", "docfx-pdf-plugin")) { throw "Published LocalGPT documentation does not contain the complete HTML-backed documentation PDF." }
+    if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
     if (-not ([bool]$status.completeApiReference)) { throw "Published LocalGPT documentation is missing the complete XML-generated API reference." }
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "Published LocalGPT documentation contains an incomplete API graph." }
     if ([long]$status.pdfBytes -lt 65536) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
-    if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "Published LocalGPT documentation did not record a real DocFX PDF candidate." }
+    if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "Published LocalGPT documentation did not record a real documentation PDF source." }
 
-    Write-Host "Verified complete LocalGPT $Version DocFX modern documentation in $documentationRoot" -ForegroundColor Green
+    Write-Host "Verified complete LocalGPT $Version DocFX modern HTML and HTML-backed PDF documentation in $DocumentationRoot" -ForegroundColor Green
 }
 
 $appVersion = Resolve-ProjectVersion -ProjectPath $appProject
+
+function Prepare-LocalGptDocumentation {
+    if ($script:documentationPrepared) { return }
+
+    if (-not (Test-Path -LiteralPath $documentationScript -PathType Leaf)) {
+        throw "Documentation build script not found: $documentationScript"
+    }
+
+    $appProjectDirectory = Split-Path -Parent $appProject
+    $neutralOutputRoot = Join-Path $appProjectDirectory "bin\$Configuration\net10.0"
+    $documentationAssembly = Join-Path $neutralOutputRoot "LocalGPT.dll"
+    $documentationXml = Join-Path $neutralOutputRoot "LocalGPT.xml"
+    $documentationOutput = Join-Path $neutralOutputRoot "wwwroot\help-docs"
+    $packageGraphProperties = @(
+        "-p:UseLocalWireProtocolProject=false",
+        "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
+        "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
+        "-p:RestoreAdditionalProjectSources=$packageDirectory",
+        "-p:RuntimeIdentifier=",
+        "-p:RuntimeIdentifiers="
+    )
+
+    Write-Host "Building the RID-neutral LocalGPT assembly once for shared release documentation..." -ForegroundColor Cyan
+    Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $packageGraphProperties) -FailureMessage "RID-neutral LocalGPT restore for documentation failed."
+    Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $packageGraphProperties) -FailureMessage "RID-neutral LocalGPT build for documentation failed."
+
+    if (-not (Test-Path -LiteralPath $documentationAssembly -PathType Leaf)) { throw "Documentation assembly not found: $documentationAssembly" }
+    if (-not (Test-Path -LiteralPath $documentationXml -PathType Leaf)) { throw "Documentation XML not found: $documentationXml" }
+
+    Write-Host "Generating the complete LocalGPT documentation once for all runtime packages..." -ForegroundColor Cyan
+    & $documentationScript `
+        -RepositoryRoot $root `
+        -AssemblyPath $documentationAssembly `
+        -XmlDocumentationPath $documentationXml `
+        -Version $appVersion `
+        -OutputWebRoot $documentationOutput `
+        -RequirePdf
+
+    Assert-LocalGptDocumentationPayload -DocumentationRoot $documentationOutput -Version $appVersion
+    Remove-Item -LiteralPath $script:documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $script:documentationCacheRoot -Force | Out-Null
+    Copy-Item -Path (Join-Path $documentationOutput "*") -Destination $script:documentationCacheRoot -Recurse -Force
+    $script:documentationPrepared = $true
+    Write-Host "Cached one verified documentation payload for all RID publishes." -ForegroundColor Green
+}
 
 function Resolve-PublishProfilePath {
     param(
@@ -198,8 +243,8 @@ function Publish-Runtime {
     $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
     $setupExecutable = if ($Rid.StartsWith("win-")) { "LocalGPTInstallerConsole.exe" } else { "LocalGPTInstallerConsole" }
 
-    $buildDocumentation = if ($script:documentationPrepared) { "false" } else { "true" }
-    $requireDocumentationPdf = if ($script:documentationPrepared) { "false" } else { "true" }
+    $buildDocumentation = "false"
+    $requireDocumentationPdf = "false"
     Write-Host "Publishing LocalGPT application through profile $($profile.AppProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @(
         "publish", $appProject,
@@ -234,15 +279,7 @@ function Publish-Runtime {
         Write-Host "Reused the verified complete documentation payload for $Rid." -ForegroundColor Cyan
     }
 
-    Assert-LocalGptDocumentationPayload -PublishFolder $appFolder -Version $appVersion
-    if (-not $script:documentationPrepared) {
-        Remove-Item -LiteralPath $script:documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
-        New-Item -ItemType Directory -Path $script:documentationCacheRoot -Force | Out-Null
-        Copy-Item -Path (Join-Path $publishedDocumentationRoot "*") -Destination $script:documentationCacheRoot -Recurse -Force
-        $script:documentationPrepared = $true
-        Write-Host "Cached the verified complete documentation payload for the remaining runtime publishes." -ForegroundColor Green
-    }
-
+    Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
     $requiredSetupFiles = @(
         "Default.cmd", "Install.cmd", "Update.cmd", "Start.cmd", "Start-NoBrowser.cmd",
         "Install-Ollama.cmd", "Pull-Models-Slim.cmd", "Pull-Models-RTX3060.cmd",
@@ -280,6 +317,8 @@ if ($sharedWirePackageDirectory) {
     Copy-Item $wirePackage (Join-Path $sharedWirePackageDirectory $wirePackageName) -Force
     Write-Host "Updated shared LocalGPT protocol package cache: $sharedWirePackageDirectory" -ForegroundColor Green
 }
+
+Prepare-LocalGptDocumentation
 
 $runtimes = if ($Runtime -eq "all") {
     @("win-x64", "win-x86", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")

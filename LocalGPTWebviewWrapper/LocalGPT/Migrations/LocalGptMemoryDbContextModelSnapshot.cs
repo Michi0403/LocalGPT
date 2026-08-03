@@ -819,6 +819,12 @@ namespace LocalGPT.Migrations
                     b.Property<bool>("AllowFreeText")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("ApprovalReuseScope")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("ApprovalSessionId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("ConsumedAtUtc")
                         .HasColumnType("TEXT");
 
@@ -829,6 +835,9 @@ namespace LocalGPT.Migrations
 
                     b.Property<Guid?>("CouncilRunId")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("ConsumeApproval")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("DecidedAtUtc")
                         .HasColumnType("TEXT");
@@ -850,6 +859,9 @@ namespace LocalGPT.Migrations
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("DecisionVersion")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("EarliestCouncilRound")
                         .HasColumnType("INTEGER");
@@ -963,6 +975,8 @@ namespace LocalGPT.Migrations
                     b.HasIndex("Status", "UpdatedAtUtc");
 
                     b.HasIndex("CorrelationId", "OperationKey", "RequestedAtUtc");
+
+                    b.HasIndex("OperationKey", "ParameterFingerprint", "Status", "UpdatedAtUtc");
 
                     b.ToTable("HumanCollaborationRequests", (string)null);
                 });

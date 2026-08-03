@@ -385,6 +385,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IDebugArtifactInspectionService, DebugArtifactInspectionService>();
                 builder.Services.AddSingleton<DxAiFunctionHandlerMapService>();
                 builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
+                builder.Services.AddSingleton<DxAiFunctionCatalogSynchronizationGate>();
                 builder.Services.AddScoped<IDxAiFunctionCatalogService, DxAiFunctionCatalogService>();
                 builder.Services.AddScoped<ICouncilDxFunctionOrchestrator, CouncilDxFunctionOrchestrator>();
                 builder.Services.AddScoped<IPublicServiceMethodInvoker, PublicServiceMethodInvoker>();

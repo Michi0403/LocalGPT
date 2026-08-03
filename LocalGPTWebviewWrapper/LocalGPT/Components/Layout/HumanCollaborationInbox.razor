@@ -173,9 +173,22 @@
                     </label>
                     @if (request.RequestKind == Vocabulary.Get().HumanRequestApproval)
                     {
+                        <label>
+                            Reuse scope
+                            <select class="form-select" @bind="editor.ReuseScope">
+                                <option value="@HumanApprovalReuseScope.ExactRequestOnce">Exact request once</option>
+                                <option value="@HumanApprovalReuseScope.CurrentApplicationSession">Current application session</option>
+                                <option value="@HumanApprovalReuseScope.PersistentUntilChanged">Persistent until changed</option>
+                            </select>
+                        </label>
+                        <label class="human-inbox-check">
+                            <input type="checkbox" @bind="editor.ConsumeApproval" />
+                            <span>Consume the saved approval after one matching use</span>
+                        </label>
+                        <p class="human-inbox-note">Reuse always remains bound to the exact operation and parameter fingerprint. High-impact requests default to one use.</p>
                         <div class="human-decision-row">
-                            <button type="button" class="human-approve" @onclick="(() => ResolveAsync(request, true))">Approve exact request</button>
-                            <button type="button" class="human-decline" @onclick="(() => ResolveAsync(request, false))">Decline</button>
+                            <button type="button" class="human-approve" @onclick="(() => ResolveAsync(request, true))">Approve and save</button>
+                            <button type="button" class="human-decline" @onclick="(() => ResolveAsync(request, false))">Decline and save</button>
                         </div>
                     }
                     else
@@ -207,18 +220,59 @@
         @if (ResolvedRequests.Count > 0)
         {
             <section class="human-inbox-section">
-                <h3>Recent decisions</h3>
-                @foreach (var request in ResolvedRequests.Take(12))
+                <h3>Saved decisions</h3>
+                <p class="human-inbox-note">Saved decisions can be corrected later. Saving an edited approval clears its consumed timestamp and applies the new policy to the next exact matching call.</p>
+                @foreach (var request in ResolvedRequests.Take(20))
                 {
+                    var editor = GetEditor(request);
                     <details class="human-history-card">
                         <summary>@request.Status · @request.Title</summary>
-                        @if (!string.IsNullOrWhiteSpace(request.UserResponse))
+                        <dl>
+                            <dt>Operation</dt><dd>@request.OperationKey</dd>
+                            @if (!string.IsNullOrWhiteSpace(request.ParameterFingerprint))
+                            {
+                                <dt>Exact request</dt><dd>@FingerprintPrefix(request.ParameterFingerprint)</dd>
+                            }
+                            <dt>Decision version</dt><dd>@request.DecisionVersion</dd>
+                            <dt>Updated</dt><dd>@request.UpdatedAtUtc.ToLocalTime()</dd>
+                            @if (request.ConsumedAtUtc is DateTime consumedAt)
+                            {
+                                <dt>Consumed</dt><dd>@consumedAt.ToLocalTime()</dd>
+                            }
+                        </dl>
+                        @if (request.AllowFreeText || request.RequestKind != Vocabulary.Get().HumanRequestApproval)
                         {
-                            <p>@request.UserResponse</p>
+                            <label>
+                                @(string.IsNullOrWhiteSpace(request.ResponsePrompt) ? "Response" : request.ResponsePrompt)
+                                <textarea @bind="editor.Response" maxlength="1000000" rows="3"></textarea>
+                            </label>
                         }
-                        @if (!string.IsNullOrWhiteSpace(request.DecisionReason))
+                        <label>
+                            Reason / team note
+                            <textarea @bind="editor.Reason" maxlength="2000" rows="2"></textarea>
+                        </label>
+                        @if (request.RequestKind == Vocabulary.Get().HumanRequestApproval)
                         {
-                            <p><strong>Reason:</strong> @request.DecisionReason</p>
+                            <label>
+                                Reuse scope
+                                <select class="form-select" @bind="editor.ReuseScope">
+                                    <option value="@HumanApprovalReuseScope.ExactRequestOnce">Exact request once</option>
+                                    <option value="@HumanApprovalReuseScope.CurrentApplicationSession">Current application session</option>
+                                    <option value="@HumanApprovalReuseScope.PersistentUntilChanged">Persistent until changed</option>
+                                </select>
+                            </label>
+                            <label class="human-inbox-check">
+                                <input type="checkbox" @bind="editor.ConsumeApproval" />
+                                <span>Consume the saved approval after one matching use</span>
+                            </label>
+                            <div class="human-decision-row">
+                                <button type="button" class="human-approve" @onclick="(() => ResolveAsync(request, true))">Save as approved</button>
+                                <button type="button" class="human-decline" @onclick="(() => ResolveAsync(request, false))">Save as declined</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <button type="button" class="human-primary" @onclick="(() => ResolveAsync(request, null))">Save updated answer</button>
                         }
                     </details>
                 }
@@ -318,8 +372,8 @@
                     UpdatedBy = snapshot.Profile.UpdatedBy
                 };
             }
-            foreach (var request in PendingRequests)
-                editors.TryAdd(request.Id, new HumanCollaborationRequestEditor(request.PrefillText, string.Empty));
+            foreach (var request in snapshot.Requests)
+                editors.TryAdd(request.Id, CreateEditor(request));
             await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
         catch (Exception ex)
@@ -382,9 +436,15 @@
                 request.CouncilRunId);
             var resolved = await Collaboration.ResolveRequestAsync(
                 request.Id,
-                new HumanDecisionSubmission(approved, editor.Response, editor.Reason)).ConfigureAwait(false);
-            statusText = resolved is null ? "The request no longer exists." : $"Request marked {resolved.Status}.";
-            Notifier.ShowInfo("HumanCollaborationToasts", statusText, "Human decision recorded");
+                new HumanDecisionSubmission(
+                    approved,
+                    editor.Response,
+                    editor.Reason,
+                    editor.ReuseScope,
+                    editor.ConsumeApproval)).ConfigureAwait(false);
+            editors.Remove(request.Id);
+            statusText = resolved is null ? "The request no longer exists." : $"Decision saved as {resolved.Status}.";
+            Notifier.ShowInfo("HumanCollaborationToasts", statusText, "Human decision saved");
         }).ConfigureAwait(false);
     }
 
@@ -419,11 +479,17 @@
     {
         if (!editors.TryGetValue(request.Id, out var editor))
         {
-            editor = new HumanCollaborationRequestEditor(request.PrefillText, string.Empty);
+            editor = CreateEditor(request);
             editors[request.Id] = editor;
         }
         return editor;
     }
+
+    private HumanCollaborationRequestEditor CreateEditor(HumanCollaborationRequest request) => new(
+        request.Status == Vocabulary.Get().HumanStatusPending ? request.PrefillText : request.UserResponse,
+        request.DecisionReason,
+        request.ApprovalReuseScope,
+        request.ConsumeApproval);
 
     private void MarkProfileDirty() => profileDirty = true;
 

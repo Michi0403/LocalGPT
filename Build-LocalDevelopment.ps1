@@ -15,12 +15,14 @@ $wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion\LocalGPT.Wi
 $appProject = Join-Path $solutionRoot "LocalGPT\LocalGPT.csproj"
 $setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole\LocalGPTInstallerConsole.csproj"
 $wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj"
+$documentationScript = Join-Path $root "build\Build-Documentation.ps1"
 $packageDirectory = Join-Path $root "packages"
 $wireVersion = "2.1.0"
 $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVersion.nupkg"
 $useProject = if ($UseWireProtocolPackage) { "false" } else { "true" }
-$documentationRoot = Join-Path (Split-Path -Parent $appProject) "wwwroot\help-docs"
-$requireDocumentationPdf = "true"
+$appOutputRoot = Join-Path (Split-Path -Parent $appProject) "bin\$Configuration\net10.0"
+$documentationRoot = Join-Path $appOutputRoot "wwwroot\help-docs"
+$requireDocumentationPdf = $true
 
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
@@ -62,13 +64,14 @@ function Assert-LocalGptDocumentation {
     $statusPath = Join-Path $DocumentationRoot "documentation-status.json"
     $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
     if ([string]$status.documentationMode -ne "docfx") { throw "The LocalGPT development build used static documentation instead of the DocFX modern site." }
-    if ([string]$status.pdfMode -ne "docfx") { throw "The LocalGPT development build did not produce the complete DocFX PDF." }
+    if ([string]$status.pdfMode -notin @("html-browser-print", "docfx-pdf-plugin")) { throw "The LocalGPT development build did not produce the complete HTML-backed documentation PDF." }
+    if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
     if (-not ([bool]$status.completeApiReference)) { throw "The LocalGPT development documentation does not contain the complete XML-generated API reference." }
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "The LocalGPT development documentation API graph is incomplete." }
     if ([long]$status.pdfBytes -lt 65536) { throw "The LocalGPT development PDF is unexpectedly small and is not accepted as complete." }
-    if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "The LocalGPT development build did not record a real DocFX PDF candidate." }
+    if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "The LocalGPT development build did not record a real documentation PDF source." }
 
-    Write-Host "Verified complete LocalGPT $Version DocFX modern HTML, XML API reference and PDF documentation." -ForegroundColor Green
+    Write-Host "Verified complete LocalGPT $Version DocFX modern HTML, XML API reference and HTML-backed PDF documentation." -ForegroundColor Green
 }
 
 $appVersion = Resolve-ProjectVersion -ProjectPath $appProject
@@ -119,7 +122,22 @@ $packageAppProperties = @(
 )
 Write-Host "Rebuilding LocalGPT against the package graph for WinUI metadata resolution..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $packageAppProperties) -FailureMessage "LocalGPT package-mode restore for WinUI failed."
-Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-t:Rebuild", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=true", "-p:RequireLocalGptDocumentationPdf=$requireDocumentationPdf") + $packageAppProperties) -FailureMessage "LocalGPT package-mode rebuild for WinUI failed."
+Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-t:Rebuild", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $packageAppProperties) -FailureMessage "LocalGPT package-mode rebuild for WinUI failed."
+
+$documentationAssembly = Join-Path $appOutputRoot "LocalGPT.dll"
+$documentationXml = Join-Path $appOutputRoot "LocalGPT.xml"
+if (-not (Test-Path -LiteralPath $documentationScript -PathType Leaf)) { throw "Documentation build script not found: $documentationScript" }
+if (-not (Test-Path -LiteralPath $documentationAssembly -PathType Leaf)) { throw "Documentation assembly not found: $documentationAssembly" }
+if (-not (Test-Path -LiteralPath $documentationXml -PathType Leaf)) { throw "Documentation XML not found: $documentationXml" }
+
+Write-Host "Generating LocalGPT documentation once from the completed RID-neutral application build..." -ForegroundColor Cyan
+& $documentationScript `
+    -RepositoryRoot $root `
+    -AssemblyPath $documentationAssembly `
+    -XmlDocumentationPath $documentationXml `
+    -Version $appVersion `
+    -OutputWebRoot $documentationRoot `
+    -RequirePdf:$requireDocumentationPdf
 Assert-LocalGptDocumentation -DocumentationRoot $documentationRoot -Version $appVersion
 
 $wrapperProperties = @(
@@ -133,4 +151,4 @@ Write-Host "Restoring and building the optional WinUI wrapper..." -ForegroundCol
 Invoke-DotNet -Arguments (@("restore", $wrapperProject, "--disable-parallel", "--force-evaluate") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper restore failed."
 Invoke-DotNet -Arguments (@("build", $wrapperProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper build failed."
 
-Write-Host "LocalGPT development build completed in protocol -> app -> documentation -> installer -> wrapper order." -ForegroundColor Green
+Write-Host "LocalGPT development build completed in protocol -> app -> installer -> package-graph app -> documentation -> wrapper order." -ForegroundColor Green

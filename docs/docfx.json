@@ -13,7 +13,7 @@
       "filter": "filterConfig.yml",
       "disableGitFeatures": true,
       "namespaceLayout": "nested",
-      "memberLayout": "separatePages"
+      "memberLayout": "samePage"
     }
   ],
   "build": {
@@ -63,6 +63,7 @@
     }
   }
 }
+
 
 
 

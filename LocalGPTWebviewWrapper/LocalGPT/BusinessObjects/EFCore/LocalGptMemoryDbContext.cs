@@ -459,7 +459,9 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.UserResponse).HasMaxLength(4000).IsRequired();
                 entity.Property(item => item.DecisionReason).HasMaxLength(2000).IsRequired();
                 entity.Property(item => item.DecisionBy).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.ApprovalReuseScope).HasConversion<int>();
                 entity.HasIndex(item => new { item.CorrelationId, item.OperationKey, item.RequestedAtUtc });
+                entity.HasIndex(item => new { item.OperationKey, item.ParameterFingerprint, item.Status, item.UpdatedAtUtc });
                 entity.HasIndex(item => new { item.Status, item.UpdatedAtUtc });
                 entity.HasIndex(item => new { item.CouncilRunId, item.Status });
                 entity.HasIndex(item => new { item.CouncilRunId, item.Status, item.GateMode });

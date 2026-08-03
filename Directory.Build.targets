@@ -150,7 +150,7 @@
     application assembly and compiler XML exist. The publish inclusion target also depends on it,
     so a no-build publish validates and uses the existing application build output.
   -->
-  <!--<Target Name="BuildLocalGptDocumentation"
+  <Target Name="BuildLocalGptDocumentation"
           AfterTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(LocalGptDocumentationScript)')" Text="LocalGPT documentation build script is missing: $(LocalGptDocumentationScript)" />
@@ -166,7 +166,7 @@
     <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\documentation-status.json')" Text="LocalGPT documentation generation completed without documentation-status.json: $(LocalGptDocumentationOutputRoot)" />
     <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\LocalGPT.xml')" Text="LocalGPT documentation generation completed without LocalGPT.xml: $(LocalGptDocumentationOutputRoot)" />
     <Error Condition="'$(RequireLocalGptDocumentationPdf)' == 'true' and !Exists('$(LocalGptDocumentationOutputRoot)\LocalGPT-$(Version).pdf')" Text="LocalGPT documentation generation completed without the complete versioned PDF: $(LocalGptDocumentationOutputRoot)\LocalGPT-$(Version).pdf" />
-  </Target>-->
+  </Target>
 
   <!--
     The files are generated after project evaluation, so the SDK's original wwwroot glob cannot

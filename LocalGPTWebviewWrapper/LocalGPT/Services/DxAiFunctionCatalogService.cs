@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services;
 
@@ -16,7 +17,7 @@ namespace LocalGPT.Services;
 /// confirmation settings survive descriptor refreshes and application upgrades.
 /// </summary>
 public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabulary,
-    
+    DxAiFunctionCatalogSynchronizationGate synchronizationGate,
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDxAiFunctionRegistry registry,
@@ -25,15 +26,11 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 {
     private const string DataType = "DxAiFunctionCatalogEntry";
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
-    // The catalog service is scoped, but boot synchronization, Council preflight, and UI policy edits
-    // can run in different scopes against the same SQLite rows. One process-wide gate prevents stale
-    // tracked SystemVariable instances from racing each other.
-    private readonly SemaphoreSlim Gate = new(1, 1);
 
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
         await databaseInitialization.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await synchronizationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -41,37 +38,58 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
                 .Where(item => item.DataType == DataType)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
-            var existing = variables
+            var storedRows = variables
                 .Select(variable => (Variable: variable, Entry: Deserialize(variable.ValueString)))
                 .Where(item => item.Entry is not null && !string.IsNullOrWhiteSpace(item.Entry.CatalogKey))
-                .ToDictionary(item => item.Entry!.CatalogKey, item => item, StringComparer.OrdinalIgnoreCase);
+                .Select(item => (item.Variable, Entry: item.Entry!))
+                .ToList();
+            var existing = new Dictionary<string, (SystemVariable Variable, DxAiFunctionCatalogEntry Entry)>(StringComparer.OrdinalIgnoreCase);
+            var duplicateCount = 0;
+            foreach (var group in storedRows.GroupBy(item => GetSemanticIdentity(item.Entry), StringComparer.OrdinalIgnoreCase))
+            {
+                var canonical = SelectCanonicalCatalogRow(group);
+                canonical.Variable.DataType = DataType;
+                existing[group.Key] = canonical;
+                foreach (var duplicate in group.Where(item => item.Variable.Id != canonical.Variable.Id))
+                {
+                    db.SystemVariables.Remove(duplicate.Variable);
+                    duplicateCount++;
+                }
+            }
+
+            if (duplicateCount > 0)
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var discovered = DiscoverEntries();
-            var discoveredKeys = discovered.Select(item => item.CatalogKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var discoveredKeys = discovered.Select(GetSemanticIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var descriptor in discovered)
             {
-                if (existing.TryGetValue(descriptor.CatalogKey, out var stored))
+                var semanticIdentity = GetSemanticIdentity(descriptor);
+                if (existing.TryGetValue(semanticIdentity, out var stored))
                 {
-                    PreservePolicyAndRefreshDescriptor(stored.Entry!, descriptor);
+                    PreservePolicyAndRefreshDescriptor(stored.Entry, descriptor);
+                    stored.Variable.Name = BuildStorageName(stored.Entry.CatalogKey);
+                    stored.Variable.DataType = DataType;
                     stored.Variable.ValueString = JsonSerializer.Serialize(stored.Entry, JsonOptions);
                     stored.Variable.LastUpdated = DateTime.UtcNow;
                 }
                 else
                 {
-                    db.SystemVariables.Add(new SystemVariable
+                    var variable = new SystemVariable
                     {
                         Name = BuildStorageName(descriptor.CatalogKey),
                         DataType = DataType,
                         ValueString = JsonSerializer.Serialize(descriptor, JsonOptions),
                         LastUpdated = DateTime.UtcNow
-                    });
-                    existing[descriptor.CatalogKey] = (null!, descriptor);
+                    };
+                    db.SystemVariables.Add(variable);
+                    existing[semanticIdentity] = (variable, descriptor);
                 }
             }
 
-            foreach (var stored in existing.Values.Where(item => item.Variable is not null && !discoveredKeys.Contains(item.Entry!.CatalogKey)))
+            foreach (var stored in existing.Values.Where(item => !discoveredKeys.Contains(GetSemanticIdentity(item.Entry))))
             {
-                stored.Entry!.IsAvailable = false;
+                stored.Entry.IsAvailable = false;
                 stored.Entry.UpdatedAtUtc = DateTime.UtcNow;
                 stored.Entry.UpdatedBy = "LocalGPT runtime catalog";
                 stored.Variable.ValueString = JsonSerializer.Serialize(stored.Entry, JsonOptions);
@@ -81,13 +99,14 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             var result = await ReadEntriesAsync(db, cancellationToken).ConfigureAwait(false);
             logger.LogInformation(
-                "Synchronized {CatalogCount} DX function/public service catalog entries without replacing user policy.",
-                result.Count);
+                "Synchronized {CatalogCount} unique DX function/public service catalog entries and removed {DuplicateCount} duplicate rows without replacing user policy.",
+                result.Count,
+                duplicateCount);
             return result;
         }
         finally
         {
-            Gate.Release();
+            synchronizationGate.Release();
         }
     }
 
@@ -119,17 +138,28 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
         ArgumentException.ThrowIfNullOrWhiteSpace(request.CatalogKey);
         _ = JsonSerializer.Deserialize<List<string>>(request.AllowedPeerIdsJson) ?? [];
 
-        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await synchronizationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            var variables = await db.SystemVariables.Where(item => item.DataType == DataType).ToListAsync(cancellationToken).ConfigureAwait(false);
-            var match = variables
+            var variables = await db.SystemVariables
+                .Where(item => item.DataType == DataType)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var matches = variables
                 .Select(variable => (Variable: variable, Entry: Deserialize(variable.ValueString)))
-                .FirstOrDefault(item => item.Entry is not null && string.Equals(item.Entry.CatalogKey, request.CatalogKey, StringComparison.OrdinalIgnoreCase));
-            if (match.Entry is null || match.Variable is null)
+                .Where(item => item.Entry is not null && string.Equals(item.Entry.CatalogKey, request.CatalogKey, StringComparison.OrdinalIgnoreCase))
+                .Select(item => (item.Variable, Entry: item.Entry!))
+                .ToList();
+            if (matches.Count == 0)
                 throw new KeyNotFoundException($"DX function catalog entry '{request.CatalogKey}' was not found. Synchronize the catalog first.");
 
+            var match = SelectCanonicalCatalogRow(matches);
+            foreach (var duplicate in matches.Where(item => item.Variable.Id != match.Variable.Id))
+                db.SystemVariables.Remove(duplicate.Variable);
+
+            match.Variable.Name = BuildStorageName(match.Entry.CatalogKey);
+            match.Variable.DataType = DataType;
             match.Entry.IsEnabled = request.IsEnabled;
             match.Entry.ExposeToAiChat = request.ExposeToAiChat;
             match.Entry.ExposeToOneWire = request.ExposeToOneWire;
@@ -147,7 +177,7 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
         }
         finally
         {
-            Gate.Release();
+            synchronizationGate.Release();
         }
     }
 
@@ -165,7 +195,16 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
         var entries = registry.GetFunctions().Select(CreateDxEntry).ToList();
         entries.AddRange(DiscoverPublicServiceMethods());
         entries.AddRange(addonManifests.GetCatalogEntries());
-        return entries.OrderBy(item => item.Kind).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        return entries
+            .Where(item => !string.IsNullOrWhiteSpace(item.CatalogKey))
+            .GroupBy(GetSemanticIdentity, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group
+                .OrderBy(item => item.Source, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .First())
+            .OrderBy(item => item.Kind)
+            .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private DxAiFunctionCatalogEntry CreateDxEntry(DxaichatFunctionInfo function)
@@ -205,8 +244,12 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
             foreach (var method in implementation.DeclaredMethods.Where(IsSupportedPublicMethod))
             {
                 var contract = ResolveContract(implementation.AsType(), method);
-                var parameterTypeNames = method.GetParameters().Select(parameter => parameter.ParameterType.AssemblyQualifiedName ?? parameter.ParameterType.FullName ?? parameter.ParameterType.Name).ToList();
-                var signature = $"{implementation.FullName}|{method.Name}|{string.Join('|', parameterTypeNames)}";
+                var parameterTypeNames = method.GetParameters()
+                    .Select(parameter => parameter.ParameterType.AssemblyQualifiedName ?? parameter.ParameterType.FullName ?? parameter.ParameterType.Name)
+                    .ToList();
+                var stableParameterTypeNames = method.GetParameters()
+                    .Select(parameter => GetStableTypeIdentity(parameter.ParameterType));
+                var signature = $"{implementation.FullName}|{method.Name}|{string.Join('|', stableParameterTypeNames)}";
                 var shortHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signature))).ToLowerInvariant()[..12];
                 var display = $"{implementation.Name}.{method.Name}";
                 var entry = new DxAiFunctionCatalogEntry
@@ -323,6 +366,7 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
             stored.CreatedAtUtc,
             stored.UpdatedBy
         };
+        stored.CatalogKey = current.CatalogKey;
         stored.Kind = current.Kind;
         stored.FunctionName = current.FunctionName;
         stored.DisplayName = current.DisplayName;
@@ -353,14 +397,77 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 
     private async Task<List<DxAiFunctionCatalogEntry>> ReadEntriesAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
     {
-        var values = await db.SystemVariables.AsNoTracking()
+        var variables = await db.SystemVariables.AsNoTracking()
             .Where(item => item.DataType == DataType)
             .OrderBy(item => item.Name)
-            .Select(item => item.ValueString)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        return values.Select(Deserialize).Where(item => item is not null).Cast<DxAiFunctionCatalogEntry>()
-            .OrderBy(item => item.Kind).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        return variables
+            .Select(variable => (Variable: variable, Entry: Deserialize(variable.ValueString)))
+            .Where(item => item.Entry is not null && !string.IsNullOrWhiteSpace(item.Entry.CatalogKey))
+            .Select(item => (item.Variable, Entry: item.Entry!))
+            .GroupBy(item => GetSemanticIdentity(item.Entry), StringComparer.OrdinalIgnoreCase)
+            .Select(group => SelectCanonicalCatalogRow(group).Entry)
+            .OrderBy(item => item.Kind)
+            .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private (SystemVariable Variable, DxAiFunctionCatalogEntry Entry) SelectCanonicalCatalogRow(
+        IEnumerable<(SystemVariable Variable, DxAiFunctionCatalogEntry Entry)> rows)
+    {
+        return rows
+            .OrderBy(item => item.Entry.IsSystemSeed ? 1 : 0)
+            .ThenBy(item => string.Equals(
+                item.Variable.Name,
+                BuildStorageName(item.Entry.CatalogKey),
+                StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenByDescending(item => item.Variable.LastUpdated)
+            .ThenBy(item => item.Variable.Id)
+            .First();
+    }
+
+
+    private string GetSemanticIdentity(DxAiFunctionCatalogEntry entry)
+    {
+        if (entry.CatalogKey.StartsWith("service:", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(entry.Kind, vocabulary.Get().CatalogPublicServiceMethod, StringComparison.OrdinalIgnoreCase))
+        {
+            var implementation = GetStoredTypeName(entry.ImplementationTypeName);
+            var schema = Regex.Replace(entry.ParameterSchemaJson ?? string.Empty, @"\s+", string.Empty);
+            return $"service|{implementation}|{entry.ServiceMethodName}|{schema}";
+        }
+
+        if (entry.CatalogKey.StartsWith("dx:", StringComparison.OrdinalIgnoreCase))
+            return $"dx|{entry.FunctionName}";
+
+        return $"catalog|{entry.CatalogKey}";
+    }
+
+    private string GetStoredTypeName(string? assemblyQualifiedTypeName)
+    {
+        if (string.IsNullOrWhiteSpace(assemblyQualifiedTypeName))
+            return string.Empty;
+        var separator = assemblyQualifiedTypeName.IndexOf(',');
+        return (separator < 0 ? assemblyQualifiedTypeName : assemblyQualifiedTypeName[..separator]).Trim();
+    }
+
+    private string GetStableTypeIdentity(Type type)
+    {
+        if (type.IsByRef)
+            return $"{GetStableTypeIdentity(type.GetElementType()!)}&";
+        if (type.IsPointer)
+            return $"{GetStableTypeIdentity(type.GetElementType()!)}*";
+        if (type.IsArray)
+            return $"{GetStableTypeIdentity(type.GetElementType()!)}[{new string(',', type.GetArrayRank() - 1)}]";
+        if (!type.IsGenericType)
+            return type.FullName ?? type.Name;
+
+        var genericDefinitionName = type.GetGenericTypeDefinition().FullName ?? type.Name;
+        var tick = genericDefinitionName.IndexOf('`');
+        if (tick >= 0)
+            genericDefinitionName = genericDefinitionName[..tick];
+        return $"{genericDefinitionName}<{string.Join(',', type.GetGenericArguments().Select(GetStableTypeIdentity))}>";
     }
 
     private DxAiFunctionCatalogEntry? Deserialize(string value)
