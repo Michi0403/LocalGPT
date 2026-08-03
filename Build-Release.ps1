@@ -24,6 +24,8 @@ $wirePackageName = "LocalGPT.WireProtocolVersion.$WireProtocolVersion.nupkg"
 $wirePackage = Join-Path $packageDirectory $wirePackageName
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
 $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
+$documentationCacheRoot = Join-Path $artifacts ".documentation-cache"
+$documentationPrepared = $false
 
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
@@ -195,13 +197,15 @@ function Publish-Runtime {
     $appExecutable = if ($Rid.StartsWith("win-")) { "LocalGPT.exe" } else { "LocalGPT" }
     $setupExecutable = if ($Rid.StartsWith("win-")) { "LocalGPTInstallerConsole.exe" } else { "LocalGPTInstallerConsole" }
 
+    $buildDocumentation = if ($script:documentationPrepared) { "false" } else { "true" }
+    $requireDocumentationPdf = if ($script:documentationPrepared) { "false" } else { "true" }
     Write-Host "Publishing LocalGPT application through profile $($profile.AppProfile)..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments @(
         "publish", $appProject,
         "-c", $Configuration,
         "-p:PublishProfile=$($profile.AppProfile)",
-        "-p:BuildLocalGptDocumentation=true",
-        "-p:RequireLocalGptDocumentationPdf=true"
+        "-p:BuildLocalGptDocumentation=$buildDocumentation",
+        "-p:RequireLocalGptDocumentationPdf=$requireDocumentationPdf"
     ) -FailureMessage "LocalGPT application publish failed for $Rid."
 
     Write-Host "Publishing LocalGPT setup through profile $($profile.SetupProfile)..." -ForegroundColor Cyan
@@ -217,7 +221,26 @@ function Publish-Runtime {
     if (-not (Test-Path (Join-Path $setupFolder $setupExecutable))) {
         throw "Published LocalGPT setup executable not found in the publish-profile output: $(Join-Path $setupFolder $setupExecutable)"
     }
+
+    $publishedDocumentationRoot = Join-Path $appFolder "wwwroot\help-docs"
+    if ($script:documentationPrepared) {
+        if (-not (Test-Path -LiteralPath $script:documentationCacheRoot -PathType Container)) {
+            throw "The shared LocalGPT documentation cache is missing: $script:documentationCacheRoot"
+        }
+        Remove-Item -LiteralPath $publishedDocumentationRoot -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Path $publishedDocumentationRoot -Force | Out-Null
+        Copy-Item -Path (Join-Path $script:documentationCacheRoot "*") -Destination $publishedDocumentationRoot -Recurse -Force
+        Write-Host "Reused the verified complete documentation payload for $Rid." -ForegroundColor Cyan
+    }
+
     Assert-LocalGptDocumentationPayload -PublishFolder $appFolder -Version $appVersion
+    if (-not $script:documentationPrepared) {
+        Remove-Item -LiteralPath $script:documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Path $script:documentationCacheRoot -Force | Out-Null
+        Copy-Item -Path (Join-Path $publishedDocumentationRoot "*") -Destination $script:documentationCacheRoot -Recurse -Force
+        $script:documentationPrepared = $true
+        Write-Host "Cached the verified complete documentation payload for the remaining runtime publishes." -ForegroundColor Green
+    }
 
     $requiredSetupFiles = @(
         "Default.cmd", "Install.cmd", "Update.cmd", "Start.cmd", "Start-NoBrowser.cmd",
@@ -248,6 +271,7 @@ function Publish-Runtime {
 }
 
 New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
+Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
 Ensure-WireProtocolPackage
 Copy-Item $wirePackage (Join-Path $artifacts $wirePackageName) -Force
 if ($sharedWirePackageDirectory) {
@@ -262,7 +286,12 @@ $runtimes = if ($Runtime -eq "all") {
     @($Runtime)
 }
 
-foreach ($rid in $runtimes) { Publish-Runtime $rid }
+try {
+    foreach ($rid in $runtimes) { Publish-Runtime $rid }
+}
+finally {
+    Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host "Release output: $artifacts" -ForegroundColor Green
 Write-Host "Protocol package: $(Join-Path $artifacts $wirePackageName)" -ForegroundColor Green

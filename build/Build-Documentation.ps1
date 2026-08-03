@@ -46,6 +46,23 @@ $articleSourceCount = @(
         }
 ).Count
 $pdfFileSize = 0
+$minimumNodeMajor = 20
+$provisionedNodeVersion = "22.23.2"
+$provisionedNodeArchiveName = "node-v$provisionedNodeVersion-win-x64.zip"
+$provisionedNodeArchiveSha256 = "1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb47da459d1c52ac99f97"
+$localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+$documentationToolCacheRoot = if ([string]::IsNullOrWhiteSpace($localApplicationData)) {
+    Join-Path $fallbackToolRoot "runtime"
+}
+else {
+    Join-Path $localApplicationData "LocalGPT\DocumentationTools"
+}
+$provisionedNodeRoot = Join-Path $documentationToolCacheRoot "node-v$provisionedNodeVersion-win-x64"
+$provisionedNodeExecutable = Join-Path $provisionedNodeRoot "node.exe"
+$playwrightBrowserRoot = Join-Path $documentationToolCacheRoot "ms-playwright-docfx-2.78.5"
+$nodeVersionUsed = ""
+$nodeProvisioned = $false
+$pdfTimeoutMilliseconds = 1800000
 
 if (-not (Test-Path -LiteralPath $AssemblyPath)) { throw "Documentation assembly was not found: $AssemblyPath" }
 if (-not (Test-Path -LiteralPath $XmlDocumentationPath)) { throw "XML documentation file was not found: $XmlDocumentationPath" }
@@ -262,6 +279,161 @@ function New-LocalGptFallbackPdf {
     [IO.File]::WriteAllBytes($Path, [Text.Encoding]::ASCII.GetBytes($pdf))
 }
 
+function Get-LocalGptNodeInfo {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [bool]$Provisioned = $false
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $null
+    }
+
+    try {
+        $versionOutput = @(& $Path --version 2>$null)
+        $exitCode = [int]$LASTEXITCODE
+        if ($exitCode -ne 0 -or $versionOutput.Count -eq 0) { return $null }
+
+        $versionText = ([string]($versionOutput | Select-Object -First 1)).Trim()
+        $versionMatch = [regex]::Match($versionText, '^v?(?<major>\d+)\.')
+        if (-not $versionMatch.Success) { return $null }
+
+        $major = [int]$versionMatch.Groups['major'].Value
+        if ($major -lt $minimumNodeMajor) { return $null }
+
+        return [pscustomobject]@{
+            Path = [IO.Path]::GetFullPath($Path)
+            Version = $versionText
+            Major = $major
+            Provisioned = $Provisioned
+        }
+    }
+    catch {
+        return $null
+    }
+}
+
+function Find-LocalGptNode {
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace($env:PLAYWRIGHT_NODEJS_PATH)) {
+        $candidates.Add($env:PLAYWRIGHT_NODEJS_PATH)
+    }
+
+    $nodeCommand = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $nodeCommand) {
+        $commandPath = if (-not [string]::IsNullOrWhiteSpace([string]$nodeCommand.Source)) {
+            [string]$nodeCommand.Source
+        }
+        else {
+            [string]$nodeCommand.Path
+        }
+        if (-not [string]::IsNullOrWhiteSpace($commandPath)) { $candidates.Add($commandPath) }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
+        $candidates.Add((Join-Path $env:ProgramFiles "nodejs\node.exe"))
+    }
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    if (-not [string]::IsNullOrWhiteSpace($programFilesX86)) {
+        $candidates.Add((Join-Path $programFilesX86 "nodejs\node.exe"))
+    }
+    if (-not [string]::IsNullOrWhiteSpace($localApplicationData)) {
+        $candidates.Add((Join-Path $localApplicationData "Programs\nodejs\node.exe"))
+    }
+    $candidates.Add($provisionedNodeExecutable)
+
+    $visited = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($candidate in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        try {
+            $fullPath = [IO.Path]::GetFullPath($candidate)
+        }
+        catch {
+            continue
+        }
+        if (-not $visited.Add($fullPath)) { continue }
+        $isProvisioned = [string]::Equals($fullPath, $provisionedNodeExecutable, [StringComparison]::OrdinalIgnoreCase)
+        $nodeInfo = Get-LocalGptNodeInfo -Path $fullPath -Provisioned $isProvisioned
+        if ($null -ne $nodeInfo) { return $nodeInfo }
+    }
+
+    return $null
+}
+
+function Install-LocalGptNode {
+    New-Item -ItemType Directory -Path $documentationToolCacheRoot -Force | Out-Null
+
+    $existing = Get-LocalGptNodeInfo -Path $provisionedNodeExecutable -Provisioned $true
+    if ($null -ne $existing) { return $existing }
+
+    $archivePath = Join-Path $documentationToolCacheRoot $provisionedNodeArchiveName
+    $downloadPath = "$archivePath.download"
+    $extractRoot = Join-Path $documentationToolCacheRoot ".node-v$provisionedNodeVersion-extract"
+    $downloadUri = "https://nodejs.org/download/release/v$provisionedNodeVersion/$provisionedNodeArchiveName"
+
+    if (Test-Path -LiteralPath $archivePath -PathType Leaf) {
+        $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if (-not [string]::Equals($archiveHash, $provisionedNodeArchiveSha256, [StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $archivePath -Force
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $archivePath -PathType Leaf)) {
+        Write-Host "Node.js $minimumNodeMajor+ was not found. Downloading verified Node.js $provisionedNodeVersion for DocFX PDF generation..." -ForegroundColor Cyan
+        Remove-Item -LiteralPath $downloadPath -Force -ErrorAction SilentlyContinue
+        try {
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+            }
+            catch { }
+            Invoke-WebRequest -Uri $downloadUri -OutFile $downloadPath -UseBasicParsing
+            $downloadHash = (Get-FileHash -LiteralPath $downloadPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if (-not [string]::Equals($downloadHash, $provisionedNodeArchiveSha256, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Node.js archive checksum mismatch. Expected $provisionedNodeArchiveSha256 but received $downloadHash."
+            }
+            Move-Item -LiteralPath $downloadPath -Destination $archivePath -Force
+        }
+        catch {
+            Remove-Item -LiteralPath $downloadPath -Force -ErrorAction SilentlyContinue
+            throw "Node.js $provisionedNodeVersion could not be provisioned for the complete DocFX PDF: $($_.Exception.Message)"
+        }
+    }
+
+    Remove-Item -LiteralPath $extractRoot -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
+    try {
+        Expand-Archive -LiteralPath $archivePath -DestinationPath $extractRoot -Force
+        $expandedRoot = Join-Path $extractRoot "node-v$provisionedNodeVersion-win-x64"
+        $expandedNode = Join-Path $expandedRoot "node.exe"
+        if (-not (Test-Path -LiteralPath $expandedNode -PathType Leaf)) {
+            throw "The verified Node.js archive did not contain node.exe."
+        }
+
+        Remove-Item -LiteralPath $provisionedNodeRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Move-Item -LiteralPath $expandedRoot -Destination $provisionedNodeRoot -Force
+    }
+    finally {
+        Remove-Item -LiteralPath $extractRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $installed = Get-LocalGptNodeInfo -Path $provisionedNodeExecutable -Provisioned $true
+    if ($null -eq $installed) {
+        throw "The provisioned Node.js runtime could not be executed: $provisionedNodeExecutable"
+    }
+
+    return $installed
+}
+
+function Resolve-LocalGptNode {
+    param([switch]$AllowProvisioning)
+
+    $nodeInfo = Find-LocalGptNode
+    if ($null -eq $nodeInfo -and $AllowProvisioning) {
+        $nodeInfo = Install-LocalGptNode
+    }
+    return $nodeInfo
+}
+
 @($manifestPath, $configPath, $PSCommandPath) | ForEach-Object {
     if (Test-Path -LiteralPath $_) { Unblock-File -LiteralPath $_ -ErrorAction SilentlyContinue }
 }
@@ -442,14 +614,26 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
     $xmlMemberCount = @($xmlForCount.SelectNodes("/doc/members/member")).Count
     $pdfPath = Join-Path $siteRoot $pdfName
     $pdfGenerated = $false
-    if ($docfxBuildSucceeded) {
-        $node = Get-Command node -ErrorAction SilentlyContinue
-        $nodeMajor = 0
-        if ($null -ne $node) {
-            $nodeVersionText = (& node --version 2>$null) -replace '^v', ''
-            [void][int]::TryParse(($nodeVersionText -split '\.')[0], [ref]$nodeMajor)
-        }
-        if ($null -ne $node -and $nodeMajor -ge 20) {
+    if ($docfxBuildSucceeded -and $RequirePdf) {
+        $nodeInfo = Resolve-LocalGptNode -AllowProvisioning
+        if ($null -ne $nodeInfo) {
+            $nodeVersionUsed = [string]$nodeInfo.Version
+            $nodeProvisioned = [bool]$nodeInfo.Provisioned
+            New-Item -ItemType Directory -Path $playwrightBrowserRoot -Force | Out-Null
+            $env:PLAYWRIGHT_NODEJS_PATH = [string]$nodeInfo.Path
+            $env:PLAYWRIGHT_BROWSERS_PATH = $playwrightBrowserRoot
+            $configuredPdfTimeout = 0
+            if (-not [int]::TryParse([string]$env:DOCFX_PDF_TIMEOUT, [ref]$configuredPdfTimeout) -or $configuredPdfTimeout -lt $pdfTimeoutMilliseconds) {
+                $env:DOCFX_PDF_TIMEOUT = [string]$pdfTimeoutMilliseconds
+            }
+            if ([string]::IsNullOrWhiteSpace($env:NODE_OPTIONS)) {
+                $env:NODE_OPTIONS = "--max-old-space-size=4096"
+            }
+            elseif ($env:NODE_OPTIONS -notmatch '(?i)--max-old-space-size(?:=|\s)') {
+                $env:NODE_OPTIONS = "$($env:NODE_OPTIONS) --max-old-space-size=4096"
+            }
+
+            Write-Host "Generating the complete DocFX PDF with Node.js $nodeVersionUsed; browser cache=$playwrightBrowserRoot; timeout=$($env:DOCFX_PDF_TIMEOUT) ms." -ForegroundColor Cyan
             try {
                 $pdfResult = Invoke-LocalGptDocfx -Arguments @("pdf", $configPath)
                 if ($pdfResult.ExitCode -eq 0) {
@@ -470,12 +654,23 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
                     }
                 }
                 if (-not $pdfGenerated) {
-                    $warnings.Add("DocFX PDF generation completed without a usable complete versioned PDF.")
+                    $diagnosticTail = @($pdfResult.Output | Select-Object -Last 12) -join " | "
+                    if ([string]::IsNullOrWhiteSpace($diagnosticTail)) {
+                        $diagnosticTail = "DocFX returned no PDF diagnostics."
+                    }
+                    $warnings.Add("DocFX PDF generation exited with code $($pdfResult.ExitCode): $diagnosticTail")
                 }
             }
-            catch { $warnings.Add("DocFX PDF generation failed: $($_.Exception.Message)") }
+            catch {
+                $warnings.Add("DocFX PDF generation failed: $($_.Exception.Message)")
+            }
         }
-        else { $warnings.Add("Node.js 20 or later was unavailable; complete DocFX PDF generation was skipped.") }
+        else {
+            $warnings.Add("Node.js $minimumNodeMajor or later was unavailable; complete DocFX PDF generation was skipped.")
+        }
+    }
+    elseif ($docfxBuildSucceeded) {
+        $warnings.Add("Complete DocFX PDF generation was not requested for this build; the lightweight fallback index is emitted instead.")
     }
 
     if (-not $pdfGenerated -and -not $RequirePdf) {
@@ -487,7 +682,15 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
     }
 
     if ($RequirePdf -and (-not $pdfGenerated -or $pdfMode -ne "docfx")) {
-        throw "Complete DocFX PDF generation failed. Verify DocFX metadata, the root TOC, and Node.js 20 or later."
+        $pdfFailureDetails = @(
+            $warnings |
+                Where-Object { $_ -match '(?i)(DocFX PDF|Node\.js|Playwright|Chromium)' } |
+                Select-Object -Last 4
+        ) -join " | "
+        if ([string]::IsNullOrWhiteSpace($pdfFailureDetails)) {
+            $pdfFailureDetails = "No additional PDF diagnostic was emitted."
+        }
+        throw "Complete DocFX PDF generation failed. $pdfFailureDetails"
     }
 }
 finally {
@@ -515,6 +718,9 @@ foreach ($publishRoot in $publishRoots) {
         apiYamlCount = $apiYamlCount
         apiHtmlCount = $apiHtmlCount
         pdfBytes = $pdfFileSize
+        nodeVersion = $nodeVersionUsed
+        nodeProvisioned = $nodeProvisioned
+        pdfTimeoutMilliseconds = $pdfTimeoutMilliseconds
         completeApiReference = $documentationMode -eq "docfx" -and $apiYamlCount -gt 1 -and $apiHtmlCount -gt 1
         warnings = @($warnings)
     }
