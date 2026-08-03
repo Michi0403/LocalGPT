@@ -431,14 +431,14 @@ article .localgpt-api-member-item .codewrapper {
   border-radius: .65rem;
 }
 
-article .localgpt-api-member-panel--constructors { --localgpt-api-accent: #7c3aed; }
-article .localgpt-api-member-panel--fields { --localgpt-api-accent: #d97706; }
-article .localgpt-api-member-panel--properties { --localgpt-api-accent: #0891b2; }
-article .localgpt-api-member-panel--methods { --localgpt-api-accent: #2563eb; }
-article .localgpt-api-member-panel--events { --localgpt-api-accent: #db2777; }
-article .localgpt-api-member-panel--operators { --localgpt-api-accent: #ea580c; }
-article .localgpt-api-member-panel--explicit-interface-implementations { --localgpt-api-accent: #0f766e; }
-article .localgpt-api-member-panel--extension-methods { --localgpt-api-accent: #16a34a; }
+article .localgpt-api-member-panel--constructors { --localgpt-api-accent: #a855f7; }
+article .localgpt-api-member-panel--fields { --localgpt-api-accent: #f59e0b; }
+article .localgpt-api-member-panel--properties { --localgpt-api-accent: #06b6d4; }
+article .localgpt-api-member-panel--methods { --localgpt-api-accent: #3b82f6; }
+article .localgpt-api-member-panel--events { --localgpt-api-accent: #ec4899; }
+article .localgpt-api-member-panel--operators { --localgpt-api-accent: #f97316; }
+article .localgpt-api-member-panel--explicit-interface-implementations { --localgpt-api-accent: #14b8a6; }
+article .localgpt-api-member-panel--extension-methods { --localgpt-api-accent: #22c55e; }
 
 /* Detailed left navigation with compact icon and count pills. */
 .localgpt-api-member-groups {
@@ -583,5 +583,386 @@ article .localgpt-api-member-panel--extension-methods { --localgpt-api-accent: #
   article .localgpt-api-member-panel--operators .localgpt-api-member-item {
     break-inside: avoid-page;
     page-break-inside: avoid;
+  }
+}
+
+
+/* 2026 Neko Docs polish: cute, grouped, and still technically sober. */
+.localgpt-api-neko-note {
+  align-items: center;
+  background:
+    radial-gradient(circle at 8% 15%, rgba(255, 255, 255, .9), transparent 28%),
+    linear-gradient(105deg, color-mix(in srgb, #f9a8d4 18%, var(--bs-body-bg, #fff)), color-mix(in srgb, #c4b5fd 16%, var(--bs-body-bg, #fff)) 52%, color-mix(in srgb, #7dd3fc 13%, var(--bs-body-bg, #fff)));
+  border: 1px solid color-mix(in srgb, #c084fc 28%, var(--bs-border-color, #d1d1d1));
+  border-radius: .9rem;
+  box-shadow: 0 .32rem 1rem color-mix(in srgb, #a855f7 8%, transparent);
+  color: color-mix(in srgb, #7e22ce 62%, var(--bs-body-color, #242424));
+  display: flex;
+  font-size: .88rem;
+  gap: .62rem;
+  margin: .25rem 0 1.05rem;
+  padding: .62rem .82rem;
+}
+
+.localgpt-api-neko-mascot {
+  align-items: center;
+  background: color-mix(in srgb, #fff 78%, #f9a8d4);
+  border: 1px solid color-mix(in srgb, #ec4899 24%, transparent);
+  border-radius: 999px;
+  display: inline-flex;
+  flex: 0 0 2rem;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 1.12rem;
+  height: 2rem;
+  justify-content: center;
+}
+
+.localgpt-api-type-icon {
+  display: inline-block;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  margin-right: .35rem;
+  min-width: 1.05rem;
+  text-align: center;
+}
+
+.localgpt-api-kind-navigation-group {
+  --localgpt-kind-accent: #8b5cf6;
+  margin: .42rem 0 .62rem;
+}
+
+.localgpt-api-kind-navigation-group--interfaces { --localgpt-kind-accent: #8b5cf6; }
+.localgpt-api-kind-navigation-group--classes { --localgpt-kind-accent: #ec4899; }
+.localgpt-api-kind-navigation-group--structs { --localgpt-kind-accent: #06b6d4; }
+.localgpt-api-kind-navigation-group--records { --localgpt-kind-accent: #6366f1; }
+.localgpt-api-kind-navigation-group--enums { --localgpt-kind-accent: #f59e0b; }
+.localgpt-api-kind-navigation-group--delegates { --localgpt-kind-accent: #f472b6; }
+
+.localgpt-api-kind-navigation-heading {
+  align-items: center;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--localgpt-kind-accent) 13%, transparent), transparent);
+  border-left: .2rem solid var(--localgpt-kind-accent);
+  border-radius: .42rem;
+  color: color-mix(in srgb, var(--localgpt-kind-accent) 72%, var(--bs-body-color, #242424));
+  display: flex;
+  font-size: .72rem;
+  font-weight: 750;
+  gap: .38rem;
+  letter-spacing: .025em;
+  margin: .18rem 0 .28rem;
+  padding: .32rem .42rem;
+  text-transform: uppercase;
+}
+
+.localgpt-api-kind-navigation-heading > span:first-child {
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: .85rem;
+}
+
+.localgpt-api-kind-navigation-count {
+  background: color-mix(in srgb, var(--bs-body-bg, #fff) 88%, var(--localgpt-kind-accent));
+  border: 1px solid color-mix(in srgb, var(--localgpt-kind-accent) 22%, transparent);
+  border-radius: 999px;
+  font-size: .6rem;
+  margin-left: auto;
+  min-width: 1.25rem;
+  padding: .08rem .3rem;
+  text-align: center;
+}
+
+.localgpt-api-kind-navigation-group > .nav {
+  border-left: 1px dashed color-mix(in srgb, var(--localgpt-kind-accent) 28%, var(--bs-border-color, #d1d1d1));
+  margin-left: .52rem;
+  padding-left: .48rem;
+}
+
+article .localgpt-api-member-panel > h2::after {
+  color: color-mix(in srgb, var(--localgpt-api-accent) 42%, transparent);
+  content: "  ฅ^•ﻌ•^ฅ";
+  font-family: "Segoe UI", sans-serif;
+  font-size: .72rem;
+  font-weight: 500;
+  margin-left: .15rem;
+  white-space: nowrap;
+}
+
+article .localgpt-api-member-panel > h2 .localgpt-api-member-count {
+  order: 3;
+}
+
+@media print {
+  .localgpt-api-neko-note {
+    background: linear-gradient(90deg, #fdf4ff, #eff6ff) !important;
+    border-color: #eadcf8;
+    box-shadow: none !important;
+    font-size: 7.5pt;
+    margin: 0 0 9pt;
+    padding: 4.5pt 7pt;
+  }
+
+  .localgpt-api-neko-mascot {
+    font-size: 11pt;
+    height: 18pt;
+    min-width: 18pt;
+  }
+
+  article .localgpt-api-member-panel > h2::after {
+    font-size: 6.5pt;
+  }
+}
+
+
+/* Fluffy pastel galaxy finish: white candy headings, star-sprinkled backgrounds, and extra cat/dog charm. */
+:root {
+  --localgpt-kawaii-sky-top: #ffc4e3;
+  --localgpt-kawaii-sky-mid: #f4c8ff;
+  --localgpt-kawaii-sky-bottom: #d8d5ff;
+  --localgpt-kawaii-panel: rgba(255, 248, 252, .86);
+  --localgpt-kawaii-panel-strong: rgba(255, 255, 255, .94);
+  --localgpt-kawaii-ink: #5c2b66;
+  --localgpt-kawaii-white: #ffffff;
+}
+
+html, body {
+  background:
+    linear-gradient(180deg, var(--localgpt-kawaii-sky-top) 0%, var(--localgpt-kawaii-sky-mid) 50%, var(--localgpt-kawaii-sky-bottom) 100%) !important;
+  color: var(--localgpt-kawaii-ink);
+  font-family: "Trebuchet MS", "Segoe UI", "Arial Rounded MT Bold", sans-serif;
+}
+
+body {
+  position: relative;
+}
+
+body::before {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.92) 0 1.1px, transparent 1.7px),
+    radial-gradient(circle, rgba(255,255,255,.78) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(255,255,255,.86) 0 1.3px, transparent 1.8px),
+    radial-gradient(circle, rgba(255,255,255,.72) 0 .95px, transparent 1.45px);
+  background-position: 0 0, 40px 26px, 88px 14px, 130px 66px;
+  background-size: 150px 150px, 150px 150px, 190px 190px, 210px 210px;
+  content: "";
+  inset: 0;
+  opacity: .58;
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
+}
+
+body,
+#wrapper,
+.content,
+.article,
+.sideaffix,
+.sidenav,
+.affix,
+.navbar,
+.subnav {
+  background-color: transparent !important;
+}
+
+main,
+article,
+.content article,
+.article.grid-right,
+.article.grid-left,
+.article .content,
+.container-fluid main {
+  color: var(--localgpt-kawaii-ink);
+}
+
+article h1,
+article h2,
+article h3,
+article h4,
+.localgpt-api-kind-navigation-heading,
+.localgpt-api-neko-note strong,
+article .localgpt-api-member-panel > h2,
+.localgpt-print-cover h1,
+.localgpt-print-toc > h1,
+.localgpt-print-toc-section > h2,
+.localgpt-print-toc-namespace h3,
+.localgpt-print-toc-kind h4 {
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+article h1,
+article > h1:first-child {
+  background: linear-gradient(135deg, rgba(236, 72, 153, .9), rgba(168, 85, 247, .92) 55%, rgba(96, 165, 250, .92));
+  border: 1px solid rgba(255,255,255,.34);
+  border-radius: 1.2rem;
+  box-shadow: 0 .9rem 2.2rem rgba(168, 85, 247, .18);
+  color: var(--localgpt-kawaii-white) !important;
+  padding: .9rem 1.1rem;
+  text-shadow: 0 1px 0 rgba(147, 51, 234, .55), 0 0 18px rgba(255,255,255,.18);
+}
+
+.content article,
+.article article,
+article.content,
+article[role="main"],
+.article.grid-right > article,
+.article.grid-left > article {
+  background: linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,249,252,.92));
+  border: 1px solid rgba(255,255,255,.58);
+  border-radius: 1.35rem;
+  box-shadow: 0 .85rem 2.2rem rgba(91, 33, 182, .12);
+  padding: 1.15rem 1.2rem;
+}
+
+.localgpt-api-neko-note {
+  background:
+    radial-gradient(circle at 12% 32%, rgba(255,255,255,.95), transparent 24%),
+    radial-gradient(circle at 88% 28%, rgba(255,255,255,.5), transparent 16%),
+    linear-gradient(120deg, rgba(244,114,182,.28), rgba(192,132,252,.25) 52%, rgba(125,211,252,.24));
+  border: 1px solid rgba(255,255,255,.55);
+  color: #6b2a74;
+}
+
+.localgpt-api-neko-note::after {
+  content: " ✨ 🐾 🌟 ";
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  margin-left: auto;
+  opacity: .9;
+}
+
+.localgpt-api-neko-mascot {
+  background: linear-gradient(135deg, rgba(255,255,255,.94), rgba(255,240,248,.85));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 .2rem .65rem rgba(236,72,153,.18);
+  color: #ec4899;
+  min-width: 2.7rem;
+  padding: 0 .5rem;
+}
+
+.localgpt-api-kind-navigation-heading,
+.localgpt-print-toc-kind h4,
+.localgpt-print-toc-namespace h3 {
+  border-left: 0 !important;
+  box-shadow: 0 .32rem .8rem rgba(168, 85, 247, .14);
+  color: #ffffff !important;
+  text-shadow: 0 1px 0 rgba(126, 34, 206, .4);
+}
+
+.localgpt-api-kind-navigation-heading {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--localgpt-kind-accent) 88%, #ffffff 12%), color-mix(in srgb, var(--localgpt-kind-accent) 65%, #f9a8d4 35%)) !important;
+  border-radius: .9rem;
+  padding: .45rem .58rem;
+}
+
+.localgpt-api-kind-navigation-count,
+article .localgpt-api-member-panel > h2 .localgpt-api-member-count,
+.localgpt-api-member-nav-count {
+  background: rgba(255,255,255,.92) !important;
+  color: #8b3d77 !important;
+  font-weight: 700;
+}
+
+.localgpt-api-kind-navigation-group > .nav {
+  background: rgba(255,255,255,.3);
+  border-left: 1px dashed rgba(255,255,255,.7);
+  border-radius: 0 0 1rem 1rem;
+  margin-top: .2rem;
+  padding: .35rem .35rem .45rem .55rem;
+}
+
+article .localgpt-api-member-panel {
+  background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,248,252,.98)) !important;
+  border: 1px solid rgba(255,255,255,.62) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 .65rem 1.7rem rgba(91, 33, 182, .10) !important;
+}
+
+article .localgpt-api-member-panel::before {
+  background: linear-gradient(90deg, rgba(255,255,255,.65), transparent 40%, rgba(255,255,255,.35)) !important;
+  opacity: .8;
+}
+
+article .localgpt-api-member-panel > h2 {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--localgpt-api-accent) 82%, #f472b6 18%), color-mix(in srgb, var(--localgpt-api-accent) 58%, #ffffff 42%)) !important;
+  border-bottom: 0 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 0 rgba(126, 34, 206, .35), 0 0 8px rgba(255,255,255,.12);
+}
+
+article .localgpt-api-member-panel > h2::after {
+  color: rgba(255,255,255,.95) !important;
+  content: "  🐱 🐶 ✨";
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: .8rem;
+}
+
+article .localgpt-api-member-panel-body {
+  background: rgba(255,255,255,.6) !important;
+}
+
+article .localgpt-api-member-item {
+  background: linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,246,251,.92)) !important;
+  border: 1px solid rgba(236,72,153,.08) !important;
+  border-radius: .9rem !important;
+}
+
+article .localgpt-api-member-item:hover {
+  box-shadow: 0 .4rem 1rem rgba(236,72,153,.12) !important;
+  transform: translateY(-1px);
+}
+
+.localgpt-api-member-nav-item > a {
+  background: rgba(255,255,255,.52);
+  border-radius: .8rem;
+  margin: .14rem 0;
+}
+
+.localgpt-api-member-nav-icon,
+.localgpt-api-type-icon,
+.localgpt-api-kind-navigation-heading > span:first-child {
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.35));
+}
+
+article a,
+.localgpt-api-member-item a,
+.localgpt-api-member-nav-item a,
+.toc a {
+  text-decoration-thickness: .08em;
+  text-underline-offset: .14em;
+}
+
+@media print {
+  html, body {
+    background: linear-gradient(180deg, #fff7fc, #fff0f8) !important;
+    color: #4b2159 !important;
+  }
+
+  body::before {
+    opacity: .28;
+  }
+
+  .content article,
+  .article article,
+  article.content,
+  article[role="main"] {
+    background: linear-gradient(180deg, #fffdfd, #fff7fb) !important;
+    border-color: #f1d4e6 !important;
+    box-shadow: none !important;
+  }
+
+  article h1,
+  article .localgpt-api-member-panel > h2,
+  .localgpt-api-kind-navigation-heading,
+  .localgpt-print-cover h1,
+  .localgpt-print-toc > h1,
+  .localgpt-print-toc-section > h2,
+  .localgpt-print-toc-namespace h3,
+  .localgpt-print-toc-kind h4 {
+    color: #ffffff !important;
+  }
+
+  article .localgpt-api-member-panel {
+    background: #fff9fc !important;
+    border-color: #f4cade !important;
+  }
+
+  article .localgpt-api-member-panel-body,
+  article .localgpt-api-member-item {
+    background: #fffdfd !important;
   }
 }

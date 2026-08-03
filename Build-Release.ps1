@@ -91,18 +91,19 @@ function Prepare-LocalGptDocumentation {
     $documentationAssembly = Join-Path $neutralOutputRoot "LocalGPT.dll"
     $documentationXml = Join-Path $neutralOutputRoot "LocalGPT.xml"
     $documentationOutput = Join-Path $neutralOutputRoot "wwwroot\help-docs"
-    $packageGraphProperties = @(
-        "-p:UseLocalWireProtocolProject=false",
-        "-p:LocalGptWireProtocolVersion=$WireProtocolVersion",
-        "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
-        "-p:RestoreAdditionalProjectSources=$packageDirectory",
+    # Documentation is produced from the authoritative source-project graph. The release package is still
+    # packed and delivered for package-mode consumers, but rebuilding that same mutable local package
+    # version through NuGet can reuse a stale global-packages entry. That failure presents as hundreds of
+    # missing LocalGPT.WireProtocol types even though packing itself succeeded.
+    $documentationBuildProperties = @(
+        "-p:UseLocalWireProtocolProject=true",
         "-p:RuntimeIdentifier=",
         "-p:RuntimeIdentifiers="
     )
 
     Write-Host "Building the RID-neutral LocalGPT assembly once for shared release documentation..." -ForegroundColor Cyan
-    Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $packageGraphProperties) -FailureMessage "RID-neutral LocalGPT restore for documentation failed."
-    Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $packageGraphProperties) -FailureMessage "RID-neutral LocalGPT build for documentation failed."
+    Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $documentationBuildProperties) -FailureMessage "RID-neutral LocalGPT restore for documentation failed."
+    Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $documentationBuildProperties) -FailureMessage "RID-neutral LocalGPT build for documentation failed."
 
     if (-not (Test-Path -LiteralPath $documentationAssembly -PathType Leaf)) { throw "Documentation assembly not found: $documentationAssembly" }
     if (-not (Test-Path -LiteralPath $documentationXml -PathType Leaf)) { throw "Documentation XML not found: $documentationXml" }

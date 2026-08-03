@@ -19,6 +19,7 @@ $documentationScript = Join-Path $root "build\Build-Documentation.ps1"
 $packageDirectory = Join-Path $root "packages"
 $wireVersion = "2.1.0"
 $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVersion.nupkg"
+$packageRestoreCache = Join-Path $root "artifacts\development\.nuget-packages"
 $useProject = if ($UseWireProtocolPackage) { "false" } else { "true" }
 $appOutputRoot = Join-Path (Split-Path -Parent $appProject) "bin\$Configuration\net10.0"
 $documentationRoot = Join-Path $appOutputRoot "wwwroot\help-docs"
@@ -100,12 +101,21 @@ Write-Host "Packing the RID-neutral protocol for package-mode consumers..." -For
 Invoke-DotNet -Arguments (@("pack", $wireProject, "-c", $Configuration, "--no-build", "-o", $packageDirectory, "-p:PackageVersion=$wireVersion", "-maxcpucount:1") + $wireBuildProperties) -FailureMessage "Wire protocol package creation failed."
 if (-not (Test-Path -LiteralPath $wirePackage)) { throw "Expected wire protocol package was not produced: $wirePackage" }
 
+if ($UseWireProtocolPackage) {
+    # Local packages are intentionally rebuilt with the stable public version. Use an isolated restore
+    # cache and evict only this package/version so NuGet cannot reuse an older 2.1.0 extraction.
+    $cachedWirePackage = Join-Path $packageRestoreCache "localgpt.wireprotocolversion\$wireVersion"
+    Remove-Item -LiteralPath $cachedWirePackage -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $packageRestoreCache -Force | Out-Null
+}
+
 $appProperties = @(
     "-p:UseLocalWireProtocolProject=$useProject",
     "-p:LocalGptWireProtocolVersion=$wireVersion",
     "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
     "-p:RestoreAdditionalProjectSources=$packageDirectory"
 )
+if ($UseWireProtocolPackage) { $appProperties += "-p:RestorePackagesPath=$packageRestoreCache" }
 Write-Host "Restoring and building LocalGPT..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $appProperties) -FailureMessage "LocalGPT application restore failed."
 Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $appProperties) -FailureMessage "LocalGPT application build failed."
@@ -114,15 +124,10 @@ Write-Host "Restoring and building the installer..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments @("restore", $setupProject, "--disable-parallel", "--force-evaluate") -FailureMessage "LocalGPT installer restore failed."
 Invoke-DotNet -Arguments @("build", $setupProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1") -FailureMessage "LocalGPT installer build failed."
 
-$packageAppProperties = @(
-    "-p:UseLocalWireProtocolProject=false",
-    "-p:LocalGptWireProtocolVersion=$wireVersion",
-    "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
-    "-p:RestoreAdditionalProjectSources=$packageDirectory"
-)
-Write-Host "Rebuilding LocalGPT against the package graph for WinUI metadata resolution..." -ForegroundColor Cyan
-Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $packageAppProperties) -FailureMessage "LocalGPT package-mode restore for WinUI failed."
-Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-t:Rebuild", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $packageAppProperties) -FailureMessage "LocalGPT package-mode rebuild for WinUI failed."
+# Keep the selected dependency graph for the complete development run. The protocol package is still
+# created above for package consumers, and -UseWireProtocolPackage explicitly selects that graph. A
+# second unconditional package-mode rebuild reused the mutable 2.1.0 NuGet cache and could replace an
+# already successful source-project build with hundreds of false missing-type errors.
 
 $documentationAssembly = Join-Path $appOutputRoot "LocalGPT.dll"
 $documentationXml = Join-Path $appOutputRoot "LocalGPT.xml"
@@ -142,13 +147,15 @@ Assert-LocalGptDocumentation -DocumentationRoot $documentationRoot -Version $app
 
 $wrapperProperties = @(
     "-p:Platform=$Platform",
-    "-p:UseLocalWireProtocolProject=false",
+    "-p:UseLocalWireProtocolProject=$useProject",
     "-p:LocalGptWireProtocolVersion=$wireVersion",
     "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
     "-p:RestoreAdditionalProjectSources=$packageDirectory"
 )
+if ($UseWireProtocolPackage) { $wrapperProperties += "-p:RestorePackagesPath=$packageRestoreCache" }
 Write-Host "Restoring and building the optional WinUI wrapper..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $wrapperProject, "--disable-parallel", "--force-evaluate") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper restore failed."
 Invoke-DotNet -Arguments (@("build", $wrapperProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper build failed."
 
-Write-Host "LocalGPT development build completed in protocol -> app -> installer -> package-graph app -> documentation -> wrapper order." -ForegroundColor Green
+$dependencyMode = if ($UseWireProtocolPackage) { "package" } else { "source project" }
+Write-Host "LocalGPT development build completed in protocol -> app ($dependencyMode graph) -> installer -> documentation -> wrapper order." -ForegroundColor Green

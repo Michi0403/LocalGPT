@@ -42,6 +42,7 @@ $toolSource = "unavailable"
 $apiYamlCount = 0
 $apiHtmlCount = 0
 $apiNavigationGroupCount = 0
+$xmlCommentPolishCount = 0
 $articleSourceCount = @(
     Get-ChildItem -LiteralPath $docsRoot -Filter "*.md" -File -Recurse -ErrorAction SilentlyContinue |
         Where-Object {
@@ -72,6 +73,11 @@ else {
 $provisionedNodeRoot = Join-Path $documentationToolCacheRoot "node-v$provisionedNodeVersion-win-x64"
 $provisionedNodeExecutable = Join-Path $provisionedNodeRoot "node.exe"
 $playwrightBrowserRoot = Join-Path $documentationToolCacheRoot "ms-playwright-docfx-2.78.5"
+$documentationLockRoot = Join-Path $documentationToolCacheRoot "locks"
+$documentationLockPath = Join-Path $documentationLockRoot "LocalGPT-documentation.lock"
+$documentationWorkRoot = Join-Path $documentationToolCacheRoot ("work\" + [Guid]::NewGuid().ToString('N'))
+$polishedXmlPath = Join-Path $documentationWorkRoot "LocalGPT.xml"
+$documentationLockStream = $null
 $nodeVersionUsed = ""
 $nodeProvisioned = $false
 $pdfTimeoutMilliseconds = 1800000
@@ -125,6 +131,69 @@ function Remove-LocalGptTemporaryPath {
 function ConvertTo-LocalGptHtml {
     param([AllowEmptyString()][string]$Text)
     return [System.Net.WebUtility]::HtmlEncode($Text)
+}
+
+
+function Convert-LocalGptDocumentationSentence {
+    param([AllowEmptyString()][string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $Text }
+    $leading = [regex]::Match($Text, '^\s*').Value
+    $trailing = [regex]::Match($Text, '\s*$').Value
+    $sentence = [regex]::Replace($Text.Trim(), '\s+', ' ')
+
+    $sentence = [regex]::Replace($sentence, '(?i)\bwhether or not\b', 'whether')
+    $sentence = [regex]::Replace($sentence, '(?i)\bin order to\b', 'to')
+    $sentence = [regex]::Replace($sentence, '(?i)\breturns back\b', 'returns')
+    $sentence = [regex]::Replace($sentence, '(?i)\butilizes\b', 'uses')
+    $sentence = [regex]::Replace($sentence, '(?i)\bprovides the ability to\b', 'allows callers to')
+    $sentence = [regex]::Replace($sentence, '(?i)\bcurrently existing\b', 'existing')
+
+    if ($sentence -match '^(gets|sets|represents|provides|contains|creates|returns|configures|invokes|validates|records|describes|indicates|determines|initializes|loads|saves|updates|deletes|adds|removes|builds|executes|converts|parses|formats|resolves|checks|stores|reads|writes|tracks|maps|ensures|specifies|defines)\b') {
+        $sentence = $sentence.Substring(0, 1).ToUpperInvariant() + $sentence.Substring(1)
+    }
+
+    if ($sentence.Length -gt 2 -and
+        $sentence -notmatch '[.!?…:;\)\]\}]$' -and
+        $sentence -notmatch '^[A-Za-z_][A-Za-z0-9_.<>`]*$') {
+        $sentence += '.'
+    }
+
+    return $leading + $sentence + $trailing
+}
+
+function Write-LocalGptPolishedXmlDocumentation {
+    param(
+        [Parameter(Mandatory)][string]$SourcePath,
+        [Parameter(Mandatory)][string]$DestinationPath
+    )
+
+    [xml]$document = Get-Content -LiteralPath $SourcePath -Raw
+    $polishedCount = 0
+    $nodes = @($document.SelectNodes('/doc/members/member/summary | /doc/members/member/remarks | /doc/members/member/returns | /doc/members/member/value | /doc/members/member/param | /doc/members/member/typeparam | /doc/members/member/exception'))
+    foreach ($node in $nodes) {
+        # Complex XML comments retain their authored structure. Simple prose-only comments receive
+        # conservative grammar normalization without changing identifiers, links, examples or code.
+        if ($node.ChildNodes.Count -ne 1 -or
+            ($node.FirstChild.NodeType -ne [Xml.XmlNodeType]::Text -and $node.FirstChild.NodeType -ne [Xml.XmlNodeType]::CDATA)) {
+            continue
+        }
+
+        $before = [string]$node.FirstChild.Value
+        $after = Convert-LocalGptDocumentationSentence -Text $before
+        if ([string]::Equals($before, $after, [StringComparison]::Ordinal)) { continue }
+        $node.FirstChild.Value = $after
+        $polishedCount++
+    }
+
+    $settings = [Xml.XmlWriterSettings]::new()
+    $settings.Encoding = [Text.UTF8Encoding]::new($false)
+    $settings.Indent = $true
+    $settings.NewLineHandling = [Xml.NewLineHandling]::Entitize
+    $writer = [Xml.XmlWriter]::Create($DestinationPath, $settings)
+    try { $document.Save($writer) }
+    finally { $writer.Dispose() }
+    return $polishedCount
 }
 
 function Get-LocalGptHtmlPage {
@@ -465,16 +534,30 @@ function Get-LocalGptApiMemberSectionPresentation {
     param([Parameter(Mandatory)][string]$Name)
 
     switch ($Name) {
-        "Constructors" { return [pscustomobject]@{ Key = "constructors"; IconHtml = "&#x2728;"; Accent = "#7c3aed" } }
-        "Fields" { return [pscustomobject]@{ Key = "fields"; IconHtml = "&#x1F9F1;"; Accent = "#d97706" } }
-        "Properties" { return [pscustomobject]@{ Key = "properties"; IconHtml = "&#x1F537;"; Accent = "#0891b2" } }
-        "Methods" { return [pscustomobject]@{ Key = "methods"; IconHtml = "&#x2699;&#xFE0F;"; Accent = "#2563eb" } }
-        "Events" { return [pscustomobject]@{ Key = "events"; IconHtml = "&#x26A1;"; Accent = "#db2777" } }
-        "Operators" { return [pscustomobject]@{ Key = "operators"; IconHtml = "&#x2797;"; Accent = "#ea580c" } }
-        "Explicit Interface Implementations" { return [pscustomobject]@{ Key = "explicit-interface-implementations"; IconHtml = "&#x1F517;"; Accent = "#0f766e" } }
-        "Extension Methods" { return [pscustomobject]@{ Key = "extension-methods"; IconHtml = "&#x1F9E9;"; Accent = "#16a34a" } }
+        "Constructors" { return [pscustomobject]@{ Key = "constructors"; IconHtml = "&#x2728;"; Accent = "#a855f7" } }
+        "Fields" { return [pscustomobject]@{ Key = "fields"; IconHtml = "&#x1F9F6;"; Accent = "#f59e0b" } }
+        "Properties" { return [pscustomobject]@{ Key = "properties"; IconHtml = "&#x1F43E;"; Accent = "#06b6d4" } }
+        "Methods" { return [pscustomobject]@{ Key = "methods"; IconHtml = "&#x2699;&#xFE0F;"; Accent = "#3b82f6" } }
+        "Events" { return [pscustomobject]@{ Key = "events"; IconHtml = "&#x26A1;"; Accent = "#ec4899" } }
+        "Operators" { return [pscustomobject]@{ Key = "operators"; IconHtml = "&#x2797;"; Accent = "#f97316" } }
+        "Explicit Interface Implementations" { return [pscustomobject]@{ Key = "explicit-interface-implementations"; IconHtml = "&#x1F517;"; Accent = "#14b8a6" } }
+        "Extension Methods" { return [pscustomobject]@{ Key = "extension-methods"; IconHtml = "&#x1F9E9;"; Accent = "#22c55e" } }
     }
     return $null
+}
+
+function Get-LocalGptApiKindPresentation {
+    param([AllowEmptyString()][string]$Kind)
+
+    switch ($Kind) {
+        "Interface" { return [pscustomobject]@{ Key = "interfaces"; Label = "Interfaces"; IconHtml = "&#x1F43E;"; Accent = "#8b5cf6"; Order = 10 } }
+        "Class" { return [pscustomobject]@{ Key = "classes"; Label = "Classes"; IconHtml = "&#x2728;"; Accent = "#ec4899"; Order = 20 } }
+        "Struct" { return [pscustomobject]@{ Key = "structs"; Label = "Structs"; IconHtml = "&#x1F9E9;"; Accent = "#06b6d4"; Order = 30 } }
+        "Record" { return [pscustomobject]@{ Key = "records"; Label = "Records"; IconHtml = "&#x1F4DA;"; Accent = "#6366f1"; Order = 40 } }
+        "Enum" { return [pscustomobject]@{ Key = "enums"; Label = "Enums"; IconHtml = "&#x1F3A8;"; Accent = "#f59e0b"; Order = 50 } }
+        "Delegate" { return [pscustomobject]@{ Key = "delegates"; Label = "Delegates"; IconHtml = "&#x1F380;"; Accent = "#f472b6"; Order = 60 } }
+        default { return [pscustomobject]@{ Key = "other-types"; Label = "Other types"; IconHtml = "&#x1F338;"; Accent = "#64748b"; Order = 90 } }
+    }
 }
 
 function Get-LocalGptApiMemberSectionName {
@@ -583,6 +666,28 @@ function Convert-LocalGptApiMemberPanels {
     return [pscustomobject]@{ Html = $updated; PanelCount = $panelCount }
 }
 
+function Convert-LocalGptApiKawaiiDetails {
+    param([Parameter(Mandatory)][string]$Html)
+
+    $updated = [regex]::Replace($Html, '(?i)>\s*Property Value\s*<', '>Value<')
+    $updated = [regex]::Replace($updated, '(?i)>\s*Field Value\s*<', '>Value<')
+    if ($updated -match '(?i)localgpt-api-neko-note') { return $updated }
+
+    $headingMatch = [regex]::Match($updated, '(?is)<h1\b[^>]*>(?<value>.*?)</h1>')
+    if (-not $headingMatch.Success) { return $updated }
+    $headingText = [regex]::Replace([Net.WebUtility]::HtmlDecode([regex]::Replace($headingMatch.Groups['value'].Value, '<[^>]+>', ' ')), '\s+', ' ').Trim()
+    $isNamespace = $headingText.StartsWith('Namespace ', [StringComparison]::OrdinalIgnoreCase)
+    $label = if ($isNamespace) { 'Neko & Puppy namespace shelf' } else { 'Neko & Puppy type guide' }
+    $message = if ($isNamespace) {
+        'Types are grouped by kind, so every interface, class, and helper lands in a cozy little home, nya~ woof!' 
+    }
+    else {
+        'Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!' 
+    }
+    $note = '<aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>' + $label + '</strong> · ' + $message + '</span></aside>'
+    return $updated.Insert($headingMatch.Index + $headingMatch.Length, $note)
+}
+
 function Update-LocalGptApiPresentation {
     param([Parameter(Mandatory)][string]$SiteRoot)
 
@@ -593,8 +698,9 @@ function Update-LocalGptApiPresentation {
         if ($file.Name -in @("toc.html", "index.html", "404.html", "search.html")) { continue }
         $html = Get-Content -LiteralPath $file.FullName -Raw
         $result = Convert-LocalGptApiMemberPanels -Html $html
-        if ($result.PanelCount -le 0 -or [string]::Equals($result.Html, $html, [StringComparison]::Ordinal)) { continue }
-        [IO.File]::WriteAllText($file.FullName, [string]$result.Html, [Text.UTF8Encoding]::new($false))
+        $updatedHtml = Convert-LocalGptApiKawaiiDetails -Html ([string]$result.Html)
+        if ([string]::Equals($updatedHtml, $html, [StringComparison]::Ordinal)) { continue }
+        [IO.File]::WriteAllText($file.FullName, $updatedHtml, [Text.UTF8Encoding]::new($false))
         $panelCount += [int]$result.PanelCount
     }
     return $panelCount
@@ -669,57 +775,130 @@ function Update-LocalGptApiNavigation {
     $tocHtmlPath = Join-Path $apiSiteRoot "toc.html"
     if (-not (Test-Path -LiteralPath $tocHtmlPath -PathType Leaf)) { return 0 }
 
-    $sectionMap = New-Object 'System.Collections.Generic.Dictionary[string,object]' ([StringComparer]::OrdinalIgnoreCase)
+    $pageMap = New-Object 'System.Collections.Generic.Dictionary[string,object]' ([StringComparer]::OrdinalIgnoreCase)
     foreach ($file in @(Get-ChildItem -LiteralPath $apiSiteRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue)) {
         if ($file.Name -in @("toc.html", "index.html", "404.html", "search.html")) { continue }
         $html = Get-Content -LiteralPath $file.FullName -Raw
-        $sections = @(Get-LocalGptApiMemberSections -Html $html)
-        if ($sections.Count -eq 0) { continue }
+        $title = Get-LocalGptHtmlDocumentTitle -Html $html -Fallback $file.BaseName
+        $body = Get-LocalGptHtmlDocumentBody -Html $html
+        $metadata = Get-LocalGptApiPageMetadata -Title $title -Html $body
         $relative = (Get-LocalGptRelativePath -Root $apiSiteRoot -Path $file.FullName).Replace('\', '/')
-        $sectionMap[$relative] = $sections
+        $pageMap[$relative] = [pscustomobject]@{
+            Kind = [string]$metadata.Kind
+            DisplayName = [string]$metadata.DisplayName
+            Namespace = [string]$metadata.Namespace
+            MemberSections = @($metadata.MemberSections)
+        }
     }
-    if ($sectionMap.Count -eq 0) { return 0 }
+    if ($pageMap.Count -eq 0) { return 0 }
 
     $tocHtml = Get-Content -LiteralPath $tocHtmlPath -Raw
-    $groupCount = 0
+    $script:localGptNavigationGroupCounter = 0
     $evaluator = [Text.RegularExpressions.MatchEvaluator]{
         param($match)
-        $anchorHtml = $match.Value
-        if ($anchorHtml -match '(?i)localgpt-api-member-groups') { return $anchorHtml }
         $href = [Net.WebUtility]::HtmlDecode($match.Groups['href'].Value)
         $hrefPath = $href.Split('#')[0].Split('?')[0]
-        if ([string]::IsNullOrWhiteSpace($hrefPath) -or [Uri]::IsWellFormedUriString($hrefPath, [UriKind]::Absolute)) { return $anchorHtml }
+        if ([string]::IsNullOrWhiteSpace($hrefPath) -or [Uri]::IsWellFormedUriString($hrefPath, [UriKind]::Absolute)) { return $match.Value }
         try { $normalized = [Uri]::UnescapeDataString($hrefPath).Replace('\', '/').TrimStart([char]'/') }
-        catch { return $anchorHtml }
-        if (-not $sectionMap.ContainsKey($normalized)) { return $anchorHtml }
+        catch { return $match.Value }
+        if (-not $pageMap.ContainsKey($normalized)) { return $match.Value }
 
-        $links = [Text.StringBuilder]::new()
-        [void]$links.Append('<ul class="nav localgpt-api-member-groups" aria-label="API member groups">')
-        foreach ($section in @($sectionMap[$normalized])) {
-            [void]$links.Append('<li class="nav-item localgpt-api-member-nav-item localgpt-api-member-nav-item--')
-            [void]$links.Append((ConvertTo-LocalGptHtml ([string]$section.Key)))
-            [void]$links.Append('"><a class="nav-link" href="')
-            [void]$links.Append((ConvertTo-LocalGptHtml ($hrefPath + '#' + [string]$section.Id)))
-            [void]$links.Append('"><span class="localgpt-api-member-nav-icon" aria-hidden="true">')
-            [void]$links.Append([string]$section.IconHtml)
-            [void]$links.Append('</span><span class="localgpt-api-member-nav-label">')
-            [void]$links.Append((ConvertTo-LocalGptHtml ([string]$section.Name)))
-            [void]$links.Append('</span><span class="localgpt-api-member-nav-count" aria-label="item count">')
-            [void]$links.Append([string]$section.Count)
-            [void]$links.Append('</span></a></li>')
+        $metadata = $pageMap[$normalized]
+        $kindPresentation = Get-LocalGptApiKindPresentation -Kind ([string]$metadata.Kind)
+        $attributes = $match.Groups['attrs'].Value
+        $anchorHtml = '<a' + $attributes + ' data-localgpt-api-kind="' + (ConvertTo-LocalGptHtml ([string]$metadata.Kind)) + '" data-localgpt-api-namespace="' + (ConvertTo-LocalGptHtml ([string]$metadata.Namespace)) + '">'
+        if ([string]$metadata.Kind -eq 'Namespace') {
+            $anchorHtml += '<span class="localgpt-api-type-icon" aria-hidden="true">&#x1F431;</span>' + (ConvertTo-LocalGptHtml ([string]$metadata.DisplayName))
         }
-        [void]$links.Append('</ul>')
+        else {
+            $anchorHtml += '<span class="localgpt-api-type-icon" aria-hidden="true">' + [string]$kindPresentation.IconHtml + '</span>' + (ConvertTo-LocalGptHtml ([string]$metadata.DisplayName))
+        }
+        $anchorHtml += '</a>'
+
+        if (@($metadata.MemberSections).Count -gt 0) {
+            $links = [Text.StringBuilder]::new()
+            [void]$links.Append('<ul class="nav localgpt-api-member-groups" aria-label="API member groups">')
+            foreach ($section in @($metadata.MemberSections)) {
+                [void]$links.Append('<li class="nav-item localgpt-api-member-nav-item localgpt-api-member-nav-item--')
+                [void]$links.Append((ConvertTo-LocalGptHtml ([string]$section.Key)))
+                [void]$links.Append('"><a class="nav-link" href="')
+                [void]$links.Append((ConvertTo-LocalGptHtml ($hrefPath + '#' + [string]$section.Id)))
+                [void]$links.Append('"><span class="localgpt-api-member-nav-icon" aria-hidden="true">')
+                [void]$links.Append([string]$section.IconHtml)
+                [void]$links.Append('</span><span class="localgpt-api-member-nav-label">')
+                [void]$links.Append((ConvertTo-LocalGptHtml ([string]$section.Name)))
+                [void]$links.Append('</span><span class="localgpt-api-member-nav-count" aria-label="item count">')
+                [void]$links.Append([string]$section.Count)
+                [void]$links.Append('</span></a></li>')
+            }
+            [void]$links.Append('</ul>')
+            $anchorHtml += $links.ToString()
+        }
+
         $script:localGptNavigationGroupCounter++
-        return $anchorHtml + $links.ToString()
+        return $anchorHtml
     }
 
-    $script:localGptNavigationGroupCounter = 0
     $updated = [regex]::Replace(
         $tocHtml,
-        '(?is)<a\b[^>]*\bhref=["''](?<href>[^"'']+\.html(?:[?#][^"'']*)?)["''][^>]*>.*?</a>',
+        '(?is)<a(?<attrs>\b[^>]*\bhref=["''](?<href>[^"'']+\.html(?:[?#][^"'']*)?)["''][^>]*)>.*?</a>(?:\s*<ul\b[^>]*\blocalgpt-api-member-groups\b[^>]*>.*?</ul>)?',
         $evaluator)
     $groupCount = [int]$script:localGptNavigationGroupCounter
     Remove-Variable -Name localGptNavigationGroupCounter -Scope Script -ErrorAction SilentlyContinue
+
+    if ($groupCount -gt 0 -and $updated -notmatch 'localgpt-group-api-navigation') {
+        $navigationScript = @'
+<script id="localgpt-group-api-navigation">
+(() => {
+  const order = ["Interface", "Class", "Struct", "Record", "Enum", "Delegate", "API"];
+  const presentations = {
+    Interface: ["🐶", "Interfaces", "interfaces"],
+    Class: ["🐱", "Classes", "classes"],
+    Struct: ["🐾", "Structs", "structs"],
+    Record: ["📚", "Records", "records"],
+    Enum: ["🌟", "Enums", "enums"],
+    Delegate: ["🎀", "Delegates", "delegates"],
+    API: ["🌸", "Other types", "other-types"]
+  };
+  document.querySelectorAll('a[data-localgpt-api-kind="Namespace"]').forEach(namespaceLink => {
+    const namespaceItem = namespaceLink.closest('li');
+    if (!namespaceItem) return;
+    const childList = Array.from(namespaceItem.children).find(child => child.tagName === 'UL');
+    if (!childList || childList.dataset.localgptGrouped === 'true') return;
+    const items = Array.from(childList.children).filter(item => {
+      const link = Array.from(item.children).find(child => child.matches?.('a[data-localgpt-api-kind]'));
+      return link && link.dataset.localgptApiKind !== 'Namespace';
+    });
+    if (!items.length) return;
+    const buckets = new Map();
+    items.forEach(item => {
+      const link = Array.from(item.children).find(child => child.matches?.('a[data-localgpt-api-kind]'));
+      const kind = link?.dataset.localgptApiKind || 'API';
+      if (!buckets.has(kind)) buckets.set(kind, []);
+      buckets.get(kind).push(item);
+    });
+    items.forEach(item => item.remove());
+    order.filter(kind => buckets.has(kind)).forEach(kind => {
+      const [icon, label, key] = presentations[kind] || presentations.API;
+      const wrapper = document.createElement('li');
+      wrapper.className = `nav-item localgpt-api-kind-navigation-group localgpt-api-kind-navigation-group--${key}`;
+      wrapper.innerHTML = `<div class="localgpt-api-kind-navigation-heading"><span aria-hidden="true">${icon}</span><span>${label}</span><span class="localgpt-api-kind-navigation-count">${buckets.get(kind).length}</span></div><ul class="nav"></ul>`;
+      const list = wrapper.querySelector('ul');
+      buckets.get(kind).sort((left, right) => {
+        const leftText = left.querySelector(':scope > a')?.textContent || '';
+        const rightText = right.querySelector(':scope > a')?.textContent || '';
+        return leftText.localeCompare(rightText, undefined, { sensitivity: 'base' });
+      }).forEach(item => list.appendChild(item));
+      childList.appendChild(wrapper);
+    });
+    childList.dataset.localgptGrouped = 'true';
+  });
+})();
+</script>
+'@
+        $updated = [regex]::Replace($updated, '(?i)</body>', $navigationScript + '</body>', 1)
+    }
+
     if ($groupCount -gt 0) {
         [IO.File]::WriteAllText($tocHtmlPath, $updated, [Text.UTF8Encoding]::new($false))
     }
@@ -850,25 +1029,28 @@ function New-LocalGptHtmlPrintBook {
     $printStyles = @'
 <style>
 @page { size: A4 landscape; margin: 9mm 10mm 11mm; }
-html, body { background: #fff !important; color: #242424 !important; font-family: "Segoe UI", Arial, sans-serif !important; font-size: 9.35pt; line-height: 1.38; }
+html, body { background: linear-gradient(180deg, #fff6fb, #fff0f8) !important; color: #4b2159 !important; font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif !important; font-size: 9.35pt; line-height: 1.38; }
 body { margin: 0 !important; max-width: none !important; }
 .localgpt-print-cover { min-height: 178mm; display: flex; flex-direction: column; justify-content: center; break-after: page; }
-.localgpt-print-cover::before { content: "LOCALGPT DOCUMENTATION"; color: #0067b8; font-size: 9pt; font-weight: 700; letter-spacing: .16em; margin-bottom: 12pt; }
-.localgpt-print-cover h1 { color: #171717; font-size: 31pt; font-weight: 650; line-height: 1.06; margin: 0 0 12pt; }
-.localgpt-print-cover p { color: #505050; font-size: 11.5pt; margin: 3pt 0; max-width: 64rem; }
+.localgpt-print-cover::before { content: "🐾 🐱 🐶 LOCALGPT · KAWAII DOCS 2026"; color: #d946ef; font-family: "Segoe UI Emoji", "Segoe UI", sans-serif; font-size: 9pt; font-weight: 800; letter-spacing: .12em; margin-bottom: 12pt; }
+.localgpt-print-cover h1 { color: #ffffff; text-shadow: 0 1pt 0 rgba(155, 81, 224, .55), 0 0 8pt rgba(236, 72, 153, .18); font-size: 31pt; font-weight: 700; line-height: 1.06; margin: 0 0 12pt; }
+.localgpt-print-cover p { color: #6b3b79; font-size: 11.5pt; margin: 3pt 0; max-width: 64rem; }
 .localgpt-print-toc { break-after: page; }
-.localgpt-print-toc > h1 { border-bottom: 2px solid #0067b8; color: #171717; font-size: 24pt; margin: 0 0 13pt; padding-bottom: 6pt; }
+.localgpt-print-toc > h1 { border-bottom: 2px solid #d8b4fe; color: #171717; font-size: 24pt; margin: 0 0 13pt; padding-bottom: 6pt; }
 .localgpt-print-toc-section { margin: 0 0 14pt; }
 .localgpt-print-toc-section > h2 { color: #323130; font-size: 14pt; margin: 10pt 0 5pt; }
 .localgpt-print-toc-conceptual { columns: 3; column-gap: 1.35rem; padding-left: 1.2rem; }
 .localgpt-print-toc-conceptual li { break-inside: avoid; font-size: 8.5pt; line-height: 1.25; margin: 1.2pt 0; }
 .localgpt-print-api-overview-link { font-size: 9pt; font-weight: 600; margin: 3pt 0 8pt; }
-.localgpt-print-toc-namespace { border-top: 1px solid #d2d0ce; break-inside: auto; margin-top: 7pt; padding-top: 5pt; }
-.localgpt-print-toc-namespace h3 { break-after: avoid; color: #0067b8; font-size: 10.5pt; margin: 0 0 3pt; }
-.localgpt-print-toc-namespace ul { columns: 3; column-gap: 1.25rem; list-style: none; margin: 0; padding: 0; }
-.localgpt-print-toc-namespace li { break-inside: avoid; font-size: 7.8pt; line-height: 1.22; margin: 1.4pt 0; }
-.localgpt-print-api-kind { color: #605e5c; font-size: 6.7pt; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
-.localgpt-print-member-links { display: block; margin-left: 9pt; }
+.localgpt-print-toc-namespace { background: linear-gradient(135deg, #fdf4ff, #f0f9ff 72%); border: 1px solid #eadcf8; border-radius: 8pt; break-inside: auto; margin-top: 8pt; padding: 6pt 7pt 7pt; }
+.localgpt-print-toc-namespace h3 { align-items: center; break-after: avoid; color: #7c3aed; display: flex; font-size: 11pt; gap: 4pt; margin: 0 0 5pt; }
+.localgpt-print-toc-kind-list { columns: 3; column-gap: 1.25rem; list-style: none; margin: 0; padding: 0; }
+.localgpt-print-toc-kind-list > li { break-inside: avoid; font-size: 7.8pt; line-height: 1.22; margin: 1.4pt 0; }
+.localgpt-print-toc-kind { --localgpt-api-kind-accent: #8b5cf6; margin-top: 5pt; }
+.localgpt-print-toc-kind h4 { align-items: center; break-after: avoid; color: var(--localgpt-api-kind-accent); display: flex; font-size: 8.5pt; gap: 3pt; margin: 0 0 2pt; }
+.localgpt-print-toc-kind-icon { font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif; }
+.localgpt-print-toc-kind-count { background: #fff; border: 1px solid color-mix(in srgb, var(--localgpt-api-kind-accent) 22%, #e5e7eb); border-radius: 999px; color: #555; font-size: 6pt; margin-left: 2pt; padding: .5pt 3pt; }
+.localgpt-print-member-links { display: block; margin-left: 8pt; }
 .localgpt-print-member-links a { color: #5c5c5c !important; display: inline-block; font-size: 6.8pt; margin-right: 5pt; }
 .localgpt-print-document { break-before: page; page-break-before: always; }
 .localgpt-print-document:first-of-type { break-before: auto; page-break-before: auto; }
@@ -878,7 +1060,7 @@ body { margin: 0 !important; max-width: none !important; }
 .localgpt-print-api-namespace + .localgpt-print-api-document { border-top: 0; margin-top: 9pt; }
 .localgpt-print-source { align-items: baseline; border-bottom: 1px solid #d1d1d1; color: #605e5c; display: flex; font-size: 7.5pt; gap: 1rem; justify-content: space-between; margin-bottom: 8pt; padding-bottom: 4pt; }
 .localgpt-print-workspace-header { border-bottom-color: #0067b8; color: #4a4a4a; }
-.localgpt-print-api-breadcrumb { border-bottom-color: #8ab4d4; color: #4a4a4a; }
+.localgpt-print-api-breadcrumb { border-bottom-color: #d8b4fe; color: #4a4a4a; }
 .localgpt-print-api-breadcrumb span:first-child, .localgpt-print-workspace-header span:first-child { color: #0067b8; font-weight: 650; }
 .localgpt-print-content { display: block !important; margin: 0 !important; max-width: none !important; opacity: 1 !important; padding: 0 !important; visibility: visible !important; width: auto !important; }
 .localgpt-print-content .content, .localgpt-print-content .markdown, .localgpt-print-content .tabGroup > section, .localgpt-print-content details, .localgpt-print-content details > * { display: block !important; opacity: 1 !important; visibility: visible !important; }
@@ -921,6 +1103,8 @@ body { margin: 0 !important; max-width: none !important; }
 .localgpt-print-content .localgpt-api-member-item:first-child { border-top: 0; }
 .localgpt-print-content .localgpt-api-member-item > h3 { color: color-mix(in srgb, var(--localgpt-api-accent) 75%, #242424) !important; margin-top: 1pt; }
 .localgpt-print-content .localgpt-api-member-item-body { min-width: 0; }
+.localgpt-print-content .localgpt-api-neko-note { align-items: center; background: linear-gradient(90deg, #fdf4ff, #eff6ff); border: 1px solid #eadcf8; border-radius: 7pt; color: #5b456d; display: flex; font-size: 7.5pt; gap: 5pt; margin: 0 0 9pt; padding: 4.5pt 7pt; }
+.localgpt-print-content .localgpt-api-neko-mascot { font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif; font-size: 12pt; }
 .localgpt-print-content .localgpt-api-member-panel--constructors .localgpt-api-member-item,
 .localgpt-print-content .localgpt-api-member-panel--fields .localgpt-api-member-item,
 .localgpt-print-content .localgpt-api-member-panel--properties .localgpt-api-member-item,
@@ -933,8 +1117,8 @@ body { margin: 0 !important; max-width: none !important; }
     [void]$builder.AppendLine('</head><body>')
     [void]$builder.AppendLine('<section class="localgpt-print-cover">')
     [void]$builder.AppendLine("<h1>LocalGPT $Version</h1>")
-    [void]$builder.AppendLine('<p>Complete product, architecture, operations, and XML-generated API documentation.</p>')
-    [void]$builder.AppendLine("<p>$($pageModels.Count) HTML reference pages · generated $([DateTime]::UtcNow.ToString('u'))</p>")
+    [void]$builder.AppendLine('<p>A cozy, complete guide to LocalGPT product behavior, architecture, operations, and XML-generated API details.</p>')
+    [void]$builder.AppendLine("<p>&#x1F43E; $($pageModels.Count) HTML reference pages · carefully arranged in 2026 · generated $([DateTime]::UtcNow.ToString('u'))</p>")
     [void]$builder.AppendLine('</section>')
     [void]$builder.AppendLine('<section class="localgpt-print-toc"><h1>Contents</h1>')
     [void]$builder.AppendLine('<div class="localgpt-print-toc-section"><h2>Product, architecture, and operations</h2><ol class="localgpt-print-toc-conceptual">')
@@ -942,34 +1126,67 @@ body { margin: 0 !important; max-width: none !important; }
         [void]$builder.AppendLine('<li><a href="#' + $page.Anchor + '">' + (ConvertTo-LocalGptHtml $page.Title) + '</a></li>')
     }
     [void]$builder.AppendLine('</ol></div>')
-    [void]$builder.AppendLine('<div class="localgpt-print-toc-section localgpt-print-toc-api"><h2>API reference</h2>')
-    $currentNamespace = ''
-    foreach ($page in @($pageModels | Where-Object { $_.IsApi })) {
-        if ($page.ApiKind -eq 'Namespace') {
-            if (-not [string]::IsNullOrWhiteSpace($currentNamespace)) { [void]$builder.AppendLine('</ul></section>') }
-            $currentNamespace = if ([string]::IsNullOrWhiteSpace($page.ApiNamespace)) { $page.ApiDisplayName } else { $page.ApiNamespace }
-            [void]$builder.AppendLine('<section class="localgpt-print-toc-namespace"><h3><a href="#' + $page.Anchor + '">Namespace ' + (ConvertTo-LocalGptHtml $currentNamespace) + '</a></h3><ul>')
-            continue
-        }
-        if ($page.Relative -eq 'api/index.html') {
-            [void]$builder.AppendLine('<p class="localgpt-print-api-overview-link"><a href="#' + $page.Anchor + '">' + (ConvertTo-LocalGptHtml $page.Title) + '</a></p>')
-            continue
-        }
-        if ([string]::IsNullOrWhiteSpace($currentNamespace)) {
-            $currentNamespace = if ([string]::IsNullOrWhiteSpace($page.ApiNamespace)) { 'Other API' } else { $page.ApiNamespace }
-            [void]$builder.AppendLine('<section class="localgpt-print-toc-namespace"><h3>' + (ConvertTo-LocalGptHtml $currentNamespace) + '</h3><ul>')
-        }
-        [void]$builder.Append('<li><a href="#' + $page.Anchor + '"><span class="localgpt-print-api-kind">' + (ConvertTo-LocalGptHtml $page.ApiKind) + '</span> ' + (ConvertTo-LocalGptHtml $page.ApiDisplayName) + '</a>')
-        if (@($page.MemberSections).Count -gt 0) {
-            [void]$builder.Append('<span class="localgpt-print-member-links">')
-            foreach ($section in @($page.MemberSections)) {
-                [void]$builder.Append('<a class="localgpt-print-member-link localgpt-print-member-link--' + (ConvertTo-LocalGptHtml ([string]$section.Key)) + '" href="#' + $page.Anchor + '-' + (ConvertTo-LocalGptHtml ([string]$section.Id)) + '"><span class="localgpt-print-member-icon" aria-hidden="true">' + [string]$section.IconHtml + '</span>' + (ConvertTo-LocalGptHtml ([string]$section.Name)) + ' <span class="localgpt-print-member-count">' + [string]$section.Count + '</span></a>')
-            }
-            [void]$builder.Append('</span>')
-        }
-        [void]$builder.AppendLine('</li>')
+    [void]$builder.AppendLine('<div class="localgpt-print-toc-section localgpt-print-toc-api"><h2>&#x1F431; API reference</h2>')
+    $apiPages = @($pageModels | Where-Object { $_.IsApi })
+    $apiOverview = @($apiPages | Where-Object { $_.Relative -eq 'api/index.html' } | Select-Object -First 1)
+    if ($apiOverview.Count -gt 0) {
+        [void]$builder.AppendLine('<p class="localgpt-print-api-overview-link"><a href="#' + $apiOverview[0].Anchor + '">&#x1F338; ' + (ConvertTo-LocalGptHtml $apiOverview[0].Title) + '</a></p>')
     }
-    if (-not [string]::IsNullOrWhiteSpace($currentNamespace)) { [void]$builder.AppendLine('</ul></section>') }
+
+    $namespaceNames = [System.Collections.Generic.List[string]]::new()
+    $namespaceSeen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($page in $apiPages) {
+        if ($page.Relative -eq 'api/index.html') { continue }
+        $namespaceName = if ($page.ApiKind -eq 'Namespace') {
+            if ([string]::IsNullOrWhiteSpace($page.ApiNamespace)) { $page.ApiDisplayName } else { $page.ApiNamespace }
+        }
+        elseif ([string]::IsNullOrWhiteSpace($page.ApiNamespace)) { 'Other API' }
+        else { $page.ApiNamespace }
+        if ($namespaceSeen.Add($namespaceName)) { $namespaceNames.Add($namespaceName) }
+    }
+
+    foreach ($namespaceName in $namespaceNames) {
+        $namespacePage = @($apiPages | Where-Object {
+            $_.ApiKind -eq 'Namespace' -and
+            ((-not [string]::IsNullOrWhiteSpace($_.ApiNamespace) -and $_.ApiNamespace -eq $namespaceName) -or
+             ([string]::IsNullOrWhiteSpace($_.ApiNamespace) -and $_.ApiDisplayName -eq $namespaceName))
+        } | Select-Object -First 1)
+        $namespaceHeading = if ($namespacePage.Count -gt 0) {
+            '<a href="#' + $namespacePage[0].Anchor + '">&#x1F431; ' + (ConvertTo-LocalGptHtml $namespaceName) + '</a>'
+        }
+        else { '&#x1F431; ' + (ConvertTo-LocalGptHtml $namespaceName) }
+        [void]$builder.AppendLine('<section class="localgpt-print-toc-namespace"><h3>' + $namespaceHeading + '</h3>')
+
+        $namespaceTypes = @($apiPages | Where-Object {
+            $_.Relative -ne 'api/index.html' -and $_.ApiKind -ne 'Namespace' -and
+            ((-not [string]::IsNullOrWhiteSpace($_.ApiNamespace) -and $_.ApiNamespace -eq $namespaceName) -or
+             ([string]::IsNullOrWhiteSpace($_.ApiNamespace) -and $namespaceName -eq 'Other API'))
+        })
+        $kindNames = @($namespaceTypes | ForEach-Object { [string]$_.ApiKind } | Sort-Object -Unique)
+        $kindModels = foreach ($kindName in $kindNames) {
+            $presentation = Get-LocalGptApiKindPresentation -Kind $kindName
+            [pscustomobject]@{ Kind = $kindName; Presentation = $presentation }
+        }
+        foreach ($kindModel in @($kindModels | Sort-Object { [int]$_.Presentation.Order })) {
+            $kindPages = @($namespaceTypes | Where-Object { $_.ApiKind -eq $kindModel.Kind } | Sort-Object ApiDisplayName)
+            if ($kindPages.Count -eq 0) { continue }
+            $presentation = $kindModel.Presentation
+            [void]$builder.AppendLine('<section class="localgpt-print-toc-kind localgpt-print-toc-kind--' + (ConvertTo-LocalGptHtml ([string]$presentation.Key)) + '" style="--localgpt-api-kind-accent:' + [string]$presentation.Accent + ';"><h4><span class="localgpt-print-toc-kind-icon" aria-hidden="true">' + [string]$presentation.IconHtml + '</span><span>' + (ConvertTo-LocalGptHtml ([string]$presentation.Label)) + '</span><span class="localgpt-print-toc-kind-count">' + [string]$kindPages.Count + '</span></h4><ul class="localgpt-print-toc-kind-list">')
+            foreach ($page in $kindPages) {
+                [void]$builder.Append('<li><a href="#' + $page.Anchor + '">' + (ConvertTo-LocalGptHtml $page.ApiDisplayName) + '</a>')
+                if (@($page.MemberSections).Count -gt 0) {
+                    [void]$builder.Append('<span class="localgpt-print-member-links">')
+                    foreach ($section in @($page.MemberSections)) {
+                        [void]$builder.Append('<a class="localgpt-print-member-link localgpt-print-member-link--' + (ConvertTo-LocalGptHtml ([string]$section.Key)) + '" href="#' + $page.Anchor + '-' + (ConvertTo-LocalGptHtml ([string]$section.Id)) + '"><span class="localgpt-print-member-icon" aria-hidden="true">' + [string]$section.IconHtml + '</span>' + (ConvertTo-LocalGptHtml ([string]$section.Name)) + ' <span class="localgpt-print-member-count">' + [string]$section.Count + '</span></a>')
+                    }
+                    [void]$builder.Append('</span>')
+                }
+                [void]$builder.AppendLine('</li>')
+            }
+            [void]$builder.AppendLine('</ul></section>')
+        }
+        [void]$builder.AppendLine('</section>')
+    }
     [void]$builder.AppendLine('</div></section>')
 
     foreach ($page in $pageModels) {
@@ -988,10 +1205,10 @@ body { margin: 0 !important; max-width: none !important; }
         [void]$builder.AppendLine('<section class="' + $documentClass + '" id="' + $page.Anchor + '">')
         if ($page.IsApi) {
             $namespaceLabel = if ([string]::IsNullOrWhiteSpace($page.ApiNamespace)) { 'LocalGPT API' } else { [string]$page.ApiNamespace }
-            [void]$builder.AppendLine('<div class="localgpt-print-source localgpt-print-api-breadcrumb"><span>API reference / ' + (ConvertTo-LocalGptHtml $namespaceLabel) + '</span><span>' + (ConvertTo-LocalGptHtml $page.Relative) + '</span></div>')
+            [void]$builder.AppendLine('<div class="localgpt-print-source localgpt-print-api-breadcrumb"><span>&#x1F43E; API reference / ' + (ConvertTo-LocalGptHtml $namespaceLabel) + '</span><span>' + (ConvertTo-LocalGptHtml $page.Relative) + '</span></div>')
         }
         else {
-            [void]$builder.AppendLine('<div class="localgpt-print-source localgpt-print-workspace-header"><span>LocalGPT ' + (ConvertTo-LocalGptHtml $Version) + ' / Documentation workspace</span><span>' + (ConvertTo-LocalGptHtml $page.Relative) + '</span></div>')
+            [void]$builder.AppendLine('<div class="localgpt-print-source localgpt-print-workspace-header"><span>&#x2728; LocalGPT ' + (ConvertTo-LocalGptHtml $Version) + ' / Documentation workspace</span><span>' + (ConvertTo-LocalGptHtml $page.Relative) + '</span></div>')
         }
         [void]$builder.AppendLine('<article class="localgpt-print-content">' + $body + '</article>')
         [void]$builder.AppendLine('</section>')
@@ -1344,6 +1561,104 @@ function Resolve-LocalGptNode {
     return $nodeInfo
 }
 
+
+function Enter-LocalGptDocumentationLock {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [int]$TimeoutSeconds = 1800
+    )
+
+    $directory = Split-Path -Parent $Path
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    $deadline = [DateTime]::UtcNow.AddSeconds([Math]::Max(1, $TimeoutSeconds))
+    $announced = $false
+    while ([DateTime]::UtcNow -lt $deadline) {
+        try {
+            $stream = [IO.File]::Open($Path, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+            $stream.SetLength(0)
+            $payload = [Text.Encoding]::UTF8.GetBytes("pid=$PID;utc=$([DateTime]::UtcNow.ToString('O'));repository=$RepositoryRoot")
+            $stream.Write($payload, 0, $payload.Length)
+            $stream.Flush()
+            return $stream
+        }
+        catch [IO.IOException] {
+            if (-not $announced) {
+                Write-Host "Another LocalGPT documentation build is finishing. Waiting for its workspace lock..." -ForegroundColor Yellow
+                $announced = $true
+            }
+            Start-Sleep -Milliseconds 500
+        }
+    }
+
+    throw "Timed out waiting for the LocalGPT documentation workspace lock: $Path"
+}
+
+function Wait-LocalGptFilesReadable {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [int]$Attempts = 20,
+        [int]$DelayMilliseconds = 250
+    )
+
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) { return $true }
+    for ($attempt = 1; $attempt -le [Math]::Max(1, $Attempts); $attempt++) {
+        $blocked = $false
+        foreach ($file in @(Get-ChildItem -LiteralPath $Root -File -Recurse -ErrorAction SilentlyContinue)) {
+            $stream = $null
+            try {
+                $stream = [IO.File]::Open($file.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+            }
+            catch [IO.IOException] {
+                $blocked = $true
+                break
+            }
+            finally {
+                if ($null -ne $stream) { $stream.Dispose() }
+            }
+        }
+        if (-not $blocked) { return $true }
+        Start-Sleep -Milliseconds ([Math]::Max(1, $DelayMilliseconds))
+    }
+    return $false
+}
+
+function Test-LocalGptTransientDocfxFailure {
+    param([AllowNull()][object[]]$Output)
+    $text = @($Output | ForEach-Object { [string]$_ }) -join "`n"
+    return $text -match '(?i)(being used by another process|process cannot access the file|sharing violation|System\.IO\.IOException|SafeFileHandle\.CreateFile)'
+}
+
+function Invoke-LocalGptDocfxWithRetry {
+    param(
+        [Parameter(Mandatory)][string[]]$Arguments,
+        [string]$ReadableRoot = "",
+        [string]$ResetRootOnRetry = "",
+        [int]$Attempts = 4
+    )
+
+    $lastResult = $null
+    for ($attempt = 1; $attempt -le [Math]::Max(1, $Attempts); $attempt++) {
+        if (-not [string]::IsNullOrWhiteSpace($ReadableRoot)) {
+            [void](Wait-LocalGptFilesReadable -Root $ReadableRoot -Attempts 20 -DelayMilliseconds 250)
+        }
+        $lastResult = Invoke-LocalGptDocfx -Arguments $Arguments
+        $transientFailure = Test-LocalGptTransientDocfxFailure -Output $lastResult.Output
+        if ($lastResult.ExitCode -eq 0 -and -not $transientFailure) { return $lastResult }
+        if (-not $transientFailure -or $attempt -ge $Attempts) { return $lastResult }
+
+        $delay = 500 * $attempt
+        Write-Warning "DocFX hit a transient Windows file-sharing lock. Retrying attempt $($attempt + 1) of $Attempts after ${delay}ms."
+        Start-Sleep -Milliseconds $delay
+        if (-not [string]::IsNullOrWhiteSpace($ResetRootOnRetry)) {
+            Remove-LocalGptTemporaryPath -Path $ResetRootOnRetry -Attempts 8 -DelayMilliseconds 250
+        }
+    }
+    return $lastResult
+}
+
+$documentationLockStream = Enter-LocalGptDocumentationLock -Path $documentationLockPath
+New-Item -ItemType Directory -Path $documentationWorkRoot -Force | Out-Null
+
 @($manifestPath, $configPath, $PSCommandPath) | ForEach-Object {
     if (Test-Path -LiteralPath $_) { Unblock-File -LiteralPath $_ -ErrorAction SilentlyContinue }
 }
@@ -1368,7 +1683,10 @@ Get-ChildItem -LiteralPath $assemblyDirectory -Filter "*.xml" -File -ErrorAction
     Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $inputRoot $_.Name) -Force
 }
 Copy-Item -LiteralPath $AssemblyPath -Destination (Join-Path $inputRoot "LocalGPT.dll") -Force
-Copy-Item -LiteralPath $XmlDocumentationPath -Destination (Join-Path $inputRoot "LocalGPT.xml") -Force
+$documentationXmlPath = Join-Path $inputRoot "LocalGPT.xml"
+$xmlCommentPolishCount = Write-LocalGptPolishedXmlDocumentation -SourcePath $XmlDocumentationPath -DestinationPath $polishedXmlPath
+Copy-Item -LiteralPath $polishedXmlPath -Destination $documentationXmlPath -Force
+Write-Host "Polished $xmlCommentPolishCount simple XML documentation passage(s) for clearer generated prose."
 
 $indexPath = Join-Path $docsRoot "index.md"
 if (Test-Path -LiteralPath $indexPath) {
@@ -1495,12 +1813,17 @@ try {
     if ($docfxAvailable) {
         try {
             Remove-Item -LiteralPath $apiRoot -Recurse -Force -ErrorAction SilentlyContinue
-            $metadataResult = Invoke-LocalGptDocfx -Arguments @("metadata", $configPath)
+            if (-not (Test-Path -LiteralPath $documentationXmlPath -PathType Leaf)) {
+                Copy-Item -LiteralPath $polishedXmlPath -Destination $documentationXmlPath -Force
+            }
+            $metadataResult = Invoke-LocalGptDocfxWithRetry -Arguments @("metadata", $configPath) -ReadableRoot $inputRoot -ResetRootOnRetry $apiRoot
             $apiTocPath = Join-Path $apiRoot "toc.yml"
             $apiYamlCount = @(Get-ChildItem -LiteralPath $apiRoot -Filter "*.yml" -File -Recurse -ErrorAction SilentlyContinue).Count
             $metadataSucceeded = $metadataResult.ExitCode -eq 0 -and (Test-Path -LiteralPath $apiTocPath -PathType Leaf) -and $apiYamlCount -gt 1
             if (-not $metadataSucceeded) {
-                $warnings.Add("DocFX metadata extraction did not produce the complete API graph; static XML API pages were generated instead.")
+                $metadataTail = @($metadataResult.Output | Select-Object -Last 20) -join " | "
+                if ([string]::IsNullOrWhiteSpace($metadataTail)) { $metadataTail = "DocFX returned no metadata diagnostic." }
+                $warnings.Add("DocFX metadata extraction did not produce the complete API graph (exit code $($metadataResult.ExitCode)): $metadataTail")
             }
             else {
                 $apiIndex = @"
@@ -1526,7 +1849,7 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
                     Set-Content -LiteralPath $apiTocPath -Value $updatedApiTocText -Encoding utf8
                 }
 
-                $buildResult = Invoke-LocalGptDocfx -Arguments @("build", $configPath)
+                $buildResult = Invoke-LocalGptDocfxWithRetry -Arguments @("build", $configPath) -ReadableRoot $apiRoot -ResetRootOnRetry $siteRoot
                 $apiHtmlRoot = Join-Path $siteRoot "api"
                 $apiHtmlCount = @(Get-ChildItem -LiteralPath $apiHtmlRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue).Count
                 $docfxBuildSucceeded = $buildResult.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $siteRoot "index.html") -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $apiHtmlRoot "index.html") -PathType Leaf) -and $apiHtmlCount -gt 1
@@ -1541,7 +1864,9 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
                     }
                 }
                 else {
-                    $warnings.Add("DocFX site generation did not render the complete API reference; static documentation was generated instead.")
+                    $buildTail = @($buildResult.Output | Select-Object -Last 30) -join " | "
+                    if ([string]::IsNullOrWhiteSpace($buildTail)) { $buildTail = "DocFX returned no site-build diagnostic." }
+                    $warnings.Add("DocFX site generation did not render the complete API reference (exit code $($buildResult.ExitCode)): $buildTail")
                 }
             }
         }
@@ -1556,16 +1881,16 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
     }
 
     if (-not $docfxBuildSucceeded) {
-        New-LocalGptStaticDocumentation -XmlPath $XmlDocumentationPath -Destination $siteRoot
+        New-LocalGptStaticDocumentation -XmlPath $polishedXmlPath -Destination $siteRoot
         $documentationMode = "static-fallback"
         $apiHtmlCount = @(Get-ChildItem -LiteralPath (Join-Path $siteRoot "api") -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue).Count
     }
     else {
         $documentationMode = "docfx"
-        Copy-Item -LiteralPath $XmlDocumentationPath -Destination (Join-Path $siteRoot "LocalGPT.xml") -Force
+        Copy-Item -LiteralPath $polishedXmlPath -Destination (Join-Path $siteRoot "LocalGPT.xml") -Force
     }
 
-    [xml]$xmlForCount = Get-Content -LiteralPath $XmlDocumentationPath -Raw
+    [xml]$xmlForCount = Get-Content -LiteralPath $polishedXmlPath -Raw
     $xmlMemberCount = @($xmlForCount.SelectNodes("/doc/members/member")).Count
     $pdfPath = Join-Path $siteRoot $pdfName
     $pdfGenerated = $false
@@ -1714,6 +2039,7 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
 finally {
     Pop-Location
     Remove-LocalGptTemporaryPath -Path $inputRoot
+    Remove-LocalGptTemporaryPath -Path $documentationWorkRoot -Attempts 8 -DelayMilliseconds 250
     Remove-LocalGptTemporaryPath -Path $printBookRoot -Attempts 8 -DelayMilliseconds 250
 }
 
@@ -1734,6 +2060,7 @@ foreach ($publishRoot in $publishRoots) {
         toolSource = $toolSource
         articleSourceCount = $articleSourceCount
         xmlMemberCount = $xmlMemberCount
+        xmlCommentPolishCount = $xmlCommentPolishCount
         apiYamlCount = $apiYamlCount
         apiHtmlCount = $apiHtmlCount
         apiNavigationGroupCount = $apiNavigationGroupCount
@@ -1770,3 +2097,7 @@ foreach ($publishRoot in $publishRoots) {
 }
 
 Write-Host "LocalGPT documentation generated for version $Version using $documentationMode; PDF mode: $pdfMode." -ForegroundColor Green
+if ($null -ne $documentationLockStream) {
+    $documentationLockStream.Dispose()
+    $documentationLockStream = $null
+}
