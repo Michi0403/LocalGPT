@@ -63,7 +63,15 @@ function Assert-LocalGptDocumentationPayload {
         }
     }
 
-    Write-Host "Verified LocalGPT $Version documentation in $documentationRoot" -ForegroundColor Green
+    $statusPath = Join-Path $documentationRoot "documentation-status.json"
+    $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
+    if ([string]$status.documentationMode -ne "docfx") { throw "Published LocalGPT documentation did not use the DocFX modern site." }
+    if ([string]$status.pdfMode -ne "docfx") { throw "Published LocalGPT documentation does not contain the complete DocFX PDF." }
+    if (-not ([bool]$status.completeApiReference)) { throw "Published LocalGPT documentation is missing the complete XML-generated API reference." }
+    if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "Published LocalGPT documentation contains an incomplete API graph." }
+    if ([long]$status.pdfBytes -le 4096) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
+
+    Write-Host "Verified complete LocalGPT $Version DocFX modern documentation in $documentationRoot" -ForegroundColor Green
 }
 
 $appVersion = Resolve-ProjectVersion -ProjectPath $appProject

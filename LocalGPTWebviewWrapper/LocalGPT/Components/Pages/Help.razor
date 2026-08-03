@@ -66,7 +66,7 @@
 
     <section class="help-panel help-wide">
         <h2>Build behavior</h2>
-        <p>Normal Windows builds restore the repository-local DocFX tool, generate HTML/API documentation, and attempt a versioned PDF. HTML generation requires the .NET SDK; PDF generation additionally requires Node.js. Set <code>BuildLocalGptDocumentation=false</code> to skip the documentation target for a diagnostic build, or <code>RequireLocalGptDocumentationPdf=true</code> to make a missing PDF prerequisite fail the build.</p>
+        <p>Normal Windows builds restore the repository-local DocFX tool, generate the complete modern HTML site and XML-backed API reference, and require one versioned PDF containing the same root table of contents. PDF generation requires Node.js 20 or later. Set <code>BuildLocalGptDocumentation=false</code> or <code>RequireLocalGptDocumentationPdf=false</code> only for an explicit infrastructure diagnosis.</p>
     </section>
 </main>
 

@@ -2,25 +2,30 @@
 
 LocalGPT documentation is built from two maintained sources:
 
-1. Markdown articles under `docs/articles` for workflows and architecture.
-2. Compiler-generated `LocalGPT.xml` comments for public services, controllers, business contracts and capabilities.
+1. Every Markdown document under `docs`, organized through the root `toc.yml`.
+2. Compiler-generated `LocalGPT.xml` comments for public services, controllers, business contracts, and capabilities.
 
-`DocumentationUpdatedAttribute` records the LocalGPT version in which a documented contract was last reviewed. `DocumentationTranslationAdapter` asks the existing localization service for an optional translated display name, summary and remarks while retaining the original XML text as fallback.
+DocFX reflects `LocalGPT.dll` with the side-by-side XML file and creates the API YAML graph under `docs/api`. The root table of contents imports the generated `api/toc.yml`, so the website and the versioned PDF contain the same namespace, type, and member reference.
 
 ## Build outputs
 
-A Windows LocalGPT build restores the repository-local DocFX tool, generates API metadata and HTML, and then attempts PDF generation. The PDF name contains the application version, for example `LocalGPT-2.1.23.pdf`.
+A Windows LocalGPT build restores the repository-local DocFX tool, extracts metadata, builds the modern DocFX website, and generates one complete PDF from the root table of contents. The output uses the built-in `default` plus `modern` templates with small Microsoft Learn-style typography and spacing overrides.
 
 The running application exposes:
 
-- `/help-docs/index.html` for generated HTML;
-- `/api/documentation/status` for artifact status;
+- `/help-docs/index.html` for the complete generated website;
+- `/help-docs/api/index.html` for the generated API landing page;
+- `/api/documentation/status` for artifact and API-page counts;
 - `/api/documentation/comments` for bounded XML-comment search;
-- `/api/documentation/comment?memberId=...` for one stable compiler member id;
+- `/api/documentation/comment?memberId=...` for one stable compiler member ID;
 - `/api/documentation/pdf` for the current versioned PDF.
 
-Normal and Release builds keep documentation enabled, but a valid application compile or RID publish is not invalidated by DocFX or Node.js failure. LocalGPT publishes deterministic HTML and a dependency-free versioned PDF index when the external toolchain cannot produce them. Set `RequireLocalGptDocumentationPdf=true` only when a CI policy must reject a build that cannot produce either the DocFX PDF or the fallback PDF. Set `BuildLocalGptDocumentation=false` only to bypass the complete documentation target while diagnosing build infrastructure.
+## Required toolchain
 
-## Metadata and release fallback in 2.1.23
+HTML and API generation require the .NET SDK and the repository-local DocFX tool. Complete PDF generation additionally requires Node.js 20 or later. Normal development and release commands require the DocFX site and DocFX PDF by default; they no longer accept a one-page fallback index as a successful documentation payload.
 
-The documentation stage first gives DocFX access to the complete application output assembly set. When metadata extraction or the DocFX site build still fails, LocalGPT generates a searchable static site directly from `LocalGPT.xml` and maintained Markdown articles. It also writes a small valid versioned PDF index without Node.js. The source help tree is copied into every RID publish after `Publish`, while unexpected documentation-script failures are emitted as warnings instead of converting a successful application compile into a failed release.
+Set `BuildLocalGptDocumentation=false` only for an explicit infrastructure diagnosis. Set `RequireLocalGptDocumentationPdf=false` only when intentionally allowing the deterministic static fallback during such a diagnosis. Release publishing continues to require the complete DocFX PDF.
+
+## Verification
+
+The build validates that metadata produced `api/toc.yml`, that API HTML pages were rendered, that the exact versioned PDF exists, and that `documentation-status.json` reports `documentationMode: docfx`, `pdfMode: docfx`, and nonzero API counts. This prevents a successful application build from silently delivering an empty API section or a PDF that only points at the XML file.

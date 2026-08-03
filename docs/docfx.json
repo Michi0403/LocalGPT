@@ -1,33 +1,45 @@
-{
-  "metadata": {
-    "src": [
-      {
-        "files": [
-          "LocalGPT.dll"
-        ],
-        "src": "input"
-      }
-    ],
-    "dest": "api",
-    "filter": "filterConfig.yml"
-  },
+﻿{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": [
+            "LocalGPT.dll"
+          ],
+          "src": "input"
+        }
+      ],
+      "dest": "api",
+      "filter": "filterConfig.yml",
+      "disableGitFeatures": true,
+      "namespaceLayout": "nested",
+      "memberLayout": "samePage"
+    }
+  ],
   "build": {
     "content": [
       {
         "files": [
-          "index.md",
+          "*.md",
           "toc.yml",
-          "articles/**.md",
+          "articles/**/*.md",
           "articles/**/toc.yml",
-          "api/**.yml",
-          "api/**.md"
+          "api/**/*.yml",
+          "api/**/*.md"
+        ],
+        "exclude": [
+          "_site/**",
+          "input/**",
+          ".tools/**"
         ]
       }
     ],
     "resource": [
       {
         "files": [
-          "media/**"
+          "media/**",
+          "styles/**",
+          "pdf-cover.html"
         ]
       }
     ],
@@ -39,10 +51,22 @@
     "globalMetadata": {
       "_appName": "LocalGPT",
       "_appTitle": "LocalGPT Documentation",
+      "_appFooter": "LocalGPT 2.1.23 Â· generated documentation",
       "_enableSearch": true,
       "_disableContribution": true,
+      "_disableTocFilter": false,
+      "_disableNextArticle": false,
+      "_lang": "en",
       "pdf": true,
       "localgptVersion": "2.1.23"
+    },
+    "fileMetadata": {
+      "pdf": {
+        "toc.yml": true,
+        "api/toc.yml": false
+      }
     }
   }
 }
+
+

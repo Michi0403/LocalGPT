@@ -1,8 +1,14 @@
-pdf: true
+﻿pdf: true
+pdfFileName: LocalGPT-2.1.23.pdf
+pdfTocPage: true
+pdfCoverPage: pdf-cover.html
+pdfPrintBackground: true
 items:
-- name: Overview
+- name: LocalGPT documentation
   href: index.md
+  expanded: true
 - name: User guide
+  expanded: true
   items:
   - name: Chat and Council
     href: articles/chat-and-council.md
@@ -16,5 +22,116 @@ items:
     href: articles/security.md
   - name: Generated documentation
     href: articles/documentation.md
+- name: Architecture and product model
+  expanded: true
+  items:
+  - name: LocalGPT architecture
+    href: ARCHITECTURE.md
+  - name: Project identity and provenance
+    href: PROJECT_IDENTITY.md
+  - name: Project stance
+    href: PROJECT_STANCE.md
+  - name: Capability snapshot
+    href: LOCALGPT_CAPABILITY_SNAPSHOT.md
+  - name: Capability-gap contract
+    href: CAPABILITY_GAP_CONTRACT.md
+  - name: Architecture guide for AI review
+    href: ARCHITECTURE_FOR_AI.md
+  - name: Safe rework manifest
+    href: SAFE_REWORK_MANIFEST.md
+- name: AI host, chat, and Council
+  expanded: true
+  items:
+  - name: AI Host control plane
+    href: AI_HOST_CONTROL_PLANE_ARCHITECTURE.md
+  - name: AI Host .NET/Blazor rebuild guide
+    href: AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md
+  - name: AI Host experiment notes
+    href: AI_HOST_DOTNET_EXPERIMENT.md
+  - name: .NET AI Host architecture patterns
+    href: DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md
+  - name: Chat protocols and session context
+    href: CHAT_PROTOCOLS_AND_SESSION_CONTEXT.md
+  - name: DXAI functions and change reviews
+    href: DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md
+  - name: Humanâ€“AI collaboration contract
+    href: HUMAN_AI_COLLABORATION.md
+  - name: Organic AI Council blueprint 1.6
+    href: ORGANIC-AI-COUNCIL-BLUEPRINT-v1.6.md
+  - name: Organic AI Council blueprint 2.1
+    href: ORGANIC_AI_COUNCIL_BLUEPRINT_2_1.md
+  - name: Generation archetype contracts
+    href: GENERATION_ARCHETYPE_CONTRACTS.md
+  - name: Microsoft .NET sample curriculum
+    href: MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md
+  - name: Minecraft Mod AI Builder
+    href: MINECRAFT_MOD_AI_BUILDER.md
+  - name: Minecraft source knowledge
+    href: MINECRAFT_SOURCE_KNOWLEDGE.md
+  - name: Runtime-class ASCII game presets
+    href: ASCII_RUNTIME_GAME_PRESETS.md
+- name: Frontend and runtime experience
+  expanded: true
+  items:
+  - name: Blazor Bootstrap DevExpress design
+    href: BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md
+  - name: Blazor DevExpress AI generation
+    href: BLAZOR_DEVEXPRESS_AI_GENERATION.md
+  - name: Frontend design pattern library
+    href: FRONTEND_DESIGN_PATTERN_LIBRARY.md
+  - name: Frontend test automation
+    href: FRONTEND_TEST_AUTOMATION.md
+  - name: Theme Fusion runtime architecture
+    href: THEME_RUNTIME_ARCHITECTURE.md
+  - name: JavaScript runtime diagnostics
+    href: JAVASCRIPT_RUNTIME_DIAGNOSTICS.md
+  - name: Component safety and bounded awareness
+    href: COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md
+  - name: DevExpress asset boundary
+    href: DEVEXPRESS_ASSETS.md
+- name: Data and persistence
+  expanded: true
+  items:
+  - name: Database-first project architecture
+    href: DATABASE_FIRST_PROJECT_ARCHITECTURE.md
+  - name: Database migration bootstrap
+    href: DATABASE_MIGRATION_BOOTSTRAP.md
+  - name: EF Core and DevExpress business objects
+    href: EF_DEVEXPRESS_BUSINESS_OBJECTS.md
+  - name: EF migration snapshot architecture
+    href: EF_MIGRATION_SNAPSHOT_ARCHITECTURE.md
+- name: Engineering policy and delivery
+  expanded: true
+  items:
+  - name: Compiler validation and generation rules
+    href: COMPILER_VALIDATION_AND_GENERATION_RULES.md
+  - name: Safe static, runtime, and diagnostics policy
+    href: SAFE_STATIC_RUNTIME_AND_DIAGNOSTICS_POLICY.md
+  - name: Logging and diagnostics integrity
+    href: LOGGING_INTEGRITY.md
+  - name: Organic 1-Wire runtime security
+    href: ONEWIRE_RUNTIME_SECURITY_HTTP_JSON.md
+  - name: Project maintenance and toolchains
+    href: PROJECT-MAINTENANCE-WORKSPACES-TOOLCHAINS.md
+  - name: Project collaboration model
+    href: PROJECT_COLLABORATION.md
+  - name: Release process
+    href: RELEASE_PROCESS.md
+  - name: Maintained workflow memory
+    href: LOCALGPT_WORKFLOW_MEMORY.md
+  - name: Developer diary
+    href: LOCALGPT_DEVELOPER_DIARY.md
+  - name: Open architecture tasks
+    href: OPEN_TASKS.md
+  - name: Open wiring register
+    href: OPEN_WIRINGS_2.0.3.md
+  - name: README image plan
+    href: README_IMAGE_PLAN.md
 - name: API reference
-  href: api/
+  href: api/index.md
+  expanded: true
+  items:
+  - name: All namespaces and types
+    href: api/toc.yml
+
+

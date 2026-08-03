@@ -141,8 +141,7 @@
     <LocalGptDocumentationRepositoryRoot>$(MSBuildThisFileDirectory).</LocalGptDocumentationRepositoryRoot>
     <LocalGptDocumentationOutputRoot>$(TargetDir)wwwroot\help-docs</LocalGptDocumentationOutputRoot>
     <BuildLocalGptDocumentation Condition="'$(BuildLocalGptDocumentation)' == ''">true</BuildLocalGptDocumentation>
-    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == '' and '$(Configuration)' == 'Release'">true</RequireLocalGptDocumentationPdf>
-    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">false</RequireLocalGptDocumentationPdf>
+    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">true</RequireLocalGptDocumentationPdf>
     <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
   </PropertyGroup>
 

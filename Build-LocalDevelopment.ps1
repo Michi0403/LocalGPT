@@ -20,7 +20,7 @@ $wireVersion = "2.1.0"
 $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVersion.nupkg"
 $useProject = if ($UseWireProtocolPackage) { "false" } else { "true" }
 $documentationRoot = Join-Path (Split-Path -Parent $appProject) "wwwroot\help-docs"
-$requireDocumentationPdf = if ($Configuration -eq "Release") { "true" } else { "false" }
+$requireDocumentationPdf = "true"
 
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
@@ -59,7 +59,15 @@ function Assert-LocalGptDocumentation {
         }
     }
 
-    Write-Host "Verified LocalGPT $Version HTML, XML, status and PDF documentation." -ForegroundColor Green
+    $statusPath = Join-Path $DocumentationRoot "documentation-status.json"
+    $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
+    if ([string]$status.documentationMode -ne "docfx") { throw "The LocalGPT development build used static documentation instead of the DocFX modern site." }
+    if ([string]$status.pdfMode -ne "docfx") { throw "The LocalGPT development build did not produce the complete DocFX PDF." }
+    if (-not ([bool]$status.completeApiReference)) { throw "The LocalGPT development documentation does not contain the complete XML-generated API reference." }
+    if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "The LocalGPT development documentation API graph is incomplete." }
+    if ([long]$status.pdfBytes -le 4096) { throw "The LocalGPT development PDF is unexpectedly small and is not accepted as complete." }
+
+    Write-Host "Verified complete LocalGPT $Version DocFX modern HTML, XML API reference and PDF documentation." -ForegroundColor Green
 }
 
 $appVersion = Resolve-ProjectVersion -ProjectPath $appProject
